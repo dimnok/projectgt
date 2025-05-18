@@ -1,0 +1,24 @@
+name: Generate Dart API Docs
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.0'
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Generate docs
+        run: flutter pub global run dartdoc --output docs/api
+      - name: Archive docs
+        uses: actions/upload-artifact@v3
+        with:
+          name: dartdoc-api
+          path: docs/api 

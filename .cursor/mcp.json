@@ -1,0 +1,30 @@
+{
+  "mcpServers": {
+    "sequential-thinking": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ]
+    },
+    "context7": {
+      "command": "npx",
+      "args": [
+        "-y", 
+        "@upstash/context7-mcp@latest"
+      ]
+    },
+    "supabase": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server-supabase@latest",
+        "--access-token",
+        "sbp_9e3b060d849810c2210b5d7192b1d927e8a2fb61"
+      ]
+    },
+    "mcp-memory": {
+      "url": "https://memory.mcpgenerator.com/648507b1-711c-4403-a059-f7aeee47fafb/sse"
+    }
+  }
+} 
