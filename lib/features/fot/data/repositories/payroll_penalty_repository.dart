@@ -15,4 +15,7 @@ abstract class PayrollPenaltyRepository {
 
   /// Удалить штраф по идентификатору.
   Future<void> deletePenalty(String id);
+
+  /// Получить все штрафы (без фильтрации по payroll_id)
+  Future<List<PayrollPenaltyModel>> getAllPenalties();
 } 

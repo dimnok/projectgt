@@ -7,6 +7,8 @@ import '../widgets/payroll_table_widget.dart';
 import '../providers/payroll_providers.dart';
 import '../providers/payroll_filter_provider.dart';
 import 'package:projectgt/features/timesheet/presentation/providers/timesheet_provider.dart';
+import 'tabs/payroll_tab_penalties.dart';
+import 'tabs/payroll_tab_bonuses.dart';
 
 /// Экран: Список расчётов ФОТ за выбранный месяц с применением фильтров.
 class PayrollListScreen extends ConsumerStatefulWidget {
@@ -21,6 +23,12 @@ class PayrollListScreen extends ConsumerStatefulWidget {
 
 class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
   bool _initialLoadStarted = false;
+  int _selectedTabIndex = 0;
+  final List<Tab> _tabs = const [
+    Tab(text: 'ФОТ'),
+    Tab(text: 'Штрафы'),
+    Tab(text: 'Премии'),
+  ];
   
   @override
   void initState() {
@@ -81,100 +89,127 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
         children: [
           // Фильтры ФОТ
           const PayrollFilterWidget(),
-          
-          // Таблица с данными ФОТ
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(
-                    color: theme.colorScheme.outline.withValues(alpha: 51),
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Stack(
-                    children: [
-                      if (isDataReady)
-                      payrollsAsync.when(
-                        data: (payrolls) => PayrollTableWidget(payrolls: payrolls),
-                        loading: () => Container(),
-                        error: (e, st) => Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Ошибка загрузки данных', 
-                                style: theme.textTheme.titleMedium?.copyWith(color: Colors.red),
-                              ),
-                              const SizedBox(height: 8),
-                              SizedBox(
-                                width: 300,
-                                child: Text(
-                                  e.toString(), 
-                                  style: theme.textTheme.bodyMedium?.copyWith(color: Colors.red),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              ElevatedButton.icon(
-                                icon: const Icon(Icons.refresh),
-                                label: const Text('Повторить'),
-                                onPressed: () {
-                                  // Сохраняем контекст до асинхронной операции
-                                  final scaffoldMessenger = ScaffoldMessenger.of(context);
-                                    
-                                    // Перезагружаем данные табеля сначала
-                                    ref.read(timesheetProvider.notifier).loadTimesheet();
-                                    
-                                  // Принудительно обновляем провайдер и используем результат
-                                  final future = ref.refresh(filteredPayrollsProvider.future);
-                                    
-                                  // Безопасно обрабатываем результат
-                                  future.then(
-                                    (_) => scaffoldMessenger.showSnackBar(
-                                      const SnackBar(content: Text('Данные обновлены'))
-                                    ),
-                                    onError: (e) => scaffoldMessenger.showSnackBar(
-                                      SnackBar(content: Text('Ошибка: ${e.toString()}'))
-                                    )
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      
-                      // Показываем индикатор загрузки, пока данные не готовы
-                      if (!isDataReady || payrollsAsync.isLoading || timesheetLoading)
-                        Container(
-                          color: Colors.black.withValues(alpha: 0.04),
-                          child: Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const CircularProgressIndicator(),
-                                const SizedBox(height: 16),
-                                Text(
-                                  !isDataReady 
-                                      ? 'Инициализация данных...'
-                                      : 'Загрузка данных...',
-                                  style: theme.textTheme.bodyMedium,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
+          // --- Табы ---
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 4.0),
+            child: DefaultTabController(
+              length: _tabs.length,
+              initialIndex: _selectedTabIndex,
+              child: Builder(
+                builder: (context) {
+                  final TabController tabController = DefaultTabController.of(context);
+                  tabController.addListener(() {
+                    if (tabController.indexIsChanging) {
+                      setState(() {
+                        _selectedTabIndex = tabController.index;
+                      });
+                    }
+                  });
+                  return TabBar(
+                    tabs: _tabs,
+                    controller: tabController,
+                    labelColor: theme.colorScheme.primary,
+                    unselectedLabelColor: theme.colorScheme.outline,
+                    indicatorColor: theme.colorScheme.primary,
+                  );
+                },
               ),
+            ),
+          ),
+          // --- Контент табов ---
+          Expanded(
+            child: IndexedStack(
+              index: _selectedTabIndex,
+              children: [
+                // --- ФОТ ---
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Card(
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(
+                        color: theme.colorScheme.outline.withValues(alpha: 51),
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Stack(
+                        children: [
+                          if (isDataReady)
+                            payrollsAsync.when(
+                              data: (payrolls) => PayrollTableWidget(payrolls: payrolls),
+                              loading: () => Container(),
+                              error: (e, st) => Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      'Ошибка загрузки данных', 
+                                      style: theme.textTheme.titleMedium?.copyWith(color: Colors.red),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    SizedBox(
+                                      width: 300,
+                                      child: Text(
+                                        e.toString(), 
+                                        style: theme.textTheme.bodyMedium?.copyWith(color: Colors.red),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    ElevatedButton.icon(
+                                      icon: const Icon(Icons.refresh),
+                                      label: const Text('Повторить'),
+                                      onPressed: () {
+                                        final scaffoldMessenger = ScaffoldMessenger.of(context);
+                                        ref.read(timesheetProvider.notifier).loadTimesheet();
+                                        final future = ref.refresh(filteredPayrollsProvider.future);
+                                        future.then(
+                                          (_) => scaffoldMessenger.showSnackBar(
+                                            const SnackBar(content: Text('Данные обновлены'))
+                                          ),
+                                          onError: (e) => scaffoldMessenger.showSnackBar(
+                                            SnackBar(content: Text('Ошибка: ${e.toString()}'))
+                                          )
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          if (!isDataReady || payrollsAsync.isLoading || timesheetLoading)
+                            Container(
+                              color: Colors.black.withValues(alpha: 0.04),
+                              child: Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const CircularProgressIndicator(),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      !isDataReady 
+                                          ? 'Инициализация данных...'
+                                          : 'Загрузка данных...',
+                                      style: theme.textTheme.bodyMedium,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                // --- Штрафы ---
+                const PayrollTabPenalties(),
+                // --- Премии ---
+                const PayrollTabBonuses(),
+              ],
             ),
           ),
         ],

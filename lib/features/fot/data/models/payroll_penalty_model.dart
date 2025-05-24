@@ -16,11 +16,18 @@ abstract class PayrollPenaltyModel with _$PayrollPenaltyModel {
   /// [amount] — сумма штрафа
   /// [reason] — причина или комментарий
   /// [createdAt] — дата создания записи
+  /// [objectId] — идентификатор объекта
+  /// [date] — дата штрафа
+  /// [employeeId] — идентификатор сотрудника
   const factory PayrollPenaltyModel({
     /// Уникальный идентификатор штрафа
     required String id,
     /// Идентификатор расчёта ФОТ
-    required String payrollId,
+    @JsonKey(name: 'payroll_id')
+    String? payrollId,
+    /// Идентификатор сотрудника (новое поле)
+    @JsonKey(name: 'employee_id')
+    String? employeeId,
     /// Тип штрафа (дисциплинарный/автоматический)
     required String type,
     /// Сумма штрафа
@@ -28,7 +35,13 @@ abstract class PayrollPenaltyModel with _$PayrollPenaltyModel {
     /// Причина или комментарий
     String? reason,
     /// Дата создания записи
+    @JsonKey(name: 'created_at')
     DateTime? createdAt,
+    /// Идентификатор объекта (новое поле)
+    @JsonKey(name: 'object_id')
+    String? objectId,
+    /// Дата штрафа (новое поле)
+    DateTime? date,
   }) = _PayrollPenaltyModel;
 
   /// Создаёт data-модель из JSON.

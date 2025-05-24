@@ -42,14 +42,14 @@
 - last_name: TEXT — фамилия сотрудника
 - first_name: TEXT — имя сотрудника
 - middle_name: TEXT — отчество сотрудника
-- birth_date: TIMESTAMP — дата рождения
+- birth_date: TIMESTAMPTZ — дата рождения
 - birth_place: TEXT — место рождения
 - citizenship: TEXT — гражданство
 - phone: TEXT — номер телефона
 - clothing_size: TEXT — размер одежды
 - shoe_size: TEXT — размер обуви
 - height: TEXT — рост
-- employment_date: TIMESTAMP — дата приёма на работу
+- employment_date: TIMESTAMPTZ — дата приёма на работу
 - employment_type: TEXT — тип занятости (`official`, `contract`)
 - position: TEXT — должность
 - hourly_rate: NUMERIC — почасовая ставка
@@ -57,14 +57,14 @@
 - passport_series: TEXT — серия паспорта
 - passport_number: TEXT — номер паспорта
 - passport_issued_by: TEXT — кем выдан паспорт
-- passport_issue_date: TIMESTAMP — дата выдачи паспорта
+- passport_issue_date: TIMESTAMPTZ — дата выдачи паспорта
 - passport_department_code: TEXT — код подразделения
 - registration_address: TEXT — адрес регистрации
 - inn: TEXT — ИНН
 - snils: TEXT — СНИЛС
 - created_at: TIMESTAMP — дата и время создания записи
 - updated_at: TIMESTAMP — дата и время последнего обновления
-- object_ids: ARRAY(TEXT) — список id объектов, связанных с сотрудником
+- object_ids: ARRAY(UUID) — список id объектов, связанных с сотрудником
 
 **Связи:**
 - id → payroll_calculation.employee_id (FK)
@@ -99,7 +99,7 @@
 - id → contracts.contractor_id (FK)
 
 **RLS-политики:**
-- Только участники объекта или админ могут видеть/редактировать
+- Любой аутентифицированный пользователь (auth.role() = 'authenticated') может читать, создавать, обновлять и удалять записи в таблице contractors.
 
 ---
 
@@ -139,7 +139,7 @@
 - id: UUID, PK — уникальный идентификатор объекта
 - name: TEXT — наименование объекта
 - address: TEXT — адрес объекта
-- description: TEXT — описание объекта
+- description: TEXT — описание объекта (опционально)
 - business_trip_amount: NUMERIC — сумма командировочных выплат для всех сотрудников, работающих на объекте
 - created_at: TIMESTAMP — дата и время создания записи
 - updated_at: TIMESTAMP — дата и время последнего обновления
@@ -327,7 +327,8 @@
 
 **Структура:**
 - id: UUID, PK — уникальный идентификатор бонуса
-- payroll_id: UUID — внешний ключ на payroll_calculation.id
+- payroll_id: UUID, FK — внешний ключ на payroll_calculation.id
+- employee_id: UUID, FK — внешний ключ на employees.id (новое поле, 2024-05-21)
 - type: TEXT — тип бонуса/премии
 - amount: NUMERIC — сумма бонуса
 - reason: TEXT — причина начисления
@@ -335,6 +336,7 @@
 
 **Связи:**
 - payroll_id → payroll_calculation.id (FK)
+- employee_id → employees.id (FK)
 
 **RLS-политики:**
 - (RLS не включён)
@@ -348,7 +350,8 @@
 
 **Структура:**
 - id: UUID, PK — уникальный идентификатор штрафа
-- payroll_id: UUID — внешний ключ на payroll_calculation.id
+- payroll_id: UUID, FK — внешний ключ на payroll_calculation.id
+- employee_id: UUID, FK — внешний ключ на employees.id (новое поле, 2024-05-21)
 - type: TEXT — тип штрафа
 - amount: NUMERIC — сумма штрафа
 - reason: TEXT — причина штрафа
@@ -356,6 +359,7 @@
 
 **Связи:**
 - payroll_id → payroll_calculation.id (FK)
+- employee_id → employees.id (FK)
 
 **RLS-политики:**
 - (RLS не включён)
@@ -369,7 +373,8 @@
 
 **Структура:**
 - id: UUID, PK — уникальный идентификатор удержания
-- payroll_id: UUID — внешний ключ на payroll_calculation.id
+- payroll_id: UUID, FK — внешний ключ на payroll_calculation.id
+- employee_id: UUID, FK — внешний ключ на employees.id (новое поле, 2024-05-21)
 - type: TEXT — тип удержания
 - amount: NUMERIC — сумма удержания
 - comment: TEXT — комментарий
@@ -377,6 +382,7 @@
 
 **Связи:**
 - payroll_id → payroll_calculation.id (FK)
+- employee_id → employees.id (FK)
 
 **RLS-политики:**
 - (RLS не включён)
@@ -390,7 +396,8 @@
 
 **Структура:**
 - id: UUID, PK — уникальный идентификатор выплаты
-- payroll_id: UUID — внешний ключ на payroll_calculation.id
+- payroll_id: UUID, FK — внешний ключ на payroll_calculation.id
+- employee_id: UUID, FK — внешний ключ на employees.id (новое поле, 2024-05-21)
 - amount: NUMERIC — сумма выплаты
 - payout_date: DATE — дата выплаты
 - method: TEXT — способ выплаты
@@ -399,6 +406,7 @@
 
 **Связи:**
 - payroll_id → payroll_calculation.id (FK)
+- employee_id → employees.id (FK)
 
 **RLS-политики:**
 - (RLS не включён)

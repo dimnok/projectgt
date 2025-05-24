@@ -7,6 +7,7 @@ import 'package:projectgt/core/common/app_router.dart';
 import 'package:projectgt/presentation/theme/app_theme.dart';
 import 'package:projectgt/presentation/theme/theme_provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 /// Точка входа в приложение ProjectGT.
 ///
@@ -70,6 +71,15 @@ class MyApp extends ConsumerWidget {
       themeMode: themeState.themeMode,
       routerConfig: router,
       locale: const Locale('ru', 'RU'),
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('ru', 'RU'),
+        Locale('en', 'US'),
+      ],
     );
   }
 }

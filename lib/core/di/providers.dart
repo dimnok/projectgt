@@ -399,11 +399,20 @@ final estimateNotifierProvider = StateNotifierProvider<EstimateNotifier, Estimat
   );
 });
 
+/// Провайдер источника данных для работы с табелем (work_hours) через Supabase.
+///
+/// Используется для внедрения зависимости WorkHourDataSourceImpl во все репозитории и use-case, связанные с табелем учёта рабочего времени.
+/// @returns WorkHourDataSource — реализация источника данных для работы с таблицей work_hours.
 final workHourDataSourceProvider = Provider<WorkHourDataSource>((ref) {
   final client = ref.watch(supabaseClientProvider);
   return WorkHourDataSourceImpl(client);
 });
 
+/// Провайдер репозитория для работы с табелем (work_hours).
+///
+/// Инкапсулирует логику доступа к данным табеля через WorkHourDataSource.
+/// Используется для внедрения в use-case и сервисы, связанные с учётом рабочего времени.
+/// @returns WorkHourRepository — репозиторий для работы с табелем.
 final workHourRepositoryProvider = Provider<WorkHourRepository>((ref) {
   final dataSource = ref.watch(workHourDataSourceProvider);
   return WorkHourRepositoryImpl(dataSource);

@@ -1,14 +1,21 @@
+export 'payroll_providers.dart' show filteredPenaltiesProvider, allPenaltiesProvider;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/payroll_penalty_model.dart';
 import '../../data/repositories/payroll_penalty_repository.dart';
+import '../../data/repositories/payroll_penalty_repository_impl.dart';
 import '../../domain/usecases/get_penalties_by_payroll_id_usecase.dart';
 import '../../domain/usecases/create_penalty_usecase.dart';
 import '../../domain/usecases/update_penalty_usecase.dart';
 import '../../domain/usecases/delete_penalty_usecase.dart';
+import 'package:projectgt/core/di/providers.dart';
+import 'payroll_filter_provider.dart';
+import 'package:collection/collection.dart';
 
-/// Провайдер репозитория штрафов (реализация должна быть внедрена выше по дереву).
+/// Провайдер репозитория штрафов (реализация Supabase).
 final payrollPenaltyRepositoryProvider = Provider<PayrollPenaltyRepository>((ref) {
-  throw UnimplementedError();
+  final client = ref.watch(supabaseClientProvider);
+  return PayrollPenaltyRepositoryImpl(client);
 });
 
 /// Провайдер usecase получения штрафов по payrollId.
@@ -35,4 +42,40 @@ final updatePenaltyUseCaseProvider = Provider<UpdatePenaltyUseCase>((ref) {
 /// Провайдер usecase удаления штрафа.
 final deletePenaltyUseCaseProvider = Provider<DeletePenaltyUseCase>((ref) {
   return DeletePenaltyUseCase(ref.watch(payrollPenaltyRepositoryProvider));
+});
+
+final allPenaltiesProvider = FutureProvider<List<PayrollPenaltyModel>>((ref) async {
+  final repo = ref.watch(payrollPenaltyRepositoryProvider);
+  return await repo.getAllPenalties();
+});
+
+final filteredPenaltiesProvider = Provider<List<PayrollPenaltyModel>>((ref) {
+  final penaltiesAsync = ref.watch(allPenaltiesProvider);
+  final filter = ref.watch(payrollFilterProvider);
+  final employees = filter.employees;
+  return penaltiesAsync.maybeWhen(
+    data: (allPenalties) {
+      return allPenalties.where((penalty) {
+        // Фильтр по дате
+        final date = penalty.date;
+        final inMonth = date != null &&
+          date.year == filter.year &&
+          date.month == filter.month;
+        // Фильтр по сотруднику
+        final byEmployee = filter.employeeIds.isEmpty ||
+          (penalty.employeeId != null && filter.employeeIds.contains(penalty.employeeId));
+        // Фильтр по объекту
+        final byObject = filter.objectIds.isEmpty ||
+          (penalty.objectId != null && filter.objectIds.contains(penalty.objectId));
+        // Фильтр по должности
+        final byPosition = filter.positionNames.isEmpty ||
+          (() {
+            final emp = employees.firstWhereOrNull((e) => e.id == penalty.employeeId);
+            return emp != null && filter.positionNames.contains(emp.position);
+          })();
+        return inMonth && byEmployee && byObject && byPosition;
+      }).toList();
+    },
+    orElse: () => [],
+  );
 }); 

@@ -67,4 +67,12 @@ class PayrollBonusRepositoryImpl implements PayrollBonusRepository {
     // Удалить премию по id
     await client.from('payroll_bonus').delete().eq('id', id);
   }
+
+  @override
+  Future<List<PayrollBonusModel>> getAllBonuses() async {
+    final response = await client.from('payroll_bonus').select();
+    return (response as List)
+        .map((json) => PayrollBonusModel.fromJson(json as Map<String, dynamic>))
+        .toList();
+  }
 } 

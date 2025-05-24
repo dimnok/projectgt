@@ -15,4 +15,7 @@ abstract class PayrollBonusRepository {
 
   /// Удалить премию по идентификатору.
   Future<void> deleteBonus(String id);
+
+  /// Получить все премии (без фильтрации по payrollId).
+  Future<List<PayrollBonusModel>> getAllBonuses();
 } 

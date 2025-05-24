@@ -67,4 +67,12 @@ class PayrollPenaltyRepositoryImpl implements PayrollPenaltyRepository {
     // Удалить штраф по id
     await client.from('payroll_penalty').delete().eq('id', id);
   }
+
+  @override
+  Future<List<PayrollPenaltyModel>> getAllPenalties() async {
+    final response = await client.from('payroll_penalty').select();
+    return (response as List)
+        .map((json) => PayrollPenaltyModel.fromJson(json as Map<String, dynamic>))
+        .toList();
+  }
 } 

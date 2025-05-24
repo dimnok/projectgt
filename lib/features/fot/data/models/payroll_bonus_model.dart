@@ -11,16 +11,20 @@ abstract class PayrollBonusModel with _$PayrollBonusModel {
   /// Создаёт экземпляр data-модели премии.
   ///
   /// [id] — уникальный идентификатор премии
-  /// [payrollId] — идентификатор расчёта ФОТ
+  /// [payrollId] — идентификатор расчёта ФОТ (payroll_id)
+  /// [employeeId] — идентификатор сотрудника (employee_id)
   /// [type] — тип премии (ручная/автоматическая/поощрительная и т.д.)
   /// [amount] — сумма премии
   /// [reason] — причина или комментарий
   /// [createdAt] — дата создания записи
+  /// [objectId] — идентификатор объекта (новое поле)
   const factory PayrollBonusModel({
     /// Уникальный идентификатор премии
     required String id,
     /// Идентификатор расчёта ФОТ
-    required String payrollId,
+    @JsonKey(name: 'payroll_id') String? payrollId,
+    /// Идентификатор сотрудника
+    @JsonKey(name: 'employee_id') required String employeeId,
     /// Тип премии (ручная/авто/поощрительная)
     required String type,
     /// Сумма премии
@@ -28,7 +32,9 @@ abstract class PayrollBonusModel with _$PayrollBonusModel {
     /// Причина или комментарий
     String? reason,
     /// Дата создания записи
-    DateTime? createdAt,
+    @JsonKey(name: 'created_at') DateTime? createdAt,
+    /// Идентификатор объекта (новое поле)
+    @JsonKey(name: 'object_id') String? objectId,
   }) = _PayrollBonusModel;
 
   /// Создаёт data-модель из JSON.
