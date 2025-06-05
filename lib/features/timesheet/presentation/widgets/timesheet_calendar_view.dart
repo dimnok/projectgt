@@ -49,12 +49,7 @@ class _TimesheetCalendarViewState extends State<TimesheetCalendarView> {
     _employeeScrollController = ScrollController();
     
     // Строим диапазон дат
-    _daysInRange = [];
-    DateTime currentDate = widget.startDate;
-    while (currentDate.isBefore(widget.endDate) || currentDate.isAtSameMomentAs(widget.endDate)) {
-      _daysInRange.add(currentDate);
-      currentDate = currentDate.add(const Duration(days: 1));
-    }
+    _buildDateRange();
     
     // После построения виджета прокрутим к текущему дню
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -63,10 +58,34 @@ class _TimesheetCalendarViewState extends State<TimesheetCalendarView> {
   }
   
   @override
+  void didUpdateWidget(TimesheetCalendarView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    
+    // Если изменились даты, пересчитываем диапазон
+    if (oldWidget.startDate != widget.startDate || oldWidget.endDate != widget.endDate) {
+      _buildDateRange();
+      // Прокручиваем к текущему дню после обновления
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollToToday();
+      });
+    }
+  }
+  
+  @override
   void dispose() {
     _dateScrollController.dispose();
     _employeeScrollController.dispose();
     super.dispose();
+  }
+  
+  /// Строит диапазон дат между startDate и endDate
+  void _buildDateRange() {
+    _daysInRange = [];
+    DateTime currentDate = widget.startDate;
+    while (currentDate.isBefore(widget.endDate) || currentDate.isAtSameMomentAs(widget.endDate)) {
+      _daysInRange.add(currentDate);
+      currentDate = currentDate.add(const Duration(days: 1));
+    }
   }
   
   /// Возвращает сокращенное название дня недели

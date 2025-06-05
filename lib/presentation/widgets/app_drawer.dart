@@ -30,6 +30,8 @@ enum AppRoute {
   timesheet,
   /// Экран расчётов (ФОТ).
   payrolls,
+  /// Экран экспорта.
+  export,
 }
 
 /// Боковое меню (Drawer) для навигации по основным разделам приложения.
@@ -330,6 +332,19 @@ class AppDrawer extends ConsumerWidget {
                     onTap: () {
                       context.pop();
                       context.goNamed('payrolls');
+                    },
+                  ),
+                  DrawerItemWidget(
+                    icon: Icons.file_download_outlined,
+                    title: 'Выгрузка',
+                    isSelected: activeRoute == AppRoute.export,
+                    onTap: () {
+                      if (activeRoute == AppRoute.export) {
+                        context.pop();
+                      } else {
+                        context.pop();
+                        context.goNamed('export');
+                      }
                     },
                   ),
                   DrawerItemWidget(

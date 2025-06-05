@@ -108,19 +108,30 @@ class ExcelEstimateService {
     final excel = Excel.createExcel();
     final sheet = excel['Смета'];
     sheet.appendRow([
-      'Система',
-      'Подсистема',
-      '№',
-      'Наименование',
-      'Артикул',
-      'Производитель',
-      'Ед. изм.',
-      'Кол-во',
-      'Цена',
-      'Сумма',
+      TextCellValue('Система'),
+      TextCellValue('Подсистема'),
+      TextCellValue('№'),
+      TextCellValue('Наименование'),
+      TextCellValue('Артикул'),
+      TextCellValue('Производитель'),
+      TextCellValue('Ед. изм.'),
+      TextCellValue('Кол-во'),
+      TextCellValue('Цена'),
+      TextCellValue('Сумма'),
     ]);
     // Добавляем пример строки:
-    sheet.appendRow(['Система 1', 'Подсистема 1', 1, 'Товар', 'A-123', 'ООО Рога', 'шт', 10, 100.0, 1000.0]);
+    sheet.appendRow([
+      TextCellValue('Система 1'), 
+      TextCellValue('Подсистема 1'), 
+      const IntCellValue(1), 
+      TextCellValue('Товар'), 
+      TextCellValue('A-123'), 
+      TextCellValue('ООО Рога'), 
+      TextCellValue('шт'), 
+      const IntCellValue(10), 
+      const DoubleCellValue(100.0), 
+      const DoubleCellValue(1000.0)
+    ]);
     final bytes = excel.encode()!;
     return Uint8List.fromList(bytes);
   }
@@ -233,17 +244,22 @@ class ExcelEstimateService {
         
         // Обрабатываем ячейку с номером (индекс 2)
         if (row.length > 2 && row[2] != null) {
-          final rawValue = row[2]!.value;
+          final cellValue = row[2]!.value;
           
           // Если номер числовой, преобразуем его правильно
-          if (rawValue is num) {
-            // Если целое число - убираем десятичную часть
-            if (rawValue == rawValue.truncate()) {
-              // Важно - здесь мы модифицируем ячейку напрямую
-              row[2]!.value = rawValue.toInt().toString();
-            } else {
-              // Если число с десятичной частью, сохраняем формат
-              row[2]!.value = rawValue.toString();
+          if (cellValue != null) {
+            if (cellValue is DoubleCellValue) {
+              final numValue = cellValue.value;
+              // Если целое число - убираем десятичную часть
+              if (numValue == numValue.truncate()) {
+                // Важно - здесь мы модифицируем ячейку напрямую
+                row[2]!.value = TextCellValue(numValue.toInt().toString());
+              } else {
+                // Если число с десятичной частью, сохраняем формат
+                row[2]!.value = TextCellValue(numValue.toString());
+              }
+            } else if (cellValue is IntCellValue) {
+              row[2]!.value = TextCellValue(cellValue.value.toString());
             }
           }
         }
@@ -267,8 +283,10 @@ class ExcelEstimateService {
           // Суммируем общую стоимость
           final totalCell = row[9]?.value;
           if (totalCell != null) {
-            if (totalCell is num) {
-              totalAmount += totalCell.toDouble();
+            if (totalCell is DoubleCellValue) {
+              totalAmount += totalCell.value;
+            } else if (totalCell is IntCellValue) {
+              totalAmount += totalCell.value.toDouble();
             } else {
               String totalStr = totalCell.toString().replaceAll(RegExp(r'\s+'), '').replaceAll(',', '.');
               totalAmount += double.tryParse(totalStr) ?? 0;
@@ -319,18 +337,23 @@ class ExcelEstimateService {
       // Получаем и форматируем номер как строку
       String number = '';
       if (row[2]?.value != null) {
-        final rawValue = row[2]!.value;
-        if (rawValue is num) {
-          // Если это целое число, убираем десятичную часть
-          if (rawValue == rawValue.truncate()) {
-            number = rawValue.toInt().toString();
+        final cellValue = row[2]!.value;
+        if (cellValue != null) {
+          if (cellValue is DoubleCellValue) {
+            final numValue = cellValue.value;
+            // Если это целое число, убираем десятичную часть
+            if (numValue == numValue.truncate()) {
+              number = numValue.toInt().toString();
+            } else {
+              // Если число с десятичной частью, сохраняем как есть
+              number = numValue.toString();
+            }
+          } else if (cellValue is IntCellValue) {
+            number = cellValue.value.toString();
           } else {
-            // Если число с десятичной частью, сохраняем как есть
-            number = rawValue.toString();
+            // Любой другой тип (строка или другое) преобразуем в строку
+            number = cellValue.toString().trim();
           }
-        } else {
-          // Любой другой тип (строка или другое) преобразуем в строку
-          number = rawValue.toString().trim();
         }
       }
       
@@ -344,11 +367,16 @@ class ExcelEstimateService {
       // Преобразуем строки в числа для quantity, price и total
       double quantity = 0;
       if (row[7]?.value != null) {
-        if (row[7]!.value is num) {
-          quantity = (row[7]!.value as num).toDouble();
-        } else {
-          final rawStr = row[7]!.value.toString().trim();
-          quantity = double.tryParse(clean(rawStr)) ?? 0;
+        final cellValue = row[7]!.value;
+        if (cellValue != null) {
+          if (cellValue is DoubleCellValue) {
+            quantity = cellValue.value;
+          } else if (cellValue is IntCellValue) {
+            quantity = cellValue.value.toDouble();
+          } else {
+            final rawStr = cellValue.toString().trim();
+            quantity = double.tryParse(clean(rawStr)) ?? 0;
+          }
         }
       }
       

@@ -25,6 +25,7 @@ import 'package:projectgt/features/works/presentation/screens/works_master_detai
 import 'package:projectgt/features/works/presentation/screens/work_details_screen.dart';
 import 'package:projectgt/features/timesheet/presentation/screens/timesheet_screen.dart';
 import 'package:projectgt/features/fot/presentation/screens/payroll_list_screen.dart';
+import 'package:projectgt/features/export/presentation/screens/export_screen.dart';
 
 /// Провайдер маршрутизатора приложения на базе GoRouter.
 /// 
@@ -246,6 +247,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'payrolls',
         builder: (context, state) => const PayrollListScreen(),
       ),
+      // Маршрут для экспорта
+      GoRoute(
+        path: AppRoutes.export,
+        name: 'export',
+        builder: (context, state) => const ExportScreen(),
+      ),
     ],
     errorBuilder: (context, state) => Scaffold(
       body: Center(
@@ -285,4 +292,6 @@ class AppRoutes {
   static const String timesheet = '/timesheet';
   /// Список расчётов ФОТ
   static const String payrolls = '/payrolls';
+  /// Маршрут для экспорта
+  static const String export = '/export';
 } 

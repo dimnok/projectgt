@@ -45,6 +45,9 @@ class _TimesheetFilterWidgetState extends ConsumerState<TimesheetFilterWidget> {
       if (objectState.objects.isEmpty) {
         ref.read(objectProvider.notifier).loadObjects();
       }
+      
+      // Инициализируем контроллеры
+      _updateControllers();
     });
   }
   
@@ -56,6 +59,27 @@ class _TimesheetFilterWidgetState extends ConsumerState<TimesheetFilterWidget> {
     _monthController.dispose();
     _positionController.dispose();
     super.dispose();
+  }
+  
+  @override
+  void didUpdateWidget(TimesheetFilterWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    
+    // Обновляем контроллеры при изменении состояния
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _updateControllers();
+    });
+  }
+  
+  /// Обновляет значения контроллеров в соответствии с текущим состоянием
+  void _updateControllers() {
+    final state = ref.read(timesheetProvider);
+    
+    // Обновляем год
+    _yearController.text = state.startDate.year.toString();
+    
+    // Обновляем месяц
+    _monthController.text = DateFormat.MMMM('ru').format(state.startDate);
   }
   
   @override

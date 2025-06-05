@@ -79,11 +79,18 @@ class TimesheetDataSourceImpl implements TimesheetDataSource {
           
           bool matchesDateRange = true;
           if (date != null) {
+            // Проверяем, что дата не раньше startDate
             if (startDate != null && date.isBefore(startDate)) {
               matchesDateRange = false;
             }
-            if (endDate != null && date.isAfter(endDate)) {
-              matchesDateRange = false;
+            // Проверяем, что дата не позже endDate
+            // Важно: включаем записи за весь последний день месяца (до 23:59:59.999)
+            if (endDate != null) {
+              // Создаем конец дня для endDate (23:59:59.999)
+              final endOfDay = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59, 999);
+              if (date.isAfter(endOfDay)) {
+                matchesDateRange = false;
+              }
             }
           }
           

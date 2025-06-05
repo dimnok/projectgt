@@ -3,6 +3,7 @@ import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import '../../domain/entities/work.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
+import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 
 /// Виджет для отображения фотографий смены.
 ///
@@ -324,18 +325,11 @@ class _FullscreenPhotoView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    
     return Scaffold(
       backgroundColor: Colors.black.withValues(alpha: 0.5),
-      appBar: AppBar(
-        backgroundColor: Colors.black.withValues(alpha: 0.5),
-        elevation: 0,
-        title: Text(
-          initialIndex == 0 ? 'Фото на начало смены' : 'Фото на конец смены',
-          style: const TextStyle(color: Colors.white),
-        ),
-        iconTheme: const IconThemeData(color: Colors.white),
+      appBar: AppBarWidget(
+        title: initialIndex == 0 ? 'Фото на начало смены' : 'Фото на конец смены',
+        centerTitle: true,
       ),
       body: PhotoViewGallery.builder(
         itemCount: photoUrls.length,
@@ -361,7 +355,7 @@ class _FullscreenPhotoView extends StatelessWidget {
               value: event == null
                   ? 0
                   : event.cumulativeBytesLoaded / event.expectedTotalBytes!,
-              valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+              valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
             ),
           ),
         ),

@@ -4,7 +4,7 @@ import '../../data/repositories/payroll_bonus_repository.dart';
 import '../../data/repositories/payroll_bonus_repository_impl.dart';
 import 'payroll_filter_provider.dart';
 import 'package:projectgt/core/di/providers.dart';
-import '../../domain/usecases/get_bonuses_by_payroll_id_usecase.dart';
+import 'package:collection/collection.dart';
 
 /// Провайдер репозитория премий (реализация внедряется выше).
 ///
@@ -13,23 +13,6 @@ import '../../domain/usecases/get_bonuses_by_payroll_id_usecase.dart';
 final payrollBonusRepositoryProvider = Provider<PayrollBonusRepository>((ref) {
   final client = ref.watch(supabaseClientProvider);
   return PayrollBonusRepositoryImpl(client);
-});
-
-/// Провайдер usecase для получения премий по payrollId.
-///
-/// Инкапсулирует бизнес-логику получения премий по расчёту ФОТ.
-/// @returns GetBonusesByPayrollIdUseCase — usecase получения премий по payrollId.
-final getBonusesByPayrollIdUseCaseProvider = Provider<GetBonusesByPayrollIdUseCase>((ref) {
-  return GetBonusesByPayrollIdUseCase(ref.watch(payrollBonusRepositoryProvider));
-});
-
-/// Провайдер получения списка премий по payrollId.
-///
-/// @param payrollId — идентификатор расчёта ФОТ
-/// @returns FutureProvider<List<PayrollBonusModel>> — список премий по payrollId.
-final bonusesByPayrollIdProvider = FutureProvider.family<List<PayrollBonusModel>, String>((ref, payrollId) async {
-  final useCase = ref.watch(getBonusesByPayrollIdUseCaseProvider);
-  return useCase(payrollId);
 });
 
 /// Провайдер получения всех премий из базы.
@@ -53,7 +36,7 @@ final filteredBonusesProvider = Provider<List<PayrollBonusModel>>((ref) {
   final employees = filter.employees;
   return bonusesAsync.maybeWhen(
     data: (allBonuses) {
-      return allBonuses.where((bonus) {
+      final filteredBonuses = allBonuses.where((bonus) {
         // Фильтр по дате
         final date = bonus.createdAt;
         final inMonth = date != null &&
@@ -61,10 +44,33 @@ final filteredBonusesProvider = Provider<List<PayrollBonusModel>>((ref) {
           date.month == filter.month;
         // Фильтр по сотруднику
         final byEmployee = filter.employeeIds.isEmpty ||
-          (bonus.payrollId != null && filter.employeeIds.contains(bonus.payrollId));
-        // TODO: добавить фильтр по объекту и должности, если структура позволяет
-        return inMonth && byEmployee;
+          (bonus.employeeId.isNotEmpty && filter.employeeIds.contains(bonus.employeeId));
+        // Фильтр по объекту
+        final byObject = filter.objectIds.isEmpty ||
+          (bonus.objectId != null && filter.objectIds.contains(bonus.objectId));
+        // Фильтр по должности
+        final byPosition = filter.positionNames.isEmpty ||
+          (() {
+            final emp = employees.firstWhereOrNull((e) => e.id == bonus.employeeId);
+            return emp != null && filter.positionNames.contains(emp.position);
+          })();
+        return inMonth && byEmployee && byObject && byPosition;
       }).toList();
+      
+      // Сортируем по алфавиту (ФИО сотрудников)
+      filteredBonuses.sort((a, b) {
+        final empA = employees.firstWhereOrNull((e) => e.id == a.employeeId);
+        final empB = employees.firstWhereOrNull((e) => e.id == b.employeeId);
+        final nameA = empA != null 
+            ? ('${empA.lastName} ${empA.firstName} ${empA.middleName ?? ''}').trim().toLowerCase() 
+            : a.employeeId.toLowerCase();
+        final nameB = empB != null 
+            ? ('${empB.lastName} ${empB.firstName} ${empB.middleName ?? ''}').trim().toLowerCase() 
+            : b.employeeId.toLowerCase();
+        return nameA.compareTo(nameB);
+      });
+      
+      return filteredBonuses;
     },
     orElse: () => [],
   );
@@ -98,6 +104,4 @@ final deleteBonusUseCaseProvider = Provider<Future<void> Function(String)>((ref)
   return (String id) async {
     await repo.deleteBonus(id);
   };
-});
-
-// TODO: Добавить провайдеры для создания, обновления, удаления премий после реализации соответствующих usecase-ов. 
+}); 

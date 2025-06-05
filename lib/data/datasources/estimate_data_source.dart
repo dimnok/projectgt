@@ -76,60 +76,77 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
       // Обработка номера: если числовой - преобразуем правильно
       String number = '';
       if (row.length > 2 && row[2]?.value != null) {
-        final rawValue = row[2]!.value;
-        if (rawValue is num) {
-          // Если целое число - убираем десятичную часть
-          if (rawValue == rawValue.truncate()) {
-            number = rawValue.toInt().toString();
+        final cellValue = row[2]!.value;
+        if (cellValue != null) {
+          if (cellValue is DoubleCellValue) {
+            final numValue = cellValue.value;
+            // Если целое число - убираем десятичную часть
+            if (numValue == numValue.truncate()) {
+              number = numValue.toInt().toString();
+            } else {
+              // Если число с десятичной частью, сохраняем формат
+              number = numValue.toString();
+            }
+          } else if (cellValue is IntCellValue) {
+            number = cellValue.value.toString();
           } else {
-            // Если число с десятичной частью, сохраняем формат
-            number = rawValue.toString();
+            // Любое другое значение преобразуем в строку
+            number = cellValue.toString().trim();
           }
-        } else {
-          // Любое другое значение преобразуем в строку
-          number = rawValue.toString().trim();
         }
       }
       
       // Обработка количества: если числовой - преобразуем правильно
       double quantity = 0;
       if (row.length > 7 && row[7]?.value != null) {
-        final rawValue = row[7]!.value;
-        if (rawValue is num) {
-          quantity = rawValue.toDouble();
-        } else {
-          final rawStr = rawValue.toString().trim()
-              .replaceAll(RegExp(r'\s+'), '')
-              .replaceAll(',', '.');
-          quantity = double.tryParse(rawStr) ?? 0;
+        final cellValue = row[7]!.value;
+        if (cellValue != null) {
+          if (cellValue is DoubleCellValue) {
+            quantity = cellValue.value;
+          } else if (cellValue is IntCellValue) {
+            quantity = cellValue.value.toDouble();
+          } else {
+            final rawStr = cellValue.toString().trim()
+                .replaceAll(RegExp(r'\s+'), '')
+                .replaceAll(',', '.');
+            quantity = double.tryParse(rawStr) ?? 0;
+          }
         }
       }
       
       // Обработка цены: если числовой - преобразуем правильно
       double price = 0;
       if (row.length > 8 && row[8]?.value != null) {
-        final rawValue = row[8]!.value;
-        if (rawValue is num) {
-          price = rawValue.toDouble();
-        } else {
-          final rawStr = rawValue.toString().trim()
-              .replaceAll(RegExp(r'\s+'), '')
-              .replaceAll(',', '.');
-          price = double.tryParse(rawStr) ?? 0;
+        final cellValue = row[8]!.value;
+        if (cellValue != null) {
+          if (cellValue is DoubleCellValue) {
+            price = cellValue.value;
+          } else if (cellValue is IntCellValue) {
+            price = cellValue.value.toDouble();
+          } else {
+            final rawStr = cellValue.toString().trim()
+                .replaceAll(RegExp(r'\s+'), '')
+                .replaceAll(',', '.');
+            price = double.tryParse(rawStr) ?? 0;
+          }
         }
       }
       
       // Обработка суммы: если числовой - преобразуем правильно
       double total = 0;
       if (row.length > 9 && row[9]?.value != null) {
-        final rawValue = row[9]!.value;
-        if (rawValue is num) {
-          total = rawValue.toDouble();
-        } else {
-          final rawStr = rawValue.toString().trim()
-              .replaceAll(RegExp(r'\s+'), '')
-              .replaceAll(',', '.');
-          total = double.tryParse(rawStr) ?? 0;
+        final cellValue = row[9]!.value;
+        if (cellValue != null) {
+          if (cellValue is DoubleCellValue) {
+            total = cellValue.value;
+          } else if (cellValue is IntCellValue) {
+            total = cellValue.value.toDouble();
+          } else {
+            final rawStr = cellValue.toString().trim()
+                .replaceAll(RegExp(r'\s+'), '')
+                .replaceAll(',', '.');
+            total = double.tryParse(rawStr) ?? 0;
+          }
         }
       } else {
         // Если сумма не указана, рассчитываем её
@@ -138,13 +155,13 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
       
       return EstimateModel(
         id: '', // генерировать на сервере или локально
-        system: row.isNotEmpty ? row[0]?.value.toString() ?? '' : '',
-        subsystem: row.length > 1 ? row[1]?.value.toString() ?? '' : '',
+        system: row.isNotEmpty && row[0]?.value != null ? row[0]!.value.toString() : '',
+        subsystem: row.length > 1 && row[1]?.value != null ? row[1]!.value.toString() : '',
         number: number,
-        name: row.length > 3 ? row[3]?.value.toString() ?? '' : '',
-        article: row.length > 4 ? row[4]?.value.toString() ?? '' : '',
-        manufacturer: row.length > 5 ? row[5]?.value.toString() ?? '' : '',
-        unit: row.length > 6 ? row[6]?.value.toString() ?? '' : '',
+        name: row.length > 3 && row[3]?.value != null ? row[3]!.value.toString() : '',
+        article: row.length > 4 && row[4]?.value != null ? row[4]!.value.toString() : '',
+        manufacturer: row.length > 5 && row[5]?.value != null ? row[5]!.value.toString() : '',
+        unit: row.length > 6 && row[6]?.value != null ? row[6]!.value.toString() : '',
         quantity: quantity,
         price: price,
         total: total,

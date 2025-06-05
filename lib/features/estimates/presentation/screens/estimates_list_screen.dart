@@ -11,6 +11,7 @@ import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 import 'package:projectgt/presentation/widgets/cupertino_dialog_widget.dart';
 import 'package:excel/excel.dart' as excel;
+import 'package:excel/excel.dart' show TextCellValue, DoubleCellValue;
 import 'dart:typed_data';
 import 'import_estimate_form_modal.dart';
 import 'package:intl/intl.dart';
@@ -169,19 +170,19 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
       
       // Добавляем заголовки
       sheet.appendRow([
-        'Система',
-        'Подсистема',
-        '№',
-        'Наименование',
-        'Артикул',
-        'Производитель',
-        'Ед. изм.',
-        'Кол-во',
-        'Цена',
-        'Сумма',
-        'Объект',
-        'Договор',
-        'Название сметы',
+        TextCellValue('Система'),
+        TextCellValue('Подсистема'),
+        TextCellValue('№'),
+        TextCellValue('Наименование'),
+        TextCellValue('Артикул'),
+        TextCellValue('Производитель'),
+        TextCellValue('Ед. изм.'),
+        TextCellValue('Кол-во'),
+        TextCellValue('Цена'),
+        TextCellValue('Сумма'),
+        TextCellValue('Объект'),
+        TextCellValue('Договор'),
+        TextCellValue('Название сметы'),
       ]);
       
       // Получаем списки объектов и договоров
@@ -209,19 +210,19 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
         }
             
         sheet.appendRow([
-          estimate.system,
-          estimate.subsystem,
-          estimate.number,
-          estimate.name,
-          estimate.article,
-          estimate.manufacturer,
-          estimate.unit,
-          estimate.quantity,
-          estimate.price,
-          estimate.total,
-          objectName,
-          contractNumber,
-          estimate.estimateTitle ?? '',
+          TextCellValue(estimate.system),
+          TextCellValue(estimate.subsystem),
+          TextCellValue(estimate.number),
+          TextCellValue(estimate.name),
+          TextCellValue(estimate.article),
+          TextCellValue(estimate.manufacturer),
+          TextCellValue(estimate.unit),
+          DoubleCellValue(estimate.quantity),
+          DoubleCellValue(estimate.price),
+          DoubleCellValue(estimate.total),
+          TextCellValue(objectName),
+          TextCellValue(contractNumber),
+          TextCellValue(estimate.estimateTitle ?? ''),
         ]);
       }
       
