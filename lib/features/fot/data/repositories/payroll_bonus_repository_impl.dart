@@ -12,22 +12,6 @@ class PayrollBonusRepositoryImpl implements PayrollBonusRepository {
   /// Создаёт экземпляр [PayrollBonusRepositoryImpl] с переданным [client].
   PayrollBonusRepositoryImpl(this.client);
 
-  /// Получить все премии по идентификатору расчёта ФОТ.
-  /// 
-  /// [payrollId] — идентификатор расчёта ФОТ.
-  /// Возвращает список моделей [PayrollBonusModel].
-  @override
-  Future<List<PayrollBonusModel>> getBonusesByPayrollId(String payrollId) async {
-    // Получить все премии по идентификатору расчёта ФОТ
-    final response = await client
-        .from('payroll_bonus')
-        .select()
-        .eq('payroll_id', payrollId);
-    return (response as List)
-        .map((json) => PayrollBonusModel.fromJson(json as Map<String, dynamic>))
-        .toList();
-  }
-
   /// Создать новую премию.
   /// 
   /// [bonus] — модель премии для создания.

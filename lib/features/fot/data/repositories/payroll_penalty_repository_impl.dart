@@ -12,22 +12,6 @@ class PayrollPenaltyRepositoryImpl implements PayrollPenaltyRepository {
   /// Создаёт экземпляр [PayrollPenaltyRepositoryImpl] с переданным [client].
   PayrollPenaltyRepositoryImpl(this.client);
 
-  /// Получить все штрафы по идентификатору расчёта ФОТ.
-  /// 
-  /// [payrollId] — идентификатор расчёта ФОТ.
-  /// Возвращает список моделей [PayrollPenaltyModel].
-  @override
-  Future<List<PayrollPenaltyModel>> getPenaltiesByPayrollId(String payrollId) async {
-    // Получить все штрафы по идентификатору расчёта ФОТ
-    final response = await client
-        .from('payroll_penalty')
-        .select()
-        .eq('payroll_id', payrollId);
-    return (response as List)
-        .map((json) => PayrollPenaltyModel.fromJson(json as Map<String, dynamic>))
-        .toList();
-  }
-
   /// Создать новый штраф.
   /// 
   /// [penalty] — модель штрафа для создания.

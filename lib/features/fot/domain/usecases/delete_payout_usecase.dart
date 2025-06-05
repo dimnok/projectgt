@@ -13,7 +13,7 @@ class DeletePayoutUseCase {
   /// Выполнить удаление выплаты.
   /// 
   /// [payoutId] — идентификатор выплаты для удаления.
-  Future<void> call(String payoutId) {
-    return repository.deletePayout(payoutId);
+  Future<void> call(String payoutId) async {
+    await repository.deletePayout(payoutId);
   }
 } 

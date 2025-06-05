@@ -1,7 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/presentation/state/employee_state.dart';
 import 'package:projectgt/core/di/providers.dart';
-import 'package:projectgt/features/timesheet/presentation/providers/timesheet_provider.dart';
+import 'package:collection/collection.dart'; // Добавляем импорт для firstWhereOrNull
+import 'payroll_providers.dart'; // Добавляем импорт для payrollWorkHoursProvider
 
 /// Состояние фильтрации расчётов ФОТ.
 /// 
@@ -194,23 +195,6 @@ class PayrollFilterNotifier extends StateNotifier<PayrollFilterState> {
   /// @param month Месяц
   void setMonth(int month) => state = state.copyWith(month: month);
   
-  /// Получить список всех должностей из табеля.
-  /// @returns Список уникальных должностей сотрудников
-  List<String> getPositionsFromTimesheet() {
-    try {
-      final timesheetState = _ref.read(timesheetProvider);
-      return timesheetState.entries
-          .map((e) => e.employeePosition)
-          .where((p) => p != null && p.isNotEmpty)
-          .map((p) => p!)
-          .toSet()
-          .toList()
-        ..sort();
-    } catch (e) {
-      return [];
-    }
-  }
-  
   /// Сбросить все фильтры к значениям по умолчанию (текущий месяц, все сотрудники и объекты).
   void resetFilters() {
     final now = DateTime.now();
@@ -231,4 +215,94 @@ class PayrollFilterNotifier extends StateNotifier<PayrollFilterState> {
 /// Используется для доступа к текущему состоянию фильтров и управления ими во всех слоях модуля ФОТ.
 final payrollFilterProvider = StateNotifierProvider<PayrollFilterNotifier, PayrollFilterState>((ref) {
   return PayrollFilterNotifier(ref);
+});
+
+/// Провайдер сотрудников за выбранный период с учётом каскадных фильтров
+final availableEmployeesForPeriodProvider = Provider<List<dynamic>>((ref) {
+  final filter = ref.watch(payrollFilterProvider);
+  
+  // Используем независимые данные work_hours вместо timesheetEntries
+  final workHoursAsync = ref.watch(payrollWorkHoursProvider);
+  final workHours = workHoursAsync.asData?.value ?? <dynamic>[];
+  
+  // Фильтруем по периоду (уже отфильтровано в payrollWorkHoursProvider)
+  final periodEntries = workHours;
+  
+  // Если выбраны объекты или должности — фильтруем по ним
+  final filteredEntries = periodEntries.where((entry) {
+    final byObject = filter.objectIds.isEmpty || filter.objectIds.contains(entry.objectId);
+    
+    // Для фильтрации по должности получаем данные из employees
+    bool byPosition = true;
+    if (filter.positionNames.isNotEmpty) {
+      final employee = filter.employees.firstWhereOrNull((e) => e.id == entry.employeeId);
+      byPosition = employee != null && employee.position != null && filter.positionNames.contains(employee.position);
+    }
+    
+    return byObject && byPosition;
+  });
+  
+  final employeeIds = filteredEntries.map((e) => e.employeeId).toSet();
+  return filter.employees.where((e) => employeeIds.contains(e.id)).toList();
+});
+
+/// Провайдер объектов за выбранный период с учётом каскадных фильтров
+final availableObjectsForPeriodProvider = Provider<List<dynamic>>((ref) {
+  final filter = ref.watch(payrollFilterProvider);
+  
+  // Используем независимые данные work_hours вместо timesheetEntries
+  final workHoursAsync = ref.watch(payrollWorkHoursProvider);
+  final workHours = workHoursAsync.asData?.value ?? <dynamic>[];
+  
+  // Фильтруем по периоду (уже отфильтровано в payrollWorkHoursProvider)
+  final periodEntries = workHours;
+  
+  // Если выбраны сотрудники или должности — фильтруем по ним
+  final filteredEntries = periodEntries.where((entry) {
+    final byEmployee = filter.employeeIds.isEmpty || filter.employeeIds.contains(entry.employeeId);
+    
+    // Для фильтрации по должности получаем данные из employees
+    bool byPosition = true;
+    if (filter.positionNames.isNotEmpty) {
+      final employee = filter.employees.firstWhereOrNull((e) => e.id == entry.employeeId);
+      byPosition = employee != null && employee.position != null && filter.positionNames.contains(employee.position);
+    }
+    
+    return byEmployee && byPosition;
+  });
+  
+  final objectIds = filteredEntries.map((e) => e.objectId).where((id) => id.isNotEmpty).toSet();
+  return filter.objects.where((o) => objectIds.contains(o.id)).toList();
+});
+
+/// Провайдер должностей за выбранный период с учётом каскадных фильтров
+final availablePositionsForPeriodProvider = Provider<List<String>>((ref) {
+  final filter = ref.watch(payrollFilterProvider);
+  
+  // Используем независимые данные work_hours вместо timesheetEntries
+  final workHoursAsync = ref.watch(payrollWorkHoursProvider);
+  final workHours = workHoursAsync.asData?.value ?? <dynamic>[];
+  
+  // Фильтруем по периоду (уже отфильтровано в payrollWorkHoursProvider)
+  final periodEntries = workHours;
+  
+  // Если выбраны сотрудники или объекты — фильтруем по ним
+  final filteredEntries = periodEntries.where((entry) {
+    final byEmployee = filter.employeeIds.isEmpty || filter.employeeIds.contains(entry.employeeId);
+    final byObject = filter.objectIds.isEmpty || filter.objectIds.contains(entry.objectId);
+    return byEmployee && byObject;
+  });
+  
+  // Получаем должности из данных employees (так как в work_hours нет поля position)
+  final employeeIds = filteredEntries.map((e) => e.employeeId).toSet();
+  final positions = filter.employees
+      .where((e) => employeeIds.contains(e.id))
+      .map((e) => e.position)
+      .where((p) => p != null && p.isNotEmpty)
+      .cast<String>() // Приводим к String после фильтрации null
+      .toSet()
+      .toList();
+  
+  positions.sort();
+  return positions;
 }); 

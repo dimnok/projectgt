@@ -4,9 +4,6 @@ import '../models/payroll_payout_model.dart';
 /// 
 /// Предоставляет методы для получения, создания, обновления и удаления выплат по расчёту ФОТ.
 abstract class PayrollPayoutRepository {
-  /// Получить список выплат по идентификатору расчёта ФОТ.
-  Future<List<PayrollPayoutModel>> getPayoutsByPayrollId(String payrollId);
-
   /// Создать новую выплату.
   Future<PayrollPayoutModel> createPayout(PayrollPayoutModel payout);
 

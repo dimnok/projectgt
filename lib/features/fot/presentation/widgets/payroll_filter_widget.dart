@@ -4,7 +4,6 @@ import 'package:dropdown_textfield/dropdown_textfield.dart';
 import '../providers/payroll_filter_provider.dart';
 import 'package:intl/intl.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
-import 'package:projectgt/features/timesheet/presentation/providers/timesheet_provider.dart';
 import 'package:projectgt/core/widgets/dropdown_typeahead_field.dart';
 
 /// Виджет фильтрации расчётов ФОТ (аналогично фильтру табеля)
@@ -30,61 +29,14 @@ class _PayrollFilterWidgetState extends ConsumerState<PayrollFilterWidget> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeControllers();
     });
-    
-    // Инициируем загрузку данных табеля (для получения должностей)
-    Future.microtask(() {
-      final timesheetState = ref.read(timesheetProvider);
-      if (timesheetState.entries.isEmpty) {
-        ref.read(timesheetProvider.notifier).loadTimesheet();
-      }
-    });
   }
   
   /// Инициализирует контроллеры текущими значениями фильтров
   void _initializeControllers() {
     final filterState = ref.read(payrollFilterProvider);
-    
-    // Инициализация года и месяца
     final date = DateTime(filterState.year, filterState.month);
     _yearController.text = filterState.year.toString();
     _monthController.text = DateFormat.MMMM('ru').format(date);
-    
-    // Инициализация сотрудников
-    if (filterState.employeeIds.isNotEmpty && filterState.employees.isNotEmpty) {
-      final selectedEmployees = filterState.employees
-          .where((e) => filterState.employeeIds.contains(e.id))
-          .map((e) => _createEmployeeDropDownModel(e))
-          .toList();
-      
-      if (selectedEmployees.isNotEmpty) {
-        _employeeController.setDropDown(selectedEmployees);
-      }
-    }
-    
-    // Инициализация объектов
-    if (filterState.objectIds.isNotEmpty && filterState.objects.isNotEmpty) {
-      final selectedObjects = filterState.objects
-          .where((o) => filterState.objectIds.contains(o.id))
-          .map((o) => _createObjectDropDownModel(o))
-          .toList();
-      
-      if (selectedObjects.isNotEmpty) {
-        _objectController.setDropDown(selectedObjects);
-      }
-    }
-    
-    // Инициализация должностей
-    if (filterState.positionNames.isNotEmpty) {
-      final positions = ref.read(payrollFilterProvider.notifier).getPositionsFromTimesheet();
-      final selectedPositions = positions
-          .where((p) => filterState.positionNames.contains(p))
-          .map((p) => DropDownValueModel(name: p, value: p))
-          .toList();
-      
-      if (selectedPositions.isNotEmpty) {
-        _positionController.setDropDown(selectedPositions);
-      }
-    }
   }
 
   @override
@@ -121,42 +73,35 @@ class _PayrollFilterWidgetState extends ConsumerState<PayrollFilterWidget> {
     required Function(List<String>) onSelectionChanged,
   }) {
     final theme = Theme.of(context);
-    const textColor = Colors.black;
-    const checkboxColor = Colors.green;
-    const checkMarkColor = Colors.white;
-    const okButtonColor = Colors.green;
-    
+    final isEmpty = items.isEmpty;
     return DropDownTextField.multiSelection(
       controller: controller,
       dropDownList: items,
       submitButtonText: 'Ок',
-      submitButtonColor: okButtonColor,
+      submitButtonColor: Colors.green,
       checkBoxProperty: CheckBoxProperty(
-        fillColor: WidgetStateProperty.all<Color>(checkboxColor),
-        checkColor: checkMarkColor,
+        fillColor: WidgetStateProperty.all<Color>(Colors.green),
+        checkColor: Colors.white,
       ),
       displayCompleteItem: true,
       textFieldDecoration: InputDecoration(
         labelText: label,
-        hintText: items.isEmpty ? 'Нет данных' : hint,
+        hintText: isEmpty ? 'Нет доступных значений' : hint,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
         ),
       ),
-      listTextStyle: theme.textTheme.bodyMedium?.copyWith(color: textColor),
-      onChanged: (val) {
+      listTextStyle: theme.textTheme.bodyMedium?.copyWith(color: Colors.black),
+      onChanged: isEmpty ? null : (val) {
         if (val == null) return;
-        
         final list = val is List<DropDownValueModel> 
             ? val 
             : List<DropDownValueModel>.from(val);
-            
         final selectedValues = list
             .map((e) => e.value as String?)
             .where((value) => value != null)
             .cast<String>()
             .toList();
-        
         onSelectionChanged(selectedValues);
       },
     );
@@ -167,19 +112,17 @@ class _PayrollFilterWidgetState extends ConsumerState<PayrollFilterWidget> {
     final theme = Theme.of(context);
     final filterState = ref.watch(payrollFilterProvider);
     final isDesktop = ResponsiveUtils.isDesktop(context);
-    
-    // Получаем все доступные должности
-    final positions = ref.read(payrollFilterProvider.notifier).getPositionsFromTimesheet();
-    final positionDropDownList = positions
+    // Получаем только актуальных сотрудников, объекты и должности за период
+    final availableEmployees = ref.watch(availableEmployeesForPeriodProvider);
+    final availableObjects = ref.watch(availableObjectsForPeriodProvider);
+    final availablePositions = ref.watch(availablePositionsForPeriodProvider);
+    final positionDropDownList = availablePositions
         .map((p) => DropDownValueModel(name: p, value: p))
         .toList();
-        
-    // Получаем данные сотрудников и объектов из фильтра
-    final employeeDropDownList = filterState.employees
+    final employeeDropDownList = availableEmployees
         .map((employee) => _createEmployeeDropDownModel(employee))
         .toList();
-    
-    final objectDropDownList = filterState.objects
+    final objectDropDownList = availableObjects
         .map((object) => _createObjectDropDownModel(object))
         .toList();
 

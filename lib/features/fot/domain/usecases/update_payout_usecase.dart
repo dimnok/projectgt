@@ -15,7 +15,7 @@ class UpdatePayoutUseCase {
   /// 
   /// [payout] — модель выплаты для обновления.
   /// Возвращает обновлённую модель [PayrollPayoutModel].
-  Future<PayrollPayoutModel> call(PayrollPayoutModel payout) {
-    return repository.updatePayout(payout);
+  Future<PayrollPayoutModel> call(PayrollPayoutModel payout) async {
+    return await repository.updatePayout(payout);
   }
 } 

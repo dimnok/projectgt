@@ -12,22 +12,6 @@ class PayrollPayoutRepositoryImpl implements PayrollPayoutRepository {
   /// Создаёт экземпляр [PayrollPayoutRepositoryImpl] с переданным [client].
   PayrollPayoutRepositoryImpl(this.client);
 
-  /// Получить все выплаты по идентификатору расчёта ФОТ.
-  /// 
-  /// [payrollId] — идентификатор расчёта ФОТ.
-  /// Возвращает список моделей [PayrollPayoutModel].
-  @override
-  Future<List<PayrollPayoutModel>> getPayoutsByPayrollId(String payrollId) async {
-    // Получить все выплаты по идентификатору расчёта ФОТ
-    final response = await client
-        .from('payroll_payout')
-        .select()
-        .eq('payroll_id', payrollId);
-    return (response as List)
-        .map((json) => PayrollPayoutModel.fromJson(json as Map<String, dynamic>))
-        .toList();
-  }
-
   /// Создать новую выплату.
   /// 
   /// [payout] — модель выплаты для создания.
@@ -40,6 +24,7 @@ class PayrollPayoutRepositoryImpl implements PayrollPayoutRepository {
         .insert(payout.toJson())
         .select()
         .single();
+    
     return PayrollPayoutModel.fromJson(response);
   }
 
@@ -56,6 +41,7 @@ class PayrollPayoutRepositoryImpl implements PayrollPayoutRepository {
         .eq('id', payout.id)
         .select()
         .single();
+    
     return PayrollPayoutModel.fromJson(response);
   }
 

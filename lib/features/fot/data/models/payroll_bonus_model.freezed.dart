@@ -18,10 +18,6 @@ mixin _$PayrollBonusModel {
   /// Уникальный идентификатор премии
   String get id;
 
-  /// Идентификатор расчёта ФОТ
-  @JsonKey(name: 'payroll_id')
-  String? get payrollId;
-
   /// Идентификатор сотрудника
   @JsonKey(name: 'employee_id')
   String get employeeId;
@@ -39,7 +35,7 @@ mixin _$PayrollBonusModel {
   @JsonKey(name: 'created_at')
   DateTime? get createdAt;
 
-  /// Идентификатор объекта (новое поле)
+  /// Идентификатор объекта
   @JsonKey(name: 'object_id')
   String? get objectId;
 
@@ -60,8 +56,6 @@ mixin _$PayrollBonusModel {
         (other.runtimeType == runtimeType &&
             other is PayrollBonusModel &&
             (identical(other.id, id) || other.id == id) &&
-            (identical(other.payrollId, payrollId) ||
-                other.payrollId == payrollId) &&
             (identical(other.employeeId, employeeId) ||
                 other.employeeId == employeeId) &&
             (identical(other.type, type) || other.type == type) &&
@@ -75,12 +69,12 @@ mixin _$PayrollBonusModel {
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, id, payrollId, employeeId, type,
-      amount, reason, createdAt, objectId);
+  int get hashCode => Object.hash(
+      runtimeType, id, employeeId, type, amount, reason, createdAt, objectId);
 
   @override
   String toString() {
-    return 'PayrollBonusModel(id: $id, payrollId: $payrollId, employeeId: $employeeId, type: $type, amount: $amount, reason: $reason, createdAt: $createdAt, objectId: $objectId)';
+    return 'PayrollBonusModel(id: $id, employeeId: $employeeId, type: $type, amount: $amount, reason: $reason, createdAt: $createdAt, objectId: $objectId)';
   }
 }
 
@@ -92,7 +86,6 @@ abstract mixin class $PayrollBonusModelCopyWith<$Res> {
   @useResult
   $Res call(
       {String id,
-      @JsonKey(name: 'payroll_id') String? payrollId,
       @JsonKey(name: 'employee_id') String employeeId,
       String type,
       num amount,
@@ -115,7 +108,6 @@ class _$PayrollBonusModelCopyWithImpl<$Res>
   @override
   $Res call({
     Object? id = null,
-    Object? payrollId = freezed,
     Object? employeeId = null,
     Object? type = null,
     Object? amount = null,
@@ -128,10 +120,6 @@ class _$PayrollBonusModelCopyWithImpl<$Res>
           ? _self.id
           : id // ignore: cast_nullable_to_non_nullable
               as String,
-      payrollId: freezed == payrollId
-          ? _self.payrollId
-          : payrollId // ignore: cast_nullable_to_non_nullable
-              as String?,
       employeeId: null == employeeId
           ? _self.employeeId
           : employeeId // ignore: cast_nullable_to_non_nullable
@@ -165,7 +153,6 @@ class _$PayrollBonusModelCopyWithImpl<$Res>
 class _PayrollBonusModel implements PayrollBonusModel {
   const _PayrollBonusModel(
       {required this.id,
-      @JsonKey(name: 'payroll_id') this.payrollId,
       @JsonKey(name: 'employee_id') required this.employeeId,
       required this.type,
       required this.amount,
@@ -178,11 +165,6 @@ class _PayrollBonusModel implements PayrollBonusModel {
   /// Уникальный идентификатор премии
   @override
   final String id;
-
-  /// Идентификатор расчёта ФОТ
-  @override
-  @JsonKey(name: 'payroll_id')
-  final String? payrollId;
 
   /// Идентификатор сотрудника
   @override
@@ -206,7 +188,7 @@ class _PayrollBonusModel implements PayrollBonusModel {
   @JsonKey(name: 'created_at')
   final DateTime? createdAt;
 
-  /// Идентификатор объекта (новое поле)
+  /// Идентификатор объекта
   @override
   @JsonKey(name: 'object_id')
   final String? objectId;
@@ -232,8 +214,6 @@ class _PayrollBonusModel implements PayrollBonusModel {
         (other.runtimeType == runtimeType &&
             other is _PayrollBonusModel &&
             (identical(other.id, id) || other.id == id) &&
-            (identical(other.payrollId, payrollId) ||
-                other.payrollId == payrollId) &&
             (identical(other.employeeId, employeeId) ||
                 other.employeeId == employeeId) &&
             (identical(other.type, type) || other.type == type) &&
@@ -247,12 +227,12 @@ class _PayrollBonusModel implements PayrollBonusModel {
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, id, payrollId, employeeId, type,
-      amount, reason, createdAt, objectId);
+  int get hashCode => Object.hash(
+      runtimeType, id, employeeId, type, amount, reason, createdAt, objectId);
 
   @override
   String toString() {
-    return 'PayrollBonusModel(id: $id, payrollId: $payrollId, employeeId: $employeeId, type: $type, amount: $amount, reason: $reason, createdAt: $createdAt, objectId: $objectId)';
+    return 'PayrollBonusModel(id: $id, employeeId: $employeeId, type: $type, amount: $amount, reason: $reason, createdAt: $createdAt, objectId: $objectId)';
   }
 }
 
@@ -266,7 +246,6 @@ abstract mixin class _$PayrollBonusModelCopyWith<$Res>
   @useResult
   $Res call(
       {String id,
-      @JsonKey(name: 'payroll_id') String? payrollId,
       @JsonKey(name: 'employee_id') String employeeId,
       String type,
       num amount,
@@ -289,7 +268,6 @@ class __$PayrollBonusModelCopyWithImpl<$Res>
   @pragma('vm:prefer-inline')
   $Res call({
     Object? id = null,
-    Object? payrollId = freezed,
     Object? employeeId = null,
     Object? type = null,
     Object? amount = null,
@@ -302,10 +280,6 @@ class __$PayrollBonusModelCopyWithImpl<$Res>
           ? _self.id
           : id // ignore: cast_nullable_to_non_nullable
               as String,
-      payrollId: freezed == payrollId
-          ? _self.payrollId
-          : payrollId // ignore: cast_nullable_to_non_nullable
-              as String?,
       employeeId: null == employeeId
           ? _self.employeeId
           : employeeId // ignore: cast_nullable_to_non_nullable

@@ -9,7 +9,6 @@ part of 'payroll_bonus_model.dart';
 _PayrollBonusModel _$PayrollBonusModelFromJson(Map<String, dynamic> json) =>
     _PayrollBonusModel(
       id: json['id'] as String,
-      payrollId: json['payroll_id'] as String?,
       employeeId: json['employee_id'] as String,
       type: json['type'] as String,
       amount: json['amount'] as num,
@@ -23,7 +22,6 @@ _PayrollBonusModel _$PayrollBonusModelFromJson(Map<String, dynamic> json) =>
 Map<String, dynamic> _$PayrollBonusModelToJson(_PayrollBonusModel instance) =>
     <String, dynamic>{
       'id': instance.id,
-      'payroll_id': instance.payrollId,
       'employee_id': instance.employeeId,
       'type': instance.type,
       'amount': instance.amount,

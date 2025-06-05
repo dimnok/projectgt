@@ -34,16 +34,10 @@ abstract class PayrollCalculation with _$PayrollCalculation {
     /// Сумма штрафов.
     @Default(0) double penaltiesTotal,
     
-    /// Сумма удержаний.
-    @Default(0) double deductionsTotal,
-    
     /// Сумма командировочных выплат.
     @Default(0) double businessTripTotal,
     
-    /// Начислено всего (baseSalary + bonusesTotal + businessTripTotal - penaltiesTotal).
-    required double grossSalary,
-    
-    /// К выплате (grossSalary - deductionsTotal).
+    /// К выплате (baseSalary + bonusesTotal + businessTripTotal - penaltiesTotal).
     required double netSalary,
   }) = _PayrollCalculation;
   

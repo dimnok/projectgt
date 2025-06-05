@@ -4,6 +4,8 @@ import 'package:projectgt/features/fot/data/models/payroll_penalty_model.dart';
 import '../providers/payroll_filter_provider.dart';
 import 'package:uuid/uuid.dart';
 import '../providers/penalty_providers.dart';
+import '../providers/balance_providers.dart';
+import '../providers/payroll_providers.dart';
 import 'package:collection/collection.dart';
 import 'package:projectgt/core/widgets/dropdown_typeahead_field.dart';
 
@@ -113,7 +115,6 @@ class _PayrollPenaltyFormModalState extends ConsumerState<PayrollPenaltyFormModa
       final isEdit = widget.penalty != null;
       final penalty = PayrollPenaltyModel(
         id: isEdit ? widget.penalty!.id : uuid.v4(),
-        payrollId: null, // не используется напрямую
         employeeId: _selectedEmployeeId,
         type: 'manual', // фиксированное значение
         amount: num.parse(_amountController.text.replaceAll(',', '.')),
@@ -132,6 +133,8 @@ class _PayrollPenaltyFormModalState extends ConsumerState<PayrollPenaltyFormModa
       if (mounted) {
         Navigator.pop(context);
         ref.invalidate(allPenaltiesProvider);
+        ref.invalidate(employeeAggregatedBalanceProvider);
+        ref.invalidate(payrollPayoutsByMonthProvider);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(isEdit ? 'Штраф обновлён' : 'Штраф добавлен')),
         );
@@ -250,22 +253,24 @@ class _PayrollPenaltyFormModalState extends ConsumerState<PayrollPenaltyFormModa
                             DropdownTypeAheadField<dynamic>(
                               controller: _employeeController,
                               labelText: 'Сотрудник',
-                              hintText: 'Выберите сотрудника',
+                              hintText: employees.isEmpty ? 'Нет доступных значений' : 'Выберите сотрудника',
                               items: employees,
                               displayStringForOption: (e) => [e.lastName, e.firstName, if (e.middleName != null && e.middleName.isNotEmpty) e.middleName].join(' '),
-                              onSelected: _onEmployeeSelected,
+                              onSelected: employees.isEmpty ? (_) {} : _onEmployeeSelected,
                               validator: (value) => _selectedEmployeeId == null ? 'Обязательное поле' : null,
+                              allowCustomValues: false,
                             ),
                             const SizedBox(height: 16),
                             // Объект
                             DropdownTypeAheadField<dynamic>(
                               controller: _objectController,
                               labelText: 'Объект',
-                              hintText: 'Выберите объект',
+                              hintText: objects.isEmpty ? 'Нет доступных значений' : 'Выберите объект',
                               items: objects,
                               displayStringForOption: (o) => o.name,
-                              onSelected: _onObjectSelected,
+                              onSelected: objects.isEmpty ? (_) {} : _onObjectSelected,
                               validator: (value) => _selectedObjectId == null ? 'Обязательное поле' : null,
+                              allowCustomValues: false,
                             ),
                             const SizedBox(height: 16),
                             // Сумма

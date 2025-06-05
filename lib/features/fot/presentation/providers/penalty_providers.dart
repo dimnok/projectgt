@@ -1,10 +1,7 @@
-export 'payroll_providers.dart' show filteredPenaltiesProvider, allPenaltiesProvider;
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/payroll_penalty_model.dart';
 import '../../data/repositories/payroll_penalty_repository.dart';
 import '../../data/repositories/payroll_penalty_repository_impl.dart';
-import '../../domain/usecases/get_penalties_by_payroll_id_usecase.dart';
 import '../../domain/usecases/create_penalty_usecase.dart';
 import '../../domain/usecases/update_penalty_usecase.dart';
 import '../../domain/usecases/delete_penalty_usecase.dart';
@@ -16,17 +13,6 @@ import 'package:collection/collection.dart';
 final payrollPenaltyRepositoryProvider = Provider<PayrollPenaltyRepository>((ref) {
   final client = ref.watch(supabaseClientProvider);
   return PayrollPenaltyRepositoryImpl(client);
-});
-
-/// Провайдер usecase получения штрафов по payrollId.
-final getPenaltiesByPayrollIdUseCaseProvider = Provider<GetPenaltiesByPayrollIdUseCase>((ref) {
-  return GetPenaltiesByPayrollIdUseCase(ref.watch(payrollPenaltyRepositoryProvider));
-});
-
-/// Провайдер получения списка штрафов по payrollId.
-final penaltiesByPayrollIdProvider = FutureProvider.family<List<PayrollPenaltyModel>, String>((ref, payrollId) async {
-  final useCase = ref.watch(getPenaltiesByPayrollIdUseCaseProvider);
-  return useCase(payrollId);
 });
 
 /// Провайдер usecase создания штрафа.
@@ -55,7 +41,7 @@ final filteredPenaltiesProvider = Provider<List<PayrollPenaltyModel>>((ref) {
   final employees = filter.employees;
   return penaltiesAsync.maybeWhen(
     data: (allPenalties) {
-      return allPenalties.where((penalty) {
+      final filteredPenalties = allPenalties.where((penalty) {
         // Фильтр по дате
         final date = penalty.date;
         final inMonth = date != null &&
@@ -75,6 +61,21 @@ final filteredPenaltiesProvider = Provider<List<PayrollPenaltyModel>>((ref) {
           })();
         return inMonth && byEmployee && byObject && byPosition;
       }).toList();
+      
+      // Сортируем по алфавиту (ФИО сотрудников)
+      filteredPenalties.sort((a, b) {
+        final empA = employees.firstWhereOrNull((e) => e.id == a.employeeId);
+        final empB = employees.firstWhereOrNull((e) => e.id == b.employeeId);
+        final nameA = empA != null 
+            ? ('${empA.lastName} ${empA.firstName} ${empA.middleName ?? ''}').trim().toLowerCase() 
+            : (a.employeeId ?? '').toLowerCase();
+        final nameB = empB != null 
+            ? ('${empB.lastName} ${empB.firstName} ${empB.middleName ?? ''}').trim().toLowerCase() 
+            : (b.employeeId ?? '').toLowerCase();
+        return nameA.compareTo(nameB);
+      });
+      
+      return filteredPenalties;
     },
     orElse: () => [],
   );

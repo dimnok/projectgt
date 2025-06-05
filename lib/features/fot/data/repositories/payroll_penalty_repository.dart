@@ -4,9 +4,6 @@ import '../models/payroll_penalty_model.dart';
 /// 
 /// Предоставляет методы для получения, создания, обновления и удаления штрафов по расчёту ФОТ.
 abstract class PayrollPenaltyRepository {
-  /// Получить список штрафов по идентификатору расчёта ФОТ.
-  Future<List<PayrollPenaltyModel>> getPenaltiesByPayrollId(String payrollId);
-
   /// Создать новый штраф.
   Future<PayrollPenaltyModel> createPenalty(PayrollPenaltyModel penalty);
 

@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:collection/collection.dart';
 import '../providers/bonus_providers.dart';
+import '../providers/balance_providers.dart';
+import '../providers/payroll_providers.dart';
 import '../providers/payroll_filter_provider.dart';
 import 'payroll_bonus_form_modal.dart';
 import 'package:flutter/cupertino.dart';
@@ -96,7 +98,7 @@ class PayrollBonusTableWidget extends ConsumerWidget {
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
                                         Text(
-                                          fio.trim() ?? '',
+                                          fio.trim(),
                                           style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
                                           overflow: TextOverflow.ellipsis,
                                         ),
@@ -146,6 +148,8 @@ class PayrollBonusTableWidget extends ConsumerWidget {
                                                   final deleteBonus = ref.read(deleteBonusUseCaseProvider);
                                                   await deleteBonus(bonus.id);
                                                   ref.invalidate(allBonusesProvider);
+                                                  ref.invalidate(employeeAggregatedBalanceProvider);
+                                                  ref.invalidate(payrollPayoutsByMonthProvider);
                                                   if (context.mounted) {
                                                     ScaffoldMessenger.of(context).showSnackBar(
                                                       const SnackBar(content: Text('Премия удалена')),

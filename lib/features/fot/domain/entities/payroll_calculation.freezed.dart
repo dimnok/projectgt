@@ -37,20 +37,11 @@ mixin _$PayrollCalculation {
   /// Сумма штрафов.
   double get penaltiesTotal;
 
-  /// Сумма удержаний.
-  double get deductionsTotal;
-
   /// Сумма командировочных выплат.
   double get businessTripTotal;
 
-  /// Начислено всего (baseSalary + bonusesTotal + businessTripTotal - penaltiesTotal).
-  double get grossSalary;
-
-  /// К выплате (grossSalary - deductionsTotal).
+  /// К выплате (baseSalary + bonusesTotal + businessTripTotal - penaltiesTotal).
   double get netSalary;
-
-  /// Баланс сотрудника (начислено минус выплаты)
-  double get balance;
 
   /// Create a copy of PayrollCalculation
   /// with the given fields replaced by the non-null parameter values.
@@ -79,15 +70,10 @@ mixin _$PayrollCalculation {
                 other.bonusesTotal == bonusesTotal) &&
             (identical(other.penaltiesTotal, penaltiesTotal) ||
                 other.penaltiesTotal == penaltiesTotal) &&
-            (identical(other.deductionsTotal, deductionsTotal) ||
-                other.deductionsTotal == deductionsTotal) &&
             (identical(other.businessTripTotal, businessTripTotal) ||
                 other.businessTripTotal == businessTripTotal) &&
-            (identical(other.grossSalary, grossSalary) ||
-                other.grossSalary == grossSalary) &&
             (identical(other.netSalary, netSalary) ||
-                other.netSalary == netSalary) &&
-            (identical(other.balance, balance) || other.balance == balance));
+                other.netSalary == netSalary));
   }
 
   @override
@@ -100,15 +86,12 @@ mixin _$PayrollCalculation {
       baseSalary,
       bonusesTotal,
       penaltiesTotal,
-      deductionsTotal,
       businessTripTotal,
-      grossSalary,
-      netSalary,
-      balance);
+      netSalary);
 
   @override
   String toString() {
-    return 'PayrollCalculation(employeeId: $employeeId, periodMonth: $periodMonth, hoursWorked: $hoursWorked, hourlyRate: $hourlyRate, baseSalary: $baseSalary, bonusesTotal: $bonusesTotal, penaltiesTotal: $penaltiesTotal, deductionsTotal: $deductionsTotal, businessTripTotal: $businessTripTotal, grossSalary: $grossSalary, netSalary: $netSalary, balance: $balance)';
+    return 'PayrollCalculation(employeeId: $employeeId, periodMonth: $periodMonth, hoursWorked: $hoursWorked, hourlyRate: $hourlyRate, baseSalary: $baseSalary, bonusesTotal: $bonusesTotal, penaltiesTotal: $penaltiesTotal, businessTripTotal: $businessTripTotal, netSalary: $netSalary)';
   }
 }
 
@@ -126,11 +109,8 @@ abstract mixin class $PayrollCalculationCopyWith<$Res> {
       double baseSalary,
       double bonusesTotal,
       double penaltiesTotal,
-      double deductionsTotal,
       double businessTripTotal,
-      double grossSalary,
-      double netSalary,
-      double balance});
+      double netSalary});
 }
 
 /// @nodoc
@@ -153,11 +133,8 @@ class _$PayrollCalculationCopyWithImpl<$Res>
     Object? baseSalary = null,
     Object? bonusesTotal = null,
     Object? penaltiesTotal = null,
-    Object? deductionsTotal = null,
     Object? businessTripTotal = null,
-    Object? grossSalary = null,
     Object? netSalary = null,
-    Object? balance = null,
   }) {
     return _then(_self.copyWith(
       employeeId: freezed == employeeId
@@ -188,25 +165,13 @@ class _$PayrollCalculationCopyWithImpl<$Res>
           ? _self.penaltiesTotal
           : penaltiesTotal // ignore: cast_nullable_to_non_nullable
               as double,
-      deductionsTotal: null == deductionsTotal
-          ? _self.deductionsTotal
-          : deductionsTotal // ignore: cast_nullable_to_non_nullable
-              as double,
       businessTripTotal: null == businessTripTotal
           ? _self.businessTripTotal
           : businessTripTotal // ignore: cast_nullable_to_non_nullable
               as double,
-      grossSalary: null == grossSalary
-          ? _self.grossSalary
-          : grossSalary // ignore: cast_nullable_to_non_nullable
-              as double,
       netSalary: null == netSalary
           ? _self.netSalary
           : netSalary // ignore: cast_nullable_to_non_nullable
-              as double,
-      balance: null == balance
-          ? _self.balance
-          : balance // ignore: cast_nullable_to_non_nullable
               as double,
     ));
   }
@@ -223,11 +188,8 @@ class _PayrollCalculation extends PayrollCalculation {
       required this.baseSalary,
       this.bonusesTotal = 0,
       this.penaltiesTotal = 0,
-      this.deductionsTotal = 0,
       this.businessTripTotal = 0,
-      required this.grossSalary,
-      required this.netSalary,
-      this.balance = 0})
+      required this.netSalary})
       : super._();
 
   /// Идентификатор сотрудника.
@@ -261,28 +223,14 @@ class _PayrollCalculation extends PayrollCalculation {
   @JsonKey()
   final double penaltiesTotal;
 
-  /// Сумма удержаний.
-  @override
-  @JsonKey()
-  final double deductionsTotal;
-
   /// Сумма командировочных выплат.
   @override
   @JsonKey()
   final double businessTripTotal;
 
-  /// Начислено всего (baseSalary + bonusesTotal + businessTripTotal - penaltiesTotal).
-  @override
-  final double grossSalary;
-
-  /// К выплате (grossSalary - deductionsTotal).
+  /// К выплате (baseSalary + bonusesTotal + businessTripTotal - penaltiesTotal).
   @override
   final double netSalary;
-
-  /// Баланс сотрудника (начислено минус выплаты)
-  @override
-  @JsonKey()
-  final double balance;
 
   /// Create a copy of PayrollCalculation
   /// with the given fields replaced by the non-null parameter values.
@@ -311,15 +259,10 @@ class _PayrollCalculation extends PayrollCalculation {
                 other.bonusesTotal == bonusesTotal) &&
             (identical(other.penaltiesTotal, penaltiesTotal) ||
                 other.penaltiesTotal == penaltiesTotal) &&
-            (identical(other.deductionsTotal, deductionsTotal) ||
-                other.deductionsTotal == deductionsTotal) &&
             (identical(other.businessTripTotal, businessTripTotal) ||
                 other.businessTripTotal == businessTripTotal) &&
-            (identical(other.grossSalary, grossSalary) ||
-                other.grossSalary == grossSalary) &&
             (identical(other.netSalary, netSalary) ||
-                other.netSalary == netSalary) &&
-            (identical(other.balance, balance) || other.balance == balance));
+                other.netSalary == netSalary));
   }
 
   @override
@@ -332,15 +275,12 @@ class _PayrollCalculation extends PayrollCalculation {
       baseSalary,
       bonusesTotal,
       penaltiesTotal,
-      deductionsTotal,
       businessTripTotal,
-      grossSalary,
-      netSalary,
-      balance);
+      netSalary);
 
   @override
   String toString() {
-    return 'PayrollCalculation(employeeId: $employeeId, periodMonth: $periodMonth, hoursWorked: $hoursWorked, hourlyRate: $hourlyRate, baseSalary: $baseSalary, bonusesTotal: $bonusesTotal, penaltiesTotal: $penaltiesTotal, deductionsTotal: $deductionsTotal, businessTripTotal: $businessTripTotal, grossSalary: $grossSalary, netSalary: $netSalary, balance: $balance)';
+    return 'PayrollCalculation(employeeId: $employeeId, periodMonth: $periodMonth, hoursWorked: $hoursWorked, hourlyRate: $hourlyRate, baseSalary: $baseSalary, bonusesTotal: $bonusesTotal, penaltiesTotal: $penaltiesTotal, businessTripTotal: $businessTripTotal, netSalary: $netSalary)';
   }
 }
 
@@ -360,11 +300,8 @@ abstract mixin class _$PayrollCalculationCopyWith<$Res>
       double baseSalary,
       double bonusesTotal,
       double penaltiesTotal,
-      double deductionsTotal,
       double businessTripTotal,
-      double grossSalary,
-      double netSalary,
-      double balance});
+      double netSalary});
 }
 
 /// @nodoc
@@ -387,11 +324,8 @@ class __$PayrollCalculationCopyWithImpl<$Res>
     Object? baseSalary = null,
     Object? bonusesTotal = null,
     Object? penaltiesTotal = null,
-    Object? deductionsTotal = null,
     Object? businessTripTotal = null,
-    Object? grossSalary = null,
     Object? netSalary = null,
-    Object? balance = null,
   }) {
     return _then(_PayrollCalculation(
       employeeId: freezed == employeeId
@@ -422,25 +356,13 @@ class __$PayrollCalculationCopyWithImpl<$Res>
           ? _self.penaltiesTotal
           : penaltiesTotal // ignore: cast_nullable_to_non_nullable
               as double,
-      deductionsTotal: null == deductionsTotal
-          ? _self.deductionsTotal
-          : deductionsTotal // ignore: cast_nullable_to_non_nullable
-              as double,
       businessTripTotal: null == businessTripTotal
           ? _self.businessTripTotal
           : businessTripTotal // ignore: cast_nullable_to_non_nullable
               as double,
-      grossSalary: null == grossSalary
-          ? _self.grossSalary
-          : grossSalary // ignore: cast_nullable_to_non_nullable
-              as double,
       netSalary: null == netSalary
           ? _self.netSalary
           : netSalary // ignore: cast_nullable_to_non_nullable
-              as double,
-      balance: null == balance
-          ? _self.balance
-          : balance // ignore: cast_nullable_to_non_nullable
               as double,
     ));
   }

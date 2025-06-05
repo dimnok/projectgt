@@ -15,7 +15,7 @@ class CreatePayoutUseCase {
   /// 
   /// [payout] — модель выплаты для создания.
   /// Возвращает созданную модель [PayrollPayoutModel].
-  Future<PayrollPayoutModel> call(PayrollPayoutModel payout) {
-    return repository.createPayout(payout);
+  Future<PayrollPayoutModel> call(PayrollPayoutModel payout) async {
+    return await repository.createPayout(payout);
   }
 } 

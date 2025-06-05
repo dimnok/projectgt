@@ -3,12 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart' show AppRoute, AppDrawer;
 import '../widgets/payroll_filter_widget.dart';
+import '../widgets/payroll_payout_filter_widget.dart';
 import '../widgets/payroll_table_widget.dart';
 import '../providers/payroll_providers.dart';
 import '../providers/payroll_filter_provider.dart';
-import 'package:projectgt/features/timesheet/presentation/providers/timesheet_provider.dart';
+import '../providers/balance_providers.dart';
 import 'tabs/payroll_tab_penalties.dart';
 import 'tabs/payroll_tab_bonuses.dart';
+import 'tabs/payroll_tab_payouts.dart';
 
 /// Экран: Список расчётов ФОТ за выбранный месяц с применением фильтров.
 class PayrollListScreen extends ConsumerStatefulWidget {
@@ -28,6 +30,7 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
     Tab(text: 'ФОТ'),
     Tab(text: 'Штрафы'),
     Tab(text: 'Премии'),
+    Tab(text: 'Выплаты'),
   ];
   
   @override
@@ -43,15 +46,12 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
     _initialLoadStarted = true;
     
     try {
-      // 1. Сначала загружаем табель
-      await ref.read(timesheetProvider.notifier).loadTimesheet();
-      
-      // 2. Инициализируем данные фильтров (сотрудники и объекты)
+      // Инициализируем данные фильтров (сотрудники и объекты)
       final filterNotifier = ref.read(payrollFilterProvider.notifier);
       // Этот метод запустит загрузку сотрудников и объектов если нужно
       await Future.microtask(() => filterNotifier.updateDataFromProviders());
       
-      // 3. Принудительно обновляем провайдер filteredPayrolls
+      // Принудительно обновляем провайдер filteredPayrolls
       ref.invalidate(filteredPayrollsProvider);
     } catch (e) {
       // Игнорируем ошибки инициализации
@@ -68,13 +68,13 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
     // Используем filteredPayrollsProvider для получения отфильтрованных данных
     final payrollsAsync = ref.watch(filteredPayrollsProvider);
     
-    // Состояние загрузки табеля для понимания, что данные загружаются
-    final timesheetState = ref.watch(timesheetProvider);
-    final timesheetLoading = timesheetState.isLoading;
+    // Состояние загрузки work_hours для понимания, что данные загружаются
+    final workHoursState = ref.watch(payrollWorkHoursProvider);
+    final workHoursLoading = workHoursState.isLoading;
     
     // Если данные все еще не готовы после инициализации, 
     // и прошло уже некоторое время, повторяем инициализацию
-    if (!isDataReady && _initialLoadStarted && !timesheetLoading) {
+    if (!isDataReady && _initialLoadStarted && !workHoursLoading) {
       Future.microtask(() => _initializeData());
     }
     
@@ -87,8 +87,11 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Фильтры ФОТ
-          const PayrollFilterWidget(),
+          // Фильтры ФОТ - условное отображение в зависимости от выбранного таба
+          if (_selectedTabIndex != 3) // Для табов ФОТ, Штрафы, Премии
+            const PayrollFilterWidget()
+          else // Для таба Выплаты
+            const PayrollPayoutFilterWidget(),
           // --- Табы ---
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 4.0),
@@ -165,14 +168,17 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
                                       label: const Text('Повторить'),
                                       onPressed: () {
                                         final scaffoldMessenger = ScaffoldMessenger.of(context);
-                                        ref.read(timesheetProvider.notifier).loadTimesheet();
+                                        // Обновляем данные work_hours вместо табеля
+                                        ref.invalidate(payrollWorkHoursProvider);
+                                        ref.invalidate(employeeAggregatedBalanceProvider);
+                                        ref.invalidate(payrollPayoutsByMonthProvider);
                                         final future = ref.refresh(filteredPayrollsProvider.future);
                                         future.then(
                                           (_) => scaffoldMessenger.showSnackBar(
                                             const SnackBar(content: Text('Данные обновлены'))
                                           ),
                                           onError: (e) => scaffoldMessenger.showSnackBar(
-                                            SnackBar(content: Text('Ошибка: ${e.toString()}'))
+                                            SnackBar(content: Text('Ошибка: ${e.toString()}'))
                                           )
                                         );
                                       },
@@ -181,7 +187,7 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
                                 ),
                               ),
                             ),
-                          if (!isDataReady || payrollsAsync.isLoading || timesheetLoading)
+                          if (!isDataReady || payrollsAsync.isLoading || workHoursLoading)
                             Container(
                               color: Colors.black.withValues(alpha: 0.04),
                               child: Center(
@@ -209,6 +215,8 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
                 const PayrollTabPenalties(),
                 // --- Премии ---
                 const PayrollTabBonuses(),
+                // --- Выплаты ---
+                const PayrollTabPayouts(),
               ],
             ),
           ),
