@@ -7,7 +7,7 @@ import 'contractor_form_screen.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 import 'package:go_router/go_router.dart';
-import 'package:projectgt/core/utils/notifications_service.dart';
+import 'package:projectgt/core/utils/snackbar_utils.dart';
 import 'package:projectgt/presentation/widgets/app_badge.dart';
 
 /// Экран подробной информации о контрагенте (заказчик, подрядчик, поставщик).
@@ -265,11 +265,11 @@ class _ContractorDetailsScreenState extends ConsumerState<ContractorDetailsScree
                           await ref.read(contractorProvider.notifier).deleteContractor(contractor.id);
                           if (context.mounted) {
                             context.goNamed('contractors');
-                            NotificationsService.showErrorNotification(context, 'Контрагент удалён');
+                            SnackBarUtils.showSuccess(context, 'Контрагент удалён');
                           }
                         } catch (e) {
                           if (context.mounted) {
-                            NotificationsService.showErrorNotification(context, 'Ошибка удаления: ${e.toString()}');
+                            SnackBarUtils.showError(context, 'Ошибка удаления: ${e.toString()}');
                           }
                         }
                       }

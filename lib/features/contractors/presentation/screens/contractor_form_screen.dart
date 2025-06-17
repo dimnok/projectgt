@@ -6,7 +6,7 @@ import 'package:projectgt/domain/entities/contractor.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:uuid/uuid.dart';
 import 'package:projectgt/presentation/widgets/photo_picker_avatar.dart';
-import 'package:projectgt/core/utils/notifications_service.dart';
+import 'package:projectgt/core/utils/snackbar_utils.dart';
 
 /// Контент формы создания/редактирования контрагента.
 ///
@@ -323,18 +323,18 @@ class _ContractorFormScreenState extends ConsumerState<ContractorFormScreen> {
       if (isNew) {
         await notifier.addContractor(contractor);
         if (mounted) {
-          NotificationsService.showSuccessNotification(context, 'Контрагент успешно создан');
+          SnackBarUtils.showSuccess(context, 'Контрагент успешно создан');
         }
       } else {
         await notifier.updateContractor(contractor);
         if (mounted) {
-          NotificationsService.showInfoNotification(context, 'Изменения успешно сохранены');
+          SnackBarUtils.showInfo(context, 'Изменения успешно сохранены');
         }
       }
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        NotificationsService.showErrorNotification(context, 'Ошибка: ${e.toString()}');
+        SnackBarUtils.showError(context, 'Ошибка: ${e.toString()}');
       }
     }
   }

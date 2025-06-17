@@ -1,8 +1,16 @@
 import 'package:flutter/material.dart';
 import '../../widgets/payroll_penalty_table_widget.dart';
-import '../../widgets/payroll_penalty_form_modal.dart';
+import '../../widgets/payroll_transaction_form_modal.dart';
+import '../../../domain/entities/payroll_transaction.dart';
 
+/// Таб "Штрафы" в модуле ФОТ.
+///
+/// Отображает таблицу всех штрафов за выбранный период с возможностью добавления и редактирования штрафов.
+/// Использует строгий минималистичный стиль, поддерживает адаптивность и работу на всех платформах.
 class PayrollTabPenalties extends StatelessWidget {
+  /// Конструктор таба "Штрафы".
+  ///
+  /// [key] — ключ виджета.
   const PayrollTabPenalties({super.key});
 
   @override
@@ -36,7 +44,9 @@ class PayrollTabPenalties extends StatelessWidget {
                       constraints: BoxConstraints(
                         maxHeight: MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top - kToolbarHeight,
                       ),
-                      builder: (ctx) => const PayrollPenaltyFormModal(),
+                      builder: (ctx) => const PayrollTransactionFormModal(
+                        transactionType: PayrollTransactionType.penalty,
+                      ),
                     );
                   },
                   child: const Icon(Icons.add),

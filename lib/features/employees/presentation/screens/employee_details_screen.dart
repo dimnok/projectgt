@@ -6,7 +6,7 @@ import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
-import 'package:projectgt/core/utils/notifications_service.dart';
+import 'package:projectgt/core/utils/snackbar_utils.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/domain/entities/object.dart';
 import 'package:go_router/go_router.dart';
@@ -593,13 +593,13 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> w
       try {
         await ref.read(state.employeeProvider.notifier).deleteEmployee(employee.id);
         if (!mounted) return;
-          NotificationsService.showErrorNotification(context, 'Сотрудник удалён');
+          SnackBarUtils.showError(context, 'Сотрудник удалён');
           if (widget.showAppBar) {
             context.pop();
         }
       } catch (e) {
         if (!mounted) return;
-          NotificationsService.showErrorNotification(context, 'Ошибка удаления: ${e.toString()}');
+          SnackBarUtils.showError(context, 'Ошибка удаления: ${e.toString()}');
       }
     }
   }

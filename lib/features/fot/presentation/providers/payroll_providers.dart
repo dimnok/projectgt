@@ -70,16 +70,39 @@ final payrollWorkHoursProvider = FutureProvider<List<dynamic>>((ref) async {
   }
 });
 
-/// Временная модель для данных work_hours (для совместимости с существующим кодом)
+/// Временная модель для представления записи о рабочих часах сотрудника в рамках смены.
+/// Используется для совместимости с существующим кодом и агрегации данных из Supabase.
 class WorkHourEntry {
+  /// Уникальный идентификатор записи work_hours (UUID).
   final String id;
+
+  /// Идентификатор смены (work_id), к которой относится запись (UUID).
   final String workId;
+
+  /// Идентификатор сотрудника (employee_id), для которого зафиксированы часы (UUID).
   final String employeeId;
+
+  /// Количество отработанных часов по данной записи.
   final num hours;
+
+  /// Дата смены, к которой относится запись (поле works.date).
   final DateTime date;
+
+  /// Идентификатор объекта (object_id), на котором велась работа (UUID).
   final String objectId;
+
+  /// Должность сотрудника на момент смены (опционально, может быть null).
   final String? employeePosition;
   
+  /// Конструктор WorkHourEntry.
+  /// 
+  /// [id] — уникальный идентификатор записи work_hours.
+  /// [workId] — идентификатор смены.
+  /// [employeeId] — идентификатор сотрудника.
+  /// [hours] — количество отработанных часов.
+  /// [date] — дата смены.
+  /// [objectId] — идентификатор объекта.
+  /// [employeePosition] — должность сотрудника (опционально).
   WorkHourEntry({
     required this.id,
     required this.workId,
@@ -219,9 +242,8 @@ final filteredPayrollsProvider = FutureProvider<List<PayrollCalculation>>((ref) 
       final bonusesTotal = (bonusesAsync)
         .where((b) =>
           b.employeeId == employeeId &&
-          b.createdAt != null &&
-          b.createdAt!.year == year &&
-          b.createdAt!.month == month
+          ((b.date != null && b.date!.year == year && b.date!.month == month) ||
+           (b.date == null && b.createdAt != null && b.createdAt!.year == year && b.createdAt!.month == month))
         )
         .fold<double>(0, (sum, b) => sum + b.amount);
       

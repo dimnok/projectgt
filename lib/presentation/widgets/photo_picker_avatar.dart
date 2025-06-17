@@ -232,7 +232,7 @@ class _PhotoOptionButton extends StatelessWidget {
           child: CircleAvatar(
             radius: 24,
             backgroundColor: Theme.of(context).colorScheme.primary,
-            child: Icon(icon, color: Colors.white, size: 24),
+            child: Icon(icon, color: Theme.of(context).colorScheme.onPrimary, size: 24),
           ),
         ),
         const SizedBox(height: 8),

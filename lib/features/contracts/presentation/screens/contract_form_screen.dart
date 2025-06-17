@@ -7,7 +7,7 @@ import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 import 'package:projectgt/data/models/contract_model.dart';
-import 'package:projectgt/core/utils/notifications_service.dart';
+import 'package:projectgt/core/utils/snackbar_utils.dart';
 
 /// Экран для создания или редактирования договора.
 ///
@@ -59,7 +59,7 @@ class _ContractFormScreenState extends ConsumerState<ContractFormScreen> {
   void _handleSave() async {
     if (!_formKey.currentState!.validate()) return;
     if (_date == null || _selectedContractorId == null || _selectedObjectId == null) {
-      NotificationsService.showErrorNotification(context, 'Заполните все обязательные поля');
+      SnackBarUtils.showError(context, 'Заполните все обязательные поля');
       return;
     }
     setState(() => _isLoading = true);
@@ -84,11 +84,11 @@ class _ContractFormScreenState extends ConsumerState<ContractFormScreen> {
       if (isNew) {
         await notifier.addContract(contract);
         if (!mounted) return;
-        NotificationsService.showSuccessNotification(context, 'Договор успешно добавлен');
+        SnackBarUtils.showSuccess(context, 'Договор успешно добавлен');
       } else {
         await notifier.updateContract(contract);
         if (!mounted) return;
-        NotificationsService.showInfoNotification(context, 'Договор обновлён');
+        SnackBarUtils.showInfo(context, 'Договор обновлён');
       }
       setState(() => _isLoading = false);
       if (mounted) Navigator.pop(context);
@@ -96,7 +96,7 @@ class _ContractFormScreenState extends ConsumerState<ContractFormScreen> {
       setState(() => _isLoading = false);
       debugPrint('[CONTRACTS][ERROR] $e');
       if (!mounted) return;
-      NotificationsService.showErrorNotification(context, 'Ошибка: $e');
+      SnackBarUtils.showError(context, 'Ошибка: $e');
     }
   }
 
@@ -209,7 +209,7 @@ class _ContractFormModalState extends ConsumerState<ContractFormModal> {
   void _handleSave() async {
     if (!_formKey.currentState!.validate()) return;
     if (_date == null || _selectedContractorId == null || _selectedObjectId == null) {
-      NotificationsService.showErrorNotification(context, 'Заполните все обязательные поля');
+      SnackBarUtils.showError(context, 'Заполните все обязательные поля');
       return;
     }
     setState(() => _isLoading = true);
@@ -234,11 +234,11 @@ class _ContractFormModalState extends ConsumerState<ContractFormModal> {
       if (isNew) {
         await notifier.addContract(contract);
         if (!mounted) return;
-        NotificationsService.showSuccessNotification(context, 'Договор успешно добавлен');
+        SnackBarUtils.showSuccess(context, 'Договор успешно добавлен');
       } else {
         await notifier.updateContract(contract);
         if (!mounted) return;
-        NotificationsService.showInfoNotification(context, 'Договор обновлён');
+        SnackBarUtils.showInfo(context, 'Договор обновлён');
       }
       setState(() => _isLoading = false);
       if (mounted) Navigator.pop(context);
@@ -246,7 +246,7 @@ class _ContractFormModalState extends ConsumerState<ContractFormModal> {
       setState(() => _isLoading = false);
       debugPrint('[CONTRACTS][ERROR] $e');
       if (!mounted) return;
-      NotificationsService.showErrorNotification(context, 'Ошибка: $e');
+      SnackBarUtils.showError(context, 'Ошибка: $e');
     }
   }
 

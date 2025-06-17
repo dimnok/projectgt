@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../widgets/payroll_bonus_table_widget.dart';
-import '../../widgets/payroll_bonus_form_modal.dart';
+import '../../widgets/payroll_transaction_form_modal.dart';
+import '../../../domain/entities/payroll_transaction.dart';
 
 /// Таб "Премии" в модуле ФОТ.
 ///
@@ -43,7 +44,9 @@ class PayrollTabBonuses extends StatelessWidget {
                       constraints: BoxConstraints(
                         maxHeight: MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top - kToolbarHeight,
                       ),
-                      builder: (ctx) => const PayrollBonusFormModal(),
+                      builder: (ctx) => const PayrollTransactionFormModal(
+                        transactionType: PayrollTransactionType.bonus,
+                      ),
                     );
                   },
                   child: const Icon(Icons.add),

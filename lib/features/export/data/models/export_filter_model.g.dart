@@ -10,18 +10,30 @@ _ExportFilterModel _$ExportFilterModelFromJson(Map<String, dynamic> json) =>
     _ExportFilterModel(
       dateFrom: DateTime.parse(json['date_from'] as String),
       dateTo: DateTime.parse(json['date_to'] as String),
-      objectId: json['object_id'] as String?,
-      contractId: json['contract_id'] as String?,
-      system: json['system'] as String?,
-      subsystem: json['subsystem'] as String?,
+      objectIds: (json['object_ids'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const [],
+      contractIds: (json['contract_ids'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const [],
+      systems: (json['systems'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const [],
+      subsystems: (json['subsystems'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const [],
     );
 
 Map<String, dynamic> _$ExportFilterModelToJson(_ExportFilterModel instance) =>
     <String, dynamic>{
       'date_from': instance.dateFrom.toIso8601String(),
       'date_to': instance.dateTo.toIso8601String(),
-      'object_id': instance.objectId,
-      'contract_id': instance.contractId,
-      'system': instance.system,
-      'subsystem': instance.subsystem,
+      'object_ids': instance.objectIds,
+      'contract_ids': instance.contractIds,
+      'systems': instance.systems,
+      'subsystems': instance.subsystems,
     };

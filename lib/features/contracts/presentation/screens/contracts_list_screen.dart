@@ -6,7 +6,7 @@ import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 import 'contract_form_screen.dart';
-import 'package:projectgt/core/utils/notifications_service.dart';
+import 'package:projectgt/core/utils/snackbar_utils.dart';
 import 'package:intl/intl.dart';
 import 'package:projectgt/presentation/widgets/app_badge.dart';
 import 'package:go_router/go_router.dart';
@@ -210,10 +210,10 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                     setState(() {
                       selectedContract = null;
                     });
-                    NotificationsService.showErrorNotification(ctx, 'Договор удалён');
+                    SnackBarUtils.showError(ctx, 'Договор удалён');
                   } catch (e) {
                     if (!ctx.mounted) return;
-                    NotificationsService.showErrorNotification(ctx, 'Ошибка удаления: ${e.toString()}');
+                    SnackBarUtils.showError(ctx, 'Ошибка удаления: ${e.toString()}');
                   }
                 }
               },
@@ -944,10 +944,10 @@ class _ContractDetailsPanelState extends ConsumerState<ContractDetailsPanel> wit
                     await ref.read(contractProvider.notifier).deleteContract(contract.id);
                     if (!context.mounted) return;
                     context.pop();
-                    NotificationsService.showErrorNotification(context, 'Договор удалён');
+                    SnackBarUtils.showError(context, 'Договор удалён');
                   } catch (e) {
                     if (!context.mounted) return;
-                    NotificationsService.showErrorNotification(context, 'Ошибка удаления: ${e.toString()}');
+                    SnackBarUtils.showError(context, 'Ошибка удаления: ${e.toString()}');
                   }
                 }
               },

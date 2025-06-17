@@ -8,6 +8,7 @@ import '../widgets/payroll_table_widget.dart';
 import '../providers/payroll_providers.dart';
 import '../providers/payroll_filter_provider.dart';
 import '../providers/balance_providers.dart';
+import '../../../../core/utils/snackbar_utils.dart';
 import 'tabs/payroll_tab_penalties.dart';
 import 'tabs/payroll_tab_bonuses.dart';
 import 'tabs/payroll_tab_payouts.dart';
@@ -56,6 +57,27 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
     } catch (e) {
       // Игнорируем ошибки инициализации
     }
+  }
+
+  // Метод обновления данных с безопасным использованием BuildContext
+  void _refreshData() {
+    // Обновляем данные work_hours вместо табеля
+    ref.invalidate(payrollWorkHoursProvider);
+    ref.invalidate(employeeAggregatedBalanceProvider);
+    ref.invalidate(payrollPayoutsByMonthProvider);
+    final future = ref.refresh(filteredPayrollsProvider.future);
+    future.then(
+      (_) {
+        if (mounted) {
+          SnackBarUtils.showSuccess(context, 'Данные обновлены');
+        }
+      },
+      onError: (e) {
+        if (mounted) {
+          SnackBarUtils.showError(context, 'Ошибка: ${e.toString()}');
+        }
+      },
+    );
   }
 
   @override
@@ -163,26 +185,11 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
                                       ),
                                     ),
                                     const SizedBox(height: 16),
-                                    ElevatedButton.icon(
-                                      icon: const Icon(Icons.refresh),
-                                      label: const Text('Повторить'),
-                                      onPressed: () {
-                                        final scaffoldMessenger = ScaffoldMessenger.of(context);
-                                        // Обновляем данные work_hours вместо табеля
-                                        ref.invalidate(payrollWorkHoursProvider);
-                                        ref.invalidate(employeeAggregatedBalanceProvider);
-                                        ref.invalidate(payrollPayoutsByMonthProvider);
-                                        final future = ref.refresh(filteredPayrollsProvider.future);
-                                        future.then(
-                                          (_) => scaffoldMessenger.showSnackBar(
-                                            const SnackBar(content: Text('Данные обновлены'))
-                                          ),
-                                          onError: (e) => scaffoldMessenger.showSnackBar(
-                                            SnackBar(content: Text('Ошибка: ${e.toString()}'))
-                                          )
-                                        );
-                                      },
-                                    ),
+                                                                          ElevatedButton.icon(
+                                        icon: const Icon(Icons.refresh),
+                                        label: const Text('Повторить'),
+                                        onPressed: _refreshData,
+                                      ),
                                   ],
                                 ),
                               ),

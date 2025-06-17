@@ -18,7 +18,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 import '../../domain/entities/work_hour.dart';
 import '../providers/work_hours_provider.dart';
+import '../providers/work_items_provider.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
+import 'package:projectgt/core/utils/snackbar_utils.dart';
 import 'dart:developer' as developer;
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -124,7 +126,7 @@ class _WorksMasterDetailScreenState extends ConsumerState<WorksMasterDetailScree
       searchQuery.isEmpty
         ? works
         : works.where((w) {
-            final objectName = ref.read(objectProvider).objects
+            final objectName = ref.watch(objectProvider).objects
                 .where((o) => o.id == w.objectId)
                 .map((o) => o.name)
                 .firstOrNull ?? '';
@@ -142,6 +144,74 @@ class _WorksMasterDetailScreenState extends ConsumerState<WorksMasterDetailScree
         showThemeSwitch: true,
       ),
       drawer: const AppDrawer(activeRoute: AppRoute.works),
+      floatingActionButton: !isDesktop ? FloatingActionButton(
+        heroTag: "mobile_add_shift",
+        onPressed: () {
+          final theme = Theme.of(context);
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top - kToolbarHeight,
+            ),
+            builder: (context) {
+              final isDesktop = ResponsiveUtils.isDesktop(context);
+              Widget modalContent = Container(
+                margin: isDesktop ? const EdgeInsets.only(top: 48) : null,
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surface,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.18),
+                      blurRadius: 24,
+                      offset: const Offset(0, -8),
+                    ),
+                  ],
+                  border: Border.all(
+                    color: theme.colorScheme.outline.withValues(alpha: 0.12),
+                    width: 1.5,
+                  ),
+                ),
+                child: DraggableScrollableSheet(
+                  initialChildSize: 1.0,
+                  minChildSize: 0.5,
+                  maxChildSize: 1.0,
+                  expand: false,
+                  builder: (context, scrollController) => SingleChildScrollView(
+                    controller: scrollController,
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        bottom: MediaQuery.of(context).viewInsets.bottom,
+                      ),
+                      child: const OpenShiftFormModal(),
+                    ),
+                  ),
+                ),
+              );
+              if (isDesktop) {
+                return Align(
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: ResponsiveUtils.isDesktop(context) 
+                        ? MediaQuery.of(context).size.width * 0.5 
+                        : MediaQuery.of(context).size.width,
+                    ),
+                    child: modalContent,
+                  ),
+                );
+              } else {
+                return modalContent;
+              }
+            },
+          );
+        },
+        tooltip: 'Добавить смену',
+        child: const Icon(Icons.add),
+      ) : null,
       body: LayoutBuilder(
         builder: (scaffoldContext, constraints) {
           if (isDesktop) {
@@ -194,7 +264,7 @@ class _WorksMasterDetailScreenState extends ConsumerState<WorksMasterDetailScree
                                             final selected = work.id == selectedWork?.id;
                                             
                                             // Получаем название объекта
-                                            final objectName = ref.read(objectProvider).objects
+                                            final objectName = ref.watch(objectProvider).objects
                                                 .where((o) => o.id == work.objectId)
                                                 .map((o) => o.name)
                                                 .firstOrNull ?? work.objectId;
@@ -231,13 +301,13 @@ class _WorksMasterDetailScreenState extends ConsumerState<WorksMasterDetailScree
                                                     child: Stack(
                                                       children: [
                                                         Padding(
-                                                          padding: const EdgeInsets.all(16.0),
+                                                          padding: const EdgeInsets.all(12.0),
                                                           child: Row(
                                                             children: [
                                                               // Иконка смены вместо фото
                                                               Container(
-                                                                width: 64,
-                                                                height: 64,
+                                                                width: 48,
+                                                                height: 48,
                                                                 decoration: BoxDecoration(
                                                                   color: theme.colorScheme.surface,
                                                                   borderRadius: BorderRadius.circular(8),
@@ -253,11 +323,11 @@ class _WorksMasterDetailScreenState extends ConsumerState<WorksMasterDetailScree
                                                                     work.status.toLowerCase() == 'closed' ? Colors.red : Colors.green,
                                                                     BlendMode.srcIn,
                                                                   ),
-                                                                  width: 40,
-                                                                  height: 40,
+                                                                  width: 32,
+                                                                  height: 32,
                                                                 ),
                                                               ),
-                                                              const SizedBox(width: 16),
+                                                              const SizedBox(width: 12),
                                                               // Информация о смене
                                                               Expanded(
                                                                 child: Column(
@@ -265,19 +335,24 @@ class _WorksMasterDetailScreenState extends ConsumerState<WorksMasterDetailScree
                                                                   children: [
                                                                     Text(
                                                                       _formatDate(work.date),
-                                                                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                                                                    ),
-                                                                    const SizedBox(height: 8),
-                                                                    Text(
-                                                                      objectName,
-                                                                      style: theme.textTheme.bodyMedium,
+                                                                      style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
                                                                     ),
                                                                     const SizedBox(height: 4),
+                                                                    Text(
+                                                                      objectName,
+                                                                      style: theme.textTheme.bodySmall,
+                                                                      maxLines: 1,
+                                                                      overflow: TextOverflow.ellipsis,
+                                                                    ),
+                                                                    const SizedBox(height: 2),
                                                                     Text(
                                                                       'Открыл: $createdBy',
                                                                       style: theme.textTheme.bodySmall?.copyWith(
                                                                         color: theme.colorScheme.secondary,
+                                                                        fontSize: 12,
                                                                       ),
+                                                                      maxLines: 1,
+                                                                      overflow: TextOverflow.ellipsis,
                                                                     ),
                                                                   ],
                                                                 ),
@@ -288,9 +363,73 @@ class _WorksMasterDetailScreenState extends ConsumerState<WorksMasterDetailScree
                                                         Positioned(
                                                           top: 8,
                                                           right: 8,
-                                                          child: AppBadge(
+                                                          child: Column(
+                                                            crossAxisAlignment: CrossAxisAlignment.end,
+                                                            children: [
+                                                              AppBadge(
                                                             text: statusText,
                                                             color: statusColor,
+                                                              ),
+                                                              const SizedBox(height: 8),
+                                                              // Общая сумма и выработка
+                                                              Consumer(
+                                                                builder: (context, ref, _) {
+                                                                  if (work.id == null) return const SizedBox.shrink();
+                                                                  
+                                                                  final itemsAsync = ref.watch(workItemsProvider(work.id!));
+                                                                  final hoursAsync = ref.watch(workHoursProvider(work.id!));
+                                                                  
+                                                                  return itemsAsync.when(
+                                                                    data: (items) => hoursAsync.when(
+                                                                      data: (hours) {
+                                                                        // Расчет общей суммы
+                                                                        final totalAmount = items.fold<double>(
+                                                                          0, 
+                                                                          (sum, item) => sum + (item.total ?? 0)
+                                                                        );
+                                                                        
+                                                                        // Количество уникальных сотрудников
+                                                                        final uniqueEmployees = hours.map((h) => h.employeeId).toSet().length;
+                                                                        
+                                                                        // Выработка на сотрудника
+                                                                        final productivityPerEmployee = uniqueEmployees > 0 
+                                                                          ? totalAmount / uniqueEmployees 
+                                                                          : 0.0;
+                                                                        
+                                                                        final formatter = NumberFormat('#,##0', 'ru_RU');
+                                                                        
+                                                                        return Column(
+                                                                          crossAxisAlignment: CrossAxisAlignment.end,
+                                                                          children: [
+                                                                            Text(
+                                                                              '${formatter.format(totalAmount)} ₽',
+                                                                              style: theme.textTheme.bodySmall?.copyWith(
+                                                                                fontWeight: FontWeight.w600,
+                                                                                color: theme.colorScheme.primary,
+                                                                              ),
+                                                                            ),
+                                                                            if (uniqueEmployees > 0) ...[
+                                                                              const SizedBox(height: 2),
+                                                                              Text(
+                                                                                '${formatter.format(productivityPerEmployee)} ₽/чел',
+                                                                                style: theme.textTheme.bodySmall?.copyWith(
+                                                                                  fontSize: 10,
+                                                                                  color: theme.colorScheme.secondary,
+                                                                                ),
+                                                                              ),
+                                                                            ],
+                                                                          ],
+                                                                        );
+                                                                      },
+                                                                      loading: () => const SizedBox.shrink(),
+                                                                      error: (_, __) => const SizedBox.shrink(),
+                                                                    ),
+                                                                    loading: () => const SizedBox.shrink(),
+                                                                    error: (_, __) => const SizedBox.shrink(),
+                                                                  );
+                                                                },
+                                                              ),
+                                                            ],
                                                           ),
                                                         ),
                                                       ],
@@ -310,6 +449,7 @@ class _WorksMasterDetailScreenState extends ConsumerState<WorksMasterDetailScree
                         right: 24,
                         bottom: 24,
                         child: FloatingActionButton(
+                          heroTag: "desktop_add_shift",
                           onPressed: () {
                             final theme = Theme.of(context);
                             showModalBottomSheet(
@@ -439,7 +579,7 @@ class _WorksMasterDetailScreenState extends ConsumerState<WorksMasterDetailScree
                                   final work = filteredWorks[i];
                                   
                                   // Получаем название объекта
-                                  final objectName = ref.read(objectProvider).objects
+                                  final objectName = ref.watch(objectProvider).objects
                                       .where((o) => o.id == work.objectId)
                                       .map((o) => o.name)
                                       .firstOrNull ?? work.objectId;
@@ -477,13 +617,13 @@ class _WorksMasterDetailScreenState extends ConsumerState<WorksMasterDetailScree
                                           child: Stack(
                                             children: [
                                               Padding(
-                                                padding: const EdgeInsets.all(16.0),
+                                                padding: const EdgeInsets.all(12.0),
                                                 child: Row(
                                                   children: [
                                                     // Иконка смены вместо фото
                                                     Container(
-                                                      width: 64,
-                                                      height: 64,
+                                                      width: 48,
+                                                      height: 48,
                                                       decoration: BoxDecoration(
                                                         color: theme.colorScheme.surface,
                                                         borderRadius: BorderRadius.circular(8),
@@ -499,11 +639,11 @@ class _WorksMasterDetailScreenState extends ConsumerState<WorksMasterDetailScree
                                                           work.status.toLowerCase() == 'closed' ? Colors.red : Colors.green,
                                                           BlendMode.srcIn,
                                                         ),
-                                                        width: 40,
-                                                        height: 40,
+                                                        width: 32,
+                                                        height: 32,
                                                       ),
                                                     ),
-                                                    const SizedBox(width: 16),
+                                                    const SizedBox(width: 12),
                                                     // Информация о смене
                                                     Expanded(
                                                       child: Column(
@@ -511,19 +651,24 @@ class _WorksMasterDetailScreenState extends ConsumerState<WorksMasterDetailScree
                                                         children: [
                                                           Text(
                                                             _formatDate(work.date),
-                                                            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                                                          ),
-                                                          const SizedBox(height: 8),
-                                                          Text(
-                                                            objectName,
-                                                            style: theme.textTheme.bodyMedium,
+                                                            style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
                                                           ),
                                                           const SizedBox(height: 4),
+                                                          Text(
+                                                            objectName,
+                                                            style: theme.textTheme.bodySmall,
+                                                            maxLines: 1,
+                                                            overflow: TextOverflow.ellipsis,
+                                                          ),
+                                                          const SizedBox(height: 2),
                                                           Text(
                                                             'Открыл: $createdBy',
                                                             style: theme.textTheme.bodySmall?.copyWith(
                                                               color: theme.colorScheme.secondary,
+                                                              fontSize: 12,
                                                             ),
+                                                            maxLines: 1,
+                                                            overflow: TextOverflow.ellipsis,
                                                           ),
                                                         ],
                                                       ),
@@ -534,9 +679,73 @@ class _WorksMasterDetailScreenState extends ConsumerState<WorksMasterDetailScree
                                               Positioned(
                                                 top: 8,
                                                 right: 8,
-                                                child: AppBadge(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                                  children: [
+                                                    AppBadge(
                                                   text: statusText,
                                                   color: statusColor,
+                                                ),
+                                                    const SizedBox(height: 8),
+                                                    // Общая сумма и выработка
+                                                    Consumer(
+                                                      builder: (context, ref, _) {
+                                                        if (work.id == null) return const SizedBox.shrink();
+                                                        
+                                                        final itemsAsync = ref.watch(workItemsProvider(work.id!));
+                                                        final hoursAsync = ref.watch(workHoursProvider(work.id!));
+                                                        
+                                                        return itemsAsync.when(
+                                                          data: (items) => hoursAsync.when(
+                                                            data: (hours) {
+                                                              // Расчет общей суммы
+                                                              final totalAmount = items.fold<double>(
+                                                                0, 
+                                                                (sum, item) => sum + (item.total ?? 0)
+                                                              );
+                                                              
+                                                              // Количество уникальных сотрудников
+                                                              final uniqueEmployees = hours.map((h) => h.employeeId).toSet().length;
+                                                              
+                                                              // Выработка на сотрудника
+                                                              final productivityPerEmployee = uniqueEmployees > 0 
+                                                                ? totalAmount / uniqueEmployees 
+                                                                : 0.0;
+                                                              
+                                                              final formatter = NumberFormat('#,##0', 'ru_RU');
+                                                              
+                                                                                                                             return Column(
+                                                                 crossAxisAlignment: CrossAxisAlignment.end,
+                                                                 children: [
+                                                                   Text(
+                                                                     '${formatter.format(totalAmount)} ₽',
+                                                                     style: theme.textTheme.bodySmall?.copyWith(
+                                                                       fontWeight: FontWeight.w600,
+                                                                       color: theme.colorScheme.primary,
+                                                                     ),
+                                                                   ),
+                                                                   if (uniqueEmployees > 0) ...[
+                                                                     const SizedBox(height: 2),
+                                                                     Text(
+                                                                       '${formatter.format(productivityPerEmployee)} ₽/чел',
+                                                                       style: theme.textTheme.bodySmall?.copyWith(
+                                                                         fontSize: 10,
+                                                                         color: theme.colorScheme.secondary,
+                                                                       ),
+                                                                     ),
+                                                                   ],
+                                                                 ],
+                                                               );
+                                                            },
+                                                            loading: () => const SizedBox.shrink(),
+                                                            error: (_, __) => const SizedBox.shrink(),
+                                                          ),
+                                                          loading: () => const SizedBox.shrink(),
+                                                          error: (_, __) => const SizedBox.shrink(),
+                                                        );
+                                                      },
+                                                    ),
+                                                  ],
                                                 ),
                                               ),
                                             ],
@@ -546,80 +755,6 @@ class _WorksMasterDetailScreenState extends ConsumerState<WorksMasterDetailScree
                                     }
                                   );
                                 },
-                              ),
-                            ),
-                ),
-                // FAB только для мобильного режима
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 24, right: 24),
-                  child: Align(
-                    alignment: Alignment.bottomRight,
-                    child: FloatingActionButton(
-                      onPressed: () {
-                        final theme = Theme.of(context);
-                        showModalBottomSheet(
-                          context: scaffoldContext,
-                          isScrollControlled: true,
-                          backgroundColor: Colors.transparent,
-                          constraints: BoxConstraints(
-                            maxHeight: MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top - kToolbarHeight,
-                          ),
-                          builder: (context) {
-                            final isDesktop = ResponsiveUtils.isDesktop(context);
-                            Widget modalContent = Container(
-                              margin: isDesktop ? const EdgeInsets.only(top: 48) : null,
-                              clipBehavior: Clip.antiAlias,
-                              decoration: BoxDecoration(
-                                color: theme.colorScheme.surface,
-                                borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.18),
-                                    blurRadius: 24,
-                                    offset: const Offset(0, -8),
-                                  ),
-                                ],
-                                border: Border.all(
-                                  color: theme.colorScheme.outline.withValues(alpha: 0.12),
-                                  width: 1.5,
-                                ),
-                              ),
-                              child: DraggableScrollableSheet(
-                                initialChildSize: 1.0,
-                                minChildSize: 0.5,
-                                maxChildSize: 1.0,
-                                expand: false,
-                                builder: (context, scrollController) => SingleChildScrollView(
-                                  controller: scrollController,
-                                  child: Padding(
-                                    padding: EdgeInsets.only(
-                                      bottom: MediaQuery.of(context).viewInsets.bottom,
-                                    ),
-                                    child: const OpenShiftFormModal(),
-                                  ),
-                                ),
-                              ),
-                            );
-                            if (isDesktop) {
-                              return Align(
-                                alignment: Alignment.topCenter,
-                                child: ConstrainedBox(
-                                  constraints: BoxConstraints(
-                                    maxWidth: ResponsiveUtils.isDesktop(context) 
-                                      ? MediaQuery.of(context).size.width * 0.5 
-                                      : MediaQuery.of(context).size.width,
-                                  ),
-                                  child: modalContent,
-                                ),
-                              );
-                            } else {
-                              return modalContent;
-                            }
-                          },
-                        );
-                      },
-                      tooltip: 'Добавить смену',
-                      child: const Icon(Icons.add),
                     ),
                   ),
                 ),
@@ -663,11 +798,85 @@ class _OpenShiftFormModalState extends ConsumerState<OpenShiftFormModal> {
   final List<String> _selectedEmployeeIds = [];
   String? _photoUrl;
   final TextEditingController _objectController = TextEditingController();
+  
+  // Кеширование для предотвращения мерцания
+  Set<String>? _cachedOccupiedEmployeeIds;
+  bool _isLoadingOccupiedEmployees = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Предзагружаем список занятых сотрудников
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _updateOccupiedEmployees();
+    });
+  }
+
+  /// Обновляет список занятых сотрудников с кешированием
+  Future<void> _updateOccupiedEmployees() async {
+    if (_isLoadingOccupiedEmployees) return;
+    
+    setState(() {
+      _isLoadingOccupiedEmployees = true;
+    });
+    
+    try {
+      final occupiedIds = await _getEmployeesInOpenShifts();
+      if (mounted) {
+        setState(() {
+          _cachedOccupiedEmployeeIds = occupiedIds;
+          _isLoadingOccupiedEmployees = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _cachedOccupiedEmployeeIds = <String>{};
+          _isLoadingOccupiedEmployees = false;
+        });
+      }
+    }
+  }
+
+  /// Получает список ID сотрудников, которые уже заняты в открытых сменах на текущую дату
+  Future<Set<String>> _getEmployeesInOpenShifts() async {
+    final worksState = ref.read(worksProvider);
+    final today = DateTime.now();
+    final todayStart = DateTime(today.year, today.month, today.day);
+    
+    // Получаем все открытые смены на сегодня
+    final openWorksToday = worksState.works.where((work) {
+      final workDate = DateTime(work.date.year, work.date.month, work.date.day);
+      return work.status.toLowerCase() == 'open' && 
+             workDate.isAtSameMomentAs(todayStart);
+    }).toList();
+    
+    final occupiedEmployeeIds = <String>{};
+    
+    // Для каждой открытой смены получаем список сотрудников
+    for (final work in openWorksToday) {
+      if (work.id != null) {
+        try {
+          final workHoursAsync = ref.read(workHoursProvider(work.id!));
+          final workHours = workHoursAsync.valueOrNull ?? [];
+          for (final hour in workHours) {
+            occupiedEmployeeIds.add(hour.employeeId);
+          }
+        } catch (e) {
+          // Игнорируем ошибки загрузки для отдельных смен
+          continue;
+        }
+      }
+    }
+    
+    return occupiedEmployeeIds;
+  }
 
   Future<void> _pickPhoto(ImageSource source) async {
     final photoService = ref.read(photoServiceProvider);
     final file = await photoService.pickImage(source);
     if (file == null) return;
+    if (!mounted) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -799,7 +1008,9 @@ class _OpenShiftFormModalState extends ConsumerState<OpenShiftFormModal> {
         final employees = (snapshot.data![1] as List<Employee>);
         final profileObjectIds = profile?.objectIds ?? [];
         final availableObjects = objects.where((o) => profileObjectIds.contains(o.id)).toList();
-        final availableEmployees = _selectedObjectId == null
+        
+        // Базовая фильтрация сотрудников по объекту и статусу
+        final baseFilteredEmployees = _selectedObjectId == null
             ? <Employee>[]
             : employees
                 .where((e) => e.objectIds.contains(_selectedObjectId))
@@ -878,6 +1089,8 @@ class _OpenShiftFormModalState extends ConsumerState<OpenShiftFormModal> {
                                 _objectController.text = suggestion.name;
                                 _selectedEmployeeIds.clear();
                               });
+                                    // Обновляем список занятых сотрудников при смене объекта
+                                    _updateOccupiedEmployees();
                             },
                             builder: (context, controller, focusNode) {
                               return TextFormField(
@@ -895,6 +1108,7 @@ class _OpenShiftFormModalState extends ConsumerState<OpenShiftFormModal> {
                                               _selectedObjectId = null;
                                               _objectController.clear();
                                               _selectedEmployeeIds.clear();
+                                                    _cachedOccupiedEmployeeIds = null;
                                             });
                                           },
                                         )
@@ -919,24 +1133,8 @@ class _OpenShiftFormModalState extends ConsumerState<OpenShiftFormModal> {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          Column(
-                            children: availableEmployees.map((emp) {
-                              final isSelected = _selectedEmployeeIds.contains(emp.id);
-                              return CheckboxListTile(
-                                value: isSelected,
-                                title: Text('${emp.lastName} ${emp.firstName}${emp.middleName != null && emp.middleName!.isNotEmpty ? ' ${emp.middleName}' : ''}'),
-                                onChanged: (checked) {
-                                  setState(() {
-                                    if (checked == true) {
-                                      _selectedEmployeeIds.add(emp.id);
-                                    } else {
-                                      _selectedEmployeeIds.remove(emp.id);
-                                    }
-                                  });
-                                },
-                              );
-                            }).toList(),
-                          ),
+                                // Оптимизированная фильтрация сотрудников с кешированием
+                                _buildEmployeesList(baseFilteredEmployees, theme),
                           const SizedBox(height: 16),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1053,9 +1251,7 @@ class _OpenShiftFormModalState extends ConsumerState<OpenShiftFormModal> {
                                   
                                   if (context.mounted) {
                                     Navigator.pop(context);
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Смена успешно открыта')),
-                                    );
+                          SnackBarUtils.showSuccess(context, 'Смена успешно открыта');
                                   }
                                 }
                               : null,
@@ -1078,6 +1274,71 @@ class _OpenShiftFormModalState extends ConsumerState<OpenShiftFormModal> {
           ),
         );
       },
+      );
+  }
+
+  /// Строит список сотрудников с оптимизированной фильтрацией
+  Widget _buildEmployeesList(List<Employee> baseFilteredEmployees, ThemeData theme) {
+    if (_selectedObjectId == null) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        child: Text(
+          'Выберите объект для отображения сотрудников',
+          style: TextStyle(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      );
+    }
+
+    // Используем кешированные данные если они есть и актуальны
+    if (_isLoadingOccupiedEmployees) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    final occupiedEmployeeIds = _cachedOccupiedEmployeeIds ?? <String>{};
+    
+    // Финальная фильтрация: исключаем занятых сотрудников
+    final availableEmployees = baseFilteredEmployees
+        .where((e) => !occupiedEmployeeIds.contains(e.id))
+        .toList();
+    
+    if (availableEmployees.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        child: Text(
+          'Нет доступных сотрудников для выбранного объекта',
+          style: TextStyle(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      );
+    }
+    
+    return Column(
+      children: availableEmployees.map((emp) {
+        final isSelected = _selectedEmployeeIds.contains(emp.id);
+        return CheckboxListTile(
+          value: isSelected,
+          title: Text('${emp.lastName} ${emp.firstName}${emp.middleName != null && emp.middleName!.isNotEmpty ? ' ${emp.middleName}' : ''}'),
+          onChanged: (checked) {
+            setState(() {
+              if (checked == true) {
+                _selectedEmployeeIds.add(emp.id);
+              } else {
+                _selectedEmployeeIds.remove(emp.id);
+              }
+            });
+          },
+        );
+      }).toList(),
     );
   }
 }
@@ -1097,7 +1358,7 @@ class _PhotoOptionButton extends StatelessWidget {
           child: CircleAvatar(
             radius: 24,
             backgroundColor: Theme.of(context).colorScheme.primary,
-            child: Icon(icon, color: Colors.white, size: 24),
+            child: Icon(icon, color: Theme.of(context).colorScheme.onPrimary, size: 24),
           ),
         ),
         const SizedBox(height: 8),

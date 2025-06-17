@@ -8,12 +8,21 @@ import '../providers/payroll_payout_filter_provider.dart';
 import '../providers/payroll_filter_provider.dart';
 import '../providers/balance_providers.dart';
 import '../utils/balance_utils.dart';
+import '../../../../core/utils/snackbar_utils.dart';
 import 'payroll_payout_form_modal.dart';
 
 /// Таблица выплат по ФОТ за выбранный период.
 class PayrollPayoutTableWidget extends ConsumerStatefulWidget {
+  /// Конструктор [PayrollPayoutTableWidget].
+  /// 
+  /// Используется для отображения таблицы выплат по ФОТ за выбранный период.
+  /// 
+  /// [key] — уникальный ключ виджета (опционально).
   const PayrollPayoutTableWidget({super.key});
 
+  /// Создаёт состояние для виджета [PayrollPayoutTableWidget].
+  /// 
+  /// Возвращает экземпляр [_PayrollPayoutTableWidgetState], реализующий логику построения таблицы выплат.
   @override
   ConsumerState<PayrollPayoutTableWidget> createState() => _PayrollPayoutTableWidgetState();
 }
@@ -233,15 +242,11 @@ class _PayrollPayoutTableWidgetState extends ConsumerState<PayrollPayoutTableWid
                                                         ref.invalidate(payrollPayoutsByMonthProvider);
                                                         
                                                         if (context.mounted) {
-                                                          ScaffoldMessenger.of(context).showSnackBar(
-                                                            const SnackBar(content: Text('Выплата удалена')),
-                                                          );
+                                                          SnackBarUtils.showSuccess(context, 'Выплата удалена');
                                                         }
                                                       } catch (e) {
                                                         if (context.mounted) {
-                                                          ScaffoldMessenger.of(context).showSnackBar(
-                                                            SnackBar(content: Text('Ошибка удаления: $e')),
-                                                          );
+                                                          SnackBarUtils.showError(context, 'Ошибка удаления: $e');
                                                         }
                                                       }
                                                     }

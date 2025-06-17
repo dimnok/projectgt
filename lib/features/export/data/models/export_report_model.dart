@@ -13,6 +13,7 @@ abstract class ExportReportModel with _$ExportReportModel {
   /// [contractName] — название договора
   /// [system] — система
   /// [subsystem] — подсистема
+  /// [positionNumber] — номер позиции в смете
   /// [workName] — наименование работы
   /// [section] — секция
   /// [floor] — этаж
@@ -34,6 +35,8 @@ abstract class ExportReportModel with _$ExportReportModel {
     required String system,
     /// Подсистема.
     required String subsystem,
+    /// Номер позиции в смете.
+    @JsonKey(name: 'position_number') required String positionNumber,
     /// Наименование работы.
     @JsonKey(name: 'work_name') required String workName,
     /// Секция.

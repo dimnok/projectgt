@@ -13,7 +13,7 @@ import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'dart:io';
 import 'package:path_provider/path_provider.dart' as path_provider;
 import 'package:share_plus/share_plus.dart';
-import 'package:projectgt/core/utils/notifications_service.dart';
+import 'package:projectgt/core/utils/snackbar_utils.dart';
 import 'package:go_router/go_router.dart';
 
 /// Модальное окно для импорта сметы из Excel.
@@ -245,13 +245,13 @@ class _ImportEstimateFormModalState extends State<ImportEstimateFormModal> {
       }
       
       if (!mounted) return;
-      NotificationsService.showSuccessNotification(
+      SnackBarUtils.showSuccess(
         context, 
         'Шаблон сметы успешно скачан'
       );
     } catch (e) {
       if (!mounted) return;
-      NotificationsService.showErrorNotification(
+      SnackBarUtils.showError(
         context, 
         'Ошибка при скачивании шаблона: $e'
       );
@@ -283,7 +283,7 @@ class _ImportEstimateFormModalState extends State<ImportEstimateFormModal> {
       }
     } catch (e) {
       if (!mounted) return;
-      NotificationsService.showErrorNotification(
+      SnackBarUtils.showError(
         context, 
         'Ошибка при выборе файла: $e'
       );
@@ -314,7 +314,7 @@ class _ImportEstimateFormModalState extends State<ImportEstimateFormModal> {
       });
     } catch (e) {
       if (!mounted) return;
-      NotificationsService.showErrorNotification(
+      SnackBarUtils.showError(
         context, 
         'Ошибка при обработке файла: $e'
       );
@@ -327,7 +327,7 @@ class _ImportEstimateFormModalState extends State<ImportEstimateFormModal> {
   Future<void> _importExcelData() async {
     if (!formKey.currentState!.validate() || pickedFile?.bytes == null) return;
     if (!_validationPassed && _validationResult != null && _validationResult!.errors.isNotEmpty) {
-      NotificationsService.showErrorNotification(
+      SnackBarUtils.showError(
         context, 
         'Невозможно импортировать файл с ошибками структуры'
       );
@@ -336,7 +336,7 @@ class _ImportEstimateFormModalState extends State<ImportEstimateFormModal> {
     
     final userId = widget.ref.read(supabaseClientProvider).auth.currentUser?.id;
     if (userId == null) {
-      NotificationsService.showErrorNotification(
+      SnackBarUtils.showError(
         context, 
         'Не удалось определить пользователя'
       );
@@ -424,11 +424,11 @@ class _ImportEstimateFormModalState extends State<ImportEstimateFormModal> {
       widget.onSuccess();
       
       if (!mounted) return;
-      NotificationsService.showSuccessNotification(context, completionMessage);
+      SnackBarUtils.showSuccess(context, completionMessage);
     } catch (e) {
       if (!mounted) return;
       setState(() => _importStatus = 'Ошибка импорта: $e');
-      NotificationsService.showErrorNotification(context, 'Ошибка импорта: $e');
+      SnackBarUtils.showError(context, 'Ошибка импорта: $e');
     } finally {
       if (mounted) setState(() => _isImporting = false);
     }
@@ -471,7 +471,7 @@ class _ImportEstimateFormModalState extends State<ImportEstimateFormModal> {
       onStepContinue: () {
         if (_currentStep == 0) {
           if (pickedFile == null) {
-            NotificationsService.showInfoNotification(
+            SnackBarUtils.showInfo(
               context, 
               'Выберите файл для импорта'
             );
@@ -480,7 +480,7 @@ class _ImportEstimateFormModalState extends State<ImportEstimateFormModal> {
           
           // Проверяем, прошел ли файл валидацию
           if (!_validationPassed || _validationResult == null || !_validationResult!.isValid) {
-            NotificationsService.showErrorNotification(
+            SnackBarUtils.showError(
               context, 
               'Файл содержит ошибки и не может быть импортирован'
             );
@@ -506,7 +506,7 @@ class _ImportEstimateFormModalState extends State<ImportEstimateFormModal> {
       onStepTapped: (index) {
         // Запрещаем тап на шаг 1, если файл не прошел валидацию
         if (index == 1 && (!_validationPassed || _validationResult == null || !_validationResult!.isValid)) {
-          NotificationsService.showInfoNotification(
+          SnackBarUtils.showInfo(
             context, 
             'Сначала загрузите корректный Excel-файл'
           );

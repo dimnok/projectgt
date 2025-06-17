@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 import '../providers/work_provider.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
+import 'package:projectgt/core/utils/snackbar_utils.dart';
 import 'dart:developer' as developer;
 
 /// Модальное окно для создания или редактирования работы (WorkItem).
@@ -149,9 +150,7 @@ class _WorkItemFormModalState extends ConsumerState<WorkItemFormModal> {
   /// Если не выбрано ни одной работы — показывает ошибку.
   Future<void> _saveSelectedItems() async {
     if (_selectedEstimateItems.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Выберите хотя бы одну работу из сметы'))
-      );
+      SnackBarUtils.showWarning(context, 'Выберите хотя бы одну работу из сметы');
       return;
     }
     

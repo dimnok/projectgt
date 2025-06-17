@@ -7,7 +7,7 @@ import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'object_form_screen.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 import 'package:uuid/uuid.dart';
-import 'package:projectgt/core/utils/notifications_service.dart';
+import 'package:projectgt/core/utils/snackbar_utils.dart';
 
 /// Экран для отображения списка объектов.
 ///
@@ -133,9 +133,9 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
                             ),
                             child: ObjectFormModal(object: selectedObject, onSuccess: (isNew) {
                               if (isNew) {
-                                NotificationsService.showSuccessNotification(context, 'Объект успешно создан');
+                                SnackBarUtils.showSuccess(context, 'Объект успешно создан');
                               } else {
-                                NotificationsService.showInfoNotification(context, 'Изменения успешно сохранены');
+                                SnackBarUtils.showInfo(context, 'Изменения успешно сохранены');
                               }
                             }),
                           ),
@@ -201,10 +201,10 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
                     setState(() {
                       selectedObject = null;
                     });
-                    NotificationsService.showErrorNotification(ctx, 'Объект удалён');
+                    SnackBarUtils.showError(ctx, 'Объект удалён');
                   } catch (e) {
                     if (!ctx.mounted) return;
-                    NotificationsService.showErrorNotification(ctx, 'Ошибка удаления: ${e.toString()}');
+                    SnackBarUtils.showError(ctx, 'Ошибка удаления: ${e.toString()}');
                   }
                 }
               },
@@ -256,9 +256,9 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
                       ),
                       child: ObjectFormModal(onSuccess: (isNew) {
                         if (isNew) {
-                          NotificationsService.showSuccessNotification(context, 'Объект успешно создан');
+                          SnackBarUtils.showSuccess(context, 'Объект успешно создан');
                         } else {
-                          NotificationsService.showInfoNotification(context, 'Изменения успешно сохранены');
+                          SnackBarUtils.showInfo(context, 'Изменения успешно сохранены');
                         }
                       }),
                     ),
@@ -871,9 +871,9 @@ class _ObjectDetailsScreenState extends ConsumerState<ObjectDetailsScreen> with 
                         ),
                         child: ObjectFormModal(object: object, onSuccess: (isNew) {
                           if (isNew) {
-                            NotificationsService.showSuccessNotification(context, 'Объект успешно создан');
+                            SnackBarUtils.showSuccess(context, 'Объект успешно создан');
                           } else {
-                            NotificationsService.showInfoNotification(context, 'Изменения успешно сохранены');
+                            SnackBarUtils.showInfo(context, 'Изменения успешно сохранены');
                           }
                         }),
                       ),
@@ -911,10 +911,10 @@ class _ObjectDetailsScreenState extends ConsumerState<ObjectDetailsScreen> with 
                   await ref.read(objectProvider.notifier).deleteObject(widget.object.id);
                   if (!ctx.mounted) return;
                   Navigator.of(ctx).pop();
-                  NotificationsService.showErrorNotification(ctx, 'Объект удалён');
+                  SnackBarUtils.showError(ctx, 'Объект удалён');
                 } catch (e) {
                   if (!ctx.mounted) return;
-                  NotificationsService.showErrorNotification(ctx, 'Ошибка удаления: ${e.toString()}');
+                  SnackBarUtils.showError(ctx, 'Ошибка удаления: ${e.toString()}');
                 }
               }
             },

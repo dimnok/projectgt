@@ -4,7 +4,7 @@ import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/domain/entities/object.dart';
 import 'package:uuid/uuid.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
-import 'package:projectgt/core/utils/notifications_service.dart';
+import 'package:projectgt/core/utils/snackbar_utils.dart';
 
 // Новый stateless-контент для формы
 /// Виджет формы создания/редактирования объекта недвижимости.
@@ -267,7 +267,7 @@ class _ObjectFormScreenState extends ConsumerState<ObjectFormScreen> {
       _nameController.text = widget.object!.name;
       _addressController.text = widget.object!.address;
       _descriptionController.text = widget.object!.description ?? '';
-      _businessTripAmountController.text = widget.object!.businessTripAmount.toString() ?? '';
+      _businessTripAmountController.text = widget.object!.businessTripAmount.toString();
     }
   }
 
@@ -308,7 +308,7 @@ class _ObjectFormScreenState extends ConsumerState<ObjectFormScreen> {
       }
     } catch (e) {
       if (mounted) {
-        NotificationsService.showErrorNotification(context, 'Ошибка: ${e.toString()}');
+        SnackBarUtils.showError(context, 'Ошибка: ${e.toString()}');
       }
     }
   }

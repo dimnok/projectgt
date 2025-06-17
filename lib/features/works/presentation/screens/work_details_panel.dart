@@ -22,6 +22,8 @@ import 'dart:math' as math;
 import '../widgets/work_photo_view.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
+import 'package:projectgt/core/utils/snackbar_utils.dart';
+import 'package:projectgt/presentation/widgets/cupertino_dialog_widget.dart';
 
 /// Панель деталей смены с табами: работы, материалы, часы.
 ///
@@ -116,12 +118,7 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
     // Если смена закрыта, не разрешаем обновление
     if (isWorkClosed) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Изменение количества невозможно, так как смена закрыта'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        SnackBarUtils.showError(context, 'Изменение количества невозможно, так как смена закрыта');
       }
       return;
     }
@@ -632,7 +629,7 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(Icons.search_off, size: 48, color: Colors.grey),
+                              Icon(Icons.search_off, size: 48, color: Theme.of(context).colorScheme.outline),
                               const SizedBox(height: 16),
                               const Text('Нет работ, соответствующих фильтрам'),
                               const SizedBox(height: 8),
@@ -1041,7 +1038,7 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                                   'Сотрудник ID: ${hour.employeeId}';
 
                               return Card(
-                                margin: const EdgeInsets.only(bottom: 12),
+                                margin: const EdgeInsets.only(bottom: 8),
                                 elevation: 0,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
@@ -1049,12 +1046,29 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                                     color: Theme.of(context)
                                         .colorScheme
                                         .outline
-                                        .withValues(alpha: 30),
+                                        .withValues(alpha: 0.2),
                                     width: 1,
                                   ),
                                 ),
                                 child: ListTile(
-                                  contentPadding: const EdgeInsets.all(16),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  leading: Container(
+                                    width: 32,
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        '${i + 1}',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Theme.of(context).colorScheme.primary,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                                   title: Row(
                                     children: [
                                       Expanded(
@@ -1091,15 +1105,23 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                                           hour.comment!.isNotEmpty
                                       ? Padding(
                                           padding:
-                                              const EdgeInsets.only(top: 8),
+                                              const EdgeInsets.only(top: 4),
                                           child: Text(
-                                              'Комментарий: ${hour.comment}'),
+                                              'Комментарий: ${hour.comment}',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                              ),
+                                            ),
                                         )
                                       : null,
                                   // Кнопку удаления показываем только если смена не закрыта
                                   trailing: !isWorkClosed 
                                     ? IconButton(
-                                        icon: const Icon(Icons.delete_outline),
+                                        icon: Icon(
+                                          Icons.delete_outline,
+                                          color: Theme.of(context).colorScheme.error,
+                                        ),
                                         onPressed: () => _confirmDeleteHour(context, ref, hour),
                                         tooltip: 'Удалить',
                                       )
@@ -1271,13 +1293,14 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
 
   /// Возвращает текст и цвет статуса смены.
   (String, Color) _getWorkStatusInfo(String status) {
+    final theme = Theme.of(context);
     switch (status.toLowerCase()) {
       case 'open':
-        return ('Открыта', Colors.green);
+        return ('Открыта', theme.colorScheme.primary);
       case 'closed':
-        return ('Закрыта', Colors.red);
+        return ('Закрыта', theme.colorScheme.outline);
       default:
-        return (status, Colors.blue);
+        return (status, theme.colorScheme.secondary);
     }
   }
 
@@ -1288,12 +1311,7 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
     
     // Если смена закрыта, не разрешаем удаление
     if (isWorkClosed) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Удаление работ невозможно, так как смена закрыта'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      SnackBarUtils.showError(context, 'Удаление работ невозможно, так как смена закрыта');
       return;
     }
     
@@ -1313,6 +1331,7 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
           CupertinoDialogAction(
             isDestructiveAction: true,
             onPressed: () async {
+              final navigator = Navigator.of(context);
               await ref.read(workItemsProvider(widget.workId).notifier).delete(item.id);
               
               // После удаления получаем обновленный список элементов и обновляем фильтры
@@ -1321,7 +1340,7 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                 setState(() {
                   _updateFiltersAfterDataChange(updatedItems);
                 });
-                Navigator.of(context).pop();
+                navigator.pop();
               }
             },
             child: const Text('Удалить'),
@@ -1338,12 +1357,7 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
     
     // Если смена закрыта, не разрешаем удаление
     if (isWorkClosed) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Удаление сотрудников невозможно, так как смена закрыта'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      SnackBarUtils.showError(context, 'Удаление сотрудников невозможно, так как смена закрыта');
       return;
     }
     
@@ -2231,13 +2245,13 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
     // Общая сумма для расчета процентов
     final totalSum = systemSums.values.fold<double>(0, (sum, value) => sum + value);
     
-    // Цвета для кружков
+    // Кастомная цветовая палитра для диаграммы - яркие контрастные цвета
     final List<Color> colors = [
-      theme.colorScheme.primary,
-      theme.colorScheme.tertiary,
-      theme.colorScheme.secondary,
-      Colors.amber,
-      Colors.teal,
+      const Color(0xFF2196F3), // Синий
+      const Color(0xFF4CAF50), // Зеленый
+      const Color(0xFFFF9800), // Оранжевый
+      const Color(0xFF9C27B0), // Фиолетовый
+      const Color(0xFFF44336), // Красный
     ];
     
     return Card(
@@ -2399,6 +2413,8 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
             painter: CirclePercentPainter(
               percentage: percentage,
               color: color,
+              backgroundColor: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+              fillColor: Theme.of(context).colorScheme.surface,
               strokeWidth: 4,
             ),
           ),
@@ -2406,10 +2422,10 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
           Center(
             child: Text(
               '${(percentage * 100).round()}%',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ),
@@ -2472,53 +2488,30 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
       
       // Выводим сообщение об успешном закрытии
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Смена успешно закрыта'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        SnackBarUtils.showSuccess(context, 'Смена успешно закрыта');
       }
     } catch (e) {
       // В случае ошибки выводим сообщение
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Ошибка при закрытии смены: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        SnackBarUtils.showError(context, 'Ошибка при закрытии смены: $e');
       }
     }
   }
   
   /// Показывает диалог подтверждения закрытия смены
   void _showCloseWorkConfirmation(Work work) {
-    showCupertinoModalPopup<void>(
+    CupertinoDialogs.showConfirmDialog<bool>(
       context: context,
-      builder: (BuildContext context) => CupertinoAlertDialog(
-        title: const Text('Подтверждение закрытия смены'),
-        content: const Text(
-          'После закрытия смены редактирование будет невозможно. Вы уверены, что хотите закрыть смену?'
-        ),
-        actions: <CupertinoDialogAction>[
-          CupertinoDialogAction(
-            isDefaultAction: true,
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: const Text('Отмена'),
-          ),
-          CupertinoDialogAction(
-            onPressed: () async {
-              if (!mounted) return;
-              Navigator.of(context).pop();
-              await _closeWork(work);
-            },
-            child: const Text('Закрыть смену'),
-          ),
-        ],
-      ),
+      title: 'Подтверждение закрытия смены',
+      message: '''После закрытия смены будет невозможно:
+• Добавлять/удалять работы и сотрудников
+• Изменять количество работ и часы
+• Редактировать фотографии
+
+Вы уверены, что хотите закрыть смену?''',
+      confirmButtonText: 'Закрыть смену',
+      isDestructiveAction: true,
+      onConfirm: () async => await _closeWork(work),
     );
   }
 
@@ -2635,6 +2628,7 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
     final photoService = ref.read(photoServiceProvider);
     final file = await photoService.pickImage(source);
     if (file == null) return;
+    if (!mounted) return;
     
     // Показываем диалог подтверждения выбранного фото
     final confirmed = await showDialog<bool>(
@@ -2707,11 +2701,17 @@ class CirclePercentPainter extends CustomPainter {
   final Color color;
   /// Толщина линии.
   final double strokeWidth;
+  /// Цвет фона круга.
+  final Color backgroundColor;
+  /// Цвет заливки внутреннего круга.
+  final Color fillColor;
 
   /// Создаёт painter для процентного круга.
   CirclePercentPainter({
     required this.percentage,
     required this.color,
+    required this.backgroundColor,
+    required this.fillColor,
     this.strokeWidth = 4.0,
   });
 
@@ -2722,7 +2722,7 @@ class CirclePercentPainter extends CustomPainter {
     
     // Рисуем фоновый круг
     final backgroundPaint = Paint()
-      ..color = Colors.grey.withValues(alpha: 0.2)
+      ..color = backgroundColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth;
     
@@ -2747,7 +2747,7 @@ class CirclePercentPainter extends CustomPainter {
     
     // Добавляем заливку внутреннего круга для лучшего контраста
     final fillPaint = Paint()
-      ..color = Colors.white
+      ..color = fillColor
       ..style = PaintingStyle.fill;
     
     canvas.drawCircle(center, radius - strokeWidth, fillPaint);
@@ -2757,7 +2757,9 @@ class CirclePercentPainter extends CustomPainter {
   bool shouldRepaint(covariant CirclePercentPainter oldDelegate) {
     return oldDelegate.percentage != percentage || 
            oldDelegate.color != color || 
-           oldDelegate.strokeWidth != strokeWidth;
+           oldDelegate.strokeWidth != strokeWidth ||
+           oldDelegate.backgroundColor != backgroundColor ||
+           oldDelegate.fillColor != fillColor;
   }
 }
 
@@ -2787,7 +2789,7 @@ class _PhotoOptionButton extends StatelessWidget {
           child: CircleAvatar(
             radius: 24,
             backgroundColor: Theme.of(context).colorScheme.primary,
-            child: Icon(icon, color: Colors.white, size: 24),
+            child: Icon(icon, color: Theme.of(context).colorScheme.onPrimary, size: 24),
           ),
         ),
         const SizedBox(height: 8),

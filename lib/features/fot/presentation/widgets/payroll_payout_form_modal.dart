@@ -7,18 +7,81 @@ import 'package:collection/collection.dart';
 import '../providers/payroll_providers.dart';
 import '../providers/balance_providers.dart';
 import '../../data/models/payroll_payout_model.dart';
+import '../../../../core/utils/snackbar_utils.dart';
 import 'payroll_payout_amount_modal.dart';
+import 'package:projectgt/core/widgets/dropdown_typeahead_field.dart';
+
+/// Класс, представляющий способ выплаты сотруднику в рамках модуля ФОТ.
+/// 
+/// Используется для выбора метода перевода средств при создании или редактировании выплаты.
+/// Поддерживает фиксированный набор значений: карта, наличные, банковский перевод.
+class PaymentMethod {
+  /// Значение способа выплаты для хранения в базе данных (например, 'card', 'cash', 'bank_transfer').
+  final String value;
+
+  /// Отображаемое название способа выплаты для UI (например, 'Карта', 'Наличные', 'Банковский перевод').
+  final String displayName;
+  
+  /// Конструктор [PaymentMethod].
+  /// 
+  /// [value] — строковое значение для хранения в БД.
+  /// [displayName] — человекочитаемое название для отображения в интерфейсе.
+  const PaymentMethod(this.value, this.displayName);
+  
+  /// Список всех допустимых способов выплаты.
+  /// 
+  /// Используется для построения выпадающих списков и валидации значений.
+  static const List<PaymentMethod> values = [
+    PaymentMethod('card', 'Карта'),
+    PaymentMethod('cash', 'Наличные'),
+    PaymentMethod('bank_transfer', 'Банковский перевод'),
+  ];
+}
+
+/// Класс, представляющий тип выплаты сотруднику (например, зарплата или аванс).
+/// 
+/// Используется для классификации выплат в модуле ФОТ и фильтрации по типу операции.
+class PaymentType {
+  /// Значение типа выплаты для хранения в базе данных (например, 'salary', 'advance').
+  final String value;
+
+  /// Отображаемое название типа выплаты для UI (например, 'Зарплата', 'Аванс').
+  final String displayName;
+  
+  /// Конструктор [PaymentType].
+  /// 
+  /// [value] — строковое значение для хранения в БД.
+  /// [displayName] — человекочитаемое название для отображения в интерфейсе.
+  const PaymentType(this.value, this.displayName);
+  
+  /// Список всех допустимых типов выплат.
+  /// 
+  /// Используется для построения выпадающих списков и валидации значений.
+  static const List<PaymentType> values = [
+    PaymentType('salary', 'Зарплата'),
+    PaymentType('advance', 'Аванс'),
+  ];
+}
 
 /// Модальное окно для создания/редактирования выплаты
 class PayrollPayoutFormModal extends ConsumerStatefulWidget {
   /// Выплата для редактирования (null для создания новой)
   final PayrollPayoutModel? payout;
 
+  /// Конструктор [PayrollPayoutFormModal].
+  /// 
+  /// Используется для создания новой выплаты или редактирования существующей в модуле ФОТ.
+  /// 
+  /// [payout] — модель выплаты для редактирования (если null, открывается режим создания массовых выплат).
+  /// [key] — уникальный ключ виджета (опционально).
   const PayrollPayoutFormModal({
     super.key,
     this.payout,
   });
 
+  /// Создаёт состояние для модального окна [PayrollPayoutFormModal].
+  /// 
+  /// Возвращает экземпляр [_PayrollPayoutFormModalState], реализующий логику создания и редактирования выплат.
   @override
   ConsumerState<PayrollPayoutFormModal> createState() => _PayrollPayoutFormModalState();
 }
@@ -33,6 +96,10 @@ class _PayrollPayoutFormModalState extends ConsumerState<PayrollPayoutFormModal>
   
   // Для создания - множественный выбор
   final _multiEmployeeController = MultiValueDropDownController();
+  
+  // Контроллеры для новых выпадающих списков
+  final _methodController = TextEditingController();
+  final _typeController = TextEditingController();
   
   final _isSaving = ValueNotifier<bool>(false);
   
@@ -49,6 +116,10 @@ class _PayrollPayoutFormModalState extends ConsumerState<PayrollPayoutFormModal>
     super.initState();
     if (isEditing) {
       _initializeForEditing();
+    } else {
+      // Инициализируем значения по умолчанию для создания
+      _methodController.text = _getMethodDisplayName(_method);
+      _typeController.text = _getTypeDisplayName(_type);
     }
   }
 
@@ -59,6 +130,10 @@ class _PayrollPayoutFormModalState extends ConsumerState<PayrollPayoutFormModal>
     _selectedDate = payout.payoutDate;
     _method = payout.method;
     _type = payout.type; // Инициализируем тип при редактировании
+    
+    // Инициализируем контроллеры для выпадающих списков
+    _methodController.text = _getMethodDisplayName(_method);
+    _typeController.text = _getTypeDisplayName(_type);
   }
 
   @override
@@ -67,8 +142,48 @@ class _PayrollPayoutFormModalState extends ConsumerState<PayrollPayoutFormModal>
     _amountController.dispose();
     _singleEmployeeController.dispose();
     _multiEmployeeController.dispose();
+    _methodController.dispose();
+    _typeController.dispose();
     _isSaving.dispose();
     super.dispose();
+  }
+
+  /// Получает отображаемое название способа выплаты
+  String _getMethodDisplayName(String method) {
+    switch (method) {
+      case 'card':
+        return 'Карта';
+      case 'cash':
+        return 'Наличные';
+      case 'bank_transfer':
+        return 'Банковский перевод';
+      default:
+        return 'Наличные';
+    }
+  }
+
+  /// Получает отображаемое название типа оплаты
+  String _getTypeDisplayName(String type) {
+    switch (type) {
+      case 'salary':
+        return 'Зарплата';
+      case 'advance':
+        return 'Аванс';
+      default:
+        return 'Зарплата';
+    }
+  }
+
+  /// Обработка выбора способа выплаты
+  void _onMethodSelected(PaymentMethod method) {
+    _method = method.value;
+    _methodController.text = method.displayName;
+  }
+
+  /// Обработка выбора типа оплаты
+  void _onTypeSelected(PaymentType type) {
+    _type = type.value;
+    _typeController.text = type.displayName;
   }
 
   Future<void> _pickDate() async {
@@ -127,15 +242,11 @@ class _PayrollPayoutFormModalState extends ConsumerState<PayrollPayoutFormModal>
       
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Выплата обновлена')),
-        );
+        SnackBarUtils.showSuccess(context, 'Выплата обновлена');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка: $e')),
-        );
+        SnackBarUtils.showError(context, 'Ошибка: $e');
       }
     } finally {
       _isSaving.value = false;
@@ -143,17 +254,15 @@ class _PayrollPayoutFormModalState extends ConsumerState<PayrollPayoutFormModal>
   }
 
   Future<void> _proceedToBulkAmountSelection() async {
+    // Валидация уже выполнена в _proceedToNextStep через _formKey.currentState!.validate()
+    // Дополнительная проверка на всякий случай
     if (_selectedEmployeeIds.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Выберите хотя бы одного сотрудника')),
-      );
+      SnackBarUtils.showError(context, 'Ошибка валидации: не выбраны сотрудники');
       return;
     }
 
     if (_selectedDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Выберите дату выплаты')),
-      );
+      SnackBarUtils.showError(context, 'Ошибка валидации: не выбрана дата');
       return;
     }
 
@@ -165,9 +274,7 @@ class _PayrollPayoutFormModalState extends ConsumerState<PayrollPayoutFormModal>
         .toList();
 
     if (selectedEmployees.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Не удалось найти выбранных сотрудников')),
-      );
+      SnackBarUtils.showError(context, 'Не удалось найти выбранных сотрудников в системе');
       return;
     }
 
@@ -345,51 +452,110 @@ class _PayrollPayoutFormModalState extends ConsumerState<PayrollPayoutFormModal>
                             // Выбор сотрудников
                             if (isEditing)
                               // Для редактирования - одиночный выбор
-                            DropDownTextField(
-                                controller: _singleEmployeeController,
-                              dropDownList: employeeDropDownList,
-                              listTextStyle: theme.textTheme.bodyMedium?.copyWith(color: Colors.black),
-                              textFieldDecoration: const InputDecoration(
-                                labelText: 'Сотрудник',
-                                border: OutlineInputBorder(),
-                              ),
-                              onChanged: (val) {
-                                if (val is DropDownValueModel) {
-                                  setState(() {
-                                    _selectedEmployeeId = val.value as String;
-                                  });
-                                }
-                              },
-                              validator: (val) => _selectedEmployeeId == null ? 'Выберите сотрудника' : null,
+                              FormField<String>(
+                                validator: (_) => _selectedEmployeeId == null ? 'Выберите сотрудника' : null,
+                                builder: (FormFieldState<String> field) {
+                                  return Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      DropDownTextField(
+                                        controller: _singleEmployeeController,
+                                        dropDownList: employeeDropDownList,
+                                        listTextStyle: theme.textTheme.bodyMedium?.copyWith(color: Colors.black),
+                                        textFieldDecoration: InputDecoration(
+                                          labelText: 'Сотрудник',
+                                          border: OutlineInputBorder(
+                                            borderSide: BorderSide(
+                                              color: field.hasError 
+                                                  ? theme.colorScheme.error 
+                                                  : theme.colorScheme.outline,
+                                            ),
+                                          ),
+                                          errorBorder: OutlineInputBorder(
+                                            borderSide: BorderSide(color: theme.colorScheme.error),
+                                          ),
+                                        ),
+                                        onChanged: (val) {
+                                          if (val is DropDownValueModel) {
+                                            setState(() {
+                                              _selectedEmployeeId = val.value as String;
+                                            });
+                                            field.didChange(val.value as String);
+                                          }
+                                        },
+                                      ),
+                                      if (field.hasError)
+                                        Padding(
+                                          padding: const EdgeInsets.only(top: 8.0, left: 12.0),
+                                          child: Text(
+                                            field.errorText!,
+                                            style: theme.textTheme.bodySmall?.copyWith(
+                                              color: theme.colorScheme.error,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  );
+                                },
                               )
                             else
                               // Для создания - множественный выбор
-                              DropDownTextField.multiSelection(
-                                controller: _multiEmployeeController,
-                                dropDownList: employeeDropDownList,
-                                submitButtonText: 'Ок',
-                                submitButtonColor: Colors.green,
-                                checkBoxProperty: CheckBoxProperty(
-                                  fillColor: WidgetStateProperty.all<Color>(Colors.green),
-                                  checkColor: Colors.white,
-                                ),
-                                displayCompleteItem: true,
-                                textFieldDecoration: const InputDecoration(
-                                  labelText: 'Сотрудники',
-                                  hintText: 'Выберите одного или несколько сотрудников',
-                                  border: OutlineInputBorder(),
-                                ),
-                                listTextStyle: theme.textTheme.bodyMedium?.copyWith(color: Colors.black),
-                                onChanged: (val) {
-                                  if (val == null) return;
-                                  final list = val is List<DropDownValueModel> 
-                                      ? val 
-                                      : List<DropDownValueModel>.from(val);
-                                  _selectedEmployeeIds = list
-                                      .map((e) => e.value as String?)
-                                      .where((value) => value != null)
-                                      .cast<String>()
-                                      .toList();
+                              FormField<List<String>>(
+                                validator: (_) => _selectedEmployeeIds.isEmpty ? 'Выберите хотя бы одного сотрудника' : null,
+                                builder: (FormFieldState<List<String>> field) {
+                                  return Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      DropDownTextField.multiSelection(
+                                        controller: _multiEmployeeController,
+                                        dropDownList: employeeDropDownList,
+                                        submitButtonText: 'Ок',
+                                        submitButtonColor: Colors.green,
+                                        checkBoxProperty: CheckBoxProperty(
+                                          fillColor: WidgetStateProperty.all<Color>(Colors.green),
+                                          checkColor: Colors.white,
+                                        ),
+                                        displayCompleteItem: true,
+                                        textFieldDecoration: InputDecoration(
+                                          labelText: 'Сотрудники',
+                                          hintText: 'Выберите одного или несколько сотрудников',
+                                          border: OutlineInputBorder(
+                                            borderSide: BorderSide(
+                                              color: field.hasError 
+                                                  ? theme.colorScheme.error 
+                                                  : theme.colorScheme.outline,
+                                            ),
+                                          ),
+                                          errorBorder: OutlineInputBorder(
+                                            borderSide: BorderSide(color: theme.colorScheme.error),
+                                          ),
+                                        ),
+                                        listTextStyle: theme.textTheme.bodyMedium?.copyWith(color: Colors.black),
+                                        onChanged: (val) {
+                                          if (val == null) return;
+                                          final list = val is List<DropDownValueModel> 
+                                              ? val 
+                                              : List<DropDownValueModel>.from(val);
+                                          _selectedEmployeeIds = list
+                                              .map((e) => e.value as String?)
+                                              .where((value) => value != null)
+                                              .cast<String>()
+                                              .toList();
+                                          field.didChange(_selectedEmployeeIds);
+                                        },
+                                      ),
+                                      if (field.hasError)
+                                        Padding(
+                                          padding: const EdgeInsets.only(top: 8.0, left: 12.0),
+                                          child: Text(
+                                            field.errorText!,
+                                            style: theme.textTheme.bodySmall?.copyWith(
+                                              color: theme.colorScheme.error,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  );
                                 },
                               ),
                             
@@ -416,33 +582,28 @@ class _PayrollPayoutFormModalState extends ConsumerState<PayrollPayoutFormModal>
                             ],
                             
                             // Способ выплаты
-                            DropdownButtonFormField<String>(
-                              value: _method,
-                              decoration: const InputDecoration(
-                                labelText: 'Способ',
-                                border: OutlineInputBorder(),
-                              ),
-                              items: const [
-                                DropdownMenuItem(value: 'card', child: Text('Карта')),
-                                DropdownMenuItem(value: 'cash', child: Text('Наличные')),
-                                DropdownMenuItem(value: 'bank_transfer', child: Text('Банковский перевод')),
-                              ],
-                              onChanged: (val) => setState(() => _method = val ?? 'cash'),
+                            DropdownTypeAheadField<PaymentMethod>(
+                              controller: _methodController,
+                              labelText: 'Способ',
+                              hintText: 'Выберите способ выплаты',
+                              items: PaymentMethod.values,
+                              displayStringForOption: (method) => method.displayName,
+                              onSelected: _onMethodSelected,
+                              allowCustomValues: false,
+                              validator: (value) => _method.isEmpty ? 'Выберите способ выплаты' : null,
                             ),
                             const SizedBox(height: 16),
                             
                             // Тип оплаты
-                            DropdownButtonFormField<String>(
-                              value: _type,
-                              decoration: const InputDecoration(
-                                labelText: 'Тип оплаты',
-                                border: OutlineInputBorder(),
-                              ),
-                              items: const [
-                                DropdownMenuItem(value: 'salary', child: Text('Зарплата')),
-                                DropdownMenuItem(value: 'advance', child: Text('Аванс')),
-                              ],
-                              onChanged: (val) => setState(() => _type = val ?? 'salary'),
+                            DropdownTypeAheadField<PaymentType>(
+                              controller: _typeController,
+                              labelText: 'Тип оплаты',
+                              hintText: 'Выберите тип оплаты',
+                              items: PaymentType.values,
+                              displayStringForOption: (type) => type.displayName,
+                              onSelected: _onTypeSelected,
+                              allowCustomValues: false,
+                              validator: (value) => _type.isEmpty ? 'Выберите тип оплаты' : null,
                             ),
                             const SizedBox(height: 16),
                             

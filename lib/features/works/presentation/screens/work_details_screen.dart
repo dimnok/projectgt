@@ -5,9 +5,10 @@ import '../providers/work_provider.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 import 'package:projectgt/presentation/widgets/app_badge.dart';
+import 'package:projectgt/presentation/widgets/cupertino_dialog_widget.dart';
 import 'package:go_router/go_router.dart';
 import 'package:projectgt/core/di/providers.dart';
-import 'package:projectgt/core/utils/notifications_service.dart';
+import 'package:projectgt/core/utils/snackbar_utils.dart';
 import 'package:projectgt/domain/entities/profile.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'work_details_panel.dart';
@@ -194,9 +195,7 @@ class WorkDetailsScreen extends ConsumerWidget {
           ElevatedButton(
             onPressed: () async {
               if (statusController.text.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Введите статус смены')),
-                );
+                SnackBarUtils.showWarning(context, 'Введите статус смены');
                 return;
               }
               final updatedWork = Work(
@@ -213,9 +212,7 @@ class WorkDetailsScreen extends ConsumerWidget {
               await ref.read(worksProvider.notifier).updateWork(updatedWork);
               if (context.mounted) {
                 Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Смена обновлена')),
-                );
+                SnackBarUtils.showInfo(context, 'Смена обновлена');
               }
             },
             child: const Text('Сохранить'),
@@ -227,35 +224,20 @@ class WorkDetailsScreen extends ConsumerWidget {
   
   /// Показывает диалог подтверждения удаления смены.
   void _confirmDeleteWork(BuildContext context, WidgetRef ref, Work work) {
-    showDialog(
+    CupertinoDialogs.showDeleteConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Подтверждение'),
-        content: Text('Вы действительно хотите удалить смену от ${_formatDate(work.date)}?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Отмена'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () async {
-              if (work.id == null) return;
-              
-              await ref.read(worksProvider.notifier).deleteWork(work.id!);
-              if (context.mounted) {
-                Navigator.of(context).pop();
-                context.goNamed('works');
-                NotificationsService.showErrorNotification(context, 'Смена удалена');
-              }
-            },
-            child: const Text('Удалить'),
-          ),
-        ],
-      ),
+      title: 'Подтверждение удаления',
+      message: 'Вы действительно хотите удалить смену от ${_formatDate(work.date)}?\n\nЭто действие удалит все связанные работы и часы сотрудников. Операция необратима.',
+      confirmButtonText: 'Удалить',
+      onConfirm: () async {
+        if (work.id == null) return;
+        
+        await ref.read(worksProvider.notifier).deleteWork(work.id!);
+        if (context.mounted) {
+          context.goNamed('works');
+          SnackBarUtils.showSuccess(context, 'Смена успешно удалена');
+        }
+      },
     );
   }
 } 

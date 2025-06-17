@@ -9,7 +9,7 @@ import 'package:projectgt/presentation/state/object_state.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 import 'package:projectgt/features/employees/presentation/screens/employee_details_screen.dart';
-import 'package:projectgt/core/utils/notifications_service.dart';
+import 'package:projectgt/core/utils/snackbar_utils.dart';
 import 'package:projectgt/core/utils/modal_utils.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_card.dart';
@@ -391,10 +391,10 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
         setState(() {
           selectedEmployee = null;
         });
-        NotificationsService.showErrorNotification(context, 'Сотрудник удалён');
+        SnackBarUtils.showError(context, 'Сотрудник удалён');
       } catch (e) {
         if (!mounted) return;
-        NotificationsService.showErrorNotification(context, 'Ошибка удаления: ${e.toString()}');
+        SnackBarUtils.showError(context, 'Ошибка удаления: ${e.toString()}');
       }
     }
   }

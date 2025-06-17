@@ -7,7 +7,7 @@ import 'package:flutter_typeahead/flutter_typeahead.dart';
 
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/core/utils/employee_ui_utils.dart';
-import 'package:projectgt/core/utils/notifications_service.dart';
+import 'package:projectgt/core/utils/snackbar_utils.dart';
 import 'package:projectgt/core/widgets/dropdown_typeahead_field.dart';
 
 import 'package:projectgt/domain/entities/employee.dart';
@@ -261,7 +261,7 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
           // Создаем нового сотрудника
           await ref.read(employee_state.employeeProvider.notifier).createEmployee(employee);
           if (mounted) {
-            NotificationsService.showSuccessNotification(
+            SnackBarUtils.showSuccess(
               context,
               'Сотрудник успешно создан',
             );
@@ -270,7 +270,7 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
           // Обновляем существующего сотрудника
           await ref.read(employee_state.employeeProvider.notifier).updateEmployee(employee);
           if (mounted) {
-            NotificationsService.showInfoNotification(
+            SnackBarUtils.showInfo(
               context,
               'Изменения успешно сохранены',
             );
@@ -289,7 +289,7 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
       } catch (e) {
         // Показываем ошибку
         if (mounted) {
-          NotificationsService.showErrorNotification(
+          SnackBarUtils.showError(
             context,
             'Ошибка: ${e.toString()}',
           );
@@ -743,7 +743,7 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
     } catch (e) {
       setState(() => _positionsLoading = false);
       if (mounted) {
-        NotificationsService.showErrorNotification(context, 'Ошибка загрузки должностей');
+        SnackBarUtils.showError(context, 'Ошибка загрузки должностей');
       }
     }
   }

@@ -31,6 +31,9 @@ mixin _$PayrollBonusModel {
   /// Причина или комментарий
   String? get reason;
 
+  /// Дата премии
+  DateTime? get date;
+
   /// Дата создания записи
   @JsonKey(name: 'created_at')
   DateTime? get createdAt;
@@ -61,6 +64,7 @@ mixin _$PayrollBonusModel {
             (identical(other.type, type) || other.type == type) &&
             (identical(other.amount, amount) || other.amount == amount) &&
             (identical(other.reason, reason) || other.reason == reason) &&
+            (identical(other.date, date) || other.date == date) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.objectId, objectId) ||
@@ -69,12 +73,12 @@ mixin _$PayrollBonusModel {
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(
-      runtimeType, id, employeeId, type, amount, reason, createdAt, objectId);
+  int get hashCode => Object.hash(runtimeType, id, employeeId, type, amount,
+      reason, date, createdAt, objectId);
 
   @override
   String toString() {
-    return 'PayrollBonusModel(id: $id, employeeId: $employeeId, type: $type, amount: $amount, reason: $reason, createdAt: $createdAt, objectId: $objectId)';
+    return 'PayrollBonusModel(id: $id, employeeId: $employeeId, type: $type, amount: $amount, reason: $reason, date: $date, createdAt: $createdAt, objectId: $objectId)';
   }
 }
 
@@ -90,6 +94,7 @@ abstract mixin class $PayrollBonusModelCopyWith<$Res> {
       String type,
       num amount,
       String? reason,
+      DateTime? date,
       @JsonKey(name: 'created_at') DateTime? createdAt,
       @JsonKey(name: 'object_id') String? objectId});
 }
@@ -112,6 +117,7 @@ class _$PayrollBonusModelCopyWithImpl<$Res>
     Object? type = null,
     Object? amount = null,
     Object? reason = freezed,
+    Object? date = freezed,
     Object? createdAt = freezed,
     Object? objectId = freezed,
   }) {
@@ -136,6 +142,10 @@ class _$PayrollBonusModelCopyWithImpl<$Res>
           ? _self.reason
           : reason // ignore: cast_nullable_to_non_nullable
               as String?,
+      date: freezed == date
+          ? _self.date
+          : date // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
       createdAt: freezed == createdAt
           ? _self.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -157,6 +167,7 @@ class _PayrollBonusModel implements PayrollBonusModel {
       required this.type,
       required this.amount,
       this.reason,
+      this.date,
       @JsonKey(name: 'created_at') this.createdAt,
       @JsonKey(name: 'object_id') this.objectId});
   factory _PayrollBonusModel.fromJson(Map<String, dynamic> json) =>
@@ -182,6 +193,10 @@ class _PayrollBonusModel implements PayrollBonusModel {
   /// Причина или комментарий
   @override
   final String? reason;
+
+  /// Дата премии
+  @override
+  final DateTime? date;
 
   /// Дата создания записи
   @override
@@ -219,6 +234,7 @@ class _PayrollBonusModel implements PayrollBonusModel {
             (identical(other.type, type) || other.type == type) &&
             (identical(other.amount, amount) || other.amount == amount) &&
             (identical(other.reason, reason) || other.reason == reason) &&
+            (identical(other.date, date) || other.date == date) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.objectId, objectId) ||
@@ -227,12 +243,12 @@ class _PayrollBonusModel implements PayrollBonusModel {
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(
-      runtimeType, id, employeeId, type, amount, reason, createdAt, objectId);
+  int get hashCode => Object.hash(runtimeType, id, employeeId, type, amount,
+      reason, date, createdAt, objectId);
 
   @override
   String toString() {
-    return 'PayrollBonusModel(id: $id, employeeId: $employeeId, type: $type, amount: $amount, reason: $reason, createdAt: $createdAt, objectId: $objectId)';
+    return 'PayrollBonusModel(id: $id, employeeId: $employeeId, type: $type, amount: $amount, reason: $reason, date: $date, createdAt: $createdAt, objectId: $objectId)';
   }
 }
 
@@ -250,6 +266,7 @@ abstract mixin class _$PayrollBonusModelCopyWith<$Res>
       String type,
       num amount,
       String? reason,
+      DateTime? date,
       @JsonKey(name: 'created_at') DateTime? createdAt,
       @JsonKey(name: 'object_id') String? objectId});
 }
@@ -272,6 +289,7 @@ class __$PayrollBonusModelCopyWithImpl<$Res>
     Object? type = null,
     Object? amount = null,
     Object? reason = freezed,
+    Object? date = freezed,
     Object? createdAt = freezed,
     Object? objectId = freezed,
   }) {
@@ -296,6 +314,10 @@ class __$PayrollBonusModelCopyWithImpl<$Res>
           ? _self.reason
           : reason // ignore: cast_nullable_to_non_nullable
               as String?,
+      date: freezed == date
+          ? _self.date
+          : date // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
       createdAt: freezed == createdAt
           ? _self.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable

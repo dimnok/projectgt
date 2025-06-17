@@ -223,10 +223,10 @@ class _ExportFilterWidgetState extends ConsumerState<ExportFilterWidget> {
                       onPressed: () {
                         // Преобразуем состояние фильтров в ExportFilter
                         final filter = ExportFilter(
-                          objectId: filterState.objectIds.isNotEmpty ? filterState.objectIds.first : null,
-                          contractId: filterState.contractIds.isNotEmpty ? filterState.contractIds.first : null,
-                          system: filterState.systems.isNotEmpty ? filterState.systems.first : null,
-                          subsystem: filterState.subsystems.isNotEmpty ? filterState.subsystems.first : null,
+                          objectIds: filterState.objectIds,
+                          contractIds: filterState.contractIds,
+                          systems: filterState.systems,
+                          subsystems: filterState.subsystems,
                           dateFrom: filterState.dateFrom,
                           dateTo: filterState.dateTo,
                         );
@@ -286,11 +286,14 @@ class _ExportFilterWidgetState extends ConsumerState<ExportFilterWidget> {
                         _contractController.setDropDown([]);
                         _systemController.setDropDown([]);
                         _subsystemController.setDropDown([]);
+                        
+                        // Используем ту же логику, что и в провайдере - текущий месяц
                         final now = DateTime.now();
-                        final thirtyDaysAgo = now.subtract(const Duration(days: 30));
+                        final startOfMonth = DateTime(now.year, now.month, 1);
+                        final endOfMonth = DateTime(now.year, now.month + 1, 0);
                         setState(() {
-                          _dateFromController.text = _formatDate(thirtyDaysAgo);
-                          _dateToController.text = _formatDate(now);
+                          _dateFromController.text = _formatDate(startOfMonth);
+                          _dateToController.text = _formatDate(endOfMonth);
                         });
                         
                         // Очищаем данные отчета
@@ -494,16 +497,32 @@ class _ExportFilterWidgetState extends ConsumerState<ExportFilterWidget> {
       return;
     }
 
+    // Сохраняем контекст перед async операцией
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final theme = Theme.of(context);
+    
     final filePath = await ref.read(exportProvider.notifier).exportToExcel(fileName);
     
     if (!mounted) return; // Проверяем mounted после async операции
     
     if (filePath != null) {
-      _showSnackBar(context, 'Файл успешно сохранен: $filePath');
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: Text('Файл успешно сохранен: $filePath'),
+          backgroundColor: theme.colorScheme.primary,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     } else {
       final error = ref.read(exportProvider).error;
       if (error != null) {
-        _showSnackBar(context, error, isError: true);
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text(error),
+            backgroundColor: theme.colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
   }

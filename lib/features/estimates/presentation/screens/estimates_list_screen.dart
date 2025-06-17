@@ -17,7 +17,7 @@ import 'import_estimate_form_modal.dart';
 import 'package:intl/intl.dart';
 import 'package:collection/collection.dart';
 import 'package:projectgt/presentation/widgets/app_badge.dart';
-import 'package:projectgt/core/utils/notifications_service.dart';
+import 'package:projectgt/core/utils/snackbar_utils.dart';
 import '../../../../domain/entities/estimate.dart';
 import 'dart:io';
 
@@ -119,7 +119,7 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
                     ref: ref,
                     onSuccess: () async {
                       if (context.mounted) context.pop();
-                      NotificationsService.showSuccessNotification(context, 'Смета успешно импортирована');
+                      SnackBarUtils.showSuccess(context, 'Смета успешно импортирована');
                     },
                     onCancel: () => context.pop(),
                   ),
@@ -161,7 +161,7 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
     try {
       final estimates = ref.read(estimateNotifierProvider).estimates;
       if (estimates.isEmpty) {
-        NotificationsService.showInfoNotification(context, 'Нет данных для экспорта');
+        SnackBarUtils.showInfo(context, 'Нет данных для экспорта');
         return;
       }
       
@@ -245,10 +245,10 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
       }
       
       if (!context.mounted) return;
-      NotificationsService.showSuccessNotification(context, 'Сметы экспортированы в Excel');
+      SnackBarUtils.showSuccess(context, 'Сметы экспортированы в Excel');
     } catch (e) {
       if (!context.mounted) return;
-      NotificationsService.showErrorNotification(context, 'Ошибка экспорта: $e');
+      SnackBarUtils.showError(context, 'Ошибка экспорта: $e');
     }
   }
 
@@ -266,7 +266,7 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
     
     // Показываем уведомление
     if (!mounted) return;
-    NotificationsService.showSuccessNotification(
+    SnackBarUtils.showSuccess(
       context, 
       'Смета "${file.estimateTitle}" удалена'
     );

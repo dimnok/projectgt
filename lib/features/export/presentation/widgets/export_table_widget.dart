@@ -409,6 +409,7 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
                                     _buildInfoRow('Договор', report.contractName, theme),
                                     _buildInfoRow('Система', report.system, theme),
                                     _buildInfoRow('Подсистема', report.subsystem, theme),
+                                    _buildInfoRow('№ позиции', report.positionNumber, theme),
                                     
                                     if (report.section.isNotEmpty || report.floor.isNotEmpty) ...[
                                       const SizedBox(height: 8),
@@ -444,28 +445,19 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
 
   /// Строит таблицу для десктопного вида
   void _buildTable(List<ExportReport> reports, double containerWidth) {
-    // Убираем dateColumnWidth и перераспределяем ширину между остальными колонками
-    final objectColumnWidth = containerWidth * 0.13; // было 0.12
-    final contractColumnWidth = containerWidth * 0.11; // было 0.10
-    final systemColumnWidth = containerWidth * 0.09; // было 0.08
-    final subsystemColumnWidth = containerWidth * 0.09; // было 0.08
-    final workNameColumnWidth = containerWidth * 0.32; // было 0.30
-    final sectionColumnWidth = containerWidth * 0.07; // было 0.06
-    final floorColumnWidth = containerWidth * 0.07; // было 0.06
-    final unitColumnWidth = containerWidth * 0.07; // было 0.06
-    final quantityColumnWidth = containerWidth * 0.09; // было 0.08
-    final priceColumnWidth = containerWidth * 0.09; // было 0.08
-    final totalColumnWidth = containerWidth * 0.11; // было 0.10
+    // Специальные колонки по 4%: №, Секция, Этаж, Ед. изм., Количество
+    final smallColumnWidth = containerWidth * 0.04; // 4% для узких колонок
+    final standardColumnWidth = containerWidth * 0.07; // 7% для стандартных колонок
+    final workNameColumnWidth = containerWidth * 0.31; // 31% для наименования работы (100% - 7*7% - 5*4% = 31%)
 
     final moneyFormat = NumberFormat('###,##0.00', 'ru_RU');
 
     columns = [
-      // Убираем колонку "Дата смены"
       PlutoColumn(
         title: 'Объект',
         field: 'objectName',
         type: PlutoColumnType.text(),
-        width: objectColumnWidth,
+        width: standardColumnWidth,
         titleTextAlign: PlutoColumnTextAlign.center,
         renderer: (rendererContext) {
           final isTotal = rendererContext.row.cells['objectName']?.value == 'ИТОГО';
@@ -483,7 +475,7 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
         title: 'Договор',
         field: 'contractName',
         type: PlutoColumnType.text(),
-        width: contractColumnWidth,
+        width: standardColumnWidth,
         titleTextAlign: PlutoColumnTextAlign.center,
         renderer: (rendererContext) {
           final isTotal = rendererContext.row.cells['objectName']?.value == 'ИТОГО';
@@ -501,7 +493,7 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
         title: 'Система',
         field: 'system',
         type: PlutoColumnType.text(),
-        width: systemColumnWidth,
+        width: standardColumnWidth,
         titleTextAlign: PlutoColumnTextAlign.center,
         renderer: (rendererContext) {
           final isTotal = rendererContext.row.cells['objectName']?.value == 'ИТОГО';
@@ -519,7 +511,25 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
         title: 'Подсистема',
         field: 'subsystem',
         type: PlutoColumnType.text(),
-        width: subsystemColumnWidth,
+        width: standardColumnWidth,
+        titleTextAlign: PlutoColumnTextAlign.center,
+        renderer: (rendererContext) {
+          final isTotal = rendererContext.row.cells['objectName']?.value == 'ИТОГО';
+          return Text(
+            rendererContext.cell.value?.toString() ?? '',
+            textAlign: TextAlign.center,
+            style: Theme.of(rendererContext.stateManager.gridKey.currentContext!).textTheme.bodyMedium?.copyWith(
+              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+              color: isTotal ? Colors.blue : null,
+            ),
+          );
+        },
+      ),
+      PlutoColumn(
+        title: '№',
+        field: 'positionNumber',
+        type: PlutoColumnType.text(),
+        width: smallColumnWidth,
         titleTextAlign: PlutoColumnTextAlign.center,
         renderer: (rendererContext) {
           final isTotal = rendererContext.row.cells['objectName']?.value == 'ИТОГО';
@@ -557,7 +567,7 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
         title: 'Секция',
         field: 'section',
         type: PlutoColumnType.text(),
-        width: sectionColumnWidth,
+        width: smallColumnWidth,
         titleTextAlign: PlutoColumnTextAlign.center,
         renderer: (rendererContext) {
           final isTotal = rendererContext.row.cells['objectName']?.value == 'ИТОГО';
@@ -575,7 +585,7 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
         title: 'Этаж',
         field: 'floor',
         type: PlutoColumnType.text(),
-        width: floorColumnWidth,
+        width: smallColumnWidth,
         titleTextAlign: PlutoColumnTextAlign.center,
         renderer: (rendererContext) {
           final isTotal = rendererContext.row.cells['objectName']?.value == 'ИТОГО';
@@ -593,7 +603,7 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
         title: 'Ед. изм.',
         field: 'unit',
         type: PlutoColumnType.text(),
-        width: unitColumnWidth,
+        width: smallColumnWidth,
         titleTextAlign: PlutoColumnTextAlign.center,
         renderer: (rendererContext) {
           final isTotal = rendererContext.row.cells['objectName']?.value == 'ИТОГО';
@@ -611,7 +621,7 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
         title: 'Количество',
         field: 'quantity',
         type: PlutoColumnType.number(),
-        width: quantityColumnWidth,
+        width: smallColumnWidth,
         titleTextAlign: PlutoColumnTextAlign.center,
         renderer: (rendererContext) {
           final isTotal = rendererContext.row.cells['objectName']?.value == 'ИТОГО';
@@ -629,7 +639,7 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
         title: 'Цена',
         field: 'price',
         type: PlutoColumnType.number(),
-        width: priceColumnWidth,
+        width: standardColumnWidth,
         titleTextAlign: PlutoColumnTextAlign.center,
         renderer: (rendererContext) {
           final isTotal = rendererContext.row.cells['objectName']?.value == 'ИТОГО';
@@ -649,7 +659,7 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
         title: 'Сумма',
         field: 'total',
         type: PlutoColumnType.number(),
-        width: totalColumnWidth,
+        width: standardColumnWidth,
         titleTextAlign: PlutoColumnTextAlign.center,
         renderer: (rendererContext) {
           final isTotal = rendererContext.row.cells['objectName']?.value == 'ИТОГО';
@@ -674,6 +684,7 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
       'contractName': PlutoCell(value: report.contractName),
       'system': PlutoCell(value: report.system),
       'subsystem': PlutoCell(value: report.subsystem),
+      'positionNumber': PlutoCell(value: report.positionNumber),
       'workName': PlutoCell(value: report.workName),
       'section': PlutoCell(value: report.section),
       'floor': PlutoCell(value: report.floor),
@@ -693,6 +704,7 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
         'contractName': PlutoCell(value: ''),
         'system': PlutoCell(value: ''),
         'subsystem': PlutoCell(value: ''),
+        'positionNumber': PlutoCell(value: ''),
         'workName': PlutoCell(value: ''),
         'section': PlutoCell(value: ''),
         'floor': PlutoCell(value: ''),

@@ -30,11 +30,20 @@ final deletePenaltyUseCaseProvider = Provider<DeletePenaltyUseCase>((ref) {
   return DeletePenaltyUseCase(ref.watch(payrollPenaltyRepositoryProvider));
 });
 
+/// Провайдер асинхронной загрузки всех штрафов (PayrollPenaltyModel) из репозитория.
+/// 
+/// Используется для получения полного списка штрафов из Supabase через PayrollPenaltyRepository.
+/// Возвращает Future<List<PayrollPenaltyModel>> для дальнейшей фильтрации и отображения в UI.
 final allPenaltiesProvider = FutureProvider<List<PayrollPenaltyModel>>((ref) async {
   final repo = ref.watch(payrollPenaltyRepositoryProvider);
   return await repo.getAllPenalties();
 });
 
+/// Провайдер отфильтрованных штрафов по выбранным критериям фильтрации ФОТ.
+/// 
+/// Выполняет фильтрацию всех штрафов по периоду (год/месяц), сотрудникам, объектам и должностям,
+/// используя состояние payrollFilterProvider и список сотрудников.
+/// Возвращает List<PayrollPenaltyModel> для отображения в таблице штрафов.
 final filteredPenaltiesProvider = Provider<List<PayrollPenaltyModel>>((ref) {
   final penaltiesAsync = ref.watch(allPenaltiesProvider);
   final filter = ref.watch(payrollFilterProvider);
@@ -49,7 +58,7 @@ final filteredPenaltiesProvider = Provider<List<PayrollPenaltyModel>>((ref) {
           date.month == filter.month;
         // Фильтр по сотруднику
         final byEmployee = filter.employeeIds.isEmpty ||
-          (penalty.employeeId != null && filter.employeeIds.contains(penalty.employeeId));
+          filter.employeeIds.contains(penalty.employeeId);
         // Фильтр по объекту
         final byObject = filter.objectIds.isEmpty ||
           (penalty.objectId != null && filter.objectIds.contains(penalty.objectId));
@@ -68,10 +77,10 @@ final filteredPenaltiesProvider = Provider<List<PayrollPenaltyModel>>((ref) {
         final empB = employees.firstWhereOrNull((e) => e.id == b.employeeId);
         final nameA = empA != null 
             ? ('${empA.lastName} ${empA.firstName} ${empA.middleName ?? ''}').trim().toLowerCase() 
-            : (a.employeeId ?? '').toLowerCase();
+            : a.employeeId.toLowerCase();
         final nameB = empB != null 
             ? ('${empB.lastName} ${empB.firstName} ${empB.middleName ?? ''}').trim().toLowerCase() 
-            : (b.employeeId ?? '').toLowerCase();
+            : b.employeeId.toLowerCase();
         return nameA.compareTo(nameB);
       });
       

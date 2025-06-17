@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:projectgt/core/utils/notifications_service.dart';
+import 'package:projectgt/core/utils/snackbar_utils.dart';
 import 'package:projectgt/presentation/state/auth_state.dart';
 import 'package:email_validator/email_validator.dart';
 
@@ -58,7 +58,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           );
     } else {
       // Показываем уведомление о неверных данных формы
-      NotificationsService.showErrorNotification(
+      SnackBarUtils.showError(
         context, 
         'Пожалуйста, проверьте правильность введенных данных',
       );
@@ -79,9 +79,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     // Показываем уведомление при ошибке
     if (hasError && authState.errorMessage != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        NotificationsService.showErrorNotification(
+        SnackBarUtils.showError(
           context, 
-          NotificationsService.getAuthErrorMessage(authState.errorMessage!),
+          SnackBarUtils.getAuthErrorMessage(authState.errorMessage!),
         );
       });
     }
@@ -177,43 +177,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           _buildLoginForm(context),
                         ],
                       ),
-                    
-                    // Социальный вход
-                    const SizedBox(height: 32),
-                    Row(
-                      children: [
-                        const Expanded(child: Divider()),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                          child: Text(
-                            'или войти через',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                            ),
-                          ),
-                        ),
-                        const Expanded(child: Divider()),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _SocialLoginButton(
-                          icon: Icons.g_mobiledata,
-                          onPressed: () {
-                            // TODO: Implement Google login
-                          },
-                        ),
-                        const SizedBox(width: 16),
-                        _SocialLoginButton(
-                          icon: Icons.apple,
-                          onPressed: () {
-                            // TODO: Implement Apple login
-                          },
-                        ),
-                      ],
-                    ),
                   ],
                 ),
               ),
@@ -257,16 +220,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             enabled: !isLoading,
           ),
           const SizedBox(height: 16),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: isLoading ? null : () {
-                // TODO: Implement password recovery
-              },
-              child: const Text('Забыли пароль?'),
-            ),
-          ),
-          const SizedBox(height: 24),
           ElevatedButton(
             onPressed: isLoading ? null : _handleLogin,
             child: isLoading
@@ -288,49 +241,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             child: const Text('Зарегистрироваться'),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Кнопка для входа через социальные сети.
-class _SocialLoginButton extends StatelessWidget {
-  /// Иконка кнопки.
-  final IconData icon;
-  /// Callback при нажатии.
-  final VoidCallback? onPressed;
-
-  /// Конструктор [_SocialLoginButton].
-  const _SocialLoginButton({
-    required this.icon,
-    required this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    // final theme = Theme.of(context);
-    
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          width: 60,
-          height: 60,
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
-              width: 1,
-            ),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Icon(
-            icon,
-            size: 30,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
-        ),
       ),
     );
   }

@@ -9,7 +9,7 @@ part of 'payroll_penalty_model.dart';
 _PayrollPenaltyModel _$PayrollPenaltyModelFromJson(Map<String, dynamic> json) =>
     _PayrollPenaltyModel(
       id: json['id'] as String,
-      employeeId: json['employee_id'] as String?,
+      employeeId: json['employee_id'] as String,
       type: json['type'] as String,
       amount: json['amount'] as num,
       reason: json['reason'] as String?,

@@ -6,12 +6,27 @@ import '../providers/bonus_providers.dart';
 import '../providers/balance_providers.dart';
 import '../providers/payroll_providers.dart';
 import '../providers/payroll_filter_provider.dart';
-import 'payroll_bonus_form_modal.dart';
+import '../../../../core/utils/snackbar_utils.dart';
+import 'payroll_transaction_form_modal.dart';
+import '../../domain/entities/payroll_transaction.dart';
 import 'package:flutter/cupertino.dart';
 
+/// Виджет для отображения таблицы премий сотрудников за выбранный период в модуле ФОТ.
+/// 
+/// Использует данные из провайдера filteredBonusesProvider и отображает премии с деталями по сотруднику, объекту, сумме, дате и примечанию.
+/// Поддерживает адаптивную верстку (desktop/tablet/mobile), сортировку и действия (редактирование, удаление).
 class PayrollBonusTableWidget extends ConsumerWidget {
+  /// Конструктор [PayrollBonusTableWidget].
+  /// 
+  /// [key] — уникальный ключ виджета (опционально).
   const PayrollBonusTableWidget({super.key});
 
+  /// Строит UI таблицы премий сотрудников за выбранный месяц.
+  /// 
+  /// [context] — BuildContext для доступа к теме и навигации.
+  /// [ref] — WidgetRef для доступа к провайдерам состояния.
+  /// 
+  /// Возвращает [Widget] с таблицей премий или сообщением об отсутствии данных.
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
@@ -127,7 +142,10 @@ class PayrollBonusTableWidget extends ConsumerWidget {
                                           constraints: BoxConstraints(
                                             maxHeight: MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top - kToolbarHeight,
                                           ),
-                                          builder: (ctx) => PayrollBonusFormModal(bonus: bonus),
+                                          builder: (ctx) => PayrollTransactionFormModal(
+                                            transactionType: PayrollTransactionType.bonus,
+                                            transaction: bonus,
+                                          ),
                                         );
                                       } else if (value == 'delete') {
                                         showCupertinoDialog(
@@ -151,9 +169,7 @@ class PayrollBonusTableWidget extends ConsumerWidget {
                                                   ref.invalidate(employeeAggregatedBalanceProvider);
                                                   ref.invalidate(payrollPayoutsByMonthProvider);
                                                   if (context.mounted) {
-                                                    ScaffoldMessenger.of(context).showSnackBar(
-                                                      const SnackBar(content: Text('Премия удалена')),
-                                                    );
+                                                    SnackBarUtils.showSuccess(context, 'Премия удалена');
                                                   }
                                                 },
                                               ),

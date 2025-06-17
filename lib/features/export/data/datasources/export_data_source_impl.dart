@@ -39,6 +39,7 @@ class ExportDataSourceImpl implements ExportDataSource {
               price,
               total,
               estimates!inner(
+                number,
                 contracts!inner(number)
               )
             )
@@ -46,21 +47,21 @@ class ExportDataSourceImpl implements ExportDataSource {
           .gte('date', filter.dateFrom.toIso8601String())
           .lte('date', filter.dateTo.toIso8601String());
 
-      // Применяем дополнительные фильтры
-      if (filter.objectId != null) {
-        query = query.eq('object_id', filter.objectId!);
+      // Применяем фильтры по спискам
+      if (filter.objectIds.isNotEmpty) {
+        query = query.inFilter('object_id', filter.objectIds);
       }
 
-      if (filter.contractId != null) {
-        query = query.eq('work_items.estimates.contracts.id', filter.contractId!);
+      if (filter.contractIds.isNotEmpty) {
+        query = query.inFilter('work_items.estimates.contracts.id', filter.contractIds);
       }
 
-      if (filter.system != null) {
-        query = query.eq('work_items.system', filter.system!);
+      if (filter.systems.isNotEmpty) {
+        query = query.inFilter('work_items.system', filter.systems);
       }
 
-      if (filter.subsystem != null) {
-        query = query.eq('work_items.subsystem', filter.subsystem!);
+      if (filter.subsystems.isNotEmpty) {
+        query = query.inFilter('work_items.subsystem', filter.subsystems);
       }
 
       // Добавляем сортировку и выполняем запрос
@@ -86,6 +87,7 @@ class ExportDataSourceImpl implements ExportDataSource {
           final estimates = workItem['estimates'] as Map<String, dynamic>?;
           final contracts = estimates?['contracts'] as Map<String, dynamic>?;
           final contractNumber = contracts?['number'] as String? ?? '';
+          final positionNumber = estimates?['number'] as String? ?? '';
           
           reports.add(ExportReportModel(
             workDate: workDate,
@@ -93,6 +95,7 @@ class ExportDataSourceImpl implements ExportDataSource {
             contractName: contractNumber,
             system: workItem['system'] as String? ?? '',
             subsystem: workItem['subsystem'] as String? ?? '',
+            positionNumber: positionNumber,
             workName: workItem['name'] as String? ?? '',
             section: workItem['section'] as String? ?? '',
             floor: workItem['floor'] as String? ?? '',
@@ -118,6 +121,7 @@ class ExportDataSourceImpl implements ExportDataSource {
             '${report.contractName}_'
             '${report.system}_'
             '${report.subsystem}_'
+            '${report.positionNumber}_'
             '${report.workName}_'
             '${report.section}_'
             '${report.floor}_'
@@ -199,10 +203,10 @@ class ExportDataSourceImpl implements ExportDataSource {
       final systems = response
           .map((item) => item['system'] as String)
           .toSet()
-          .toList();
+          .toList()
+        ..sort();
 
-      systems.sort();
-      logger.i('Получено ${systems.length} уникальных систем');
+      logger.i('Получено ${systems.length} систем');
       return systems;
     } catch (e, stackTrace) {
       logger.e('Ошибка при получении списка систем', error: e, stackTrace: stackTrace);
@@ -223,10 +227,10 @@ class ExportDataSourceImpl implements ExportDataSource {
       final subsystems = response
           .map((item) => item['subsystem'] as String)
           .toSet()
-          .toList();
+          .toList()
+        ..sort();
 
-      subsystems.sort();
-      logger.i('Получено ${subsystems.length} уникальных подсистем');
+      logger.i('Получено ${subsystems.length} подсистем');
       return subsystems;
     } catch (e, stackTrace) {
       logger.e('Ошибка при получении списка подсистем', error: e, stackTrace: stackTrace);

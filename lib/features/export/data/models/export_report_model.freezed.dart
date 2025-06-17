@@ -33,6 +33,10 @@ mixin _$ExportReportModel {
   /// Подсистема.
   String get subsystem;
 
+  /// Номер позиции в смете.
+  @JsonKey(name: 'position_number')
+  String get positionNumber;
+
   /// Наименование работы.
   @JsonKey(name: 'work_name')
   String get workName;
@@ -90,6 +94,8 @@ mixin _$ExportReportModel {
             (identical(other.system, system) || other.system == system) &&
             (identical(other.subsystem, subsystem) ||
                 other.subsystem == subsystem) &&
+            (identical(other.positionNumber, positionNumber) ||
+                other.positionNumber == positionNumber) &&
             (identical(other.workName, workName) ||
                 other.workName == workName) &&
             (identical(other.section, section) || other.section == section) &&
@@ -115,6 +121,7 @@ mixin _$ExportReportModel {
       contractName,
       system,
       subsystem,
+      positionNumber,
       workName,
       section,
       floor,
@@ -128,7 +135,7 @@ mixin _$ExportReportModel {
 
   @override
   String toString() {
-    return 'ExportReportModel(workDate: $workDate, objectName: $objectName, contractName: $contractName, system: $system, subsystem: $subsystem, workName: $workName, section: $section, floor: $floor, unit: $unit, quantity: $quantity, price: $price, total: $total, employeeName: $employeeName, hours: $hours, materials: $materials)';
+    return 'ExportReportModel(workDate: $workDate, objectName: $objectName, contractName: $contractName, system: $system, subsystem: $subsystem, positionNumber: $positionNumber, workName: $workName, section: $section, floor: $floor, unit: $unit, quantity: $quantity, price: $price, total: $total, employeeName: $employeeName, hours: $hours, materials: $materials)';
   }
 }
 
@@ -144,6 +151,7 @@ abstract mixin class $ExportReportModelCopyWith<$Res> {
       @JsonKey(name: 'contract_name') String contractName,
       String system,
       String subsystem,
+      @JsonKey(name: 'position_number') String positionNumber,
       @JsonKey(name: 'work_name') String workName,
       String section,
       String floor,
@@ -174,6 +182,7 @@ class _$ExportReportModelCopyWithImpl<$Res>
     Object? contractName = null,
     Object? system = null,
     Object? subsystem = null,
+    Object? positionNumber = null,
     Object? workName = null,
     Object? section = null,
     Object? floor = null,
@@ -205,6 +214,10 @@ class _$ExportReportModelCopyWithImpl<$Res>
       subsystem: null == subsystem
           ? _self.subsystem
           : subsystem // ignore: cast_nullable_to_non_nullable
+              as String,
+      positionNumber: null == positionNumber
+          ? _self.positionNumber
+          : positionNumber // ignore: cast_nullable_to_non_nullable
               as String,
       workName: null == workName
           ? _self.workName
@@ -259,6 +272,7 @@ class _ExportReportModel implements ExportReportModel {
       @JsonKey(name: 'contract_name') required this.contractName,
       required this.system,
       required this.subsystem,
+      @JsonKey(name: 'position_number') required this.positionNumber,
       @JsonKey(name: 'work_name') required this.workName,
       required this.section,
       required this.floor,
@@ -294,6 +308,11 @@ class _ExportReportModel implements ExportReportModel {
   /// Подсистема.
   @override
   final String subsystem;
+
+  /// Номер позиции в смете.
+  @override
+  @JsonKey(name: 'position_number')
+  final String positionNumber;
 
   /// Наименование работы.
   @override
@@ -366,6 +385,8 @@ class _ExportReportModel implements ExportReportModel {
             (identical(other.system, system) || other.system == system) &&
             (identical(other.subsystem, subsystem) ||
                 other.subsystem == subsystem) &&
+            (identical(other.positionNumber, positionNumber) ||
+                other.positionNumber == positionNumber) &&
             (identical(other.workName, workName) ||
                 other.workName == workName) &&
             (identical(other.section, section) || other.section == section) &&
@@ -391,6 +412,7 @@ class _ExportReportModel implements ExportReportModel {
       contractName,
       system,
       subsystem,
+      positionNumber,
       workName,
       section,
       floor,
@@ -404,7 +426,7 @@ class _ExportReportModel implements ExportReportModel {
 
   @override
   String toString() {
-    return 'ExportReportModel(workDate: $workDate, objectName: $objectName, contractName: $contractName, system: $system, subsystem: $subsystem, workName: $workName, section: $section, floor: $floor, unit: $unit, quantity: $quantity, price: $price, total: $total, employeeName: $employeeName, hours: $hours, materials: $materials)';
+    return 'ExportReportModel(workDate: $workDate, objectName: $objectName, contractName: $contractName, system: $system, subsystem: $subsystem, positionNumber: $positionNumber, workName: $workName, section: $section, floor: $floor, unit: $unit, quantity: $quantity, price: $price, total: $total, employeeName: $employeeName, hours: $hours, materials: $materials)';
   }
 }
 
@@ -422,6 +444,7 @@ abstract mixin class _$ExportReportModelCopyWith<$Res>
       @JsonKey(name: 'contract_name') String contractName,
       String system,
       String subsystem,
+      @JsonKey(name: 'position_number') String positionNumber,
       @JsonKey(name: 'work_name') String workName,
       String section,
       String floor,
@@ -452,6 +475,7 @@ class __$ExportReportModelCopyWithImpl<$Res>
     Object? contractName = null,
     Object? system = null,
     Object? subsystem = null,
+    Object? positionNumber = null,
     Object? workName = null,
     Object? section = null,
     Object? floor = null,
@@ -483,6 +507,10 @@ class __$ExportReportModelCopyWithImpl<$Res>
       subsystem: null == subsystem
           ? _self.subsystem
           : subsystem // ignore: cast_nullable_to_non_nullable
+              as String,
+      positionNumber: null == positionNumber
+          ? _self.positionNumber
+          : positionNumber // ignore: cast_nullable_to_non_nullable
               as String,
       workName: null == workName
           ? _self.workName

@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import '../providers/payroll_providers.dart';
 import '../providers/balance_providers.dart';
 import '../../data/models/payroll_payout_model.dart';
+import '../../../../core/utils/snackbar_utils.dart';
 
 /// Модальное окно для указания индивидуальных сумм выплат для выбранных сотрудников.
 /// 
@@ -22,6 +23,13 @@ class PayrollPayoutAmountModal extends ConsumerStatefulWidget {
   /// Комментарий
   final String comment;
 
+  /// Конструктор [PayrollPayoutAmountModal].
+  /// 
+  /// [selectedEmployees] — список выбранных сотрудников, для которых будут создаваться выплаты (обязательный параметр).
+  /// [payoutDate] — дата выплаты (обязательный параметр).
+  /// [method] — способ выплаты (например, 'cash', 'card', 'bank_transfer'), обязательный параметр.
+  /// [type] — тип выплаты (например, 'salary', 'advance'), обязательный параметр.
+  /// [comment] — комментарий к выплате (опционально, по умолчанию пустая строка).
   const PayrollPayoutAmountModal({
     super.key,
     required this.selectedEmployees,
@@ -31,6 +39,9 @@ class PayrollPayoutAmountModal extends ConsumerStatefulWidget {
     required this.comment,
   });
 
+  /// Создаёт состояние для модального окна [PayrollPayoutAmountModal].
+  /// 
+  /// Возвращает экземпляр [_PayrollPayoutAmountModalState], реализующий логику массового ввода сумм выплат.
   @override
   ConsumerState<PayrollPayoutAmountModal> createState() => _PayrollPayoutAmountModalState();
 }
@@ -87,9 +98,7 @@ class _PayrollPayoutAmountModalState extends ConsumerState<PayrollPayoutAmountMo
 
   Future<void> _savePayouts() async {
     if (_currentEmployees.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Нет сотрудников для выплаты')),
-      );
+      SnackBarUtils.showWarning(context, 'Нет сотрудников для выплаты');
       return;
     }
 
@@ -119,9 +128,7 @@ class _PayrollPayoutAmountModalState extends ConsumerState<PayrollPayoutAmountMo
       }
 
       if (payouts.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Введите суммы для выплат')),
-        );
+        SnackBarUtils.showWarning(context, 'Введите суммы для выплат');
         return;
       }
 
@@ -140,15 +147,11 @@ class _PayrollPayoutAmountModalState extends ConsumerState<PayrollPayoutAmountMo
         // Закрываем оба модальных окна
         Navigator.pop(context); // Закрываем второе окно
         Navigator.pop(context); // Закрываем первое окно
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Создано выплат: ${payouts.length}')),
-        );
+        SnackBarUtils.showSuccess(context, 'Создано выплат: ${payouts.length}');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка: $e')),
-        );
+        SnackBarUtils.showError(context, 'Ошибка: $e');
       }
     } finally {
       _isSaving.value = false;

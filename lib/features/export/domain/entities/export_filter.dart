@@ -12,23 +12,23 @@ abstract class ExportFilter with _$ExportFilter {
   ///
   /// [dateFrom] — дата начала периода
   /// [dateTo] — дата окончания периода
-  /// [objectId] — идентификатор объекта (опционально)
-  /// [contractId] — идентификатор договора (опционально)
-  /// [system] — система (опционально)
-  /// [subsystem] — подсистема (опционально)
+  /// [objectIds] — список идентификаторов объектов (опционально)
+  /// [contractIds] — список идентификаторов договоров (опционально)
+  /// [systems] — список систем (опционально)
+  /// [subsystems] — список подсистем (опционально)
   const factory ExportFilter({
     /// Дата начала периода.
     required DateTime dateFrom,
     /// Дата окончания периода.
     required DateTime dateTo,
-    /// Идентификатор объекта для фильтрации.
-    String? objectId,
-    /// Идентификатор договора для фильтрации.
-    String? contractId,
-    /// Система для фильтрации.
-    String? system,
-    /// Подсистема для фильтрации.
-    String? subsystem,
+    /// Список идентификаторов объектов для фильтрации.
+    @Default([]) List<String> objectIds,
+    /// Список идентификаторов договоров для фильтрации.
+    @Default([]) List<String> contractIds,
+    /// Список систем для фильтрации.
+    @Default([]) List<String> systems,
+    /// Список подсистем для фильтрации.
+    @Default([]) List<String> subsystems,
   }) = _ExportFilter;
 
   /// Создаёт сущность из JSON.

@@ -7,7 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 import 'package:projectgt/presentation/widgets/app_badge.dart';
-import 'package:projectgt/core/utils/notifications_service.dart';
+import 'package:projectgt/core/utils/snackbar_utils.dart';
 
 /// Экран подробной информации о договоре (контракте).
 ///
@@ -76,10 +76,10 @@ class ContractDetailsScreen extends ConsumerWidget {
                   await ref.read(contractProvider.notifier).deleteContract(contract.id);
                   if (!ctx.mounted) return;
                   Navigator.of(ctx).pop();
-                  NotificationsService.showErrorNotification(ctx, 'Договор удалён');
+                  SnackBarUtils.showError(ctx, 'Договор удалён');
                 } catch (e) {
                   if (!ctx.mounted) return;
-                  NotificationsService.showErrorNotification(ctx, 'Ошибка удаления: ${e.toString()}');
+                  SnackBarUtils.showError(ctx, 'Ошибка удаления: ${e.toString()}');
                 }
               }
             },

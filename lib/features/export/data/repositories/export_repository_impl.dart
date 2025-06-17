@@ -47,10 +47,10 @@ class ExportRepositoryImpl implements ExportRepository {
     return ExportFilterModel(
       dateFrom: filter.dateFrom,
       dateTo: filter.dateTo,
-      objectId: filter.objectId,
-      contractId: filter.contractId,
-      system: filter.system,
-      subsystem: filter.subsystem,
+      objectIds: filter.objectIds,
+      contractIds: filter.contractIds,
+      systems: filter.systems,
+      subsystems: filter.subsystems,
     );
   }
 
@@ -62,6 +62,7 @@ class ExportRepositoryImpl implements ExportRepository {
       contractName: model.contractName,
       system: model.system,
       subsystem: model.subsystem,
+      positionNumber: model.positionNumber,
       workName: model.workName,
       section: model.section,
       floor: model.floor,

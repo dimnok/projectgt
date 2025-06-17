@@ -15,6 +15,7 @@ abstract class ExportReport with _$ExportReport {
   /// [contractName] — название договора
   /// [system] — система
   /// [subsystem] — подсистема
+  /// [positionNumber] — номер позиции в смете
   /// [workName] — наименование работы
   /// [section] — секция
   /// [floor] — этаж
@@ -36,6 +37,8 @@ abstract class ExportReport with _$ExportReport {
     required String system,
     /// Подсистема.
     required String subsystem,
+    /// Номер позиции в смете.
+    required String positionNumber,
     /// Наименование работы.
     required String workName,
     /// Секция.

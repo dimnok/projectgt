@@ -30,6 +30,9 @@ mixin _$ExportReport {
   /// Подсистема.
   String get subsystem;
 
+  /// Номер позиции в смете.
+  String get positionNumber;
+
   /// Наименование работы.
   String get workName;
 
@@ -85,6 +88,8 @@ mixin _$ExportReport {
             (identical(other.system, system) || other.system == system) &&
             (identical(other.subsystem, subsystem) ||
                 other.subsystem == subsystem) &&
+            (identical(other.positionNumber, positionNumber) ||
+                other.positionNumber == positionNumber) &&
             (identical(other.workName, workName) ||
                 other.workName == workName) &&
             (identical(other.section, section) || other.section == section) &&
@@ -110,6 +115,7 @@ mixin _$ExportReport {
       contractName,
       system,
       subsystem,
+      positionNumber,
       workName,
       section,
       floor,
@@ -123,7 +129,7 @@ mixin _$ExportReport {
 
   @override
   String toString() {
-    return 'ExportReport(workDate: $workDate, objectName: $objectName, contractName: $contractName, system: $system, subsystem: $subsystem, workName: $workName, section: $section, floor: $floor, unit: $unit, quantity: $quantity, price: $price, total: $total, employeeName: $employeeName, hours: $hours, materials: $materials)';
+    return 'ExportReport(workDate: $workDate, objectName: $objectName, contractName: $contractName, system: $system, subsystem: $subsystem, positionNumber: $positionNumber, workName: $workName, section: $section, floor: $floor, unit: $unit, quantity: $quantity, price: $price, total: $total, employeeName: $employeeName, hours: $hours, materials: $materials)';
   }
 }
 
@@ -139,6 +145,7 @@ abstract mixin class $ExportReportCopyWith<$Res> {
       String contractName,
       String system,
       String subsystem,
+      String positionNumber,
       String workName,
       String section,
       String floor,
@@ -168,6 +175,7 @@ class _$ExportReportCopyWithImpl<$Res> implements $ExportReportCopyWith<$Res> {
     Object? contractName = null,
     Object? system = null,
     Object? subsystem = null,
+    Object? positionNumber = null,
     Object? workName = null,
     Object? section = null,
     Object? floor = null,
@@ -199,6 +207,10 @@ class _$ExportReportCopyWithImpl<$Res> implements $ExportReportCopyWith<$Res> {
       subsystem: null == subsystem
           ? _self.subsystem
           : subsystem // ignore: cast_nullable_to_non_nullable
+              as String,
+      positionNumber: null == positionNumber
+          ? _self.positionNumber
+          : positionNumber // ignore: cast_nullable_to_non_nullable
               as String,
       workName: null == workName
           ? _self.workName
@@ -253,6 +265,7 @@ class _ExportReport implements ExportReport {
       required this.contractName,
       required this.system,
       required this.subsystem,
+      required this.positionNumber,
       required this.workName,
       required this.section,
       required this.floor,
@@ -285,6 +298,10 @@ class _ExportReport implements ExportReport {
   /// Подсистема.
   @override
   final String subsystem;
+
+  /// Номер позиции в смете.
+  @override
+  final String positionNumber;
 
   /// Наименование работы.
   @override
@@ -355,6 +372,8 @@ class _ExportReport implements ExportReport {
             (identical(other.system, system) || other.system == system) &&
             (identical(other.subsystem, subsystem) ||
                 other.subsystem == subsystem) &&
+            (identical(other.positionNumber, positionNumber) ||
+                other.positionNumber == positionNumber) &&
             (identical(other.workName, workName) ||
                 other.workName == workName) &&
             (identical(other.section, section) || other.section == section) &&
@@ -380,6 +399,7 @@ class _ExportReport implements ExportReport {
       contractName,
       system,
       subsystem,
+      positionNumber,
       workName,
       section,
       floor,
@@ -393,7 +413,7 @@ class _ExportReport implements ExportReport {
 
   @override
   String toString() {
-    return 'ExportReport(workDate: $workDate, objectName: $objectName, contractName: $contractName, system: $system, subsystem: $subsystem, workName: $workName, section: $section, floor: $floor, unit: $unit, quantity: $quantity, price: $price, total: $total, employeeName: $employeeName, hours: $hours, materials: $materials)';
+    return 'ExportReport(workDate: $workDate, objectName: $objectName, contractName: $contractName, system: $system, subsystem: $subsystem, positionNumber: $positionNumber, workName: $workName, section: $section, floor: $floor, unit: $unit, quantity: $quantity, price: $price, total: $total, employeeName: $employeeName, hours: $hours, materials: $materials)';
   }
 }
 
@@ -411,6 +431,7 @@ abstract mixin class _$ExportReportCopyWith<$Res>
       String contractName,
       String system,
       String subsystem,
+      String positionNumber,
       String workName,
       String section,
       String floor,
@@ -441,6 +462,7 @@ class __$ExportReportCopyWithImpl<$Res>
     Object? contractName = null,
     Object? system = null,
     Object? subsystem = null,
+    Object? positionNumber = null,
     Object? workName = null,
     Object? section = null,
     Object? floor = null,
@@ -472,6 +494,10 @@ class __$ExportReportCopyWithImpl<$Res>
       subsystem: null == subsystem
           ? _self.subsystem
           : subsystem // ignore: cast_nullable_to_non_nullable
+              as String,
+      positionNumber: null == positionNumber
+          ? _self.positionNumber
+          : positionNumber // ignore: cast_nullable_to_non_nullable
               as String,
       workName: null == workName
           ? _self.workName

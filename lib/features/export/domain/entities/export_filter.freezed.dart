@@ -21,17 +21,17 @@ mixin _$ExportFilter {
   /// Дата окончания периода.
   DateTime get dateTo;
 
-  /// Идентификатор объекта для фильтрации.
-  String? get objectId;
+  /// Список идентификаторов объектов для фильтрации.
+  List<String> get objectIds;
 
-  /// Идентификатор договора для фильтрации.
-  String? get contractId;
+  /// Список идентификаторов договоров для фильтрации.
+  List<String> get contractIds;
 
-  /// Система для фильтрации.
-  String? get system;
+  /// Список систем для фильтрации.
+  List<String> get systems;
 
-  /// Подсистема для фильтрации.
-  String? get subsystem;
+  /// Список подсистем для фильтрации.
+  List<String> get subsystems;
 
   /// Create a copy of ExportFilter
   /// with the given fields replaced by the non-null parameter values.
@@ -52,23 +52,28 @@ mixin _$ExportFilter {
             (identical(other.dateFrom, dateFrom) ||
                 other.dateFrom == dateFrom) &&
             (identical(other.dateTo, dateTo) || other.dateTo == dateTo) &&
-            (identical(other.objectId, objectId) ||
-                other.objectId == objectId) &&
-            (identical(other.contractId, contractId) ||
-                other.contractId == contractId) &&
-            (identical(other.system, system) || other.system == system) &&
-            (identical(other.subsystem, subsystem) ||
-                other.subsystem == subsystem));
+            const DeepCollectionEquality().equals(other.objectIds, objectIds) &&
+            const DeepCollectionEquality()
+                .equals(other.contractIds, contractIds) &&
+            const DeepCollectionEquality().equals(other.systems, systems) &&
+            const DeepCollectionEquality()
+                .equals(other.subsystems, subsystems));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
-      runtimeType, dateFrom, dateTo, objectId, contractId, system, subsystem);
+      runtimeType,
+      dateFrom,
+      dateTo,
+      const DeepCollectionEquality().hash(objectIds),
+      const DeepCollectionEquality().hash(contractIds),
+      const DeepCollectionEquality().hash(systems),
+      const DeepCollectionEquality().hash(subsystems));
 
   @override
   String toString() {
-    return 'ExportFilter(dateFrom: $dateFrom, dateTo: $dateTo, objectId: $objectId, contractId: $contractId, system: $system, subsystem: $subsystem)';
+    return 'ExportFilter(dateFrom: $dateFrom, dateTo: $dateTo, objectIds: $objectIds, contractIds: $contractIds, systems: $systems, subsystems: $subsystems)';
   }
 }
 
@@ -81,10 +86,10 @@ abstract mixin class $ExportFilterCopyWith<$Res> {
   $Res call(
       {DateTime dateFrom,
       DateTime dateTo,
-      String? objectId,
-      String? contractId,
-      String? system,
-      String? subsystem});
+      List<String> objectIds,
+      List<String> contractIds,
+      List<String> systems,
+      List<String> subsystems});
 }
 
 /// @nodoc
@@ -101,10 +106,10 @@ class _$ExportFilterCopyWithImpl<$Res> implements $ExportFilterCopyWith<$Res> {
   $Res call({
     Object? dateFrom = null,
     Object? dateTo = null,
-    Object? objectId = freezed,
-    Object? contractId = freezed,
-    Object? system = freezed,
-    Object? subsystem = freezed,
+    Object? objectIds = null,
+    Object? contractIds = null,
+    Object? systems = null,
+    Object? subsystems = null,
   }) {
     return _then(_self.copyWith(
       dateFrom: null == dateFrom
@@ -115,22 +120,22 @@ class _$ExportFilterCopyWithImpl<$Res> implements $ExportFilterCopyWith<$Res> {
           ? _self.dateTo
           : dateTo // ignore: cast_nullable_to_non_nullable
               as DateTime,
-      objectId: freezed == objectId
-          ? _self.objectId
-          : objectId // ignore: cast_nullable_to_non_nullable
-              as String?,
-      contractId: freezed == contractId
-          ? _self.contractId
-          : contractId // ignore: cast_nullable_to_non_nullable
-              as String?,
-      system: freezed == system
-          ? _self.system
-          : system // ignore: cast_nullable_to_non_nullable
-              as String?,
-      subsystem: freezed == subsystem
-          ? _self.subsystem
-          : subsystem // ignore: cast_nullable_to_non_nullable
-              as String?,
+      objectIds: null == objectIds
+          ? _self.objectIds
+          : objectIds // ignore: cast_nullable_to_non_nullable
+              as List<String>,
+      contractIds: null == contractIds
+          ? _self.contractIds
+          : contractIds // ignore: cast_nullable_to_non_nullable
+              as List<String>,
+      systems: null == systems
+          ? _self.systems
+          : systems // ignore: cast_nullable_to_non_nullable
+              as List<String>,
+      subsystems: null == subsystems
+          ? _self.subsystems
+          : subsystems // ignore: cast_nullable_to_non_nullable
+              as List<String>,
     ));
   }
 }
@@ -141,10 +146,14 @@ class _ExportFilter implements ExportFilter {
   const _ExportFilter(
       {required this.dateFrom,
       required this.dateTo,
-      this.objectId,
-      this.contractId,
-      this.system,
-      this.subsystem});
+      final List<String> objectIds = const [],
+      final List<String> contractIds = const [],
+      final List<String> systems = const [],
+      final List<String> subsystems = const []})
+      : _objectIds = objectIds,
+        _contractIds = contractIds,
+        _systems = systems,
+        _subsystems = subsystems;
   factory _ExportFilter.fromJson(Map<String, dynamic> json) =>
       _$ExportFilterFromJson(json);
 
@@ -156,21 +165,53 @@ class _ExportFilter implements ExportFilter {
   @override
   final DateTime dateTo;
 
-  /// Идентификатор объекта для фильтрации.
-  @override
-  final String? objectId;
+  /// Список идентификаторов объектов для фильтрации.
+  final List<String> _objectIds;
 
-  /// Идентификатор договора для фильтрации.
+  /// Список идентификаторов объектов для фильтрации.
   @override
-  final String? contractId;
+  @JsonKey()
+  List<String> get objectIds {
+    if (_objectIds is EqualUnmodifiableListView) return _objectIds;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_objectIds);
+  }
 
-  /// Система для фильтрации.
-  @override
-  final String? system;
+  /// Список идентификаторов договоров для фильтрации.
+  final List<String> _contractIds;
 
-  /// Подсистема для фильтрации.
+  /// Список идентификаторов договоров для фильтрации.
   @override
-  final String? subsystem;
+  @JsonKey()
+  List<String> get contractIds {
+    if (_contractIds is EqualUnmodifiableListView) return _contractIds;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_contractIds);
+  }
+
+  /// Список систем для фильтрации.
+  final List<String> _systems;
+
+  /// Список систем для фильтрации.
+  @override
+  @JsonKey()
+  List<String> get systems {
+    if (_systems is EqualUnmodifiableListView) return _systems;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_systems);
+  }
+
+  /// Список подсистем для фильтрации.
+  final List<String> _subsystems;
+
+  /// Список подсистем для фильтрации.
+  @override
+  @JsonKey()
+  List<String> get subsystems {
+    if (_subsystems is EqualUnmodifiableListView) return _subsystems;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_subsystems);
+  }
 
   /// Create a copy of ExportFilter
   /// with the given fields replaced by the non-null parameter values.
@@ -195,23 +236,29 @@ class _ExportFilter implements ExportFilter {
             (identical(other.dateFrom, dateFrom) ||
                 other.dateFrom == dateFrom) &&
             (identical(other.dateTo, dateTo) || other.dateTo == dateTo) &&
-            (identical(other.objectId, objectId) ||
-                other.objectId == objectId) &&
-            (identical(other.contractId, contractId) ||
-                other.contractId == contractId) &&
-            (identical(other.system, system) || other.system == system) &&
-            (identical(other.subsystem, subsystem) ||
-                other.subsystem == subsystem));
+            const DeepCollectionEquality()
+                .equals(other._objectIds, _objectIds) &&
+            const DeepCollectionEquality()
+                .equals(other._contractIds, _contractIds) &&
+            const DeepCollectionEquality().equals(other._systems, _systems) &&
+            const DeepCollectionEquality()
+                .equals(other._subsystems, _subsystems));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
-      runtimeType, dateFrom, dateTo, objectId, contractId, system, subsystem);
+      runtimeType,
+      dateFrom,
+      dateTo,
+      const DeepCollectionEquality().hash(_objectIds),
+      const DeepCollectionEquality().hash(_contractIds),
+      const DeepCollectionEquality().hash(_systems),
+      const DeepCollectionEquality().hash(_subsystems));
 
   @override
   String toString() {
-    return 'ExportFilter(dateFrom: $dateFrom, dateTo: $dateTo, objectId: $objectId, contractId: $contractId, system: $system, subsystem: $subsystem)';
+    return 'ExportFilter(dateFrom: $dateFrom, dateTo: $dateTo, objectIds: $objectIds, contractIds: $contractIds, systems: $systems, subsystems: $subsystems)';
   }
 }
 
@@ -226,10 +273,10 @@ abstract mixin class _$ExportFilterCopyWith<$Res>
   $Res call(
       {DateTime dateFrom,
       DateTime dateTo,
-      String? objectId,
-      String? contractId,
-      String? system,
-      String? subsystem});
+      List<String> objectIds,
+      List<String> contractIds,
+      List<String> systems,
+      List<String> subsystems});
 }
 
 /// @nodoc
@@ -247,10 +294,10 @@ class __$ExportFilterCopyWithImpl<$Res>
   $Res call({
     Object? dateFrom = null,
     Object? dateTo = null,
-    Object? objectId = freezed,
-    Object? contractId = freezed,
-    Object? system = freezed,
-    Object? subsystem = freezed,
+    Object? objectIds = null,
+    Object? contractIds = null,
+    Object? systems = null,
+    Object? subsystems = null,
   }) {
     return _then(_ExportFilter(
       dateFrom: null == dateFrom
@@ -261,22 +308,22 @@ class __$ExportFilterCopyWithImpl<$Res>
           ? _self.dateTo
           : dateTo // ignore: cast_nullable_to_non_nullable
               as DateTime,
-      objectId: freezed == objectId
-          ? _self.objectId
-          : objectId // ignore: cast_nullable_to_non_nullable
-              as String?,
-      contractId: freezed == contractId
-          ? _self.contractId
-          : contractId // ignore: cast_nullable_to_non_nullable
-              as String?,
-      system: freezed == system
-          ? _self.system
-          : system // ignore: cast_nullable_to_non_nullable
-              as String?,
-      subsystem: freezed == subsystem
-          ? _self.subsystem
-          : subsystem // ignore: cast_nullable_to_non_nullable
-              as String?,
+      objectIds: null == objectIds
+          ? _self._objectIds
+          : objectIds // ignore: cast_nullable_to_non_nullable
+              as List<String>,
+      contractIds: null == contractIds
+          ? _self._contractIds
+          : contractIds // ignore: cast_nullable_to_non_nullable
+              as List<String>,
+      systems: null == systems
+          ? _self._systems
+          : systems // ignore: cast_nullable_to_non_nullable
+              as List<String>,
+      subsystems: null == subsystems
+          ? _self._subsystems
+          : subsystems // ignore: cast_nullable_to_non_nullable
+              as List<String>,
     ));
   }
 }

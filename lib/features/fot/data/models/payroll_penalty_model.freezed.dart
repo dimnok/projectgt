@@ -20,7 +20,7 @@ mixin _$PayrollPenaltyModel {
 
   /// Идентификатор сотрудника
   @JsonKey(name: 'employee_id')
-  String? get employeeId;
+  String get employeeId;
 
   /// Тип штрафа (опоздание/прогул/нарушение и т.д.)
   String get type;
@@ -90,7 +90,7 @@ abstract mixin class $PayrollPenaltyModelCopyWith<$Res> {
   @useResult
   $Res call(
       {String id,
-      @JsonKey(name: 'employee_id') String? employeeId,
+      @JsonKey(name: 'employee_id') String employeeId,
       String type,
       num amount,
       String? reason,
@@ -113,7 +113,7 @@ class _$PayrollPenaltyModelCopyWithImpl<$Res>
   @override
   $Res call({
     Object? id = null,
-    Object? employeeId = freezed,
+    Object? employeeId = null,
     Object? type = null,
     Object? amount = null,
     Object? reason = freezed,
@@ -126,10 +126,10 @@ class _$PayrollPenaltyModelCopyWithImpl<$Res>
           ? _self.id
           : id // ignore: cast_nullable_to_non_nullable
               as String,
-      employeeId: freezed == employeeId
+      employeeId: null == employeeId
           ? _self.employeeId
           : employeeId // ignore: cast_nullable_to_non_nullable
-              as String?,
+              as String,
       type: null == type
           ? _self.type
           : type // ignore: cast_nullable_to_non_nullable
@@ -163,7 +163,7 @@ class _$PayrollPenaltyModelCopyWithImpl<$Res>
 class _PayrollPenaltyModel implements PayrollPenaltyModel {
   const _PayrollPenaltyModel(
       {required this.id,
-      @JsonKey(name: 'employee_id') this.employeeId,
+      @JsonKey(name: 'employee_id') required this.employeeId,
       required this.type,
       required this.amount,
       this.reason,
@@ -180,7 +180,7 @@ class _PayrollPenaltyModel implements PayrollPenaltyModel {
   /// Идентификатор сотрудника
   @override
   @JsonKey(name: 'employee_id')
-  final String? employeeId;
+  final String employeeId;
 
   /// Тип штрафа (опоздание/прогул/нарушение и т.д.)
   @override
@@ -263,7 +263,7 @@ abstract mixin class _$PayrollPenaltyModelCopyWith<$Res>
   @useResult
   $Res call(
       {String id,
-      @JsonKey(name: 'employee_id') String? employeeId,
+      @JsonKey(name: 'employee_id') String employeeId,
       String type,
       num amount,
       String? reason,
@@ -286,7 +286,7 @@ class __$PayrollPenaltyModelCopyWithImpl<$Res>
   @pragma('vm:prefer-inline')
   $Res call({
     Object? id = null,
-    Object? employeeId = freezed,
+    Object? employeeId = null,
     Object? type = null,
     Object? amount = null,
     Object? reason = freezed,
@@ -299,10 +299,10 @@ class __$PayrollPenaltyModelCopyWithImpl<$Res>
           ? _self.id
           : id // ignore: cast_nullable_to_non_nullable
               as String,
-      employeeId: freezed == employeeId
+      employeeId: null == employeeId
           ? _self.employeeId
           : employeeId // ignore: cast_nullable_to_non_nullable
-              as String?,
+              as String,
       type: null == type
           ? _self.type
           : type // ignore: cast_nullable_to_non_nullable

@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import '../../domain/entities/payroll_transaction.dart';
 
 part 'payroll_bonus_model.freezed.dart';
 part 'payroll_bonus_model.g.dart';
@@ -7,17 +8,17 @@ part 'payroll_bonus_model.g.dart';
 /// 
 /// Позволяет хранить детализацию по видам премий для сотрудника за расчётный период.
 @freezed
-abstract class PayrollBonusModel with _$PayrollBonusModel {
+abstract class PayrollBonusModel with _$PayrollBonusModel implements PayrollTransaction {
   /// Создаёт экземпляр data-модели премии.
   ///
   /// [id] — уникальный идентификатор премии
-  /// [payrollId] — идентификатор расчёта ФОТ (payroll_id)
   /// [employeeId] — идентификатор сотрудника (employee_id)
   /// [type] — тип премии (ручная/автоматическая/поощрительная и т.д.)
   /// [amount] — сумма премии
   /// [reason] — причина или комментарий
+  /// [date] — дата премии
   /// [createdAt] — дата создания записи
-  /// [objectId] — идентификатор объекта (новое поле)
+  /// [objectId] — идентификатор объекта
   const factory PayrollBonusModel({
     /// Уникальный идентификатор премии
     required String id,
@@ -29,6 +30,8 @@ abstract class PayrollBonusModel with _$PayrollBonusModel {
     required num amount,
     /// Причина или комментарий
     String? reason,
+    /// Дата премии
+    DateTime? date,
     /// Дата создания записи
     @JsonKey(name: 'created_at') DateTime? createdAt,
     /// Идентификатор объекта
