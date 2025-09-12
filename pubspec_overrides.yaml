@@ -1,0 +1,9 @@
+# Используется Pub только на время резолва зависимостей. Позволяет переопределять источник/версию.
+# Цель: гарантировать hosted-зависимость для pluto_grid на CI (исключить path-override).
+
+dependency_overrides:
+  pluto_grid:
+    hosted: pluto_grid
+    version: ^8.0.0
+  # Синхронизировано с pubspec.yaml, чтобы избежать конфликтов с pluto_grid
+  intl: ^0.19.0
