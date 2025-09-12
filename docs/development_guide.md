@@ -80,8 +80,8 @@ final primaryColor = theme.colorScheme.primary;
 // В ConsumerWidget:
 final authState = ref.watch(authProvider);
 
-// Обновление состояния:
-ref.read(authProvider.notifier).login(email, password);
+// Обновление состояния (OTP):
+await ref.read(authProvider.notifier).requestEmailOtp(email);
 ```
 
 ### Создание провайдеров
@@ -136,23 +136,14 @@ final response = await client
     .order('full_name');
 ```
 
-### Аутентификация
+### Аутентификация (OTP)
 
 ```dart
-// Вход
-final response = await client.auth.signInWithPassword(
-  email: email,
-  password: password,
-);
+// Запрос кода на почту
+await client.auth.signInWithOtp(email: email, emailRedirectTo: null);
 
-// Регистрация
-final response = await client.auth.signUp(
-  email: email,
-  password: password,
-  data: {
-    'name': name,
-  },
-);
+// Подтверждение кода (если используется verifyOtp на бэкенде/клиенте)
+// См. presentation/state/auth_state.dart -> verifyEmailOtp
 
 // Выход
 await client.auth.signOut();
@@ -374,3 +365,35 @@ class ObjectFormModal extends ConsumerStatefulWidget { ... }
 ### Унификация форм и модальных окон
 - Для всех форм, открываемых в модальных окнах (сотрудники, объекты, контрагенты), используйте Center > SizedBox (width: 50% экрана, min 400, max 900) для ограничения ширины на десктопе. Контент формы — через Center > SingleChildScrollView > ConstrainedBox(maxWidth: 700). Такой подход обеспечивает единообразие UX и предотвращает ошибки constraint'ов.
 - Кнопки "Отмена" и "Сохранить" должны быть стилизованы одинаково во всех формах (OutlinedButton/ElevatedButton, высота 44, скругление 12, жирный шрифт). 
+
+---
+
+## 🔗 GitHub MCP Server интеграция
+
+Для автоматизации задач GitHub (Issues, PRs, Actions) в IDE добавлен MCP‑сервер GitHub.
+
+Конфигурация хранится в `.cursor/mcp.json` и использует официальный образ `ghcr.io/github/github-mcp-server` через Docker. Подробнее — в репозитории проекта [`github/github-mcp-server`](https://github.com/github/github-mcp-server).
+
+Требования:
+- Установлен Docker (доступен командой `docker`)
+- Персональный токен GitHub (Classic PAT или Fine‑grained) со следующими правами:
+  - repo: read/write (issues, pull requests)
+  - workflow: read (для чтения статусов Actions) и write при необходимости перезапуска
+  - read:org (если нужно работать с приватными репозиториями организации)
+
+Переменные окружения (запрашиваются IDE):
+- `GITHUB_TOKEN` → передаётся как `GITHUB_PERSONAL_ACCESS_TOKEN`
+- `GITHUB_HOST` (опционально) → для GHES/глобального data residency, наподобие `https://your.ghe.company`
+- `GITHUB_TOOLSETS` (по умолчанию) → `repos,issues,pull_requests,actions,code_security`
+
+Режимы:
+- Read‑only: можно включить через переменную `GITHUB_READ_ONLY=1` (см. README проекта)
+- Dynamic toolsets: `GITHUB_DYNAMIC_TOOLSETS=1` для динамического определения инструментов
+
+Примеры использования:
+- Список/создание Issues, PR, управление ветками
+- Чтение/перезапуск GitHub Actions
+- Чтение security advisories (при включённом toolset `code_security`)
+
+Ссылки:
+- Документация и релизы: [`github-mcp-server`](https://github.com/github/github-mcp-server) 

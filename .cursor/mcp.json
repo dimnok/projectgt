@@ -10,7 +10,7 @@
     "context7": {
       "command": "npx",
       "args": [
-        "-y", 
+        "-y",
         "@upstash/context7-mcp@latest"
       ]
     },
@@ -19,8 +19,20 @@
       "args": [
         "-y",
         "@supabase/mcp-server-supabase@latest",
+        "--project-ref",
+        "hzcawspbkvkrsmsklyuj",
         "--access-token",
-        "sbp_9e3b060d849810c2210b5d7192b1d927e8a2fb61"
+        "sbp_0e497d2e8899199d30adf0d23ee7eb08d8188213"
+      ]
+    },
+    "firebase": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "firebase-tools",
+        "experimental:mcp",
+        "--dir",
+        "."
       ]
     },
     "mcp-memory": {
@@ -31,6 +43,26 @@
     },
     "langgraph Docs": {
       "url": "https://gitmcp.io/langchain-ai/langgraph"
+    },
+    "github": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "-e",
+        "GITHUB_HOST",
+        "-e",
+        "GITHUB_TOOLSETS",
+        "ghcr.io/github/github-mcp-server"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${input:GITHUB_TOKEN}",
+        "GITHUB_HOST": "",
+        "GITHUB_TOOLSETS": "repos,issues,pull_requests,actions,code_security"
+      }
     }
   }
 } 
