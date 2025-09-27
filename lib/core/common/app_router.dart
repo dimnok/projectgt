@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:projectgt/features/auth/presentation/screens/login_screen.dart';
-import 'package:projectgt/features/auth/presentation/screens/register_screen.dart';
-import 'package:projectgt/features/home/presentation/screens/home_screen.dart';
+// imports of specific screens are not needed here because we use AuthGate
+import 'package:projectgt/features/auth/presentation/screens/profile_completion_screen.dart';
 import 'package:projectgt/features/profile/presentation/screens/profile_screen.dart';
+import 'package:projectgt/features/profile/presentation/screens/notifications_settings_screen.dart';
 import 'package:projectgt/features/profile/presentation/screens/users_list_screen.dart';
+import 'package:projectgt/features/profile/presentation/screens/financial_info_screen.dart';
 import 'package:projectgt/features/employees/presentation/screens/employees_list_screen.dart';
 import 'package:projectgt/features/employees/presentation/screens/employee_details_screen.dart';
 import 'package:projectgt/features/employees/presentation/screens/employee_form_screen.dart';
-import 'package:projectgt/presentation/state/auth_state.dart';
+// import 'package:projectgt/presentation/state/auth_state.dart';
 import 'package:projectgt/features/objects/presentation/screens/objects_list_screen.dart';
 import 'package:projectgt/features/objects/presentation/screens/object_form_screen.dart';
 import 'package:projectgt/features/contractors/presentation/screens/contractors_list_screen.dart';
@@ -26,61 +27,64 @@ import 'package:projectgt/features/works/presentation/screens/work_details_scree
 import 'package:projectgt/features/timesheet/presentation/screens/timesheet_screen.dart';
 import 'package:projectgt/features/fot/presentation/screens/payroll_list_screen.dart';
 import 'package:projectgt/features/export/presentation/screens/export_screen.dart';
+import 'package:projectgt/features/work_plans/presentation/screens/work_plans_list_screen.dart';
+import 'package:projectgt/features/work_plans/presentation/screens/work_plan_details_screen.dart';
+import 'package:projectgt/features/work_plans/presentation/screens/work_plan_edit_screen.dart';
+import 'package:projectgt/features/materials/presentation/screens/material_screen.dart';
+import 'package:projectgt/features/materials/presentation/screens/materials_mapping_screen.dart';
+// Telegram moderation экраны удалены
+import 'package:projectgt/core/widgets/auth_gate.dart';
 
 /// Провайдер маршрутизатора приложения на базе GoRouter.
-/// 
+///
 /// Управляет навигацией, авторизацией, доступом к защищённым и административным маршрутам.
 /// Использует Riverpod для внедрения зависимостей и состояния авторизации.
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authProvider);
-  
+  // final authState = ref.watch(authProvider);
+
   return GoRouter(
-    initialLocation: authState.status == AuthStatus.authenticated 
-      ? AppRoutes.home
-      : AppRoutes.login,
+    initialLocation: AppRoutes.home,
     redirect: (context, state) {
-      final isAuthenticated = authState.status == AuthStatus.authenticated;
-      final isLoginRoute = state.matchedLocation == AppRoutes.login;
-      final isRegisterRoute = state.matchedLocation == AppRoutes.register;
-      final isAdminRoute = state.matchedLocation == AppRoutes.users;
-      
-      // Если пользователь не аутентифицирован и пытается получить доступ к защищенному маршруту
-      if (!isAuthenticated && !isLoginRoute && !isRegisterRoute) {
-        return AppRoutes.login;
-      }
-      
-      // Если пользователь аутентифицирован и пытается получить доступ к маршруту логина
-      if (isAuthenticated && (isLoginRoute || isRegisterRoute)) {
+      // Защищаемся от случая, когда hash-токен попадает в path и роутер
+      // пытается интерпретировать его как маршрут
+      final loc = state.matchedLocation;
+      if (loc.startsWith('access_token') || loc.startsWith('/access_token')) {
+        // fix bad path
         return AppRoutes.home;
       }
-      
-      // Если пользователь не админ и пытается получить доступ к админ-странице
-      if (isAuthenticated && isAdminRoute && authState.user?.role != 'admin') {
-        return AppRoutes.home;
-      }
-      
       return null;
     },
     routes: [
       GoRoute(
         path: AppRoutes.login,
         name: 'login',
-        builder: (context, state) => const LoginScreen(),
+        builder: (context, state) => const AuthGate(),
       ),
-      GoRoute(
-        path: AppRoutes.register,
-        name: 'register',
-        builder: (context, state) => const RegisterScreen(),
-      ),
+      // Маршрут регистрации удалён: используется только OTP-вход через AuthGate
       GoRoute(
         path: AppRoutes.home,
         name: 'home',
-        builder: (context, state) => const HomeScreen(),
+        builder: (context, state) => const AuthGate(),
       ),
       GoRoute(
         path: AppRoutes.profile,
         name: 'profile',
         builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: '${AppRoutes.profile}/complete',
+        name: 'profile_complete',
+        builder: (context, state) => const ProfileCompletionScreen(),
+      ),
+      GoRoute(
+        path: '${AppRoutes.profile}/notifications',
+        name: 'profile_notifications',
+        builder: (context, state) => const NotificationsSettingsScreen(),
+      ),
+      GoRoute(
+        path: '${AppRoutes.profile}/financial',
+        name: 'profile_financial',
+        builder: (context, state) => const FinancialInfoScreen(),
       ),
       GoRoute(
         path: '${AppRoutes.profile}/:userId',
@@ -235,6 +239,30 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
         ],
       ),
+      // Маршрут для плана работ
+      GoRoute(
+        path: AppRoutes.workPlans,
+        name: 'work_plans',
+        builder: (context, state) => const WorkPlansListScreen(),
+      ),
+      // Маршрут для деталей плана работ
+      GoRoute(
+        path: '${AppRoutes.workPlans}/:workPlanId',
+        name: 'work_plan_details',
+        builder: (context, state) {
+          final workPlanId = state.pathParameters['workPlanId']!;
+          return WorkPlanDetailsScreen(workPlanId: workPlanId);
+        },
+      ),
+      // Маршрут для редактирования плана работ
+      GoRoute(
+        path: '${AppRoutes.workPlans}/:workPlanId/edit',
+        name: 'work_plan_edit',
+        builder: (context, state) {
+          final workPlanId = state.pathParameters['workPlanId']!;
+          return WorkPlanEditScreen(workPlanId: workPlanId);
+        },
+      ),
       // Маршрут для табеля рабочего времени
       GoRoute(
         path: AppRoutes.timesheet,
@@ -253,6 +281,22 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'export',
         builder: (context, state) => const ExportScreen(),
       ),
+
+      // Маршрут для материалов (чистая страница с AppBar)
+      GoRoute(
+        path: AppRoutes.material,
+        name: 'material',
+        builder: (context, state) => const MaterialScreen(),
+      ),
+
+      // Экран сопоставления материалов
+      GoRoute(
+        path: AppRoutes.materialMapping,
+        name: 'material_mapping',
+        builder: (context, state) => const MaterialsMappingScreen(),
+      ),
+
+      // Страницы статусов доступа управляются через AuthGate
     ],
     errorBuilder: (context, state) => Scaffold(
       body: Center(
@@ -263,35 +307,60 @@ final routerProvider = Provider<GoRouter>((ref) {
 });
 
 /// Класс с константами маршрутов приложения.
-/// 
+///
 /// Используется для унификации путей и предотвращения опечаток в строках маршрутов.
 class AppRoutes {
   /// Маршрут для экрана логина
   static const String login = '/login';
-  /// Маршрут для экрана регистрации
-  static const String register = '/register';
+
+  // Маршрут для экрана регистрации удалён
+
   /// Главная страница
   static const String home = '/';
+
   /// Профиль пользователя
   static const String profile = '/profile';
+
   /// Список пользователей (админ)
   static const String users = '/users';
+
   /// Список сотрудников
   static const String employees = '/employees';
+
   /// Список объектов
   static const String objects = '/objects';
+
   /// Список контрагентов
   static const String contractors = '/contractors';
+
   /// Список договоров
   static const String contracts = '/contracts';
+
   /// Список смет
   static const String estimates = '/estimates';
+
   /// Список работ
   static const String works = '/works';
+
   /// Табель рабочего времени
   static const String timesheet = '/timesheet';
+
   /// Список расчётов ФОТ
   static const String payrolls = '/payrolls';
+
   /// Маршрут для экспорта
   static const String export = '/export';
-} 
+
+  /// Маршрут для плана работ
+  static const String workPlans = '/work_plans';
+
+  /// Маршрут для страницы Материал
+  static const String material = '/material';
+
+  /// Маршрут для экрана сопоставления материалов
+  static const String materialMapping = '/material/mapping';
+
+  // Telegram маршруты удалены
+
+  // Специальный маршрут удалён
+}

@@ -50,4 +50,4 @@ class AppBadge extends StatelessWidget {
       ),
     );
   }
-} 
+}

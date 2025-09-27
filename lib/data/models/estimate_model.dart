@@ -5,12 +5,12 @@ part 'estimate_model.freezed.dart';
 part 'estimate_model.g.dart';
 
 /// Модель данных для работы с таблицей смет в источнике данных.
-/// 
+///
 /// Используется для сериализации/десериализации и передачи между слоями data/domain.
 @freezed
 abstract class EstimateModel with _$EstimateModel {
   /// Создаёт экземпляр [EstimateModel].
-  /// 
+  ///
   /// [id] — идентификатор записи (может быть null для новых).
   /// [system] — система.
   /// [subsystem] — подсистема.
@@ -47,7 +47,8 @@ abstract class EstimateModel with _$EstimateModel {
   const EstimateModel._();
 
   /// Создаёт [EstimateModel] из JSON.
-  factory EstimateModel.fromJson(Map<String, dynamic> json) => _$EstimateModelFromJson(json);
+  factory EstimateModel.fromJson(Map<String, dynamic> json) =>
+      _$EstimateModelFromJson(json);
 }
 
 /// Функция для обработки поля number при десериализации из JSON
@@ -60,40 +61,40 @@ String _numberFromJson(dynamic value) {
 extension EstimateModelMapper on EstimateModel {
   /// Преобразует [EstimateModel] в доменную сущность [Estimate].
   Estimate toDomain() => Estimate(
-    id: id ?? '',
-    system: system,
-    subsystem: subsystem,
-    number: number,
-    name: name,
-    article: article,
-    manufacturer: manufacturer,
-    unit: unit,
-    quantity: quantity,
-    price: price,
-    total: total,
-    objectId: objectId,
-    contractId: contractId,
-    estimateTitle: estimateTitle,
-  );
+        id: id ?? '',
+        system: system,
+        subsystem: subsystem,
+        number: number,
+        name: name,
+        article: article,
+        manufacturer: manufacturer,
+        unit: unit,
+        quantity: quantity,
+        price: price,
+        total: total,
+        objectId: objectId,
+        contractId: contractId,
+        estimateTitle: estimateTitle,
+      );
 }
 
 /// Маппинг Estimate (domain layer) → EstimateModel (data layer).
 extension EstimateDomainMapper on Estimate {
   /// Преобразует доменную сущность [Estimate] в [EstimateModel].
   EstimateModel toModel() => EstimateModel(
-    id: id.trim().isEmpty ? null : id,
-    system: system,
-    subsystem: subsystem,
-    number: number,
-    name: name,
-    article: article,
-    manufacturer: manufacturer,
-    unit: unit,
-    quantity: quantity,
-    price: price,
-    total: total,
-    objectId: objectId,
-    contractId: contractId,
-    estimateTitle: estimateTitle,
-  );
-} 
+        id: id.trim().isEmpty ? null : id,
+        system: system,
+        subsystem: subsystem,
+        number: number,
+        name: name,
+        article: article,
+        manufacturer: manufacturer,
+        unit: unit,
+        quantity: quantity,
+        price: price,
+        total: total,
+        objectId: objectId,
+        contractId: contractId,
+        estimateTitle: estimateTitle,
+      );
+}

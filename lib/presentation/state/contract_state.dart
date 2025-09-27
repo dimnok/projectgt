@@ -12,10 +12,13 @@ import 'package:projectgt/domain/usecases/contract/delete_contract_usecase.dart'
 enum ContractStatusState {
   /// Начальное состояние (ничего не загружено).
   initial,
+
   /// Выполняется загрузка или операция.
   loading,
+
   /// Операция завершена успешно.
   success,
+
   /// Произошла ошибка при выполнении операции.
   error,
 }
@@ -26,12 +29,16 @@ enum ContractStatusState {
 class ContractState {
   /// Текущий статус загрузки/операции ([ContractStatusState]).
   final ContractStatusState status;
+
   /// Список всех договоров.
   final List<Contract> contracts;
+
   /// Текущий выбранный договор (если есть).
   final Contract? contract;
+
   /// Сообщение об ошибке (если есть).
   final String? errorMessage;
+
   /// Поисковый запрос для фильтрации договоров.
   final String searchQuery;
 
@@ -51,7 +58,8 @@ class ContractState {
   });
 
   /// Возвращает начальное состояние ([ContractStatusState.initial]).
-  factory ContractState.initial() => ContractState(status: ContractStatusState.initial);
+  factory ContractState.initial() =>
+      ContractState(status: ContractStatusState.initial);
 
   /// Создаёт копию состояния с изменёнными полями.
   ///
@@ -82,11 +90,12 @@ class ContractState {
   List<Contract> get filteredContracts {
     if (searchQuery.isEmpty) return contracts;
     final query = searchQuery.toLowerCase();
-    return contracts.where((c) =>
-      c.number.toLowerCase().contains(query) ||
-      (c.contractorName?.toLowerCase().contains(query) ?? false) ||
-      (c.objectName?.toLowerCase().contains(query) ?? false)
-    ).toList();
+    return contracts
+        .where((c) =>
+            c.number.toLowerCase().contains(query) ||
+            (c.contractorName?.toLowerCase().contains(query) ?? false) ||
+            (c.objectName?.toLowerCase().contains(query) ?? false))
+        .toList();
   }
 }
 
@@ -96,12 +105,16 @@ class ContractState {
 class ContractNotifier extends StateNotifier<ContractState> {
   /// Use case для получения всех договоров.
   final GetContractsUseCase getContractsUseCase;
+
   /// Use case для получения одного договора.
   final GetContractUseCase getContractUseCase;
+
   /// Use case для создания договора.
   final CreateContractUseCase createContractUseCase;
+
   /// Use case для обновления договора.
   final UpdateContractUseCase updateContractUseCase;
+
   /// Use case для удаления договора.
   final DeleteContractUseCase deleteContractUseCase;
 
@@ -121,9 +134,11 @@ class ContractNotifier extends StateNotifier<ContractState> {
     state = state.copyWith(status: ContractStatusState.loading);
     try {
       final contracts = await getContractsUseCase.execute();
-      state = state.copyWith(status: ContractStatusState.success, contracts: contracts);
+      state = state.copyWith(
+          status: ContractStatusState.success, contracts: contracts);
     } catch (e) {
-      state = state.copyWith(status: ContractStatusState.error, errorMessage: e.toString());
+      state = state.copyWith(
+          status: ContractStatusState.error, errorMessage: e.toString());
     }
   }
 
@@ -136,7 +151,8 @@ class ContractNotifier extends StateNotifier<ContractState> {
       await createContractUseCase.execute(contract);
       await loadContracts();
     } catch (e) {
-      state = state.copyWith(status: ContractStatusState.error, errorMessage: e.toString());
+      state = state.copyWith(
+          status: ContractStatusState.error, errorMessage: e.toString());
     }
   }
 
@@ -149,7 +165,8 @@ class ContractNotifier extends StateNotifier<ContractState> {
       await updateContractUseCase.execute(contract);
       await loadContracts();
     } catch (e) {
-      state = state.copyWith(status: ContractStatusState.error, errorMessage: e.toString());
+      state = state.copyWith(
+          status: ContractStatusState.error, errorMessage: e.toString());
     }
   }
 
@@ -162,7 +179,8 @@ class ContractNotifier extends StateNotifier<ContractState> {
       await deleteContractUseCase.execute(id);
       await loadContracts();
     } catch (e) {
-      state = state.copyWith(status: ContractStatusState.error, errorMessage: e.toString());
+      state = state.copyWith(
+          status: ContractStatusState.error, errorMessage: e.toString());
     }
   }
 
@@ -176,19 +194,25 @@ class ContractNotifier extends StateNotifier<ContractState> {
   /// Если договор уже загружен и статус success — повторная загрузка не выполняется.
   /// В случае успеха — обновляет состояние на success, иначе — error с сообщением.
   Future<void> getContract(String id) async {
-    if (state.contract != null && state.contract!.id == id && state.status == ContractStatusState.success) {
+    if (state.contract != null &&
+        state.contract!.id == id &&
+        state.status == ContractStatusState.success) {
       return;
     }
     state = state.copyWith(status: ContractStatusState.loading);
     try {
       final contract = await getContractUseCase.execute(id);
       if (contract != null) {
-        state = state.copyWith(status: ContractStatusState.success, contract: contract);
+        state = state.copyWith(
+            status: ContractStatusState.success, contract: contract);
       } else {
-        state = state.copyWith(status: ContractStatusState.error, errorMessage: 'Договор не найден');
+        state = state.copyWith(
+            status: ContractStatusState.error,
+            errorMessage: 'Договор не найден');
       }
     } catch (e) {
-      state = state.copyWith(status: ContractStatusState.error, errorMessage: e.toString());
+      state = state.copyWith(
+          status: ContractStatusState.error, errorMessage: e.toString());
     }
   }
-} 
+}

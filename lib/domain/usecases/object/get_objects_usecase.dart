@@ -28,4 +28,4 @@ class GetObjectsUseCase {
   Future<List<ObjectEntity>> execute() async {
     return repository.getObjects();
   }
-} 
+}

@@ -29,7 +29,8 @@ abstract class UserModel with _$UserModel {
   const UserModel._();
 
   /// Создаёт [UserModel] из JSON.
-  factory UserModel.fromJson(Map<String, dynamic> json) => _$UserModelFromJson(json);
+  factory UserModel.fromJson(Map<String, dynamic> json) =>
+      _$UserModelFromJson(json);
 
   /// Преобразует доменную сущность [User] в [UserModel].
   factory UserModel.fromDomain(User user) => UserModel(
@@ -39,7 +40,7 @@ abstract class UserModel with _$UserModel {
         photoUrl: user.photoUrl,
         role: user.role,
       );
-  
+
   /// Преобразует [UserModel] в доменную сущность [User].
   User toDomain() => User(
         id: id,
@@ -48,4 +49,4 @@ abstract class UserModel with _$UserModel {
         photoUrl: photoUrl,
         role: role,
       );
-} 
+}

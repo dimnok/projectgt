@@ -7,8 +7,10 @@ import 'work_data_source.dart';
 class WorkDataSourceImpl implements WorkDataSource {
   /// Клиент Supabase для доступа к базе данных.
   final SupabaseClient client;
+
   /// Название таблицы смен.
   static const String table = 'works';
+
   /// Логгер для вывода ошибок.
   final Logger _logger = Logger();
 
@@ -19,8 +21,13 @@ class WorkDataSourceImpl implements WorkDataSource {
   @override
   Future<List<WorkModel>> getWorks() async {
     try {
-      final response = await client.from(table).select('*').order('created_at', ascending: false);
-      return response.map<WorkModel>((json) => WorkModel.fromJson(json)).toList();
+      final response = await client
+          .from(table)
+          .select('*')
+          .order('created_at', ascending: false);
+      return response
+          .map<WorkModel>((json) => WorkModel.fromJson(json))
+          .toList();
     } catch (e) {
       _logger.e('Ошибка получения списка смен: $e');
       rethrow;
@@ -31,7 +38,8 @@ class WorkDataSourceImpl implements WorkDataSource {
   @override
   Future<WorkModel?> getWork(String id) async {
     try {
-      final response = await client.from(table).select('*').eq('id', id).maybeSingle();
+      final response =
+          await client.from(table).select('*').eq('id', id).maybeSingle();
       if (response == null) return null;
       return WorkModel.fromJson(response);
     } catch (e) {
@@ -49,8 +57,9 @@ class WorkDataSourceImpl implements WorkDataSource {
       workJson['created_at'] = now;
       workJson['updated_at'] = now;
       workJson.remove('id');
-      
-      final response = await client.from(table).insert(workJson).select().single();
+
+      final response =
+          await client.from(table).insert(workJson).select().single();
       return WorkModel.fromJson(response);
     } catch (e) {
       _logger.e('Ошибка создания смены: $e');
@@ -65,8 +74,13 @@ class WorkDataSourceImpl implements WorkDataSource {
       final now = DateTime.now().toIso8601String();
       final workJson = work.toJson();
       workJson['updated_at'] = now;
-      
-      final response = await client.from(table).update(workJson).eq('id', work.id!).select().single();
+
+      final response = await client
+          .from(table)
+          .update(workJson)
+          .eq('id', work.id!)
+          .select()
+          .single();
       return WorkModel.fromJson(response);
     } catch (e) {
       _logger.e('Ошибка обновления смены: $e');
@@ -84,4 +98,4 @@ class WorkDataSourceImpl implements WorkDataSource {
       rethrow;
     }
   }
-} 
+}

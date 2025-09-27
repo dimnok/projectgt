@@ -150,9 +150,9 @@ class ExportTabReports extends ConsumerWidget {
             ],
           ),
         ),
-        
+
         const SizedBox(height: 8),
-        
+
         // Таблица данных на весь контейнер
         Expanded(
           child: ExportTableWidget(reports: state.reports),
@@ -160,4 +160,4 @@ class ExportTabReports extends ConsumerWidget {
       ],
     );
   }
-} 
+}

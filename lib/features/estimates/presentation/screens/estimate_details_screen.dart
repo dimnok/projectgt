@@ -24,7 +24,8 @@ class EstimateDetailsScreen extends ConsumerStatefulWidget {
   const EstimateDetailsScreen({super.key, this.estimateTitle});
 
   @override
-  ConsumerState<EstimateDetailsScreen> createState() => _EstimateDetailsScreenState();
+  ConsumerState<EstimateDetailsScreen> createState() =>
+      _EstimateDetailsScreenState();
 }
 
 /// Состояние для [EstimateDetailsScreen].
@@ -37,46 +38,46 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
 
   /// Контроллер состояния таблицы
   PlutoGridStateManager? stateManager;
-  
+
   /// Контроллер для текста поиска
   final TextEditingController _searchController = TextEditingController();
-  
+
   /// Критерий сортировки для мобильного вида
   String _sortCriterion = 'number';
-  
+
   /// Порядок сортировки (по возрастанию/убыванию)
   bool _sortAscending = true;
 
   /// Генерация идентификаторов для новых строк
   final Uuid _uuid = const Uuid();
-  
+
   /// Список уникальных систем из смет
   List<String> _systems = [];
-  
+
   /// Список уникальных подсистем из смет
   List<String> _subsystems = [];
-  
+
   /// Список уникальных единиц измерения из смет
   List<String> _units = [];
-  
+
   /// Индикатор загрузки систем
   bool _systemsLoading = false;
-  
+
   /// Индикатор загрузки подсистем
   bool _subsystemsLoading = false;
-  
+
   /// Индикатор загрузки единиц измерения
   bool _unitsLoading = false;
-  
+
   /// Контроллер прокрутки для списка позиций
   final ScrollController _scrollController = ScrollController();
-  
+
   /// Флаг видимости верхнего блока
   bool _isHeaderVisible = true;
-  
+
   /// Предыдущая позиция прокрутки
   double _previousScrollPosition = 0;
-  
+
   /// Минимальное смещение для срабатывания скрытия/показа
   final double _scrollThreshold = 20.0;
 
@@ -84,11 +85,11 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
   void initState() {
     super.initState();
     _loadLookupData();
-    
+
     // Добавляем слушатель прокрутки
     _scrollController.addListener(_scrollListener);
   }
-  
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -97,18 +98,18 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
     _scrollController.dispose();
     super.dispose();
   }
-  
+
   /// Слушатель прокрутки для управления видимостью верхнего блока
   void _scrollListener() {
     // Проверяем, что у контроллера есть позиция
     if (!_scrollController.hasClients) return;
-    
+
     // Получаем текущую позицию прокрутки
     final currentPosition = _scrollController.position.pixels;
-    
+
     // Определяем направление прокрутки
     final isScrollingDown = currentPosition > _previousScrollPosition;
-    
+
     // Проверяем, превышает ли разница порог
     if ((currentPosition - _previousScrollPosition).abs() > _scrollThreshold) {
       // Обновляем видимость верхнего блока в зависимости от направления
@@ -116,17 +117,19 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
         setState(() {
           _isHeaderVisible = false;
         });
-      } else if (!isScrollingDown && !_isHeaderVisible && currentPosition < 100) {
+      } else if (!isScrollingDown &&
+          !_isHeaderVisible &&
+          currentPosition < 100) {
         setState(() {
           _isHeaderVisible = true;
         });
       }
-      
+
       // Обновляем предыдущую позицию
       _previousScrollPosition = currentPosition;
     }
   }
-  
+
   /// Загружает справочные данные (списки уникальных значений)
   Future<void> _loadLookupData() async {
     setState(() {
@@ -134,15 +137,18 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
       _subsystemsLoading = true;
       _unitsLoading = true;
     });
-    
+
     try {
       final estimateRepo = ref.read(estimateRepositoryProvider);
-      final systems = await estimateRepo.getSystems(estimateTitle: widget.estimateTitle);
-      final subsystems = await estimateRepo.getSubsystems(estimateTitle: widget.estimateTitle);
-      final units = await estimateRepo.getUnits(estimateTitle: widget.estimateTitle);
-      
+      final systems =
+          await estimateRepo.getSystems(estimateTitle: widget.estimateTitle);
+      final subsystems =
+          await estimateRepo.getSubsystems(estimateTitle: widget.estimateTitle);
+      final units =
+          await estimateRepo.getUnits(estimateTitle: widget.estimateTitle);
+
       if (!mounted) return;
-      
+
       setState(() {
         _systems = systems;
         _subsystems = subsystems;
@@ -153,13 +159,13 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      
+
       setState(() {
         _systemsLoading = false;
         _subsystemsLoading = false;
         _unitsLoading = false;
       });
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Ошибка при загрузке справочных данных: $e'),
@@ -174,29 +180,29 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
     // Фильтрация по поисковому запросу
     final searchQuery = _searchController.text.toLowerCase().trim();
     var filteredItems = items;
-    
+
     if (searchQuery.isNotEmpty) {
       filteredItems = items.where((item) {
         return item.name.toLowerCase().contains(searchQuery) ||
-               item.system.toLowerCase().contains(searchQuery) ||
-               item.subsystem.toLowerCase().contains(searchQuery) ||
-               item.article.toLowerCase().contains(searchQuery) ||
-               item.manufacturer.toLowerCase().contains(searchQuery) ||
-               item.number.toString().contains(searchQuery);
+            item.system.toLowerCase().contains(searchQuery) ||
+            item.subsystem.toLowerCase().contains(searchQuery) ||
+            item.article.toLowerCase().contains(searchQuery) ||
+            item.manufacturer.toLowerCase().contains(searchQuery) ||
+            item.number.toString().contains(searchQuery);
       }).toList();
     }
-    
+
     // Сортировка по выбранному критерию
     filteredItems.sort((a, b) {
       int result = 0;
-      
+
       switch (_sortCriterion) {
         case 'number':
           // Интеллектуальная сортировка номеров (с поддержкой смешанных типов)
           // Если оба номера числовые, сравниваем их как числа
           final aIsNumeric = RegExp(r'^\d+(\.\d+)?$').hasMatch(a.number);
           final bIsNumeric = RegExp(r'^\d+(\.\d+)?$').hasMatch(b.number);
-          
+
           if (aIsNumeric && bIsNumeric) {
             try {
               final numA = double.parse(a.number.replaceAll(',', '.'));
@@ -233,7 +239,7 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
           // Интеллектуальная сортировка по умолчанию
           final aIsNumeric = RegExp(r'^\d+(\.\d+)?$').hasMatch(a.number);
           final bIsNumeric = RegExp(r'^\d+(\.\d+)?$').hasMatch(b.number);
-          
+
           if (aIsNumeric && bIsNumeric) {
             try {
               final numA = double.parse(a.number.replaceAll(',', '.'));
@@ -250,13 +256,13 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
             result = a.number.compareTo(b.number);
           }
       }
-      
+
       return _sortAscending ? result : -result;
     });
-    
+
     return filteredItems;
   }
-  
+
   /// Показывает диалог выбора критерия сортировки
   void _showSortDialog(BuildContext context) {
     final options = [
@@ -266,7 +272,7 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
       {'value': 'price', 'label': 'По цене'},
       {'value': 'total', 'label': 'По сумме'},
     ];
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -275,28 +281,30 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ...options.map((option) => RadioListTile<String>(
-              title: Text(option['label'] as String),
-              value: option['value'] as String,
-              groupValue: _sortCriterion,
-              onChanged: (value) {
-                if (value == _sortCriterion) {
-                  // Если выбран тот же критерий, меняем порядок сортировки
-                  setState(() {
-                    _sortAscending = !_sortAscending;
-                  });
-                } else {
-                  // Если выбран новый критерий, устанавливаем его и сортируем по возрастанию
-                  setState(() {
-                    _sortCriterion = value!;
-                    _sortAscending = true;
-                  });
-                }
-                Navigator.of(context).pop();
-              },
-              secondary: _sortCriterion == option['value']
-                  ? Icon(_sortAscending ? Icons.arrow_upward : Icons.arrow_downward)
-                  : null,
-            )),
+                  title: Text(option['label'] as String),
+                  value: option['value'] as String,
+                  groupValue: _sortCriterion,
+                  onChanged: (value) {
+                    if (value == _sortCriterion) {
+                      // Если выбран тот же критерий, меняем порядок сортировки
+                      setState(() {
+                        _sortAscending = !_sortAscending;
+                      });
+                    } else {
+                      // Если выбран новый критерий, устанавливаем его и сортируем по возрастанию
+                      setState(() {
+                        _sortCriterion = value!;
+                        _sortAscending = true;
+                      });
+                    }
+                    Navigator.of(context).pop();
+                  },
+                  secondary: _sortCriterion == option['value']
+                      ? Icon(_sortAscending
+                          ? Icons.arrow_upward
+                          : Icons.arrow_downward)
+                      : null,
+                )),
           ],
         ),
         actions: [
@@ -312,37 +320,55 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
   /// Отображает диалог добавления/редактирования позиции сметы
   void _showItemDialog(BuildContext context, [Estimate? estimate]) {
     final isEditing = estimate != null;
-    final itemTitle = isEditing ? 'Редактирование позиции' : 'Добавление позиции';
-    
-    final systemController = TextEditingController(text: isEditing ? estimate.system : '');
-    final subsystemController = TextEditingController(text: isEditing ? estimate.subsystem : '');
-    final numberController = TextEditingController(text: isEditing ? estimate.number.toString() : '');
-    final nameController = TextEditingController(text: isEditing ? estimate.name : '');
-    final articleController = TextEditingController(text: isEditing ? estimate.article : '');
-    final manufacturerController = TextEditingController(text: isEditing ? estimate.manufacturer : '');
-    final unitController = TextEditingController(text: isEditing ? estimate.unit : '');
-    final quantityController = TextEditingController(text: isEditing ? estimate.quantity.toString() : '');
-    final priceController = TextEditingController(text: isEditing ? estimate.price.toString() : '');
-    
+    final itemTitle =
+        isEditing ? 'Редактирование позиции' : 'Добавление позиции';
+
+    final systemController =
+        TextEditingController(text: isEditing ? estimate.system : '');
+    final subsystemController =
+        TextEditingController(text: isEditing ? estimate.subsystem : '');
+    final numberController = TextEditingController(
+        text: isEditing ? estimate.number.toString() : '');
+    final nameController =
+        TextEditingController(text: isEditing ? estimate.name : '');
+    final articleController =
+        TextEditingController(text: isEditing ? estimate.article : '');
+    final manufacturerController =
+        TextEditingController(text: isEditing ? estimate.manufacturer : '');
+    final unitController =
+        TextEditingController(text: isEditing ? estimate.unit : '');
+    final quantityController = TextEditingController(
+        text: isEditing ? estimate.quantity.toString() : '');
+    final priceController =
+        TextEditingController(text: isEditing ? estimate.price.toString() : '');
+
     final formKey = GlobalKey<FormState>();
-    
+
     // Получаем текущие элементы сметы
     final state = ref.read(estimateNotifierProvider);
-    final currentItems = state.estimates.where((e) => e.estimateTitle == widget.estimateTitle).toList();
-    
+    final currentItems = state.estimates
+        .where((e) => e.estimateTitle == widget.estimateTitle)
+        .toList();
+
     // Определяем objectId и contractId от существующих записей или от переданной записи
-    final objectId = isEditing ? estimate.objectId : (currentItems.isNotEmpty ? currentItems.first.objectId : null);
-    final contractId = isEditing ? estimate.contractId : (currentItems.isNotEmpty ? currentItems.first.contractId : null);
-    
+    final objectId = isEditing
+        ? estimate.objectId
+        : (currentItems.isNotEmpty ? currentItems.first.objectId : null);
+    final contractId = isEditing
+        ? estimate.contractId
+        : (currentItems.isNotEmpty ? currentItems.first.contractId : null);
+
     final theme = Theme.of(context);
     final isLargeScreen = MediaQuery.of(context).size.width > 900;
-    
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top - kToolbarHeight,
+        maxHeight: MediaQuery.of(context).size.height -
+            MediaQuery.of(context).padding.top -
+            kToolbarHeight,
       ),
       builder: (context) {
         Widget modalContent = Container(
@@ -388,20 +414,22 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                               Expanded(
                                 child: Text(
                                   itemTitle,
-                                  style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                                  style: theme.textTheme.titleLarge
+                                      ?.copyWith(fontWeight: FontWeight.bold),
                                   textAlign: TextAlign.center,
                                 ),
                               ),
                               IconButton(
                                 icon: const Icon(Icons.close),
-                                style: IconButton.styleFrom(foregroundColor: Colors.red),
+                                style: IconButton.styleFrom(
+                                    foregroundColor: Colors.red),
                                 onPressed: () => context.pop(),
                               ),
                             ],
                           ),
                         ),
                         const Divider(),
-                        
+
                         // Основная информация
                         Card(
                           margin: EdgeInsets.zero,
@@ -409,7 +437,8 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                             side: BorderSide(
-                              color: theme.colorScheme.outline.withValues(alpha: 51),
+                              color: theme.colorScheme.outline
+                                  .withValues(alpha: 51),
                             ),
                           ),
                           child: Padding(
@@ -419,30 +448,43 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                               children: [
                                 Text(
                                   'Основная информация',
-                                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                                  style: theme.textTheme.titleMedium
+                                      ?.copyWith(fontWeight: FontWeight.bold),
                                 ),
                                 const SizedBox(height: 16),
                                 // Система
                                 _systemsLoading
                                     ? const Padding(
-                                        padding: EdgeInsets.symmetric(vertical: 16),
-                                        child: Center(child: CircularProgressIndicator()),
+                                        padding:
+                                            EdgeInsets.symmetric(vertical: 16),
+                                        child: Center(
+                                            child: CircularProgressIndicator()),
                                       )
                                     : TypeAheadField<String>(
                                         controller: systemController,
                                         suggestionsCallback: (pattern) {
-                                          return _systems.where((s) => s.toLowerCase().contains(pattern.toLowerCase())).toList();
+                                          return _systems
+                                              .where((s) => s
+                                                  .toLowerCase()
+                                                  .contains(
+                                                      pattern.toLowerCase()))
+                                              .toList();
                                         },
-                                        builder: (context, controller, focusNode) {
+                                        builder:
+                                            (context, controller, focusNode) {
                                           return TextFormField(
                                             controller: controller,
                                             focusNode: focusNode,
                                             decoration: const InputDecoration(
                                               labelText: 'Система *',
-                                              hintText: 'Выберите или введите систему',
+                                              hintText:
+                                                  'Выберите или введите систему',
                                               border: OutlineInputBorder(),
                                             ),
-                                            validator: (v) => v == null || v.trim().isEmpty ? 'Обязательное поле' : null,
+                                            validator: (v) =>
+                                                v == null || v.trim().isEmpty
+                                                    ? 'Обязательное поле'
+                                                    : null,
                                           );
                                         },
                                         itemBuilder: (context, suggestion) {
@@ -456,10 +498,14 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                                           });
                                         },
                                         emptyBuilder: (context) {
-                                          final input = systemController.text.trim();
-                                          if (input.isEmpty) return const SizedBox();
+                                          final input =
+                                              systemController.text.trim();
+                                          if (input.isEmpty) {
+                                            return const SizedBox();
+                                          }
                                           return ListTile(
-                                            title: Text('Добавить новую систему: "$input"'),
+                                            title: Text(
+                                                'Добавить новую систему: "$input"'),
                                             onTap: () {
                                               setState(() {
                                                 systemController.text = input;
@@ -473,24 +519,36 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                                 // Подсистема
                                 _subsystemsLoading
                                     ? const Padding(
-                                        padding: EdgeInsets.symmetric(vertical: 16),
-                                        child: Center(child: CircularProgressIndicator()),
+                                        padding:
+                                            EdgeInsets.symmetric(vertical: 16),
+                                        child: Center(
+                                            child: CircularProgressIndicator()),
                                       )
                                     : TypeAheadField<String>(
                                         controller: subsystemController,
                                         suggestionsCallback: (pattern) {
-                                          return _subsystems.where((s) => s.toLowerCase().contains(pattern.toLowerCase())).toList();
+                                          return _subsystems
+                                              .where((s) => s
+                                                  .toLowerCase()
+                                                  .contains(
+                                                      pattern.toLowerCase()))
+                                              .toList();
                                         },
-                                        builder: (context, controller, focusNode) {
+                                        builder:
+                                            (context, controller, focusNode) {
                                           return TextFormField(
                                             controller: controller,
                                             focusNode: focusNode,
                                             decoration: const InputDecoration(
                                               labelText: 'Подсистема *',
-                                              hintText: 'Выберите или введите подсистему',
+                                              hintText:
+                                                  'Выберите или введите подсистему',
                                               border: OutlineInputBorder(),
                                             ),
-                                            validator: (v) => v == null || v.trim().isEmpty ? 'Обязательное поле' : null,
+                                            validator: (v) =>
+                                                v == null || v.trim().isEmpty
+                                                    ? 'Обязательное поле'
+                                                    : null,
                                           );
                                         },
                                         itemBuilder: (context, suggestion) {
@@ -500,17 +558,23 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                                         },
                                         onSelected: (suggestion) {
                                           setState(() {
-                                            subsystemController.text = suggestion;
+                                            subsystemController.text =
+                                                suggestion;
                                           });
                                         },
                                         emptyBuilder: (context) {
-                                          final input = subsystemController.text.trim();
-                                          if (input.isEmpty) return const SizedBox();
+                                          final input =
+                                              subsystemController.text.trim();
+                                          if (input.isEmpty) {
+                                            return const SizedBox();
+                                          }
                                           return ListTile(
-                                            title: Text('Добавить новую подсистему: "$input"'),
+                                            title: Text(
+                                                'Добавить новую подсистему: "$input"'),
                                             onTap: () {
                                               setState(() {
-                                                subsystemController.text = input;
+                                                subsystemController.text =
+                                                    input;
                                               });
                                               FocusScope.of(context).unfocus();
                                             },
@@ -526,7 +590,10 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                                     hintText: 'Введите порядковый номер',
                                     border: OutlineInputBorder(),
                                   ),
-                                  validator: (v) => v == null || v.trim().isEmpty ? 'Обязательное поле' : null,
+                                  validator: (v) =>
+                                      v == null || v.trim().isEmpty
+                                          ? 'Обязательное поле'
+                                          : null,
                                 ),
                                 const SizedBox(height: 16),
                                 // Наименование
@@ -537,7 +604,10 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                                     hintText: 'Введите наименование позиции',
                                     border: OutlineInputBorder(),
                                   ),
-                                  validator: (v) => v == null || v.trim().isEmpty ? 'Обязательное поле' : null,
+                                  validator: (v) =>
+                                      v == null || v.trim().isEmpty
+                                          ? 'Обязательное поле'
+                                          : null,
                                   maxLines: null,
                                 ),
                               ],
@@ -545,7 +615,7 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        
+
                         // Техническая информация
                         Card(
                           margin: EdgeInsets.zero,
@@ -553,7 +623,8 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                             side: BorderSide(
-                              color: theme.colorScheme.outline.withValues(alpha: 51),
+                              color: theme.colorScheme.outline
+                                  .withValues(alpha: 51),
                             ),
                           ),
                           child: Padding(
@@ -563,7 +634,8 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                               children: [
                                 Text(
                                   'Техническая информация',
-                                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                                  style: theme.textTheme.titleMedium
+                                      ?.copyWith(fontWeight: FontWeight.bold),
                                 ),
                                 const SizedBox(height: 16),
                                 // Артикул
@@ -589,24 +661,36 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                                 // Единица измерения
                                 _unitsLoading
                                     ? const Padding(
-                                        padding: EdgeInsets.symmetric(vertical: 16),
-                                        child: Center(child: CircularProgressIndicator()),
+                                        padding:
+                                            EdgeInsets.symmetric(vertical: 16),
+                                        child: Center(
+                                            child: CircularProgressIndicator()),
                                       )
                                     : TypeAheadField<String>(
                                         controller: unitController,
                                         suggestionsCallback: (pattern) {
-                                          return _units.where((u) => u.toLowerCase().contains(pattern.toLowerCase())).toList();
+                                          return _units
+                                              .where((u) => u
+                                                  .toLowerCase()
+                                                  .contains(
+                                                      pattern.toLowerCase()))
+                                              .toList();
                                         },
-                                        builder: (context, controller, focusNode) {
+                                        builder:
+                                            (context, controller, focusNode) {
                                           return TextFormField(
                                             controller: controller,
                                             focusNode: focusNode,
                                             decoration: const InputDecoration(
                                               labelText: 'Единица измерения *',
-                                              hintText: 'Выберите или введите единицу измерения',
+                                              hintText:
+                                                  'Выберите или введите единицу измерения',
                                               border: OutlineInputBorder(),
                                             ),
-                                            validator: (v) => v == null || v.trim().isEmpty ? 'Обязательное поле' : null,
+                                            validator: (v) =>
+                                                v == null || v.trim().isEmpty
+                                                    ? 'Обязательное поле'
+                                                    : null,
                                           );
                                         },
                                         itemBuilder: (context, suggestion) {
@@ -620,10 +704,14 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                                           });
                                         },
                                         emptyBuilder: (context) {
-                                          final input = unitController.text.trim();
-                                          if (input.isEmpty) return const SizedBox();
+                                          final input =
+                                              unitController.text.trim();
+                                          if (input.isEmpty) {
+                                            return const SizedBox();
+                                          }
                                           return ListTile(
-                                            title: Text('Добавить новую единицу измерения: "$input"'),
+                                            title: Text(
+                                                'Добавить новую единицу измерения: "$input"'),
                                             onTap: () {
                                               setState(() {
                                                 unitController.text = input;
@@ -638,7 +726,7 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        
+
                         // Ценовая информация
                         Card(
                           margin: EdgeInsets.zero,
@@ -646,7 +734,8 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                             side: BorderSide(
-                              color: theme.colorScheme.outline.withValues(alpha: 51),
+                              color: theme.colorScheme.outline
+                                  .withValues(alpha: 51),
                             ),
                           ),
                           child: Padding(
@@ -656,7 +745,8 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                               children: [
                                 Text(
                                   'Ценовая информация',
-                                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                                  style: theme.textTheme.titleMedium
+                                      ?.copyWith(fontWeight: FontWeight.bold),
                                 ),
                                 const SizedBox(height: 16),
                                 // Количество
@@ -667,7 +757,9 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                                     hintText: 'Введите количество',
                                     border: OutlineInputBorder(),
                                   ),
-                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                          decimal: true),
                                   validator: (v) {
                                     if (v == null || v.trim().isEmpty) {
                                       // Возвращаем null вместо ошибки, поле необязательное
@@ -690,7 +782,9 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                                     hintText: 'Введите цену',
                                     border: OutlineInputBorder(),
                                   ),
-                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                          decimal: true),
                                   validator: (v) {
                                     if (v == null || v.trim().isEmpty) {
                                       // Возвращаем null вместо ошибки, поле необязательное
@@ -709,7 +803,7 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                           ),
                         ),
                         const SizedBox(height: 24),
-                        
+
                         // Кнопки управления
                         Row(
                           children: [
@@ -722,7 +816,9 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
-                                  textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                  textStyle: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold),
                                 ),
                                 child: const Text('Отмена'),
                               ),
@@ -733,9 +829,13 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                               child: ElevatedButton(
                                 onPressed: () async {
                                   if (formKey.currentState!.validate()) {
-                                    final quantity = double.parse(quantityController.text.replaceAll(',', '.'));
-                                    final price = double.parse(priceController.text.replaceAll(',', '.'));
-                                    
+                                    final quantity = double.parse(
+                                        quantityController.text
+                                            .replaceAll(',', '.'));
+                                    final price = double.parse(priceController
+                                        .text
+                                        .replaceAll(',', '.'));
+
                                     final updatedEstimate = Estimate(
                                       id: isEditing ? estimate.id : _uuid.v4(),
                                       system: systemController.text,
@@ -743,7 +843,8 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                                       number: numberController.text,
                                       name: nameController.text,
                                       article: articleController.text.trim(),
-                                      manufacturer: manufacturerController.text.trim(),
+                                      manufacturer:
+                                          manufacturerController.text.trim(),
                                       unit: unitController.text,
                                       quantity: quantity,
                                       price: price,
@@ -752,13 +853,13 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                                       objectId: objectId,
                                       contractId: contractId,
                                     );
-                                    
+
                                     if (isEditing) {
                                       _updateEstimateItem(updatedEstimate);
                                     } else {
                                       _addEstimateItem(updatedEstimate);
                                     }
-                                    
+
                                     if (!context.mounted) return;
                                     context.pop();
                                   }
@@ -768,9 +869,12 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
-                                  textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                  textStyle: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold),
                                 ),
-                                child: Text(isEditing ? 'Сохранить' : 'Добавить'),
+                                child:
+                                    Text(isEditing ? 'Сохранить' : 'Добавить'),
                               ),
                             ),
                           ],
@@ -783,7 +887,7 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
             ),
           ),
         );
-        
+
         if (isLargeScreen) {
           return Center(
             child: AnimatedScale(
@@ -840,27 +944,28 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
   void _duplicateItem(Estimate estimate) {
     // Если мы в мобильном режиме со свайпом, не показываем диалог подтверждения
     final isSwipeAction = ModalRoute.of(context)?.isCurrent != true;
-    
+
     if (isSwipeAction) {
       _createDuplicate(estimate);
       return;
     }
-    
+
     CupertinoDialogs.showDuplicateConfirmDialog<bool>(
       context: context,
       title: 'Дублирование позиции',
-      message: 'Вы действительно хотите создать дубликат позиции №${estimate.number}?',
+      message:
+          'Вы действительно хотите создать дубликат позиции №${estimate.number}?',
       onConfirm: () {
         _createDuplicate(estimate);
       },
     );
   }
-  
+
   /// Создает дубликат записи с новым номером
   void _createDuplicate(Estimate estimate) {
     // Создаем новый id и интеллектуально обрабатываем номер для дубликата
     String newNumber = estimate.number;
-    
+
     // Целое число - просто увеличиваем на 1
     if (RegExp(r'^\d+$').hasMatch(estimate.number)) {
       try {
@@ -869,7 +974,7 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
       } catch (e) {
         newNumber = "${estimate.number}-копия";
       }
-    } 
+    }
     // Десятичное число с точкой (например, 10.1)
     else if (RegExp(r'^\d+\.\d+$').hasMatch(estimate.number)) {
       try {
@@ -878,7 +983,7 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
       } catch (e) {
         newNumber = "${estimate.number}-копия";
       }
-    } 
+    }
     // Десятичное число с запятой (например, 10,1)
     else if (RegExp(r'^\d+,\d+$').hasMatch(estimate.number)) {
       try {
@@ -890,7 +995,8 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
     }
     // Номер в формате [буква]-[число] (например, д-3)
     else if (RegExp(r'^([a-zA-Zа-яА-Я]+)-(\d+)$').hasMatch(estimate.number)) {
-      final match = RegExp(r'^([a-zA-Zа-яА-Я]+)-(\d+)$').firstMatch(estimate.number);
+      final match =
+          RegExp(r'^([a-zA-Zа-яА-Я]+)-(\d+)$').firstMatch(estimate.number);
       if (match != null) {
         final prefix = match.group(1);
         final numVal = int.parse(match.group(2)!);
@@ -903,7 +1009,7 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
     else {
       newNumber = "${estimate.number}-копия";
     }
-    
+
     final newItem = estimate.copyWith(
       id: _uuid.v4(),
       number: newNumber,
@@ -917,88 +1023,168 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
     final otherColumnWidth = (containerWidth * 0.6) / otherColumnCount;
     final moneyFormat = NumberFormat('###,##0.00', 'ru_RU');
     columns = [
-      PlutoColumn(title: 'Система', field: 'system', type: PlutoColumnType.text(), width: otherColumnWidth, titleTextAlign: PlutoColumnTextAlign.center),
-      PlutoColumn(title: 'Подсистема', field: 'subsystem', type: PlutoColumnType.text(), width: otherColumnWidth, titleTextAlign: PlutoColumnTextAlign.center),
-      PlutoColumn(title: '№', field: 'number', type: PlutoColumnType.text(), width: otherColumnWidth, titleTextAlign: PlutoColumnTextAlign.center,
+      PlutoColumn(
+          title: 'Система',
+          field: 'system',
+          type: PlutoColumnType.text(),
+          width: otherColumnWidth,
+          titleTextAlign: PlutoColumnTextAlign.center),
+      PlutoColumn(
+          title: 'Подсистема',
+          field: 'subsystem',
+          type: PlutoColumnType.text(),
+          width: otherColumnWidth,
+          titleTextAlign: PlutoColumnTextAlign.center),
+      PlutoColumn(
+        title: '№',
+        field: 'number',
+        type: PlutoColumnType.text(),
+        width: otherColumnWidth,
+        titleTextAlign: PlutoColumnTextAlign.center,
         renderer: (rendererContext) {
           return Text(
             rendererContext.cell.value?.toString() ?? '',
             textAlign: TextAlign.center,
-            style: Theme.of(rendererContext.stateManager.gridKey.currentContext!).textTheme.bodyMedium,
+            style:
+                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
+                    .textTheme
+                    .bodyMedium,
           );
         },
       ),
-      PlutoColumn(title: 'Наименование', field: 'name', type: PlutoColumnType.text(), width: nameColumnWidth, titleTextAlign: PlutoColumnTextAlign.center,
+      PlutoColumn(
+        title: 'Наименование',
+        field: 'name',
+        type: PlutoColumnType.text(),
+        width: nameColumnWidth,
+        titleTextAlign: PlutoColumnTextAlign.center,
         renderer: (rendererContext) {
           return Text(
             rendererContext.cell.value?.toString() ?? '',
             softWrap: true,
             overflow: TextOverflow.visible,
             maxLines: null,
-            style: Theme.of(rendererContext.stateManager.gridKey.currentContext!).textTheme.bodyMedium,
+            style:
+                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
+                    .textTheme
+                    .bodyMedium,
           );
         },
       ),
-      PlutoColumn(title: 'Артикул', field: 'article', type: PlutoColumnType.text(), width: otherColumnWidth, titleTextAlign: PlutoColumnTextAlign.center,
+      PlutoColumn(
+        title: 'Артикул',
+        field: 'article',
+        type: PlutoColumnType.text(),
+        width: otherColumnWidth,
+        titleTextAlign: PlutoColumnTextAlign.center,
         renderer: (rendererContext) {
           return Text(
             rendererContext.cell.value?.toString() ?? '',
             textAlign: TextAlign.center,
-            style: Theme.of(rendererContext.stateManager.gridKey.currentContext!).textTheme.bodyMedium,
+            style:
+                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
+                    .textTheme
+                    .bodyMedium,
           );
         },
       ),
-      PlutoColumn(title: 'Производитель', field: 'manufacturer', type: PlutoColumnType.text(), width: otherColumnWidth, titleTextAlign: PlutoColumnTextAlign.center,
+      PlutoColumn(
+        title: 'Производитель',
+        field: 'manufacturer',
+        type: PlutoColumnType.text(),
+        width: otherColumnWidth,
+        titleTextAlign: PlutoColumnTextAlign.center,
         renderer: (rendererContext) {
           return Text(
             rendererContext.cell.value?.toString() ?? '',
             textAlign: TextAlign.center,
-            style: Theme.of(rendererContext.stateManager.gridKey.currentContext!).textTheme.bodyMedium,
+            style:
+                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
+                    .textTheme
+                    .bodyMedium,
           );
         },
       ),
-      PlutoColumn(title: 'Ед. изм.', field: 'unit', type: PlutoColumnType.text(), width: otherColumnWidth, titleTextAlign: PlutoColumnTextAlign.center,
+      PlutoColumn(
+        title: 'Ед. изм.',
+        field: 'unit',
+        type: PlutoColumnType.text(),
+        width: otherColumnWidth,
+        titleTextAlign: PlutoColumnTextAlign.center,
         renderer: (rendererContext) {
           return Text(
             rendererContext.cell.value?.toString() ?? '',
             textAlign: TextAlign.center,
-            style: Theme.of(rendererContext.stateManager.gridKey.currentContext!).textTheme.bodyMedium,
+            style:
+                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
+                    .textTheme
+                    .bodyMedium,
           );
         },
       ),
-      PlutoColumn(title: 'Количество', field: 'quantity', type: PlutoColumnType.number(), width: otherColumnWidth, titleTextAlign: PlutoColumnTextAlign.center,
+      PlutoColumn(
+        title: 'Количество',
+        field: 'quantity',
+        type: PlutoColumnType.number(),
+        width: otherColumnWidth,
+        titleTextAlign: PlutoColumnTextAlign.center,
         renderer: (rendererContext) {
           return Text(
             rendererContext.cell.value?.toString() ?? '',
             textAlign: TextAlign.center,
-            style: Theme.of(rendererContext.stateManager.gridKey.currentContext!).textTheme.bodyMedium,
+            style:
+                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
+                    .textTheme
+                    .bodyMedium,
           );
         },
       ),
-      PlutoColumn(title: 'Цена', field: 'price', type: PlutoColumnType.number(), width: otherColumnWidth, titleTextAlign: PlutoColumnTextAlign.center,
+      PlutoColumn(
+        title: 'Цена',
+        field: 'price',
+        type: PlutoColumnType.number(),
+        width: otherColumnWidth,
+        titleTextAlign: PlutoColumnTextAlign.center,
         renderer: (rendererContext) {
           final value = rendererContext.cell.value;
-          final formatted = value is num ? moneyFormat.format(value) : (value?.toString() ?? '');
+          final formatted = value is num
+              ? moneyFormat.format(value)
+              : (value?.toString() ?? '');
           return Text(
             formatted,
             textAlign: TextAlign.right,
-            style: Theme.of(rendererContext.stateManager.gridKey.currentContext!).textTheme.bodyMedium?.copyWith(
-              color: Colors.green,
-            ),
+            style:
+                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(
+                      color: Colors.green,
+                    ),
           );
         },
       ),
-      PlutoColumn(title: 'Сумма', field: 'total', type: PlutoColumnType.number(), width: otherColumnWidth, titleTextAlign: PlutoColumnTextAlign.center,
+      PlutoColumn(
+        title: 'Сумма',
+        field: 'total',
+        type: PlutoColumnType.number(),
+        width: otherColumnWidth,
+        titleTextAlign: PlutoColumnTextAlign.center,
         renderer: (rendererContext) {
           final value = rendererContext.cell.value;
-          final formatted = value is num ? moneyFormat.format(value) : (value?.toString() ?? '');
+          final formatted = value is num
+              ? moneyFormat.format(value)
+              : (value?.toString() ?? '');
           return Text(
             formatted,
             textAlign: TextAlign.right,
-            style: Theme.of(rendererContext.stateManager.gridKey.currentContext!).textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: Colors.green,
-            ),
+            style:
+                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green,
+                    ),
           );
         },
       ),
@@ -1015,43 +1201,43 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
           final itemId = rowData.cells['id']!.value.toString();
           final itemData = items.firstWhere((e) => e.id == itemId);
           final theme = Theme.of(context);
-          
+
           return ActionButton(
-            onTap: (details) => _showActionMenu(context, details.globalPosition, itemData, itemId),
+            onTap: (details) => _showActionMenu(
+                context, details.globalPosition, itemData, itemId),
             theme: theme,
           );
         },
       ),
     ];
-    rows = items.map((e) => PlutoRow(cells: {
-      'id': PlutoCell(value: e.id),
-      'number': PlutoCell(value: e.number),
-      'name': PlutoCell(value: e.name),
-      'system': PlutoCell(value: e.system),
-      'subsystem': PlutoCell(value: e.subsystem),
-      'article': PlutoCell(value: e.article),
-      'manufacturer': PlutoCell(value: e.manufacturer),
-      'unit': PlutoCell(value: e.unit),
-      'quantity': PlutoCell(value: e.quantity),
-      'price': PlutoCell(value: e.price),
-      'total': PlutoCell(value: e.total),
-      'actions': PlutoCell(value: ''),
-    })).toList();
+    rows = items
+        .map((e) => PlutoRow(cells: {
+              'id': PlutoCell(value: e.id),
+              'number': PlutoCell(value: e.number),
+              'name': PlutoCell(value: e.name),
+              'system': PlutoCell(value: e.system),
+              'subsystem': PlutoCell(value: e.subsystem),
+              'article': PlutoCell(value: e.article),
+              'manufacturer': PlutoCell(value: e.manufacturer),
+              'unit': PlutoCell(value: e.unit),
+              'quantity': PlutoCell(value: e.quantity),
+              'price': PlutoCell(value: e.price),
+              'total': PlutoCell(value: e.total),
+              'actions': PlutoCell(value: ''),
+            }))
+        .toList();
   }
 
   /// Показывает контекстное меню для действий над строкой
-  void _showActionMenu(BuildContext context, Offset position, Estimate item, String itemId) {
+  void _showActionMenu(
+      BuildContext context, Offset position, Estimate item, String itemId) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
+
     showMenu(
       context: context,
       position: RelativeRect.fromLTRB(
-        position.dx, 
-        position.dy, 
-        position.dx + 1, 
-        position.dy + 1
-      ),
+          position.dx, position.dy, position.dx + 1, position.dy + 1),
       elevation: 8,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
@@ -1160,11 +1346,14 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(estimateNotifierProvider);
-    final items = state.estimates.where((e) => e.estimateTitle == widget.estimateTitle).toList();
+    final items = state.estimates
+        .where((e) => e.estimateTitle == widget.estimateTitle)
+        .toList();
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final isLargeScreen = MediaQuery.of(context).size.width > 900;
-    final containerWidth = MediaQuery.of(context).size.width - 32; // 32 — padding
+    final containerWidth =
+        MediaQuery.of(context).size.width - 32; // 32 — padding
     const ruLocale = PlutoGridLocaleText(
       unfreezeColumn: 'Открепить',
       freezeColumnToStart: 'Закрепить в начале',
@@ -1198,17 +1387,19 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
       minute: 'Минуты',
       loadingText: 'Загрузка',
     );
-    
+
     // Строим таблицу только если экран достаточно широкий
     if (isLargeScreen) {
-    _buildTable(items, containerWidth);
+      _buildTable(items, containerWidth);
     }
 
     // Фильтруем и сортируем элементы для мобильного представления
     final filteredItems = isLargeScreen ? items : _filterAndSortItems(items);
 
     final cellStyle = theme.textTheme.bodyMedium ?? const TextStyle();
-    final columnStyle = theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold) ?? const TextStyle(fontWeight: FontWeight.bold);
+    final columnStyle =
+        theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold) ??
+            const TextStyle(fontWeight: FontWeight.bold);
     final moneyFormat = NumberFormat('###,##0.00', 'ru_RU');
 
     return Scaffold(
@@ -1263,26 +1454,25 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                                     columnFilterHeight: 36,
                                     cellTextStyle: cellStyle,
                                     columnTextStyle: columnStyle,
+                                    gridBorderRadius: BorderRadius.circular(12),
+                                    gridBorderColor: theme.colorScheme.outline
+                                        .withValues(alpha: 0.12),
                                   ),
                                 )
                               : PlutoGridConfiguration(
                                   localeText: ruLocale,
                                   style: PlutoGridStyleConfig(
-                                    gridBorderColor: theme.dividerColor,
-                                    activatedBorderColor: theme.colorScheme.primary,
-                                    rowColor: theme.colorScheme.surface,
-                                    activatedColor: theme.colorScheme.primary.withValues(alpha: 0.08),
+                                    columnFilterHeight: 36,
                                     cellTextStyle: cellStyle,
                                     columnTextStyle: columnStyle,
-                                    enableColumnBorderVertical: true,
-                                    enableColumnBorderHorizontal: true,
-                                    enableGridBorderShadow: false,
-                                    columnFilterHeight: 36,
+                                    gridBorderRadius: BorderRadius.circular(12),
+                                    gridBorderColor: theme.colorScheme.outline
+                                        .withValues(alpha: 0.12),
                                   ),
                                 ),
                         )
                       : // Мобильный вид вместо таблицы
-                        Column(
+                      Column(
                           children: [
                             // Верхний блок с поиском, статистикой и фильтрами в анимированном контейнере
                             AnimatedContainer(
@@ -1301,39 +1491,53 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                                         color: theme.cardColor,
                                         borderRadius: BorderRadius.circular(8),
                                         border: Border.all(
-                                          color: theme.colorScheme.outline.withValues(alpha: 30),
+                                          color: theme.colorScheme.outline
+                                              .withValues(alpha: 30),
                                           width: 1,
                                         ),
                                       ),
                                       child: Padding(
-                                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 4),
                                         child: Row(
                                           children: [
                                             Expanded(
                                               child: TextField(
                                                 controller: _searchController,
-                                                decoration: const InputDecoration(
+                                                decoration:
+                                                    const InputDecoration(
                                                   hintText: 'Поиск по смете...',
                                                   border: InputBorder.none,
-                                                  contentPadding: EdgeInsets.symmetric(horizontal: 8),
-                                                  prefixIcon: Icon(Icons.search, size: 20),
+                                                  contentPadding:
+                                                      EdgeInsets.symmetric(
+                                                          horizontal: 8),
+                                                  prefixIcon: Icon(Icons.search,
+                                                      size: 20),
                                                 ),
-                                                onChanged: (_) => setState(() {}),
+                                                onChanged: (_) =>
+                                                    setState(() {}),
                                               ),
                                             ),
                                             IconButton(
                                               icon: Icon(
-                                                _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                                                _sortAscending
+                                                    ? Icons.arrow_upward
+                                                    : Icons.arrow_downward,
                                                 size: 18,
                                               ),
-                                              visualDensity: VisualDensity.compact,
+                                              visualDensity:
+                                                  VisualDensity.compact,
                                               tooltip: 'Сортировка',
-                                              onPressed: () => _showSortDialog(context),
+                                              onPressed: () =>
+                                                  _showSortDialog(context),
                                             ),
-                                            if (_searchController.text.isNotEmpty)
+                                            if (_searchController
+                                                .text.isNotEmpty)
                                               IconButton(
-                                                icon: const Icon(Icons.clear, size: 18),
-                                                visualDensity: VisualDensity.compact,
+                                                icon: const Icon(Icons.clear,
+                                                    size: 18),
+                                                visualDensity:
+                                                    VisualDensity.compact,
                                                 tooltip: 'Очистить',
                                                 onPressed: () {
                                                   setState(() {
@@ -1345,7 +1549,7 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                                         ),
                                       ),
                                     ),
-                                    
+
                                     // Статистика по смете
                                     Card(
                                       margin: const EdgeInsets.only(bottom: 12),
@@ -1353,18 +1557,23 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(8),
                                         side: BorderSide(
-                                          color: theme.colorScheme.outline.withValues(alpha: 30),
+                                          color: theme.colorScheme.outline
+                                              .withValues(alpha: 30),
                                           width: 1,
                                         ),
                                       ),
                                       child: Padding(
                                         padding: const EdgeInsets.all(12),
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Text(
                                               'Статистика по смете',
-                                              style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                                              style: theme.textTheme.titleSmall
+                                                  ?.copyWith(
+                                                      fontWeight:
+                                                          FontWeight.bold),
                                             ),
                                             const SizedBox(height: 8),
                                             // Основные параметры
@@ -1372,18 +1581,29 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                                               children: [
                                                 Expanded(
                                                   child: Column(
-                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
                                                     children: [
                                                       Text(
                                                         'Позиций:',
-                                                        style: theme.textTheme.bodySmall?.copyWith(
-                                                          color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                                                        style: theme
+                                                            .textTheme.bodySmall
+                                                            ?.copyWith(
+                                                          color: theme
+                                                              .colorScheme
+                                                              .onSurface
+                                                              .withValues(
+                                                                  alpha: 0.7),
                                                         ),
                                                       ),
                                                       Text(
                                                         '${items.length}',
-                                                        style: theme.textTheme.titleMedium?.copyWith(
-                                                          fontWeight: FontWeight.bold,
+                                                        style: theme.textTheme
+                                                            .titleMedium
+                                                            ?.copyWith(
+                                                          fontWeight:
+                                                              FontWeight.bold,
                                                         ),
                                                       ),
                                                     ],
@@ -1391,19 +1611,32 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                                                 ),
                                                 Expanded(
                                                   child: Column(
-                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
                                                     children: [
                                                       Text(
                                                         'Итого:',
-                                                        style: theme.textTheme.bodySmall?.copyWith(
-                                                          color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                                                        style: theme
+                                                            .textTheme.bodySmall
+                                                            ?.copyWith(
+                                                          color: theme
+                                                              .colorScheme
+                                                              .onSurface
+                                                              .withValues(
+                                                                  alpha: 0.7),
                                                         ),
                                                       ),
                                                       Text(
                                                         '${moneyFormat.format(items.fold(0.0, (sum, item) => sum + item.total))} ₽',
-                                                        style: theme.textTheme.titleMedium?.copyWith(
-                                                          fontWeight: FontWeight.bold,
-                                                          color: theme.colorScheme.primary,
+                                                        style: theme.textTheme
+                                                            .titleMedium
+                                                            ?.copyWith(
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          color: theme
+                                                              .colorScheme
+                                                              .primary,
                                                         ),
                                                       ),
                                                     ],
@@ -1415,57 +1648,94 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                                         ),
                                       ),
                                     ),
-                                    
+
                                     // Быстрые фильтры (системы)
                                     if (!isLargeScreen)
                                       Container(
-                                        margin: const EdgeInsets.only(bottom: 12),
+                                        margin:
+                                            const EdgeInsets.only(bottom: 12),
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Padding(
-                                              padding: const EdgeInsets.only(left: 4, bottom: 4),
+                                              padding: const EdgeInsets.only(
+                                                  left: 4, bottom: 4),
                                               child: Text(
                                                 'Быстрые фильтры:',
-                                                style: theme.textTheme.bodySmall?.copyWith(
-                                                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                                                style: theme.textTheme.bodySmall
+                                                    ?.copyWith(
+                                                  color: theme
+                                                      .colorScheme.onSurface
+                                                      .withValues(alpha: 0.7),
                                                 ),
                                               ),
                                             ),
                                             SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
+                                              scrollDirection: Axis.horizontal,
                                               child: Row(
-                                                children: _getUniqueSystems(items).map((system) {
-                                                  final isSelected = _searchController.text.toLowerCase() == system.toLowerCase();
+                                                children:
+                                                    _getUniqueSystems(items)
+                                                        .map((system) {
+                                                  final isSelected =
+                                                      _searchController.text
+                                                              .toLowerCase() ==
+                                                          system.toLowerCase();
                                                   return Padding(
-                                                    padding: const EdgeInsets.only(right: 6),
+                                                    padding:
+                                                        const EdgeInsets.only(
+                                                            right: 6),
                                                     child: FilterChip(
-                                                      label: Text(system, style: const TextStyle(fontSize: 12)),
+                                                      label: Text(system,
+                                                          style:
+                                                              const TextStyle(
+                                                                  fontSize:
+                                                                      12)),
                                                       selected: isSelected,
                                                       showCheckmark: false,
-                                                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                                      visualDensity: VisualDensity.compact,
-                                                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                                                      backgroundColor: theme.colorScheme.surface,
-                                                      selectedColor: theme.colorScheme.primary.withValues(alpha: 0.2),
+                                                      materialTapTargetSize:
+                                                          MaterialTapTargetSize
+                                                              .shrinkWrap,
+                                                      visualDensity:
+                                                          VisualDensity.compact,
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                          horizontal: 4),
+                                                      backgroundColor: theme
+                                                          .colorScheme.surface,
+                                                      selectedColor: theme
+                                                          .colorScheme.primary
+                                                          .withValues(
+                                                              alpha: 0.2),
                                                       side: BorderSide(
                                                         color: isSelected
-                                                            ? theme.colorScheme.primary
-                                                            : theme.colorScheme.outline.withValues(alpha: 50),
+                                                            ? theme.colorScheme
+                                                                .primary
+                                                            : theme.colorScheme
+                                                                .outline
+                                                                .withValues(
+                                                                    alpha: 50),
                                                         width: 1,
                                                       ),
                                                       labelStyle: TextStyle(
                                                         color: isSelected
-                                                            ? theme.colorScheme.primary
-                                                            : theme.colorScheme.onSurface,
-                                                        fontWeight: isSelected ? FontWeight.bold : null,
+                                                            ? theme.colorScheme
+                                                                .primary
+                                                            : theme.colorScheme
+                                                                .onSurface,
+                                                        fontWeight: isSelected
+                                                            ? FontWeight.bold
+                                                            : null,
                                                       ),
                                                       onSelected: (selected) {
                                                         setState(() {
-                                                          if (selected && !isSelected) {
-                                                            _searchController.text = system;
+                                                          if (selected &&
+                                                              !isSelected) {
+                                                            _searchController
+                                                                .text = system;
                                                           } else {
-                                                            _searchController.clear();
+                                                            _searchController
+                                                                .clear();
                                                           }
                                                         });
                                                       },
@@ -1477,12 +1747,13 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                                           ],
                                         ),
                                       ),
-                                    
+
                                     // Счетчик найденных позиций и информация о сортировке
                                     Padding(
                                       padding: const EdgeInsets.only(bottom: 6),
                                       child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
                                         children: [
                                           Text(
                                             'Найдено: ${filteredItems.length} из ${items.length}',
@@ -1492,24 +1763,30 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                                             children: [
                                               Text(
                                                 'Сортировка: ',
-                                                style: theme.textTheme.bodySmall,
+                                                style:
+                                                    theme.textTheme.bodySmall,
                                               ),
                                               Text(
                                                 {
-                                                  'number': 'По номеру',
-                                                  'name': 'По наименованию',
-                                                  'system': 'По системе',
-                                                  'price': 'По цене',
-                                                  'total': 'По сумме',
-                                                }[_sortCriterion] ?? 'По номеру',
-                                                style: theme.textTheme.bodySmall?.copyWith(
+                                                      'number': 'По номеру',
+                                                      'name': 'По наименованию',
+                                                      'system': 'По системе',
+                                                      'price': 'По цене',
+                                                      'total': 'По сумме',
+                                                    }[_sortCriterion] ??
+                                                    'По номеру',
+                                                style: theme.textTheme.bodySmall
+                                                    ?.copyWith(
                                                   fontWeight: FontWeight.bold,
                                                 ),
                                               ),
                                               Icon(
-                                                _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                                                _sortAscending
+                                                    ? Icons.arrow_upward
+                                                    : Icons.arrow_downward,
                                                 size: 12,
-                                                color: theme.colorScheme.primary,
+                                                color:
+                                                    theme.colorScheme.primary,
                                               ),
                                             ],
                                           ),
@@ -1520,18 +1797,20 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                                 ),
                               ),
                             ),
-                            
+
                             // Список позиций
                             Expanded(
                               child: filteredItems.isEmpty
                                   ? Center(
                                       child: Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
                                         children: [
                                           Icon(
                                             Icons.search_off,
                                             size: 48,
-                                            color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                                            color: theme.colorScheme.onSurface
+                                                .withValues(alpha: 0.5),
                                           ),
                                           const SizedBox(height: 16),
                                           Text(
@@ -1541,8 +1820,10 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                                           const SizedBox(height: 8),
                                           Text(
                                             'Попробуйте изменить критерии поиска',
-                                            style: theme.textTheme.bodyMedium?.copyWith(
-                                              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                                            style: theme.textTheme.bodyMedium
+                                                ?.copyWith(
+                                              color: theme.colorScheme.onSurface
+                                                  .withValues(alpha: 0.7),
                                             ),
                                           ),
                                         ],
@@ -1552,8 +1833,12 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                                       onNotification: (notification) {
                                         // Дополнительная обработка событий прокрутки
                                         // Показываем верхний блок при прокрутке до начала списка
-                                        if (notification is ScrollEndNotification) {
-                                          if (_scrollController.position.pixels == 0 && !_isHeaderVisible) {
+                                        if (notification
+                                            is ScrollEndNotification) {
+                                          if (_scrollController
+                                                      .position.pixels ==
+                                                  0 &&
+                                              !_isHeaderVisible) {
                                             setState(() {
                                               _isHeaderVisible = true;
                                             });
@@ -1564,19 +1849,27 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                                       child: ListView.separated(
                                         controller: _scrollController,
                                         itemCount: filteredItems.length,
-                                        separatorBuilder: (context, index) => const SizedBox(height: 4),
+                                        separatorBuilder: (context, index) =>
+                                            const SizedBox(height: 4),
                                         padding: EdgeInsets.zero,
                                         itemBuilder: (context, index) {
                                           final item = filteredItems[index];
                                           return EstimateItemCard(
                                             item: item,
-                                            onEdit: (estimate) => _showItemDialog(context, estimate),
-                                            onDuplicate: (estimate) => _duplicateItem(estimate),
+                                            onEdit: (estimate) =>
+                                                _showItemDialog(
+                                                    context, estimate),
+                                            onDuplicate: (estimate) =>
+                                                _duplicateItem(estimate),
                                             onDelete: (id) => _delete(id),
-                                          ).animate().fadeIn(
+                                          )
+                                              .animate()
+                                              .fadeIn(
                                                 duration: 300.ms,
-                                                delay: Duration(milliseconds: 30 * index),
-                                              ).slideX(begin: 0.05, end: 0);
+                                                delay: Duration(
+                                                    milliseconds: 30 * index),
+                                              )
+                                              .slideX(begin: 0.05, end: 0);
                                         },
                                       ),
                                     ),
@@ -1584,13 +1877,15 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                           ],
                         ),
                 ),
-      floatingActionButton: !isLargeScreen ? FloatingActionButton(
-        heroTag: 'addItem',
-        tooltip: 'Добавить позицию',
-        backgroundColor: theme.colorScheme.primary,
-        child: const Icon(Icons.add),
-        onPressed: () => _showItemDialog(context),
-      ) : null,
+      floatingActionButton: !isLargeScreen
+          ? FloatingActionButton(
+              heroTag: 'addItem',
+              tooltip: 'Добавить позицию',
+              backgroundColor: theme.colorScheme.primary,
+              child: const Icon(Icons.add),
+              onPressed: () => _showItemDialog(context),
+            )
+          : null,
     );
   }
 }
@@ -1602,7 +1897,7 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
 class ActionButton extends StatefulWidget {
   /// Обработчик нажатия на кнопку
   final void Function(TapDownDetails) onTap;
-  
+
   /// Текущая тема приложения
   final ThemeData theme;
 
@@ -1639,7 +1934,7 @@ class _ActionButtonState extends State<ActionButton> {
           margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
           child: Center(
-            child: _isHovered 
+            child: _isHovered
                 ? const Icon(
                     Icons.more_vert,
                     size: 18,
@@ -1650,9 +1945,9 @@ class _ActionButtonState extends State<ActionButton> {
                     size: 18,
                     color: Colors.red,
                   ),
-                          ),
-                        ),
-                ),
+          ),
+        ),
+      ),
     );
   }
-} 
+}

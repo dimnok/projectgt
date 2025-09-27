@@ -3,12 +3,12 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'estimate.freezed.dart';
 
 /// Доменная сущность сметы.
-/// 
+///
 /// Описывает позицию сметы с деталями по системе, подсистеме, материалу, количеству и стоимости.
 @freezed
 abstract class Estimate with _$Estimate {
   /// Создаёт экземпляр [Estimate].
-  /// 
+  ///
   /// [id] — идентификатор записи.
   /// [system] — система.
   /// [subsystem] — подсистема.
@@ -39,7 +39,7 @@ abstract class Estimate with _$Estimate {
     String? contractId,
     String? estimateTitle,
   }) = _Estimate;
-  
+
   /// Приватный конструктор для поддержки методов расширения
   const Estimate._();
-} 
+}

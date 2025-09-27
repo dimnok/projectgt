@@ -21,4 +21,4 @@ abstract class ProfileRepository {
   ///
   /// Возвращает void. Бросает [Exception] при ошибке.
   Future<void> deleteProfile(String userId);
-} 
+}

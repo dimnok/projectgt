@@ -70,29 +70,25 @@ class Profile {
 - `created_at` - дата создания
 - `updated_at` - дата обновления
 
-## Процесс регистрации
+## Регистрация отключена
 
-1. Вызов `register()` в AuthNotifier с именем, email и паролем
-2. Создание пользователя в Supabase Auth
-3. Создание записи в таблице profiles с генерацией shortName
-4. Возврат данных пользователя с ролью 'user'
+- Самостоятельная регистрация пользователей отключена (Signups not allowed).
+- Аккаунты создаёт и активирует администратор.
+- Если email не заведён администратором, вход по OTP невозможен до создания и подтверждения учётной записи.
 
+## Процесс входа (OTP по email)
+
+1. Пользователь вводит email на экране входа.
+2. Приложение запрашивает отправку кода на почту:
 ```dart
-// Пример регистрации
-await ref.read(authProvider.notifier).register(name, email, password);
+await ref.read(authProvider.notifier).requestEmailOtp(email);
 ```
-
-## Процесс входа
-
-1. Вызов `login()` в AuthNotifier с email и паролем
-2. Аутентификация через Supabase Auth
-3. Получение роли из таблицы profiles
-4. Обновление состояния AuthState
-
+3. Пользователь вводит код из письма в OTP-модале.
+4. Приложение подтверждает код:
 ```dart
-// Пример входа
-await ref.read(authProvider.notifier).login(email, password);
+await ref.read(authProvider.notifier).verifyEmailOtp(email, code);
 ```
+5. Доступ предоставляется только после активации пользователя администратором (подтверждение/включение профиля).
 
 ## Управление профилями
 
@@ -135,49 +131,7 @@ class ProfileState {
 - Загрузка осуществляется через сервис PhotoService (временно используется uploadEmployeePhoto). 
 - UI-ограничение ширины и стилизация формы аналогичны сотрудникам и объектам.
 
-```dart
-// Пример регистрации
-await ref.read(authProvider.notifier).register(name, email, password);
-```
+## Подтверждение администратором
 
-## Процесс входа
-
-1. Вызов `login()` в AuthNotifier с email и паролем
-2. Аутентификация через Supabase Auth
-3. Получение роли из таблицы profiles
-4. Обновление состояния AuthState
-
-```dart
-// Пример входа
-await ref.read(authProvider.notifier).login(email, password);
-```
-
-## Управление профилями
-
-### ProfileState
-```dart
-enum ProfileStatus {
-  initial, loading, success, error,
-}
-
-class ProfileState {
-  final ProfileStatus status;
-  final Profile? profile;
-  final List<Profile> profiles;
-  final String? errorMessage;
-}
-```
-
-### Основные операции с профилями
-- `getProfile(userId)` - получение профиля пользователя
-- `getProfiles()` - получение списка всех профилей
-- `updateProfile(profile)` - обновление профиля
-- `refreshProfile(userId)` - принудительное обновление профиля
-- `refreshProfiles()` - принудительное обновление списка профилей
-
-## Защита маршрутов
-
-Система маршрутизации в `core/common/app_router.dart` обеспечивает:
-- Перенаправление неаутентифицированных пользователей на экран входа
-- Проверку ролей для доступа к административным маршрутам
-- Правильную обработку маршрутов с параметрами 
+- Администратор создаёт учётную запись в Supabase/Auth и/или активирует профиль в таблице `profiles` (поле `status`).
+- До активации профиль считается неактивным, доступ к функциональности ограничен.

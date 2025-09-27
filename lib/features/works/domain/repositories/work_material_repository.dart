@@ -1,7 +1,7 @@
 import '../entities/work_material.dart';
 
 /// Абстрактный репозиторий для работы с материалами смены.
-/// 
+///
 /// Определяет методы для получения, добавления, обновления и удаления материалов для конкретной смены.
 abstract class WorkMaterialRepository {
   /// Возвращает список материалов для смены по идентификатору [workId].
@@ -15,4 +15,4 @@ abstract class WorkMaterialRepository {
 
   /// Удаляет материал по идентификатору [id].
   Future<void> deleteWorkMaterial(String id);
-} 
+}

@@ -6,7 +6,7 @@ import '../../widgets/payroll_payout_form_modal.dart';
 /// Отображает таблицу всех выплат за выбранный период с возможностью добавления выплат.
 class PayrollTabPayouts extends StatelessWidget {
   /// Конструктор [PayrollTabPayouts].
-  /// 
+  ///
   /// [key] — уникальный ключ виджета (опционально).
   const PayrollTabPayouts({super.key});
 
@@ -43,7 +43,9 @@ class PayrollTabPayouts extends StatelessWidget {
                             isScrollControlled: true,
                             backgroundColor: Colors.transparent,
                             constraints: BoxConstraints(
-                              maxHeight: MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top - kToolbarHeight,
+                              maxHeight: MediaQuery.of(context).size.height -
+                                  MediaQuery.of(context).padding.top -
+                                  kToolbarHeight,
                             ),
                             builder: (ctx) => const PayrollPayoutFormModal(),
                           );
@@ -61,4 +63,4 @@ class PayrollTabPayouts extends StatelessWidget {
       ),
     );
   }
-} 
+}

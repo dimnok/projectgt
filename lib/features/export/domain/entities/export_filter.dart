@@ -19,18 +19,24 @@ abstract class ExportFilter with _$ExportFilter {
   const factory ExportFilter({
     /// Дата начала периода.
     required DateTime dateFrom,
+
     /// Дата окончания периода.
     required DateTime dateTo,
+
     /// Список идентификаторов объектов для фильтрации.
     @Default([]) List<String> objectIds,
+
     /// Список идентификаторов договоров для фильтрации.
     @Default([]) List<String> contractIds,
+
     /// Список систем для фильтрации.
     @Default([]) List<String> systems,
+
     /// Список подсистем для фильтрации.
     @Default([]) List<String> subsystems,
   }) = _ExportFilter;
 
   /// Создаёт сущность из JSON.
-  factory ExportFilter.fromJson(Map<String, dynamic> json) => _$ExportFilterFromJson(json);
-} 
+  factory ExportFilter.fromJson(Map<String, dynamic> json) =>
+      _$ExportFilterFromJson(json);
+}

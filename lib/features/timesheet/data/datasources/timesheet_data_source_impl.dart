@@ -6,13 +6,13 @@ import 'timesheet_data_source.dart';
 class TimesheetDataSourceImpl implements TimesheetDataSource {
   /// Клиент Supabase для работы с базой данных.
   final SupabaseClient client;
-  
+
   /// Логгер для отладки и отслеживания ошибок.
   final Logger _logger = Logger();
-  
+
   /// Название таблицы с часами работ.
   static const String workHoursTable = 'work_hours';
-  
+
   /// Название таблицы с работами.
   static const String worksTable = 'works';
 
@@ -41,17 +41,15 @@ class TimesheetDataSourceImpl implements TimesheetDataSource {
           object_id
         )
       ''';
-      
+
       // Выполняем запрос
-      final response = await client
-          .from(workHoursTable)
-          .select(query)
-          .order('created_at');
-      
+      final response =
+          await client.from(workHoursTable).select(query).order('created_at');
+
       // Получаем результаты и преобразуем их в плоский формат
       var flatResults = response.map<Map<String, dynamic>>((record) {
         final works = record['works'] as Map<String, dynamic>;
-        
+
         return {
           'id': record['id'],
           'work_id': record['work_id'],
@@ -64,19 +62,19 @@ class TimesheetDataSourceImpl implements TimesheetDataSource {
           'updated_at': record['updated_at'],
         };
       }).toList();
-      
+
       // Фильтрация на стороне клиента
       if (employeeId != null) {
-        flatResults = flatResults.where((record) => 
-          record['employee_id'] == employeeId
-        ).toList();
+        flatResults = flatResults
+            .where((record) => record['employee_id'] == employeeId)
+            .toList();
       }
-      
+
       // Дополнительная фильтрация по дате и объекту
       if (startDate != null || endDate != null || objectId != null) {
         flatResults = flatResults.where((record) {
           final date = DateTime.tryParse(record['date']);
-          
+
           bool matchesDateRange = true;
           if (date != null) {
             // Проверяем, что дата не раньше startDate
@@ -87,26 +85,27 @@ class TimesheetDataSourceImpl implements TimesheetDataSource {
             // Важно: включаем записи за весь последний день месяца (до 23:59:59.999)
             if (endDate != null) {
               // Создаем конец дня для endDate (23:59:59.999)
-              final endOfDay = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59, 999);
+              final endOfDay = DateTime(
+                  endDate.year, endDate.month, endDate.day, 23, 59, 59, 999);
               if (date.isAfter(endOfDay)) {
                 matchesDateRange = false;
               }
             }
           }
-          
+
           bool matchesObject = true;
           if (objectId != null) {
             matchesObject = record['object_id'] == objectId;
           }
-          
+
           return matchesDateRange && matchesObject;
         }).toList();
       }
-      
+
       return flatResults;
     } catch (e) {
       _logger.e('Ошибка при получении данных табеля: $e');
       rethrow;
     }
   }
-} 
+}

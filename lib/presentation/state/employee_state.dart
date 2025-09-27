@@ -8,10 +8,13 @@ import 'package:projectgt/domain/entities/employee.dart';
 enum EmployeeStatus {
   /// Начальное состояние (ничего не загружено).
   initial,
+
   /// Выполняется загрузка или операция.
   loading,
+
   /// Операция завершена успешно.
   success,
+
   /// Произошла ошибка при выполнении операции.
   error,
 }
@@ -22,12 +25,16 @@ enum EmployeeStatus {
 class EmployeeState {
   /// Текущий статус загрузки/операции ([EmployeeStatus]).
   final EmployeeStatus status;
+
   /// Текущий выбранный сотрудник (если есть).
   final Employee? employee;
+
   /// Список всех сотрудников.
   final List<Employee> employees;
+
   /// Сообщение об ошибке (если есть).
   final String? errorMessage;
+
   /// Поисковый запрос для фильтрации сотрудников.
   final String searchQuery;
 
@@ -81,16 +88,18 @@ class EmployeeState {
     if (searchQuery.isEmpty) {
       return employees;
     }
-    
+
     final query = searchQuery.toLowerCase();
     return employees.where((employee) {
-      final fullName = '${employee.lastName} ${employee.firstName} ${employee.middleName ?? ''}'.toLowerCase();
+      final fullName =
+          '${employee.lastName} ${employee.firstName} ${employee.middleName ?? ''}'
+              .toLowerCase();
       final position = employee.position?.toLowerCase() ?? '';
       final phone = employee.phone?.toLowerCase() ?? '';
-      
-      return fullName.contains(query) || 
-             position.contains(query) || 
-             phone.contains(query);
+
+      return fullName.contains(query) ||
+          position.contains(query) ||
+          phone.contains(query);
     }).toList();
   }
 }
@@ -101,15 +110,19 @@ class EmployeeState {
 class EmployeeNotifier extends StateNotifier<EmployeeState> {
   /// Use case для получения одного сотрудника.
   final getEmployeeUseCase = getEmployeeUseCaseProvider;
+
   /// Use case для получения всех сотрудников.
   final getEmployeesUseCase = getEmployeesUseCaseProvider;
+
   /// Use case для создания сотрудника.
   final createEmployeeUseCase = createEmployeeUseCaseProvider;
+
   /// Use case для обновления сотрудника.
   final updateEmployeeUseCase = updateEmployeeUseCaseProvider;
+
   /// Use case для удаления сотрудника.
   final deleteEmployeeUseCase = deleteEmployeeUseCaseProvider;
-  
+
   /// Флаг загрузки списка сотрудников.
   bool _isLoadingEmployees = false;
 
@@ -176,15 +189,15 @@ class EmployeeNotifier extends StateNotifier<EmployeeState> {
   ///
   /// В случае успеха — обновляет состояние на success, иначе — error с сообщением.
   Future<void> getEmployees() async {
-    if (_isLoadingEmployees || 
-        (state.employees.isNotEmpty && 
-         state.status == EmployeeStatus.success)) {
+    if (_isLoadingEmployees ||
+        (state.employees.isNotEmpty &&
+            state.status == EmployeeStatus.success)) {
       return;
     }
-    
+
     _isLoadingEmployees = true;
     state = state.copyWith(status: EmployeeStatus.loading);
-    
+
     try {
       final employees = await _ref.read(getEmployeesUseCaseProvider).execute();
       state = state.copyWith(
@@ -207,11 +220,12 @@ class EmployeeNotifier extends StateNotifier<EmployeeState> {
   Future<void> createEmployee(Employee employee) async {
     state = state.copyWith(status: EmployeeStatus.loading);
     try {
-      final createdEmployee = await _ref.read(createEmployeeUseCaseProvider).execute(employee);
-      
+      final createdEmployee =
+          await _ref.read(createEmployeeUseCaseProvider).execute(employee);
+
       // Добавляем нового сотрудника к текущему списку
       final updatedEmployees = [...state.employees, createdEmployee];
-      
+
       state = state.copyWith(
         status: EmployeeStatus.success,
         employee: createdEmployee,
@@ -231,13 +245,14 @@ class EmployeeNotifier extends StateNotifier<EmployeeState> {
   Future<void> updateEmployee(Employee employee) async {
     state = state.copyWith(status: EmployeeStatus.loading);
     try {
-      final updatedEmployee = await _ref.read(updateEmployeeUseCaseProvider).execute(employee);
-      
+      final updatedEmployee =
+          await _ref.read(updateEmployeeUseCaseProvider).execute(employee);
+
       // Обновляем сотрудника в текущем списке
-      final updatedEmployees = state.employees.map((e) => 
-        e.id == updatedEmployee.id ? updatedEmployee : e
-      ).toList();
-      
+      final updatedEmployees = state.employees
+          .map((e) => e.id == updatedEmployee.id ? updatedEmployee : e)
+          .toList();
+
       state = state.copyWith(
         status: EmployeeStatus.success,
         employee: updatedEmployee,
@@ -259,24 +274,19 @@ class EmployeeNotifier extends StateNotifier<EmployeeState> {
     try {
       // Удаляем фото сотрудника из Storage
       Employee? employee = state.employee;
-      if (employee == null) {
-        try {
-          employee = state.employees.firstWhere((e) => e.id == id);
-        } catch (_) {
-          employee = null;
-        }
-      }
       final displayName = employee != null
-        ? '${employee.lastName} ${employee.firstName} ${employee.middleName ?? ''}'.trim()
-        : '';
+          ? '${employee.lastName} ${employee.firstName} ${employee.middleName ?? ''}'
+              .trim()
+          : '';
       await _ref.read(photoServiceProvider).deletePhoto(
-        entity: 'employee',
-        id: id,
-        displayName: displayName,
-      );
+            entity: 'employee',
+            id: id,
+            displayName: displayName,
+          );
       await _ref.read(deleteEmployeeUseCaseProvider).execute(id);
       // Удаляем сотрудника из текущего списка
-      final updatedEmployees = state.employees.where((e) => e.id != id).toList();
+      final updatedEmployees =
+          state.employees.where((e) => e.id != id).toList();
       state = state.copyWith(
         status: EmployeeStatus.success,
         employee: null,
@@ -289,17 +299,17 @@ class EmployeeNotifier extends StateNotifier<EmployeeState> {
       );
     }
   }
-  
+
   /// Устанавливает поисковый запрос для фильтрации сотрудников.
   void setSearchQuery(String query) {
     state = state.copyWith(searchQuery: query);
   }
-  
+
   /// Принудительно обновляет данные сотрудника по [id].
   Future<void> refreshEmployee(String id) async {
     return getEmployee(id);
   }
-  
+
   /// Принудительно обновляет список сотрудников.
   Future<void> refreshEmployees() async {
     _isLoadingEmployees = false;
@@ -310,6 +320,7 @@ class EmployeeNotifier extends StateNotifier<EmployeeState> {
 /// Провайдер состояния сотрудников.
 ///
 /// Используется для доступа к [EmployeeNotifier] и [EmployeeState] во всём приложении через Riverpod.
-final employeeProvider = StateNotifierProvider<EmployeeNotifier, EmployeeState>((ref) {
+final employeeProvider =
+    StateNotifierProvider<EmployeeNotifier, EmployeeState>((ref) {
   return EmployeeNotifier(ref);
-}); 
+});

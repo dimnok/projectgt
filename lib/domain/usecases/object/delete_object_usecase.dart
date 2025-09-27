@@ -28,4 +28,4 @@ class DeleteObjectUseCase {
   Future<void> execute(String id) async {
     return repository.deleteObject(id);
   }
-} 
+}

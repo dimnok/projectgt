@@ -12,25 +12,29 @@ class PayrollFilterWidget extends ConsumerStatefulWidget {
   const PayrollFilterWidget({super.key});
 
   @override
-  ConsumerState<PayrollFilterWidget> createState() => _PayrollFilterWidgetState();
+  ConsumerState<PayrollFilterWidget> createState() =>
+      _PayrollFilterWidgetState();
 }
 
 class _PayrollFilterWidgetState extends ConsumerState<PayrollFilterWidget> {
-  final MultiValueDropDownController _employeeController = MultiValueDropDownController();
-  final MultiValueDropDownController _objectController = MultiValueDropDownController();
-  final MultiValueDropDownController _positionController = MultiValueDropDownController();
+  final MultiValueDropDownController _employeeController =
+      MultiValueDropDownController();
+  final MultiValueDropDownController _objectController =
+      MultiValueDropDownController();
+  final MultiValueDropDownController _positionController =
+      MultiValueDropDownController();
   final TextEditingController _yearController = TextEditingController();
   final TextEditingController _monthController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeControllers();
     });
   }
-  
+
   /// Инициализирует контроллеры текущими значениями фильтров
   void _initializeControllers() {
     final filterState = ref.read(payrollFilterProvider);
@@ -52,18 +56,19 @@ class _PayrollFilterWidgetState extends ConsumerState<PayrollFilterWidget> {
   /// Создает DropDownValueModel для сотрудника
   DropDownValueModel _createEmployeeDropDownModel(dynamic employee) {
     final fio = [
-      employee.lastName, 
-      employee.firstName, 
-      if (employee.middleName != null && employee.middleName!.isNotEmpty) employee.middleName
+      employee.lastName,
+      employee.firstName,
+      if (employee.middleName != null && employee.middleName!.isNotEmpty)
+        employee.middleName
     ].join(' ');
     return DropDownValueModel(name: fio, value: employee.id);
   }
-  
+
   /// Создает DropDownValueModel для объекта
   DropDownValueModel _createObjectDropDownModel(dynamic object) {
     return DropDownValueModel(name: object.name, value: object.id);
   }
-  
+
   /// Создает общий выпадающий список с множественным выбором
   Widget _buildMultiDropDown({
     required String label,
@@ -92,18 +97,20 @@ class _PayrollFilterWidgetState extends ConsumerState<PayrollFilterWidget> {
         ),
       ),
       listTextStyle: theme.textTheme.bodyMedium?.copyWith(color: Colors.black),
-      onChanged: isEmpty ? null : (val) {
-        if (val == null) return;
-        final list = val is List<DropDownValueModel> 
-            ? val 
-            : List<DropDownValueModel>.from(val);
-        final selectedValues = list
-            .map((e) => e.value as String?)
-            .where((value) => value != null)
-            .cast<String>()
-            .toList();
-        onSelectionChanged(selectedValues);
-      },
+      onChanged: isEmpty
+          ? null
+          : (val) {
+              if (val == null) return;
+              final list = val is List<DropDownValueModel>
+                  ? val
+                  : List<DropDownValueModel>.from(val);
+              final selectedValues = list
+                  .map((e) => e.value as String?)
+                  .where((value) => value != null)
+                  .cast<String>()
+                  .toList();
+              onSelectionChanged(selectedValues);
+            },
     );
   }
 
@@ -138,7 +145,8 @@ class _PayrollFilterWidgetState extends ConsumerState<PayrollFilterWidget> {
       child: Container(
         decoration: BoxDecoration(
           color: theme.brightness == Brightness.dark
-              ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.92)
+              ? theme.colorScheme.surfaceContainerHighest
+                  .withValues(alpha: 0.92)
               : theme.colorScheme.surface.withValues(alpha: 0.98),
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
@@ -169,7 +177,8 @@ class _PayrollFilterWidgetState extends ConsumerState<PayrollFilterWidget> {
               children: [
                 Text(
                   'Фильтры',
-                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 TextButton.icon(
                   icon: const Icon(Icons.refresh),
@@ -204,8 +213,9 @@ class _PayrollFilterWidgetState extends ConsumerState<PayrollFilterWidget> {
                       hint: 'Выберите одного или несколько',
                       controller: _employeeController,
                       items: employeeDropDownList,
-                      onSelectionChanged: (ids) => 
-                          ref.read(payrollFilterProvider.notifier).setEmployeeFilter(ids),
+                      onSelectionChanged: (ids) => ref
+                          .read(payrollFilterProvider.notifier)
+                          .setEmployeeFilter(ids),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -216,8 +226,9 @@ class _PayrollFilterWidgetState extends ConsumerState<PayrollFilterWidget> {
                       hint: 'Выберите один или несколько',
                       controller: _objectController,
                       items: objectDropDownList,
-                      onSelectionChanged: (ids) => 
-                          ref.read(payrollFilterProvider.notifier).setObjectFilter(ids),
+                      onSelectionChanged: (ids) => ref
+                          .read(payrollFilterProvider.notifier)
+                          .setObjectFilter(ids),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -228,13 +239,14 @@ class _PayrollFilterWidgetState extends ConsumerState<PayrollFilterWidget> {
                       hint: 'Выберите одну или несколько',
                       controller: _positionController,
                       items: positionDropDownList,
-                      onSelectionChanged: (positions) => 
-                          ref.read(payrollFilterProvider.notifier).setPositionFilter(positions),
+                      onSelectionChanged: (positions) => ref
+                          .read(payrollFilterProvider.notifier)
+                          .setPositionFilter(positions),
                     ),
                   ),
                 ],
               )
-            else 
+            else
               Column(
                 children: [
                   _buildPeriodFilter(theme, filterState),
@@ -244,8 +256,9 @@ class _PayrollFilterWidgetState extends ConsumerState<PayrollFilterWidget> {
                     hint: 'Выберите одного или несколько',
                     controller: _employeeController,
                     items: employeeDropDownList,
-                    onSelectionChanged: (ids) => 
-                        ref.read(payrollFilterProvider.notifier).setEmployeeFilter(ids),
+                    onSelectionChanged: (ids) => ref
+                        .read(payrollFilterProvider.notifier)
+                        .setEmployeeFilter(ids),
                   ),
                   const SizedBox(height: 16),
                   _buildMultiDropDown(
@@ -253,8 +266,9 @@ class _PayrollFilterWidgetState extends ConsumerState<PayrollFilterWidget> {
                     hint: 'Выберите один или несколько',
                     controller: _objectController,
                     items: objectDropDownList,
-                    onSelectionChanged: (ids) => 
-                        ref.read(payrollFilterProvider.notifier).setObjectFilter(ids),
+                    onSelectionChanged: (ids) => ref
+                        .read(payrollFilterProvider.notifier)
+                        .setObjectFilter(ids),
                   ),
                   const SizedBox(height: 16),
                   _buildMultiDropDown(
@@ -262,8 +276,9 @@ class _PayrollFilterWidgetState extends ConsumerState<PayrollFilterWidget> {
                     hint: 'Выберите одну или несколько',
                     controller: _positionController,
                     items: positionDropDownList,
-                    onSelectionChanged: (positions) => 
-                        ref.read(payrollFilterProvider.notifier).setPositionFilter(positions),
+                    onSelectionChanged: (positions) => ref
+                        .read(payrollFilterProvider.notifier)
+                        .setPositionFilter(positions),
                   ),
                 ],
               ),
@@ -280,7 +295,7 @@ class _PayrollFilterWidgetState extends ConsumerState<PayrollFilterWidget> {
     final years = List.generate(6, (i) => (now.year - 3 + i).toString());
     // Список месяцев
     final months = List.generate(12, (i) => DateTime(2000, i + 1));
-    
+
     return Row(
       children: [
         // Год
@@ -313,7 +328,8 @@ class _PayrollFilterWidgetState extends ConsumerState<PayrollFilterWidget> {
             labelText: 'Месяц',
             hintText: 'Выберите месяц',
             items: months,
-            displayStringForOption: (date) => DateFormat.MMMM('ru').format(date),
+            displayStringForOption: (date) =>
+                DateFormat.MMMM('ru').format(date),
             onSelected: (date) {
               ref.read(payrollFilterProvider.notifier).setMonth(date.month);
             },
@@ -322,7 +338,8 @@ class _PayrollFilterWidgetState extends ConsumerState<PayrollFilterWidget> {
             decoration: InputDecoration(
               labelText: 'Месяц',
               hintText: 'Выберите месяц',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               prefixIcon: const Icon(Icons.date_range),
             ),
           ),
@@ -330,4 +347,4 @@ class _PayrollFilterWidgetState extends ConsumerState<PayrollFilterWidget> {
       ],
     );
   }
-} 
+}

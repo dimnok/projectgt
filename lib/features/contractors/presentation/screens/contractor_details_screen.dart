@@ -22,19 +22,25 @@ import 'package:projectgt/presentation/widgets/app_badge.dart';
 class ContractorDetailsScreen extends ConsumerStatefulWidget {
   /// Идентификатор контрагента для отображения.
   final String contractorId;
+
   /// Показывать ли AppBar и Drawer (по умолчанию true).
   final bool showAppBar;
+
   /// Создаёт экран деталей для контрагента с [contractorId].
-  const ContractorDetailsScreen({super.key, required this.contractorId, this.showAppBar = true});
+  const ContractorDetailsScreen(
+      {super.key, required this.contractorId, this.showAppBar = true});
 
   @override
-  ConsumerState<ContractorDetailsScreen> createState() => _ContractorDetailsScreenState();
+  ConsumerState<ContractorDetailsScreen> createState() =>
+      _ContractorDetailsScreenState();
 }
 
 /// Состояние для [ContractorDetailsScreen].
 ///
 /// Управляет загрузкой, обновлением, табами и обработкой событий (редактирование, удаление).
-class _ContractorDetailsScreenState extends ConsumerState<ContractorDetailsScreen> with SingleTickerProviderStateMixin {
+class _ContractorDetailsScreenState
+    extends ConsumerState<ContractorDetailsScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
@@ -51,7 +57,9 @@ class _ContractorDetailsScreenState extends ConsumerState<ContractorDetailsScree
     super.didUpdateWidget(oldWidget);
     if (oldWidget.contractorId != widget.contractorId) {
       Future.microtask(() {
-        ref.read(contractorProvider.notifier).getContractor(widget.contractorId);
+        ref
+            .read(contractorProvider.notifier)
+            .getContractor(widget.contractorId);
       });
     }
   }
@@ -101,20 +109,29 @@ class _ContractorDetailsScreenState extends ConsumerState<ContractorDetailsScree
     final theme = Theme.of(context);
     final state = ref.watch(contractorProvider);
     final contractor = state.contractor;
-    final isLoading = contractor == null && state.status == ContractorStatus.loading;
+    final isLoading =
+        contractor == null && state.status == ContractorStatus.loading;
     final isDesktop = MediaQuery.of(context).size.width >= 900;
 
     if (isLoading) {
       return Scaffold(
-        appBar: widget.showAppBar ? const AppBarWidget(title: 'Информация о контрагенте') : null,
-        drawer: widget.showAppBar ? const AppDrawer(activeRoute: AppRoute.contractors) : null,
+        appBar: widget.showAppBar
+            ? const AppBarWidget(title: 'Информация о контрагенте')
+            : null,
+        drawer: widget.showAppBar
+            ? const AppDrawer(activeRoute: AppRoute.contractors)
+            : null,
         body: const Center(child: CircularProgressIndicator()),
       );
     }
     if (state.status == ContractorStatus.error || contractor == null) {
       return Scaffold(
-        appBar: widget.showAppBar ? const AppBarWidget(title: 'Информация о контрагенте') : null,
-        drawer: widget.showAppBar ? const AppDrawer(activeRoute: AppRoute.contractors) : null,
+        appBar: widget.showAppBar
+            ? const AppBarWidget(title: 'Информация о контрагенте')
+            : null,
+        drawer: widget.showAppBar
+            ? const AppDrawer(activeRoute: AppRoute.contractors)
+            : null,
         body: Center(
           child: Text(
             state.errorMessage ?? 'Контрагент не найден',
@@ -147,11 +164,13 @@ class _ContractorDetailsScreenState extends ConsumerState<ContractorDetailsScree
                 ? CircleAvatar(
                     radius: 40,
                     backgroundImage: NetworkImage(contractor.logoUrl!),
-                    backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+                    backgroundColor:
+                        theme.colorScheme.primary.withValues(alpha: 0.1),
                   )
                 : CircleAvatar(
                     radius: 40,
-                    backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+                    backgroundColor:
+                        theme.colorScheme.primary.withValues(alpha: 0.1),
                     child: const Icon(Icons.business, size: 40),
                   ),
           ),
@@ -163,7 +182,8 @@ class _ContractorDetailsScreenState extends ConsumerState<ContractorDetailsScree
               children: [
                 Text(
                   contractor.fullName,
-                  style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  style: theme.textTheme.titleLarge
+                      ?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -205,13 +225,16 @@ class _ContractorDetailsScreenState extends ConsumerState<ContractorDetailsScree
                         isScrollControlled: true,
                         backgroundColor: Colors.transparent,
                         constraints: BoxConstraints(
-                          maxHeight: MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top - kToolbarHeight,
+                          maxHeight: MediaQuery.of(context).size.height -
+                              MediaQuery.of(context).padding.top -
+                              kToolbarHeight,
                         ),
                         builder: (context) => Container(
                           clipBehavior: Clip.antiAlias,
                           decoration: BoxDecoration(
                             color: theme.colorScheme.surface,
-                            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                            borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(28)),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withValues(alpha: 0.1),
@@ -225,13 +248,17 @@ class _ContractorDetailsScreenState extends ConsumerState<ContractorDetailsScree
                             minChildSize: 0.5,
                             maxChildSize: 1.0,
                             expand: false,
-                            builder: (context, scrollController) => SingleChildScrollView(
+                            builder: (context, scrollController) =>
+                                SingleChildScrollView(
                               controller: scrollController,
                               child: Padding(
                                 padding: EdgeInsets.only(
-                                  bottom: MediaQuery.of(context).viewInsets.bottom,
+                                  bottom:
+                                      MediaQuery.of(context).viewInsets.bottom,
                                 ),
-                                child: ContractorFormScreen(contractorId: contractor.id, showScaffold: false),
+                                child: ContractorFormScreen(
+                                    contractorId: contractor.id,
+                                    showScaffold: false),
                               ),
                             ),
                           ),
@@ -247,7 +274,8 @@ class _ContractorDetailsScreenState extends ConsumerState<ContractorDetailsScree
                         context: context,
                         builder: (ctx) => AlertDialog(
                           title: const Text('Удалить контрагента?'),
-                          content: const Text('Вы уверены, что хотите удалить этого контрагента?'),
+                          content: const Text(
+                              'Вы уверены, что хотите удалить этого контрагента?'),
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.of(ctx).pop(false),
@@ -255,21 +283,26 @@ class _ContractorDetailsScreenState extends ConsumerState<ContractorDetailsScree
                             ),
                             TextButton(
                               onPressed: () => Navigator.of(ctx).pop(true),
-                              child: const Text('Удалить', style: TextStyle(color: Colors.red)),
+                              child: const Text('Удалить',
+                                  style: TextStyle(color: Colors.red)),
                             ),
                           ],
                         ),
                       );
                       if (confirmed == true) {
                         try {
-                          await ref.read(contractorProvider.notifier).deleteContractor(contractor.id);
+                          await ref
+                              .read(contractorProvider.notifier)
+                              .deleteContractor(contractor.id);
                           if (context.mounted) {
                             context.goNamed('contractors');
-                            SnackBarUtils.showSuccess(context, 'Контрагент удалён');
+                            SnackBarUtils.showSuccess(
+                                context, 'Контрагент удалён');
                           }
                         } catch (e) {
                           if (context.mounted) {
-                            SnackBarUtils.showError(context, 'Ошибка удаления: ${e.toString()}');
+                            SnackBarUtils.showError(
+                                context, 'Ошибка удаления: ${e.toString()}');
                           }
                         }
                       }
@@ -279,7 +312,9 @@ class _ContractorDetailsScreenState extends ConsumerState<ContractorDetailsScree
                 showThemeSwitch: false,
               )
             : null,
-        drawer: widget.showAppBar ? const AppDrawer(activeRoute: AppRoute.contractors) : null,
+        drawer: widget.showAppBar
+            ? const AppDrawer(activeRoute: AppRoute.contractors)
+            : null,
         backgroundColor: theme.colorScheme.surface,
         body: Column(
           children: [
@@ -296,16 +331,20 @@ class _ContractorDetailsScreenState extends ConsumerState<ContractorDetailsScree
                     padding: const EdgeInsets.all(16),
                     children: [
                       _buildInfoSection('Основная информация', [
-                        _buildInfoItem('Полное наименование', contractor.fullName),
-                        _buildInfoItem('Сокращенное наименование', contractor.shortName),
+                        _buildInfoItem(
+                            'Полное наименование', contractor.fullName),
+                        _buildInfoItem(
+                            'Сокращенное наименование', contractor.shortName),
                         _buildInfoItem('Тип', _typeLabel(contractor.type)),
                         _buildInfoItem('ИНН', contractor.inn),
                         _buildInfoItem('Директор', contractor.director),
                       ]),
                       const SizedBox(height: 16),
                       _buildInfoSection('Даты', [
-                        _buildInfoItem('Создан', _formatDate(contractor.createdAt)),
-                        _buildInfoItem('Обновлён', _formatDate(contractor.updatedAt)),
+                        _buildInfoItem(
+                            'Создан', _formatDate(contractor.createdAt)),
+                        _buildInfoItem(
+                            'Обновлён', _formatDate(contractor.updatedAt)),
                       ]),
                     ],
                   ),
@@ -318,8 +357,10 @@ class _ContractorDetailsScreenState extends ConsumerState<ContractorDetailsScree
                       ]),
                       const SizedBox(height: 16),
                       _buildInfoSection('Адреса', [
-                        _buildInfoItem('Юридический адрес', contractor.legalAddress),
-                        _buildInfoItem('Фактический адрес', contractor.actualAddress),
+                        _buildInfoItem(
+                            'Юридический адрес', contractor.legalAddress),
+                        _buildInfoItem(
+                            'Фактический адрес', contractor.actualAddress),
                       ]),
                     ],
                   ),
@@ -358,16 +399,20 @@ class _ContractorDetailsScreenState extends ConsumerState<ContractorDetailsScree
                   padding: const EdgeInsets.all(16),
                   children: [
                     _buildInfoSection('Основная информация', [
-                      _buildInfoItem('Полное наименование', contractor.fullName),
-                      _buildInfoItem('Сокращенное наименование', contractor.shortName),
+                      _buildInfoItem(
+                          'Полное наименование', contractor.fullName),
+                      _buildInfoItem(
+                          'Сокращенное наименование', contractor.shortName),
                       _buildInfoItem('Тип', _typeLabel(contractor.type)),
                       _buildInfoItem('ИНН', contractor.inn),
                       _buildInfoItem('Директор', contractor.director),
                     ]),
                     const SizedBox(height: 16),
                     _buildInfoSection('Даты', [
-                      _buildInfoItem('Создан', _formatDate(contractor.createdAt)),
-                      _buildInfoItem('Обновлён', _formatDate(contractor.updatedAt)),
+                      _buildInfoItem(
+                          'Создан', _formatDate(contractor.createdAt)),
+                      _buildInfoItem(
+                          'Обновлён', _formatDate(contractor.updatedAt)),
                     ]),
                   ],
                 ),
@@ -380,8 +425,10 @@ class _ContractorDetailsScreenState extends ConsumerState<ContractorDetailsScree
                     ]),
                     const SizedBox(height: 16),
                     _buildInfoSection('Адреса', [
-                      _buildInfoItem('Юридический адрес', contractor.legalAddress),
-                      _buildInfoItem('Фактический адрес', contractor.actualAddress),
+                      _buildInfoItem(
+                          'Юридический адрес', contractor.legalAddress),
+                      _buildInfoItem(
+                          'Фактический адрес', contractor.actualAddress),
                     ]),
                   ],
                 ),
@@ -420,7 +467,8 @@ class _ContractorDetailsScreenState extends ConsumerState<ContractorDetailsScree
           children: [
             Text(
               title,
-              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              style: theme.textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             ...items,
@@ -456,4 +504,4 @@ class _ContractorDetailsScreenState extends ConsumerState<ContractorDetailsScree
       ),
     );
   }
-} 
+}

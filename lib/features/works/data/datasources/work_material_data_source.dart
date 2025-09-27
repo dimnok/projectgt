@@ -15,4 +15,4 @@ abstract class WorkMaterialDataSource {
 
   /// Удаляет материал по идентификатору [id].
   Future<void> deleteWorkMaterial(String id);
-} 
+}

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:intl/intl.dart';
+import 'package:projectgt/core/utils/responsive_utils.dart';
 
 /// Виджет секции формы.
 ///
@@ -8,7 +8,7 @@ import 'package:intl/intl.dart';
 class FormSectionCard extends StatelessWidget {
   /// Заголовок секции.
   final String title;
-  
+
   /// Список виджетов-полей.
   final List<Widget> children;
 
@@ -57,13 +57,13 @@ class FormSectionCard extends StatelessWidget {
 class DatePickerField extends StatelessWidget {
   /// Текущая выбранная дата.
   final DateTime? date;
-  
+
   /// Заголовок поля.
   final String labelText;
-  
+
   /// Подсказка в пустом поле.
   final String hintText;
-  
+
   /// Обработчик изменения даты.
   final Function(DateTime?) onDateSelected;
 
@@ -104,7 +104,7 @@ class DatePickerField extends StatelessWidget {
       firstDate: DateTime(1900),
       lastDate: now,
     );
-    
+
     if (picked != null && picked != date) {
       onDateSelected(picked);
     }
@@ -117,96 +117,25 @@ class DatePickerField extends StatelessWidget {
   }
 }
 
-/// Поле с автодополнением для Enum.
-///
-/// Используется для выбора значений из Enum с переводом их в текст через конвертер.
-class EnumTypeAheadField<T> extends StatelessWidget {
-  /// Контроллер для текстового поля.
-  final TextEditingController controller;
-  
-  /// Список значений Enum для выбора.
-  final List<T> values;
-  
-  /// Функция для получения текстового представления значения Enum.
-  final String Function(T value) textConverter;
-  
-  /// Заголовок поля.
-  final String labelText;
-  
-  /// Подсказка в пустом поле.
-  final String hintText;
-  
-  /// Обработчик выбора значения.
-  final Function(T value) onSelected;
-
-  /// Создает поле с автодополнением для значений Enum.
-  const EnumTypeAheadField({
-    super.key,
-    required this.controller,
-    required this.values,
-    required this.textConverter,
-    required this.labelText,
-    required this.hintText,
-    required this.onSelected,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return TypeAheadField<T>(
-      controller: controller,
-      suggestionsCallback: (pattern) {
-        return values.where((e) => 
-          textConverter(e).toLowerCase().contains(pattern.toLowerCase())
-        ).toList();
-      },
-      builder: (context, controller, focusNode) {
-        return TextFormField(
-          controller: controller,
-          focusNode: focusNode,
-          readOnly: true,
-          decoration: InputDecoration(
-            labelText: labelText,
-            hintText: hintText,
-            border: const OutlineInputBorder(),
-          ),
-          onTap: () {
-            controller.clear();
-            focusNode.requestFocus();
-          },
-        );
-      },
-      itemBuilder: (context, suggestion) {
-        return ListTile(
-          title: Text(textConverter(suggestion)),
-        );
-      },
-      onSelected: onSelected,
-      emptyBuilder: (context) => const ListTile(
-        title: Text('Нет совпадений'),
-      ),
-    );
-  }
-}
-
 /// Стандартное текстовое поле формы.
 ///
 /// Обертка вокруг TextFormField с единым стилем для всего приложения.
 class FormTextField extends StatelessWidget {
   /// Контроллер для текстового поля.
   final TextEditingController controller;
-  
+
   /// Заголовок поля.
   final String labelText;
-  
+
   /// Подсказка в пустом поле.
   final String hintText;
-  
+
   /// Функция валидации (может быть null).
   final String? Function(String?)? validator;
-  
+
   /// Тип клавиатуры.
   final TextInputType? keyboardType;
-  
+
   /// Доступно ли поле для редактирования.
   final bool readOnly;
 
@@ -242,13 +171,13 @@ class FormTextField extends StatelessWidget {
 class FormButtons extends StatelessWidget {
   /// Обработчик нажатия на кнопку сохранения.
   final VoidCallback onSave;
-  
+
   /// Обработчик нажатия на кнопку отмены.
   final VoidCallback onCancel;
-  
+
   /// Флаг загрузки, отключает кнопку и показывает индикатор.
   final bool isLoading;
-  
+
   /// Текст на кнопке сохранения.
   final String saveText;
 
@@ -263,17 +192,22 @@ class FormButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = ResponsiveUtils.isMobile(context);
+    final buttonHeight = isMobile ? 26.0 : 44.0; // Уменьшили с 30 до 26
+
     return Row(
       children: [
         Expanded(
           child: OutlinedButton(
             onPressed: onCancel,
             style: OutlinedButton.styleFrom(
-              minimumSize: const Size.fromHeight(44),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              minimumSize: Size.fromHeight(buttonHeight),
+              shape: const StadiumBorder(),
+              elevation: isMobile ? 2 : 0,
+              shadowColor:
+                  isMobile ? Colors.black.withValues(alpha: 0.2) : null,
+              textStyle:
+                  const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             child: const Text('Отмена'),
           ),
@@ -283,11 +217,13 @@ class FormButtons extends StatelessWidget {
           child: ElevatedButton(
             onPressed: isLoading ? null : onSave,
             style: ElevatedButton.styleFrom(
-              minimumSize: const Size.fromHeight(44),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              minimumSize: Size.fromHeight(buttonHeight),
+              shape: const StadiumBorder(),
+              elevation: isMobile ? 4 : 1,
+              shadowColor:
+                  isMobile ? Colors.black.withValues(alpha: 0.3) : null,
+              textStyle:
+                  const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             child: isLoading
                 ? const SizedBox(
@@ -301,4 +237,4 @@ class FormButtons extends StatelessWidget {
       ],
     );
   }
-} 
+}

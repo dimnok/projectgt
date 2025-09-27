@@ -2,14 +2,21 @@ import '../../domain/entities/work.dart';
 import '../../domain/repositories/work_repository.dart';
 import '../datasources/work_data_source.dart';
 import '../models/work_model.dart';
+import 'package:projectgt/core/services/photo_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Реализация репозитория для работы со сменами через источник данных [WorkDataSource].
 class WorkRepositoryImpl implements WorkRepository {
   /// Источник данных для смен.
   final WorkDataSource dataSource;
 
+  /// Сервис для работы с фото.
+  late final PhotoService _photoService;
+
   /// Создаёт репозиторий для работы со сменами.
-  WorkRepositoryImpl(this.dataSource);
+  WorkRepositoryImpl(this.dataSource) {
+    _photoService = PhotoService(Supabase.instance.client);
+  }
 
   /// Возвращает список всех смен.
   @override
@@ -64,6 +71,21 @@ class WorkRepositoryImpl implements WorkRepository {
   /// Удаляет смену по идентификатору [id].
   @override
   Future<void> deleteWork(String id) async {
+    // Сначала получаем данные смены для удаления связанных фото
+    final work = await dataSource.getWork(id);
+    if (work != null) {
+      // Удаляем утреннее фото (если есть)
+      if (work.photoUrl != null && work.photoUrl!.isNotEmpty) {
+        await _photoService.deleteWorkPhotoByUrl(work.photoUrl!);
+      }
+
+      // Удаляем вечернее фото (если есть)
+      if (work.eveningPhotoUrl != null && work.eveningPhotoUrl!.isNotEmpty) {
+        await _photoService.deleteWorkPhotoByUrl(work.eveningPhotoUrl!);
+      }
+    }
+
+    // Удаляем саму смену из БД
     await dataSource.deleteWork(id);
   }
 
@@ -81,4 +103,4 @@ class WorkRepositoryImpl implements WorkRepository {
       updatedAt: model.updatedAt,
     );
   }
-} 
+}

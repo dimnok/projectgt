@@ -1,38 +1,148 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="$FLUTTER_BASE_HREF">
-
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
-
-  <!-- iOS meta tags & icons -->
+  <meta name="description" content="Система управления проектами и сметами">
+  <meta name="keywords" content="project management, estimates, construction">
+  
+  <!-- PWA meta tags -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="ProjectGT">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="projectgt">
+  <meta name="application-name" content="ProjectGT">
+  
+  <!-- iOS icons -->
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
-
+  <link rel="apple-touch-icon" sizes="192x192" href="icons/Icon-192.png">
+  <link rel="apple-touch-icon" sizes="512x512" href="icons/Icon-512.png">
+  
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
-
-  <title>projectgt</title>
+  
+  <!-- PWA manifest -->
   <link rel="manifest" href="manifest.json">
+  
+  <title>ProjectGT</title>
+  
+
+  
+  <!-- Status Bar Control -->
+  <script>
+    // Функция для установки цвета статус-бара
+    function setStatusBarColor(color) {
+      const themeMeta = document.querySelector('meta[name="theme-color"]');
+      if (themeMeta) {
+        themeMeta.setAttribute('content', color);
+      }
+      
+      // Установить цвет для iOS
+      const appleMeta = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+      if (appleMeta) {
+        // Определить яркость цвета
+        const r = parseInt(color.slice(1, 3), 16);
+        const g = parseInt(color.slice(3, 5), 16);
+        const b = parseInt(color.slice(5, 7), 16);
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        
+        if (brightness > 125) {
+          appleMeta.setAttribute('content', 'default');
+        } else {
+          appleMeta.setAttribute('content', 'black-translucent');
+        }
+      }
+      
+      // Сохранить цвет в CSS переменную
+      document.documentElement.style.setProperty('--status-bar-color', color);
+    }
+    
+    // Функция для инициализации PWA стилей
+    function initializePWAStyles() {
+      // Добавить CSS для safe area
+      const style = document.createElement('style');
+      style.textContent = '@media (display-mode: standalone) {\\n' +
+        '  body {\\n' +
+        '    padding-top: env(safe-area-inset-top);\\n' +
+        '    padding-bottom: env(safe-area-inset-bottom);\\n' +
+        '  }\\n' +
+        '  .safe-area-top {\\n' +
+        '    height: env(safe-area-inset-top);\\n' +
+        '    background: var(--status-bar-color, #000000);\\n' +
+        '  }\\n' +
+        '  .safe-area-bottom {\\n' +
+        '    height: env(safe-area-inset-bottom);\\n' +
+        '  }\\n' +
+        '  .app-bar {\\n' +
+        '    margin-top: env(safe-area-inset-top);\\n' +
+        '  }\\n' +
+        '}\\n' +
+        '@media (max-width: 600px) {\\n' +
+        '  body { font-size: 14px; }\\n' +
+        '}';
+      document.head.appendChild(style);
+      
+      // Установить начальный цвет статус-бара (белый для светлой темы)
+      setStatusBarColor('#ffffff');
+    }
+    
+    // Инициализация при загрузке
+    window.addEventListener('load', initializePWAStyles);
+    
+    // Функция для Flutter вызова
+    window.flutterStatusBar = {
+      setColor: setStatusBarColor,
+      getColor: function() {
+        const themeMeta = document.querySelector('meta[name="theme-color"]');
+        return themeMeta ? themeMeta.getAttribute('content') : '#000000';
+      }
+    };
+    // Временный SW для очистки кэша и автообновления
+    if ('serviceWorker' in navigator) {
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', function() {
+        if (refreshing) return;
+        refreshing = true;
+        window.location.reload();
+      });
+
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('flutter_service_worker.js')
+          .then(function(reg) {
+            // Явная проверка обновлений на старте
+            reg.update();
+
+            function sendSkipWaiting(sw) {
+              if (!sw) return;
+              sw.postMessage({ type: 'SKIP_WAITING' });
+            }
+
+            // Если уже есть обновление, активируем сразу
+            if (reg.waiting) {
+              sendSkipWaiting(reg.waiting);
+            }
+
+            // Когда появляется новое installing, ждём installed и активируем
+            reg.addEventListener('updatefound', function() {
+              const newSW = reg.installing;
+              if (!newSW) return;
+              newSW.addEventListener('statechange', function() {
+                if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+                  sendSkipWaiting(newSW);
+                }
+              });
+            });
+          })
+          .catch(function(err) { console.error('SW registration failed', err); });
+      });
+    }
+  </script>
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>
+
 </body>
 </html>

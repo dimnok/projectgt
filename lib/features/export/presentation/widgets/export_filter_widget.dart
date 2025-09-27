@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dropdown_textfield/dropdown_textfield.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/export_filter_provider.dart';
 import '../../domain/entities/export_filter.dart';
 import '../providers/export_provider.dart';
@@ -27,28 +28,81 @@ class ExportFilterWidget extends ConsumerStatefulWidget {
 }
 
 class _ExportFilterWidgetState extends ConsumerState<ExportFilterWidget> {
-  final MultiValueDropDownController _objectController = MultiValueDropDownController();
-  final MultiValueDropDownController _contractController = MultiValueDropDownController();
-  final MultiValueDropDownController _systemController = MultiValueDropDownController();
-  final MultiValueDropDownController _subsystemController = MultiValueDropDownController();
+  final MultiValueDropDownController _objectController =
+      MultiValueDropDownController();
+  final MultiValueDropDownController _contractController =
+      MultiValueDropDownController();
+  final MultiValueDropDownController _systemController =
+      MultiValueDropDownController();
+  final MultiValueDropDownController _subsystemController =
+      MultiValueDropDownController();
   final TextEditingController _dateFromController = TextEditingController();
   final TextEditingController _dateToController = TextEditingController();
   final TextEditingController _fileNameController = TextEditingController();
 
+  // Ключи для сохранения настроек выгрузки
+  static const String _prefsColumnsKey = 'export_columns_v1';
+  static const String _prefsAggregateKey = 'export_aggregate_v1';
+
+  // Сохранённые настройки (загружаются из SharedPreferences)
+  Set<String>? _savedColumns;
+  bool? _savedAggregate;
+
+  /// Доступные колонки для экспорта: key -> label
+  static const List<MapEntry<String, String>> _availableColumns = [
+    MapEntry('date', 'Дата смены'),
+    MapEntry('object', 'Объект'),
+    MapEntry('contract', 'Договор'),
+    MapEntry('system', 'Система'),
+    MapEntry('subsystem', 'Подсистема'),
+    MapEntry('position', '№ позиции'),
+    MapEntry('work', 'Наименование работы'),
+    MapEntry('section', 'Секция'),
+    MapEntry('floor', 'Этаж'),
+    MapEntry('unit', 'Единица измерения'),
+    MapEntry('quantity', 'Количество'),
+    MapEntry('price', 'Цена за единицу'),
+    MapEntry('total', 'Итоговая сумма'),
+    MapEntry('employee', 'Сотрудник'),
+    MapEntry('hours', 'Часы'),
+    MapEntry('materials', 'Материалы'),
+  ];
+
   @override
   void initState() {
     super.initState();
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeControllers();
     });
   }
-  
+
   /// Инициализирует контроллеры текущими значениями фильтров
   void _initializeControllers() {
     final filterState = ref.read(exportFilterProvider);
     _dateFromController.text = _formatDate(filterState.dateFrom);
     _dateToController.text = _formatDate(filterState.dateTo);
+    _loadExportPreferences();
+  }
+
+  /// Загружает сохранённые настройки экспорта (колонки и флаг агрегации)
+  Future<void> _loadExportPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    final columns = prefs.getStringList(_prefsColumnsKey);
+    final aggregate = prefs.getBool(_prefsAggregateKey);
+    if (!mounted) return;
+    setState(() {
+      _savedColumns = columns?.toSet();
+      _savedAggregate = aggregate;
+    });
+  }
+
+  /// Сохраняет настройки экспорта
+  Future<void> _saveExportPreferences(
+      List<String> columns, bool aggregate) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_prefsColumnsKey, columns);
+    await prefs.setBool(_prefsAggregateKey, aggregate);
   }
 
   @override
@@ -75,7 +129,8 @@ class _ExportFilterWidgetState extends ConsumerState<ExportFilterWidget> {
 
   /// Создает DropDownValueModel для договора
   DropDownValueModel _createContractDropDownModel(dynamic contract) {
-    final displayName = '${contract.number} (${contract.contractorName ?? 'Без контрагента'})';
+    final displayName =
+        '${contract.number} (${contract.contractorName ?? 'Без контрагента'})';
     return DropDownValueModel(name: displayName, value: contract.id);
   }
 
@@ -107,26 +162,29 @@ class _ExportFilterWidgetState extends ConsumerState<ExportFilterWidget> {
         ),
       ),
       listTextStyle: theme.textTheme.bodyMedium?.copyWith(color: Colors.black),
-      onChanged: isEmpty ? null : (val) {
-        if (val == null) return;
-        final list = val is List<DropDownValueModel> 
-            ? val 
-            : List<DropDownValueModel>.from(val);
-        final selectedValues = list
-            .map((e) => e.value as String?)
-            .where((value) => value != null)
-            .cast<String>()
-            .toList();
-        onSelectionChanged(selectedValues);
-      },
+      onChanged: isEmpty
+          ? null
+          : (val) {
+              if (val == null) return;
+              final list = val is List<DropDownValueModel>
+                  ? val
+                  : List<DropDownValueModel>.from(val);
+              final selectedValues = list
+                  .map((e) => e.value as String?)
+                  .where((value) => value != null)
+                  .cast<String>()
+                  .toList();
+              onSelectionChanged(selectedValues);
+            },
     );
   }
 
   /// Показывает календарь для выбора даты
-  Future<void> _selectDate(TextEditingController controller, bool isStartDate) async {
+  Future<void> _selectDate(
+      TextEditingController controller, bool isStartDate) async {
     final filterState = ref.read(exportFilterProvider);
     final initialDate = isStartDate ? filterState.dateFrom : filterState.dateTo;
-    
+
     final picked = await showDatePicker(
       context: context,
       initialDate: initialDate,
@@ -134,10 +192,10 @@ class _ExportFilterWidgetState extends ConsumerState<ExportFilterWidget> {
       lastDate: DateTime.now().add(const Duration(days: 365)),
       locale: const Locale('ru'),
     );
-    
+
     if (picked != null) {
       controller.text = _formatDate(picked);
-      
+
       if (isStartDate) {
         ref.read(exportFilterProvider.notifier).setDateFrom(picked);
       } else {
@@ -151,13 +209,13 @@ class _ExportFilterWidgetState extends ConsumerState<ExportFilterWidget> {
     final theme = Theme.of(context);
     final filterState = ref.watch(exportFilterProvider);
     final isDesktop = ResponsiveUtils.isDesktop(context);
-    
+
     // Получаем доступные значения для фильтров
     final availableObjects = ref.watch(availableObjectsForExportProvider);
     final availableContracts = ref.watch(availableContractsForExportProvider);
     final availableSystems = ref.watch(availableSystemsForExportProvider);
     final availableSubsystems = ref.watch(availableSubsystemsForExportProvider);
-    
+
     final objectDropDownList = availableObjects
         .map((object) => _createObjectDropDownModel(object))
         .toList();
@@ -168,7 +226,8 @@ class _ExportFilterWidgetState extends ConsumerState<ExportFilterWidget> {
         .map((system) => DropDownValueModel(name: system, value: system))
         .toList();
     final subsystemDropDownList = availableSubsystems
-        .map((subsystem) => DropDownValueModel(name: subsystem, value: subsystem))
+        .map((subsystem) =>
+            DropDownValueModel(name: subsystem, value: subsystem))
         .toList();
 
     return Card(
@@ -183,7 +242,8 @@ class _ExportFilterWidgetState extends ConsumerState<ExportFilterWidget> {
       child: Container(
         decoration: BoxDecoration(
           color: theme.brightness == Brightness.dark
-              ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.92)
+              ? theme.colorScheme.surfaceContainerHighest
+                  .withValues(alpha: 0.92)
               : theme.colorScheme.surface.withValues(alpha: 0.98),
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
@@ -214,7 +274,8 @@ class _ExportFilterWidgetState extends ConsumerState<ExportFilterWidget> {
               children: [
                 Text(
                   'Фильтры',
-                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 Row(
                   children: [
@@ -230,16 +291,20 @@ class _ExportFilterWidgetState extends ConsumerState<ExportFilterWidget> {
                           dateFrom: filterState.dateFrom,
                           dateTo: filterState.dateTo,
                         );
-                        
+
                         // Запускаем загрузку данных отчета
-                        ref.read(exportProvider.notifier).loadReportData(filter);
+                        ref
+                            .read(exportProvider.notifier)
+                            .loadReportData(filter);
                       },
                       icon: const Icon(Icons.download, color: Colors.white),
-                      label: const Text('Сформировать отчет', style: TextStyle(color: Colors.white)),
+                      label: const Text('Сформировать отчет',
+                          style: TextStyle(color: Colors.white)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -252,21 +317,27 @@ class _ExportFilterWidgetState extends ConsumerState<ExportFilterWidget> {
                         final exportState = ref.watch(exportProvider);
                         final hasData = exportState.reports.isNotEmpty;
                         final isExporting = exportState.isExporting;
-                        
+
                         return ElevatedButton.icon(
-                          onPressed: hasData && !isExporting ? () => _showExportDialog(context, ref) : null,
-                          icon: isExporting 
+                          onPressed: hasData && !isExporting
+                              ? () => _showExportDialog(context, ref)
+                              : null,
+                          icon: isExporting
                               ? const SizedBox(
                                   width: 16,
                                   height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: Colors.white),
                                 )
                               : const Icon(Icons.upload, color: Colors.white),
-                          label: const Text('Выгрузить отчет', style: TextStyle(color: Colors.white)),
+                          label: const Text('Выгрузить отчет',
+                              style: TextStyle(color: Colors.white)),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: hasData ? Colors.green : Colors.grey,
+                            backgroundColor:
+                                hasData ? Colors.green : Colors.grey,
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
@@ -286,7 +357,7 @@ class _ExportFilterWidgetState extends ConsumerState<ExportFilterWidget> {
                         _contractController.setDropDown([]);
                         _systemController.setDropDown([]);
                         _subsystemController.setDropDown([]);
-                        
+
                         // Используем ту же логику, что и в провайдере - текущий месяц
                         final now = DateTime.now();
                         final startOfMonth = DateTime(now.year, now.month, 1);
@@ -295,7 +366,7 @@ class _ExportFilterWidgetState extends ConsumerState<ExportFilterWidget> {
                           _dateFromController.text = _formatDate(startOfMonth);
                           _dateToController.text = _formatDate(endOfMonth);
                         });
-                        
+
                         // Очищаем данные отчета
                         ref.read(exportProvider.notifier).clearData();
                       },
@@ -320,8 +391,9 @@ class _ExportFilterWidgetState extends ConsumerState<ExportFilterWidget> {
                       hint: 'Выберите один или несколько',
                       controller: _objectController,
                       items: objectDropDownList,
-                      onSelectionChanged: (ids) => 
-                          ref.read(exportFilterProvider.notifier).setObjectFilter(ids),
+                      onSelectionChanged: (ids) => ref
+                          .read(exportFilterProvider.notifier)
+                          .setObjectFilter(ids),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -332,8 +404,9 @@ class _ExportFilterWidgetState extends ConsumerState<ExportFilterWidget> {
                       hint: 'Выберите один или несколько',
                       controller: _contractController,
                       items: contractDropDownList,
-                      onSelectionChanged: (ids) => 
-                          ref.read(exportFilterProvider.notifier).setContractFilter(ids),
+                      onSelectionChanged: (ids) => ref
+                          .read(exportFilterProvider.notifier)
+                          .setContractFilter(ids),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -344,8 +417,9 @@ class _ExportFilterWidgetState extends ConsumerState<ExportFilterWidget> {
                       hint: 'Выберите одну или несколько',
                       controller: _systemController,
                       items: systemDropDownList,
-                      onSelectionChanged: (systems) => 
-                          ref.read(exportFilterProvider.notifier).setSystemFilter(systems),
+                      onSelectionChanged: (systems) => ref
+                          .read(exportFilterProvider.notifier)
+                          .setSystemFilter(systems),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -356,13 +430,14 @@ class _ExportFilterWidgetState extends ConsumerState<ExportFilterWidget> {
                       hint: 'Выберите одну или несколько',
                       controller: _subsystemController,
                       items: subsystemDropDownList,
-                      onSelectionChanged: (subsystems) => 
-                          ref.read(exportFilterProvider.notifier).setSubsystemFilter(subsystems),
+                      onSelectionChanged: (subsystems) => ref
+                          .read(exportFilterProvider.notifier)
+                          .setSubsystemFilter(subsystems),
                     ),
                   ),
                 ],
               )
-            else 
+            else
               Column(
                 children: [
                   _buildPeriodFilter(theme, filterState),
@@ -372,8 +447,9 @@ class _ExportFilterWidgetState extends ConsumerState<ExportFilterWidget> {
                     hint: 'Выберите один или несколько',
                     controller: _objectController,
                     items: objectDropDownList,
-                    onSelectionChanged: (ids) => 
-                        ref.read(exportFilterProvider.notifier).setObjectFilter(ids),
+                    onSelectionChanged: (ids) => ref
+                        .read(exportFilterProvider.notifier)
+                        .setObjectFilter(ids),
                   ),
                   const SizedBox(height: 16),
                   _buildMultiDropDown(
@@ -381,8 +457,9 @@ class _ExportFilterWidgetState extends ConsumerState<ExportFilterWidget> {
                     hint: 'Выберите один или несколько',
                     controller: _contractController,
                     items: contractDropDownList,
-                    onSelectionChanged: (ids) => 
-                        ref.read(exportFilterProvider.notifier).setContractFilter(ids),
+                    onSelectionChanged: (ids) => ref
+                        .read(exportFilterProvider.notifier)
+                        .setContractFilter(ids),
                   ),
                   const SizedBox(height: 16),
                   _buildMultiDropDown(
@@ -390,8 +467,9 @@ class _ExportFilterWidgetState extends ConsumerState<ExportFilterWidget> {
                     hint: 'Выберите одну или несколько',
                     controller: _systemController,
                     items: systemDropDownList,
-                    onSelectionChanged: (systems) => 
-                        ref.read(exportFilterProvider.notifier).setSystemFilter(systems),
+                    onSelectionChanged: (systems) => ref
+                        .read(exportFilterProvider.notifier)
+                        .setSystemFilter(systems),
                   ),
                   const SizedBox(height: 16),
                   _buildMultiDropDown(
@@ -399,8 +477,9 @@ class _ExportFilterWidgetState extends ConsumerState<ExportFilterWidget> {
                     hint: 'Выберите одну или несколько',
                     controller: _subsystemController,
                     items: subsystemDropDownList,
-                    onSelectionChanged: (subsystems) => 
-                        ref.read(exportFilterProvider.notifier).setSubsystemFilter(subsystems),
+                    onSelectionChanged: (subsystems) => ref
+                        .read(exportFilterProvider.notifier)
+                        .setSubsystemFilter(subsystems),
                   ),
                 ],
               ),
@@ -423,7 +502,8 @@ class _ExportFilterWidgetState extends ConsumerState<ExportFilterWidget> {
             decoration: InputDecoration(
               labelText: 'Дата начала',
               hintText: 'Выберите дату',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               prefixIcon: const Icon(Icons.date_range),
               suffixIcon: const Icon(Icons.keyboard_arrow_down),
             ),
@@ -439,7 +519,8 @@ class _ExportFilterWidgetState extends ConsumerState<ExportFilterWidget> {
             decoration: InputDecoration(
               labelText: 'Дата окончания',
               hintText: 'Выберите дату',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               prefixIcon: const Icon(Icons.date_range),
               suffixIcon: const Icon(Icons.keyboard_arrow_down),
             ),
@@ -454,41 +535,118 @@ class _ExportFilterWidgetState extends ConsumerState<ExportFilterWidget> {
   void _showExportDialog(BuildContext context, WidgetRef ref) {
     showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Экспорт в Excel'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Введите имя файла:'),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _fileNameController,
-              decoration: const InputDecoration(
-                hintText: 'Имя файла',
-                border: OutlineInputBorder(),
+      builder: (context) {
+        // Префилл имени файла по правилу: один объект -> его название + дата; иначе "Сводный отчет + дата"
+        if (_fileNameController.text.trim().isEmpty) {
+          final exportState = ref.read(exportProvider);
+          String baseName;
+          if (exportState.reports.isEmpty) {
+            baseName = 'Отчет';
+          } else {
+            final objects =
+                exportState.reports.map((e) => e.objectName).toSet();
+            baseName = objects.length == 1 ? objects.first : 'Сводный отчет';
+          }
+          final dateStr = _formatDate(DateTime.now());
+          // Убираем недопустимые для имени файла символы
+          final sanitized = baseName
+              .replaceAll('\\\\', ' ')
+              .replaceAll('/', ' ')
+              .replaceAll('*', ' ')
+              .replaceAll('?', ' ')
+              .replaceAll('"', ' ')
+              .replaceAll('<', ' ')
+              .replaceAll('>', ' ')
+              .replaceAll('|', ' ')
+              .trim();
+          _fileNameController.text =
+              '${sanitized.isEmpty ? 'Отчет' : sanitized} $dateStr.xlsx';
+        }
+        // Локальное состояние диалога: стартуем с сохранённых значений (или дефолтов)
+        final Set<String> selected =
+            (_savedColumns ?? _availableColumns.map((e) => e.key).toSet())
+                .toSet();
+        bool aggregate = _savedAggregate ?? false;
+
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Экспорт в Excel'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Введите имя файла:'),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _fileNameController,
+                      decoration: const InputDecoration(
+                        hintText: 'Имя файла',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('Выберите колонки:'),
+                    const SizedBox(height: 8),
+                    ..._availableColumns.map((entry) => CheckboxListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(entry.value),
+                          value: selected.contains(entry.key),
+                          onChanged: (val) {
+                            setState(() {
+                              if (val == true) {
+                                selected.add(entry.key);
+                              } else {
+                                // Не даём снять все колонки
+                                if (selected.length > 1) {
+                                  selected.remove(entry.key);
+                                }
+                              }
+                            });
+                          },
+                        )),
+                    const Divider(height: 16),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Объединять одинаковые позиции'),
+                      value: aggregate,
+                      onChanged: (val) => setState(() => aggregate = val),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Отмена'),
-          ),
-          ElevatedButton(
-            onPressed: () => _exportToExcel(context, ref),
-            child: const Text('Экспорт'),
-          ),
-        ],
-      ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Отмена'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    await _saveExportPreferences(selected.toList(), aggregate);
+                    if (!context.mounted) return;
+                    _exportToExcel(context, ref, selected.toList(), aggregate);
+                  },
+                  child: const Text('Экспорт'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
   /// Выполняет экспорт в Excel.
-  void _exportToExcel(BuildContext context, WidgetRef ref) async {
+  void _exportToExcel(
+    BuildContext context,
+    WidgetRef ref,
+    List<String> columns,
+    bool aggregate,
+  ) async {
     Navigator.of(context).pop(); // Закрываем диалог
-    
+
     final fileName = _fileNameController.text.trim();
     if (fileName.isEmpty) {
       if (mounted) {
@@ -500,11 +658,16 @@ class _ExportFilterWidgetState extends ConsumerState<ExportFilterWidget> {
     // Сохраняем контекст перед async операцией
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     final theme = Theme.of(context);
-    
-    final filePath = await ref.read(exportProvider.notifier).exportToExcel(fileName);
-    
+
+    final filePath = await ref.read(exportProvider.notifier).exportToExcel(
+          fileName,
+          columns: columns,
+          aggregate: aggregate,
+          sheetName: null,
+        );
+
     if (!mounted) return; // Проверяем mounted после async операции
-    
+
     if (filePath != null) {
       scaffoldMessenger.showSnackBar(
         SnackBar(
@@ -528,15 +691,16 @@ class _ExportFilterWidgetState extends ConsumerState<ExportFilterWidget> {
   }
 
   /// Показывает SnackBar с сообщением.
-  void _showSnackBar(BuildContext context, String message, {bool isError = false}) {
+  void _showSnackBar(BuildContext context, String message,
+      {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: isError 
-            ? Theme.of(context).colorScheme.error 
+        backgroundColor: isError
+            ? Theme.of(context).colorScheme.error
             : Theme.of(context).colorScheme.primary,
         behavior: SnackBarBehavior.floating,
       ),
     );
   }
-} 
+}

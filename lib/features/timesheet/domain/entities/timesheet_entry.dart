@@ -9,6 +9,7 @@ part 'timesheet_entry.g.dart';
 @freezed
 abstract class TimesheetEntry with _$TimesheetEntry {
   @JsonSerializable(fieldRename: FieldRename.snake)
+
   /// Создаёт сущность записи в табеле рабочего времени сотрудника.
   ///
   /// [id] — идентификатор записи (совпадает с id в work_hours)
@@ -26,30 +27,42 @@ abstract class TimesheetEntry with _$TimesheetEntry {
   const factory TimesheetEntry({
     /// Идентификатор записи (совпадает с id в work_hours).
     required String id,
+
     /// Идентификатор смены.
     required String workId,
+
     /// Идентификатор сотрудника.
     required String employeeId,
+
     /// Количество отработанных часов.
     required num hours,
+
     /// Комментарий к записи.
     String? comment,
+
     /// Дата смены (не хранится в work_hours, добавляется из works).
     required DateTime date,
+
     /// Идентификатор объекта (не хранится в work_hours, добавляется из works).
     required String objectId,
+
     /// Имя сотрудника для отображения (не хранится в БД).
     String? employeeName,
+
     /// Название объекта для отображения (не хранится в БД).
     String? objectName,
+
     /// Должность сотрудника (не хранится в БД).
     String? employeePosition,
+
     /// Дата создания записи.
     DateTime? createdAt,
+
     /// Дата обновления записи.
     DateTime? updatedAt,
   }) = _TimesheetEntry;
 
   /// Создаёт сущность записи в табеле рабочего времени сотрудника из JSON.
-  factory TimesheetEntry.fromJson(Map<String, dynamic> json) => _$TimesheetEntryFromJson(json);
-} 
+  factory TimesheetEntry.fromJson(Map<String, dynamic> json) =>
+      _$TimesheetEntryFromJson(json);
+}

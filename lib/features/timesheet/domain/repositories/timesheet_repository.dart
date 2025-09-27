@@ -4,7 +4,7 @@ import '../entities/timesheet_summary.dart';
 /// Интерфейс репозитория для работы с данными табеля рабочего времени.
 abstract class TimesheetRepository {
   /// Получает записи табеля с возможностью фильтрации.
-  /// 
+  ///
   /// [startDate] - начальная дата для фильтрации
   /// [endDate] - конечная дата для фильтрации
   /// [employeeId] - ID сотрудника для фильтрации
@@ -15,9 +15,9 @@ abstract class TimesheetRepository {
     String? employeeId,
     String? objectId,
   });
-  
+
   /// Получает сводные данные по часам сотрудников.
-  /// 
+  ///
   /// [startDate] - начальная дата для фильтрации
   /// [endDate] - конечная дата для фильтрации
   /// [employeeIds] - список ID сотрудников для фильтрации
@@ -28,4 +28,4 @@ abstract class TimesheetRepository {
     List<String>? employeeIds,
     List<String>? objectIds,
   });
-} 
+}

@@ -21,22 +21,30 @@ abstract class WorkMaterial with _$WorkMaterial {
   const factory WorkMaterial({
     /// Идентификатор материала.
     required String id,
+
     /// Идентификатор смены.
     required String workId,
+
     /// Наименование материала.
     required String name,
+
     /// Единица измерения.
     required String unit,
+
     /// Количество.
     required num quantity,
+
     /// Комментарий к материалу.
     String? comment,
+
     /// Дата создания записи.
     DateTime? createdAt,
+
     /// Дата последнего обновления.
     DateTime? updatedAt,
   }) = _WorkMaterial;
 
   /// Создаёт сущность из JSON.
-  factory WorkMaterial.fromJson(Map<String, dynamic> json) => _$WorkMaterialFromJson(json);
-} 
+  factory WorkMaterial.fromJson(Map<String, dynamic> json) =>
+      _$WorkMaterialFromJson(json);
+}

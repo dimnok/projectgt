@@ -29,4 +29,4 @@ class RegisterUseCase {
   Future<User> execute(String name, String email, String password) {
     return repository.register(name, email, password);
   }
-} 
+}

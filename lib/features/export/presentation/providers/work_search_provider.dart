@@ -7,8 +7,10 @@ import 'repositories_providers.dart';
 class WorkSearchState {
   /// Результаты поиска.
   final List<WorkSearchResult> results;
+
   /// Флаг загрузки.
   final bool isLoading;
+
   /// Сообщение об ошибке.
   final String? error;
 
@@ -39,7 +41,8 @@ class WorkSearchNotifier extends StateNotifier<WorkSearchState> {
   final WorkSearchRepository repository;
 
   /// Создаёт [WorkSearchNotifier].
-  WorkSearchNotifier(this.repository) : super(const WorkSearchState(results: []));
+  WorkSearchNotifier(this.repository)
+      : super(const WorkSearchState(results: []));
 
   /// Выполняет поиск материалов по параметрам.
   Future<void> searchMaterials({
@@ -62,7 +65,7 @@ class WorkSearchNotifier extends StateNotifier<WorkSearchState> {
         endDate: endDate,
         objectId: objectId,
       );
-      
+
       state = state.copyWith(results: results, isLoading: false);
     } catch (e) {
       state = state.copyWith(
@@ -79,7 +82,8 @@ class WorkSearchNotifier extends StateNotifier<WorkSearchState> {
 }
 
 /// Провайдер состояния поиска материалов.
-final workSearchProvider = StateNotifierProvider<WorkSearchNotifier, WorkSearchState>((ref) {
+final workSearchProvider =
+    StateNotifierProvider<WorkSearchNotifier, WorkSearchState>((ref) {
   final repository = ref.watch(workSearchRepositoryProvider);
   return WorkSearchNotifier(repository);
-}); 
+});

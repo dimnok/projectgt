@@ -3,7 +3,7 @@ import '../models/payroll_penalty_model.dart';
 import 'payroll_penalty_repository.dart';
 
 /// Имплементация репозитория для работы со штрафами по расчёту ФОТ через Supabase.
-/// 
+///
 /// Позволяет получать, создавать, обновлять и удалять штрафы, связанные с расчётом фонда оплаты труда (ФОТ).
 class PayrollPenaltyRepositoryImpl implements PayrollPenaltyRepository {
   /// Экземпляр SupabaseClient для доступа к базе данных.
@@ -13,7 +13,7 @@ class PayrollPenaltyRepositoryImpl implements PayrollPenaltyRepository {
   PayrollPenaltyRepositoryImpl(this.client);
 
   /// Создать новый штраф.
-  /// 
+  ///
   /// [penalty] — модель штрафа для создания.
   /// Возвращает созданную модель [PayrollPenaltyModel].
   @override
@@ -28,7 +28,7 @@ class PayrollPenaltyRepositoryImpl implements PayrollPenaltyRepository {
   }
 
   /// Обновить штраф по идентификатору.
-  /// 
+  ///
   /// [penalty] — модель штрафа для обновления.
   /// Возвращает обновлённую модель [PayrollPenaltyModel].
   @override
@@ -44,7 +44,7 @@ class PayrollPenaltyRepositoryImpl implements PayrollPenaltyRepository {
   }
 
   /// Удалить штраф по идентификатору.
-  /// 
+  ///
   /// [id] — идентификатор штрафа для удаления.
   @override
   Future<void> deletePenalty(String id) async {
@@ -56,7 +56,8 @@ class PayrollPenaltyRepositoryImpl implements PayrollPenaltyRepository {
   Future<List<PayrollPenaltyModel>> getAllPenalties() async {
     final response = await client.from('payroll_penalty').select();
     return (response as List)
-        .map((json) => PayrollPenaltyModel.fromJson(json as Map<String, dynamic>))
+        .map((json) =>
+            PayrollPenaltyModel.fromJson(json as Map<String, dynamic>))
         .toList();
   }
-} 
+}

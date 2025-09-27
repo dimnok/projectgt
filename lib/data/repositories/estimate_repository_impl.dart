@@ -43,7 +43,7 @@ class EstimateRepositoryImpl implements EstimateRepository {
   Future<void> deleteEstimate(String id) async {
     await dataSource.deleteEstimate(id);
   }
-  
+
   /// Получает список уникальных систем из всех смет.
   @override
   Future<List<String>> getSystems({String? estimateTitle}) async {
@@ -51,12 +51,12 @@ class EstimateRepositoryImpl implements EstimateRepository {
         .from('estimates')
         .select('system')
         .not('system', 'is', null);
-    
+
     // Фильтруем по названию сметы, если оно указано
     if (estimateTitle != null) {
       query = query.eq('estimate_title', estimateTitle);
     }
-    
+
     final data = await query;
 
     final systems = <String>{};
@@ -68,7 +68,7 @@ class EstimateRepositoryImpl implements EstimateRepository {
     }
     return systems.toList()..sort();
   }
-  
+
   /// Получает список уникальных подсистем из всех смет.
   @override
   Future<List<String>> getSubsystems({String? estimateTitle}) async {
@@ -76,12 +76,12 @@ class EstimateRepositoryImpl implements EstimateRepository {
         .from('estimates')
         .select('subsystem')
         .not('subsystem', 'is', null);
-    
+
     // Фильтруем по названию сметы, если оно указано
     if (estimateTitle != null) {
       query = query.eq('estimate_title', estimateTitle);
     }
-    
+
     final data = await query;
 
     final subsystems = <String>{};
@@ -93,7 +93,7 @@ class EstimateRepositoryImpl implements EstimateRepository {
     }
     return subsystems.toList()..sort();
   }
-  
+
   /// Получает список уникальных единиц измерения из всех смет.
   @override
   Future<List<String>> getUnits({String? estimateTitle}) async {
@@ -101,12 +101,12 @@ class EstimateRepositoryImpl implements EstimateRepository {
         .from('estimates')
         .select('unit')
         .not('unit', 'is', null);
-    
+
     // Фильтруем по названию сметы, если оно указано
     if (estimateTitle != null) {
       query = query.eq('estimate_title', estimateTitle);
     }
-    
+
     final data = await query;
 
     final units = <String>{};
@@ -118,4 +118,4 @@ class EstimateRepositoryImpl implements EstimateRepository {
     }
     return units.toList()..sort();
   }
-} 
+}

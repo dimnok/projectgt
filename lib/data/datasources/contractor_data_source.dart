@@ -54,13 +54,17 @@ class SupabaseContractorDataSource implements ContractorDataSource {
 
   @override
   Future<List<ContractorModel>> getContractors() async {
-    final response = await client.from('contractors').select('*').order('full_name');
-    return response.map<ContractorModel>((json) => ContractorModel.fromJson(json)).toList();
+    final response =
+        await client.from('contractors').select('*').order('full_name');
+    return response
+        .map<ContractorModel>((json) => ContractorModel.fromJson(json))
+        .toList();
   }
 
   @override
   Future<ContractorModel?> getContractor(String id) async {
-    final response = await client.from('contractors').select('*').eq('id', id).maybeSingle();
+    final response =
+        await client.from('contractors').select('*').eq('id', id).maybeSingle();
     if (response == null) return null;
     return ContractorModel.fromJson(response);
   }
@@ -73,7 +77,11 @@ class SupabaseContractorDataSource implements ContractorDataSource {
     contractorJson['updated_at'] = now;
     Logger().d('[DEBUG] contractorJson to insert:');
     Logger().d(contractorJson);
-    final response = await client.from('contractors').insert(contractorJson).select().maybeSingle();
+    final response = await client
+        .from('contractors')
+        .insert(contractorJson)
+        .select()
+        .maybeSingle();
     if (response == null) {
       throw Exception('Ошибка создания контрагента');
     }
@@ -85,7 +93,12 @@ class SupabaseContractorDataSource implements ContractorDataSource {
     final now = DateTime.now().toIso8601String();
     final contractorJson = contractor.toJson();
     contractorJson['updated_at'] = now;
-    final response = await client.from('contractors').update(contractorJson).eq('id', contractor.id).select().maybeSingle();
+    final response = await client
+        .from('contractors')
+        .update(contractorJson)
+        .eq('id', contractor.id)
+        .select()
+        .maybeSingle();
     if (response == null) {
       throw Exception('Контрагент не найден для обновления');
     }
@@ -96,4 +109,4 @@ class SupabaseContractorDataSource implements ContractorDataSource {
   Future<void> deleteContractor(String id) async {
     await client.from('contractors').delete().eq('id', id);
   }
-} 
+}

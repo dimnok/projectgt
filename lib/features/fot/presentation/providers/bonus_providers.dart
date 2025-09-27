@@ -40,36 +40,43 @@ final filteredBonusesProvider = Provider<List<PayrollBonusModel>>((ref) {
         // Фильтр по дате
         final date = bonus.createdAt;
         final inMonth = date != null &&
-          date.year == filter.year &&
-          date.month == filter.month;
+            date.year == filter.year &&
+            date.month == filter.month;
         // Фильтр по сотруднику
         final byEmployee = filter.employeeIds.isEmpty ||
-          (bonus.employeeId.isNotEmpty && filter.employeeIds.contains(bonus.employeeId));
+            (bonus.employeeId.isNotEmpty &&
+                filter.employeeIds.contains(bonus.employeeId));
         // Фильтр по объекту
         final byObject = filter.objectIds.isEmpty ||
-          (bonus.objectId != null && filter.objectIds.contains(bonus.objectId));
+            (bonus.objectId != null &&
+                filter.objectIds.contains(bonus.objectId));
         // Фильтр по должности
         final byPosition = filter.positionNames.isEmpty ||
-          (() {
-            final emp = employees.firstWhereOrNull((e) => e.id == bonus.employeeId);
-            return emp != null && filter.positionNames.contains(emp.position);
-          })();
+            (() {
+              final emp =
+                  employees.firstWhereOrNull((e) => e.id == bonus.employeeId);
+              return emp != null && filter.positionNames.contains(emp.position);
+            })();
         return inMonth && byEmployee && byObject && byPosition;
       }).toList();
-      
+
       // Сортируем по алфавиту (ФИО сотрудников)
       filteredBonuses.sort((a, b) {
         final empA = employees.firstWhereOrNull((e) => e.id == a.employeeId);
         final empB = employees.firstWhereOrNull((e) => e.id == b.employeeId);
-        final nameA = empA != null 
-            ? ('${empA.lastName} ${empA.firstName} ${empA.middleName ?? ''}').trim().toLowerCase() 
+        final nameA = empA != null
+            ? ('${empA.lastName} ${empA.firstName} ${empA.middleName ?? ''}')
+                .trim()
+                .toLowerCase()
             : a.employeeId.toLowerCase();
-        final nameB = empB != null 
-            ? ('${empB.lastName} ${empB.firstName} ${empB.middleName ?? ''}').trim().toLowerCase() 
+        final nameB = empB != null
+            ? ('${empB.lastName} ${empB.firstName} ${empB.middleName ?? ''}')
+                .trim()
+                .toLowerCase()
             : b.employeeId.toLowerCase();
         return nameA.compareTo(nameB);
       });
-      
+
       return filteredBonuses;
     },
     orElse: () => [],
@@ -79,7 +86,8 @@ final filteredBonusesProvider = Provider<List<PayrollBonusModel>>((ref) {
 /// Провайдер usecase для создания премии.
 ///
 /// @returns Future<void> Function(PayrollBonusModel) — функция создания премии.
-final createBonusUseCaseProvider = Provider<Future<void> Function(PayrollBonusModel)>((ref) {
+final createBonusUseCaseProvider =
+    Provider<Future<void> Function(PayrollBonusModel)>((ref) {
   final repo = ref.watch(payrollBonusRepositoryProvider);
   return (PayrollBonusModel bonus) async {
     await repo.createBonus(bonus);
@@ -89,7 +97,8 @@ final createBonusUseCaseProvider = Provider<Future<void> Function(PayrollBonusMo
 /// Провайдер usecase для обновления премии.
 ///
 /// @returns Future<void> Function(PayrollBonusModel) — функция обновления премии.
-final updateBonusUseCaseProvider = Provider<Future<void> Function(PayrollBonusModel)>((ref) {
+final updateBonusUseCaseProvider =
+    Provider<Future<void> Function(PayrollBonusModel)>((ref) {
   final repo = ref.watch(payrollBonusRepositoryProvider);
   return (PayrollBonusModel bonus) async {
     await repo.updateBonus(bonus);
@@ -99,9 +108,10 @@ final updateBonusUseCaseProvider = Provider<Future<void> Function(PayrollBonusMo
 /// Провайдер usecase для удаления премии по id.
 ///
 /// @returns Future<void> Function(String) — функция удаления премии по id.
-final deleteBonusUseCaseProvider = Provider<Future<void> Function(String)>((ref) {
+final deleteBonusUseCaseProvider =
+    Provider<Future<void> Function(String)>((ref) {
   final repo = ref.watch(payrollBonusRepositoryProvider);
   return (String id) async {
     await repo.deleteBonus(id);
   };
-}); 
+});

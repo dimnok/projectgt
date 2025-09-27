@@ -9,10 +9,13 @@ import 'package:projectgt/presentation/state/auth_state.dart';
 enum ProfileStatus {
   /// Начальное состояние (ничего не загружено).
   initial,
+
   /// Выполняется загрузка или операция.
   loading,
+
   /// Операция завершена успешно.
   success,
+
   /// Произошла ошибка при выполнении операции.
   error,
 }
@@ -23,10 +26,13 @@ enum ProfileStatus {
 class ProfileState {
   /// Текущий статус загрузки/операции ([ProfileStatus]).
   final ProfileStatus status;
+
   /// Текущий профиль пользователя (если есть).
   final Profile? profile;
+
   /// Список всех профилей пользователей.
   final List<Profile> profiles;
+
   /// Сообщение об ошибке (если есть).
   final String? errorMessage;
 
@@ -75,13 +81,16 @@ class ProfileState {
 class ProfileNotifier extends StateNotifier<ProfileState> {
   /// Провайдер use case для получения профиля.
   final getProfileUseCase = getProfileUseCaseProvider;
+
   /// Провайдер use case для получения списка профилей.
   final getProfilesUseCase = getProfilesUseCaseProvider;
+
   /// Провайдер use case для обновления профиля.
   final updateProfileUseCase = updateProfileUseCaseProvider;
-  
+
   /// Флаг, указывающий, что профиль сейчас загружается.
   bool _isLoadingProfile = false;
+
   /// Флаг, указывающий, что список профилей сейчас загружается.
   bool _isLoadingProfiles = false;
 
@@ -99,7 +108,7 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
   void _listenToAuthChanges() {
     _ref.listen(authProvider, (previous, current) {
       // Запрашиваем профиль только при смене пользователя или первой авторизации
-      if (current.status == AuthStatus.authenticated && 
+      if (current.status == AuthStatus.authenticated &&
           current.user != null &&
           (previous?.user?.id != current.user!.id || state.profile == null)) {
         getProfile(current.user!.id);
@@ -107,10 +116,10 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
         state = ProfileState.initial();
       }
     });
-    
+
     final authState = _ref.read(authProvider);
-    if (authState.status == AuthStatus.authenticated && 
-        authState.user != null && 
+    if (authState.status == AuthStatus.authenticated &&
+        authState.user != null &&
         state.profile == null) {
       getProfile(authState.user!.id);
     }
@@ -121,16 +130,16 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
   /// Если профиль уже загружается или уже загружен и id совпадает, повторный запрос не выполняется.
   /// В случае успеха — обновляет состояние на success, иначе — error с сообщением.
   Future<void> getProfile(String userId) async {
-    if (_isLoadingProfile || 
-        (state.profile != null && 
-         state.profile!.id == userId && 
-         state.status == ProfileStatus.success)) {
+    if (_isLoadingProfile ||
+        (state.profile != null &&
+            state.profile!.id == userId &&
+            state.status == ProfileStatus.success)) {
       return;
     }
-    
+
     _isLoadingProfile = true;
     state = state.copyWith(status: ProfileStatus.loading);
-    
+
     try {
       final profile = await _ref.read(getProfileUseCaseProvider).call(userId);
       if (profile != null) {
@@ -159,15 +168,14 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
   /// Если список уже загружается или уже загружен, повторный запрос не выполняется.
   /// В случае успеха — обновляет состояние на success, иначе — error с сообщением.
   Future<void> getProfiles() async {
-    if (_isLoadingProfiles || 
-        (state.profiles.isNotEmpty && 
-         state.status == ProfileStatus.success)) {
+    if (_isLoadingProfiles ||
+        (state.profiles.isNotEmpty && state.status == ProfileStatus.success)) {
       return;
     }
-    
+
     _isLoadingProfiles = true;
     state = state.copyWith(status: ProfileStatus.loading);
-    
+
     try {
       final profiles = await _ref.read(getProfilesUseCaseProvider).call();
       state = state.copyWith(
@@ -190,7 +198,139 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
   Future<void> updateProfile(Profile profile) async {
     state = state.copyWith(status: ProfileStatus.loading);
     try {
-      final updatedProfile = await _ref.read(updateProfileUseCaseProvider).call(profile);
+      final updatedProfile =
+          await _ref.read(updateProfileUseCaseProvider).call(profile);
+      // Обновляем как текущий профиль, так и список профилей, если он загружен
+      final updatedList = state.profiles.isEmpty
+          ? state.profiles
+          : state.profiles
+              .map((p) => p.id == updatedProfile.id ? updatedProfile : p)
+              .toList();
+      state = state.copyWith(
+        status: ProfileStatus.success,
+        profile: updatedProfile,
+        profiles: updatedList,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        status: ProfileStatus.error,
+        errorMessage: e.toString(),
+      );
+    }
+  }
+
+  /// Принудительно обновляет данные профиля по [userId].
+  ///
+  /// Сбрасывает флаг загрузки и выполняет повторный запрос.
+  Future<void> refreshProfile(String userId) async {
+    _isLoadingProfile = false;
+    // Сбрасываем статус, чтобы не сработало раннее завершение в getProfile
+    state = state.copyWith(status: ProfileStatus.loading);
+    return getProfile(userId);
+  }
+
+  /// Принудительно обновляет список профилей.
+  ///
+  /// Сбрасывает флаг загрузки и выполняет повторный запрос.
+  Future<void> refreshProfiles() async {
+    _isLoadingProfiles = false;
+    // Сбрасываем статус, чтобы не сработало раннее завершение в getProfiles
+    state = state.copyWith(status: ProfileStatus.loading);
+    return getProfiles();
+  }
+}
+
+/// StateNotifier для управления профилем текущего авторизованного пользователя.
+///
+/// Всегда содержит профиль текущего пользователя и не перезаписывается при просмотре чужих профилей.
+/// Используется для UI компонентов, которые должны показывать данные текущего пользователя.
+class CurrentUserProfileNotifier extends StateNotifier<ProfileState> {
+  /// Провайдер use case для получения профиля.
+  final getProfileUseCase = getProfileUseCaseProvider;
+
+  /// Провайдер use case для обновления профиля.
+  final updateProfileUseCase = updateProfileUseCaseProvider;
+
+  /// Флаг, указывающий, что профиль сейчас загружается.
+  bool _isLoadingProfile = false;
+
+  /// Создаёт [CurrentUserProfileNotifier] и подписывается на изменения авторизации.
+  CurrentUserProfileNotifier(Ref ref)
+      : _ref = ref,
+        super(ProfileState.initial()) {
+    _listenToAuthChanges();
+  }
+
+  /// Ссылка на [Ref] для доступа к провайдерам.
+  final Ref _ref;
+
+  /// Подписывается на изменения статуса авторизации и автоматически загружает профиль текущего пользователя.
+  void _listenToAuthChanges() {
+    _ref.listen(authProvider, (previous, current) {
+      // Загружаем профиль только при смене пользователя или первой авторизации
+      if (current.status == AuthStatus.authenticated &&
+          current.user != null &&
+          (previous?.user?.id != current.user!.id || state.profile == null)) {
+        getCurrentUserProfile(current.user!.id);
+      } else if (current.status == AuthStatus.unauthenticated) {
+        state = ProfileState.initial();
+      }
+    });
+
+    final authState = _ref.read(authProvider);
+    if (authState.status == AuthStatus.authenticated &&
+        authState.user != null &&
+        state.profile == null) {
+      getCurrentUserProfile(authState.user!.id);
+    }
+  }
+
+  /// Загружает профиль текущего пользователя по [userId].
+  ///
+  /// Этот метод всегда загружает профиль текущего пользователя и не перезаписывается
+  /// при просмотре чужих профилей.
+  Future<void> getCurrentUserProfile(String userId) async {
+    if (_isLoadingProfile ||
+        (state.profile != null &&
+            state.profile!.id == userId &&
+            state.status == ProfileStatus.success)) {
+      return;
+    }
+
+    _isLoadingProfile = true;
+    state = state.copyWith(status: ProfileStatus.loading);
+
+    try {
+      final profile = await _ref.read(getProfileUseCaseProvider).call(userId);
+      if (profile != null) {
+        state = state.copyWith(
+          status: ProfileStatus.success,
+          profile: profile,
+        );
+      } else {
+        state = state.copyWith(
+          status: ProfileStatus.error,
+          errorMessage: 'Профиль не найден',
+        );
+      }
+    } catch (e) {
+      state = state.copyWith(
+        status: ProfileStatus.error,
+        errorMessage: e.toString(),
+      );
+    } finally {
+      _isLoadingProfile = false;
+    }
+  }
+
+  /// Обновляет профиль текущего пользователя.
+  ///
+  /// После успешного обновления — обновляет состояние с новым профилем.
+  Future<void> updateCurrentUserProfile(Profile profile) async {
+    state = state.copyWith(status: ProfileStatus.loading);
+    try {
+      final updatedProfile =
+          await _ref.read(updateProfileUseCaseProvider).call(profile);
       state = state.copyWith(
         status: ProfileStatus.success,
         profile: updatedProfile,
@@ -202,27 +342,31 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       );
     }
   }
-  
-  /// Принудительно обновляет данные профиля по [userId].
+
+  /// Принудительно обновляет данные профиля текущего пользователя.
   ///
   /// Сбрасывает флаг загрузки и выполняет повторный запрос.
-  Future<void> refreshProfile(String userId) async {
+  Future<void> refreshCurrentUserProfile(String userId) async {
     _isLoadingProfile = false;
-    return getProfile(userId);
-  }
-  
-  /// Принудительно обновляет список профилей.
-  ///
-  /// Сбрасывает флаг загрузки и выполняет повторный запрос.
-  Future<void> refreshProfiles() async {
-    _isLoadingProfiles = false;
-    return getProfiles();
+    // Сбрасываем успех, чтобы не сработало раннее завершение в getCurrentUserProfile
+    state = state.copyWith(status: ProfileStatus.loading);
+    return getCurrentUserProfile(userId);
   }
 }
 
 /// Провайдер состояния профиля пользователя.
 ///
 /// Используется для доступа к [ProfileNotifier] и [ProfileState] во всём приложении.
-final profileProvider = StateNotifierProvider<ProfileNotifier, ProfileState>((ref) {
+final profileProvider =
+    StateNotifierProvider<ProfileNotifier, ProfileState>((ref) {
   return ProfileNotifier(ref);
-}); 
+});
+
+/// Провайдер профиля текущего авторизованного пользователя.
+///
+/// Всегда содержит профиль текущего пользователя и не перезаписывается при просмотре чужих профилей.
+/// Используется для UI компонентов, которые должны показывать данные текущего пользователя (например, AppDrawer).
+final currentUserProfileProvider =
+    StateNotifierProvider<CurrentUserProfileNotifier, ProfileState>((ref) {
+  return CurrentUserProfileNotifier(ref);
+});

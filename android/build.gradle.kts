@@ -1,3 +1,5 @@
+// google-services plugin removed
+
 allprojects {
     repositories {
         google()

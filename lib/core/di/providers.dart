@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:projectgt/data/datasources/auth_data_source.dart';
+// Telegram data source удалён
 import 'package:projectgt/data/datasources/profile_data_source.dart';
 import 'package:projectgt/data/datasources/employee_data_source.dart';
 import 'package:projectgt/data/repositories/auth_repository_impl.dart';
@@ -13,6 +14,12 @@ import 'package:projectgt/domain/usecases/auth/get_current_user_usecase.dart';
 import 'package:projectgt/domain/usecases/auth/login_usecase.dart';
 import 'package:projectgt/domain/usecases/auth/logout_usecase.dart';
 import 'package:projectgt/domain/usecases/auth/register_usecase.dart';
+import 'package:projectgt/domain/usecases/auth/request_email_otp_usecase.dart';
+import 'package:projectgt/domain/usecases/auth/verify_email_otp_usecase.dart';
+import 'package:projectgt/domain/usecases/auth/complete_user_profile_usecase.dart';
+// Telegram auth usecases удалены
+
+// Telegram moderation слои удалены
 import 'package:projectgt/domain/usecases/profile/get_profile_usecase.dart';
 import 'package:projectgt/domain/usecases/profile/get_profiles_usecase.dart';
 import 'package:projectgt/domain/usecases/profile/update_profile_usecase.dart';
@@ -51,12 +58,22 @@ import 'package:projectgt/presentation/state/contract_state.dart';
 import 'package:projectgt/data/datasources/estimate_data_source.dart';
 import 'package:projectgt/data/repositories/estimate_repository_impl.dart';
 import 'package:projectgt/domain/repositories/estimate_repository.dart';
+import 'package:projectgt/data/datasources/work_plan_data_source.dart';
+import 'package:projectgt/data/repositories/work_plan_repository_impl.dart';
+import 'package:projectgt/domain/repositories/work_plan_repository.dart';
 import 'package:projectgt/domain/usecases/estimate/get_estimates_usecase.dart';
 import 'package:projectgt/domain/usecases/estimate/get_estimate_usecase.dart';
 import 'package:projectgt/domain/usecases/estimate/create_estimate_usecase.dart';
 import 'package:projectgt/domain/usecases/estimate/update_estimate_usecase.dart';
 import 'package:projectgt/domain/usecases/estimate/delete_estimate_usecase.dart';
+import 'package:projectgt/domain/usecases/work_plan/get_work_plans_usecase.dart';
+import 'package:projectgt/domain/usecases/work_plan/get_work_plan_usecase.dart';
+import 'package:projectgt/domain/usecases/work_plan/create_work_plan_usecase.dart';
+import 'package:projectgt/domain/usecases/work_plan/update_work_plan_usecase.dart';
+import 'package:projectgt/domain/usecases/work_plan/delete_work_plan_usecase.dart';
+// Удалён неиспользуемый use-case get_user_work_plans_usecase
 import 'package:projectgt/presentation/state/estimate_state.dart';
+import 'package:projectgt/presentation/state/work_plan_state.dart';
 import 'package:projectgt/features/works/domain/repositories/work_hour_repository.dart';
 import 'package:projectgt/features/works/data/datasources/work_hour_data_source.dart';
 import 'package:projectgt/features/works/data/datasources/work_hour_data_source_impl.dart';
@@ -73,6 +90,10 @@ final authDataSourceProvider = Provider<AuthDataSource>((ref) {
   final client = ref.watch(supabaseClientProvider);
   return SupabaseAuthDataSource(client);
 });
+
+// TelegramAuthDataSource удалён
+
+// TelegramModerationDataSource удалён
 
 /// Провайдер для ProfileDataSource (Supabase).
 final profileDataSourceProvider = Provider<ProfileDataSource>((ref) {
@@ -110,11 +131,22 @@ final estimateDataSourceProvider = Provider<EstimateDataSource>((ref) {
   return SupabaseEstimateDataSource(client);
 });
 
+/// Провайдер для WorkPlanDataSource (Supabase).
+final workPlanDataSourceProvider = Provider<WorkPlanDataSource>((ref) {
+  final client = ref.watch(supabaseClientProvider);
+  return SupabaseWorkPlanDataSource(client);
+});
+
 // Repositories
+// TelegramModerationRepository удалён
+
 /// Провайдер репозитория аутентификации.
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  final dataSource = ref.watch(authDataSourceProvider);
-  return AuthRepositoryImpl(dataSource);
+  final authDataSource = ref.watch(authDataSourceProvider);
+  return AuthRepositoryImpl(
+    authDataSource: authDataSource,
+    // Telegram зависимостями больше не пользуемся
+  );
 });
 
 /// Провайдер репозитория профилей.
@@ -153,6 +185,12 @@ final estimateRepositoryProvider = Provider<EstimateRepository>((ref) {
   return EstimateRepositoryImpl(dataSource);
 });
 
+/// Провайдер репозитория планов работ.
+final workPlanRepositoryProvider = Provider<WorkPlanRepository>((ref) {
+  final dataSource = ref.watch(workPlanDataSourceProvider);
+  return WorkPlanRepositoryImpl(dataSource);
+});
+
 // UseCases - Auth
 /// Провайдер use-case для логина пользователя.
 final loginUseCaseProvider = Provider<LoginUseCase>((ref) {
@@ -166,6 +204,25 @@ final registerUseCaseProvider = Provider<RegisterUseCase>((ref) {
   return RegisterUseCase(repository);
 });
 
+/// Провайдер use-case для отправки OTP на email
+final requestEmailOtpUseCaseProvider = Provider<RequestEmailOtpUseCase>((ref) {
+  final repository = ref.watch(authRepositoryProvider);
+  return RequestEmailOtpUseCase(repository);
+});
+
+/// Провайдер use-case для подтверждения OTP и входа
+final verifyEmailOtpUseCaseProvider = Provider<VerifyEmailOtpUseCase>((ref) {
+  final repository = ref.watch(authRepositoryProvider);
+  return VerifyEmailOtpUseCase(repository);
+});
+
+/// Провайдер use-case для завершения заполнения профиля пользователя
+final completeUserProfileUseCaseProvider =
+    Provider<CompleteUserProfileUseCase>((ref) {
+  final repository = ref.watch(authRepositoryProvider);
+  return CompleteUserProfileUseCase(repository);
+});
+
 /// Провайдер use-case для выхода пользователя.
 final logoutUseCaseProvider = Provider<LogoutUseCase>((ref) {
   final repository = ref.watch(authRepositoryProvider);
@@ -177,6 +234,10 @@ final getCurrentUserUseCaseProvider = Provider<GetCurrentUserUseCase>((ref) {
   final repository = ref.watch(authRepositoryProvider);
   return GetCurrentUserUseCase(repository);
 });
+
+// UseCases Telegram удалены
+
+// UseCases Telegram moderation удалены
 
 // UseCases - Profile
 /// Провайдер use-case для получения профиля.
@@ -273,19 +334,22 @@ final getContractorUseCaseProvider = Provider<GetContractorUseCase>((ref) {
 });
 
 /// Провайдер use-case для создания подрядчика.
-final createContractorUseCaseProvider = Provider<CreateContractorUseCase>((ref) {
+final createContractorUseCaseProvider =
+    Provider<CreateContractorUseCase>((ref) {
   final repository = ref.watch(contractorRepositoryProvider);
   return CreateContractorUseCase(repository);
 });
 
 /// Провайдер use-case для обновления подрядчика.
-final updateContractorUseCaseProvider = Provider<UpdateContractorUseCase>((ref) {
+final updateContractorUseCaseProvider =
+    Provider<UpdateContractorUseCase>((ref) {
   final repository = ref.watch(contractorRepositoryProvider);
   return UpdateContractorUseCase(repository);
 });
 
 /// Провайдер use-case для удаления подрядчика.
-final deleteContractorUseCaseProvider = Provider<DeleteContractorUseCase>((ref) {
+final deleteContractorUseCaseProvider =
+    Provider<DeleteContractorUseCase>((ref) {
   final repository = ref.watch(contractorRepositoryProvider);
   return DeleteContractorUseCase(repository);
 });
@@ -352,9 +416,44 @@ final deleteEstimateUseCaseProvider = Provider<DeleteEstimateUseCase>((ref) {
   return DeleteEstimateUseCase(repository);
 });
 
+// UseCases - WorkPlan
+/// Провайдер use-case для получения списка планов работ.
+final getWorkPlansUseCaseProvider = Provider<GetWorkPlansUseCase>((ref) {
+  final repository = ref.watch(workPlanRepositoryProvider);
+  return GetWorkPlansUseCase(repository);
+});
+
+/// Провайдер use-case для получения одного плана работ.
+final getWorkPlanUseCaseProvider = Provider<GetWorkPlanUseCase>((ref) {
+  final repository = ref.watch(workPlanRepositoryProvider);
+  return GetWorkPlanUseCase(repository);
+});
+
+/// Провайдер use-case для создания плана работ.
+final createWorkPlanUseCaseProvider = Provider<CreateWorkPlanUseCase>((ref) {
+  final repository = ref.watch(workPlanRepositoryProvider);
+  return CreateWorkPlanUseCase(repository);
+});
+
+/// Провайдер use-case для обновления плана работ.
+final updateWorkPlanUseCaseProvider = Provider<UpdateWorkPlanUseCase>((ref) {
+  final repository = ref.watch(workPlanRepositoryProvider);
+  return UpdateWorkPlanUseCase(repository);
+});
+
+/// Провайдер use-case для удаления плана работ.
+final deleteWorkPlanUseCaseProvider = Provider<DeleteWorkPlanUseCase>((ref) {
+  final repository = ref.watch(workPlanRepositoryProvider);
+  return DeleteWorkPlanUseCase(repository);
+});
+
+/// Провайдер use-case для получения пользовательских планов работ.
+// Удалён провайдер getUserWorkPlansUseCaseProvider как неиспользуемый
+
 // ObjectNotifier provider
 /// StateNotifierProvider для управления состоянием объектов (ObjectState).
-final objectProvider = StateNotifierProvider<ObjectNotifier, ObjectState>((ref) {
+final objectProvider =
+    StateNotifierProvider<ObjectNotifier, ObjectState>((ref) {
   return ObjectNotifier(
     getObjectsUseCase: ref.watch(getObjectsUseCaseProvider),
     createObjectUseCase: ref.watch(createObjectUseCaseProvider),
@@ -365,7 +464,8 @@ final objectProvider = StateNotifierProvider<ObjectNotifier, ObjectState>((ref) 
 
 // ContractorNotifier provider
 /// StateNotifierProvider для управления состоянием подрядчиков (ContractorState).
-final contractorProvider = StateNotifierProvider<ContractorNotifier, ContractorState>((ref) {
+final contractorProvider =
+    StateNotifierProvider<ContractorNotifier, ContractorState>((ref) {
   return ContractorNotifier(
     getContractorsUseCase: ref.watch(getContractorsUseCaseProvider),
     getContractorUseCase: ref.watch(getContractorUseCaseProvider),
@@ -378,7 +478,8 @@ final contractorProvider = StateNotifierProvider<ContractorNotifier, ContractorS
 
 // ContractNotifier provider
 /// StateNotifierProvider для управления состоянием договоров (ContractState).
-final contractProvider = StateNotifierProvider<ContractNotifier, ContractState>((ref) {
+final contractProvider =
+    StateNotifierProvider<ContractNotifier, ContractState>((ref) {
   return ContractNotifier(
     getContractsUseCase: ref.watch(getContractsUseCaseProvider),
     getContractUseCase: ref.watch(getContractUseCaseProvider),
@@ -389,13 +490,26 @@ final contractProvider = StateNotifierProvider<ContractNotifier, ContractState>(
 });
 
 /// Провайдер состояния и логики EstimateNotifier.
-final estimateNotifierProvider = StateNotifierProvider<EstimateNotifier, EstimateState>((ref) {
+final estimateNotifierProvider =
+    StateNotifierProvider<EstimateNotifier, EstimateState>((ref) {
   return EstimateNotifier(
     getEstimatesUseCase: ref.watch(getEstimatesUseCaseProvider),
     getEstimateUseCase: ref.watch(getEstimateUseCaseProvider),
     createEstimateUseCase: ref.watch(createEstimateUseCaseProvider),
     updateEstimateUseCase: ref.watch(updateEstimateUseCaseProvider),
     deleteEstimateUseCase: ref.watch(deleteEstimateUseCaseProvider),
+  );
+});
+
+/// Провайдер состояния и логики WorkPlanNotifier.
+final workPlanNotifierProvider =
+    StateNotifierProvider<WorkPlanNotifier, WorkPlanState>((ref) {
+  return WorkPlanNotifier(
+    getWorkPlansUseCase: ref.watch(getWorkPlansUseCaseProvider),
+    getWorkPlanUseCase: ref.watch(getWorkPlanUseCaseProvider),
+    createWorkPlanUseCase: ref.watch(createWorkPlanUseCaseProvider),
+    updateWorkPlanUseCase: ref.watch(updateWorkPlanUseCaseProvider),
+    deleteWorkPlanUseCase: ref.watch(deleteWorkPlanUseCaseProvider),
   );
 });
 
@@ -418,4 +532,4 @@ final workHourRepositoryProvider = Provider<WorkHourRepository>((ref) {
   return WorkHourRepositoryImpl(dataSource);
 });
 
-// ФОТ теперь рассчитывается динамически и не требует предварительного создания 
+// ФОТ теперь рассчитывается динамически и не требует предварительного создания

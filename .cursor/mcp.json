@@ -35,24 +35,14 @@
         "."
       ]
     },
-    "mcp-memory": {
-      "url": "https://memory.mcpgenerator.com/648507b1-711c-4403-a059-f7aeee47fafb/sse"
-    },
-    "projectgt Docs": {
-      "url": "https://gitmcp.io/dimnok/projectgt"
-    },
-    "langgraph Docs": {
-      "url": "https://gitmcp.io/langchain-ai/langgraph"
-    },
-    "github": {
-      "command": "github-mcp-server",
+    "timeweb-mcp-server": {
+      "command": "npx",
       "args": [
-        "--toolsets",
-        "repos,issues,pull_requests,actions,code_security"
+        "-y",
+        "timeweb-mcp-server"
       ],
       "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "${input:GITHUB_TOKEN}",
-        "GITHUB_HOST": ""
+        "TIMEWEB_TOKEN": "eyJhbGciOiJSUzUxMiIsInR5cCI6IkpXVCIsImtpZCI6IjFrYnhacFJNQGJSI0tSbE1xS1lqIn0.eyJ1c2VyIjoiZHMyOTM3MyIsInR5cGUiOiJhcGlfa2V5IiwiYXBpX2tleV9pZCI6ImM1MmJiMmI5LTc5ZTItNDYzNS1hZjE5LWQ0OWU5MThlMjZkMiIsImlhdCI6MTc1ODk1NjQ5OH0.k523NXSbGS-c3NGYJG0WSH1GiQHK4Zb9IRn3HbbeXiv4uwpWsVogqg5OPt0V4OL77srxMR491dqJH8IdhLnYsKVgxtw_pY1n-upvYD8Wx7QC9ROnJ6zEclLXBCZhwi3XUtfeUsYMYrozb_gOXniYeFEGtISs4W-Oe2P0Z1qhS38mPnfjWFUrFguQDzu8bXQ5JNX4ArTI60fpk8hCHgxsZ8SmiQo9YydFKyEjkoeFvTUwinDJC7OSWyUkgEXxC1DQ3FXcW9lcSggmAHNPyovjv6x7ouzdmbA5rd4eTr-8Bq4AmgMERezR1UpLqmKMHNt8-esrXX3muOtYIAuU_xwoj_3bQSV31ciIi94ND21c9iEeB0b-ymeVyGHsaNMCZJba4-yw7lUO-_cr5EH_o4dXoqA_osA2CZGpcQ74lEE1vD3gD0gI0UhM0GB4mH5hRPNCTyDH1Kagl6lkqb8StYxGgATurCp4FQMFFTPXayancXq9BJXYb1AXd8U7Ejs0KNhs"
       }
     }
   }

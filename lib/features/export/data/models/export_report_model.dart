@@ -27,38 +27,54 @@ abstract class ExportReportModel with _$ExportReportModel {
   const factory ExportReportModel({
     /// Дата смены.
     @JsonKey(name: 'work_date') required DateTime workDate,
+
     /// Название объекта.
     @JsonKey(name: 'object_name') required String objectName,
+
     /// Название договора.
     @JsonKey(name: 'contract_name') required String contractName,
+
     /// Система.
     required String system,
+
     /// Подсистема.
     required String subsystem,
+
     /// Номер позиции в смете.
     @JsonKey(name: 'position_number') required String positionNumber,
+
     /// Наименование работы.
     @JsonKey(name: 'work_name') required String workName,
+
     /// Секция.
     required String section,
+
     /// Этаж.
     required String floor,
+
     /// Единица измерения.
     required String unit,
+
     /// Количество.
     required num quantity,
+
     /// Цена за единицу.
     double? price,
+
     /// Итоговая сумма.
     double? total,
+
     /// Имя сотрудника.
     @JsonKey(name: 'employee_name') String? employeeName,
+
     /// Количество часов.
     num? hours,
+
     /// Список материалов (JSON строка).
     String? materials,
   }) = _ExportReportModel;
 
   /// Создаёт data-модель строки отчета из JSON.
-  factory ExportReportModel.fromJson(Map<String, dynamic> json) => _$ExportReportModelFromJson(json);
-} 
+  factory ExportReportModel.fromJson(Map<String, dynamic> json) =>
+      _$ExportReportModelFromJson(json);
+}

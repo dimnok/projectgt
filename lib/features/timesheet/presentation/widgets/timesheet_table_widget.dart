@@ -8,10 +8,10 @@ import '../../domain/entities/timesheet_entry.dart';
 class TimesheetTableWidget extends StatelessWidget {
   /// Список записей табеля.
   final List<TimesheetEntry> entries;
-  
+
   /// Флаг группировки по сотрудникам.
   final bool isGroupedByEmployee;
-  
+
   /// Формат даты для отображения.
   final DateFormat _dateFormat = DateFormat('dd.MM.yyyy');
 
@@ -25,7 +25,7 @@ class TimesheetTableWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     // Если нет данных, показываем заглушку
     if (entries.isEmpty) {
       return Center(
@@ -56,16 +56,16 @@ class TimesheetTableWidget extends StatelessWidget {
         ),
       );
     }
-    
+
     return isGroupedByEmployee
         ? _buildEmployeeGroupedTable(context)
         : _buildDateGroupedTable(context);
   }
-  
+
   /// Строит таблицу с группировкой по сотрудникам.
   Widget _buildEmployeeGroupedTable(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     // Группируем записи по сотрудникам
     final Map<String, List<TimesheetEntry>> groupedEntries = {};
     for (final entry in entries) {
@@ -74,7 +74,7 @@ class TimesheetTableWidget extends StatelessWidget {
       }
       groupedEntries[entry.employeeId]!.add(entry);
     }
-    
+
     return Scrollbar(
       child: SingleChildScrollView(
         child: SingleChildScrollView(
@@ -105,28 +105,28 @@ class TimesheetTableWidget extends StatelessWidget {
       ),
     );
   }
-  
+
   /// Строит строки таблицы для группировки по сотрудникам.
   List<DataRow> _buildEmployeeGroupedRows(
     Map<String, List<TimesheetEntry>> groupedEntries,
     ThemeData theme,
   ) {
     final rows = <DataRow>[];
-    
+
     groupedEntries.forEach((employeeId, employeeEntries) {
       // Сортируем записи по дате
       employeeEntries.sort((a, b) => a.date.compareTo(b.date));
-      
+
       // Основные записи сотрудника
       for (int i = 0; i < employeeEntries.length; i++) {
         final entry = employeeEntries[i];
         rows.add(DataRow(
           cells: [
             // Имя сотрудника (только в первой строке)
-            DataCell(i == 0 
-              ? Text(entry.employeeName ?? 'Сотрудник #${entry.employeeId}',
-                  style: const TextStyle(fontWeight: FontWeight.bold))
-              : const Text('')),
+            DataCell(i == 0
+                ? Text(entry.employeeName ?? 'Сотрудник #${entry.employeeId}',
+                    style: const TextStyle(fontWeight: FontWeight.bold))
+                : const Text('')),
             // Объект
             DataCell(Text(entry.objectName ?? 'Объект #${entry.objectId}')),
             // Дата
@@ -138,20 +138,21 @@ class TimesheetTableWidget extends StatelessWidget {
           ],
         ));
       }
-      
+
       // Итоговая строка для сотрудника
       rows.add(DataRow(
         color: WidgetStateProperty.all(
-          theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)),
+            theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)),
         cells: const [
-          DataCell(Text('Итого:', style: TextStyle(fontWeight: FontWeight.bold))),
+          DataCell(
+              Text('Итого:', style: TextStyle(fontWeight: FontWeight.bold))),
           DataCell(Text('')),
           DataCell(Text('')),
           DataCell(Text('')),
           DataCell(Text('')),
         ],
       ));
-      
+
       // Разделитель между сотрудниками
       rows.add(const DataRow(cells: [
         DataCell(Text('')),
@@ -161,14 +162,14 @@ class TimesheetTableWidget extends StatelessWidget {
         DataCell(Text('')),
       ]));
     });
-    
+
     return rows;
   }
-  
+
   /// Строит таблицу с группировкой по датам.
   Widget _buildDateGroupedTable(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     // Группируем записи по датам
     final Map<String, List<TimesheetEntry>> groupedEntries = {};
     for (final entry in entries) {
@@ -178,7 +179,7 @@ class TimesheetTableWidget extends StatelessWidget {
       }
       groupedEntries[dateKey]!.add(entry);
     }
-    
+
     return Scrollbar(
       child: SingleChildScrollView(
         child: SingleChildScrollView(
@@ -209,36 +210,38 @@ class TimesheetTableWidget extends StatelessWidget {
       ),
     );
   }
-  
+
   /// Строит строки таблицы для группировки по датам.
   List<DataRow> _buildDateGroupedRows(
     Map<String, List<TimesheetEntry>> groupedEntries,
     ThemeData theme,
   ) {
     final rows = <DataRow>[];
-    
+
     // Сортируем даты
     final sortedDates = groupedEntries.keys.toList()
       ..sort((a, b) => _dateFormat.parse(a).compareTo(_dateFormat.parse(b)));
-    
+
     for (final dateKey in sortedDates) {
       final dateEntries = groupedEntries[dateKey]!;
-      
+
       // Сортируем записи по имени сотрудника
-      dateEntries.sort((a, b) => (a.employeeName ?? '')
-          .compareTo(b.employeeName ?? ''));
-      
+      dateEntries.sort(
+          (a, b) => (a.employeeName ?? '').compareTo(b.employeeName ?? ''));
+
       // Основные записи дня
       for (int i = 0; i < dateEntries.length; i++) {
         final entry = dateEntries[i];
         rows.add(DataRow(
           cells: [
             // Дата (только в первой строке)
-            DataCell(i == 0 
-              ? Text(dateKey, style: const TextStyle(fontWeight: FontWeight.bold))
-              : const Text('')),
+            DataCell(i == 0
+                ? Text(dateKey,
+                    style: const TextStyle(fontWeight: FontWeight.bold))
+                : const Text('')),
             // Сотрудник
-            DataCell(Text(entry.employeeName ?? 'Сотрудник #${entry.employeeId}')),
+            DataCell(
+                Text(entry.employeeName ?? 'Сотрудник #${entry.employeeId}')),
             // Объект
             DataCell(Text(entry.objectName ?? 'Объект #${entry.objectId}')),
             // Часы
@@ -248,20 +251,21 @@ class TimesheetTableWidget extends StatelessWidget {
           ],
         ));
       }
-      
+
       // Итоговая строка за день
       rows.add(DataRow(
         color: WidgetStateProperty.all(
-          theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)),
+            theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)),
         cells: const [
-          DataCell(Text('Итого:', style: TextStyle(fontWeight: FontWeight.bold))),
+          DataCell(
+              Text('Итого:', style: TextStyle(fontWeight: FontWeight.bold))),
           DataCell(Text('')),
           DataCell(Text('')),
           DataCell(Text('')),
           DataCell(Text('')),
         ],
       ));
-      
+
       // Разделитель между датами
       rows.add(const DataRow(cells: [
         DataCell(Text('')),
@@ -271,7 +275,7 @@ class TimesheetTableWidget extends StatelessWidget {
         DataCell(Text('')),
       ]));
     }
-    
+
     return rows;
   }
-} 
+}

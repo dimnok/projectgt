@@ -31,4 +31,4 @@ final workMaterialRepositoryProvider = Provider((ref) {
 final workHourRepositoryProvider = Provider((ref) {
   final client = Supabase.instance.client;
   return WorkHourRepositoryImpl(WorkHourDataSourceImpl(client));
-}); 
+});

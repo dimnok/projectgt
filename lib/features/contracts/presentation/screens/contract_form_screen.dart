@@ -16,6 +16,7 @@ import 'package:projectgt/core/utils/snackbar_utils.dart';
 class ContractFormScreen extends ConsumerStatefulWidget {
   /// Договор для редактирования. Если null — создаётся новый договор.
   final Contract? contract;
+
   /// Создаёт экран формы договора.
   const ContractFormScreen({super.key, this.contract});
 
@@ -58,7 +59,9 @@ class _ContractFormScreenState extends ConsumerState<ContractFormScreen> {
 
   void _handleSave() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_date == null || _selectedContractorId == null || _selectedObjectId == null) {
+    if (_date == null ||
+        _selectedContractorId == null ||
+        _selectedObjectId == null) {
       SnackBarUtils.showError(context, 'Заполните все обязательные поля');
       return;
     }
@@ -79,7 +82,8 @@ class _ContractFormScreenState extends ConsumerState<ContractFormScreen> {
       createdAt: widget.contract?.createdAt,
       updatedAt: DateTime.now(),
     );
-    debugPrint('[CONTRACTS][FORM] contract: \\${ContractModel.fromDomain(contract).toJson()}');
+    debugPrint(
+        '[CONTRACTS][FORM] contract: \\${ContractModel.fromDomain(contract).toJson()}');
     try {
       if (isNew) {
         await notifier.addContract(contract);
@@ -151,7 +155,8 @@ class _ContractFormScreenState extends ConsumerState<ContractFormScreen> {
         onEndDateChanged: (d) => setState(() => _endDate = d),
         onContractorChanged: (id) => setState(() => _selectedContractorId = id),
         onObjectChanged: (id) => setState(() => _selectedObjectId = id),
-        onStatusChanged: (s) => setState(() => _status = s ?? ContractStatus.active),
+        onStatusChanged: (s) =>
+            setState(() => _status = s ?? ContractStatus.active),
         contractorItems: contractorItems,
         objectItems: objectItems,
       ),
@@ -166,6 +171,7 @@ class _ContractFormScreenState extends ConsumerState<ContractFormScreen> {
 class ContractFormModal extends ConsumerStatefulWidget {
   /// Договор для редактирования. Если null — создаётся новый договор.
   final Contract? contract;
+
   /// Создаёт модальное окно формы договора.
   const ContractFormModal({super.key, this.contract});
 
@@ -208,7 +214,9 @@ class _ContractFormModalState extends ConsumerState<ContractFormModal> {
 
   void _handleSave() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_date == null || _selectedContractorId == null || _selectedObjectId == null) {
+    if (_date == null ||
+        _selectedContractorId == null ||
+        _selectedObjectId == null) {
       SnackBarUtils.showError(context, 'Заполните все обязательные поля');
       return;
     }
@@ -229,7 +237,8 @@ class _ContractFormModalState extends ConsumerState<ContractFormModal> {
       createdAt: widget.contract?.createdAt,
       updatedAt: DateTime.now(),
     );
-    debugPrint('[CONTRACTS][FORM] contract: \\${ContractModel.fromDomain(contract).toJson()}');
+    debugPrint(
+        '[CONTRACTS][FORM] contract: \\${ContractModel.fromDomain(contract).toJson()}');
     try {
       if (isNew) {
         await notifier.addContract(contract);
@@ -290,9 +299,10 @@ class _ContractFormModalState extends ConsumerState<ContractFormModal> {
       onEndDateChanged: (d) => setState(() => _endDate = d),
       onContractorChanged: (id) => setState(() => _selectedContractorId = id),
       onObjectChanged: (id) => setState(() => _selectedObjectId = id),
-      onStatusChanged: (s) => setState(() => _status = s ?? ContractStatus.active),
+      onStatusChanged: (s) =>
+          setState(() => _status = s ?? ContractStatus.active),
       contractorItems: contractorItems,
       objectItems: objectItems,
     );
   }
-} 
+}

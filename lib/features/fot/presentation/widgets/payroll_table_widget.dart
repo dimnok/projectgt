@@ -17,7 +17,7 @@ import 'payroll_table_row_builder.dart';
 class PayrollTableWidget extends ConsumerStatefulWidget {
   /// Список расчётов ФОТ.
   final List<PayrollCalculation> payrolls;
-  
+
   /// Флаг группировки по сотрудникам.
   final bool isGroupedByEmployee;
 
@@ -35,10 +35,10 @@ class PayrollTableWidget extends ConsumerStatefulWidget {
 class _PayrollTableWidgetState extends ConsumerState<PayrollTableWidget> {
   /// Контроллер для вертикального скролла.
   final ScrollController _verticalController = ScrollController();
-  
+
   /// Контроллер для горизонтального скролла.
   final ScrollController _horizontalController = ScrollController();
-  
+
   @override
   void dispose() {
     _verticalController.dispose();
@@ -49,32 +49,34 @@ class _PayrollTableWidgetState extends ConsumerState<PayrollTableWidget> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     // Оптимизировано: слушаем только нужные поля фильтра
     final year = ref.watch(payrollFilterProvider.select((s) => s.year));
     final month = ref.watch(payrollFilterProvider.select((s) => s.month));
     final monthDate = DateTime(year, month);
-    
+
     // Получаем только список сотрудников (без лишних полей)
     final employees = ref.watch(employeeProvider.select((s) => s.employees));
-    
+
     // Используем независимые данные work_hours вместо timesheetEntries
     final workHoursAsync = ref.watch(payrollWorkHoursProvider);
     final workHours = workHoursAsync.asData?.value ?? [];
-    
+
     // Получаем выплаты за месяц
-    final payrollPayoutsAsync = ref.watch(payrollPayoutsByMonthProvider(monthDate));
+    final payrollPayoutsAsync =
+        ref.watch(payrollPayoutsByMonthProvider(monthDate));
     final payrollPayouts = payrollPayoutsAsync.asData?.value ?? [];
     final payoutsByEmployee = <String, double>{};
     for (final payout in payrollPayouts) {
-      payoutsByEmployee[payout.employeeId] = 
-          (payoutsByEmployee[payout.employeeId] ?? 0) + payout.amount.toDouble();
+      payoutsByEmployee[payout.employeeId] =
+          (payoutsByEmployee[payout.employeeId] ?? 0) +
+              payout.amount.toDouble();
     }
-    
+
     // Получаем оптимизированный агрегированный баланс
     final aggregatedBalanceAsync = ref.watch(employeeAggregatedBalanceProvider);
     final aggregatedBalance = aggregatedBalanceAsync.asData?.value ?? {};
-    
+
     if (widget.payrolls.isEmpty) {
       return Center(
         child: Column(
@@ -104,7 +106,7 @@ class _PayrollTableWidgetState extends ConsumerState<PayrollTableWidget> {
         ),
       );
     }
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -117,34 +119,34 @@ class _PayrollTableWidgetState extends ConsumerState<PayrollTableWidget> {
         ),
         Expanded(
           child: _buildEmployeeGroupedTable(
-            context, 
-            employees, 
+            context,
+            employees,
             workHours, // Используем независимые данные work_hours
-            payoutsByEmployee, 
+            payoutsByEmployee,
             aggregatedBalance,
           ),
         ),
       ],
     );
   }
-  
+
   /// Строит таблицу с группировкой по сотрудникам с полным соответствием стилю табеля.
   Widget _buildEmployeeGroupedTable(
-    BuildContext context, 
-    List<dynamic> employees, 
+    BuildContext context,
+    List<dynamic> employees,
     List<dynamic> workHours, // Изменили тип с timesheetEntries на workHours
-    Map<String, double> payoutsByEmployee, 
+    Map<String, double> payoutsByEmployee,
     Map<String, double> aggregatedBalance,
   ) {
     final theme = Theme.of(context);
-    
+
     // Группируем записи по сотрудникам (учитывая, что employeeId может быть null)
     final Map<String?, List<PayrollCalculation>> groupedPayrolls = {};
-    
+
     try {
       for (final payroll in widget.payrolls) {
         final employeeKey = payroll.employeeId ?? 'unknown';
-        
+
         if (!groupedPayrolls.containsKey(employeeKey)) {
           groupedPayrolls[employeeKey] = [];
         }
@@ -153,7 +155,7 @@ class _PayrollTableWidgetState extends ConsumerState<PayrollTableWidget> {
     } catch (e) {
       // Игнорируем ошибку группировки
     }
-    
+
     // Используем LayoutBuilder для определения доступной ширины
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -161,25 +163,30 @@ class _PayrollTableWidgetState extends ConsumerState<PayrollTableWidget> {
         final isMobile = ResponsiveUtils.isMobile(context);
         final isTablet = ResponsiveUtils.isTablet(context);
         final isDesktop = ResponsiveUtils.isDesktop(context);
-        
+
         // Определяем минимальную ширину для таблицы на основе типа устройства
-        final double minTableWidth = isDesktop ? 1200 : isTablet ? 900 : constraints.maxWidth;
-        
+        final double minTableWidth = isDesktop
+            ? 1200
+            : isTablet
+                ? 900
+                : constraints.maxWidth;
+
         // Определяем, нужно ли использовать горизонтальный скролл
         final needsHorizontalScroll = minTableWidth > constraints.maxWidth;
-        
+
         // Определяем колонки таблицы на основе типа устройства
         final columns = _buildAdaptiveColumns(isDesktop, isTablet, isMobile);
-        
+
         // Создаём объект для хранения итогов
         final totals = PayrollTotals();
-        
+
         // Строим строки таблицы используя новый строитель
         final rows = PayrollTableRowBuilder.buildDataRows(
           groupedPayrolls: groupedPayrolls,
           theme: theme,
           employees: employees,
-          timesheetEntries: workHours, // Передаём workHours как timesheetEntries для совместимости
+          timesheetEntries:
+              workHours, // Передаём workHours как timesheetEntries для совместимости
           payoutsByEmployee: payoutsByEmployee,
           aggregatedBalance: aggregatedBalance,
           isMobile: isMobile,
@@ -187,7 +194,7 @@ class _PayrollTableWidgetState extends ConsumerState<PayrollTableWidget> {
           isDesktop: isDesktop,
           totals: totals,
         );
-        
+
         return Scrollbar(
           controller: _verticalController,
           thumbVisibility: true,
@@ -202,7 +209,9 @@ class _PayrollTableWidgetState extends ConsumerState<PayrollTableWidget> {
                 scrollDirection: Axis.horizontal,
                 child: ConstrainedBox(
                   constraints: BoxConstraints(
-                    minWidth: needsHorizontalScroll ? minTableWidth : constraints.maxWidth,
+                    minWidth: needsHorizontalScroll
+                        ? minTableWidth
+                        : constraints.maxWidth,
                   ),
                   child: DataTable(
                     // Стилизация заголовка - точно как в табеле
@@ -210,7 +219,8 @@ class _PayrollTableWidgetState extends ConsumerState<PayrollTableWidget> {
                       fontWeight: FontWeight.bold,
                     ),
                     dataTextStyle: theme.textTheme.bodyMedium,
-                    headingRowColor: WidgetStateProperty.resolveWith<Color>((states) {
+                    headingRowColor:
+                        WidgetStateProperty.resolveWith<Color>((states) {
                       return theme.colorScheme.surface;
                     }),
                     // Границы таблицы с прозрачностью 0.2 как в табеле
@@ -227,7 +237,7 @@ class _PayrollTableWidgetState extends ConsumerState<PayrollTableWidget> {
                     ),
                     // Высота строк и заголовка - как в календаре табеля
                     headingRowHeight: 48,
-                    dataRowMinHeight: 52, 
+                    dataRowMinHeight: 52,
                     dataRowMaxHeight: 52,
                     // Горизонтальный отступ - адаптивный
                     horizontalMargin: ResponsiveUtils.adaptiveValue(
@@ -249,20 +259,25 @@ class _PayrollTableWidgetState extends ConsumerState<PayrollTableWidget> {
       },
     );
   }
-  
+
   /// Строит адаптивные колонки таблицы в зависимости от типа устройства
-  List<DataColumn> _buildAdaptiveColumns(bool isDesktop, bool isTablet, bool isMobile) {
+  List<DataColumn> _buildAdaptiveColumns(
+      bool isDesktop, bool isTablet, bool isMobile) {
     final List<DataColumn> columns = [
       DataColumn(
         label: Container(
           constraints: BoxConstraints(
-            minWidth: isDesktop ? 200 : isTablet ? 150 : 120,
+            minWidth: isDesktop
+                ? 200
+                : isTablet
+                    ? 150
+                    : 120,
           ),
           child: const Text('Сотрудник'),
         ),
       ),
     ];
-    
+
     if (isDesktop) {
       columns.addAll([
         const DataColumn(label: Text('Часы'), numeric: true),
@@ -274,9 +289,14 @@ class _PayrollTableWidgetState extends ConsumerState<PayrollTableWidget> {
         DataColumn(
           label: Container(
             constraints: BoxConstraints(
-              minWidth: isDesktop ? 120 : isTablet ? 100 : 80,
+              minWidth: isDesktop
+                  ? 120
+                  : isTablet
+                      ? 100
+                      : 80,
             ),
-            child: const Text('К выплате', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text('К выплате',
+                style: TextStyle(fontWeight: FontWeight.bold)),
           ),
           numeric: true,
         ),
@@ -292,9 +312,14 @@ class _PayrollTableWidgetState extends ConsumerState<PayrollTableWidget> {
         DataColumn(
           label: Container(
             constraints: BoxConstraints(
-              minWidth: isDesktop ? 120 : isTablet ? 100 : 80,
+              minWidth: isDesktop
+                  ? 120
+                  : isTablet
+                      ? 100
+                      : 80,
             ),
-            child: const Text('К выплате', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text('К выплате',
+                style: TextStyle(fontWeight: FontWeight.bold)),
           ),
           numeric: true,
         ),
@@ -308,9 +333,14 @@ class _PayrollTableWidgetState extends ConsumerState<PayrollTableWidget> {
         DataColumn(
           label: Container(
             constraints: BoxConstraints(
-              minWidth: isDesktop ? 120 : isTablet ? 100 : 80,
+              minWidth: isDesktop
+                  ? 120
+                  : isTablet
+                      ? 100
+                      : 80,
             ),
-            child: const Text('К выплате', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text('К выплате',
+                style: TextStyle(fontWeight: FontWeight.bold)),
           ),
           numeric: true,
         ),
@@ -318,7 +348,7 @@ class _PayrollTableWidgetState extends ConsumerState<PayrollTableWidget> {
         const DataColumn(label: Text('Баланс'), numeric: true),
       ]);
     }
-    
+
     return columns;
   }
-} 
+}

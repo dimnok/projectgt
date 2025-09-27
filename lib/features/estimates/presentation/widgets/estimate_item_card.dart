@@ -10,16 +10,16 @@ import '../../../../presentation/widgets/cupertino_dialog_widget.dart';
 class EstimateItemCard extends StatelessWidget {
   /// Позиция сметы для отображения
   final Estimate item;
-  
+
   /// Обработчик нажатия на карточку (открывает диалог редактирования)
   final void Function(Estimate) onEdit;
-  
+
   /// Обработчик удаления позиции
   final void Function(String) onDelete;
-  
+
   /// Обработчик дублирования позиции
   final void Function(Estimate) onDuplicate;
-  
+
   /// Форматтер для отображения денежных сумм
   final NumberFormat moneyFormat = NumberFormat('###,##0.00', 'ru_RU');
 
@@ -35,7 +35,7 @@ class EstimateItemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Dismissible(
       key: Key(item.id),
       background: Container(
@@ -104,7 +104,8 @@ class EstimateItemCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                         color: theme.colorScheme.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
@@ -121,13 +122,14 @@ class EstimateItemCard extends StatelessWidget {
                       item.system,
                       style: theme.textTheme.bodySmall?.copyWith(
                         fontWeight: FontWeight.w500,
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                        color:
+                            theme.colorScheme.onSurface.withValues(alpha: 0.7),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 6),
-                
+
                 // Название
                 Text(
                   item.name,
@@ -138,7 +140,7 @@ class EstimateItemCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
-                
+
                 // Подсистема и артикул в одну строку для экономии места
                 Row(
                   children: [
@@ -149,14 +151,16 @@ class EstimateItemCard extends StatelessWidget {
                             Icon(
                               Icons.category_outlined,
                               size: 12,
-                              color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                              color: theme.colorScheme.onSurface
+                                  .withValues(alpha: 0.5),
                             ),
                             const SizedBox(width: 2),
                             Expanded(
                               child: Text(
                                 item.subsystem,
                                 style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                                  color: theme.colorScheme.onSurface
+                                      .withValues(alpha: 0.7),
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -174,14 +178,16 @@ class EstimateItemCard extends StatelessWidget {
                             Icon(
                               Icons.qr_code,
                               size: 12,
-                              color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                              color: theme.colorScheme.onSurface
+                                  .withValues(alpha: 0.5),
                             ),
                             const SizedBox(width: 2),
                             Expanded(
                               child: Text(
                                 item.article,
                                 style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                                  color: theme.colorScheme.onSurface
+                                      .withValues(alpha: 0.7),
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -192,7 +198,7 @@ class EstimateItemCard extends StatelessWidget {
                       ),
                   ],
                 ),
-                
+
                 // Производитель, если есть
                 if (item.manufacturer.isNotEmpty)
                   Padding(
@@ -202,14 +208,16 @@ class EstimateItemCard extends StatelessWidget {
                         Icon(
                           Icons.business,
                           size: 12,
-                          color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                          color: theme.colorScheme.onSurface
+                              .withValues(alpha: 0.5),
                         ),
                         const SizedBox(width: 2),
                         Expanded(
                           child: Text(
                             item.manufacturer,
                             style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                              color: theme.colorScheme.onSurface
+                                  .withValues(alpha: 0.7),
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -218,9 +226,9 @@ class EstimateItemCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                
+
                 const Divider(height: 12, thickness: 0.5),
-                
+
                 // Информация о цене, количестве и сумме в одну строку
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -253,4 +261,4 @@ class EstimateItemCard extends StatelessWidget {
       ),
     );
   }
-} 
+}

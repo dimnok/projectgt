@@ -21,13 +21,15 @@ import 'package:projectgt/core/utils/snackbar_utils.dart';
 class ContractDetailsScreen extends ConsumerWidget {
   /// Идентификатор договора для отображения.
   final String contractId;
+
   /// Создаёт экран деталей для договора с [contractId].
   const ContractDetailsScreen({super.key, required this.contractId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final contractState = ref.watch(contractProvider);
-    final contract = contractState.contracts.firstWhereOrNull((c) => c.id == contractId);
+    final contract =
+        contractState.contracts.firstWhereOrNull((c) => c.id == contractId);
     final theme = Theme.of(context);
 
     if (contract == null) {
@@ -45,7 +47,8 @@ class ContractDetailsScreen extends ConsumerWidget {
             icon: const Icon(Icons.edit),
             tooltip: 'Редактировать',
             onPressed: () {
-              context.goNamed('contract_edit', pathParameters: {'contractId': contract.id});
+              context.goNamed('contract_edit',
+                  pathParameters: {'contractId': contract.id});
             },
           ),
           IconButton(
@@ -57,7 +60,8 @@ class ContractDetailsScreen extends ConsumerWidget {
                 context: ctx,
                 builder: (ctx2) => AlertDialog(
                   title: const Text('Удалить договор?'),
-                  content: const Text('Вы уверены, что хотите удалить этот договор?'),
+                  content: const Text(
+                      'Вы уверены, что хотите удалить этот договор?'),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(ctx2, false),
@@ -65,7 +69,8 @@ class ContractDetailsScreen extends ConsumerWidget {
                     ),
                     TextButton(
                       onPressed: () => Navigator.pop(ctx2, true),
-                      child: const Text('Удалить', style: TextStyle(color: Colors.red)),
+                      child: const Text('Удалить',
+                          style: TextStyle(color: Colors.red)),
                     ),
                   ],
                 ),
@@ -73,13 +78,16 @@ class ContractDetailsScreen extends ConsumerWidget {
               if (!ctx.mounted) return;
               if (confirmed == true) {
                 try {
-                  await ref.read(contractProvider.notifier).deleteContract(contract.id);
+                  await ref
+                      .read(contractProvider.notifier)
+                      .deleteContract(contract.id);
                   if (!ctx.mounted) return;
                   Navigator.of(ctx).pop();
                   SnackBarUtils.showError(ctx, 'Договор удалён');
                 } catch (e) {
                   if (!ctx.mounted) return;
-                  SnackBarUtils.showError(ctx, 'Ошибка удаления: ${e.toString()}');
+                  SnackBarUtils.showError(
+                      ctx, 'Ошибка удаления: ${e.toString()}');
                 }
               }
             },
@@ -95,7 +103,8 @@ class ContractDetailsScreen extends ConsumerWidget {
             child: Padding(
               padding: const EdgeInsets.all(24.0),
               child: Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
                 elevation: 2,
                 child: Padding(
                   padding: const EdgeInsets.all(24.0),
@@ -110,21 +119,27 @@ class ContractDetailsScreen extends ConsumerWidget {
                             color: _getContractStatusInfo(contract.status).$2,
                           ),
                           const SizedBox(width: 16),
-                          Text('№${contract.number}', style: theme.textTheme.titleLarge),
+                          Text('№${contract.number}',
+                              style: theme.textTheme.titleLarge),
                         ],
                       ),
                       const SizedBox(height: 16),
                       _infoRow('Дата договора:', _formatDate(contract.date)),
                       if (contract.endDate != null)
-                        _infoRow('Дата окончания:', _formatDate(contract.endDate!)),
-                      _infoRow('Контрагент:', contract.contractorName ?? contract.contractorId),
-                      _infoRow('Объект:', contract.objectName ?? contract.objectId),
+                        _infoRow(
+                            'Дата окончания:', _formatDate(contract.endDate!)),
+                      _infoRow('Контрагент:',
+                          contract.contractorName ?? contract.contractorId),
+                      _infoRow(
+                          'Объект:', contract.objectName ?? contract.objectId),
                       _infoRow('Сумма:', contract.amount.toStringAsFixed(2)),
                       _infoRow('Статус:', _statusText(contract.status)),
                       if (contract.createdAt != null)
-                        _infoRow('Создан:', _formatDateTime(contract.createdAt!)),
+                        _infoRow(
+                            'Создан:', _formatDateTime(contract.createdAt!)),
                       if (contract.updatedAt != null)
-                        _infoRow('Обновлен:', _formatDateTime(contract.updatedAt!)),
+                        _infoRow(
+                            'Обновлен:', _formatDateTime(contract.updatedAt!)),
                     ],
                   ),
                 ),
@@ -178,4 +193,4 @@ class ContractDetailsScreen extends ConsumerWidget {
         return ('Завершен', Colors.grey);
     }
   }
-} 
+}

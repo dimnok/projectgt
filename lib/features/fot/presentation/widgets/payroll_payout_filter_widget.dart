@@ -6,36 +6,42 @@ import 'package:intl/intl.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 
 /// Виджет фильтрации выплат по ФОТ.
-/// 
+///
 /// Предоставляет фильтры специфичные для выплат: диапазон дат, способ выплаты, сотрудники.
 class PayrollPayoutFilterWidget extends ConsumerStatefulWidget {
   /// Создаёт виджет фильтров выплат.
   const PayrollPayoutFilterWidget({super.key});
 
   @override
-  ConsumerState<PayrollPayoutFilterWidget> createState() => _PayrollPayoutFilterWidgetState();
+  ConsumerState<PayrollPayoutFilterWidget> createState() =>
+      _PayrollPayoutFilterWidgetState();
 }
 
-class _PayrollPayoutFilterWidgetState extends ConsumerState<PayrollPayoutFilterWidget> {
-  final MultiValueDropDownController _employeeController = MultiValueDropDownController();
-  final MultiValueDropDownController _methodController = MultiValueDropDownController();
+class _PayrollPayoutFilterWidgetState
+    extends ConsumerState<PayrollPayoutFilterWidget> {
+  final MultiValueDropDownController _employeeController =
+      MultiValueDropDownController();
+  final MultiValueDropDownController _methodController =
+      MultiValueDropDownController();
   final TextEditingController _startDateController = TextEditingController();
   final TextEditingController _endDateController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeControllers();
     });
   }
-  
+
   /// Инициализирует контроллеры текущими значениями фильтров
   void _initializeControllers() {
     final filterState = ref.read(payrollPayoutFilterProvider);
-    _startDateController.text = DateFormat('dd.MM.yyyy').format(filterState.startDate);
-    _endDateController.text = DateFormat('dd.MM.yyyy').format(filterState.endDate);
+    _startDateController.text =
+        DateFormat('dd.MM.yyyy').format(filterState.startDate);
+    _endDateController.text =
+        DateFormat('dd.MM.yyyy').format(filterState.endDate);
   }
 
   @override
@@ -50,13 +56,14 @@ class _PayrollPayoutFilterWidgetState extends ConsumerState<PayrollPayoutFilterW
   /// Создает DropDownValueModel для сотрудника
   DropDownValueModel _createEmployeeDropDownModel(dynamic employee) {
     final fio = [
-      employee.lastName, 
-      employee.firstName, 
-      if (employee.middleName != null && employee.middleName!.isNotEmpty) employee.middleName
+      employee.lastName,
+      employee.firstName,
+      if (employee.middleName != null && employee.middleName!.isNotEmpty)
+        employee.middleName
     ].join(' ');
     return DropDownValueModel(name: fio, value: employee.id);
   }
-  
+
   /// Создает общий выпадающий список с множественным выбором
   Widget _buildMultiDropDown({
     required String label,
@@ -85,18 +92,20 @@ class _PayrollPayoutFilterWidgetState extends ConsumerState<PayrollPayoutFilterW
         ),
       ),
       listTextStyle: theme.textTheme.bodyMedium?.copyWith(color: Colors.black),
-      onChanged: isEmpty ? null : (val) {
-        if (val == null) return;
-        final list = val is List<DropDownValueModel> 
-            ? val 
-            : List<DropDownValueModel>.from(val);
-        final selectedValues = list
-            .map((e) => e.value as String?)
-            .where((value) => value != null)
-            .cast<String>()
-            .toList();
-        onSelectionChanged(selectedValues);
-      },
+      onChanged: isEmpty
+          ? null
+          : (val) {
+              if (val == null) return;
+              final list = val is List<DropDownValueModel>
+                  ? val
+                  : List<DropDownValueModel>.from(val);
+              final selectedValues = list
+                  .map((e) => e.value as String?)
+                  .where((value) => value != null)
+                  .cast<String>()
+                  .toList();
+              onSelectionChanged(selectedValues);
+            },
     );
   }
 
@@ -130,8 +139,9 @@ class _PayrollPayoutFilterWidgetState extends ConsumerState<PayrollPayoutFilterW
     required bool isStartDate,
   }) async {
     final filterState = ref.read(payrollPayoutFilterProvider);
-    final initialDate = isStartDate ? filterState.startDate : filterState.endDate;
-    
+    final initialDate =
+        isStartDate ? filterState.startDate : filterState.endDate;
+
     final picked = await showDatePicker(
       context: context,
       initialDate: initialDate,
@@ -139,10 +149,10 @@ class _PayrollPayoutFilterWidgetState extends ConsumerState<PayrollPayoutFilterW
       lastDate: DateTime.now().add(const Duration(days: 365)),
       locale: const Locale('ru'),
     );
-    
+
     if (picked != null) {
       controller.text = DateFormat('dd.MM.yyyy').format(picked);
-      
+
       if (isStartDate) {
         ref.read(payrollPayoutFilterProvider.notifier).setStartDate(picked);
       } else {
@@ -156,14 +166,15 @@ class _PayrollPayoutFilterWidgetState extends ConsumerState<PayrollPayoutFilterW
     final theme = Theme.of(context);
     final filterState = ref.watch(payrollPayoutFilterProvider);
     final isDesktop = ResponsiveUtils.isDesktop(context);
-    
+
     final employees = filterState.employees;
     final employeeDropDownList = employees
         .map((employee) => _createEmployeeDropDownModel(employee))
         .toList();
-    
+
     final methodDropDownList = availablePayoutMethods
-        .map((method) => DropDownValueModel(name: method['name']!, value: method['value']!))
+        .map((method) =>
+            DropDownValueModel(name: method['name']!, value: method['value']!))
         .toList();
 
     return Card(
@@ -178,7 +189,8 @@ class _PayrollPayoutFilterWidgetState extends ConsumerState<PayrollPayoutFilterW
       child: Container(
         decoration: BoxDecoration(
           color: theme.brightness == Brightness.dark
-              ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.92)
+              ? theme.colorScheme.surfaceContainerHighest
+                  .withValues(alpha: 0.92)
               : theme.colorScheme.surface.withValues(alpha: 0.98),
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
@@ -209,20 +221,26 @@ class _PayrollPayoutFilterWidgetState extends ConsumerState<PayrollPayoutFilterW
               children: [
                 Text(
                   'Фильтры выплат',
-                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 TextButton.icon(
                   icon: const Icon(Icons.refresh),
                   label: const Text('Сбросить'),
                   onPressed: () {
-                    ref.read(payrollPayoutFilterProvider.notifier).resetFilters();
+                    ref
+                        .read(payrollPayoutFilterProvider.notifier)
+                        .resetFilters();
                     _employeeController.setDropDown([]);
                     _methodController.setDropDown([]);
                     final now = DateTime.now();
-                    final thirtyDaysAgo = now.subtract(const Duration(days: 30));
+                    final thirtyDaysAgo =
+                        now.subtract(const Duration(days: 30));
                     setState(() {
-                      _startDateController.text = DateFormat('dd.MM.yyyy').format(thirtyDaysAgo);
-                      _endDateController.text = DateFormat('dd.MM.yyyy').format(now);
+                      _startDateController.text =
+                          DateFormat('dd.MM.yyyy').format(thirtyDaysAgo);
+                      _endDateController.text =
+                          DateFormat('dd.MM.yyyy').format(now);
                     });
                   },
                 ),
@@ -242,8 +260,9 @@ class _PayrollPayoutFilterWidgetState extends ConsumerState<PayrollPayoutFilterW
                       hint: 'Выберите одного или несколько',
                       controller: _employeeController,
                       items: employeeDropDownList,
-                      onSelectionChanged: (ids) => 
-                          ref.read(payrollPayoutFilterProvider.notifier).setEmployeeFilter(ids),
+                      onSelectionChanged: (ids) => ref
+                          .read(payrollPayoutFilterProvider.notifier)
+                          .setEmployeeFilter(ids),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -254,13 +273,14 @@ class _PayrollPayoutFilterWidgetState extends ConsumerState<PayrollPayoutFilterW
                       hint: 'Выберите один или несколько',
                       controller: _methodController,
                       items: methodDropDownList,
-                      onSelectionChanged: (methods) => 
-                          ref.read(payrollPayoutFilterProvider.notifier).setPayoutMethodFilter(methods),
+                      onSelectionChanged: (methods) => ref
+                          .read(payrollPayoutFilterProvider.notifier)
+                          .setPayoutMethodFilter(methods),
                     ),
                   ),
                 ],
               )
-            else 
+            else
               Column(
                 children: [
                   _buildDateRangeFilter(),
@@ -270,8 +290,9 @@ class _PayrollPayoutFilterWidgetState extends ConsumerState<PayrollPayoutFilterW
                     hint: 'Выберите одного или несколько',
                     controller: _employeeController,
                     items: employeeDropDownList,
-                    onSelectionChanged: (ids) => 
-                        ref.read(payrollPayoutFilterProvider.notifier).setEmployeeFilter(ids),
+                    onSelectionChanged: (ids) => ref
+                        .read(payrollPayoutFilterProvider.notifier)
+                        .setEmployeeFilter(ids),
                   ),
                   const SizedBox(height: 16),
                   _buildMultiDropDown(
@@ -279,8 +300,9 @@ class _PayrollPayoutFilterWidgetState extends ConsumerState<PayrollPayoutFilterW
                     hint: 'Выберите один или несколько',
                     controller: _methodController,
                     items: methodDropDownList,
-                    onSelectionChanged: (methods) => 
-                        ref.read(payrollPayoutFilterProvider.notifier).setPayoutMethodFilter(methods),
+                    onSelectionChanged: (methods) => ref
+                        .read(payrollPayoutFilterProvider.notifier)
+                        .setPayoutMethodFilter(methods),
                   ),
                 ],
               ),
@@ -324,4 +346,4 @@ class _PayrollPayoutFilterWidgetState extends ConsumerState<PayrollPayoutFilterW
       ),
     );
   }
-} 
+}

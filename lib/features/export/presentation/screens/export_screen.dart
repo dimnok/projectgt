@@ -18,7 +18,7 @@ class ExportScreen extends ConsumerStatefulWidget {
 class _ExportScreenState extends ConsumerState<ExportScreen> {
   /// Индекс выбранного таба.
   int _selectedTabIndex = 0;
-  
+
   /// Список табов.
   final List<Tab> _tabs = const [
     Tab(text: 'Выгрузка'),
@@ -39,56 +39,58 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
         title: 'Выгрузка данных',
       ),
       drawer: const AppDrawer(activeRoute: AppRoute.export),
-      body: _selectedTabIndex == 1 
-        ? // Таб "Поиск" - отображается полностью сам по себе с собственными табами
+      body: _selectedTabIndex == 1
+          ? // Таб "Поиск" - отображается полностью сам по себе с собственными табами
           ExportTabSearch(
-            onSwitchToReports: () {
-              setState(() {
-                _selectedTabIndex = 0;
-              });
-            },
-          )
-        : // Таб "Выгрузка" - стандартная структура
+              onSwitchToReports: () {
+                setState(() {
+                  _selectedTabIndex = 0;
+                });
+              },
+            )
+          : // Таб "Выгрузка" - стандартная структура
           Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Фильтры для выгрузки
-              const ExportFilterWidget(),
-              
-              // Табы
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 4.0),
-                child: DefaultTabController(
-                  length: _tabs.length,
-                  initialIndex: _selectedTabIndex,
-                  child: Builder(
-                    builder: (context) {
-                      final TabController tabController = DefaultTabController.of(context);
-                      tabController.addListener(() {
-                        if (tabController.indexIsChanging) {
-                          setState(() {
-                            _selectedTabIndex = tabController.index;
-                          });
-                        }
-                      });
-                      return TabBar(
-                        tabs: _tabs,
-                        controller: tabController,
-                        labelColor: theme.colorScheme.primary,
-                        unselectedLabelColor: theme.colorScheme.outline,
-                        indicatorColor: theme.colorScheme.primary,
-                      );
-                    },
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Фильтры для выгрузки
+                const ExportFilterWidget(),
+
+                // Табы
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 24.0, vertical: 4.0),
+                  child: DefaultTabController(
+                    length: _tabs.length,
+                    initialIndex: _selectedTabIndex,
+                    child: Builder(
+                      builder: (context) {
+                        final TabController tabController =
+                            DefaultTabController.of(context);
+                        tabController.addListener(() {
+                          if (tabController.indexIsChanging) {
+                            setState(() {
+                              _selectedTabIndex = tabController.index;
+                            });
+                          }
+                        });
+                        return TabBar(
+                          tabs: _tabs,
+                          controller: tabController,
+                          labelColor: theme.colorScheme.primary,
+                          unselectedLabelColor: theme.colorScheme.outline,
+                          indicatorColor: theme.colorScheme.primary,
+                        );
+                      },
+                    ),
                   ),
                 ),
-              ),
-              
-              // Контент таба "Выгрузка"
-              const Expanded(
-                child: ExportTabReports(),
-              ),
-            ],
-          ),
+
+                // Контент таба "Выгрузка"
+                const Expanded(
+                  child: ExportTabReports(),
+                ),
+              ],
+            ),
     );
   }
-} 
+}

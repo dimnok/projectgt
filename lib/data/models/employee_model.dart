@@ -32,7 +32,9 @@ abstract class EmployeeModel with _$EmployeeModel {
     @JsonKey(name: 'shoe_size') String? shoeSize,
     String? height,
     @JsonKey(name: 'employment_date') DateTime? employmentDate,
-    @JsonKey(name: 'employment_type') @Default(EmploymentType.official) EmploymentType employmentType,
+    @JsonKey(name: 'employment_type')
+    @Default(EmploymentType.official)
+    EmploymentType employmentType,
     String? position,
     @JsonKey(name: 'hourly_rate') double? hourlyRate,
     @Default(EmployeeStatus.working) EmployeeStatus status,
@@ -53,7 +55,8 @@ abstract class EmployeeModel with _$EmployeeModel {
   const EmployeeModel._();
 
   /// Создаёт модель из JSON.
-  factory EmployeeModel.fromJson(Map<String, dynamic> json) => _$EmployeeModelFromJson(json);
+  factory EmployeeModel.fromJson(Map<String, dynamic> json) =>
+      _$EmployeeModelFromJson(json);
 
   /// Создаёт модель из доменной сущности [Employee].
   factory EmployeeModel.fromDomain(Employee employee) => EmployeeModel(
@@ -86,7 +89,7 @@ abstract class EmployeeModel with _$EmployeeModel {
         createdAt: employee.createdAt,
         updatedAt: employee.updatedAt,
       );
-      
+
   /// Преобразует модель в доменную сущность [Employee].
   Employee toDomain() => Employee(
         id: id,
@@ -118,4 +121,4 @@ abstract class EmployeeModel with _$EmployeeModel {
         createdAt: createdAt,
         updatedAt: updatedAt,
       );
-} 
+}

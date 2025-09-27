@@ -1,7 +1,7 @@
 import '../models/payroll_bonus_model.dart';
 
 /// Репозиторий для работы с премиями, связанными с расчётом ФОТ.
-/// 
+///
 /// Предоставляет методы для получения, создания, обновления и удаления премий по расчёту ФОТ.
 abstract class PayrollBonusRepository {
   /// Создать новую премию.
@@ -15,4 +15,4 @@ abstract class PayrollBonusRepository {
 
   /// Получить все премии (без фильтрации по payrollId).
   Future<List<PayrollBonusModel>> getAllBonuses();
-} 
+}

@@ -28,4 +28,4 @@ class WorkSearchRepositoryImpl implements WorkSearchRepository {
       throw Exception('Ошибка поиска работ в репозитории: $e');
     }
   }
-} 
+}

@@ -4,16 +4,19 @@ import '../../domain/repositories/work_material_repository.dart';
 import 'repositories_providers.dart';
 
 /// StateNotifier для управления материалами смены.
-/// 
+///
 /// Позволяет загружать, добавлять, обновлять и удалять материалы для конкретной смены [workId].
-class WorkMaterialsNotifier extends StateNotifier<AsyncValue<List<WorkMaterial>>> {
+class WorkMaterialsNotifier
+    extends StateNotifier<AsyncValue<List<WorkMaterial>>> {
   /// Репозиторий для работы с материалами смены.
   final WorkMaterialRepository repository;
+
   /// Идентификатор смены, для которой ведётся учёт материалов.
   final String workId;
 
   /// Создаёт [WorkMaterialsNotifier] и сразу инициирует загрузку материалов для смены [workId].
-  WorkMaterialsNotifier(this.repository, this.workId) : super(const AsyncValue.loading()) {
+  WorkMaterialsNotifier(this.repository, this.workId)
+      : super(const AsyncValue.loading()) {
     fetch();
   }
 
@@ -48,7 +51,10 @@ class WorkMaterialsNotifier extends StateNotifier<AsyncValue<List<WorkMaterial>>
 }
 
 /// Провайдер для управления и получения списка материалов смены по [workId].
-final workMaterialsProvider = StateNotifierProvider.family<WorkMaterialsNotifier, AsyncValue<List<WorkMaterial>>, String>((ref, workId) {
+final workMaterialsProvider = StateNotifierProvider.family<
+    WorkMaterialsNotifier,
+    AsyncValue<List<WorkMaterial>>,
+    String>((ref, workId) {
   final repo = ref.watch(workMaterialRepositoryProvider);
   return WorkMaterialsNotifier(repo, workId);
-}); 
+});

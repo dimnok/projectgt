@@ -10,10 +10,13 @@ import 'package:flutter/foundation.dart' show debugPrint;
 class ExcelValidationResult {
   /// Валиден ли файл.
   final bool isValid;
+
   /// Список ошибок.
   final List<String> errors;
+
   /// Список предупреждений.
   final List<String> warnings;
+
   /// Создаёт результат валидации.
   const ExcelValidationResult({
     required this.isValid,
@@ -26,12 +29,16 @@ class ExcelValidationResult {
 class ExcelPreviewResult {
   /// Все строки файла.
   final List<List<Data?>> rows;
+
   /// Количество строк.
   final int rowCount;
+
   /// Количество валидных строк.
   final int validRowCount;
+
   /// Общая сумма.
   final double totalAmount;
+
   /// Создаёт результат предпросмотра.
   const ExcelPreviewResult({
     required this.rows,
@@ -44,13 +51,24 @@ class ExcelPreviewResult {
 /// Сервис для работы с Excel-шаблонами смет.
 class ExcelEstimateService {
   /// Путь к шаблону Excel в assets.
-  static const String templateAssetPath = 'assets/templates/estimate_template.xlsx';
+  static const String templateAssetPath =
+      'assets/templates/estimate_template.xlsx';
+
   /// Путь к тестовому текстовому файлу в assets.
   static const String testTextFile = 'assets/templates/test.txt';
+
   /// Список обязательных колонок в Excel-файле сметы.
   static const List<String> requiredColumns = [
-    'Система', 'Подсистема', '№', 'Наименование', 'Артикул', 
-    'Производитель', 'Ед. изм.', 'Кол-во', 'Цена', 'Сумма'
+    'Система',
+    'Подсистема',
+    '№',
+    'Наименование',
+    'Артикул',
+    'Производитель',
+    'Ед. изм.',
+    'Кол-во',
+    'Цена',
+    'Сумма'
   ];
 
   /// Загружает шаблон Excel из assets.
@@ -76,24 +94,25 @@ class ExcelEstimateService {
       // Для веб используем стандартный метод
       return loadTemplateFromAssets();
     }
-    
+
     try {
       // Получаем директорию для временных файлов
       final tempDir = await getTemporaryDirectory();
       final tempPath = '${tempDir.path}/template.xlsx';
       final tempFile = io.File(tempPath);
-      
+
       // Копируем файл из assets во временное хранилище
       final ByteData data = await rootBundle.load(templateAssetPath);
       final bytes = data.buffer.asUint8List();
       await tempFile.writeAsBytes(bytes);
-      
+
       debugPrint('Файл скопирован во временную директорию: $tempPath');
-      
+
       // Читаем файл
       final fileBytes = await tempFile.readAsBytes();
-      debugPrint('Файл прочитан из временной директории, размер: ${fileBytes.length} байт');
-      
+      debugPrint(
+          'Файл прочитан из временной директории, размер: ${fileBytes.length} байт');
+
       return fileBytes;
     } catch (e) {
       debugPrint('Ошибка при чтении шаблона из файловой системы: $e');
@@ -121,21 +140,21 @@ class ExcelEstimateService {
     ]);
     // Добавляем пример строки:
     sheet.appendRow([
-      TextCellValue('Система 1'), 
-      TextCellValue('Подсистема 1'), 
-      const IntCellValue(1), 
-      TextCellValue('Товар'), 
-      TextCellValue('A-123'), 
-      TextCellValue('ООО Рога'), 
-      TextCellValue('шт'), 
-      const IntCellValue(10), 
-      const DoubleCellValue(100.0), 
+      TextCellValue('Система 1'),
+      TextCellValue('Подсистема 1'),
+      const IntCellValue(1),
+      TextCellValue('Товар'),
+      TextCellValue('A-123'),
+      TextCellValue('ООО Рога'),
+      TextCellValue('шт'),
+      const IntCellValue(10),
+      const DoubleCellValue(100.0),
       const DoubleCellValue(1000.0)
     ]);
     final bytes = excel.encode()!;
     return Uint8List.fromList(bytes);
   }
-  
+
   /// Валидирует Excel-файл на соответствие структуре шаблона сметы.
   ///
   /// [bytes] — байтовое представление Excel-файла.
@@ -143,32 +162,35 @@ class ExcelEstimateService {
   static ExcelValidationResult validateExcelFile(Uint8List bytes) {
     final errors = <String>[];
     final warnings = <String>[];
-    
+
     try {
       final excel = Excel.decodeBytes(bytes);
       if (excel.tables.isEmpty) {
         errors.add('Файл не содержит листов');
         return ExcelValidationResult(isValid: false, errors: errors);
       }
-      
+
       final sheet = excel.tables[excel.tables.keys.first]!;
       if (sheet.rows.isEmpty) {
         errors.add('Лист не содержит строк');
         return ExcelValidationResult(isValid: false, errors: errors);
       }
-      
+
       final headers = sheet.rows.first;
       if (headers.length < requiredColumns.length) {
-        errors.add('В заголовке недостаточно колонок. Ожидалось: ${requiredColumns.length}, найдено: ${headers.length}');
+        errors.add(
+            'В заголовке недостаточно колонок. Ожидалось: ${requiredColumns.length}, найдено: ${headers.length}');
       }
-      
+
       // Проверяем заголовки
       for (int i = 0; i < requiredColumns.length; i++) {
-        if (i >= headers.length || headers[i]?.value.toString().trim() != requiredColumns[i]) {
-          errors.add('Ожидалась колонка "${requiredColumns[i]}" в позиции ${i + 1}');
+        if (i >= headers.length ||
+            headers[i]?.value.toString().trim() != requiredColumns[i]) {
+          errors.add(
+              'Ожидалась колонка "${requiredColumns[i]}" в позиции ${i + 1}');
         }
       }
-      
+
       // Проверяем содержимое строк (если заголовки правильные)
       if (errors.isEmpty && sheet.rows.length > 1) {
         final dataRows = sheet.rows.skip(1).toList();
@@ -177,30 +199,55 @@ class ExcelEstimateService {
         int emptyNumberCount = 0;
         int emptyNameCount = 0;
         int emptyUnitCount = 0;
-        
+
         for (int rowIndex = 0; rowIndex < dataRows.length; rowIndex++) {
           final row = dataRows[rowIndex];
-          
+
           // Проверяем обязательные поля
           if (row.length < 10) {
-            warnings.add('Строка ${rowIndex + 2} содержит меньше колонок, чем требуется (${row.length}/10)');
+            warnings.add(
+                'Строка ${rowIndex + 2} содержит меньше колонок, чем требуется (${row.length}/10)');
             continue;
           }
-          
-          if (row[0]?.value == null || row[0]!.value.toString().trim().isEmpty) emptySystemCount++;
-          if (row[1]?.value == null || row[1]!.value.toString().trim().isEmpty) emptySubsystemCount++;
-          if (row[2]?.value == null) emptyNumberCount++;
-          if (row[3]?.value == null || row[3]!.value.toString().trim().isEmpty) emptyNameCount++;
-          if (row[6]?.value == null || row[6]!.value.toString().trim().isEmpty) emptyUnitCount++;
+
+          if (row[0]?.value == null ||
+              row[0]!.value.toString().trim().isEmpty) {
+            emptySystemCount++;
+          }
+          if (row[1]?.value == null ||
+              row[1]!.value.toString().trim().isEmpty) {
+            emptySubsystemCount++;
+          }
+          if (row[2]?.value == null) {
+            emptyNumberCount++;
+          }
+          if (row[3]?.value == null ||
+              row[3]!.value.toString().trim().isEmpty) {
+            emptyNameCount++;
+          }
+          if (row[6]?.value == null ||
+              row[6]!.value.toString().trim().isEmpty) {
+            emptyUnitCount++;
+          }
         }
-        
-        if (emptySystemCount > 0) warnings.add('$emptySystemCount строк без указания системы');
-        if (emptySubsystemCount > 0) warnings.add('$emptySubsystemCount строк без указания подсистемы');
-        if (emptyNumberCount > 0) warnings.add('$emptyNumberCount строк без порядкового номера');
-        if (emptyNameCount > 0) warnings.add('$emptyNameCount строк без наименования');
-        if (emptyUnitCount > 0) warnings.add('$emptyUnitCount строк без единицы измерения');
+
+        if (emptySystemCount > 0) {
+          warnings.add('$emptySystemCount строк без указания системы');
+        }
+        if (emptySubsystemCount > 0) {
+          warnings.add('$emptySubsystemCount строк без указания подсистемы');
+        }
+        if (emptyNumberCount > 0) {
+          warnings.add('$emptyNumberCount строк без порядкового номера');
+        }
+        if (emptyNameCount > 0) {
+          warnings.add('$emptyNameCount строк без наименования');
+        }
+        if (emptyUnitCount > 0) {
+          warnings.add('$emptyUnitCount строк без единицы измерения');
+        }
       }
-      
+
       return ExcelValidationResult(
         isValid: errors.isEmpty,
         errors: errors,
@@ -211,7 +258,7 @@ class ExcelEstimateService {
       return ExcelValidationResult(isValid: false, errors: errors);
     }
   }
-  
+
   /// Подготавливает предпросмотр данных из Excel-файла.
   ///
   /// [bytes] — байтовое представление Excel-файла.
@@ -221,7 +268,7 @@ class ExcelEstimateService {
       final excel = Excel.decodeBytes(bytes);
       final sheet = excel.tables[excel.tables.keys.first]!;
       final rows = sheet.rows;
-      
+
       if (rows.length <= 1) {
         return ExcelPreviewResult(
           rows: rows,
@@ -230,22 +277,22 @@ class ExcelEstimateService {
           totalAmount: 0,
         );
       }
-      
+
       // Получаем только первые 10 строк для предпросмотра (заголовок + 9 строк данных)
       final previewRows = rows.length > 10 ? rows.sublist(0, 10) : rows;
-      
+
       // Предварительно обрабатываем данные для корректного отображения
       // Это особенно важно для номеров, которые теперь имеют строковый тип
       for (int i = 0; i < previewRows.length; i++) {
         final row = previewRows[i];
-        
+
         // Пропускаем заголовок
         if (i == 0) continue;
-        
+
         // Обрабатываем ячейку с номером (индекс 2)
         if (row.length > 2 && row[2] != null) {
           final cellValue = row[2]!.value;
-          
+
           // Если номер числовой, преобразуем его правильно
           if (cellValue != null) {
             if (cellValue is DoubleCellValue) {
@@ -264,20 +311,30 @@ class ExcelEstimateService {
           }
         }
       }
-      
+
       int validRowCount = 0;
       double totalAmount = 0;
-      
+
       for (int i = 1; i < rows.length; i++) {
         final row = rows[i];
-        if (row.length < 10) continue;
-        
+        if (row.length < 10) {
+          continue;
+        }
+
         bool isValid = true;
-        if (row[0]?.value == null || row[0]!.value.toString().trim().isEmpty) isValid = false;
-        if (row[1]?.value == null || row[1]!.value.toString().trim().isEmpty) isValid = false;
-        if (row[3]?.value == null || row[3]!.value.toString().trim().isEmpty) isValid = false;
-        if (row[6]?.value == null || row[6]!.value.toString().trim().isEmpty) isValid = false;
-        
+        if (row[0]?.value == null || row[0]!.value.toString().trim().isEmpty) {
+          isValid = false;
+        }
+        if (row[1]?.value == null || row[1]!.value.toString().trim().isEmpty) {
+          isValid = false;
+        }
+        if (row[3]?.value == null || row[3]!.value.toString().trim().isEmpty) {
+          isValid = false;
+        }
+        if (row[6]?.value == null || row[6]!.value.toString().trim().isEmpty) {
+          isValid = false;
+        }
+
         if (isValid) {
           validRowCount++;
           // Суммируем общую стоимость
@@ -288,13 +345,16 @@ class ExcelEstimateService {
             } else if (totalCell is IntCellValue) {
               totalAmount += totalCell.value.toDouble();
             } else {
-              String totalStr = totalCell.toString().replaceAll(RegExp(r'\s+'), '').replaceAll(',', '.');
+              String totalStr = totalCell
+                  .toString()
+                  .replaceAll(RegExp(r'\s+'), '')
+                  .replaceAll(',', '.');
               totalAmount += double.tryParse(totalStr) ?? 0;
             }
           }
         }
       }
-      
+
       return ExcelPreviewResult(
         rows: previewRows,
         rowCount: rows.length - 1,
@@ -311,7 +371,7 @@ class ExcelEstimateService {
       );
     }
   }
-  
+
   /// Преобразует строку из Excel в EstimateModel.
   ///
   /// [row] — строка данных из Excel.
@@ -319,21 +379,25 @@ class ExcelEstimateService {
   /// [contractId] — идентификатор договора.
   /// [estimateTitle] — название сметы.
   /// Возвращает объект EstimateModel или null, если строка недействительна.
-  static dynamic rowToEstimateModel(
-    List<Data?> row, 
-    String? objectId, 
-    String? contractId, 
-    String estimateTitle
-  ) {
+  static dynamic rowToEstimateModel(List<Data?> row, String? objectId,
+      String? contractId, String estimateTitle) {
     try {
       if (row.length < 10) return null;
-      
+
       // Проверка обязательных полей
-      if (row[0]?.value == null || row[0]!.value.toString().trim().isEmpty) return null;
-      if (row[1]?.value == null || row[1]!.value.toString().trim().isEmpty) return null;
-      if (row[3]?.value == null || row[3]!.value.toString().trim().isEmpty) return null;
-      if (row[6]?.value == null || row[6]!.value.toString().trim().isEmpty) return null;
-      
+      if (row[0]?.value == null || row[0]!.value.toString().trim().isEmpty) {
+        return null;
+      }
+      if (row[1]?.value == null || row[1]!.value.toString().trim().isEmpty) {
+        return null;
+      }
+      if (row[3]?.value == null || row[3]!.value.toString().trim().isEmpty) {
+        return null;
+      }
+      if (row[6]?.value == null || row[6]!.value.toString().trim().isEmpty) {
+        return null;
+      }
+
       // Получаем и форматируем номер как строку
       String number = '';
       if (row[2]?.value != null) {
@@ -356,14 +420,15 @@ class ExcelEstimateService {
           }
         }
       }
-      
+
       final priceStr = row[8]?.value?.toString() ?? '0';
       final totalStr = row[9]?.value?.toString() ?? '0';
-      
-      String clean(String value) => value.replaceAll(RegExp(r'\s+'), '').replaceAll(',', '.');
+
+      String clean(String value) =>
+          value.replaceAll(RegExp(r'\s+'), '').replaceAll(',', '.');
       final cleanPrice = clean(priceStr);
       final cleanTotal = clean(totalStr);
-      
+
       // Преобразуем строки в числа для quantity, price и total
       double quantity = 0;
       if (row[7]?.value != null) {
@@ -379,7 +444,7 @@ class ExcelEstimateService {
           }
         }
       }
-      
+
       // Здесь вернем Map с данными для создания EstimateModel
       return {
         'system': row[0]?.value.toString() ?? '',
@@ -415,4 +480,4 @@ class ExcelEstimateService {
       return 'Ошибка: $e';
     }
   }
-} 
+}

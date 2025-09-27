@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:projectgt/core/utils/snackbar_utils.dart';
-import 'package:projectgt/presentation/state/auth_state.dart';
 import 'package:email_validator/email_validator.dart';
+
+import 'package:projectgt/presentation/state/auth_state.dart';
+import '../widgets/otp_input_bottom_sheet.dart';
 
 /// Экран входа пользователя в систему.
 class LoginScreen extends ConsumerStatefulWidget {
@@ -17,13 +17,11 @@ class LoginScreen extends ConsumerStatefulWidget {
 /// Состояние для экрана [LoginScreen].
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
   @override
   void dispose() {
     _emailController.dispose();
-    _passwordController.dispose();
     super.dispose();
   }
 
@@ -38,56 +36,38 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return null;
   }
 
-  /// Валидация пароля.
-  String? _validatePassword(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Введите пароль';
-    }
-    if (value.length < 6) {
-      return 'Пароль должен содержать минимум 6 символов';
-    }
-    return null;
-  }
+  /// Отправка кода на email.
+  Future<void> _handleRequestCode() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
 
-  /// Обработка входа пользователя.
-  void _handleLogin() {
-    if (_formKey.currentState?.validate() ?? false) {
-      ref.read(authProvider.notifier).login(
-            _emailController.text.trim(),
-            _passwordController.text,
-          );
-    } else {
-      // Показываем уведомление о неверных данных формы
-      SnackBarUtils.showError(
-        context, 
-        'Пожалуйста, проверьте правильность введенных данных',
-      );
+    final email = _emailController.text.trim();
+    FocusScope.of(context).unfocus();
+
+    try {
+      await ref.read(authProvider.notifier).requestEmailOtp(email);
+      if (!mounted) return;
+
+      await OtpInputBottomSheet.show(context, email);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ошибка отправки кода: ${e.toString()}'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final size = MediaQuery.of(context).size;
     final isDesktop = size.width > 600;
     final contentWidth = isDesktop ? 450.0 : double.infinity;
-    
-    // Слушаем состояние аутентификации
-    final authState = ref.watch(authProvider);
-    final hasError = authState.status == AuthStatus.error;
-    
-    // Показываем уведомление при ошибке
-    if (hasError && authState.errorMessage != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        SnackBarUtils.showError(
-          context, 
-          SnackBarUtils.getAuthErrorMessage(authState.errorMessage!),
-        );
-      });
-    }
-    
+
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -104,15 +84,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       Container(
                         padding: const EdgeInsets.all(32),
                         decoration: BoxDecoration(
-                          color: theme.colorScheme.surface,
+                          color: Theme.of(context).colorScheme.surface,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.1),
                             width: 1,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: theme.colorScheme.shadow.withValues(alpha: 0.05),
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .shadow
+                                  .withValues(alpha: 0.05),
                               blurRadius: 10,
                               offset: const Offset(0, 5),
                             ),
@@ -120,21 +106,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                         child: Column(
                           children: [
-                            // Логотип с Hero анимацией
-                            Hero(
-                              tag: 'app_logo',
-                              child: Image.asset(
-                                'assets/images/logo.png',
-                                width: 200,
-                                height: 200,
-                              ),
+                            // Логотип
+                            Image.asset(
+                              'assets/images/logo.png',
+                              width: 200,
+                              height: 200,
                             ),
                             const SizedBox(height: 16),
                             Text(
                               'Добро пожаловать',
-                              style: theme.textTheme.titleLarge?.copyWith(
-                                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                              ),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleLarge
+                                  ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.7),
+                                  ),
                               textAlign: TextAlign.center,
                             ),
                             const SizedBox(height: 32),
@@ -153,21 +142,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             margin: const EdgeInsets.only(bottom: 32),
                             child: Column(
                               children: [
-                                // Логотип с Hero анимацией
-                                Hero(
-                                  tag: 'app_logo',
-                                  child: Image.asset(
-                                    'assets/images/logo.png',
-                                    width: 200,
-                                    height: 200,
-                                  ),
+                                // Логотип
+                                Image.asset(
+                                  'assets/images/logo.png',
+                                  width: 200,
+                                  height: 200,
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
                                   'Добро пожаловать',
-                                  style: theme.textTheme.titleLarge?.copyWith(
-                                    color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                                  ),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleLarge
+                                      ?.copyWith(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurface
+                                            .withValues(alpha: 0.7),
+                                      ),
                                   textAlign: TextAlign.center,
                                 ),
                               ],
@@ -186,13 +178,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
     );
   }
-  
+
   /// Построение формы входа.
   Widget _buildLoginForm(BuildContext context) {
-
     final authState = ref.watch(authProvider);
     final isLoading = authState.status == AuthStatus.loading;
-    
+
     return Form(
       key: _formKey,
       child: Column(
@@ -209,39 +200,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             enabled: !isLoading,
           ),
           const SizedBox(height: 16),
-          TextFormField(
-            controller: _passwordController,
-            validator: _validatePassword,
-            obscureText: true,
-            decoration: const InputDecoration(
-              labelText: 'Пароль',
-              prefixIcon: Icon(Icons.lock_outline),
-            ),
-            enabled: !isLoading,
-          ),
-          const SizedBox(height: 16),
           ElevatedButton(
-            onPressed: isLoading ? null : _handleLogin,
-            child: isLoading
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Войти'),
+            onPressed: isLoading ? null : _handleRequestCode,
+            child: const Text('Получить код на почту'),
           ),
-          const SizedBox(height: 16),
-          OutlinedButton(
-            onPressed: isLoading 
-                ? null 
-                : () {
-                    ref.read(authProvider.notifier).resetError();
-                    context.goNamed('register');
-                  },
-            child: const Text('Зарегистрироваться'),
-          ),
+          // Регистрация отдельной кнопкой не требуется при OTP флоу
         ],
       ),
     );
   }
-} 
+}

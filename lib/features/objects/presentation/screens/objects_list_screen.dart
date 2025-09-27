@@ -33,12 +33,16 @@ class ObjectsListScreen extends ConsumerStatefulWidget {
 class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
   /// Контроллер для поля поиска.
   final _searchController = TextEditingController();
+
   /// Контроллер для прокрутки списка.
   final _scrollController = ScrollController();
+
   /// Флаг видимости поиска (только для mobile).
   final bool _isSearchVisible = false;
+
   /// Флаг предотвращения повторного обновления.
   final bool _preventRefresh = false;
+
   /// Текущий выбранный объект (desktop режим).
   ObjectEntity? selectedObject;
 
@@ -76,11 +80,14 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
     final isLoading = state.status == ObjectStatus.loading;
     final isError = state.status == ObjectStatus.error;
     final searchQuery = _searchController.text;
-    final filteredObjects = List<ObjectEntity>.from(
-      searchQuery.isEmpty
+    final filteredObjects = List<ObjectEntity>.from(searchQuery.isEmpty
         ? objects
-        : objects.where((o) => o.name.toLowerCase().contains(searchQuery.toLowerCase()) || o.address.toLowerCase().contains(searchQuery.toLowerCase())).toList()
-    )..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+        : objects
+            .where((o) =>
+                o.name.toLowerCase().contains(searchQuery.toLowerCase()) ||
+                o.address.toLowerCase().contains(searchQuery.toLowerCase()))
+            .toList())
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
@@ -99,7 +106,9 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
                   isScrollControlled: true,
                   backgroundColor: Colors.transparent,
                   constraints: BoxConstraints(
-                    maxHeight: MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top - kToolbarHeight,
+                    maxHeight: MediaQuery.of(context).size.height -
+                        MediaQuery.of(context).padding.top -
+                        kToolbarHeight,
                   ),
                   builder: (context) {
                     Widget modalContent = Container(
@@ -107,7 +116,8 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
                       clipBehavior: Clip.antiAlias,
                       decoration: BoxDecoration(
                         color: theme.colorScheme.surface,
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+                        borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(32)),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withValues(alpha: 0.18),
@@ -116,7 +126,8 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
                           ),
                         ],
                         border: Border.all(
-                          color: theme.colorScheme.outline.withValues(alpha: 0.12),
+                          color:
+                              theme.colorScheme.outline.withValues(alpha: 0.12),
                           width: 1.5,
                         ),
                       ),
@@ -125,19 +136,24 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
                         minChildSize: 0.5,
                         maxChildSize: 1.0,
                         expand: false,
-                        builder: (context, scrollController) => SingleChildScrollView(
+                        builder: (context, scrollController) =>
+                            SingleChildScrollView(
                           controller: scrollController,
                           child: Padding(
                             padding: EdgeInsets.only(
                               bottom: MediaQuery.of(context).viewInsets.bottom,
                             ),
-                            child: ObjectFormModal(object: selectedObject, onSuccess: (isNew) {
-                              if (isNew) {
-                                SnackBarUtils.showSuccess(context, 'Объект успешно создан');
-                              } else {
-                                SnackBarUtils.showInfo(context, 'Изменения успешно сохранены');
-                              }
-                            }),
+                            child: ObjectFormModal(
+                                object: selectedObject,
+                                onSuccess: (isNew) {
+                                  if (isNew) {
+                                    SnackBarUtils.showSuccess(
+                                        context, 'Объект успешно создан');
+                                  } else {
+                                    SnackBarUtils.showInfo(
+                                        context, 'Изменения успешно сохранены');
+                                  }
+                                }),
                           ),
                         ),
                       ),
@@ -155,7 +171,8 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
                               alignment: Alignment.topCenter,
                               child: ConstrainedBox(
                                 constraints: BoxConstraints(
-                                  maxWidth: MediaQuery.of(context).size.width * 0.5,
+                                  maxWidth:
+                                      MediaQuery.of(context).size.width * 0.5,
                                 ),
                                 child: modalContent,
                               ),
@@ -180,7 +197,8 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
                   context: ctx,
                   builder: (ctx2) => AlertDialog(
                     title: const Text('Удалить объект?'),
-                    content: const Text('Вы уверены, что хотите удалить этот объект?'),
+                    content: const Text(
+                        'Вы уверены, что хотите удалить этот объект?'),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.of(ctx2).pop(false),
@@ -188,7 +206,8 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
                       ),
                       TextButton(
                         onPressed: () => Navigator.of(ctx2).pop(true),
-                        child: const Text('Удалить', style: TextStyle(color: Colors.red)),
+                        child: const Text('Удалить',
+                            style: TextStyle(color: Colors.red)),
                       ),
                     ],
                   ),
@@ -196,7 +215,9 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
                 if (!ctx.mounted) return;
                 if (confirmed == true) {
                   try {
-                    await ref.read(objectProvider.notifier).deleteObject(selectedObject!.id);
+                    await ref
+                        .read(objectProvider.notifier)
+                        .deleteObject(selectedObject!.id);
                     if (!ctx.mounted) return;
                     setState(() {
                       selectedObject = null;
@@ -204,7 +225,8 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
                     SnackBarUtils.showError(ctx, 'Объект удалён');
                   } catch (e) {
                     if (!ctx.mounted) return;
-                    SnackBarUtils.showError(ctx, 'Ошибка удаления: ${e.toString()}');
+                    SnackBarUtils.showError(
+                        ctx, 'Ошибка удаления: ${e.toString()}');
                   }
                 }
               },
@@ -222,7 +244,9 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
             isScrollControlled: true,
             backgroundColor: Colors.transparent,
             constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top - kToolbarHeight,
+              maxHeight: MediaQuery.of(context).size.height -
+                  MediaQuery.of(context).padding.top -
+                  kToolbarHeight,
             ),
             builder: (context) {
               Widget modalContent = Container(
@@ -230,7 +254,8 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
                 clipBehavior: Clip.antiAlias,
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surface,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(32)),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.18),
@@ -256,9 +281,11 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
                       ),
                       child: ObjectFormModal(onSuccess: (isNew) {
                         if (isNew) {
-                          SnackBarUtils.showSuccess(context, 'Объект успешно создан');
+                          SnackBarUtils.showSuccess(
+                              context, 'Объект успешно создан');
                         } else {
-                          SnackBarUtils.showInfo(context, 'Изменения успешно сохранены');
+                          SnackBarUtils.showInfo(
+                              context, 'Изменения успешно сохранены');
                         }
                       }),
                     ),
@@ -336,7 +363,9 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
                           child: isLoading
                               ? const Center(child: CircularProgressIndicator())
                               : isError
-                                  ? Center(child: Text(state.errorMessage ?? 'Ошибка'))
+                                  ? Center(
+                                      child:
+                                          Text(state.errorMessage ?? 'Ошибка'))
                                   : filteredObjects.isEmpty
                                       ? Center(
                                           child: Text(
@@ -348,20 +377,30 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
                                         )
                                       : ListView.builder(
                                           controller: _scrollController,
-                                          physics: const AlwaysScrollableScrollPhysics(),
+                                          physics:
+                                              const AlwaysScrollableScrollPhysics(),
                                           itemCount: filteredObjects.length,
                                           itemBuilder: (context, index) {
-                                            final object = filteredObjects[index];
-                                            final isSelected = selectedObject?.id == object.id;
+                                            final object =
+                                                filteredObjects[index];
+                                            final isSelected =
+                                                selectedObject?.id == object.id;
                                             return Card(
-                                              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                              margin:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 12,
+                                                      vertical: 6),
                                               elevation: 0,
                                               shape: RoundedRectangleBorder(
-                                                borderRadius: BorderRadius.circular(12),
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
                                                 side: BorderSide(
                                                   color: isSelected
                                                       ? Colors.green
-                                                      : theme.colorScheme.outline.withValues(alpha: 0.1),
+                                                      : theme
+                                                          .colorScheme.outline
+                                                          .withValues(
+                                                              alpha: 0.1),
                                                   width: isSelected ? 2 : 1,
                                                 ),
                                               ),
@@ -371,24 +410,36 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
                                                     selectedObject = object;
                                                   });
                                                 },
-                                                borderRadius: BorderRadius.circular(12),
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
                                                 child: Padding(
-                                                  padding: const EdgeInsets.all(16.0),
+                                                  padding: const EdgeInsets.all(
+                                                      16.0),
                                                   child: Column(
-                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
                                                     children: [
                                                       Text(
                                                         object.name,
-                                                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                                                        style: theme.textTheme
+                                                            .titleMedium
+                                                            ?.copyWith(
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold),
                                                         maxLines: 1,
-                                                        overflow: TextOverflow.ellipsis,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
                                                       ),
                                                       const SizedBox(height: 4),
                                                       Text(
                                                         object.address,
-                                                        style: theme.textTheme.bodyMedium,
+                                                        style: theme.textTheme
+                                                            .bodyMedium,
                                                         maxLines: 1,
-                                                        overflow: TextOverflow.ellipsis,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
                                                       ),
                                                     ],
                                                   ),
@@ -452,7 +503,8 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
                       child: Text(
                         "↓ Потяните вниз для поиска ↓",
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                          color: theme.colorScheme.onSurface
+                              .withValues(alpha: 0.5),
                         ),
                       ),
                     ),
@@ -464,7 +516,8 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
                       child: Text(
                         "↓ Потяните ещё раз для обновления списка ↓",
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                          color: theme.colorScheme.onSurface
+                              .withValues(alpha: 0.5),
                         ),
                       ),
                     ),
@@ -475,7 +528,8 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
                     child: isLoading
                         ? const Center(child: CircularProgressIndicator())
                         : isError
-                            ? Center(child: Text(state.errorMessage ?? 'Ошибка'))
+                            ? Center(
+                                child: Text(state.errorMessage ?? 'Ошибка'))
                             : filteredObjects.isEmpty
                                 ? Center(
                                     child: Text(
@@ -487,17 +541,21 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
                                   )
                                 : ListView.builder(
                                     controller: _scrollController,
-                                    physics: const AlwaysScrollableScrollPhysics(),
+                                    physics:
+                                        const AlwaysScrollableScrollPhysics(),
                                     itemCount: filteredObjects.length,
                                     itemBuilder: (context, index) {
                                       final object = filteredObjects[index];
                                       return Card(
-                                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                        margin: const EdgeInsets.symmetric(
+                                            horizontal: 16, vertical: 8),
                                         elevation: 0,
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(12),
+                                          borderRadius:
+                                              BorderRadius.circular(12),
                                           side: BorderSide(
-                                            color: theme.colorScheme.outline.withValues(alpha: 0.1),
+                                            color: theme.colorScheme.outline
+                                                .withValues(alpha: 0.1),
                                             width: 1,
                                           ),
                                         ),
@@ -505,28 +563,39 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
                                           onTap: () {
                                             Navigator.of(context).push(
                                               MaterialPageRoute(
-                                                builder: (context) => ObjectDetailsScreen(object: object),
+                                                builder: (context) =>
+                                                    ObjectDetailsScreen(
+                                                        object: object),
                                               ),
                                             );
                                           },
-                                          borderRadius: BorderRadius.circular(12),
+                                          borderRadius:
+                                              BorderRadius.circular(12),
                                           child: Padding(
                                             padding: const EdgeInsets.all(16.0),
                                             child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
                                               children: [
                                                 Text(
                                                   object.name,
-                                                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                                                  style: theme
+                                                      .textTheme.titleMedium
+                                                      ?.copyWith(
+                                                          fontWeight:
+                                                              FontWeight.bold),
                                                   maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
                                                 ),
                                                 const SizedBox(height: 4),
                                                 Text(
                                                   object.address,
-                                                  style: theme.textTheme.bodyMedium,
+                                                  style: theme
+                                                      .textTheme.bodyMedium,
                                                   maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
                                                 ),
                                               ],
                                             ),
@@ -552,6 +621,7 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
 class _ObjectDetailsPanel extends StatefulWidget {
   /// Объект для отображения.
   final ObjectEntity object;
+
   /// Создает панель деталей для [object].
   const _ObjectDetailsPanel({required this.object});
 
@@ -559,7 +629,8 @@ class _ObjectDetailsPanel extends StatefulWidget {
   State<_ObjectDetailsPanel> createState() => _ObjectDetailsPanelState();
 }
 
-class _ObjectDetailsPanelState extends State<_ObjectDetailsPanel> with SingleTickerProviderStateMixin {
+class _ObjectDetailsPanelState extends State<_ObjectDetailsPanel>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
@@ -598,7 +669,8 @@ class _ObjectDetailsPanelState extends State<_ObjectDetailsPanel> with SingleTic
             children: [
               CircleAvatar(
                 radius: 40,
-                backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.08),
+                backgroundColor:
+                    theme.colorScheme.primary.withValues(alpha: 0.08),
                 child: Icon(
                   Icons.location_city_rounded,
                   size: 48,
@@ -612,18 +684,23 @@ class _ObjectDetailsPanelState extends State<_ObjectDetailsPanel> with SingleTic
                   children: [
                     Text(
                       object.name,
-                      style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                      style: theme.textTheme.titleLarge
+                          ?.copyWith(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        Icon(Icons.place, size: 20, color: theme.colorScheme.primary.withValues(alpha: 0.7)),
+                        Icon(Icons.place,
+                            size: 20,
+                            color: theme.colorScheme.primary
+                                .withValues(alpha: 0.7)),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             object.address,
                             style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurface.withValues(alpha: 0.85),
+                              color: theme.colorScheme.onSurface
+                                  .withValues(alpha: 0.85),
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
@@ -671,7 +748,8 @@ class _ObjectDetailsPanelState extends State<_ObjectDetailsPanel> with SingleTic
                         children: [
                           Text(
                             'Основная информация',
-                            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                            style: theme.textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 16),
                           buildInfoItem(context, 'Наименование', object.name),
@@ -702,10 +780,12 @@ class _ObjectDetailsPanelState extends State<_ObjectDetailsPanel> with SingleTic
                         children: [
                           Text(
                             'Описание',
-                            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                            style: theme.textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 16),
-                          if (object.description != null && object.description!.isNotEmpty)
+                          if (object.description != null &&
+                              object.description!.isNotEmpty)
                             Text(
                               object.description!,
                               style: theme.textTheme.bodyLarge,
@@ -713,7 +793,9 @@ class _ObjectDetailsPanelState extends State<_ObjectDetailsPanel> with SingleTic
                           else
                             Text(
                               'Нет описания',
-                              style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
+                              style: theme.textTheme.bodyLarge?.copyWith(
+                                  color: theme.colorScheme.onSurface
+                                      .withValues(alpha: 0.5)),
                             ),
                         ],
                       ),
@@ -741,7 +823,8 @@ class _ObjectDetailsPanelState extends State<_ObjectDetailsPanel> with SingleTic
                         children: [
                           Text(
                             'Командировочные выплаты',
-                            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                            style: theme.textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 16),
                           Text(
@@ -749,7 +832,8 @@ class _ObjectDetailsPanelState extends State<_ObjectDetailsPanel> with SingleTic
                             style: theme.textTheme.bodyMedium,
                           ),
                           const SizedBox(height: 16),
-                          buildInfoItem(context, 'Сумма командировочных', '${object.businessTripAmount} ₽'),
+                          buildInfoItem(context, 'Сумма командировочных',
+                              '${object.businessTripAmount} ₽'),
                         ],
                       ),
                     ),
@@ -786,7 +870,8 @@ Widget buildInfoItem(BuildContext context, String label, String value) {
         Expanded(
           child: Text(
             value,
-            style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
+            style: theme.textTheme.bodyLarge
+                ?.copyWith(fontWeight: FontWeight.w500),
           ),
         ),
       ],
@@ -800,14 +885,17 @@ Widget buildInfoItem(BuildContext context, String label, String value) {
 class ObjectDetailsScreen extends ConsumerStatefulWidget {
   /// Объект для отображения.
   final ObjectEntity object;
+
   /// Создает экран деталей для [object].
   const ObjectDetailsScreen({required this.object, super.key});
 
   @override
-  ConsumerState<ObjectDetailsScreen> createState() => _ObjectDetailsScreenState();
+  ConsumerState<ObjectDetailsScreen> createState() =>
+      _ObjectDetailsScreenState();
 }
 
-class _ObjectDetailsScreenState extends ConsumerState<ObjectDetailsScreen> with SingleTickerProviderStateMixin {
+class _ObjectDetailsScreenState extends ConsumerState<ObjectDetailsScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
@@ -843,13 +931,16 @@ class _ObjectDetailsScreenState extends ConsumerState<ObjectDetailsScreen> with 
                 isScrollControlled: true,
                 backgroundColor: Colors.transparent,
                 constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top - kToolbarHeight,
+                  maxHeight: MediaQuery.of(context).size.height -
+                      MediaQuery.of(context).padding.top -
+                      kToolbarHeight,
                 ),
                 builder: (context) => Container(
                   clipBehavior: Clip.antiAlias,
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surface,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(28)),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.1),
@@ -863,19 +954,24 @@ class _ObjectDetailsScreenState extends ConsumerState<ObjectDetailsScreen> with 
                     minChildSize: 0.5,
                     maxChildSize: 1.0,
                     expand: false,
-                    builder: (context, scrollController) => SingleChildScrollView(
+                    builder: (context, scrollController) =>
+                        SingleChildScrollView(
                       controller: scrollController,
                       child: Padding(
                         padding: EdgeInsets.only(
                           bottom: MediaQuery.of(context).viewInsets.bottom,
                         ),
-                        child: ObjectFormModal(object: object, onSuccess: (isNew) {
-                          if (isNew) {
-                            SnackBarUtils.showSuccess(context, 'Объект успешно создан');
-                          } else {
-                            SnackBarUtils.showInfo(context, 'Изменения успешно сохранены');
-                          }
-                        }),
+                        child: ObjectFormModal(
+                            object: object,
+                            onSuccess: (isNew) {
+                              if (isNew) {
+                                SnackBarUtils.showSuccess(
+                                    context, 'Объект успешно создан');
+                              } else {
+                                SnackBarUtils.showInfo(
+                                    context, 'Изменения успешно сохранены');
+                              }
+                            }),
                       ),
                     ),
                   ),
@@ -892,7 +988,8 @@ class _ObjectDetailsScreenState extends ConsumerState<ObjectDetailsScreen> with 
                 context: ctx,
                 builder: (ctx2) => AlertDialog(
                   title: const Text('Удалить объект?'),
-                  content: const Text('Вы уверены, что хотите удалить этот объект?'),
+                  content:
+                      const Text('Вы уверены, что хотите удалить этот объект?'),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.of(ctx2).pop(false),
@@ -900,7 +997,8 @@ class _ObjectDetailsScreenState extends ConsumerState<ObjectDetailsScreen> with 
                     ),
                     TextButton(
                       onPressed: () => Navigator.of(ctx2).pop(true),
-                      child: const Text('Удалить', style: TextStyle(color: Colors.red)),
+                      child: const Text('Удалить',
+                          style: TextStyle(color: Colors.red)),
                     ),
                   ],
                 ),
@@ -908,13 +1006,16 @@ class _ObjectDetailsScreenState extends ConsumerState<ObjectDetailsScreen> with 
               if (!ctx.mounted) return;
               if (confirmed == true) {
                 try {
-                  await ref.read(objectProvider.notifier).deleteObject(widget.object.id);
+                  await ref
+                      .read(objectProvider.notifier)
+                      .deleteObject(widget.object.id);
                   if (!ctx.mounted) return;
                   Navigator.of(ctx).pop();
                   SnackBarUtils.showError(ctx, 'Объект удалён');
                 } catch (e) {
                   if (!ctx.mounted) return;
-                  SnackBarUtils.showError(ctx, 'Ошибка удаления: ${e.toString()}');
+                  SnackBarUtils.showError(
+                      ctx, 'Ошибка удаления: ${e.toString()}');
                 }
               }
             },
@@ -940,7 +1041,8 @@ class _ObjectDetailsScreenState extends ConsumerState<ObjectDetailsScreen> with 
               children: [
                 CircleAvatar(
                   radius: 40,
-                  backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.08),
+                  backgroundColor:
+                      theme.colorScheme.primary.withValues(alpha: 0.08),
                   child: Icon(
                     Icons.location_city_rounded,
                     size: 48,
@@ -954,18 +1056,23 @@ class _ObjectDetailsScreenState extends ConsumerState<ObjectDetailsScreen> with 
                     children: [
                       Text(
                         object.name,
-                        style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                        style: theme.textTheme.titleLarge
+                            ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                          Icon(Icons.place, size: 20, color: theme.colorScheme.primary.withValues(alpha: 0.7)),
+                          Icon(Icons.place,
+                              size: 20,
+                              color: theme.colorScheme.primary
+                                  .withValues(alpha: 0.7)),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               object.address,
                               style: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.onSurface.withValues(alpha: 0.85),
+                                color: theme.colorScheme.onSurface
+                                    .withValues(alpha: 0.85),
                               ),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
@@ -1000,7 +1107,8 @@ class _ObjectDetailsScreenState extends ConsumerState<ObjectDetailsScreen> with 
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                         side: BorderSide(
-                          color: theme.colorScheme.outline.withValues(alpha: 0.1),
+                          color:
+                              theme.colorScheme.outline.withValues(alpha: 0.1),
                         ),
                       ),
                       child: Padding(
@@ -1010,7 +1118,8 @@ class _ObjectDetailsScreenState extends ConsumerState<ObjectDetailsScreen> with 
                           children: [
                             Text(
                               'Основная информация',
-                              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                              style: theme.textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 16),
                             buildInfoItem(context, 'Наименование', object.name),
@@ -1030,7 +1139,8 @@ class _ObjectDetailsScreenState extends ConsumerState<ObjectDetailsScreen> with 
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                         side: BorderSide(
-                          color: theme.colorScheme.outline.withValues(alpha: 0.1),
+                          color:
+                              theme.colorScheme.outline.withValues(alpha: 0.1),
                         ),
                       ),
                       child: Padding(
@@ -1040,10 +1150,12 @@ class _ObjectDetailsScreenState extends ConsumerState<ObjectDetailsScreen> with 
                           children: [
                             Text(
                               'Описание',
-                              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                              style: theme.textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 16),
-                            if (object.description != null && object.description!.isNotEmpty)
+                            if (object.description != null &&
+                                object.description!.isNotEmpty)
                               Text(
                                 object.description!,
                                 style: theme.textTheme.bodyLarge,
@@ -1051,7 +1163,9 @@ class _ObjectDetailsScreenState extends ConsumerState<ObjectDetailsScreen> with 
                             else
                               Text(
                                 'Нет описания',
-                                style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
+                                style: theme.textTheme.bodyLarge?.copyWith(
+                                    color: theme.colorScheme.onSurface
+                                        .withValues(alpha: 0.5)),
                               ),
                           ],
                         ),
@@ -1069,7 +1183,8 @@ class _ObjectDetailsScreenState extends ConsumerState<ObjectDetailsScreen> with 
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                         side: BorderSide(
-                          color: theme.colorScheme.outline.withValues(alpha: 0.1),
+                          color:
+                              theme.colorScheme.outline.withValues(alpha: 0.1),
                         ),
                       ),
                       child: Padding(
@@ -1079,7 +1194,8 @@ class _ObjectDetailsScreenState extends ConsumerState<ObjectDetailsScreen> with 
                           children: [
                             Text(
                               'Командировочные выплаты',
-                              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                              style: theme.textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 16),
                             Text(
@@ -1087,7 +1203,8 @@ class _ObjectDetailsScreenState extends ConsumerState<ObjectDetailsScreen> with 
                               style: theme.textTheme.bodyMedium,
                             ),
                             const SizedBox(height: 16),
-                            buildInfoItem(context, 'Сумма командировочных', '${object.businessTripAmount} ₽'),
+                            buildInfoItem(context, 'Сумма командировочных',
+                                '${object.businessTripAmount} ₽'),
                           ],
                         ),
                       ),
@@ -1109,10 +1226,12 @@ class _ObjectDetailsScreenState extends ConsumerState<ObjectDetailsScreen> with 
 class ObjectFormModal extends ConsumerStatefulWidget {
   /// Объект для редактирования. Если null — создается новый объект.
   final ObjectEntity? object;
+
   /// Колбэк, вызывается после успешного сохранения объекта.
   ///
   /// [isNew] — true, если создан новый объект, false — если редактирование.
   final Function(bool) onSuccess;
+
   /// Создает модальное окно для [object].
   const ObjectFormModal({super.key, this.object, required this.onSuccess});
 
@@ -1132,9 +1251,12 @@ class _ObjectFormModalState extends ConsumerState<ObjectFormModal> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.object?.name ?? '');
-    _addressController = TextEditingController(text: widget.object?.address ?? '');
-    _descriptionController = TextEditingController(text: widget.object?.description ?? '');
-    _businessTripAmountController = TextEditingController(text: widget.object?.businessTripAmount.toString() ?? '');
+    _addressController =
+        TextEditingController(text: widget.object?.address ?? '');
+    _descriptionController =
+        TextEditingController(text: widget.object?.description ?? '');
+    _businessTripAmountController = TextEditingController(
+        text: widget.object?.businessTripAmount.toString() ?? '');
   }
 
   @override
@@ -1159,7 +1281,9 @@ class _ObjectFormModalState extends ConsumerState<ObjectFormModal> {
       id: widget.object?.id ?? const Uuid().v4(),
       name: _nameController.text.trim(),
       address: _addressController.text.trim(),
-      description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
+      description: _descriptionController.text.trim().isEmpty
+          ? null
+          : _descriptionController.text.trim(),
       businessTripAmount: _businessTripAmountController.text.trim().isEmpty
           ? 0
           : double.parse(_businessTripAmountController.text.trim()),
@@ -1189,4 +1313,4 @@ class _ObjectFormModalState extends ConsumerState<ObjectFormModal> {
       onCancel: () => Navigator.pop(context),
     );
   }
-} 
+}

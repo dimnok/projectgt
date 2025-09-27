@@ -1,0 +1,29 @@
+{
+  "_doc": {
+    "purpose": "Точный A1-маппинг полей и колонок",
+    "note": "Дата и № накладной берутся из одиночных ячеек, заголовки в 16-й строке, данные начинаются с 17-й",
+    "how_to": [
+      "Обновите буквы колонок, если в будущих файлах изменятся",
+      "При другом листе смените 'sheet'",
+      "Если формат даты другой — смените dateFormat"
+    ]
+  },
+  "sheet": "Лист_1",
+  "headerRow": 16,
+  "dataStartRow": 17,
+  "globals": {
+    "receiptDateCell": { "ref": "E9", "dateFormat": "dd.MM.yyyy" },
+    "receiptNumberCell": { "ref": "J2" },
+    "contractNumberCell": { "ref": "E11" }
+  },
+  "stopAtEmptyIn": ["E"],
+  "columns": {
+    "name": "E",
+    "unit": "M",
+    "quantity": "Q",
+    "price": "U",
+    "total": "Z"
+  },
+  "numbers": { "decimal": ",", "thousands": " " },
+  "skipRowsIfCellContains": ["ИТОГО", "ВСЕГО"]
+}

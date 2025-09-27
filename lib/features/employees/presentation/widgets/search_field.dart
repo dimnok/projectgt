@@ -7,19 +7,19 @@ import 'package:projectgt/core/utils/responsive_utils.dart';
 class SearchField extends StatelessWidget {
   /// Контроллер текстового поля.
   final TextEditingController controller;
-  
+
   /// Коллбэк при изменении текста.
   final Function(String)? onChanged;
-  
+
   /// Подсказка в поле поиска.
   final String? labelText;
-  
+
   /// Статус видимости поля (только для мобильных устройств).
   final bool isVisible;
-  
+
   /// Высота контейнера поиска.
   static const double _containerHeight = 80.0;
-  
+
   /// Создает адаптивное поле поиска.
   ///
   /// [controller] - контроллер для управления текстом.
@@ -37,13 +37,13 @@ class SearchField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDesktop = ResponsiveUtils.isDesktop(context);
-    
+
     // Десктоп не использует анимацию, мобильный - использует
-    return isDesktop 
+    return isDesktop
         ? _buildSearchField(visible: true)
         : _buildAnimatedSearchField(visible: isVisible);
   }
-  
+
   /// Строит анимированное поле поиска для мобильных устройств.
   Widget _buildAnimatedSearchField({required bool visible}) {
     return AnimatedContainer(
@@ -52,13 +52,13 @@ class SearchField extends StatelessWidget {
       child: _buildSearchField(visible: visible),
     );
   }
-  
+
   /// Строит поле поиска.
   Widget _buildSearchField({required bool visible}) {
     if (!visible) {
       return const SizedBox.shrink();
     }
-    
+
     // Определяем, нужна ли кнопка очистки
     final bool showClearButton = controller.text.isNotEmpty;
     final Widget? suffixIcon = showClearButton
@@ -70,7 +70,7 @@ class SearchField extends StatelessWidget {
             },
           )
         : null;
-    
+
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: TextField(
@@ -84,4 +84,4 @@ class SearchField extends StatelessWidget {
       ),
     );
   }
-} 
+}

@@ -39,4 +39,4 @@ abstract class ContractRepository {
   /// [id] — идентификатор договора.
   /// После удаления договор становится недоступен.
   Future<void> deleteContract(String id);
-} 
+}

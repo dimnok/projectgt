@@ -21,13 +21,15 @@ class WorkMaterialRepositoryImpl implements WorkMaterialRepository {
   /// Добавляет новый материал [material] в смену.
   @override
   Future<void> addWorkMaterial(WorkMaterial material) async {
-    await dataSource.addWorkMaterial(WorkMaterialModel.fromJson(material.toJson()));
+    await dataSource
+        .addWorkMaterial(WorkMaterialModel.fromJson(material.toJson()));
   }
 
   /// Обновляет материал [material] в смене.
   @override
   Future<void> updateWorkMaterial(WorkMaterial material) async {
-    await dataSource.updateWorkMaterial(WorkMaterialModel.fromJson(material.toJson()));
+    await dataSource
+        .updateWorkMaterial(WorkMaterialModel.fromJson(material.toJson()));
   }
 
   /// Удаляет материал по идентификатору [id].
@@ -35,4 +37,4 @@ class WorkMaterialRepositoryImpl implements WorkMaterialRepository {
   Future<void> deleteWorkMaterial(String id) async {
     await dataSource.deleteWorkMaterial(id);
   }
-} 
+}

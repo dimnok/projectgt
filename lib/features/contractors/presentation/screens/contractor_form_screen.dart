@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:io';
@@ -11,7 +12,7 @@ import 'package:projectgt/core/utils/snackbar_utils.dart';
 /// Контент формы создания/редактирования контрагента.
 ///
 /// Используется для отображения и валидации полей контрагента, загрузки логотипа и управления состоянием формы.
-/// 
+///
 /// Пример использования:
 /// ```dart
 /// ContractorFormContent(
@@ -24,36 +25,52 @@ import 'package:projectgt/core/utils/snackbar_utils.dart';
 class ContractorFormContent extends StatelessWidget {
   /// Является ли форма созданием нового контрагента (`true`) или редактированием (`false`).
   final bool isNew;
+
   /// Флаг загрузки состояния (блокирует поля и кнопки).
   final bool isLoading;
+
   /// Контроллер для поля "Полное наименование".
   final TextEditingController fullNameController;
+
   /// Контроллер для поля "Сокращенное наименование".
   final TextEditingController shortNameController;
+
   /// Контроллер для поля "ИНН".
   final TextEditingController innController;
+
   /// Контроллер для поля "Директор".
   final TextEditingController directorController;
+
   /// Контроллер для поля "Юридический адрес".
   final TextEditingController legalAddressController;
+
   /// Контроллер для поля "Фактический адрес".
   final TextEditingController actualAddressController;
+
   /// Контроллер для поля "Телефон".
   final TextEditingController phoneController;
+
   /// Контроллер для поля "Почта".
   final TextEditingController emailController;
+
   /// Тип контрагента (заказчик, подрядчик, поставщик).
   final ContractorType type;
+
   /// Колбэк при изменении типа контрагента.
   final void Function(ContractorType) onTypeChanged;
+
   /// Локальный файл логотипа (если выбран).
   final File? logoFile;
+
   /// URL логотипа (если уже загружен).
   final String? logoUrl;
+
   /// Колбэк для сохранения формы.
   final VoidCallback onSave;
+
   /// Колбэк для отмены/закрытия формы.
   final VoidCallback onCancel;
+
   /// Флаг загрузки логотипа (отображает индикатор).
   final bool isLogoLoading;
 
@@ -91,7 +108,8 @@ class ContractorFormContent extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
             side: BorderSide(
-              color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+              color:
+                  Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
             ),
           ),
           child: Padding(
@@ -101,27 +119,37 @@ class ContractorFormContent extends StatelessWidget {
               children: [
                 Text(
                   'Информация о контрагенте',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: fullNameController,
-                  decoration: const InputDecoration(labelText: 'Полное наименование *'),
-                  validator: (v) => v == null || v.trim().isEmpty ? 'Введите полное наименование' : null,
+                  decoration:
+                      const InputDecoration(labelText: 'Полное наименование *'),
+                  validator: (v) => v == null || v.trim().isEmpty
+                      ? 'Введите полное наименование'
+                      : null,
                   enabled: !isLoading,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: shortNameController,
-                  decoration: const InputDecoration(labelText: 'Сокращенное наименование *'),
-                  validator: (v) => v == null || v.trim().isEmpty ? 'Введите сокращенное наименование' : null,
+                  decoration: const InputDecoration(
+                      labelText: 'Сокращенное наименование *'),
+                  validator: (v) => v == null || v.trim().isEmpty
+                      ? 'Введите сокращенное наименование'
+                      : null,
                   enabled: !isLoading,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: innController,
                   decoration: const InputDecoration(labelText: 'ИНН *'),
-                  validator: (v) => v == null || v.trim().isEmpty ? 'Введите ИНН' : null,
+                  validator: (v) =>
+                      v == null || v.trim().isEmpty ? 'Введите ИНН' : null,
                   enabled: !isLoading,
                   keyboardType: TextInputType.number,
                 ),
@@ -135,21 +163,24 @@ class ContractorFormContent extends StatelessWidget {
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: legalAddressController,
-                  decoration: const InputDecoration(labelText: 'Юридический адрес'),
+                  decoration:
+                      const InputDecoration(labelText: 'Юридический адрес'),
                   validator: (v) => null,
                   enabled: !isLoading,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: actualAddressController,
-                  decoration: const InputDecoration(labelText: 'Фактический адрес'),
+                  decoration:
+                      const InputDecoration(labelText: 'Фактический адрес'),
                   validator: (v) => null,
                   enabled: !isLoading,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: phoneController,
-                  decoration: const InputDecoration(labelText: 'Контактный номер'),
+                  decoration:
+                      const InputDecoration(labelText: 'Контактный номер'),
                   validator: (v) => null,
                   enabled: !isLoading,
                   keyboardType: TextInputType.phone,
@@ -165,7 +196,8 @@ class ContractorFormContent extends StatelessWidget {
                 const SizedBox(height: 16),
                 DropdownButtonFormField<ContractorType>(
                   value: type,
-                  decoration: const InputDecoration(labelText: 'Тип контрагента'),
+                  decoration:
+                      const InputDecoration(labelText: 'Тип контрагента'),
                   items: ContractorType.values.map((type) {
                     return DropdownMenuItem(
                       value: type,
@@ -192,7 +224,10 @@ class ContractorFormContent extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: isLoading ? null : onSave,
                 child: isLoading
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CupertinoActivityIndicator())
                     : Text(isNew ? 'Создать' : 'Сохранить'),
               ),
             ),
@@ -228,13 +263,17 @@ class ContractorFormContent extends StatelessWidget {
 class ContractorFormScreen extends ConsumerStatefulWidget {
   /// ID контрагента для редактирования. Если `null` — создаётся новый контрагент.
   final String? contractorId;
+
   /// Показывать ли Scaffold вокруг формы (по умолчанию `true`).
   final bool showScaffold;
+
   /// Конструктор [ContractorFormScreen].
-  const ContractorFormScreen({super.key, this.contractorId, this.showScaffold = true});
+  const ContractorFormScreen(
+      {super.key, this.contractorId, this.showScaffold = true});
 
   @override
-  ConsumerState<ContractorFormScreen> createState() => _ContractorFormScreenState();
+  ConsumerState<ContractorFormScreen> createState() =>
+      _ContractorFormScreenState();
 }
 
 /// Состояние для [ContractorFormScreen]. Управляет контроллерами, загрузкой, логикой сохранения и загрузки логотипа.
@@ -273,19 +312,21 @@ class _ContractorFormScreenState extends ConsumerState<ContractorFormScreen> {
       final state = ref.read(contractorProvider);
       final contractor = state.contractors.firstWhere(
         (c) => c.id == widget.contractorId,
-        orElse: () => state.contractor ?? Contractor(
-          id: widget.contractorId!,
-          logoUrl: null,
-          fullName: '',
-          shortName: '',
-          inn: '',
-          director: '',
-          legalAddress: '',
-          actualAddress: '',
-          phone: '',
-          email: '',
-          type: ContractorType.customer,
-        ),
+        orElse: () =>
+            state.contractor ??
+            Contractor(
+              id: widget.contractorId!,
+              logoUrl: null,
+              fullName: '',
+              shortName: '',
+              inn: '',
+              director: '',
+              legalAddress: '',
+              actualAddress: '',
+              phone: '',
+              email: '',
+              type: ContractorType.customer,
+            ),
       );
       _fullNameController.text = contractor.fullName;
       _shortNameController.text = contractor.shortName;
@@ -346,7 +387,7 @@ class _ContractorFormScreenState extends ConsumerState<ContractorFormScreen> {
     return Material(
       color: theme.colorScheme.surface,
       child: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CupertinoActivityIndicator())
           : Center(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24.0),
@@ -364,14 +405,18 @@ class _ContractorFormScreenState extends ConsumerState<ContractorFormScreen> {
                             children: [
                               Expanded(
                                 child: Text(
-                                  isNew ? 'Новый контрагент' : 'Редактировать контрагента',
-                                  style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                                  isNew
+                                      ? 'Новый контрагент'
+                                      : 'Редактировать контрагента',
+                                  style: theme.textTheme.titleLarge
+                                      ?.copyWith(fontWeight: FontWeight.bold),
                                   textAlign: TextAlign.center,
                                 ),
                               ),
                               IconButton(
                                 icon: const Icon(Icons.close),
-                                style: IconButton.styleFrom(foregroundColor: Colors.red),
+                                style: IconButton.styleFrom(
+                                    foregroundColor: Colors.red),
                                 onPressed: () {
                                   if (Navigator.of(context).canPop()) {
                                     Navigator.pop(context);
@@ -436,4 +481,4 @@ class _ContractorFormScreenState extends ConsumerState<ContractorFormScreen> {
             ),
     );
   }
-} 
+}

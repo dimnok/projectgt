@@ -13,16 +13,20 @@ abstract class ObjectEntity with _$ObjectEntity {
   const factory ObjectEntity({
     /// Уникальный идентификатор объекта.
     required String id,
+
     /// Название объекта.
     required String name,
+
     /// Адрес объекта.
     required String address,
+
     /// Описание объекта.
     String? description,
+
     /// Сумма командировочных выплат для объекта
     @Default(0) num businessTripAmount,
   }) = _ObjectEntity;
 
   /// Приватный конструктор для расширения функциональности через методы.
   const ObjectEntity._();
-} 
+}

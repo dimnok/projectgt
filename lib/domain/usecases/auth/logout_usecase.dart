@@ -25,4 +25,4 @@ class LogoutUseCase {
   Future<void> execute() {
     return repository.logout();
   }
-} 
+}

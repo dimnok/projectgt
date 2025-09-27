@@ -5,9 +5,9 @@ part 'object_model.freezed.dart';
 part 'object_model.g.dart';
 
 /// Модель объекта недвижимости для слоя data.
-/// 
+///
 /// Используется для сериализации/десериализации данных из/в Supabase и преобразования в доменную сущность [ObjectEntity].
-/// 
+///
 /// Пример использования:
 /// ```dart
 /// final object = ObjectModel(
@@ -33,6 +33,7 @@ abstract class ObjectModel with _$ObjectModel {
     required String name,
     required String address,
     String? description,
+
     /// Сумма командировочных выплат для объекта
     @Default(0) num businessTripAmount,
   }) = _ObjectModel;
@@ -49,7 +50,8 @@ abstract class ObjectModel with _$ObjectModel {
   /// ```dart
   /// final model = ObjectModel.fromJson(jsonMap);
   /// ```
-  factory ObjectModel.fromJson(Map<String, dynamic> json) => _$ObjectModelFromJson(json);
+  factory ObjectModel.fromJson(Map<String, dynamic> json) =>
+      _$ObjectModelFromJson(json);
 
   /// Создаёт [ObjectModel] из доменной сущности [ObjectEntity].
   ///
@@ -62,7 +64,7 @@ abstract class ObjectModel with _$ObjectModel {
         description: object.description,
         businessTripAmount: object.businessTripAmount,
       );
-  
+
   /// Преобразует [ObjectModel] в доменную сущность [ObjectEntity].
   ///
   /// Возвращает [ObjectEntity] с соответствующими полями.
@@ -73,4 +75,4 @@ abstract class ObjectModel with _$ObjectModel {
         description: description,
         businessTripAmount: businessTripAmount,
       );
-} 
+}

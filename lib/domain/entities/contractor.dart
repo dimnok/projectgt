@@ -6,8 +6,10 @@ part 'contractor.freezed.dart';
 enum ContractorType {
   /// Заказчик.
   customer,
+
   /// Подрядчик.
   contractor,
+
   /// Поставщик.
   supplier,
 }
@@ -23,32 +25,44 @@ abstract class Contractor with _$Contractor {
   const factory Contractor({
     /// Уникальный идентификатор подрядчика.
     required String id,
+
     /// URL логотипа подрядчика.
     String? logoUrl,
+
     /// Полное наименование.
     required String fullName,
+
     /// Краткое наименование.
     required String shortName,
+
     /// ИНН организации.
     required String inn,
+
     /// ФИО директора.
     required String director,
+
     /// Юридический адрес.
     required String legalAddress,
+
     /// Фактический адрес.
     required String actualAddress,
+
     /// Телефон.
     required String phone,
+
     /// Email.
     required String email,
+
     /// Тип подрядчика ([ContractorType]).
     required ContractorType type,
+
     /// Дата создания записи.
     DateTime? createdAt,
+
     /// Дата последнего обновления записи.
     DateTime? updatedAt,
   }) = _Contractor;
 
   /// Приватный конструктор для расширения функциональности через методы.
   const Contractor._();
-} 
+}

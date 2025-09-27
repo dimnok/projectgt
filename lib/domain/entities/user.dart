@@ -13,16 +13,20 @@ abstract class User with _$User {
   const factory User({
     /// Уникальный идентификатор пользователя.
     required String id,
+
     /// Email пользователя.
     required String email,
+
     /// Имя пользователя.
     String? name,
+
     /// URL фотографии пользователя.
     String? photoUrl,
+
     /// Роль пользователя (например, 'user', 'admin').
     @Default('user') String role,
   }) = _User;
 
   /// Приватный конструктор для расширения функциональности через методы.
   const User._();
-} 
+}

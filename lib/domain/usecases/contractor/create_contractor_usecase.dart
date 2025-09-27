@@ -29,4 +29,4 @@ class CreateContractorUseCase {
   Future<Contractor> execute(Contractor contractor) async {
     return repository.createContractor(contractor);
   }
-} 
+}

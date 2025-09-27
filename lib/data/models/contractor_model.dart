@@ -35,7 +35,8 @@ abstract class ContractorModel with _$ContractorModel {
   const ContractorModel._();
 
   /// Создаёт модель из JSON.
-  factory ContractorModel.fromJson(Map<String, dynamic> json) => _$ContractorModelFromJson(json);
+  factory ContractorModel.fromJson(Map<String, dynamic> json) =>
+      _$ContractorModelFromJson(json);
 
   /// Создаёт модель из доменной сущности [Contractor].
   factory ContractorModel.fromDomain(Contractor contractor) => ContractorModel(
@@ -53,7 +54,7 @@ abstract class ContractorModel with _$ContractorModel {
         createdAt: contractor.createdAt,
         updatedAt: contractor.updatedAt,
       );
-  
+
   /// Преобразует модель в доменную сущность [Contractor].
   Contractor toDomain() => Contractor(
         id: id,
@@ -70,4 +71,4 @@ abstract class ContractorModel with _$ContractorModel {
         createdAt: createdAt,
         updatedAt: updatedAt,
       );
-} 
+}

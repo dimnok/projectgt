@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import '../../domain/entities/export_report.dart';
 
 /// Виджет таблицы для отображения данных выгрузки.
-/// 
+///
 /// Использует PlutoGrid для расширенных возможностей фильтрации и сортировки.
 /// Адаптивный дизайн: таблица для десктопа, карточки для мобильных устройств.
 class ExportTableWidget extends StatefulWidget {
@@ -30,25 +30,25 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
 
   /// Контроллер состояния таблицы
   PlutoGridStateManager? stateManager;
-  
+
   /// Контроллер для текста поиска
   final TextEditingController _searchController = TextEditingController();
-  
+
   /// Критерий сортировки для мобильного вида
   String _sortCriterion = 'objectName';
-  
+
   /// Порядок сортировки (по возрастанию/убыванию)
   bool _sortAscending = true;
 
   /// Контроллер прокрутки для списка позиций
   final ScrollController _scrollController = ScrollController();
-  
+
   /// Флаг видимости верхнего блока
   bool _isHeaderVisible = true;
-  
+
   /// Предыдущая позиция прокрутки
   double _previousScrollPosition = 0;
-  
+
   /// Минимальное смещение для срабатывания скрытия/показа
   final double _scrollThreshold = 20.0;
 
@@ -72,13 +72,13 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
 
     if (scrollDelta.abs() > _scrollThreshold) {
       final shouldShowHeader = scrollDelta < 0 || currentScrollPosition <= 0;
-      
+
       if (shouldShowHeader != _isHeaderVisible) {
         setState(() {
           _isHeaderVisible = shouldShowHeader;
         });
       }
-      
+
       _previousScrollPosition = currentScrollPosition;
     }
   }
@@ -88,7 +88,8 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final isLargeScreen = MediaQuery.of(context).size.width > 900;
-    final containerWidth = MediaQuery.of(context).size.width - 32; // 32 — padding
+    final containerWidth =
+        MediaQuery.of(context).size.width - 32; // 32 — padding
 
     // Русская локализация для PlutoGrid
     const ruLocale = PlutoGridLocaleText(
@@ -124,17 +125,20 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
       minute: 'Минуты',
       loadingText: 'Загрузка',
     );
-    
+
     // Строим таблицу только если экран достаточно широкий
     if (isLargeScreen) {
       _buildTable(widget.reports, containerWidth);
     }
 
     // Фильтруем и сортируем элементы для мобильного представления
-    final filteredReports = isLargeScreen ? widget.reports : _filterAndSortReports(widget.reports);
+    final filteredReports =
+        isLargeScreen ? widget.reports : _filterAndSortReports(widget.reports);
 
     final cellStyle = theme.textTheme.bodyMedium ?? const TextStyle();
-    final columnStyle = theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold) ?? const TextStyle(fontWeight: FontWeight.bold);
+    final columnStyle =
+        theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold) ??
+            const TextStyle(fontWeight: FontWeight.bold);
     final moneyFormat = NumberFormat('###,##0.00', 'ru_RU');
 
     return widget.reports.isEmpty
@@ -185,7 +189,8 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
                               gridBorderColor: theme.dividerColor,
                               activatedBorderColor: theme.colorScheme.primary,
                               rowColor: theme.colorScheme.surface,
-                              activatedColor: theme.colorScheme.primary.withValues(alpha: 0.08),
+                              activatedColor: theme.colorScheme.primary
+                                  .withValues(alpha: 0.08),
                               cellTextStyle: cellStyle,
                               columnTextStyle: columnStyle,
                               enableColumnBorderVertical: true,
@@ -225,15 +230,16 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
                                   decoration: InputDecoration(
                                     hintText: 'Поиск по данным...',
                                     prefixIcon: const Icon(Icons.search),
-                                    suffixIcon: _searchController.text.isNotEmpty
-                                        ? IconButton(
-                                            icon: const Icon(Icons.clear),
-                                            onPressed: () {
-                                              _searchController.clear();
-                                              setState(() {});
-                                            },
-                                          )
-                                        : null,
+                                    suffixIcon:
+                                        _searchController.text.isNotEmpty
+                                            ? IconButton(
+                                                icon: const Icon(Icons.clear),
+                                                onPressed: () {
+                                                  _searchController.clear();
+                                                  setState(() {});
+                                                },
+                                              )
+                                            : null,
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(8),
                                     ),
@@ -241,7 +247,7 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
                                   onChanged: (value) => setState(() {}),
                                 ),
                                 const SizedBox(height: 12),
-                                
+
                                 // Сортировка
                                 Row(
                                   children: [
@@ -251,15 +257,26 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
                                         decoration: InputDecoration(
                                           labelText: 'Сортировка',
                                           border: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(8),
+                                            borderRadius:
+                                                BorderRadius.circular(8),
                                           ),
                                         ),
                                         items: const [
-                                          DropdownMenuItem(value: 'objectName', child: Text('По объекту')),
-                                          DropdownMenuItem(value: 'contractName', child: Text('По договору')),
-                                          DropdownMenuItem(value: 'system', child: Text('По системе')),
-                                          DropdownMenuItem(value: 'workName', child: Text('По работе')),
-                                          DropdownMenuItem(value: 'total', child: Text('По сумме')),
+                                          DropdownMenuItem(
+                                              value: 'objectName',
+                                              child: Text('По объекту')),
+                                          DropdownMenuItem(
+                                              value: 'contractName',
+                                              child: Text('По договору')),
+                                          DropdownMenuItem(
+                                              value: 'system',
+                                              child: Text('По системе')),
+                                          DropdownMenuItem(
+                                              value: 'workName',
+                                              child: Text('По работе')),
+                                          DropdownMenuItem(
+                                              value: 'total',
+                                              child: Text('По сумме')),
                                         ],
                                         onChanged: (value) {
                                           if (value != null) {
@@ -278,9 +295,13 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
                                         });
                                       },
                                       icon: Icon(
-                                        _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                                        _sortAscending
+                                            ? Icons.arrow_upward
+                                            : Icons.arrow_downward,
                                       ),
-                                      tooltip: _sortAscending ? 'По возрастанию' : 'По убыванию',
+                                      tooltip: _sortAscending
+                                          ? 'По возрастанию'
+                                          : 'По убыванию',
                                     ),
                                   ],
                                 ),
@@ -289,9 +310,9 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
                           ),
                         ),
                       ),
-                      
+
                       const SizedBox(height: 16),
-                      
+
                       // Статистика
                       if (_isHeaderVisible) ...[
                         Container(
@@ -306,24 +327,29 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
                             children: [
                               Text(
                                 'Статистика по отчету',
-                                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                                style: theme.textTheme.titleSmall
+                                    ?.copyWith(fontWeight: FontWeight.bold),
                               ),
                               const SizedBox(height: 8),
                               Row(
                                 children: [
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           'Записей:',
-                                          style: theme.textTheme.bodySmall?.copyWith(
-                                            color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                                          style: theme.textTheme.bodySmall
+                                              ?.copyWith(
+                                            color: theme.colorScheme.onSurface
+                                                .withValues(alpha: 0.7),
                                           ),
                                         ),
                                         Text(
                                           '${filteredReports.length}',
-                                          style: theme.textTheme.titleMedium?.copyWith(
+                                          style: theme.textTheme.titleMedium
+                                              ?.copyWith(
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
@@ -332,17 +358,21 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
                                   ),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           'Итого:',
-                                          style: theme.textTheme.bodySmall?.copyWith(
-                                            color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                                          style: theme.textTheme.bodySmall
+                                              ?.copyWith(
+                                            color: theme.colorScheme.onSurface
+                                                .withValues(alpha: 0.7),
                                           ),
                                         ),
                                         Text(
                                           '${moneyFormat.format(filteredReports.fold(0.0, (sum, item) => sum + (item.total ?? 0)))} ₽',
-                                          style: theme.textTheme.titleMedium?.copyWith(
+                                          style: theme.textTheme.titleMedium
+                                              ?.copyWith(
                                             fontWeight: FontWeight.bold,
                                             color: theme.colorScheme.primary,
                                           ),
@@ -357,7 +387,7 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
                         ),
                         const SizedBox(height: 16),
                       ],
-                      
+
                       // Список карточек для мобильного вида
                       Expanded(
                         child: ListView.builder(
@@ -378,7 +408,8 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
                                         Expanded(
                                           child: Text(
                                             report.workName,
-                                            style: theme.textTheme.titleMedium?.copyWith(
+                                            style: theme.textTheme.titleMedium
+                                                ?.copyWith(
                                               fontWeight: FontWeight.bold,
                                             ),
                                             maxLines: 2,
@@ -387,15 +418,20 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
                                         ),
                                         if (report.total != null)
                                           Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 8, vertical: 4),
                                             decoration: BoxDecoration(
-                                              color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                                              borderRadius: BorderRadius.circular(8),
+                                              color: theme.colorScheme.primary
+                                                  .withValues(alpha: 0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
                                             ),
                                             child: Text(
                                               '${moneyFormat.format(report.total!)} ₽',
-                                              style: theme.textTheme.labelMedium?.copyWith(
-                                                color: theme.colorScheme.primary,
+                                              style: theme.textTheme.labelMedium
+                                                  ?.copyWith(
+                                                color:
+                                                    theme.colorScheme.primary,
                                                 fontWeight: FontWeight.bold,
                                               ),
                                             ),
@@ -403,32 +439,50 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
                                       ],
                                     ),
                                     const SizedBox(height: 12),
-                                    
+
                                     // Основная информация
-                                    _buildInfoRow('Объект', report.objectName, theme),
-                                    _buildInfoRow('Договор', report.contractName, theme),
-                                    _buildInfoRow('Система', report.system, theme),
-                                    _buildInfoRow('Подсистема', report.subsystem, theme),
-                                    _buildInfoRow('№ позиции', report.positionNumber, theme),
-                                    
-                                    if (report.section.isNotEmpty || report.floor.isNotEmpty) ...[
+                                    _buildInfoRow(
+                                        'Объект', report.objectName, theme),
+                                    _buildInfoRow(
+                                        'Договор', report.contractName, theme),
+                                    _buildInfoRow(
+                                        'Система', report.system, theme),
+                                    _buildInfoRow(
+                                        'Подсистема', report.subsystem, theme),
+                                    _buildInfoRow('№ позиции',
+                                        report.positionNumber, theme),
+
+                                    if (report.section.isNotEmpty ||
+                                        report.floor.isNotEmpty) ...[
                                       const SizedBox(height: 8),
                                       Row(
                                         children: [
                                           if (report.section.isNotEmpty)
-                                            Expanded(child: _buildInfoRow('Секция', report.section, theme)),
+                                            Expanded(
+                                                child: _buildInfoRow('Секция',
+                                                    report.section, theme)),
                                           if (report.floor.isNotEmpty)
-                                            Expanded(child: _buildInfoRow('Этаж', report.floor, theme)),
+                                            Expanded(
+                                                child: _buildInfoRow('Этаж',
+                                                    report.floor, theme)),
                                         ],
                                       ),
                                     ],
-                                    
+
                                     const SizedBox(height: 8),
                                     Row(
                                       children: [
-                                        Expanded(child: _buildInfoRow('Количество', '${report.quantity} ${report.unit}', theme)),
+                                        Expanded(
+                                            child: _buildInfoRow(
+                                                'Количество',
+                                                '${report.quantity} ${report.unit}',
+                                                theme)),
                                         if (report.price != null)
-                                          Expanded(child: _buildInfoRow('Цена', '${moneyFormat.format(report.price!)} ₽', theme)),
+                                          Expanded(
+                                              child: _buildInfoRow(
+                                                  'Цена',
+                                                  '${moneyFormat.format(report.price!)} ₽',
+                                                  theme)),
                                       ],
                                     ),
                                   ],
@@ -447,8 +501,10 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
   void _buildTable(List<ExportReport> reports, double containerWidth) {
     // Специальные колонки по 4%: №, Секция, Этаж, Ед. изм., Количество
     final smallColumnWidth = containerWidth * 0.04; // 4% для узких колонок
-    final standardColumnWidth = containerWidth * 0.07; // 7% для стандартных колонок
-    final workNameColumnWidth = containerWidth * 0.31; // 31% для наименования работы (100% - 7*7% - 5*4% = 31%)
+    final standardColumnWidth =
+        containerWidth * 0.07; // 7% для стандартных колонок
+    final workNameColumnWidth = containerWidth *
+        0.31; // 31% для наименования работы (100% - 7*7% - 5*4% = 31%)
 
     final moneyFormat = NumberFormat('###,##0.00', 'ru_RU');
 
@@ -460,14 +516,19 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
         width: standardColumnWidth,
         titleTextAlign: PlutoColumnTextAlign.center,
         renderer: (rendererContext) {
-          final isTotal = rendererContext.row.cells['objectName']?.value == 'ИТОГО';
+          final isTotal =
+              rendererContext.row.cells['objectName']?.value == 'ИТОГО';
           return Text(
             rendererContext.cell.value?.toString() ?? '',
             textAlign: TextAlign.center,
-            style: Theme.of(rendererContext.stateManager.gridKey.currentContext!).textTheme.bodyMedium?.copyWith(
-              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
-              color: isTotal ? Colors.blue : null,
-            ),
+            style:
+                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(
+                      fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+                      color: isTotal ? Colors.blue : null,
+                    ),
           );
         },
       ),
@@ -478,14 +539,19 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
         width: standardColumnWidth,
         titleTextAlign: PlutoColumnTextAlign.center,
         renderer: (rendererContext) {
-          final isTotal = rendererContext.row.cells['objectName']?.value == 'ИТОГО';
+          final isTotal =
+              rendererContext.row.cells['objectName']?.value == 'ИТОГО';
           return Text(
             rendererContext.cell.value?.toString() ?? '',
             textAlign: TextAlign.center,
-            style: Theme.of(rendererContext.stateManager.gridKey.currentContext!).textTheme.bodyMedium?.copyWith(
-              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
-              color: isTotal ? Colors.blue : null,
-            ),
+            style:
+                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(
+                      fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+                      color: isTotal ? Colors.blue : null,
+                    ),
           );
         },
       ),
@@ -496,14 +562,19 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
         width: standardColumnWidth,
         titleTextAlign: PlutoColumnTextAlign.center,
         renderer: (rendererContext) {
-          final isTotal = rendererContext.row.cells['objectName']?.value == 'ИТОГО';
+          final isTotal =
+              rendererContext.row.cells['objectName']?.value == 'ИТОГО';
           return Text(
             rendererContext.cell.value?.toString() ?? '',
             textAlign: TextAlign.center,
-            style: Theme.of(rendererContext.stateManager.gridKey.currentContext!).textTheme.bodyMedium?.copyWith(
-              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
-              color: isTotal ? Colors.blue : null,
-            ),
+            style:
+                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(
+                      fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+                      color: isTotal ? Colors.blue : null,
+                    ),
           );
         },
       ),
@@ -514,14 +585,19 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
         width: standardColumnWidth,
         titleTextAlign: PlutoColumnTextAlign.center,
         renderer: (rendererContext) {
-          final isTotal = rendererContext.row.cells['objectName']?.value == 'ИТОГО';
+          final isTotal =
+              rendererContext.row.cells['objectName']?.value == 'ИТОГО';
           return Text(
             rendererContext.cell.value?.toString() ?? '',
             textAlign: TextAlign.center,
-            style: Theme.of(rendererContext.stateManager.gridKey.currentContext!).textTheme.bodyMedium?.copyWith(
-              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
-              color: isTotal ? Colors.blue : null,
-            ),
+            style:
+                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(
+                      fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+                      color: isTotal ? Colors.blue : null,
+                    ),
           );
         },
       ),
@@ -532,14 +608,19 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
         width: smallColumnWidth,
         titleTextAlign: PlutoColumnTextAlign.center,
         renderer: (rendererContext) {
-          final isTotal = rendererContext.row.cells['objectName']?.value == 'ИТОГО';
+          final isTotal =
+              rendererContext.row.cells['objectName']?.value == 'ИТОГО';
           return Text(
             rendererContext.cell.value?.toString() ?? '',
             textAlign: TextAlign.center,
-            style: Theme.of(rendererContext.stateManager.gridKey.currentContext!).textTheme.bodyMedium?.copyWith(
-              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
-              color: isTotal ? Colors.blue : null,
-            ),
+            style:
+                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(
+                      fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+                      color: isTotal ? Colors.blue : null,
+                    ),
           );
         },
       ),
@@ -550,16 +631,21 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
         width: workNameColumnWidth,
         titleTextAlign: PlutoColumnTextAlign.center,
         renderer: (rendererContext) {
-          final isTotal = rendererContext.row.cells['objectName']?.value == 'ИТОГО';
+          final isTotal =
+              rendererContext.row.cells['objectName']?.value == 'ИТОГО';
           return Text(
             rendererContext.cell.value?.toString() ?? '',
             softWrap: true,
             overflow: TextOverflow.visible,
             maxLines: null,
-            style: Theme.of(rendererContext.stateManager.gridKey.currentContext!).textTheme.bodyMedium?.copyWith(
-              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
-              color: isTotal ? Colors.blue : null,
-            ),
+            style:
+                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(
+                      fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+                      color: isTotal ? Colors.blue : null,
+                    ),
           );
         },
       ),
@@ -570,14 +656,19 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
         width: smallColumnWidth,
         titleTextAlign: PlutoColumnTextAlign.center,
         renderer: (rendererContext) {
-          final isTotal = rendererContext.row.cells['objectName']?.value == 'ИТОГО';
+          final isTotal =
+              rendererContext.row.cells['objectName']?.value == 'ИТОГО';
           return Text(
             rendererContext.cell.value?.toString() ?? '',
             textAlign: TextAlign.center,
-            style: Theme.of(rendererContext.stateManager.gridKey.currentContext!).textTheme.bodyMedium?.copyWith(
-              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
-              color: isTotal ? Colors.blue : null,
-            ),
+            style:
+                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(
+                      fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+                      color: isTotal ? Colors.blue : null,
+                    ),
           );
         },
       ),
@@ -588,14 +679,19 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
         width: smallColumnWidth,
         titleTextAlign: PlutoColumnTextAlign.center,
         renderer: (rendererContext) {
-          final isTotal = rendererContext.row.cells['objectName']?.value == 'ИТОГО';
+          final isTotal =
+              rendererContext.row.cells['objectName']?.value == 'ИТОГО';
           return Text(
             rendererContext.cell.value?.toString() ?? '',
             textAlign: TextAlign.center,
-            style: Theme.of(rendererContext.stateManager.gridKey.currentContext!).textTheme.bodyMedium?.copyWith(
-              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
-              color: isTotal ? Colors.blue : null,
-            ),
+            style:
+                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(
+                      fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+                      color: isTotal ? Colors.blue : null,
+                    ),
           );
         },
       ),
@@ -606,14 +702,19 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
         width: smallColumnWidth,
         titleTextAlign: PlutoColumnTextAlign.center,
         renderer: (rendererContext) {
-          final isTotal = rendererContext.row.cells['objectName']?.value == 'ИТОГО';
+          final isTotal =
+              rendererContext.row.cells['objectName']?.value == 'ИТОГО';
           return Text(
             rendererContext.cell.value?.toString() ?? '',
             textAlign: TextAlign.center,
-            style: Theme.of(rendererContext.stateManager.gridKey.currentContext!).textTheme.bodyMedium?.copyWith(
-              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
-              color: isTotal ? Colors.blue : null,
-            ),
+            style:
+                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(
+                      fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+                      color: isTotal ? Colors.blue : null,
+                    ),
           );
         },
       ),
@@ -624,14 +725,19 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
         width: smallColumnWidth,
         titleTextAlign: PlutoColumnTextAlign.center,
         renderer: (rendererContext) {
-          final isTotal = rendererContext.row.cells['objectName']?.value == 'ИТОГО';
+          final isTotal =
+              rendererContext.row.cells['objectName']?.value == 'ИТОГО';
           return Text(
             rendererContext.cell.value?.toString() ?? '',
             textAlign: TextAlign.center,
-            style: Theme.of(rendererContext.stateManager.gridKey.currentContext!).textTheme.bodyMedium?.copyWith(
-              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
-              color: isTotal ? Colors.blue : null,
-            ),
+            style:
+                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(
+                      fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+                      color: isTotal ? Colors.blue : null,
+                    ),
           );
         },
       ),
@@ -642,16 +748,23 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
         width: standardColumnWidth,
         titleTextAlign: PlutoColumnTextAlign.center,
         renderer: (rendererContext) {
-          final isTotal = rendererContext.row.cells['objectName']?.value == 'ИТОГО';
+          final isTotal =
+              rendererContext.row.cells['objectName']?.value == 'ИТОГО';
           final value = rendererContext.cell.value;
-          final formatted = value is num ? moneyFormat.format(value) : (value?.toString() ?? '');
+          final formatted = value is num
+              ? moneyFormat.format(value)
+              : (value?.toString() ?? '');
           return Text(
             formatted,
             textAlign: TextAlign.right,
-            style: Theme.of(rendererContext.stateManager.gridKey.currentContext!).textTheme.bodyMedium?.copyWith(
-              color: isTotal ? Colors.blue : Colors.green,
-              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
-            ),
+            style:
+                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(
+                      color: isTotal ? Colors.blue : Colors.green,
+                      fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+                    ),
           );
         },
       ),
@@ -662,40 +775,50 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
         width: standardColumnWidth,
         titleTextAlign: PlutoColumnTextAlign.center,
         renderer: (rendererContext) {
-          final isTotal = rendererContext.row.cells['objectName']?.value == 'ИТОГО';
+          final isTotal =
+              rendererContext.row.cells['objectName']?.value == 'ИТОГО';
           final value = rendererContext.cell.value;
-          final formatted = value is num ? moneyFormat.format(value) : (value?.toString() ?? '');
+          final formatted = value is num
+              ? moneyFormat.format(value)
+              : (value?.toString() ?? '');
           return Text(
             formatted,
             textAlign: TextAlign.right,
-            style: Theme.of(rendererContext.stateManager.gridKey.currentContext!).textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: isTotal ? Colors.blue : Colors.green,
-              fontSize: isTotal ? 16 : null,
-            ),
+            style:
+                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: isTotal ? Colors.blue : Colors.green,
+                      fontSize: isTotal ? 16 : null,
+                    ),
           );
         },
       ),
     ];
 
     // Создаем строки данных
-    rows = reports.map((report) => PlutoRow(cells: {
-      'objectName': PlutoCell(value: report.objectName),
-      'contractName': PlutoCell(value: report.contractName),
-      'system': PlutoCell(value: report.system),
-      'subsystem': PlutoCell(value: report.subsystem),
-      'positionNumber': PlutoCell(value: report.positionNumber),
-      'workName': PlutoCell(value: report.workName),
-      'section': PlutoCell(value: report.section),
-      'floor': PlutoCell(value: report.floor),
-      'unit': PlutoCell(value: report.unit),
-      'quantity': PlutoCell(value: report.quantity),
-      'price': PlutoCell(value: report.price),
-      'total': PlutoCell(value: report.total),
-    })).toList();
+    rows = reports
+        .map((report) => PlutoRow(cells: {
+              'objectName': PlutoCell(value: report.objectName),
+              'contractName': PlutoCell(value: report.contractName),
+              'system': PlutoCell(value: report.system),
+              'subsystem': PlutoCell(value: report.subsystem),
+              'positionNumber': PlutoCell(value: report.positionNumber),
+              'workName': PlutoCell(value: report.workName),
+              'section': PlutoCell(value: report.section),
+              'floor': PlutoCell(value: report.floor),
+              'unit': PlutoCell(value: report.unit),
+              'quantity': PlutoCell(value: report.quantity),
+              'price': PlutoCell(value: report.price),
+              'total': PlutoCell(value: report.total),
+            }))
+        .toList();
 
     // Подсчитываем общую сумму
-    final totalSum = reports.fold<double>(0.0, (sum, report) => sum + (report.total ?? 0.0));
+    final totalSum =
+        reports.fold<double>(0.0, (sum, report) => sum + (report.total ?? 0.0));
 
     // Добавляем итоговую строку
     if (reports.isNotEmpty) {
@@ -720,18 +843,18 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
   List<ExportReport> _filterAndSortReports(List<ExportReport> reports) {
     var filtered = reports.where((report) {
       if (_searchController.text.isEmpty) return true;
-      
+
       final searchText = _searchController.text.toLowerCase();
       return report.workName.toLowerCase().contains(searchText) ||
-             report.objectName.toLowerCase().contains(searchText) ||
-             report.contractName.toLowerCase().contains(searchText) ||
-             report.system.toLowerCase().contains(searchText) ||
-             report.subsystem.toLowerCase().contains(searchText);
+          report.objectName.toLowerCase().contains(searchText) ||
+          report.contractName.toLowerCase().contains(searchText) ||
+          report.system.toLowerCase().contains(searchText) ||
+          report.subsystem.toLowerCase().contains(searchText);
     }).toList();
 
     filtered.sort((a, b) {
       dynamic aValue, bValue;
-      
+
       switch (_sortCriterion) {
         case 'objectName':
           aValue = a.objectName;
@@ -791,4 +914,4 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
       ),
     );
   }
-} 
+}

@@ -3,7 +3,9 @@
 
 dependency_overrides:
   pluto_grid:
-    hosted: pluto_grid
+    hosted:
+      name: pluto_grid
+      url: https://pub.dev
     version: ^8.0.0
   # Синхронизировано с pubspec.yaml, чтобы избежать конфликтов с pluto_grid
   intl: ^0.19.0

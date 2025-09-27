@@ -14,18 +14,22 @@ class TimesheetFilterWidget extends ConsumerStatefulWidget {
   const TimesheetFilterWidget({super.key});
 
   @override
-  ConsumerState<TimesheetFilterWidget> createState() => _TimesheetFilterWidgetState();
+  ConsumerState<TimesheetFilterWidget> createState() =>
+      _TimesheetFilterWidgetState();
 }
 
 class _TimesheetFilterWidgetState extends ConsumerState<TimesheetFilterWidget> {
   // Контроллеры для полей фильтров
   final TextEditingController _yearController = TextEditingController();
   final TextEditingController _monthController = TextEditingController();
-  final MultiValueDropDownController _employeeController = MultiValueDropDownController();
-  final MultiValueDropDownController _objectController = MultiValueDropDownController();
-  final MultiValueDropDownController _positionController = MultiValueDropDownController();
+  final MultiValueDropDownController _employeeController =
+      MultiValueDropDownController();
+  final MultiValueDropDownController _objectController =
+      MultiValueDropDownController();
+  final MultiValueDropDownController _positionController =
+      MultiValueDropDownController();
   List<String> _selectedPositions = [];
-  
+
   @override
   void initState() {
     super.initState();
@@ -35,22 +39,22 @@ class _TimesheetFilterWidgetState extends ConsumerState<TimesheetFilterWidget> {
       // Инициируем загрузку данных сотрудников и объектов
       final employeeState = ref.read(employeeProvider);
       final objectState = ref.read(objectProvider);
-      
+
       // Если список сотрудников пуст, запрашиваем их загрузку
       if (employeeState.employees.isEmpty) {
         ref.read(employeeProvider.notifier).getEmployees();
       }
-      
+
       // Если список объектов пуст, запрашиваем их загрузку
       if (objectState.objects.isEmpty) {
         ref.read(objectProvider.notifier).loadObjects();
       }
-      
+
       // Инициализируем контроллеры
       _updateControllers();
     });
   }
-  
+
   @override
   void dispose() {
     _employeeController.dispose();
@@ -60,48 +64,51 @@ class _TimesheetFilterWidgetState extends ConsumerState<TimesheetFilterWidget> {
     _positionController.dispose();
     super.dispose();
   }
-  
+
   @override
   void didUpdateWidget(TimesheetFilterWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    
+
     // Обновляем контроллеры при изменении состояния
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _updateControllers();
     });
   }
-  
+
   /// Обновляет значения контроллеров в соответствии с текущим состоянием
   void _updateControllers() {
     final state = ref.read(timesheetProvider);
-    
+
     // Обновляем год
     _yearController.text = state.startDate.year.toString();
-    
+
     // Обновляем месяц
     _monthController.text = DateFormat.MMMM('ru').format(state.startDate);
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final state = ref.watch(timesheetProvider);
     final isDesktop = ResponsiveUtils.isDesktop(context);
-    
+
     // Загружаем данные для выпадающих списков и делаем проверку на существование
     final employeeState = ref.watch(employeeProvider);
     final objectState = ref.watch(objectProvider);
-    
+
     // Получаем сотрудников только с часами (есть записи в timesheetState.entries)
-    final employeesWithHours = employeeState.employees.where((employee) =>
-      state.entries.any((entry) => entry.employeeId == employee.id)
-    ).toList();
-    
+    final employeesWithHours = employeeState.employees
+        .where((employee) =>
+            state.entries.any((entry) => entry.employeeId == employee.id))
+        .toList();
+
     // Получаем id объектов, которые есть в табеле
     final objectIdsWithEntries = state.entries.map((e) => e.objectId).toSet();
     // Оставляем только объекты, которые есть в табеле
-    final filteredObjects = objectState.objects.where((o) => objectIdsWithEntries.contains(o.id)).toList();
-    
+    final filteredObjects = objectState.objects
+        .where((o) => objectIdsWithEntries.contains(o.id))
+        .toList();
+
     // Получаем только те должности, которые есть в табеле
     final positionsInTimesheet = state.entries
         .map((e) => e.employeePosition)
@@ -113,13 +120,13 @@ class _TimesheetFilterWidgetState extends ConsumerState<TimesheetFilterWidget> {
     final positionDropDownList = positionsInTimesheet
         .map((p) => DropDownValueModel(name: p, value: p))
         .toList();
-    
+
     // Цвета для чекбокса, галочки, текста и кнопки 'Ок' — всегда как в светлой теме
     const textColor = Colors.black;
     const checkboxColor = Colors.green;
     const checkMarkColor = Colors.red;
     const okButtonColor = Colors.green;
-    
+
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
@@ -132,7 +139,8 @@ class _TimesheetFilterWidgetState extends ConsumerState<TimesheetFilterWidget> {
       child: Container(
         decoration: BoxDecoration(
           color: theme.brightness == Brightness.dark
-              ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.92)
+              ? theme.colorScheme.surfaceContainerHighest
+                  .withValues(alpha: 0.92)
               : theme.colorScheme.surface.withValues(alpha: 0.98),
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
@@ -176,7 +184,8 @@ class _TimesheetFilterWidgetState extends ConsumerState<TimesheetFilterWidget> {
                     _objectController.setDropDown([]);
                     _positionController.setDropDown([]);
                     _yearController.text = DateTime.now().year.toString();
-                    _monthController.text = DateFormat.MMMM('ru').format(DateTime.now());
+                    _monthController.text =
+                        DateFormat.MMMM('ru').format(DateTime.now());
                   },
                 ),
               ],
@@ -197,8 +206,13 @@ class _TimesheetFilterWidgetState extends ConsumerState<TimesheetFilterWidget> {
                       controller: _employeeController,
                       dropDownList: [
                         ...employeesWithHours.map((employee) {
-                          final fio = [employee.lastName, employee.firstName, if (employee.middleName != null && employee.middleName!.isNotEmpty) employee.middleName]
-                              .join(' ');
+                          final fio = [
+                            employee.lastName,
+                            employee.firstName,
+                            if (employee.middleName != null &&
+                                employee.middleName!.isNotEmpty)
+                              employee.middleName
+                          ].join(' ');
                           return DropDownValueModel(
                             name: fio,
                             value: employee.id,
@@ -208,7 +222,8 @@ class _TimesheetFilterWidgetState extends ConsumerState<TimesheetFilterWidget> {
                       submitButtonText: 'Ок',
                       submitButtonColor: okButtonColor,
                       checkBoxProperty: CheckBoxProperty(
-                        fillColor: WidgetStateProperty.all<Color>(checkboxColor),
+                        fillColor:
+                            WidgetStateProperty.all<Color>(checkboxColor),
                         checkColor: checkMarkColor,
                       ),
                       displayCompleteItem: true,
@@ -219,7 +234,8 @@ class _TimesheetFilterWidgetState extends ConsumerState<TimesheetFilterWidget> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      listTextStyle: theme.textTheme.bodyMedium?.copyWith(color: textColor),
+                      listTextStyle: theme.textTheme.bodyMedium
+                          ?.copyWith(color: textColor),
                       onChanged: (val) {
                         final list = val is List<DropDownValueModel>
                             ? val
@@ -229,7 +245,9 @@ class _TimesheetFilterWidgetState extends ConsumerState<TimesheetFilterWidget> {
                             .where((id) => id != null)
                             .cast<String>()
                             .toList();
-                        ref.read(timesheetProvider.notifier).setSelectedEmployees(selectedIds);
+                        ref
+                            .read(timesheetProvider.notifier)
+                            .setSelectedEmployees(selectedIds);
                         setState(() {
                           _employeeController.setDropDown(list);
                         });
@@ -243,14 +261,15 @@ class _TimesheetFilterWidgetState extends ConsumerState<TimesheetFilterWidget> {
                       controller: _objectController,
                       dropDownList: [
                         ...filteredObjects.map((object) => DropDownValueModel(
-                          name: object.name,
-                          value: object.id,
-                        )),
+                              name: object.name,
+                              value: object.id,
+                            )),
                       ],
                       submitButtonText: 'Ок',
                       submitButtonColor: okButtonColor,
                       checkBoxProperty: CheckBoxProperty(
-                        fillColor: WidgetStateProperty.all<Color>(checkboxColor),
+                        fillColor:
+                            WidgetStateProperty.all<Color>(checkboxColor),
                         checkColor: checkMarkColor,
                       ),
                       displayCompleteItem: true,
@@ -261,13 +280,18 @@ class _TimesheetFilterWidgetState extends ConsumerState<TimesheetFilterWidget> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      listTextStyle: theme.textTheme.bodyMedium?.copyWith(color: textColor),
+                      listTextStyle: theme.textTheme.bodyMedium
+                          ?.copyWith(color: textColor),
                       onChanged: (val) {
                         final list = val is List<DropDownValueModel>
                             ? val
                             : List<DropDownValueModel>.from(val);
-                        final selectedIds = list.map((e) => e.value as String?).where((id) => id != null).toList();
-                        ref.read(timesheetProvider.notifier).setSelectedObject(selectedIds.isEmpty ? null : selectedIds.first);
+                        final selectedIds = list
+                            .map((e) => e.value as String?)
+                            .where((id) => id != null)
+                            .toList();
+                        ref.read(timesheetProvider.notifier).setSelectedObject(
+                            selectedIds.isEmpty ? null : selectedIds.first);
                         setState(() {
                           _objectController.setDropDown(list);
                         });
@@ -283,7 +307,8 @@ class _TimesheetFilterWidgetState extends ConsumerState<TimesheetFilterWidget> {
                       submitButtonText: 'Ок',
                       submitButtonColor: okButtonColor,
                       checkBoxProperty: CheckBoxProperty(
-                        fillColor: WidgetStateProperty.all<Color>(checkboxColor),
+                        fillColor:
+                            WidgetStateProperty.all<Color>(checkboxColor),
                         checkColor: checkMarkColor,
                       ),
                       displayCompleteItem: true,
@@ -294,15 +319,19 @@ class _TimesheetFilterWidgetState extends ConsumerState<TimesheetFilterWidget> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      listTextStyle: theme.textTheme.bodyMedium?.copyWith(color: textColor),
+                      listTextStyle: theme.textTheme.bodyMedium
+                          ?.copyWith(color: textColor),
                       onChanged: (val) {
                         final list = val is List<DropDownValueModel>
                             ? val
                             : List<DropDownValueModel>.from(val);
                         setState(() {
-                          _selectedPositions = list.map((e) => e.value.toString()).toList();
+                          _selectedPositions =
+                              list.map((e) => e.value.toString()).toList();
                         });
-                        ref.read(timesheetProvider.notifier).setSelectedPositions(_selectedPositions);
+                        ref
+                            .read(timesheetProvider.notifier)
+                            .setSelectedPositions(_selectedPositions);
                       },
                     ),
                   ),
@@ -316,8 +345,13 @@ class _TimesheetFilterWidgetState extends ConsumerState<TimesheetFilterWidget> {
                 controller: _employeeController,
                 dropDownList: [
                   ...employeesWithHours.map((employee) {
-                    final fio = [employee.lastName, employee.firstName, if (employee.middleName != null && employee.middleName!.isNotEmpty) employee.middleName]
-                        .join(' ');
+                    final fio = [
+                      employee.lastName,
+                      employee.firstName,
+                      if (employee.middleName != null &&
+                          employee.middleName!.isNotEmpty)
+                        employee.middleName
+                    ].join(' ');
                     return DropDownValueModel(
                       name: fio,
                       value: employee.id,
@@ -338,7 +372,8 @@ class _TimesheetFilterWidgetState extends ConsumerState<TimesheetFilterWidget> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                listTextStyle: theme.textTheme.bodyMedium?.copyWith(color: textColor),
+                listTextStyle:
+                    theme.textTheme.bodyMedium?.copyWith(color: textColor),
                 onChanged: (val) {
                   final list = val is List<DropDownValueModel>
                       ? val
@@ -348,7 +383,9 @@ class _TimesheetFilterWidgetState extends ConsumerState<TimesheetFilterWidget> {
                       .where((id) => id != null)
                       .cast<String>()
                       .toList();
-                  ref.read(timesheetProvider.notifier).setSelectedEmployees(selectedIds);
+                  ref
+                      .read(timesheetProvider.notifier)
+                      .setSelectedEmployees(selectedIds);
                   setState(() {
                     _employeeController.setDropDown(list);
                   });
@@ -359,9 +396,9 @@ class _TimesheetFilterWidgetState extends ConsumerState<TimesheetFilterWidget> {
                 controller: _objectController,
                 dropDownList: [
                   ...filteredObjects.map((object) => DropDownValueModel(
-                    name: object.name,
-                    value: object.id,
-                  )),
+                        name: object.name,
+                        value: object.id,
+                      )),
                 ],
                 submitButtonText: 'Ок',
                 submitButtonColor: okButtonColor,
@@ -377,13 +414,18 @@ class _TimesheetFilterWidgetState extends ConsumerState<TimesheetFilterWidget> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                listTextStyle: theme.textTheme.bodyMedium?.copyWith(color: textColor),
+                listTextStyle:
+                    theme.textTheme.bodyMedium?.copyWith(color: textColor),
                 onChanged: (val) {
                   final list = val is List<DropDownValueModel>
                       ? val
                       : List<DropDownValueModel>.from(val);
-                  final selectedIds = list.map((e) => e.value as String?).where((id) => id != null).toList();
-                  ref.read(timesheetProvider.notifier).setSelectedObject(selectedIds.isEmpty ? null : selectedIds.first);
+                  final selectedIds = list
+                      .map((e) => e.value as String?)
+                      .where((id) => id != null)
+                      .toList();
+                  ref.read(timesheetProvider.notifier).setSelectedObject(
+                      selectedIds.isEmpty ? null : selectedIds.first);
                   setState(() {
                     _objectController.setDropDown(list);
                   });
@@ -408,15 +450,19 @@ class _TimesheetFilterWidgetState extends ConsumerState<TimesheetFilterWidget> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                listTextStyle: theme.textTheme.bodyMedium?.copyWith(color: textColor),
+                listTextStyle:
+                    theme.textTheme.bodyMedium?.copyWith(color: textColor),
                 onChanged: (val) {
                   final list = val is List<DropDownValueModel>
                       ? val
                       : List<DropDownValueModel>.from(val);
                   setState(() {
-                    _selectedPositions = list.map((e) => e.value.toString()).toList();
+                    _selectedPositions =
+                        list.map((e) => e.value.toString()).toList();
                   });
-                  ref.read(timesheetProvider.notifier).setSelectedPositions(_selectedPositions);
+                  ref
+                      .read(timesheetProvider.notifier)
+                      .setSelectedPositions(_selectedPositions);
                 },
               ),
             ],
@@ -425,13 +471,16 @@ class _TimesheetFilterWidgetState extends ConsumerState<TimesheetFilterWidget> {
       ),
     );
   }
-  
+
   /// Создает фильтр по периоду (год и месяц)
   Widget _buildPeriodFilter(ThemeData theme, TimesheetState state) {
     final now = DateTime.now();
-    final years = List.generate(6, (i) => (now.year - 3 + i).toString()); // 3 года назад, текущий, 2 вперёд
+    final years = List.generate(
+        6,
+        (i) =>
+            (now.year - 3 + i).toString()); // 3 года назад, текущий, 2 вперёд
     final months = List.generate(12, (i) => DateTime(2000, i + 1));
-    
+
     return Row(
       children: [
         // Год
@@ -445,9 +494,13 @@ class _TimesheetFilterWidgetState extends ConsumerState<TimesheetFilterWidget> {
             onSelected: (year) {
               final selectedYear = int.tryParse(year);
               if (selectedYear != null) {
-                final newStart = DateTime(selectedYear, state.startDate.month, 1);
-                final newEnd = DateTime(selectedYear, state.startDate.month + 1, 0);
-                ref.read(timesheetProvider.notifier).setDateRange(newStart, newEnd);
+                final newStart =
+                    DateTime(selectedYear, state.startDate.month, 1);
+                final newEnd =
+                    DateTime(selectedYear, state.startDate.month + 1, 0);
+                ref
+                    .read(timesheetProvider.notifier)
+                    .setDateRange(newStart, newEnd);
               }
             },
             validator: (value) {
@@ -466,18 +519,22 @@ class _TimesheetFilterWidgetState extends ConsumerState<TimesheetFilterWidget> {
             labelText: 'Месяц',
             hintText: 'Выберите месяц',
             items: months,
-            displayStringForOption: (date) => DateFormat.MMMM('ru').format(date),
+            displayStringForOption: (date) =>
+                DateFormat.MMMM('ru').format(date),
             onSelected: (date) {
               final newStart = DateTime(state.startDate.year, date.month, 1);
               final newEnd = DateTime(state.startDate.year, date.month + 1, 0);
-              ref.read(timesheetProvider.notifier).setDateRange(newStart, newEnd);
+              ref
+                  .read(timesheetProvider.notifier)
+                  .setDateRange(newStart, newEnd);
             },
             allowCustomValues: false,
             suffixIcon: Icons.keyboard_arrow_down,
             decoration: InputDecoration(
               labelText: 'Месяц',
               hintText: 'Выберите месяц',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               prefixIcon: const Icon(Icons.date_range),
             ),
           ),
@@ -485,4 +542,4 @@ class _TimesheetFilterWidgetState extends ConsumerState<TimesheetFilterWidget> {
       ],
     );
   }
-} 
+}

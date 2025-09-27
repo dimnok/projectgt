@@ -51,19 +51,26 @@ class SupabaseObjectDataSource implements ObjectDataSource {
   @override
   Future<List<ObjectModel>> getObjects() async {
     final response = await client.from('objects').select('*').order('name');
-    return response.map<ObjectModel>((json) => ObjectModel.fromJson(json)).toList();
+    return response
+        .map<ObjectModel>((json) => ObjectModel.fromJson(json))
+        .toList();
   }
 
   @override
   Future<ObjectModel?> getObject(String id) async {
-    final response = await client.from('objects').select('*').eq('id', id).maybeSingle();
+    final response =
+        await client.from('objects').select('*').eq('id', id).maybeSingle();
     if (response == null) return null;
     return ObjectModel.fromJson(response);
   }
 
   @override
   Future<ObjectModel> createObject(ObjectModel object) async {
-    final response = await client.from('objects').insert(object.toJson()).select().maybeSingle();
+    final response = await client
+        .from('objects')
+        .insert(object.toJson())
+        .select()
+        .maybeSingle();
     if (response == null) {
       throw Exception('Ошибка создания объекта');
     }
@@ -72,7 +79,12 @@ class SupabaseObjectDataSource implements ObjectDataSource {
 
   @override
   Future<ObjectModel> updateObject(ObjectModel object) async {
-    final response = await client.from('objects').update(object.toJson()).eq('id', object.id).select().maybeSingle();
+    final response = await client
+        .from('objects')
+        .update(object.toJson())
+        .eq('id', object.id)
+        .select()
+        .maybeSingle();
     if (response == null) {
       throw Exception('Объект не найден для обновления');
     }
@@ -84,4 +96,4 @@ class SupabaseObjectDataSource implements ObjectDataSource {
     await client.from('objects').delete().eq('id', id);
     return true;
   }
-} 
+}

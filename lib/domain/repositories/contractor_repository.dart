@@ -26,4 +26,4 @@ abstract class ContractorRepository {
   ///
   /// Возвращает void. Бросает [Exception] при ошибке.
   Future<void> deleteContractor(String id);
-} 
+}

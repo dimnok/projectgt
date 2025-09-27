@@ -11,10 +11,13 @@ import 'package:projectgt/domain/usecases/object/delete_object_usecase.dart';
 enum ObjectStatus {
   /// Начальное состояние (ничего не загружено).
   initial,
+
   /// Выполняется загрузка или операция.
   loading,
+
   /// Операция завершена успешно.
   success,
+
   /// Произошла ошибка при выполнении операции.
   error,
 }
@@ -25,8 +28,10 @@ enum ObjectStatus {
 class ObjectState {
   /// Текущий статус загрузки/операции ([ObjectStatus]).
   final ObjectStatus status;
+
   /// Список всех объектов недвижимости.
   final List<ObjectEntity> objects;
+
   /// Сообщение об ошибке (если есть).
   final String? errorMessage;
 
@@ -68,10 +73,13 @@ class ObjectState {
 class ObjectNotifier extends StateNotifier<ObjectState> {
   /// Use case для получения всех объектов.
   final GetObjectsUseCase getObjectsUseCase;
+
   /// Use case для создания объекта.
   final CreateObjectUseCase createObjectUseCase;
+
   /// Use case для обновления объекта.
   final UpdateObjectUseCase updateObjectUseCase;
+
   /// Use case для удаления объекта.
   final DeleteObjectUseCase deleteObjectUseCase;
 
@@ -92,7 +100,8 @@ class ObjectNotifier extends StateNotifier<ObjectState> {
       final objects = await getObjectsUseCase.execute();
       state = state.copyWith(status: ObjectStatus.success, objects: objects);
     } catch (e) {
-      state = state.copyWith(status: ObjectStatus.error, errorMessage: e.toString());
+      state = state.copyWith(
+          status: ObjectStatus.error, errorMessage: e.toString());
     }
   }
 
@@ -105,7 +114,8 @@ class ObjectNotifier extends StateNotifier<ObjectState> {
       await createObjectUseCase.execute(object);
       await loadObjects();
     } catch (e) {
-      state = state.copyWith(status: ObjectStatus.error, errorMessage: e.toString());
+      state = state.copyWith(
+          status: ObjectStatus.error, errorMessage: e.toString());
     }
   }
 
@@ -118,7 +128,8 @@ class ObjectNotifier extends StateNotifier<ObjectState> {
       await updateObjectUseCase.execute(object);
       await loadObjects();
     } catch (e) {
-      state = state.copyWith(status: ObjectStatus.error, errorMessage: e.toString());
+      state = state.copyWith(
+          status: ObjectStatus.error, errorMessage: e.toString());
     }
   }
 
@@ -131,7 +142,8 @@ class ObjectNotifier extends StateNotifier<ObjectState> {
       await deleteObjectUseCase.execute(id);
       await loadObjects();
     } catch (e) {
-      state = state.copyWith(status: ObjectStatus.error, errorMessage: e.toString());
+      state = state.copyWith(
+          status: ObjectStatus.error, errorMessage: e.toString());
     }
   }
 }
@@ -141,4 +153,4 @@ class ObjectNotifier extends StateNotifier<ObjectState> {
 //   // Здесь должны быть переданы реальные usecase, внедрение зависит от DI в проекте
 //   // Для примера — заглушки, заменить на реальные реализации
 //   throw UnimplementedError('Передайте реальные usecase в ObjectNotifier');
-// }); 
+// });

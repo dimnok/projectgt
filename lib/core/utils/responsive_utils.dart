@@ -7,21 +7,25 @@ import 'package:flutter/material.dart';
 class ResponsiveUtils {
   /// Минимальная ширина для планшетов (в пикселях).
   static const double tabletBreakpoint = 600;
-  
+
   /// Минимальная ширина для десктопов (в пикселях).
   static const double desktopBreakpoint = 900;
-  
+
   /// Стандартный отступ для мобильных устройств.
   static const double paddingMobile = 16.0;
+
   /// Стандартный отступ для планшетов.
   static const double paddingTablet = 24.0;
+
   /// Стандартный отступ для десктопов.
   static const double paddingDesktop = 32.0;
-  
+
   /// Малый радиус скругления (например, для кнопок).
   static const double borderRadiusSmall = 8.0;
+
   /// Средний радиус скругления (например, для карточек).
   static const double borderRadiusMedium = 12.0;
+
   /// Крупный радиус скругления (например, для модальных окон).
   static const double borderRadiusLarge = 16.0;
 
@@ -49,7 +53,7 @@ class ResponsiveUtils {
   static bool isDesktop(BuildContext context) {
     return MediaQuery.of(context).size.width >= desktopBreakpoint;
   }
-  
+
   /// Возвращает значение в зависимости от типа устройства.
   ///
   /// [context] — контекст для получения размера экрана.
@@ -79,7 +83,7 @@ class ResponsiveUtils {
       return mobile;
     }
   }
-  
+
   /// Возвращает стандартный отступ в зависимости от размера экрана.
   ///
   /// [context] — контекст для получения размера экрана.
@@ -92,7 +96,7 @@ class ResponsiveUtils {
       desktop: paddingDesktop,
     );
   }
-  
+
   /// Возвращает адаптивный отступ в зависимости от размера экрана и положения.
   ///
   /// [context] — контекст для получения размера экрана.
@@ -101,7 +105,7 @@ class ResponsiveUtils {
     final padding = getAdaptivePadding(context);
     return EdgeInsets.all(padding);
   }
-  
+
   /// Возвращает адаптивное скругление в зависимости от размера экрана.
   ///
   /// [context] — контекст для получения размера экрана.
@@ -114,4 +118,4 @@ class ResponsiveUtils {
     );
     return BorderRadius.circular(radius);
   }
-} 
+}

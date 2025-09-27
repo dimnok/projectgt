@@ -29,4 +29,4 @@ class UpdateEmployeeUseCase {
   Future<Employee> execute(Employee employee) async {
     return await repository.updateEmployee(employee);
   }
-} 
+}

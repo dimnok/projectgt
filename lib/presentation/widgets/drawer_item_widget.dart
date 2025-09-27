@@ -6,12 +6,16 @@ import 'package:flutter/material.dart';
 class DrawerItemWidget extends StatelessWidget {
   /// Иконка пункта меню.
   final IconData icon;
+
   /// Текст пункта меню.
   final String title;
+
   /// Колбэк при нажатии на пункт меню.
   final VoidCallback onTap;
+
   /// Выделен ли пункт как активный.
   final bool isSelected;
+
   /// Является ли действие деструктивным (например, выход).
   final bool isDestructive;
 
@@ -30,13 +34,13 @@ class DrawerItemWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     final Color iconColor = isDestructive
         ? theme.colorScheme.error
         : isSelected
             ? Colors.green
             : theme.colorScheme.onSurface.withValues(alpha: 0.7);
-            
+
     final Color textColor = isDestructive
         ? theme.colorScheme.error
         : isSelected
@@ -61,7 +65,8 @@ class DrawerItemWidget extends StatelessWidget {
                   : Colors.transparent,
             ),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
               child: Row(
                 children: [
                   const SizedBox(width: 8),
@@ -76,7 +81,8 @@ class DrawerItemWidget extends StatelessWidget {
                       title,
                       style: theme.textTheme.titleMedium?.copyWith(
                         color: textColor,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        fontWeight:
+                            isSelected ? FontWeight.bold : FontWeight.normal,
                       ),
                     ),
                   ),
@@ -97,4 +103,4 @@ class DrawerItemWidget extends StatelessWidget {
       ),
     );
   }
-} 
+}

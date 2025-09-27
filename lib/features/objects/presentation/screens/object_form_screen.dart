@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/domain/entities/object.dart';
@@ -28,20 +29,28 @@ import 'package:projectgt/core/utils/snackbar_utils.dart';
 class ObjectFormContent extends StatelessWidget {
   /// Флаг: true — форма создания, false — форма редактирования.
   final bool isNew;
+
   /// Флаг: true — форма/кнопки заблокированы, отображается индикатор загрузки.
   final bool isLoading;
+
   /// Контроллер для поля "Наименование".
   final TextEditingController nameController;
+
   /// Контроллер для поля "Адрес".
   final TextEditingController addressController;
+
   /// Контроллер для поля "Описание".
   final TextEditingController descriptionController;
+
   /// Контроллер для поля "Сумма командировочных выплат".
   final TextEditingController businessTripAmountController;
+
   /// Ключ формы для валидации.
   final GlobalKey<FormState> formKey;
+
   /// Колбэк для сохранения (создания/обновления) объекта.
   final VoidCallback onSave;
+
   /// Колбэк для отмены и закрытия формы.
   final VoidCallback onCancel;
 
@@ -83,13 +92,15 @@ class ObjectFormContent extends StatelessWidget {
                       Expanded(
                         child: Text(
                           isNew ? 'Новый объект' : 'Редактировать объект',
-                          style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                          style: theme.textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.bold),
                           textAlign: TextAlign.center,
                         ),
                       ),
                       IconButton(
                         icon: const Icon(Icons.close),
-                        style: IconButton.styleFrom(foregroundColor: Colors.red),
+                        style:
+                            IconButton.styleFrom(foregroundColor: Colors.red),
                         onPressed: onCancel,
                       ),
                     ],
@@ -113,7 +124,8 @@ class ObjectFormContent extends StatelessWidget {
                       children: [
                         Text(
                           'Информация об объекте',
-                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                          style: theme.textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 16),
                         // Наименование
@@ -123,7 +135,9 @@ class ObjectFormContent extends StatelessWidget {
                             labelText: 'Наименование *',
                             hintText: 'Введите наименование',
                           ),
-                          validator: (v) => v == null || v.trim().isEmpty ? 'Введите наименование' : null,
+                          validator: (v) => v == null || v.trim().isEmpty
+                              ? 'Введите наименование'
+                              : null,
                           enabled: !isLoading,
                         ),
                         const SizedBox(height: 16),
@@ -134,7 +148,9 @@ class ObjectFormContent extends StatelessWidget {
                             labelText: 'Адрес *',
                             hintText: 'Введите адрес',
                           ),
-                          validator: (v) => v == null || v.trim().isEmpty ? 'Введите адрес' : null,
+                          validator: (v) => v == null || v.trim().isEmpty
+                              ? 'Введите адрес'
+                              : null,
                           enabled: !isLoading,
                         ),
                         const SizedBox(height: 16),
@@ -157,11 +173,16 @@ class ObjectFormContent extends StatelessWidget {
                             labelText: 'Сумма командировочных',
                             hintText: 'Введите сумму (₽)',
                           ),
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true),
                           validator: (v) {
-                            if (v == null || v.trim().isEmpty) return 'Введите сумму';
+                            if (v == null || v.trim().isEmpty) {
+                              return 'Введите сумму';
+                            }
                             final value = double.tryParse(v);
-                            if (value == null || value < 0) return 'Некорректная сумма';
+                            if (value == null || value < 0) {
+                              return 'Некорректная сумма';
+                            }
                             return null;
                           },
                           enabled: !isLoading,
@@ -183,7 +204,8 @@ class ObjectFormContent extends StatelessWidget {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          textStyle: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                         child: const Text('Отмена'),
                       ),
@@ -198,15 +220,14 @@ class ObjectFormContent extends StatelessWidget {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          textStyle: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                         child: isLoading
                             ? const SizedBox(
                                 width: 24,
                                 height: 24,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
+                                child: CupertinoActivityIndicator(),
                               )
                             : Text(isNew ? 'Создать' : 'Сохранить'),
                       ),
@@ -230,6 +251,7 @@ class ObjectFormContent extends StatelessWidget {
 class ObjectFormScreen extends ConsumerStatefulWidget {
   /// Объект для редактирования. Если null — создаётся новый объект.
   final ObjectEntity? object;
+
   /// Колбэк, вызываемый после успешного сохранения (для показа уведомления).
   final void Function(bool isNew)? onSuccess;
 
@@ -249,14 +271,19 @@ class ObjectFormScreen extends ConsumerStatefulWidget {
 class _ObjectFormScreenState extends ConsumerState<ObjectFormScreen> {
   /// Ключ формы для валидации.
   final _formKey = GlobalKey<FormState>();
+
   /// Контроллер для поля "Наименование".
   final _nameController = TextEditingController();
+
   /// Контроллер для поля "Адрес".
   final _addressController = TextEditingController();
+
   /// Контроллер для поля "Описание".
   final _descriptionController = TextEditingController();
+
   /// Контроллер для поля "Сумма командировочных выплат".
   final _businessTripAmountController = TextEditingController();
+
   /// Флаг состояния загрузки (true — кнопки заблокированы, показывается индикатор).
   bool _isLoading = false;
 
@@ -267,7 +294,8 @@ class _ObjectFormScreenState extends ConsumerState<ObjectFormScreen> {
       _nameController.text = widget.object!.name;
       _addressController.text = widget.object!.address;
       _descriptionController.text = widget.object!.description ?? '';
-      _businessTripAmountController.text = widget.object!.businessTripAmount.toString();
+      _businessTripAmountController.text =
+          widget.object!.businessTripAmount.toString();
     }
   }
 
@@ -293,8 +321,12 @@ class _ObjectFormScreenState extends ConsumerState<ObjectFormScreen> {
       id: widget.object?.id ?? const Uuid().v4(),
       name: _nameController.text.trim(),
       address: _addressController.text.trim(),
-      description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
-      businessTripAmount: _businessTripAmountController.text.trim().isEmpty ? 0 : double.parse(_businessTripAmountController.text.trim()),
+      description: _descriptionController.text.trim().isEmpty
+          ? null
+          : _descriptionController.text.trim(),
+      businessTripAmount: _businessTripAmountController.text.trim().isEmpty
+          ? 0
+          : double.parse(_businessTripAmountController.text.trim()),
     );
     try {
       if (isNew) {
@@ -318,7 +350,8 @@ class _ObjectFormScreenState extends ConsumerState<ObjectFormScreen> {
     final isNew = widget.object == null;
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
-      appBar: AppBarWidget(title: isNew ? 'Новый объект' : 'Редактировать объект'),
+      appBar:
+          AppBarWidget(title: isNew ? 'Новый объект' : 'Редактировать объект'),
       body: ObjectFormContent(
         isNew: isNew,
         isLoading: _isLoading,
@@ -332,4 +365,4 @@ class _ObjectFormScreenState extends ConsumerState<ObjectFormScreen> {
       ),
     );
   }
-} 
+}

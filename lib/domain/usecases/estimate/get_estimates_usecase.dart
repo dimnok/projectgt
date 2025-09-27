@@ -13,4 +13,4 @@ class GetEstimatesUseCase {
   Future<List<Estimate>> call() async {
     return await repository.getEstimates();
   }
-} 
+}

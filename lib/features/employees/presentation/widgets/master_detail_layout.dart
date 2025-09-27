@@ -6,13 +6,13 @@ import 'package:flutter/material.dart';
 class MasterDetailLayout extends StatelessWidget {
   /// Ширина мастер-панели (левая часть).
   final double masterWidth;
-  
+
   /// Виджет для отображения в мастер-панели (список).
   final Widget masterPanel;
-  
+
   /// Виджет для отображения в детейл-панели (детали выбранного элемента).
   final Widget detailPanel;
-  
+
   /// Создает мастер-детейл представление.
   ///
   /// [masterWidth] - ширина мастер-панели (по умолчанию 570).
@@ -27,18 +27,23 @@ class MasterDetailLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        // Мастер-панель (список)
-        SizedBox(
-          width: masterWidth,
-          child: masterPanel,
-        ),
-        // Детейл-панель (детали выбранного элемента)
-        Expanded(
-          child: detailPanel,
-        ),
-      ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          // Мастер-панель (список)
+          SizedBox(
+            width: masterWidth,
+            child: masterPanel,
+          ),
+          // Разделитель между панелями
+          const SizedBox(width: 16),
+          // Детейл-панель (детали выбранного элемента)
+          Expanded(
+            child: detailPanel,
+          ),
+        ],
+      ),
     );
   }
-} 
+}

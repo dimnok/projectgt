@@ -30,4 +30,4 @@ class GetContractorUseCase {
   Future<Contractor?> execute(String id) async {
     return repository.getContractor(id);
   }
-} 
+}

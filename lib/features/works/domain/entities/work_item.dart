@@ -27,34 +27,48 @@ abstract class WorkItem with _$WorkItem {
   const factory WorkItem({
     /// Идентификатор работы.
     required String id,
+
     /// Идентификатор смены.
     required String workId,
+
     /// Секция.
     required String section,
+
     /// Этаж.
     required String floor,
+
     /// Идентификатор сметы.
     required String estimateId,
+
     /// Наименование работы.
     required String name,
+
     /// Система.
     required String system,
+
     /// Подсистема.
     required String subsystem,
+
     /// Единица измерения.
     required String unit,
+
     /// Объём/количество.
     required num quantity,
+
     /// Цена за единицу.
     double? price,
+
     /// Итоговая сумма.
     double? total,
+
     /// Дата создания записи.
     DateTime? createdAt,
+
     /// Дата последнего обновления.
     DateTime? updatedAt,
   }) = _WorkItem;
 
   /// Создаёт сущность из JSON.
-  factory WorkItem.fromJson(Map<String, dynamic> json) => _$WorkItemFromJson(json);
-} 
+  factory WorkItem.fromJson(Map<String, dynamic> json) =>
+      _$WorkItemFromJson(json);
+}

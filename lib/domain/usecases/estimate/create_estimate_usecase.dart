@@ -13,4 +13,4 @@ class CreateEstimateUseCase {
   Future<void> call(Estimate estimate) async {
     await repository.createEstimate(estimate);
   }
-} 
+}

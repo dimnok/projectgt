@@ -28,7 +28,8 @@ class ThemeNotifier extends StateNotifier<ThemeState> {
   /// Переключает тему между светлой и тёмной.
   void toggleTheme() {
     state = state.copyWith(
-      themeMode: state.themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light,
+      themeMode:
+          state.themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light,
     );
   }
 
@@ -44,6 +45,7 @@ class ThemeNotifier extends StateNotifier<ThemeState> {
 }
 
 /// Провайдер состояния темы приложения для Riverpod.
-final themeNotifierProvider = StateNotifierProvider<ThemeNotifier, ThemeState>((ref) {
+final themeNotifierProvider =
+    StateNotifierProvider<ThemeNotifier, ThemeState>((ref) {
   return ThemeNotifier();
-}); 
+});

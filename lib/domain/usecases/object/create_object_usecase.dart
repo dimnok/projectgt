@@ -29,4 +29,4 @@ class CreateObjectUseCase {
   Future<ObjectEntity> execute(ObjectEntity object) async {
     return repository.createObject(object);
   }
-} 
+}

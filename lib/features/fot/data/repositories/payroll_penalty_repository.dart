@@ -1,7 +1,7 @@
 import '../models/payroll_penalty_model.dart';
 
 /// Репозиторий для работы со штрафами, связанными с расчётом ФОТ.
-/// 
+///
 /// Предоставляет методы для получения, создания, обновления и удаления штрафов по расчёту ФОТ.
 abstract class PayrollPenaltyRepository {
   /// Создать новый штраф.
@@ -15,4 +15,4 @@ abstract class PayrollPenaltyRepository {
 
   /// Получить все штрафы (без фильтрации по payroll_id)
   Future<List<PayrollPenaltyModel>> getAllPenalties();
-} 
+}

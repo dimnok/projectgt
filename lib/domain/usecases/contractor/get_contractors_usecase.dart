@@ -28,4 +28,4 @@ class GetContractorsUseCase {
   Future<List<Contractor>> execute() async {
     return repository.getContractors();
   }
-} 
+}

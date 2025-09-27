@@ -4,7 +4,7 @@ import 'dart:io';
 import '../models/estimate_model.dart';
 
 /// Источник данных для работы со сметами (абстракция).
-/// 
+///
 /// Определяет методы для CRUD-операций и импорта из Excel.
 abstract class EstimateDataSource {
   /// Получает список всех смет.
@@ -30,6 +30,7 @@ abstract class EstimateDataSource {
 class SupabaseEstimateDataSource implements EstimateDataSource {
   /// Экземпляр клиента Supabase.
   final SupabaseClient client;
+
   /// Имя таблицы смет в базе данных.
   static const String table = 'estimates';
 
@@ -39,12 +40,15 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
   @override
   Future<List<EstimateModel>> getEstimates() async {
     final response = await client.from(table).select('*').order('system');
-    return response.map<EstimateModel>((json) => EstimateModel.fromJson(json)).toList();
+    return response
+        .map<EstimateModel>((json) => EstimateModel.fromJson(json))
+        .toList();
   }
 
   @override
   Future<EstimateModel?> getEstimate(String id) async {
-    final response = await client.from(table).select('*').eq('id', id).maybeSingle();
+    final response =
+        await client.from(table).select('*').eq('id', id).maybeSingle();
     if (response == null) return null;
     return EstimateModel.fromJson(response);
   }
@@ -71,7 +75,7 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
     final excel = Excel.decodeBytes(bytes);
     final sheet = excel.tables[excel.tables.keys.first]!;
     final rows = sheet.rows.skip(1); // пропускаем заголовки
-    
+
     return rows.map((row) {
       // Обработка номера: если числовой - преобразуем правильно
       String number = '';
@@ -95,7 +99,7 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
           }
         }
       }
-      
+
       // Обработка количества: если числовой - преобразуем правильно
       double quantity = 0;
       if (row.length > 7 && row[7]?.value != null) {
@@ -106,14 +110,16 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
           } else if (cellValue is IntCellValue) {
             quantity = cellValue.value.toDouble();
           } else {
-            final rawStr = cellValue.toString().trim()
+            final rawStr = cellValue
+                .toString()
+                .trim()
                 .replaceAll(RegExp(r'\s+'), '')
                 .replaceAll(',', '.');
             quantity = double.tryParse(rawStr) ?? 0;
           }
         }
       }
-      
+
       // Обработка цены: если числовой - преобразуем правильно
       double price = 0;
       if (row.length > 8 && row[8]?.value != null) {
@@ -124,14 +130,16 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
           } else if (cellValue is IntCellValue) {
             price = cellValue.value.toDouble();
           } else {
-            final rawStr = cellValue.toString().trim()
+            final rawStr = cellValue
+                .toString()
+                .trim()
                 .replaceAll(RegExp(r'\s+'), '')
                 .replaceAll(',', '.');
             price = double.tryParse(rawStr) ?? 0;
           }
         }
       }
-      
+
       // Обработка суммы: если числовой - преобразуем правильно
       double total = 0;
       if (row.length > 9 && row[9]?.value != null) {
@@ -142,7 +150,9 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
           } else if (cellValue is IntCellValue) {
             total = cellValue.value.toDouble();
           } else {
-            final rawStr = cellValue.toString().trim()
+            final rawStr = cellValue
+                .toString()
+                .trim()
                 .replaceAll(RegExp(r'\s+'), '')
                 .replaceAll(',', '.');
             total = double.tryParse(rawStr) ?? 0;
@@ -152,20 +162,32 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
         // Если сумма не указана, рассчитываем её
         total = quantity * price;
       }
-      
+
       return EstimateModel(
         id: '', // генерировать на сервере или локально
-        system: row.isNotEmpty && row[0]?.value != null ? row[0]!.value.toString() : '',
-        subsystem: row.length > 1 && row[1]?.value != null ? row[1]!.value.toString() : '',
+        system: row.isNotEmpty && row[0]?.value != null
+            ? row[0]!.value.toString()
+            : '',
+        subsystem: row.length > 1 && row[1]?.value != null
+            ? row[1]!.value.toString()
+            : '',
         number: number,
-        name: row.length > 3 && row[3]?.value != null ? row[3]!.value.toString() : '',
-        article: row.length > 4 && row[4]?.value != null ? row[4]!.value.toString() : '',
-        manufacturer: row.length > 5 && row[5]?.value != null ? row[5]!.value.toString() : '',
-        unit: row.length > 6 && row[6]?.value != null ? row[6]!.value.toString() : '',
+        name: row.length > 3 && row[3]?.value != null
+            ? row[3]!.value.toString()
+            : '',
+        article: row.length > 4 && row[4]?.value != null
+            ? row[4]!.value.toString()
+            : '',
+        manufacturer: row.length > 5 && row[5]?.value != null
+            ? row[5]!.value.toString()
+            : '',
+        unit: row.length > 6 && row[6]?.value != null
+            ? row[6]!.value.toString()
+            : '',
         quantity: quantity,
         price: price,
         total: total,
       );
     }).toList();
   }
-} 
+}

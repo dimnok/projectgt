@@ -41,4 +41,4 @@ class ObjectRepositoryImpl implements ObjectRepository {
   Future<void> deleteObject(String id) async {
     await dataSource.deleteObject(id);
   }
-} 
+}

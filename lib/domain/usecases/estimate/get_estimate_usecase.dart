@@ -13,4 +13,4 @@ class GetEstimateUseCase {
   Future<Estimate?> call(String id) async {
     return await repository.getEstimate(id);
   }
-} 
+}

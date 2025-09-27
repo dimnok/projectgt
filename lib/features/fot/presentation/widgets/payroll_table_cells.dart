@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 import '../utils/balance_utils.dart';
 
 /// Константы для таблицы ФОТ (Фонд оплаты труда).
-/// 
+///
 /// Содержит цветовые и размерные параметры, используемые для стилизации ячеек,
 /// выделения премий, штрафов, выплат, баланса, а также для адаптивного управления отступами между колонками.
 class PayrollTableConstants {
@@ -22,7 +22,7 @@ class PayrollTableConstants {
   /// Цвет для выделения баланса ("Баланс") в таблице ФОТ.
   /// Используется для итоговой суммы (начислено минус выплачено).
   static const Color balanceColor = Color(0xFF4527A0);
-  
+
   /// Минимальный горизонтальный отступ между колонками на мобильных устройствах (в пикселях).
   static const double mobileColumnSpacing = 12;
 
@@ -53,24 +53,25 @@ class PayrollTableCellBuilder {
       Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          if (!isMobile) Container(
-            width: 24,
-            height: 24,
-            margin: const EdgeInsets.only(right: 8),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Center(
-              child: Text(
-                index.toString(),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface,
-                  fontWeight: FontWeight.bold,
+          if (!isMobile)
+            Container(
+              width: 24,
+              height: 24,
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Center(
+                child: Text(
+                  index.toString(),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurface,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
-          ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -105,15 +106,14 @@ class PayrollTableCellBuilder {
   static DataCell buildHoursCell(double hours) {
     return DataCell(
       Text(
-        hours % 1 == 0
-            ? hours.toInt().toString()
-            : hours.toStringAsFixed(1),
+        hours % 1 == 0 ? hours.toInt().toString() : hours.toStringAsFixed(1),
       ),
     );
   }
 
   /// Создаёт ячейку с денежной суммой
-  static DataCell buildCurrencyCell(double amount, {Color? textColor, FontWeight? fontWeight}) {
+  static DataCell buildCurrencyCell(double amount,
+      {Color? textColor, FontWeight? fontWeight}) {
     return DataCell(
       Text(
         _numberFormat.format(amount),
@@ -197,7 +197,8 @@ class PayrollTableCellBuilder {
   }
 
   /// Создаёт итоговую ячейку с контейнером
-  static DataCell buildTotalCell(double amount, ThemeData theme, {Color? backgroundColor}) {
+  static DataCell buildTotalCell(double amount, ThemeData theme,
+      {Color? backgroundColor}) {
     return DataCell(
       Container(
         padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
@@ -209,7 +210,7 @@ class PayrollTableCellBuilder {
           amount > 0 ? _numberFormat.format(amount) : '—',
           style: theme.textTheme.bodyMedium?.copyWith(
             fontWeight: FontWeight.bold,
-            color: backgroundColor != null 
+            color: backgroundColor != null
                 ? PayrollTableConstants.payoutColor
                 : theme.colorScheme.onPrimaryContainer,
           ),
@@ -224,7 +225,8 @@ class PayrollTableCellBuilder {
       Container(
         padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
         decoration: BoxDecoration(
-          color: BalanceUtils.getBalanceColor(balance, theme).withValues(alpha: 0.1),
+          color: BalanceUtils.getBalanceColor(balance, theme)
+              .withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(4),
         ),
         child: BalanceUtils.buildBalanceWidget(
@@ -239,4 +241,4 @@ class PayrollTableCellBuilder {
       ),
     );
   }
-} 
+}

@@ -13,10 +13,13 @@ import 'package:projectgt/core/di/providers.dart';
 enum ContractorStatus {
   /// Начальное состояние (ничего не загружено).
   initial,
+
   /// Выполняется загрузка или операция.
   loading,
+
   /// Операция завершена успешно.
   success,
+
   /// Произошла ошибка при выполнении операции.
   error,
 }
@@ -27,12 +30,16 @@ enum ContractorStatus {
 class ContractorState {
   /// Текущий статус загрузки/операции ([ContractorStatus]).
   final ContractorStatus status;
+
   /// Список всех контрагентов.
   final List<Contractor> contractors;
+
   /// Текущий выбранный контрагент (если есть).
   final Contractor? contractor;
+
   /// Сообщение об ошибке (если есть).
   final String? errorMessage;
+
   /// Поисковый запрос для фильтрации контрагентов.
   final String searchQuery;
 
@@ -52,7 +59,8 @@ class ContractorState {
   });
 
   /// Возвращает начальное состояние ([ContractorStatus.initial]).
-  factory ContractorState.initial() => ContractorState(status: ContractorStatus.initial);
+  factory ContractorState.initial() =>
+      ContractorState(status: ContractorStatus.initial);
 
   /// Создаёт копию состояния с изменёнными полями.
   ///
@@ -83,14 +91,15 @@ class ContractorState {
   List<Contractor> get filteredContractors {
     if (searchQuery.isEmpty) return contractors;
     final query = searchQuery.toLowerCase();
-    return contractors.where((c) =>
-      c.fullName.toLowerCase().contains(query) ||
-      c.shortName.toLowerCase().contains(query) ||
-      c.inn.toLowerCase().contains(query) ||
-      c.director.toLowerCase().contains(query) ||
-      c.phone.toLowerCase().contains(query) ||
-      c.email.toLowerCase().contains(query)
-    ).toList();
+    return contractors
+        .where((c) =>
+            c.fullName.toLowerCase().contains(query) ||
+            c.shortName.toLowerCase().contains(query) ||
+            c.inn.toLowerCase().contains(query) ||
+            c.director.toLowerCase().contains(query) ||
+            c.phone.toLowerCase().contains(query) ||
+            c.email.toLowerCase().contains(query))
+        .toList();
   }
 }
 
@@ -100,14 +109,19 @@ class ContractorState {
 class ContractorNotifier extends StateNotifier<ContractorState> {
   /// Use case для получения списка контрагентов.
   final GetContractorsUseCase getContractorsUseCase;
+
   /// Use case для получения одного контрагента по id.
   final GetContractorUseCase getContractorUseCase;
+
   /// Use case для создания нового контрагента.
   final CreateContractorUseCase createContractorUseCase;
+
   /// Use case для обновления существующего контрагента.
   final UpdateContractorUseCase updateContractorUseCase;
+
   /// Use case для удаления контрагента.
   final DeleteContractorUseCase deleteContractorUseCase;
+
   /// Riverpod Ref для доступа к провайдерам зависимостей.
   final Ref _ref;
 
@@ -129,9 +143,11 @@ class ContractorNotifier extends StateNotifier<ContractorState> {
     state = state.copyWith(status: ContractorStatus.loading);
     try {
       final contractors = await getContractorsUseCase.execute();
-      state = state.copyWith(status: ContractorStatus.success, contractors: contractors);
+      state = state.copyWith(
+          status: ContractorStatus.success, contractors: contractors);
     } catch (e) {
-      state = state.copyWith(status: ContractorStatus.error, errorMessage: e.toString());
+      state = state.copyWith(
+          status: ContractorStatus.error, errorMessage: e.toString());
     }
   }
 
@@ -144,7 +160,8 @@ class ContractorNotifier extends StateNotifier<ContractorState> {
       await createContractorUseCase.execute(contractor);
       await loadContractors();
     } catch (e) {
-      state = state.copyWith(status: ContractorStatus.error, errorMessage: e.toString());
+      state = state.copyWith(
+          status: ContractorStatus.error, errorMessage: e.toString());
     }
   }
 
@@ -157,7 +174,8 @@ class ContractorNotifier extends StateNotifier<ContractorState> {
       await updateContractorUseCase.execute(contractor);
       await loadContractors();
     } catch (e) {
-      state = state.copyWith(status: ContractorStatus.error, errorMessage: e.toString());
+      state = state.copyWith(
+          status: ContractorStatus.error, errorMessage: e.toString());
     }
   }
 
@@ -169,22 +187,16 @@ class ContractorNotifier extends StateNotifier<ContractorState> {
     state = state.copyWith(status: ContractorStatus.loading);
     try {
       Contractor? contractor = state.contractor;
-      if (contractor == null) {
-        try {
-          contractor = state.contractors.firstWhere((c) => c.id == id);
-        } catch (_) {
-          contractor = null;
-        }
-      }
       await _ref.read(photoServiceProvider).deletePhoto(
-        entity: 'contractor',
-        id: id,
-        displayName: contractor?.shortName ?? '',
-      );
+            entity: 'contractor',
+            id: id,
+            displayName: contractor?.shortName ?? '',
+          );
       await deleteContractorUseCase.execute(id);
       await loadContractors();
     } catch (e) {
-      state = state.copyWith(status: ContractorStatus.error, errorMessage: e.toString());
+      state = state.copyWith(
+          status: ContractorStatus.error, errorMessage: e.toString());
     }
   }
 
@@ -198,25 +210,32 @@ class ContractorNotifier extends StateNotifier<ContractorState> {
   /// Если контрагент уже загружен и статус success — повторная загрузка не выполняется.
   /// В случае успеха — обновляет состояние на success, иначе — error с сообщением.
   Future<void> getContractor(String id) async {
-    if (state.contractor != null && state.contractor!.id == id && state.status == ContractorStatus.success) {
+    if (state.contractor != null &&
+        state.contractor!.id == id &&
+        state.status == ContractorStatus.success) {
       return;
     }
     final idx = state.contractors.indexWhere((c) => c.id == id);
     if (idx != -1) {
       final local = state.contractors[idx];
-      state = state.copyWith(status: ContractorStatus.success, contractor: local);
+      state =
+          state.copyWith(status: ContractorStatus.success, contractor: local);
       return;
     }
     state = state.copyWith(status: ContractorStatus.loading);
     try {
       final contractor = await getContractorUseCase.execute(id);
       if (contractor != null) {
-        state = state.copyWith(status: ContractorStatus.success, contractor: contractor);
+        state = state.copyWith(
+            status: ContractorStatus.success, contractor: contractor);
       } else {
-        state = state.copyWith(status: ContractorStatus.error, errorMessage: 'Контрагент не найден');
+        state = state.copyWith(
+            status: ContractorStatus.error,
+            errorMessage: 'Контрагент не найден');
       }
     } catch (e) {
-      state = state.copyWith(status: ContractorStatus.error, errorMessage: e.toString());
+      state = state.copyWith(
+          status: ContractorStatus.error, errorMessage: e.toString());
     }
   }
-} 
+}

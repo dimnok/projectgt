@@ -7,6 +7,7 @@ part 'work_hour_model.g.dart';
 @freezed
 abstract class WorkHourModel with _$WorkHourModel {
   @JsonSerializable(fieldRename: FieldRename.snake)
+
   /// Создаёт data-модель учёта часов сотрудника в смене.
   ///
   /// [id] — идентификатор записи
@@ -19,20 +20,27 @@ abstract class WorkHourModel with _$WorkHourModel {
   const factory WorkHourModel({
     /// Идентификатор записи.
     required String id,
+
     /// Идентификатор смены.
     required String workId,
+
     /// Идентификатор сотрудника.
     required String employeeId,
+
     /// Количество часов.
     required num hours,
+
     /// Комментарий к записи.
     String? comment,
+
     /// Дата создания записи.
     DateTime? createdAt,
+
     /// Дата последнего обновления.
     DateTime? updatedAt,
   }) = _WorkHourModel;
 
   /// Создаёт data-модель учёта часов сотрудника в смене из JSON.
-  factory WorkHourModel.fromJson(Map<String, dynamic> json) => _$WorkHourModelFromJson(json);
-} 
+  factory WorkHourModel.fromJson(Map<String, dynamic> json) =>
+      _$WorkHourModelFromJson(json);
+}

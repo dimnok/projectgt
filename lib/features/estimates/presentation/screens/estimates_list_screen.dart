@@ -29,7 +29,8 @@ class EstimatesListScreen extends ConsumerStatefulWidget {
   const EstimatesListScreen({super.key});
 
   @override
-  ConsumerState<EstimatesListScreen> createState() => _EstimatesListScreenState();
+  ConsumerState<EstimatesListScreen> createState() =>
+      _EstimatesListScreenState();
 }
 
 /// Состояние для [EstimatesListScreen].
@@ -59,7 +60,8 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
   List<Estimate> get estimates => ref.watch(estimateNotifierProvider).estimates;
 
   /// Текущая выбранная смета.
-  Estimate? get selectedEstimate => ref.watch(estimateNotifierProvider).selectedEstimate;
+  Estimate? get selectedEstimate =>
+      ref.watch(estimateNotifierProvider).selectedEstimate;
 
   /// Флаг загрузки данных.
   bool get isLoading => ref.watch(estimateNotifierProvider).isLoading;
@@ -83,7 +85,9 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top - kToolbarHeight,
+        maxHeight: MediaQuery.of(context).size.height -
+            MediaQuery.of(context).padding.top -
+            kToolbarHeight,
       ),
       builder: (context) {
         Widget modalContent = Container(
@@ -119,7 +123,8 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
                     ref: ref,
                     onSuccess: () async {
                       if (context.mounted) context.pop();
-                      SnackBarUtils.showSuccess(context, 'Смета успешно импортирована');
+                      SnackBarUtils.showSuccess(
+                          context, 'Смета успешно импортирована');
                     },
                     onCancel: () => context.pop(),
                   ),
@@ -164,10 +169,10 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
         SnackBarUtils.showInfo(context, 'Нет данных для экспорта');
         return;
       }
-      
+
       final excelFile = excel.Excel.createExcel();
       final sheet = excelFile['Сметы'];
-      
+
       // Добавляем заголовки
       sheet.appendRow([
         TextCellValue('Система'),
@@ -184,31 +189,33 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
         TextCellValue('Договор'),
         TextCellValue('Название сметы'),
       ]);
-      
+
       // Получаем списки объектов и договоров
       final objects = ref.read(objectProvider).objects;
       final contracts = ref.read(contractProvider).contracts;
-      
+
       // Добавляем данные
       for (final estimate in estimates) {
         // Находим имя объекта
         String objectName = '';
         if (estimate.objectId != null) {
-          final objectEntity = objects.firstWhereOrNull((o) => o.id == estimate.objectId);
+          final objectEntity =
+              objects.firstWhereOrNull((o) => o.id == estimate.objectId);
           if (objectEntity != null) {
             objectName = objectEntity.name;
           }
         }
-            
+
         // Находим номер договора
         String contractNumber = '';
         if (estimate.contractId != null) {
-          final contractEntity = contracts.firstWhereOrNull((c) => c.id == estimate.contractId);
+          final contractEntity =
+              contracts.firstWhereOrNull((c) => c.id == estimate.contractId);
           if (contractEntity != null) {
             contractNumber = contractEntity.number;
           }
         }
-            
+
         sheet.appendRow([
           TextCellValue(estimate.system),
           TextCellValue(estimate.subsystem),
@@ -225,10 +232,11 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
           TextCellValue(estimate.estimateTitle ?? ''),
         ]);
       }
-      
+
       final bytes = excelFile.encode()!;
-      final fileName = 'estimates_export_${DateTime.now().millisecondsSinceEpoch}.xlsx';
-      
+      final fileName =
+          'estimates_export_${DateTime.now().millisecondsSinceEpoch}.xlsx';
+
       if (kIsWeb) {
         await FileSaver.instance.saveFile(
           name: fileName,
@@ -240,10 +248,15 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
         final path = '${directory.path}/$fileName';
         final file = File(path);
         await file.writeAsBytes(bytes);
-        
-        await Share.shareXFiles([XFile(path)], text: 'Экспорт смет');
+
+        await SharePlus.instance.share(
+          ShareParams(
+            files: [XFile(path)],
+            text: 'Экспорт смет',
+          ),
+        );
       }
-      
+
       if (!context.mounted) return;
       SnackBarUtils.showSuccess(context, 'Сметы экспортированы в Excel');
     } catch (e) {
@@ -255,21 +268,18 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
   /// Удаляет всю смету и все её позиции
   void _deleteEstimateFile(EstimateFile file) async {
     final notifier = ref.read(estimateNotifierProvider.notifier);
-    
+
     // Удаляем все позиции сметы
     for (final item in file.items) {
       await notifier.deleteEstimate(item.id);
     }
-    
+
     // Обновляем список смет
     await notifier.loadEstimates();
-    
+
     // Показываем уведомление
     if (!mounted) return;
-    SnackBarUtils.showSuccess(
-      context, 
-      'Смета "${file.estimateTitle}" удалена'
-    );
+    SnackBarUtils.showSuccess(context, 'Смета "${file.estimateTitle}" удалена');
   }
 
   @override
@@ -291,7 +301,8 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Обновить данные',
-            onPressed: () => ref.read(estimateNotifierProvider.notifier).loadEstimates(),
+            onPressed: () =>
+                ref.read(estimateNotifierProvider.notifier).loadEstimates(),
           ),
         ],
       ),
@@ -305,19 +316,23 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
                   if (_excelFileName != null)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8.0),
-                      child: Text('Файл: $_excelFileName', style: Theme.of(context).textTheme.titleMedium),
+                      child: Text('Файл: $_excelFileName',
+                          style: Theme.of(context).textTheme.titleMedium),
                     ),
                   Expanded(
                     child: SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: DataTable(
                         columns: _excelRows!.first
-                            .map((cell) => DataColumn(label: Text((cell)?.value?.toString() ?? '')))
+                            .map((cell) => DataColumn(
+                                label: Text((cell)?.value?.toString() ?? '')))
                             .toList(),
-                        rows: _excelRows!.skip(1)
+                        rows: _excelRows!
+                            .skip(1)
                             .map((row) => DataRow(
                                   cells: row
-                                      .map((cell) => DataCell(Text((cell)?.value?.toString() ?? '')))
+                                      .map((cell) => DataCell(Text(
+                                          (cell)?.value?.toString() ?? '')))
                                       .toList(),
                                 ))
                             .toList(),
@@ -338,23 +353,26 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
                             itemCount: estimateFiles.length,
                             itemBuilder: (context, index) {
                               final file = estimateFiles[index];
-                              final contract = contracts.firstWhereOrNull((c) => c.id == file.contractId);
-                              final object = objects.firstWhereOrNull((o) => o.id == file.objectId);
+                              final contract = contracts.firstWhereOrNull(
+                                  (c) => c.id == file.contractId);
+                              final object = objects.firstWhereOrNull(
+                                  (o) => o.id == file.objectId);
                               final contractNumber = contract?.number ?? '—';
                               final objectName = object?.name ?? '—';
                               return Dismissible(
                                 key: Key(file.estimateTitle),
                                 direction: DismissDirection.endToStart,
                                 confirmDismiss: (direction) async {
-                                  return await CupertinoDialogs.showDeleteConfirmDialog<bool>(
-                                    context: context, 
+                                  return await CupertinoDialogs
+                                      .showDeleteConfirmDialog<bool>(
+                                    context: context,
                                     title: 'Удаление сметы',
-                                    message: 'Вы действительно хотите удалить смету "${file.estimateTitle}" и все её позиции?',
+                                    message:
+                                        'Вы действительно хотите удалить смету "${file.estimateTitle}" и все её позиции?',
                                     onConfirm: () {
                                       _deleteEstimateFile(file);
                                     },
-                                    onCancel: () {
-                                    },
+                                    onCancel: () {},
                                   );
                                 },
                                 background: Container(
@@ -367,31 +385,43 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
                                   ),
                                 ),
                                 child: Card(
-                                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  margin: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 6),
                                   elevation: 0,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                     side: BorderSide(
-                                      color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .outline
+                                          .withValues(alpha: 0.1),
                                       width: 1,
                                     ),
                                   ),
                                   child: InkWell(
                                     borderRadius: BorderRadius.circular(12),
-                                    onTap: () => context.go('/estimates/${Uri.encodeComponent(file.estimateTitle)}'),
+                                    onTap: () => context.go(
+                                        '/estimates/${Uri.encodeComponent(file.estimateTitle)}'),
                                     child: Padding(
                                       padding: const EdgeInsets.all(16.0),
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Row(
                                             children: [
                                               Expanded(
                                                 child: Text(
                                                   file.estimateTitle,
-                                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .titleMedium
+                                                      ?.copyWith(
+                                                          fontWeight:
+                                                              FontWeight.bold),
                                                   maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
                                                 ),
                                               ),
                                               const SizedBox(width: 8),
@@ -402,10 +432,23 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
                                             ],
                                           ),
                                           const SizedBox(height: 4),
-                                          Text('Договор: $contractNumber', style: Theme.of(context).textTheme.bodyMedium),
-                                          Text('Объект: $objectName', style: Theme.of(context).textTheme.bodyMedium),
-                                          Text('Позиций: ${file.items.length}', style: Theme.of(context).textTheme.bodyMedium),
-                                          Text('Сумма: ${formatMoney(file.total)}', style: Theme.of(context).textTheme.bodyMedium),
+                                          Text('Договор: $contractNumber',
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodyMedium),
+                                          Text('Объект: $objectName',
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodyMedium),
+                                          Text('Позиций: ${file.items.length}',
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodyMedium),
+                                          Text(
+                                              'Сумма: ${formatMoney(file.total)}',
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodyMedium),
                                         ],
                                       ),
                                     ),
@@ -468,4 +511,4 @@ List<EstimateFile> groupEstimatesByFile(List<Estimate> estimates) {
       items: entry.value,
     );
   }).toList();
-} 
+}

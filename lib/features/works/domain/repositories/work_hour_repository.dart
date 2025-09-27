@@ -1,7 +1,7 @@
 import '../entities/work_hour.dart';
 
 /// Абстрактный репозиторий для работы с часами сотрудников в смене.
-/// 
+///
 /// Определяет методы для получения, добавления, обновления и удаления записей о часах для конкретной смены.
 abstract class WorkHourRepository {
   /// Возвращает список записей о часах для смены по идентификатору [workId].
@@ -17,5 +17,9 @@ abstract class WorkHourRepository {
   Future<void> deleteWorkHour(String id);
 
   /// Получить все work_hours по сотруднику и периоду (месяцу)
-  Future<List<WorkHour>> fetchWorkHoursByEmployeeAndPeriod(String employeeId, DateTime monthStart, DateTime monthEnd);
-} 
+  Future<List<WorkHour>> fetchWorkHoursByEmployeeAndPeriod(
+      String employeeId, DateTime monthStart, DateTime monthEnd);
+
+  /// Массовое обновление часов одним действием
+  Future<void> updateWorkHoursBulk(List<WorkHour> hours);
+}

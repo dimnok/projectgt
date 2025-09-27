@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:projectgt/domain/entities/profile.dart';
 import 'package:projectgt/presentation/state/auth_state.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
-import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
+import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 
-/// Экран отображения и поиска пользователей системы.
+/// Экран отображения пользователей системы.
 ///
-/// Позволяет просматривать, фильтровать и переходить к профилям пользователей. Адаптирован под desktop и mobile.
+/// Позволяет просматривать и переходить к профилям пользователей. Адаптирован под desktop и mobile.
 ///
 /// Пример использования:
 /// ```dart
@@ -25,20 +26,12 @@ class UsersListScreen extends ConsumerStatefulWidget {
 
 /// Состояние для [UsersListScreen].
 ///
-/// Управляет поиском, фильтрацией, обновлением и отображением пользователей.
+/// Управляет загрузкой, обновлением и отображением пользователей.
 class _UsersListScreenState extends ConsumerState<UsersListScreen> {
-  final _searchController = TextEditingController();
   final _scrollController = ScrollController();
-  String _searchQuery = '';
-  
+
   // Флаг для отслеживания первичной загрузки
   bool _initialLoadDone = false;
-  
-  // Флаг видимости поиска на мобильных устройствах
-  bool _isSearchVisible = false;
-  
-  // Флаг для предотвращения одновременного открытия поиска и обновления списка
-  bool _preventRefresh = false;
 
   @override
   void initState() {
@@ -46,52 +39,12 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadProfilesIfNeeded();
     });
-    
-    // Добавляем слушателя скролла для мобильной версии
-    _scrollController.addListener(_scrollListener);
   }
 
   @override
   void dispose() {
-    _searchController.dispose();
-    _scrollController.removeListener(_scrollListener);
     _scrollController.dispose();
     super.dispose();
-  }
-
-  // Слушатель прокрутки для показа/скрытия поиска
-  void _scrollListener() {
-    // Если устройство мобильное и прокрутка вверх (отрицательное смещение)
-    if (_isMobileDevice() && _scrollController.position.pixels < -50) {
-      if (!_isSearchVisible) {
-        // Первое потягивание - показываем поиск и предотвращаем обновление
-        setState(() {
-          _isSearchVisible = true;
-          _preventRefresh = true;
-        });
-        
-        // Сбрасываем флаг предотвращения обновления через небольшую задержку
-        Future.delayed(const Duration(milliseconds: 300), () {
-          if (mounted) {
-            setState(() {
-              _preventRefresh = false;
-            });
-          }
-        });
-      }
-    } 
-    // Скрываем при прокрутке вниз после того, как поле уже видимо
-    else if (_scrollController.position.pixels > 0 && _isSearchVisible && _isMobileDevice()) {
-      setState(() {
-        _isSearchVisible = false;
-      });
-    }
-  }
-
-  // Определение мобильного устройства по ширине экрана
-  bool _isMobileDevice() {
-    final width = MediaQuery.of(context).size.width;
-    return width < 600; // Стандартная граница для мобильных устройств
   }
 
   void _loadProfilesIfNeeded() {
@@ -102,20 +55,8 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
     }
   }
 
-  void _filterProfiles(String query) {
-    setState(() {
-      _searchQuery = query.toLowerCase();
-    });
-  }
-
-  // Функция обновления списка, учитывающая состояние флага _preventRefresh
+  // Функция обновления списка
   Future<void> _handleRefresh() async {
-    if (_preventRefresh) {
-      // Если это первое открытие поиска, просто возвращаем Future
-      return Future.value();
-    }
-    
-    // В противном случае обновляем список
     await ref.read(profileProvider.notifier).refreshProfiles();
   }
 
@@ -124,115 +65,51 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
     final theme = Theme.of(context);
     final authState = ref.watch(authProvider);
     final profileState = ref.watch(profileProvider);
-    final isMobile = _isMobileDevice();
-    
-    // На десктопе всегда показываем поиск
-    if (!isMobile && !_isSearchVisible) {
-      _isSearchVisible = true;
-    }
-    
-    final isLoading = authState.status == AuthStatus.loading || 
-                      profileState.status == ProfileStatus.loading;
-    
-    List<Profile> filteredProfiles = profileState.profiles;
-    
-    if (_searchQuery.isNotEmpty) {
-      filteredProfiles = profileState.profiles.where((profile) {
-        final fullName = profile.fullName?.toLowerCase() ?? '';
-        final email = profile.email.toLowerCase();
-        final phone = profile.phone?.toLowerCase() ?? '';
-        
-        return fullName.contains(_searchQuery) || 
-               email.contains(_searchQuery) || 
-               phone.contains(_searchQuery);
-      }).toList();
-    }
-    
+
+    final isLoading = authState.status == AuthStatus.loading ||
+        profileState.status == ProfileStatus.loading;
+
+    List<Profile> profiles = profileState.profiles;
+
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      appBar: const AppBarWidget(title: 'Список пользователей'),
+      appBar: const AppBarWidget(title: 'Пользователи'),
       drawer: const AppDrawer(activeRoute: AppRoute.users),
-      body: Column(
-        children: [
-          // Блок поиска, который отображается условно
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            height: _isSearchVisible ? 80 : 0,
-            child: _isSearchVisible 
-                ? Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        labelText: 'Поиск пользователей',
-                        prefixIcon: const Icon(Icons.search),
-                        suffixIcon: _searchQuery.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(Icons.clear),
-                                onPressed: () {
-                                  _searchController.clear();
-                                  _filterProfiles('');
-                                },
-                              )
-                            : null,
-                      ),
-                      onChanged: _filterProfiles,
-                    ),
-                  )
-                : const SizedBox.shrink(),
-          ),
-          if (isMobile && !_isSearchVisible)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: Center(
-                child: Text(
-                  "↓ Потяните вниз для поиска ↓",
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+      body: RefreshIndicator(
+        onRefresh: _handleRefresh,
+        child: isLoading
+            ? const Center(child: CupertinoActivityIndicator())
+            : profiles.isEmpty
+                ? const Center(child: Text('Пользователи не найдены'))
+                : ListView.builder(
+                    controller: _scrollController,
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    itemCount: profiles.length,
+                    itemBuilder: (context, index) {
+                      final profile = profiles[index];
+                      return _UserListItem(
+                        profile: profile,
+                        onTap: () {
+                          context.pushNamed('user_profile',
+                              pathParameters: {'userId': profile.id});
+                        },
+                        onToggleStatus: (value) async {
+                          // Разрешить только админам
+                          final currentUser = ref.read(authProvider).user;
+                          final currentProfile =
+                              ref.read(currentUserProfileProvider).profile;
+                          final isAdmin = currentProfile?.role == 'admin' ||
+                              currentUser?.role == 'admin';
+                          if (!isAdmin) return;
+
+                          final notifier = ref.read(profileProvider.notifier);
+                          final updated = profile.copyWith(status: value);
+                          await notifier.updateProfile(updated);
+                          await _handleRefresh();
+                        },
+                      );
+                    },
                   ),
-                ),
-              ),
-            ),
-          if (isMobile && _isSearchVisible)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4.0),
-              child: Center(
-                child: Text(
-                  "↓ Потяните ещё раз для обновления списка ↓",
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                  ),
-                ),
-              ),
-            ),
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: _handleRefresh,
-              child: isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : filteredProfiles.isEmpty
-                      ? const Center(child: Text('Пользователи не найдены'))
-                      : ListView.builder(
-                          controller: _scrollController,
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          itemCount: filteredProfiles.length,
-                          itemBuilder: (context, index) {
-                            final profile = filteredProfiles[index];
-                            return _UserListItem(
-                              profile: profile,
-                              onTap: () {
-                                // Переход на детальный просмотр профиля пользователя
-                                context.pushNamed(
-                                  'user_profile', 
-                                  pathParameters: {'userId': profile.id}
-                                );
-                              },
-                            );
-                          },
-                        ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -241,10 +118,12 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
 class _UserListItem extends StatelessWidget {
   final Profile profile;
   final VoidCallback? onTap;
+  final ValueChanged<bool>? onToggleStatus;
 
   const _UserListItem({
     required this.profile,
     this.onTap,
+    this.onToggleStatus,
   });
 
   @override
@@ -266,10 +145,10 @@ class _UserListItem extends StatelessWidget {
               CircleAvatar(
                 radius: 24,
                 backgroundColor: theme.colorScheme.primary,
-                backgroundImage: profile.photoUrl != null 
-                    ? NetworkImage(profile.photoUrl!) 
+                backgroundImage: profile.photoUrl != null
+                    ? NetworkImage(profile.photoUrl!)
                     : null,
-                child: profile.photoUrl == null 
+                child: profile.photoUrl == null
                     ? Text(
                         profile.fullName?.isNotEmpty == true
                             ? profile.fullName![0].toUpperCase()
@@ -296,7 +175,8 @@ class _UserListItem extends StatelessWidget {
                     Text(
                       profile.email,
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                        color:
+                            theme.colorScheme.onSurface.withValues(alpha: 0.7),
                       ),
                     ),
                     if (profile.phone != null && profile.phone!.isNotEmpty)
@@ -305,7 +185,8 @@ class _UserListItem extends StatelessWidget {
                         child: Text(
                           profile.phone!,
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                            color: theme.colorScheme.onSurface
+                                .withValues(alpha: 0.5),
                           ),
                         ),
                       ),
@@ -313,9 +194,11 @@ class _UserListItem extends StatelessWidget {
                 ),
               ),
               Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: profile.role == 'admin'
                           ? Colors.purple.withValues(alpha: 0.1)
@@ -325,27 +208,30 @@ class _UserListItem extends StatelessWidget {
                     child: Text(
                       profile.role == 'admin' ? 'ADMIN' : 'USER',
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: profile.role == 'admin' ? Colors.purple : Colors.blue,
+                        color: profile.role == 'admin'
+                            ? Colors.purple
+                            : Colors.blue,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: profile.status
-                          ? Colors.green.withValues(alpha: 0.1)
-                          : Colors.red.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      profile.status ? 'Активен' : 'Неактивен',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: profile.status ? Colors.green : Colors.red,
-                        fontWeight: FontWeight.bold,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        profile.status ? 'Активен' : 'Неактивен',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: profile.status ? Colors.green : Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      CupertinoSwitch(
+                        value: profile.status,
+                        onChanged: onToggleStatus,
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -355,4 +241,4 @@ class _UserListItem extends StatelessWidget {
       ),
     );
   }
-} 
+}

@@ -33,7 +33,8 @@ class ContractRepositoryImpl implements ContractRepository {
 
   @override
   Future<Contract> updateContract(Contract contract) async {
-    final model = await dataSource.updateContract(ContractModel.fromDomain(contract));
+    final model =
+        await dataSource.updateContract(ContractModel.fromDomain(contract));
     return model.toDomain();
   }
 
@@ -41,4 +42,4 @@ class ContractRepositoryImpl implements ContractRepository {
   Future<void> deleteContract(String id) async {
     await dataSource.deleteContract(id);
   }
-} 
+}

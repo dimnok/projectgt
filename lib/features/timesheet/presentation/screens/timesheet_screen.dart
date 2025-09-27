@@ -14,7 +14,7 @@ class TimesheetScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final timesheetState = ref.watch(timesheetProvider);
-    
+
     return Scaffold(
       appBar: const AppBarWidget(title: 'Табель рабочего времени'),
       drawer: const AppDrawer(activeRoute: AppRoute.timesheet),
@@ -62,7 +62,8 @@ class TimesheetScreen extends ConsumerWidget {
                       if (timesheetState.isLoading)
                         Container(
                           color: Colors.black.withValues(alpha: 0.04),
-                          child: const Center(child: CircularProgressIndicator()),
+                          child:
+                              const Center(child: CircularProgressIndicator()),
                         ),
                     ],
                   ),
@@ -74,4 +75,4 @@ class TimesheetScreen extends ConsumerWidget {
       ),
     );
   }
-} 
+}

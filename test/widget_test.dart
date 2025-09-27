@@ -18,7 +18,7 @@ void main() {
         child: MyApp(),
       ),
     );
-    
+
     // Проверяем, что приложение успешно рендерится без ошибок
     expect(find.byType(MaterialApp), findsOneWidget);
   });

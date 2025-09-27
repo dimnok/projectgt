@@ -7,8 +7,10 @@ import 'work_material_data_source.dart';
 class WorkMaterialDataSourceImpl implements WorkMaterialDataSource {
   /// Клиент Supabase для доступа к базе данных.
   final SupabaseClient client;
+
   /// Название таблицы материалов.
   static const String table = 'work_materials';
+
   /// Логгер для вывода ошибок.
   final Logger _logger = Logger();
 
@@ -24,8 +26,10 @@ class WorkMaterialDataSourceImpl implements WorkMaterialDataSource {
           .select()
           .eq('work_id', workId)
           .order('created_at');
-      
-      return response.map<WorkMaterialModel>((json) => WorkMaterialModel.fromJson(json)).toList();
+
+      return response
+          .map<WorkMaterialModel>((json) => WorkMaterialModel.fromJson(json))
+          .toList();
     } catch (e) {
       _logger.e('Ошибка получения списка материалов: $e');
       rethrow;
@@ -40,7 +44,7 @@ class WorkMaterialDataSourceImpl implements WorkMaterialDataSource {
       final materialJson = material.toJson();
       materialJson['created_at'] = now;
       materialJson['updated_at'] = now;
-      
+
       await client.from(table).insert(materialJson);
     } catch (e) {
       _logger.e('Ошибка добавления материала: $e');
@@ -55,7 +59,7 @@ class WorkMaterialDataSourceImpl implements WorkMaterialDataSource {
       final now = DateTime.now().toIso8601String();
       final materialJson = material.toJson();
       materialJson['updated_at'] = now;
-      
+
       await client.from(table).update(materialJson).eq('id', material.id);
     } catch (e) {
       _logger.e('Ошибка обновления материала: $e');
@@ -73,4 +77,4 @@ class WorkMaterialDataSourceImpl implements WorkMaterialDataSource {
       rethrow;
     }
   }
-} 
+}

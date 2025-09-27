@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:projectgt/domain/entities/contract.dart';
 
 /// Контент формы создания/редактирования договора.
@@ -18,40 +19,58 @@ import 'package:projectgt/domain/entities/contract.dart';
 class ContractFormContent extends StatelessWidget {
   /// Является ли форма созданием нового договора (`true`) или редактированием (`false`).
   final bool isNew;
+
   /// Флаг загрузки состояния (блокирует поля и кнопки).
   final bool isLoading;
+
   /// Контроллер для поля "Номер договора".
   final TextEditingController numberController;
+
   /// Контроллер для поля "Сумма".
   final TextEditingController amountController;
+
   /// Дата заключения договора.
   final DateTime? date;
+
   /// Дата окончания действия договора.
   final DateTime? endDate;
+
   /// ID выбранного контрагента.
   final String? selectedContractorId;
+
   /// ID выбранного объекта.
   final String? selectedObjectId;
+
   /// Статус договора (активен, приостановлен, завершён).
   final ContractStatus status;
+
   /// Ключ формы для валидации.
   final GlobalKey<FormState> formKey;
+
   /// Колбэк для сохранения формы.
   final VoidCallback onSave;
+
   /// Колбэк для отмены/закрытия формы.
   final VoidCallback onCancel;
+
   /// Колбэк при изменении даты договора.
   final ValueChanged<DateTime> onDateChanged;
+
   /// Колбэк при изменении даты окончания.
   final ValueChanged<DateTime?> onEndDateChanged;
+
   /// Колбэк при изменении выбранного контрагента.
   final ValueChanged<String?> onContractorChanged;
+
   /// Колбэк при изменении выбранного объекта.
   final ValueChanged<String?> onObjectChanged;
+
   /// Колбэк при изменении статуса договора.
   final ValueChanged<ContractStatus?> onStatusChanged;
+
   /// Список элементов для выпадающего списка контрагентов.
   final List<DropdownMenuItem<String>> contractorItems;
+
   /// Список элементов для выпадающего списка объектов.
   final List<DropdownMenuItem<String>> objectItems;
 
@@ -99,7 +118,8 @@ class ContractFormContent extends StatelessWidget {
                     Expanded(
                       child: Text(
                         isNew ? 'Новый договор' : 'Редактировать договор',
-                        style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                        style: theme.textTheme.titleLarge
+                            ?.copyWith(fontWeight: FontWeight.bold),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -126,7 +146,9 @@ class ContractFormContent extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Данные договора', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                      Text('Данные договора',
+                          style: theme.textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold)),
                       const SizedBox(height: 16),
                       // Номер договора
                       TextFormField(
@@ -135,7 +157,9 @@ class ContractFormContent extends StatelessWidget {
                           labelText: 'Номер договора *',
                           hintText: 'Введите номер',
                         ),
-                        validator: (v) => v == null || v.trim().isEmpty ? 'Введите номер' : null,
+                        validator: (v) => v == null || v.trim().isEmpty
+                            ? 'Введите номер'
+                            : null,
                         enabled: !isLoading,
                       ),
                       const SizedBox(height: 16),
@@ -148,17 +172,23 @@ class ContractFormContent extends StatelessWidget {
                                 labelText: 'Дата договора *',
                               ),
                               child: InkWell(
-                                onTap: isLoading ? null : () async {
-                                  final picked = await showDatePicker(
-                                    context: context,
-                                    initialDate: date ?? DateTime.now(),
-                                    firstDate: DateTime(2000),
-                                    lastDate: DateTime(2100),
-                                  );
-                                  if (picked != null) onDateChanged(picked);
-                                },
+                                onTap: isLoading
+                                    ? null
+                                    : () async {
+                                        final picked = await showDatePicker(
+                                          context: context,
+                                          initialDate: date ?? DateTime.now(),
+                                          firstDate: DateTime(2000),
+                                          lastDate: DateTime(2100),
+                                        );
+                                        if (picked != null) {
+                                          onDateChanged(picked);
+                                        }
+                                      },
                                 child: Text(
-                                  date != null ? _formatDate(date!) : 'Выбрать дату',
+                                  date != null
+                                      ? _formatDate(date!)
+                                      : 'Выбрать дату',
                                   style: theme.textTheme.bodyLarge,
                                 ),
                               ),
@@ -171,17 +201,22 @@ class ContractFormContent extends StatelessWidget {
                                 labelText: 'Дата окончания',
                               ),
                               child: InkWell(
-                                onTap: isLoading ? null : () async {
-                                  final picked = await showDatePicker(
-                                    context: context,
-                                    initialDate: endDate ?? date ?? DateTime.now(),
-                                    firstDate: DateTime(2000),
-                                    lastDate: DateTime(2100),
-                                  );
-                                  onEndDateChanged(picked);
-                                },
+                                onTap: isLoading
+                                    ? null
+                                    : () async {
+                                        final picked = await showDatePicker(
+                                          context: context,
+                                          initialDate:
+                                              endDate ?? date ?? DateTime.now(),
+                                          firstDate: DateTime(2000),
+                                          lastDate: DateTime(2100),
+                                        );
+                                        onEndDateChanged(picked);
+                                      },
                                 child: Text(
-                                  endDate != null ? _formatDate(endDate!) : 'Выбрать дату',
+                                  endDate != null
+                                      ? _formatDate(endDate!)
+                                      : 'Выбрать дату',
                                   style: theme.textTheme.bodyLarge,
                                 ),
                               ),
@@ -198,7 +233,9 @@ class ContractFormContent extends StatelessWidget {
                         decoration: const InputDecoration(
                           labelText: 'Контрагент *',
                         ),
-                        validator: (v) => v == null || v.isEmpty ? 'Выберите контрагента' : null,
+                        validator: (v) => v == null || v.isEmpty
+                            ? 'Выберите контрагента'
+                            : null,
                         isExpanded: true,
                       ),
                       const SizedBox(height: 16),
@@ -210,7 +247,8 @@ class ContractFormContent extends StatelessWidget {
                         decoration: const InputDecoration(
                           labelText: 'Объект *',
                         ),
-                        validator: (v) => v == null || v.isEmpty ? 'Выберите объект' : null,
+                        validator: (v) =>
+                            v == null || v.isEmpty ? 'Выберите объект' : null,
                         isExpanded: true,
                       ),
                       const SizedBox(height: 16),
@@ -221,11 +259,16 @@ class ContractFormContent extends StatelessWidget {
                           labelText: 'Сумма *',
                           hintText: 'Введите сумму',
                         ),
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
                         validator: (v) {
-                          if (v == null || v.trim().isEmpty) return 'Введите сумму';
+                          if (v == null || v.trim().isEmpty) {
+                            return 'Введите сумму';
+                          }
                           final value = double.tryParse(v.replaceAll(',', '.'));
-                          if (value == null || value < 0) return 'Некорректная сумма';
+                          if (value == null || value < 0) {
+                            return 'Некорректная сумма';
+                          }
                           return null;
                         },
                         enabled: !isLoading,
@@ -235,9 +278,15 @@ class ContractFormContent extends StatelessWidget {
                       DropdownButtonFormField<ContractStatus>(
                         value: status,
                         items: const [
-                          DropdownMenuItem(value: ContractStatus.active, child: Text('В работе')),
-                          DropdownMenuItem(value: ContractStatus.suspended, child: Text('Приостановлен')),
-                          DropdownMenuItem(value: ContractStatus.completed, child: Text('Завершен')),
+                          DropdownMenuItem(
+                              value: ContractStatus.active,
+                              child: Text('В работе')),
+                          DropdownMenuItem(
+                              value: ContractStatus.suspended,
+                              child: Text('Приостановлен')),
+                          DropdownMenuItem(
+                              value: ContractStatus.completed,
+                              child: Text('Завершен')),
                         ],
                         onChanged: isLoading ? null : onStatusChanged,
                         decoration: const InputDecoration(
@@ -259,7 +308,8 @@ class ContractFormContent extends StatelessWidget {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        textStyle: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
                       ),
                       child: const Text('Отмена'),
                     ),
@@ -273,13 +323,14 @@ class ContractFormContent extends StatelessWidget {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        textStyle: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
                       ),
                       child: isLoading
                           ? const SizedBox(
                               width: 24,
                               height: 24,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                              child: CupertinoActivityIndicator(),
                             )
                           : Text(isNew ? 'Создать' : 'Сохранить'),
                     ),
@@ -302,4 +353,4 @@ class ContractFormContent extends StatelessWidget {
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
   }
-} 
+}

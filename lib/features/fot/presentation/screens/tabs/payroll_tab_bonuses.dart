@@ -42,7 +42,9 @@ class PayrollTabBonuses extends StatelessWidget {
                       isScrollControlled: true,
                       backgroundColor: Colors.transparent,
                       constraints: BoxConstraints(
-                        maxHeight: MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top - kToolbarHeight,
+                        maxHeight: MediaQuery.of(context).size.height -
+                            MediaQuery.of(context).padding.top -
+                            kToolbarHeight,
                       ),
                       builder: (ctx) => const PayrollTransactionFormModal(
                         transactionType: PayrollTransactionType.bonus,
@@ -58,4 +60,4 @@ class PayrollTabBonuses extends StatelessWidget {
       ),
     );
   }
-} 
+}

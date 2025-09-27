@@ -29,4 +29,4 @@ class UpdateObjectUseCase {
   Future<ObjectEntity> execute(ObjectEntity object) async {
     return repository.updateObject(object);
   }
-} 
+}

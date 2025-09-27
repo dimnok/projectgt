@@ -9,6 +9,7 @@ part 'work_hour.g.dart';
 @freezed
 abstract class WorkHour with _$WorkHour {
   @JsonSerializable(fieldRename: FieldRename.snake)
+
   /// Создаёт сущность учёта часов сотрудника в смене.
   ///
   /// [id] — идентификатор записи
@@ -21,20 +22,27 @@ abstract class WorkHour with _$WorkHour {
   const factory WorkHour({
     /// Идентификатор записи.
     required String id,
+
     /// Идентификатор смены.
     required String workId,
+
     /// Идентификатор сотрудника.
     required String employeeId,
+
     /// Количество часов.
     required num hours,
+
     /// Комментарий к записи.
     String? comment,
+
     /// Дата создания записи.
     DateTime? createdAt,
+
     /// Дата последнего обновления.
     DateTime? updatedAt,
   }) = _WorkHour;
 
   /// Создаёт сущность из JSON.
-  factory WorkHour.fromJson(Map<String, dynamic> json) => _$WorkHourFromJson(json);
-} 
+  factory WorkHour.fromJson(Map<String, dynamic> json) =>
+      _$WorkHourFromJson(json);
+}

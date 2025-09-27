@@ -124,4 +124,4 @@ class EstimateNotifier extends StateNotifier<EstimateState> {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
-} 
+}

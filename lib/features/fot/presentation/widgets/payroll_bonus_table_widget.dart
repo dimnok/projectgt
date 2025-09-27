@@ -12,20 +12,20 @@ import '../../domain/entities/payroll_transaction.dart';
 import 'package:flutter/cupertino.dart';
 
 /// Виджет для отображения таблицы премий сотрудников за выбранный период в модуле ФОТ.
-/// 
+///
 /// Использует данные из провайдера filteredBonusesProvider и отображает премии с деталями по сотруднику, объекту, сумме, дате и примечанию.
 /// Поддерживает адаптивную верстку (desktop/tablet/mobile), сортировку и действия (редактирование, удаление).
 class PayrollBonusTableWidget extends ConsumerWidget {
   /// Конструктор [PayrollBonusTableWidget].
-  /// 
+  ///
   /// [key] — уникальный ключ виджета (опционально).
   const PayrollBonusTableWidget({super.key});
 
   /// Строит UI таблицы премий сотрудников за выбранный месяц.
-  /// 
+  ///
   /// [context] — BuildContext для доступа к теме и навигации.
   /// [ref] — WidgetRef для доступа к провайдерам состояния.
-  /// 
+  ///
   /// Возвращает [Widget] с таблицей премий или сообщением об отсутствии данных.
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -36,14 +36,16 @@ class PayrollBonusTableWidget extends ConsumerWidget {
     final objects = filterState.objects;
     if (bonuses.isEmpty) {
       return Center(
-        child: Text('Нет премий за выбранный период', style: theme.textTheme.titleMedium),
+        child: Text('Нет премий за выбранный период',
+            style: theme.textTheme.titleMedium),
       );
     }
     final filterMonth = filterState.month;
     final filterYear = filterState.year;
     final monthDate = DateTime(filterYear, filterMonth);
     final tableTitle = 'Премии ${DateFormat.yMMMM('ru').format(monthDate)}';
-    final numberFormat = NumberFormat.currency(locale: 'ru_RU', symbol: '₽', decimalDigits: 2);
+    final numberFormat =
+        NumberFormat.currency(locale: 'ru_RU', symbol: '₽', decimalDigits: 2);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -56,9 +58,16 @@ class PayrollBonusTableWidget extends ConsumerWidget {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final isDesktop = constraints.maxWidth >= 900;
-              final isTablet = constraints.maxWidth >= 600 && constraints.maxWidth < 900;
-              final minTableWidth = isDesktop ? 700.0 : isTablet ? 500.0 : 0.0;
-              final tableWidth = constraints.maxWidth > minTableWidth ? constraints.maxWidth : minTableWidth;
+              final isTablet =
+                  constraints.maxWidth >= 600 && constraints.maxWidth < 900;
+              final minTableWidth = isDesktop
+                  ? 700.0
+                  : isTablet
+                      ? 500.0
+                      : 0.0;
+              final tableWidth = constraints.maxWidth > minTableWidth
+                  ? constraints.maxWidth
+                  : minTableWidth;
               final needsHorizontalScroll = tableWidth > constraints.maxWidth;
               return Scrollbar(
                 thumbVisibility: needsHorizontalScroll,
@@ -72,7 +81,8 @@ class PayrollBonusTableWidget extends ConsumerWidget {
                       maxWidth: tableWidth,
                     ),
                     child: DataTable(
-                      headingTextStyle: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                      headingTextStyle: theme.textTheme.titleSmall
+                          ?.copyWith(fontWeight: FontWeight.bold),
                       dataTextStyle: theme.textTheme.bodyMedium,
                       border: TableBorder.all(
                         color: theme.colorScheme.outline.withValues(alpha: 0.2),
@@ -89,14 +99,27 @@ class PayrollBonusTableWidget extends ConsumerWidget {
                         for (int i = 0; i < bonuses.length; i++)
                           () {
                             final bonus = bonuses[i];
-                            final dateStr = bonus.createdAt != null ? DateFormat('dd.MM.yyyy').format(bonus.createdAt!) : '';
-                            final employee = employees.firstWhereOrNull((e) => e.id == bonus.employeeId);
+                            final dateStr = bonus.createdAt != null
+                                ? DateFormat('dd.MM.yyyy')
+                                    .format(bonus.createdAt!)
+                                : '';
+                            final employee = employees.firstWhereOrNull(
+                                (e) => e.id == bonus.employeeId);
                             final fio = employee != null
-                              ? [employee.lastName, employee.firstName, if (employee.middleName != null && employee.middleName.isNotEmpty) employee.middleName].join(' ')
-                              : bonus.employeeId;
+                                ? [
+                                    employee.lastName,
+                                    employee.firstName,
+                                    if (employee.middleName != null &&
+                                        employee.middleName.isNotEmpty)
+                                      employee.middleName
+                                  ].join(' ')
+                                : bonus.employeeId;
                             final position = employee?.position ?? '';
-                            final object = objects.firstWhereOrNull((o) => o.id == bonus.objectId);
-                            final objectName = object != null ? object.name : (bonus.objectId ?? '');
+                            final object = objects.firstWhereOrNull(
+                                (o) => o.id == bonus.objectId);
+                            final objectName = object != null
+                                ? object.name
+                                : (bonus.objectId ?? '');
                             final amount = bonus.amount;
                             final note = bonus.reason ?? '';
                             return DataRow(cells: [
@@ -105,23 +128,30 @@ class PayrollBonusTableWidget extends ConsumerWidget {
                                 children: [
                                   Text(
                                     '${i + 1}. ',
-                                    style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+                                    style: theme.textTheme.bodyMedium
+                                        ?.copyWith(fontWeight: FontWeight.bold),
                                   ),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
                                         Text(
                                           fio.trim(),
-                                          style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+                                          style: theme.textTheme.bodyMedium
+                                              ?.copyWith(
+                                                  fontWeight: FontWeight.w500),
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                         if (position.isNotEmpty)
                                           Text(
                                             position,
-                                            style: theme.textTheme.bodySmall?.copyWith(
-                                              color: theme.colorScheme.onSurfaceVariant,
+                                            style: theme.textTheme.bodySmall
+                                                ?.copyWith(
+                                              color: theme
+                                                  .colorScheme.onSurfaceVariant,
                                               height: 1.2,
                                             ),
                                             maxLines: 1,
@@ -140,36 +170,54 @@ class PayrollBonusTableWidget extends ConsumerWidget {
                                           isScrollControlled: true,
                                           backgroundColor: Colors.transparent,
                                           constraints: BoxConstraints(
-                                            maxHeight: MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top - kToolbarHeight,
+                                            maxHeight: MediaQuery.of(context)
+                                                    .size
+                                                    .height -
+                                                MediaQuery.of(context)
+                                                    .padding
+                                                    .top -
+                                                kToolbarHeight,
                                           ),
-                                          builder: (ctx) => PayrollTransactionFormModal(
-                                            transactionType: PayrollTransactionType.bonus,
+                                          builder: (ctx) =>
+                                              PayrollTransactionFormModal(
+                                            transactionType:
+                                                PayrollTransactionType.bonus,
                                             transaction: bonus,
                                           ),
                                         );
                                       } else if (value == 'delete') {
                                         showCupertinoDialog(
                                           context: context,
-                                          builder: (ctx) => CupertinoAlertDialog(
-                                            title: const Text('Удалить премию?'),
-                                            content: const Text('Вы действительно хотите удалить эту премию?'),
+                                          builder: (ctx) =>
+                                              CupertinoAlertDialog(
+                                            title:
+                                                const Text('Удалить премию?'),
+                                            content: const Text(
+                                                'Вы действительно хотите удалить эту премию?'),
                                             actions: [
                                               CupertinoDialogAction(
                                                 child: const Text('Отмена'),
-                                                onPressed: () => Navigator.of(ctx).pop(),
+                                                onPressed: () =>
+                                                    Navigator.of(ctx).pop(),
                                               ),
                                               CupertinoDialogAction(
                                                 isDestructiveAction: true,
                                                 child: const Text('Удалить'),
                                                 onPressed: () async {
                                                   Navigator.of(ctx).pop();
-                                                  final deleteBonus = ref.read(deleteBonusUseCaseProvider);
+                                                  final deleteBonus = ref.read(
+                                                      deleteBonusUseCaseProvider);
                                                   await deleteBonus(bonus.id);
-                                                  ref.invalidate(allBonusesProvider);
-                                                  ref.invalidate(employeeAggregatedBalanceProvider);
-                                                  ref.invalidate(payrollPayoutsByMonthProvider);
+                                                  ref.invalidate(
+                                                      allBonusesProvider);
+                                                  ref.invalidate(
+                                                      employeeAggregatedBalanceProvider);
+                                                  ref.invalidate(
+                                                      payrollPayoutsByMonthProvider);
                                                   if (context.mounted) {
-                                                    SnackBarUtils.showSuccess(context, 'Премия удалена');
+                                                    SnackBarUtils.showSuccess(
+                                                        context,
+                                                        'Премия удалена');
                                                   }
                                                 },
                                               ),
@@ -183,7 +231,10 @@ class PayrollBonusTableWidget extends ConsumerWidget {
                                         value: 'edit',
                                         child: Row(
                                           children: [
-                                            Icon(Icons.edit_outlined, color: theme.colorScheme.primary, size: 20),
+                                            Icon(Icons.edit_outlined,
+                                                color:
+                                                    theme.colorScheme.primary,
+                                                size: 20),
                                             const SizedBox(width: 8),
                                             const Text('Редактировать'),
                                           ],
@@ -193,9 +244,14 @@ class PayrollBonusTableWidget extends ConsumerWidget {
                                         value: 'delete',
                                         child: Row(
                                           children: [
-                                            Icon(Icons.delete_outline, color: theme.colorScheme.error, size: 20),
+                                            Icon(Icons.delete_outline,
+                                                color: theme.colorScheme.error,
+                                                size: 20),
                                             const SizedBox(width: 8),
-                                            Text('Удалить', style: TextStyle(color: theme.colorScheme.error)),
+                                            Text('Удалить',
+                                                style: TextStyle(
+                                                    color: theme
+                                                        .colorScheme.error)),
                                           ],
                                         ),
                                       ),
@@ -220,4 +276,4 @@ class PayrollBonusTableWidget extends ConsumerWidget {
       ],
     );
   }
-} 
+}

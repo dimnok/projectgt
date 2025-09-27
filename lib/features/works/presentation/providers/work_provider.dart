@@ -4,13 +4,15 @@ import '../../domain/repositories/work_repository.dart';
 import 'repositories_providers.dart';
 
 /// Состояние для списка смен.
-/// 
+///
 /// Содержит список смен [works], флаг загрузки [isLoading] и возможную ошибку [error].
 class WorksState {
   /// Список смен.
   final List<Work> works;
+
   /// Флаг, указывающий на процесс загрузки.
   final bool isLoading;
+
   /// Сообщение об ошибке, если есть.
   final String? error;
 
@@ -52,12 +54,13 @@ class WorksNotifier extends StateNotifier<WorksState> {
       final works = await repository.getWorks();
       state = state.copyWith(works: works, isLoading: false);
     } catch (e) {
-      state = state.copyWith(error: 'Ошибка загрузки смен: $e', isLoading: false);
+      state =
+          state.copyWith(error: 'Ошибка загрузки смен: $e', isLoading: false);
     }
   }
 
   /// Добавляет новую смену.
-  /// 
+  ///
   /// Возвращает созданную смену или null в случае ошибки.
   Future<Work?> addWork({
     required DateTime date,
@@ -88,7 +91,8 @@ class WorksNotifier extends StateNotifier<WorksState> {
       );
       return created;
     } catch (e) {
-      state = state.copyWith(error: 'Ошибка создания смены: $e', isLoading: false);
+      state =
+          state.copyWith(error: 'Ошибка создания смены: $e', isLoading: false);
       return null;
     }
   }
@@ -106,7 +110,8 @@ class WorksNotifier extends StateNotifier<WorksState> {
         isLoading: false,
       );
     } catch (e) {
-      state = state.copyWith(error: 'Ошибка обновления смены: $e', isLoading: false);
+      state = state.copyWith(
+          error: 'Ошибка обновления смены: $e', isLoading: false);
     }
   }
 
@@ -120,7 +125,8 @@ class WorksNotifier extends StateNotifier<WorksState> {
         isLoading: false,
       );
     } catch (e) {
-      state = state.copyWith(error: 'Ошибка удаления смены: $e', isLoading: false);
+      state =
+          state.copyWith(error: 'Ошибка удаления смены: $e', isLoading: false);
     }
   }
 }
@@ -140,4 +146,4 @@ final workProvider = Provider.family<Work?, String>((ref, id) {
   } catch (_) {
     return null;
   }
-}); 
+});

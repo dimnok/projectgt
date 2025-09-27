@@ -21,21 +21,29 @@ abstract class Work with _$Work {
   const factory Work({
     /// Идентификатор смены.
     String? id,
+
     /// Дата смены.
     required DateTime date,
+
     /// Идентификатор объекта.
     required String objectId,
+
     /// Идентификатор пользователя, открывшего смену.
     required String openedBy,
+
     /// Статус смены (например, open/closed).
     required String status,
+
     /// Ссылка на фото смены.
     String? photoUrl,
+
     /// Ссылка на вечернее фото смены.
     String? eveningPhotoUrl,
+
     /// Дата создания записи.
     DateTime? createdAt,
+
     /// Дата последнего обновления.
     DateTime? updatedAt,
   }) = _Work;
-} 
+}

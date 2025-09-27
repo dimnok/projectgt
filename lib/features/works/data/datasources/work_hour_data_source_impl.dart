@@ -7,8 +7,10 @@ import 'work_hour_data_source.dart';
 class WorkHourDataSourceImpl implements WorkHourDataSource {
   /// Клиент Supabase для доступа к базе данных.
   final SupabaseClient client;
+
   /// Название таблицы учёта часов.
   static const String table = 'work_hours';
+
   /// Логгер для вывода ошибок.
   final Logger _logger = Logger();
 
@@ -24,8 +26,10 @@ class WorkHourDataSourceImpl implements WorkHourDataSource {
           .select()
           .eq('work_id', workId)
           .order('created_at');
-      
-      return response.map<WorkHourModel>((json) => WorkHourModel.fromJson(json)).toList();
+
+      return response
+          .map<WorkHourModel>((json) => WorkHourModel.fromJson(json))
+          .toList();
     } catch (e) {
       _logger.e('Ошибка получения списка часов: $e');
       rethrow;
@@ -40,7 +44,7 @@ class WorkHourDataSourceImpl implements WorkHourDataSource {
       final hourJson = hour.toJson();
       hourJson['created_at'] = now;
       hourJson['updated_at'] = now;
-      
+
       await client.from(table).insert(hourJson);
     } catch (e) {
       _logger.e('Ошибка добавления часов: $e');
@@ -55,7 +59,7 @@ class WorkHourDataSourceImpl implements WorkHourDataSource {
       final now = DateTime.now().toIso8601String();
       final hourJson = hour.toJson();
       hourJson['updated_at'] = now;
-      
+
       await client.from(table).update(hourJson).eq('id', hour.id);
     } catch (e) {
       _logger.e('Ошибка обновления часов: $e');
@@ -75,7 +79,8 @@ class WorkHourDataSourceImpl implements WorkHourDataSource {
   }
 
   @override
-  Future<List<WorkHourModel>> fetchWorkHoursByEmployeeAndPeriod(String employeeId, DateTime monthStart, DateTime monthEnd) async {
+  Future<List<WorkHourModel>> fetchWorkHoursByEmployeeAndPeriod(
+      String employeeId, DateTime monthStart, DateTime monthEnd) async {
     try {
       final response = await client
           .from(table)
@@ -83,10 +88,31 @@ class WorkHourDataSourceImpl implements WorkHourDataSource {
           .eq('employee_id', employeeId)
           .gte('created_at', monthStart.toIso8601String())
           .lt('created_at', monthEnd.toIso8601String());
-      return response.map<WorkHourModel>((json) => WorkHourModel.fromJson(json)).toList();
+      return response
+          .map<WorkHourModel>((json) => WorkHourModel.fromJson(json))
+          .toList();
     } catch (e) {
       _logger.e('Ошибка получения work_hours по сотруднику и периоду: $e');
       rethrow;
     }
   }
-} 
+
+  /// Массовое обновление/вставка часов в один запрос (upsert по id)
+  @override
+  Future<void> updateWorkHoursBulk(List<WorkHourModel> hours) async {
+    if (hours.isEmpty) return;
+    try {
+      final now = DateTime.now().toIso8601String();
+      final payload = hours.map((h) {
+        final map = h.toJson();
+        map['updated_at'] = now;
+        return map;
+      }).toList();
+
+      await client.from(table).upsert(payload);
+    } catch (e) {
+      _logger.e('Ошибка массового обновления часов: $e');
+      rethrow;
+    }
+  }
+}

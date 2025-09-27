@@ -12,7 +12,8 @@
 | `authRepositoryProvider` | `Provider<AuthRepository>` | Репозиторий аутентификации |
 | `profileRepositoryProvider` | `Provider<ProfileRepository>` | Репозиторий профилей |
 | `loginUseCaseProvider` | `Provider<LoginUseCase>` | UseCase для входа |
-| `registerUseCaseProvider` | `Provider<RegisterUseCase>` | UseCase для регистрации |
+| `requestEmailOtpUseCaseProvider` | `Provider<RequestEmailOtpUseCase>` | Запрос OTP на email |
+| `verifyEmailOtpUseCaseProvider` | `Provider<VerifyEmailOtpUseCase>` | Подтверждение OTP кода |
 | `logoutUseCaseProvider` | `Provider<LogoutUseCase>` | UseCase для выхода |
 | `getCurrentUserUseCaseProvider` | `Provider<GetCurrentUserUseCase>` | UseCase для получения текущего пользователя |
 | `getProfileUseCaseProvider` | `Provider<GetProfileUseCase>` | UseCase для получения профиля |
@@ -24,7 +25,6 @@
 | Константа | Значение | Описание |
 |-----------|----------|----------|
 | `AppRoutes.login` | `/login` | Маршрут страницы входа |
-| `AppRoutes.register` | `/register` | Маршрут страницы регистрации |
 | `AppRoutes.home` | `/` | Маршрут главной страницы |
 | `AppRoutes.profile` | `/profile` | Маршрут профиля пользователя |
 | `AppRoutes.users` | `/users` | Маршрут списка пользователей |
@@ -37,8 +37,8 @@
 
 | Метод | Параметры | Возвращаемое значение | Описание |
 |-------|-----------|------------------------|----------|
-| `login` | `String email, String password` | `Future<User>` | Вход пользователя |
-| `register` | `String name, String email, String password` | `Future<User>` | Регистрация пользователя |
+| `requestEmailOtp` | `String email` | `Future<void>` | Отправка OTP-кода на email |
+| `verifyEmailOtp` | `String email, String code` | `Future<User>` | Подтверждение OTP и вход |
 | `logout` | - | `Future<void>` | Выход пользователя |
 | `getCurrentUser` | - | `Future<User?>` | Получение текущего пользователя |
 
@@ -60,18 +60,21 @@
 | Метод | Параметры | Возвращаемое значение | Описание |
 |-------|-----------|------------------------|----------|
 | `checkAuthStatus` | - | `Future<void>` | Проверка статуса аутентификации |
-| `login` | `String email, String password` | `Future<void>` | Вход пользователя |
-| `register` | `String name, String email, String password` | `Future<void>` | Регистрация пользователя |
+| `requestEmailOtp` | `String email` | `Future<void>` | Запрос OTP на email |
+| `verifyEmailOtp` | `String email, String code` | `Future<void>` | Подтверждение OTP |
 | `logout` | - | `Future<void>` | Выход пользователя |
 
-Пример использования:
+Пример использования (OTP-вход):
 ```dart
 // Получение состояния
 final authState = ref.watch(authProvider);
 final user = authState.user;
 
-// Вызов методов
-await ref.read(authProvider.notifier).login(email, password);
+// Запрос кода на почту
+await ref.read(authProvider.notifier).requestEmailOtp(email);
+
+// Подтверждение кода из письма
+await ref.read(authProvider.notifier).verifyEmailOtp(email, code);
 ```
 
 #### ProfileProvider (presentation/state/profile_state.dart)

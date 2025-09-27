@@ -8,31 +8,31 @@ import 'repositories_providers.dart';
 class TimesheetState {
   /// Список записей табеля
   final List<TimesheetEntry> entries;
-  
+
   /// Сводные данные по часам сотрудников
   final List<TimesheetSummary> summaries;
-  
+
   /// Флаг загрузки данных
   final bool isLoading;
-  
+
   /// Текст ошибки, если есть
   final String? error;
-  
+
   /// Начальная дата для фильтрации
   final DateTime startDate;
-  
+
   /// Конечная дата для фильтрации
   final DateTime endDate;
-  
+
   /// Выбранные сотрудники для фильтрации (мультивыбор)
   final List<String>? selectedEmployeeIds;
-  
+
   /// Выбранный объект для фильтрации
   final String? selectedObjectId;
-  
+
   /// Флаг группировки по сотрудникам
   final bool isGroupedByEmployee;
-  
+
   /// Выбранные должности для фильтрации
   final List<String>? selectedPositions;
 
@@ -40,7 +40,7 @@ class TimesheetState {
   static const _sentinel = Object();
 
   /// Создает экземпляр состояния [TimesheetState].
-  /// 
+  ///
   /// [entries] — список записей табеля (по умолчанию пустой).
   /// [summaries] — сводные данные по часам сотрудников (по умолчанию пустой).
   /// [isLoading] — флаг загрузки данных (по умолчанию false).
@@ -65,9 +65,9 @@ class TimesheetState {
   });
 
   /// Создаёт копию состояния [TimesheetState] с обновлёнными свойствами.
-  /// 
+  ///
   /// Позволяет частично изменить поля состояния без необходимости указывать все параметры.
-  /// 
+  ///
   /// [entries] — новый список записей табеля (опционально).
   /// [summaries] — новые сводные данные по часам сотрудников (опционально).
   /// [isLoading] — новое состояние загрузки (опционально).
@@ -78,7 +78,7 @@ class TimesheetState {
   /// [selectedObjectId] — новый выбранный объект для фильтрации (опционально, поддерживает sentinel для различения null и отсутствия значения).
   /// [isGroupedByEmployee] — новое состояние группировки (опционально).
   /// [selectedPositions] — новые выбранные должности для фильтрации (опционально).
-  /// 
+  ///
   /// Возвращает новый экземпляр [TimesheetState] с обновлёнными значениями.
   TimesheetState copyWith({
     List<TimesheetEntry>? entries,
@@ -112,17 +112,18 @@ class TimesheetState {
 }
 
 /// StateNotifier для управления состоянием табеля учёта рабочего времени (таймшита).
-/// 
+///
 /// Позволяет загружать, фильтровать, группировать и сбрасывать данные табеля, а также управлять ошибками и состоянием загрузки.
 class TimesheetNotifier extends StateNotifier<TimesheetState> {
   /// Репозиторий таймшита
   final TimesheetRepository repository;
 
   /// Создает экземпляр [TimesheetNotifier]
-  TimesheetNotifier(this.repository) : super(TimesheetState(
-    startDate: DateTime(DateTime.now().year, DateTime.now().month, 1),
-    endDate: DateTime(DateTime.now().year, DateTime.now().month + 1, 0),
-  )) {
+  TimesheetNotifier(this.repository)
+      : super(TimesheetState(
+          startDate: DateTime(DateTime.now().year, DateTime.now().month, 1),
+          endDate: DateTime(DateTime.now().year, DateTime.now().month + 1, 0),
+        )) {
     loadTimesheet();
   }
 
@@ -137,18 +138,27 @@ class TimesheetNotifier extends StateNotifier<TimesheetState> {
         objectId: state.selectedObjectId,
       );
       // Фильтрация по сотрудникам (мультивыбор)
-      final filteredByEmployee = (state.selectedEmployeeIds != null && state.selectedEmployeeIds!.isNotEmpty)
-          ? entries.where((e) => state.selectedEmployeeIds!.contains(e.employeeId)).toList()
+      final filteredByEmployee = (state.selectedEmployeeIds != null &&
+              state.selectedEmployeeIds!.isNotEmpty)
+          ? entries
+              .where((e) => state.selectedEmployeeIds!.contains(e.employeeId))
+              .toList()
           : entries;
       // Фильтрация по должностям (локально)
-      final filteredEntries = (state.selectedPositions != null && state.selectedPositions!.isNotEmpty)
-          ? filteredByEmployee.where((e) => e.employeePosition != null && state.selectedPositions!.contains(e.employeePosition)).toList()
+      final filteredEntries = (state.selectedPositions != null &&
+              state.selectedPositions!.isNotEmpty)
+          ? filteredByEmployee
+              .where((e) =>
+                  e.employeePosition != null &&
+                  state.selectedPositions!.contains(e.employeePosition))
+              .toList()
           : filteredByEmployee;
       final summaries = await repository.getTimesheetSummary(
         startDate: state.startDate,
         endDate: state.endDate,
         employeeIds: state.selectedEmployeeIds,
-        objectIds: state.selectedObjectId != null ? [state.selectedObjectId!] : null,
+        objectIds:
+            state.selectedObjectId != null ? [state.selectedObjectId!] : null,
       );
       state = state.copyWith(
         entries: filteredEntries,
@@ -207,9 +217,10 @@ class TimesheetNotifier extends StateNotifier<TimesheetState> {
 }
 
 /// Глобальный провайдер состояния табеля учёта рабочего времени (таймшита).
-/// 
+///
 /// Позволяет получать и изменять состояние табеля, управлять фильтрами, загрузкой и ошибками.
-final timesheetProvider = StateNotifierProvider<TimesheetNotifier, TimesheetState>((ref) {
+final timesheetProvider =
+    StateNotifierProvider<TimesheetNotifier, TimesheetState>((ref) {
   final repository = ref.watch(timesheetRepositoryProvider);
   return TimesheetNotifier(repository);
-}); 
+});

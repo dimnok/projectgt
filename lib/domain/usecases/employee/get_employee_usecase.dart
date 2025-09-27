@@ -30,4 +30,4 @@ class GetEmployeeUseCase {
   Future<Employee?> execute(String id) async {
     return await repository.getEmployee(id);
   }
-} 
+}

@@ -3,7 +3,7 @@ import '../models/payroll_bonus_model.dart';
 import 'payroll_bonus_repository.dart';
 
 /// Имплементация репозитория для работы с премиями по расчёту ФОТ через Supabase.
-/// 
+///
 /// Позволяет получать, создавать, обновлять и удалять премии, связанные с расчётом фонда оплаты труда (ФОТ).
 class PayrollBonusRepositoryImpl implements PayrollBonusRepository {
   /// Экземпляр SupabaseClient для доступа к базе данных.
@@ -13,7 +13,7 @@ class PayrollBonusRepositoryImpl implements PayrollBonusRepository {
   PayrollBonusRepositoryImpl(this.client);
 
   /// Создать новую премию.
-  /// 
+  ///
   /// [bonus] — модель премии для создания.
   /// Возвращает созданную модель [PayrollBonusModel].
   @override
@@ -28,7 +28,7 @@ class PayrollBonusRepositoryImpl implements PayrollBonusRepository {
   }
 
   /// Обновить премию по идентификатору.
-  /// 
+  ///
   /// [bonus] — модель премии для обновления.
   /// Возвращает обновлённую модель [PayrollBonusModel].
   @override
@@ -44,7 +44,7 @@ class PayrollBonusRepositoryImpl implements PayrollBonusRepository {
   }
 
   /// Удалить премию по идентификатору.
-  /// 
+  ///
   /// [id] — идентификатор премии для удаления.
   @override
   Future<void> deleteBonus(String id) async {
@@ -59,4 +59,4 @@ class PayrollBonusRepositoryImpl implements PayrollBonusRepository {
         .map((json) => PayrollBonusModel.fromJson(json as Map<String, dynamic>))
         .toList();
   }
-} 
+}

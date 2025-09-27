@@ -27,4 +27,4 @@ class GetCurrentUserUseCase {
   Future<User?> execute() {
     return repository.getCurrentUser();
   }
-} 
+}

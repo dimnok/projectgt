@@ -24,7 +24,8 @@ class ContractorsListScreen extends ConsumerStatefulWidget {
   const ContractorsListScreen({super.key});
 
   @override
-  ConsumerState<ContractorsListScreen> createState() => _ContractorsListScreenState();
+  ConsumerState<ContractorsListScreen> createState() =>
+      _ContractorsListScreenState();
 }
 
 /// Состояние для [ContractorsListScreen].
@@ -66,7 +67,9 @@ class _ContractorsListScreenState extends ConsumerState<ContractorsListScreen> {
           }
         });
       }
-    } else if (_scrollController.position.pixels > 0 && _isSearchVisible && _isMobileDevice()) {
+    } else if (_scrollController.position.pixels > 0 &&
+        _isSearchVisible &&
+        _isMobileDevice()) {
       setState(() {
         _isSearchVisible = false;
       });
@@ -117,20 +120,26 @@ class _ContractorsListScreenState extends ConsumerState<ContractorsListScreen> {
                         itemCount: contractors.length,
                         itemBuilder: (context, index) {
                           final contractor = contractors[index];
-                          final isSelected = isDesktop && selectedContractorId == contractor.id;
+                          final isSelected = isDesktop &&
+                              selectedContractorId == contractor.id;
                           return Card(
-                            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                            margin: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 6),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                               side: BorderSide(
-                                color: isSelected ? Colors.green : theme.colorScheme.outline.withValues(alpha: 0.1),
+                                color: isSelected
+                                    ? Colors.green
+                                    : theme.colorScheme.outline
+                                        .withValues(alpha: 0.1),
                                 width: isSelected ? 2 : 1,
                               ),
                             ),
                             child: Stack(
                               children: [
                                 Padding(
-                                  padding: const EdgeInsets.only(top: 8, right: 8),
+                                  padding:
+                                      const EdgeInsets.only(top: 8, right: 8),
                                   child: Align(
                                     alignment: Alignment.topRight,
                                     child: AppBadge(
@@ -140,12 +149,15 @@ class _ContractorsListScreenState extends ConsumerState<ContractorsListScreen> {
                                   ),
                                 ),
                                 ListTile(
-                                  contentPadding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                                  contentPadding:
+                                      const EdgeInsets.fromLTRB(16, 16, 16, 16),
                                   leading: Hero(
                                     tag: 'contractor_avatar_${contractor.id}',
-                                    child: contractor.logoUrl != null && contractor.logoUrl!.isNotEmpty
+                                    child: contractor.logoUrl != null &&
+                                            contractor.logoUrl!.isNotEmpty
                                         ? CircleAvatar(
-                                            backgroundImage: NetworkImage(contractor.logoUrl!),
+                                            backgroundImage: NetworkImage(
+                                                contractor.logoUrl!),
                                             radius: 24,
                                           )
                                         : const CircleAvatar(
@@ -153,8 +165,10 @@ class _ContractorsListScreenState extends ConsumerState<ContractorsListScreen> {
                                             child: Icon(Icons.business),
                                           ),
                                   ),
-                                  title: Text(contractor.fullName, style: theme.textTheme.titleMedium),
-                                  subtitle: Text(contractor.inn, style: theme.textTheme.bodySmall),
+                                  title: Text(contractor.fullName,
+                                      style: theme.textTheme.titleMedium),
+                                  subtitle: Text(contractor.inn,
+                                      style: theme.textTheme.bodySmall),
                                   selected: isSelected,
                                   onTap: () {
                                     if (isDesktop) {
@@ -162,7 +176,10 @@ class _ContractorsListScreenState extends ConsumerState<ContractorsListScreen> {
                                         selectedContractorId = contractor.id;
                                       });
                                     } else {
-                                      context.pushNamed('contractor_details', pathParameters: {'contractorId': contractor.id});
+                                      context.pushNamed('contractor_details',
+                                          pathParameters: {
+                                            'contractorId': contractor.id
+                                          });
                                     }
                                   },
                                 ),
@@ -220,20 +237,26 @@ class _ContractorsListScreenState extends ConsumerState<ContractorsListScreen> {
                           itemCount: contractors.length,
                           itemBuilder: (context, index) {
                             final contractor = contractors[index];
-                            final isSelected = isDesktop && selectedContractorId == contractor.id;
+                            final isSelected = isDesktop &&
+                                selectedContractorId == contractor.id;
                             return Card(
-                              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                              margin: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 6),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                                 side: BorderSide(
-                                  color: isSelected ? Colors.green : theme.colorScheme.outline.withValues(alpha: 0.1),
+                                  color: isSelected
+                                      ? Colors.green
+                                      : theme.colorScheme.outline
+                                          .withValues(alpha: 0.1),
                                   width: isSelected ? 2 : 1,
                                 ),
                               ),
                               child: Stack(
                                 children: [
                                   Padding(
-                                    padding: const EdgeInsets.only(top: 8, right: 8),
+                                    padding:
+                                        const EdgeInsets.only(top: 8, right: 8),
                                     child: Align(
                                       alignment: Alignment.topRight,
                                       child: AppBadge(
@@ -243,12 +266,15 @@ class _ContractorsListScreenState extends ConsumerState<ContractorsListScreen> {
                                     ),
                                   ),
                                   ListTile(
-                                    contentPadding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                                    contentPadding: const EdgeInsets.fromLTRB(
+                                        16, 16, 16, 16),
                                     leading: Hero(
                                       tag: 'contractor_avatar_${contractor.id}',
-                                      child: contractor.logoUrl != null && contractor.logoUrl!.isNotEmpty
+                                      child: contractor.logoUrl != null &&
+                                              contractor.logoUrl!.isNotEmpty
                                           ? CircleAvatar(
-                                              backgroundImage: NetworkImage(contractor.logoUrl!),
+                                              backgroundImage: NetworkImage(
+                                                  contractor.logoUrl!),
                                               radius: 24,
                                             )
                                           : const CircleAvatar(
@@ -256,11 +282,16 @@ class _ContractorsListScreenState extends ConsumerState<ContractorsListScreen> {
                                               child: Icon(Icons.business),
                                             ),
                                     ),
-                                    title: Text(contractor.fullName, style: theme.textTheme.titleMedium),
-                                    subtitle: Text(contractor.inn, style: theme.textTheme.bodySmall),
+                                    title: Text(contractor.fullName,
+                                        style: theme.textTheme.titleMedium),
+                                    subtitle: Text(contractor.inn,
+                                        style: theme.textTheme.bodySmall),
                                     selected: isSelected,
                                     onTap: () {
-                                      context.pushNamed('contractor_details', pathParameters: {'contractorId': contractor.id});
+                                      context.pushNamed('contractor_details',
+                                          pathParameters: {
+                                            'contractorId': contractor.id
+                                          });
                                     },
                                   ),
                                 ],
@@ -289,7 +320,9 @@ class _ContractorsListScreenState extends ConsumerState<ContractorsListScreen> {
                   isScrollControlled: true,
                   backgroundColor: Colors.transparent,
                   constraints: BoxConstraints(
-                    maxHeight: MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top - kToolbarHeight,
+                    maxHeight: MediaQuery.of(context).size.height -
+                        MediaQuery.of(context).padding.top -
+                        kToolbarHeight,
                   ),
                   builder: (context) {
                     final isDesktop = MediaQuery.of(context).size.width > 800;
@@ -297,7 +330,8 @@ class _ContractorsListScreenState extends ConsumerState<ContractorsListScreen> {
                       clipBehavior: Clip.antiAlias,
                       decoration: BoxDecoration(
                         color: theme.colorScheme.surface,
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                        borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(28)),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withValues(alpha: 0.1),
@@ -311,13 +345,16 @@ class _ContractorsListScreenState extends ConsumerState<ContractorsListScreen> {
                         minChildSize: 0.5,
                         maxChildSize: 1.0,
                         expand: false,
-                        builder: (context, scrollController) => SingleChildScrollView(
+                        builder: (context, scrollController) =>
+                            SingleChildScrollView(
                           controller: scrollController,
                           child: Padding(
                             padding: EdgeInsets.only(
                               bottom: MediaQuery.of(context).viewInsets.bottom,
                             ),
-                            child: ContractorFormScreen(contractorId: selectedContractorId, showScaffold: false),
+                            child: ContractorFormScreen(
+                                contractorId: selectedContractorId,
+                                showScaffold: false),
                           ),
                         ),
                       ),
@@ -325,7 +362,8 @@ class _ContractorsListScreenState extends ConsumerState<ContractorsListScreen> {
                     if (isDesktop) {
                       return Center(
                         child: SizedBox(
-                          width: (MediaQuery.of(context).size.width * 0.5).clamp(400.0, 900.0),
+                          width: (MediaQuery.of(context).size.width * 0.5)
+                              .clamp(400.0, 900.0),
                           child: modalContent,
                         ),
                       );
@@ -344,7 +382,8 @@ class _ContractorsListScreenState extends ConsumerState<ContractorsListScreen> {
                   context: context,
                   builder: (ctx) => AlertDialog(
                     title: const Text('Удалить контрагента?'),
-                    content: const Text('Вы уверены, что хотите удалить этого контрагента?'),
+                    content: const Text(
+                        'Вы уверены, что хотите удалить этого контрагента?'),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.of(ctx).pop(false),
@@ -352,14 +391,17 @@ class _ContractorsListScreenState extends ConsumerState<ContractorsListScreen> {
                       ),
                       TextButton(
                         onPressed: () => Navigator.of(ctx).pop(true),
-                        child: const Text('Удалить', style: TextStyle(color: Colors.red)),
+                        child: const Text('Удалить',
+                            style: TextStyle(color: Colors.red)),
                       ),
                     ],
                   ),
                 );
                 if (confirmed == true) {
                   try {
-                    await ref.read(contractorProvider.notifier).deleteContractor(selectedContractorId!);
+                    await ref
+                        .read(contractorProvider.notifier)
+                        .deleteContractor(selectedContractorId!);
                     if (!context.mounted) return;
                     setState(() {
                       selectedContractorId = null;
@@ -367,7 +409,8 @@ class _ContractorsListScreenState extends ConsumerState<ContractorsListScreen> {
                     SnackBarUtils.showSuccess(context, 'Контрагент удалён');
                   } catch (e) {
                     if (!context.mounted) return;
-                                          SnackBarUtils.showError(context, 'Ошибка удаления: ${e.toString()}');
+                    SnackBarUtils.showError(
+                        context, 'Ошибка удаления: ${e.toString()}');
                   }
                 }
               },
@@ -382,7 +425,9 @@ class _ContractorsListScreenState extends ConsumerState<ContractorsListScreen> {
           isScrollControlled: true,
           backgroundColor: Colors.transparent,
           constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top - kToolbarHeight,
+            maxHeight: MediaQuery.of(context).size.height -
+                MediaQuery.of(context).padding.top -
+                kToolbarHeight,
           ),
           builder: (context) {
             final isDesktop = MediaQuery.of(context).size.width > 800;
@@ -390,7 +435,8 @@ class _ContractorsListScreenState extends ConsumerState<ContractorsListScreen> {
               clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
                 color: theme.colorScheme.surface,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(28)),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.1),
@@ -418,7 +464,8 @@ class _ContractorsListScreenState extends ConsumerState<ContractorsListScreen> {
             if (isDesktop) {
               return Center(
                 child: SizedBox(
-                  width: (MediaQuery.of(context).size.width * 0.5).clamp(400.0, 900.0),
+                  width: (MediaQuery.of(context).size.width * 0.5)
+                      .clamp(400.0, 900.0),
                   child: modalContent,
                 ),
               );
@@ -443,7 +490,8 @@ class _ContractorsListScreenState extends ConsumerState<ContractorsListScreen> {
                               style: theme.textTheme.bodyLarge,
                             ),
                           )
-                        : ContractorDetailsScreen(contractorId: selectedContractorId!),
+                        : ContractorDetailsScreen(
+                            contractorId: selectedContractorId!),
                   ),
                 ],
               )
@@ -473,4 +521,4 @@ class _ContractorsListScreenState extends ConsumerState<ContractorsListScreen> {
         return Colors.orange;
     }
   }
-} 
+}

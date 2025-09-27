@@ -27,13 +27,15 @@ class ContractorRepositoryImpl implements ContractorRepository {
 
   @override
   Future<Contractor> createContractor(Contractor contractor) async {
-    final model = await dataSource.createContractor(ContractorModel.fromDomain(contractor));
+    final model = await dataSource
+        .createContractor(ContractorModel.fromDomain(contractor));
     return model.toDomain();
   }
 
   @override
   Future<Contractor> updateContractor(Contractor contractor) async {
-    final model = await dataSource.updateContractor(ContractorModel.fromDomain(contractor));
+    final model = await dataSource
+        .updateContractor(ContractorModel.fromDomain(contractor));
     return model.toDomain();
   }
 
@@ -41,4 +43,4 @@ class ContractorRepositoryImpl implements ContractorRepository {
   Future<void> deleteContractor(String id) async {
     await dataSource.deleteContractor(id);
   }
-} 
+}

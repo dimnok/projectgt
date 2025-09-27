@@ -1,9 +1,35 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import '../../domain/entities/work.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
+import 'package:projectgt/core/di/providers.dart';
+import '../providers/work_provider.dart';
+import 'package:projectgt/presentation/state/profile_state.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:projectgt/core/utils/snackbar_utils.dart';
+
+/// Извлекает время (HH:mm) из имени файла в URL фото смены.
+/// Ожидаемый формат имени: YYYY-MM-DD_HH-mm-ss_morning.jpg / ..._evening.jpg
+String? extractPhotoTimeFromUrl(String url) {
+  try {
+    final uri = Uri.parse(url);
+    final last = uri.pathSegments.isNotEmpty ? uri.pathSegments.last : '';
+    final match = RegExp(r"(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})")
+        .firstMatch(last);
+    if (match != null) {
+      final hour = match.group(4);
+      final minute = match.group(5);
+      if (hour != null && minute != null) {
+        return '${hour.padLeft(2, '0')}:${minute.padLeft(2, '0')}';
+      }
+    }
+  } catch (_) {}
+  return null;
+}
 
 /// Виджет для отображения фотографий смены.
 ///
@@ -23,11 +49,11 @@ class WorkPhotoView extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDesktop = ResponsiveUtils.isDesktop(context);
-    
+
     // Проверяем, есть ли фотографии
-    final hasPhotos = (work.photoUrl != null && work.photoUrl!.isNotEmpty) || 
-                     (work.eveningPhotoUrl != null && work.eveningPhotoUrl!.isNotEmpty);
-    
+    final hasPhotos = (work.photoUrl != null && work.photoUrl!.isNotEmpty) ||
+        (work.eveningPhotoUrl != null && work.eveningPhotoUrl!.isNotEmpty);
+
     if (!hasPhotos) {
       return Card(
         elevation: 0,
@@ -63,7 +89,7 @@ class WorkPhotoView extends StatelessWidget {
         ),
       );
     }
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -84,14 +110,17 @@ class WorkPhotoView extends StatelessWidget {
                     index: 0,
                   ),
                 ),
-                
+
               // Разделитель, если есть обе фотографии
-              if (work.photoUrl != null && work.photoUrl!.isNotEmpty && 
-                  work.eveningPhotoUrl != null && work.eveningPhotoUrl!.isNotEmpty)
+              if (work.photoUrl != null &&
+                  work.photoUrl!.isNotEmpty &&
+                  work.eveningPhotoUrl != null &&
+                  work.eveningPhotoUrl!.isNotEmpty)
                 const SizedBox(width: 16),
-              
+
               // Вечерняя фотография
-              if (work.eveningPhotoUrl != null && work.eveningPhotoUrl!.isNotEmpty)
+              if (work.eveningPhotoUrl != null &&
+                  work.eveningPhotoUrl!.isNotEmpty)
                 Expanded(
                   child: _buildPhotoCard(
                     context: context,
@@ -102,12 +131,15 @@ class WorkPhotoView extends StatelessWidget {
                     index: 1,
                   ),
                 ),
-                
+
               // Если есть только одна фотография, добавляем пустой Expanded для баланса
-              if ((work.photoUrl != null && work.photoUrl!.isNotEmpty && 
-                  (work.eveningPhotoUrl == null || work.eveningPhotoUrl!.isEmpty)) ||
-                  (work.eveningPhotoUrl != null && work.eveningPhotoUrl!.isNotEmpty && 
-                  (work.photoUrl == null || work.photoUrl!.isEmpty)))
+              if ((work.photoUrl != null &&
+                      work.photoUrl!.isNotEmpty &&
+                      (work.eveningPhotoUrl == null ||
+                          work.eveningPhotoUrl!.isEmpty)) ||
+                  (work.eveningPhotoUrl != null &&
+                      work.eveningPhotoUrl!.isNotEmpty &&
+                      (work.photoUrl == null || work.photoUrl!.isEmpty)))
                 Expanded(child: Container()),
             ],
           )
@@ -126,14 +158,17 @@ class WorkPhotoView extends StatelessWidget {
                   iconColor: Colors.amber,
                   index: 0,
                 ),
-                
+
               // Разделитель, если есть обе фотографии
-              if (work.photoUrl != null && work.photoUrl!.isNotEmpty && 
-                  work.eveningPhotoUrl != null && work.eveningPhotoUrl!.isNotEmpty)
+              if (work.photoUrl != null &&
+                  work.photoUrl!.isNotEmpty &&
+                  work.eveningPhotoUrl != null &&
+                  work.eveningPhotoUrl!.isNotEmpty)
                 const SizedBox(height: 16),
-              
+
               // Вечерняя фотография
-              if (work.eveningPhotoUrl != null && work.eveningPhotoUrl!.isNotEmpty)
+              if (work.eveningPhotoUrl != null &&
+                  work.eveningPhotoUrl!.isNotEmpty)
                 _buildPhotoCard(
                   context: context,
                   title: 'Фото на конец смены',
@@ -147,7 +182,7 @@ class WorkPhotoView extends StatelessWidget {
       ],
     );
   }
-  
+
   /// Строит карточку с фотографией смены.
   Widget _buildPhotoCard({
     required BuildContext context,
@@ -158,7 +193,8 @@ class WorkPhotoView extends StatelessWidget {
     required int index,
   }) {
     final theme = Theme.of(context);
-    
+    final uploadedTime = extractPhotoTimeFromUrl(imageUrl);
+
     // Создаем список фотографий для галереи
     final List<String> photoList = [];
     if (work.photoUrl != null && work.photoUrl!.isNotEmpty) {
@@ -167,7 +203,7 @@ class WorkPhotoView extends StatelessWidget {
     if (work.eveningPhotoUrl != null && work.eveningPhotoUrl!.isNotEmpty) {
       photoList.add(work.eveningPhotoUrl!);
     }
-    
+
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
@@ -196,10 +232,28 @@ class WorkPhotoView extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
+                const Spacer(),
+                if (uploadedTime != null)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest
+                          .withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      uploadedTime,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
-          
+
           // Изображение с возможностью клика для просмотра в полноэкранном режиме
           GestureDetector(
             onTap: () {
@@ -222,7 +276,8 @@ class WorkPhotoView extends StatelessWidget {
                       return Container(
                         width: double.infinity,
                         height: 300,
-                        color: theme.colorScheme.errorContainer.withValues(alpha: 0.2),
+                        color: theme.colorScheme.errorContainer
+                            .withValues(alpha: 0.2),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -251,8 +306,8 @@ class WorkPhotoView extends StatelessWidget {
                         child: Center(
                           child: CircularProgressIndicator(
                             value: loadingProgress.expectedTotalBytes != null
-                                ? loadingProgress.cumulativeBytesLoaded / 
-                                  loadingProgress.expectedTotalBytes!
+                                ? loadingProgress.cumulativeBytesLoaded /
+                                    loadingProgress.expectedTotalBytes!
                                 : null,
                           ),
                         ),
@@ -264,7 +319,8 @@ class WorkPhotoView extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: theme.colorScheme.surface.withValues(alpha: 0.7),
                       borderRadius: BorderRadius.circular(16),
@@ -295,13 +351,15 @@ class WorkPhotoView extends StatelessWidget {
       ),
     );
   }
-  
+
   /// Открывает полноэкранный просмотр фотографий.
-  void _showPhotoFullscreen(BuildContext context, List<String> photoUrls, int initialIndex) {
+  void _showPhotoFullscreen(
+      BuildContext context, List<String> photoUrls, int initialIndex) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => _FullscreenPhotoView(
+          work: work,
           photoUrls: photoUrls,
           initialIndex: initialIndex,
         ),
@@ -311,41 +369,206 @@ class WorkPhotoView extends StatelessWidget {
 }
 
 /// Виджет для полноэкранного просмотра изображений смены.
-class _FullscreenPhotoView extends StatelessWidget {
+class _FullscreenPhotoView extends ConsumerStatefulWidget {
   /// Список URL фотографий для просмотра.
   final List<String> photoUrls;
+
   /// Индекс фотографии, с которой начинается просмотр.
   final int initialIndex;
 
+  /// Текущая смена.
+  final Work work;
+
   /// Создаёт виджет полноэкранного просмотра фотографий смены.
   const _FullscreenPhotoView({
+    required this.work,
     required this.photoUrls,
     required this.initialIndex,
   });
+
+  @override
+  ConsumerState<_FullscreenPhotoView> createState() =>
+      _FullscreenPhotoViewState();
+}
+
+class _FullscreenPhotoViewState extends ConsumerState<_FullscreenPhotoView> {
+  late PageController _pageController;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  bool get _canModify {
+    final profile = ref.read(profileProvider).profile;
+    return profile != null &&
+        widget.work.openedBy == profile.id &&
+        widget.work.status.toLowerCase() == 'open';
+  }
+
+  String get _titleBase =>
+      _currentIndex == 0 ? 'Фото на начало смены' : 'Фото на конец смены';
+
+  String get _title {
+    final url =
+        (widget.photoUrls.isNotEmpty && _currentIndex < widget.photoUrls.length)
+            ? widget.photoUrls[_currentIndex]
+            : null;
+    final time = url != null ? extractPhotoTimeFromUrl(url) : null;
+    if (time != null) {
+      return '$_titleBase • $time';
+    }
+    return _titleBase;
+  }
+
+  Future<void> _replacePhoto() async {
+    if (!_canModify) {
+      SnackBarUtils.showWarning(
+          context, 'Заменять фото может только автор открытой смены');
+      return;
+    }
+
+    final theme = Theme.of(context);
+    final ImageSource? source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      useRootNavigator: true,
+      backgroundColor: theme.colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Выбор источника фото',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _PhotoRoundButton(
+                  icon: Icons.photo_camera,
+                  label: 'Камера',
+                  onTap: () {
+                    Navigator.pop(context, ImageSource.camera);
+                  },
+                ),
+                _PhotoRoundButton(
+                  icon: Icons.photo_library,
+                  label: 'Галерея',
+                  onTap: () {
+                    Navigator.pop(context, ImageSource.gallery);
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Отмена'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (source == null) return;
+
+    try {
+      final photoService = ref.read(photoServiceProvider);
+      final bytes = await photoService.pickImageBytes(source);
+      if (bytes == null) return;
+
+      final displayName = _currentIndex == 0 ? 'morning' : 'evening';
+      final url = await photoService.uploadPhotoBytes(
+        entity: 'work',
+        id: widget.work.objectId,
+        bytes: bytes,
+        displayName: displayName,
+      );
+
+      if (url == null) return;
+
+      // Обновляем работу со ссылкой
+      final updated = _currentIndex == 0
+          ? widget.work.copyWith(photoUrl: url, updatedAt: DateTime.now())
+          : widget.work
+              .copyWith(eveningPhotoUrl: url, updatedAt: DateTime.now());
+
+      await ref.read(worksProvider.notifier).updateWork(updated);
+
+      // Обновляем локальный список URLов для мгновенного отражения
+      setState(() {
+        if (_currentIndex == 0) {
+          if (widget.photoUrls.isNotEmpty) {
+            widget.photoUrls[0] = url;
+          }
+        } else {
+          if (widget.photoUrls.length > 1) {
+            widget.photoUrls[1] = url;
+          } else {
+            widget.photoUrls.add(url);
+          }
+        }
+      });
+      if (!mounted) return;
+      SnackBarUtils.showSuccess(context, 'Фото успешно заменено');
+    } catch (e) {
+      if (!mounted) return;
+      SnackBarUtils.showError(context, 'Не удалось заменить фото: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black.withValues(alpha: 0.5),
       appBar: AppBarWidget(
-        title: initialIndex == 0 ? 'Фото на начало смены' : 'Фото на конец смены',
+        title: _title,
         centerTitle: true,
+        showThemeSwitch: false,
+        leading: const BackButton(),
+        actions: [
+          if (_canModify)
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              onPressed: _replacePhoto,
+              child: const Icon(Icons.edit, color: Colors.amber),
+            ),
+        ],
       ),
       body: PhotoViewGallery.builder(
-        itemCount: photoUrls.length,
+        itemCount: widget.photoUrls.length,
         builder: (context, index) {
           return PhotoViewGalleryPageOptions(
-            imageProvider: NetworkImage(photoUrls[index]),
+            imageProvider: NetworkImage(widget.photoUrls[index]),
             minScale: PhotoViewComputedScale.contained,
             maxScale: PhotoViewComputedScale.covered * 2,
-            heroAttributes: PhotoViewHeroAttributes(tag: photoUrls[index]),
+            heroAttributes:
+                PhotoViewHeroAttributes(tag: widget.photoUrls[index]),
           );
         },
         scrollPhysics: const BouncingScrollPhysics(),
         backgroundDecoration: const BoxDecoration(color: Colors.black),
-        pageController: PageController(initialPage: initialIndex),
+        pageController: _pageController,
         onPageChanged: (index) {
-          // Можно отслеживать изменение страницы
+          setState(() {
+            _currentIndex = index;
+          });
         },
         loadingBuilder: (context, event) => Center(
           child: SizedBox(
@@ -355,11 +578,44 @@ class _FullscreenPhotoView extends StatelessWidget {
               value: event == null
                   ? 0
                   : event.cumulativeBytesLoaded / event.expectedTotalBytes!,
-              valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                  Theme.of(context).colorScheme.primary),
             ),
           ),
         ),
       ),
     );
   }
-} 
+}
+
+class _PhotoRoundButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _PhotoRoundButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      children: [
+        InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(24),
+          child: CircleAvatar(
+            radius: 24,
+            backgroundColor: theme.colorScheme.primary,
+            child: Icon(icon, color: theme.colorScheme.onPrimary, size: 24),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(label, style: theme.textTheme.bodySmall),
+      ],
+    );
+  }
+}

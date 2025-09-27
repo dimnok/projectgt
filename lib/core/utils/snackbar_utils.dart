@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 /// Утилиты для отображения единообразных SnackBar уведомлений в приложении.
-/// 
+///
 /// Предоставляет методы для показа уведомлений с современным стилем:
 /// floating behavior, скругленные углы, адаптивная ширина.
-/// 
+///
 /// Пример использования:
 /// ```dart
 /// SnackBarUtils.showSuccess(context, 'Данные сохранены');
@@ -67,12 +67,79 @@ class SnackBarUtils {
     );
   }
 
+  /// Показывает предупреждение поверх всех модальных окон.
+  ///
+  /// Использует корневой Overlay для отображения поверх модальных окон.
+  /// [context] — BuildContext для получения доступа к корневому Overlay.
+  /// [message] — текст уведомления.
+  static void showWarningOverlay(BuildContext context, String message) {
+    final overlay = Overlay.of(context, rootOverlay: true);
+    final overlayEntry = _createOverlayEntry(
+      message: message,
+      backgroundColor: Colors.orange[600],
+      icon: Icons.warning_outlined,
+      context: context,
+    );
+
+    overlay.insert(overlayEntry);
+
+    // Автоматически удаляем через 2 секунды
+    Future.delayed(const Duration(milliseconds: 2000), () {
+      overlayEntry.remove();
+    });
+  }
+
+  /// Показывает ошибку поверх всех модальных окон.
+  ///
+  /// Использует корневой Overlay для отображения поверх модальных окон.
+  /// [context] — BuildContext для получения доступа к корневому Overlay.
+  /// [message] — текст уведомления.
+  static void showErrorOverlay(BuildContext context, String message) {
+    final overlay = Overlay.of(context, rootOverlay: true);
+    final overlayEntry = _createOverlayEntry(
+      message: message,
+      backgroundColor: Colors.red[600],
+      icon: Icons.error_outline,
+      context: context,
+      duration: const Duration(milliseconds: 3000),
+    );
+
+    overlay.insert(overlayEntry);
+
+    // Автоматически удаляем через 3 секунды для ошибок
+    Future.delayed(const Duration(milliseconds: 3000), () {
+      overlayEntry.remove();
+    });
+  }
+
+  /// Показывает успешное уведомление поверх всех модальных окон.
+  ///
+  /// Использует корневой Overlay для отображения поверх модальных окон.
+  /// [context] — BuildContext для получения доступа к корневому Overlay.
+  /// [message] — текст уведомления.
+  static void showSuccessOverlay(BuildContext context, String message) {
+    final overlay = Overlay.of(context, rootOverlay: true);
+    final overlayEntry = _createOverlayEntry(
+      message: message,
+      backgroundColor: Colors.green[600],
+      icon: Icons.check_circle_outline,
+      context: context,
+    );
+
+    overlay.insert(overlayEntry);
+
+    // Автоматически удаляем через 2 секунды
+    Future.delayed(const Duration(milliseconds: 2000), () {
+      overlayEntry.remove();
+    });
+  }
+
   /// Преобразует техническое сообщение об ошибке аутентификации в человеко-читаемое.
   ///
   /// [error] — строка с ошибкой от backend/Supabase.
   /// Возвращает локализованное сообщение для пользователя.
   static String getAuthErrorMessage(String error) {
-    if (error.contains('invalid_credentials') || 
+    if (error.contains('invalid_credentials') ||
         error.contains('Invalid login credentials')) {
       return 'Неверный email или пароль';
     } else if (error.contains('email address is already registered')) {
@@ -100,10 +167,10 @@ class SnackBarUtils {
   }) {
     final theme = Theme.of(context);
     final screenWidth = MediaQuery.of(context).size.width;
-    
+
     // Для больших экранов используем width, для мобильных - margin
     final isLargeScreen = screenWidth > 600;
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -140,8 +207,8 @@ class SnackBarUtils {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12.0),
         ),
-        margin: isLargeScreen 
-            ? null 
+        margin: isLargeScreen
+            ? null
             : const EdgeInsets.only(
                 bottom: 16.0,
                 left: 16.0,
@@ -151,4 +218,65 @@ class SnackBarUtils {
       ),
     );
   }
-} 
+
+  /// Создает OverlayEntry для отображения поверх всех виджетов.
+  ///
+  /// Создает кастомный SnackBar как OverlayEntry, который точно отображается
+  /// поверх всех модальных окон.
+  static OverlayEntry _createOverlayEntry({
+    required String message,
+    required BuildContext context,
+    Color? backgroundColor,
+    IconData? icon,
+    Duration duration = const Duration(milliseconds: 2000),
+  }) {
+    final theme = Theme.of(context);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isLargeScreen = screenWidth > 600;
+
+    return OverlayEntry(
+      builder: (context) => Positioned(
+        bottom: 16.0,
+        left: isLargeScreen ? (screenWidth - 400) / 2 : 16.0,
+        right: isLargeScreen ? (screenWidth - 400) / 2 : 16.0,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            width: isLargeScreen ? 400.0 : null,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 12.0,
+            ),
+            decoration: BoxDecoration(
+              color: backgroundColor ?? theme.colorScheme.primary,
+              borderRadius: BorderRadius.circular(12.0),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (icon != null) ...[
+                  Icon(
+                    icon,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 12),
+                ],
+                Expanded(
+                  child: Text(
+                    message,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

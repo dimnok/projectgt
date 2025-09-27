@@ -1,5 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:logger/logger.dart';
+// logger removed
 import '../models/export_filter_model.dart';
 import '../models/export_report_model.dart';
 import 'export_data_source.dart';
@@ -8,19 +8,19 @@ import 'export_data_source.dart';
 class ExportDataSourceImpl implements ExportDataSource {
   /// Клиент Supabase для работы с базой данных.
   final SupabaseClient supabaseClient;
-  /// Логгер для отслеживания операций.
-  final Logger logger;
+
+  // logger removed
 
   /// Создаёт реализацию источника данных выгрузки.
   ExportDataSourceImpl({
     required this.supabaseClient,
-    required this.logger,
   });
 
   @override
-  Future<List<ExportReportModel>> getExportData(ExportFilterModel filter) async {
+  Future<List<ExportReportModel>> getExportData(
+      ExportFilterModel filter) async {
     try {
-      logger.i('Получение данных для выгрузки с фильтром: $filter');
+      // start
 
       // Используем стандартные методы Supabase, получаем только work_items
       var query = supabaseClient
@@ -53,7 +53,8 @@ class ExportDataSourceImpl implements ExportDataSource {
       }
 
       if (filter.contractIds.isNotEmpty) {
-        query = query.inFilter('work_items.estimates.contracts.id', filter.contractIds);
+        query = query.inFilter(
+            'work_items.estimates.contracts.id', filter.contractIds);
       }
 
       if (filter.systems.isNotEmpty) {
@@ -69,16 +70,17 @@ class ExportDataSourceImpl implements ExportDataSource {
 
       // Убираем ненужную проверку на null
       final List<dynamic> data = response as List<dynamic>;
-      logger.i('Получено ${data.length} записей для выгрузки');
+      // count
 
       // Преобразуем данные в нужный формат
       final List<ExportReportModel> reports = [];
-      
+
       for (final workData in data) {
         final work = workData as Map<String, dynamic>;
         final workDate = DateTime.parse(work['date'] as String);
-        final objectName = (work['objects'] as Map<String, dynamic>)['name'] as String;
-        
+        final objectName =
+            (work['objects'] as Map<String, dynamic>)['name'] as String;
+
         final workItems = work['work_items'] as List<dynamic>? ?? [];
 
         // Создаем записи только для work_items (работы)
@@ -88,7 +90,7 @@ class ExportDataSourceImpl implements ExportDataSource {
           final contracts = estimates?['contracts'] as Map<String, dynamic>?;
           final contractNumber = contracts?['number'] as String? ?? '';
           final positionNumber = estimates?['number'] as String? ?? '';
-          
+
           reports.add(ExportReportModel(
             workDate: workDate,
             objectName: objectName,
@@ -110,14 +112,22 @@ class ExportDataSourceImpl implements ExportDataSource {
         }
       }
 
-      logger.i('Обработано ${reports.length} записей для выгрузки');
-      
-      // Группируем записи по всем полям кроме quantity
+      // processed
+
+      // Группируем записи по всем полям кроме quantity, при этом учитываем дату (по дням)
       final Map<String, ExportReportModel> groupedReports = {};
-      
+
       for (final report in reports) {
-        // Создаем ключ группировки из всех полей кроме quantity, total и workDate
-        final groupKey = '${report.objectName}_'
+        // Создаем ключ группировки из всех полей кроме quantity и total,
+        // НО с учётом даты (по дню), чтобы не смешивать суммы между разными датами
+        final String dateKey = DateTime(
+          report.workDate.year,
+          report.workDate.month,
+          report.workDate.day,
+        ).toIso8601String();
+
+        final groupKey = '${dateKey}_'
+            '${report.objectName}_'
             '${report.contractName}_'
             '${report.system}_'
             '${report.subsystem}_'
@@ -127,13 +137,14 @@ class ExportDataSourceImpl implements ExportDataSource {
             '${report.floor}_'
             '${report.unit}_'
             '${report.price ?? 0}';
-        
+
         if (groupedReports.containsKey(groupKey)) {
           // Если запись с таким ключом уже есть, суммируем quantity
           final existing = groupedReports[groupKey]!;
           final newQuantity = existing.quantity + report.quantity;
-          final newTotal = report.price != null ? newQuantity * report.price! : null;
-          
+          final newTotal =
+              report.price != null ? newQuantity * report.price! : null;
+
           groupedReports[groupKey] = existing.copyWith(
             quantity: newQuantity,
             total: newTotal,
@@ -143,13 +154,12 @@ class ExportDataSourceImpl implements ExportDataSource {
           groupedReports[groupKey] = report;
         }
       }
-      
+
       final groupedList = groupedReports.values.toList();
-      logger.i('После группировки: ${groupedList.length} записей (было ${reports.length})');
-      
+      // grouped
+
       return groupedList;
-    } catch (e, stackTrace) {
-      logger.e('Ошибка при получении данных для выгрузки', error: e, stackTrace: stackTrace);
+    } catch (e) {
       rethrow;
     }
   }
@@ -157,17 +167,14 @@ class ExportDataSourceImpl implements ExportDataSource {
   @override
   Future<List<Map<String, dynamic>>> getAvailableObjects() async {
     try {
-      logger.i('Получение списка доступных объектов');
+      // get objects
 
-      final response = await supabaseClient
-          .from('objects')
-          .select('id, name')
-          .order('name');
+      final response =
+          await supabaseClient.from('objects').select('id, name').order('name');
 
-      logger.i('Получено ${response.length} объектов');
+      // objects count
       return List<Map<String, dynamic>>.from(response);
-    } catch (e, stackTrace) {
-      logger.e('Ошибка при получении списка объектов', error: e, stackTrace: stackTrace);
+    } catch (e) {
       rethrow;
     }
   }
@@ -175,17 +182,16 @@ class ExportDataSourceImpl implements ExportDataSource {
   @override
   Future<List<Map<String, dynamic>>> getAvailableContracts() async {
     try {
-      logger.i('Получение списка доступных договоров');
+      // get contracts
 
       final response = await supabaseClient
           .from('contracts')
           .select('id, name')
           .order('name');
 
-      logger.i('Получено ${response.length} договоров');
+      // contracts count
       return List<Map<String, dynamic>>.from(response);
-    } catch (e, stackTrace) {
-      logger.e('Ошибка при получении списка договоров', error: e, stackTrace: stackTrace);
+    } catch (e) {
       rethrow;
     }
   }
@@ -193,7 +199,7 @@ class ExportDataSourceImpl implements ExportDataSource {
   @override
   Future<List<String>> getAvailableSystems() async {
     try {
-      logger.i('Получение списка доступных систем');
+      // get systems
 
       final response = await supabaseClient
           .from('work_items')
@@ -206,10 +212,9 @@ class ExportDataSourceImpl implements ExportDataSource {
           .toList()
         ..sort();
 
-      logger.i('Получено ${systems.length} систем');
+      // systems count
       return systems;
-    } catch (e, stackTrace) {
-      logger.e('Ошибка при получении списка систем', error: e, stackTrace: stackTrace);
+    } catch (e) {
       rethrow;
     }
   }
@@ -217,7 +222,7 @@ class ExportDataSourceImpl implements ExportDataSource {
   @override
   Future<List<String>> getAvailableSubsystems() async {
     try {
-      logger.i('Получение списка доступных подсистем');
+      // get subsystems
 
       final response = await supabaseClient
           .from('work_items')
@@ -230,11 +235,10 @@ class ExportDataSourceImpl implements ExportDataSource {
           .toList()
         ..sort();
 
-      logger.i('Получено ${subsystems.length} подсистем');
+      // subsystems count
       return subsystems;
-    } catch (e, stackTrace) {
-      logger.e('Ошибка при получении списка подсистем', error: e, stackTrace: stackTrace);
+    } catch (e) {
       rethrow;
     }
   }
-} 
+}

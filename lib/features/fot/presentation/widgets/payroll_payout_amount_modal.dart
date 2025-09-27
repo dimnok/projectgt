@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
@@ -8,23 +9,27 @@ import '../../data/models/payroll_payout_model.dart';
 import '../../../../core/utils/snackbar_utils.dart';
 
 /// Модальное окно для указания индивидуальных сумм выплат для выбранных сотрудников.
-/// 
+///
 /// Второй этап процесса массовых выплат - после выбора сотрудников, даты и способа выплаты
 /// пользователь указывает индивидуальную сумму для каждого сотрудника.
 class PayrollPayoutAmountModal extends ConsumerStatefulWidget {
   /// Список выбранных сотрудников
   final List<dynamic> selectedEmployees;
+
   /// Дата выплаты
   final DateTime payoutDate;
+
   /// Способ выплаты
   final String method;
+
   /// Тип оплаты
   final String type;
+
   /// Комментарий
   final String comment;
 
   /// Конструктор [PayrollPayoutAmountModal].
-  /// 
+  ///
   /// [selectedEmployees] — список выбранных сотрудников, для которых будут создаваться выплаты (обязательный параметр).
   /// [payoutDate] — дата выплаты (обязательный параметр).
   /// [method] — способ выплаты (например, 'cash', 'card', 'bank_transfer'), обязательный параметр.
@@ -40,13 +45,15 @@ class PayrollPayoutAmountModal extends ConsumerStatefulWidget {
   });
 
   /// Создаёт состояние для модального окна [PayrollPayoutAmountModal].
-  /// 
+  ///
   /// Возвращает экземпляр [_PayrollPayoutAmountModalState], реализующий логику массового ввода сумм выплат.
   @override
-  ConsumerState<PayrollPayoutAmountModal> createState() => _PayrollPayoutAmountModalState();
+  ConsumerState<PayrollPayoutAmountModal> createState() =>
+      _PayrollPayoutAmountModalState();
 }
 
-class _PayrollPayoutAmountModalState extends ConsumerState<PayrollPayoutAmountModal> {
+class _PayrollPayoutAmountModalState
+    extends ConsumerState<PayrollPayoutAmountModal> {
   final Map<String, TextEditingController> _amountControllers = {};
   final _isSaving = ValueNotifier<bool>(false);
   final _totalAmount = ValueNotifier<double>(0.0);
@@ -163,21 +170,33 @@ class _PayrollPayoutAmountModalState extends ConsumerState<PayrollPayoutAmountMo
     final theme = Theme.of(context);
     final isDesktop = MediaQuery.of(context).size.width >= 900;
     final screenWidth = MediaQuery.of(context).size.width;
-    final numberFormat = NumberFormat.currency(locale: 'ru_RU', symbol: '₽', decimalDigits: 2);
-    
+    final numberFormat =
+        NumberFormat.currency(locale: 'ru_RU', symbol: '₽', decimalDigits: 2);
+
     // Получаем баланс сотрудников
     final balanceAsync = ref.watch(employeeAggregatedBalanceProvider);
 
     return balanceAsync.when(
-      data: (balanceMap) => _buildModalContent(context, theme, isDesktop, screenWidth, numberFormat, balanceMap),
+      data: (balanceMap) => _buildModalContent(
+          context, theme, isDesktop, screenWidth, numberFormat, balanceMap),
       loading: () => _buildLoadingModal(context, theme, isDesktop, screenWidth),
-      error: (e, st) => _buildErrorModal(context, theme, isDesktop, screenWidth, e),
+      error: (e, st) =>
+          _buildErrorModal(context, theme, isDesktop, screenWidth, e),
     );
   }
 
-  Widget _buildModalContent(BuildContext context, ThemeData theme, bool isDesktop, double screenWidth, NumberFormat numberFormat, Map<String, double> balanceMap) {
+  Widget _buildModalContent(
+      BuildContext context,
+      ThemeData theme,
+      bool isDesktop,
+      double screenWidth,
+      NumberFormat numberFormat,
+      Map<String, double> balanceMap) {
     final modalContent = Container(
-      margin: isDesktop ? const EdgeInsets.only(top: 48) : EdgeInsets.only(top: kToolbarHeight + MediaQuery.of(context).padding.top),
+      margin: isDesktop
+          ? const EdgeInsets.only(top: 48)
+          : EdgeInsets.only(
+              top: kToolbarHeight + MediaQuery.of(context).padding.top),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
@@ -218,31 +237,35 @@ class _PayrollPayoutAmountModalState extends ConsumerState<PayrollPayoutAmountMo
                         Expanded(
                           child: Text(
                             'Массовые выплаты',
-                            style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                            style: theme.textTheme.titleLarge
+                                ?.copyWith(fontWeight: FontWeight.bold),
                             textAlign: TextAlign.center,
                           ),
                         ),
                         IconButton(
                           icon: const Icon(Icons.close),
-                          style: IconButton.styleFrom(foregroundColor: Colors.red),
+                          style:
+                              IconButton.styleFrom(foregroundColor: Colors.red),
                           onPressed: () => Navigator.pop(context),
                         ),
                       ],
                     ),
                   ),
                   const Divider(),
-                  
+
                   // Информационная панель
                   Padding(
                     padding: const EdgeInsets.only(bottom: 16.0),
                     child: Card(
                       margin: EdgeInsets.zero,
                       elevation: 0,
-                      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+                      color: theme.colorScheme.primaryContainer
+                          .withValues(alpha: 0.3),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                         side: BorderSide(
-                          color: theme.colorScheme.primary.withValues(alpha: 0.3),
+                          color:
+                              theme.colorScheme.primary.withValues(alpha: 0.3),
                         ),
                       ),
                       child: Padding(
@@ -268,10 +291,13 @@ class _PayrollPayoutAmountModalState extends ConsumerState<PayrollPayoutAmountMo
                               ],
                             ),
                             const SizedBox(height: 8),
-                            Text('Дата: ${DateFormat('dd.MM.yyyy').format(widget.payoutDate)}'),
-                            Text('Способ: ${_getMethodDisplayName(widget.method)}'),
+                            Text(
+                                'Дата: ${DateFormat('dd.MM.yyyy').format(widget.payoutDate)}'),
+                            Text(
+                                'Способ: ${_getMethodDisplayName(widget.method)}'),
                             Text('Тип: ${_getTypeDisplayName(widget.type)}'),
-                            if (widget.comment.isNotEmpty) Text('Комментарий: ${widget.comment}'),
+                            if (widget.comment.isNotEmpty)
+                              Text('Комментарий: ${widget.comment}'),
                             Text('Сотрудников: ${_currentEmployees.length}'),
                           ],
                         ),
@@ -296,36 +322,43 @@ class _PayrollPayoutAmountModalState extends ConsumerState<PayrollPayoutAmountMo
                         children: [
                           Text(
                             'Суммы выплат',
-                            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                            style: theme.textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 16),
-                          
+
                           // Список сотрудников
-                          for (int i = 0; i < _currentEmployees.length; i++) ...[
+                          for (int i = 0;
+                              i < _currentEmployees.length;
+                              i++) ...[
                             if (i > 0) const SizedBox(height: 12),
-                            _buildEmployeeAmountRow(_currentEmployees[i], theme, balanceMap),
+                            _buildEmployeeAmountRow(
+                                _currentEmployees[i], theme, balanceMap),
                           ],
-                          
+
                           const SizedBox(height: 16),
                           const Divider(),
                           const SizedBox(height: 8),
-                          
+
                           // Итоговая сумма
                           ValueListenableBuilder<double>(
                             valueListenable: _totalAmount,
                             builder: (context, total, child) {
                               return Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     'ИТОГО:',
-                                    style: theme.textTheme.titleMedium?.copyWith(
+                                    style:
+                                        theme.textTheme.titleMedium?.copyWith(
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                   Text(
                                     numberFormat.format(total),
-                                    style: theme.textTheme.titleMedium?.copyWith(
+                                    style:
+                                        theme.textTheme.titleMedium?.copyWith(
                                       fontWeight: FontWeight.bold,
                                       color: theme.colorScheme.primary,
                                     ),
@@ -338,7 +371,7 @@ class _PayrollPayoutAmountModalState extends ConsumerState<PayrollPayoutAmountMo
                       ),
                     ),
                   ),
-                  
+
                   const SizedBox(height: 24),
                   Row(
                     children: [
@@ -350,7 +383,8 @@ class _PayrollPayoutAmountModalState extends ConsumerState<PayrollPayoutAmountMo
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            textStyle: const TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold),
                           ),
                           child: const Text('Назад'),
                         ),
@@ -367,10 +401,14 @@ class _PayrollPayoutAmountModalState extends ConsumerState<PayrollPayoutAmountMo
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                textStyle: const TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.bold),
                               ),
                               child: isSaving
-                                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CupertinoActivityIndicator())
                                   : const Text('Создать выплаты'),
                             );
                           },
@@ -402,9 +440,13 @@ class _PayrollPayoutAmountModalState extends ConsumerState<PayrollPayoutAmountMo
     }
   }
 
-  Widget _buildLoadingModal(BuildContext context, ThemeData theme, bool isDesktop, double screenWidth) {
+  Widget _buildLoadingModal(BuildContext context, ThemeData theme,
+      bool isDesktop, double screenWidth) {
     final modalContent = Container(
-      margin: isDesktop ? const EdgeInsets.only(top: 48) : EdgeInsets.only(top: kToolbarHeight + MediaQuery.of(context).padding.top),
+      margin: isDesktop
+          ? const EdgeInsets.only(top: 48)
+          : EdgeInsets.only(
+              top: kToolbarHeight + MediaQuery.of(context).padding.top),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
@@ -416,7 +458,7 @@ class _PayrollPayoutAmountModalState extends ConsumerState<PayrollPayoutAmountMo
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CircularProgressIndicator(),
+              CupertinoActivityIndicator(),
               SizedBox(height: 16),
               Text('Загрузка балансов...'),
             ],
@@ -440,9 +482,13 @@ class _PayrollPayoutAmountModalState extends ConsumerState<PayrollPayoutAmountMo
     }
   }
 
-  Widget _buildErrorModal(BuildContext context, ThemeData theme, bool isDesktop, double screenWidth, Object error) {
+  Widget _buildErrorModal(BuildContext context, ThemeData theme, bool isDesktop,
+      double screenWidth, Object error) {
     final modalContent = Container(
-      margin: isDesktop ? const EdgeInsets.only(top: 48) : EdgeInsets.only(top: kToolbarHeight + MediaQuery.of(context).padding.top),
+      margin: isDesktop
+          ? const EdgeInsets.only(top: 48)
+          : EdgeInsets.only(
+              top: kToolbarHeight + MediaQuery.of(context).padding.top),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
@@ -454,9 +500,11 @@ class _PayrollPayoutAmountModalState extends ConsumerState<PayrollPayoutAmountMo
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
+              Icon(Icons.error_outline,
+                  size: 48, color: theme.colorScheme.error),
               const SizedBox(height: 16),
-              Text('Ошибка загрузки балансов', style: theme.textTheme.titleMedium),
+              Text('Ошибка загрузки балансов',
+                  style: theme.textTheme.titleMedium),
               const SizedBox(height: 8),
               Text(error.toString(), style: theme.textTheme.bodySmall),
               const SizedBox(height: 16),
@@ -485,15 +533,18 @@ class _PayrollPayoutAmountModalState extends ConsumerState<PayrollPayoutAmountMo
     }
   }
 
-  Widget _buildEmployeeAmountRow(dynamic employee, ThemeData theme, Map<String, double> balanceMap) {
+  Widget _buildEmployeeAmountRow(
+      dynamic employee, ThemeData theme, Map<String, double> balanceMap) {
     final fio = [
       employee.lastName,
       employee.firstName,
-      if (employee.middleName != null && employee.middleName.isNotEmpty) employee.middleName
+      if (employee.middleName != null && employee.middleName.isNotEmpty)
+        employee.middleName
     ].join(' ');
 
     final balance = balanceMap[employee.id] ?? 0.0;
-    final numberFormat = NumberFormat.currency(locale: 'ru_RU', symbol: '₽', decimalDigits: 2);
+    final numberFormat =
+        NumberFormat.currency(locale: 'ru_RU', symbol: '₽', decimalDigits: 2);
 
     return Container(
       padding: const EdgeInsets.all(12.0),
@@ -513,7 +564,8 @@ class _PayrollPayoutAmountModalState extends ConsumerState<PayrollPayoutAmountMo
               children: [
                 Text(
                   fio,
-                  style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
+                  style: theme.textTheme.bodyLarge
+                      ?.copyWith(fontWeight: FontWeight.w500),
                 ),
                 if (employee.position != null && employee.position.isNotEmpty)
                   Text(
@@ -526,20 +578,23 @@ class _PayrollPayoutAmountModalState extends ConsumerState<PayrollPayoutAmountMo
             ),
           ),
           const SizedBox(width: 8),
-          
+
           // Кликабельный баланс
           GestureDetector(
-            onTap: balance > 0 ? () {
-              _amountControllers[employee.id]?.text = balance.toString();
-              _updateTotal();
-            } : null,
+            onTap: balance > 0
+                ? () {
+                    _amountControllers[employee.id]?.text = balance.toString();
+                    _updateTotal();
+                  }
+                : null,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: _getBalanceColor(balance, theme).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(
-                  color: _getBalanceColor(balance, theme).withValues(alpha: 0.3),
+                  color:
+                      _getBalanceColor(balance, theme).withValues(alpha: 0.3),
                 ),
               ),
               child: Row(
@@ -563,7 +618,8 @@ class _PayrollPayoutAmountModalState extends ConsumerState<PayrollPayoutAmountMo
                     Icon(
                       Icons.touch_app,
                       size: 12,
-                      color: _getBalanceColor(balance, theme).withValues(alpha: 0.7),
+                      color: _getBalanceColor(balance, theme)
+                          .withValues(alpha: 0.7),
                     ),
                   ],
                 ],
@@ -571,7 +627,7 @@ class _PayrollPayoutAmountModalState extends ConsumerState<PayrollPayoutAmountMo
             ),
           ),
           const SizedBox(width: 8),
-          
+
           // Поле ввода суммы
           SizedBox(
             width: 140,
@@ -581,18 +637,21 @@ class _PayrollPayoutAmountModalState extends ConsumerState<PayrollPayoutAmountMo
                 labelText: 'Сумма',
                 border: const OutlineInputBorder(),
                 isDense: false,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
                 hintText: balance > 0 ? balance.toInt().toString() : '0',
                 hintStyle: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.outline,
                 ),
               ),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(fontWeight: FontWeight.w500),
             ),
           ),
           const SizedBox(width: 8),
-          
+
           // Кнопка удалить
           IconButton(
             icon: const Icon(Icons.delete_outline),
@@ -653,4 +712,4 @@ class _PayrollPayoutAmountModalState extends ConsumerState<PayrollPayoutAmountMo
         return type;
     }
   }
-} 
+}

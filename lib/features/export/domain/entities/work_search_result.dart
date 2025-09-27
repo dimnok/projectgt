@@ -22,23 +22,32 @@ abstract class WorkSearchResult with _$WorkSearchResult {
   const factory WorkSearchResult({
     /// Дата смены.
     required DateTime workDate,
+
     /// Название объекта.
     required String objectName,
+
     /// Система.
     required String system,
+
     /// Подсистема.
     required String subsystem,
+
     /// Секция (модуль).
     required String section,
+
     /// Этаж.
     required String floor,
+
     /// Наименование работы.
     required String workName,
+
     /// Наименование работы (для совместимости с интерфейсом).
     required String materialName,
+
     /// Единица измерения.
     required String unit,
+
     /// Количество.
     required num quantity,
   }) = _WorkSearchResult;
-} 
+}

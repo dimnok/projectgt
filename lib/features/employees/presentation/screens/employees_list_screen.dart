@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:projectgt/domain/entities/employee.dart';
@@ -13,7 +15,8 @@ import 'package:projectgt/core/utils/snackbar_utils.dart';
 import 'package:projectgt/core/utils/modal_utils.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_card.dart';
-import 'package:projectgt/features/employees/presentation/widgets/search_field.dart';
+import 'package:projectgt/features/employees/presentation/widgets/employee_statistics_modal.dart';
+
 import 'package:projectgt/features/employees/presentation/widgets/master_detail_layout.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/presentation/widgets/cupertino_dialog_widget.dart';
@@ -27,17 +30,19 @@ class EmployeesListScreen extends ConsumerStatefulWidget {
   const EmployeesListScreen({super.key});
 
   @override
-  ConsumerState<EmployeesListScreen> createState() => _EmployeesListScreenState();
+  ConsumerState<EmployeesListScreen> createState() =>
+      _EmployeesListScreenState();
 }
 
 /// Состояние для [EmployeesListScreen].
 ///
 /// Управляет поиском, прокруткой, выбором сотрудника и обработкой событий UI.
 class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
-  final _searchController = TextEditingController();
   final _scrollController = ScrollController();
-  bool _isSearchVisible = false;
-  bool _preventRefresh = false;
+  final _searchController = TextEditingController();
+  bool _showSearchField = false;
+  bool _showFab = true;
+  Timer? _fabTimer;
 
   Employee? selectedEmployee;
 
@@ -48,52 +53,61 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
       ref.read(state.employeeProvider.notifier).getEmployees();
       ref.read(objectProvider.notifier).loadObjects();
     });
-    _scrollController.addListener(_scrollListener);
+    _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
-    _searchController.dispose();
-    _scrollController.removeListener(_scrollListener);
+    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+    _searchController.dispose();
+    _fabTimer?.cancel();
     super.dispose();
   }
 
-  // Слушатель прокрутки для показа/скрытия поиска
-  void _scrollListener() {
-    final isMobile = ResponsiveUtils.isMobile(context);
-    if (isMobile && _scrollController.position.pixels < -50) {
-      if (!_isSearchVisible) {
-        setState(() {
-          _isSearchVisible = true;
-          _preventRefresh = true;
-        });
-        
-        Future.delayed(const Duration(milliseconds: 300), () {
-          if (mounted) {
-            setState(() {
-              _preventRefresh = false;
-            });
-          }
-        });
-      }
-    } 
-    else if (_scrollController.position.pixels > 0 && _isSearchVisible && isMobile) {
+  /// Обработчик прокрутки для показа/скрытия поля поиска и FAB.
+  void _onScroll() {
+    final scrollPosition = _scrollController.position;
+
+    // Показываем поиск при pull-down (отрицательные значения)
+    if (scrollPosition.pixels < -100 && !_showSearchField) {
       setState(() {
-        _isSearchVisible = false;
+        _showSearchField = true;
       });
     }
+    // Скрываем поиск при прокрутке вниз
+    else if (scrollPosition.pixels > 50 && _showSearchField) {
+      setState(() {
+        _showSearchField = false;
+      });
+    }
+
+    // Скрываем FAB во время прокрутки
+    if (_showFab) {
+      setState(() {
+        _showFab = false;
+      });
+    }
+
+    // Отменяем предыдущий таймер
+    _fabTimer?.cancel();
+
+    // Устанавливаем новый таймер на 2 секунды после остановки прокрутки
+    _fabTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted && !_scrollController.position.isScrollingNotifier.value) {
+        setState(() {
+          _showFab = true;
+        });
+      }
+    });
   }
 
-  void _filterEmployees(String query) {
+  /// Обработчик изменения поискового запроса.
+  void _onSearchChanged(String query) {
     ref.read(state.employeeProvider.notifier).setSearchQuery(query);
   }
 
   Future<void> _handleRefresh() async {
-    if (_preventRefresh) {
-      return Future.value();
-    }
-    
     await ref.read(state.employeeProvider.notifier).refreshEmployees();
   }
 
@@ -105,48 +119,85 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
     final objectState = ref.watch(objectProvider);
     final isMobile = ResponsiveUtils.isMobile(context);
     final isDesktop = ResponsiveUtils.isDesktop(context);
-    
+
     final employees = List<Employee>.from(employeeState.filteredEmployees)
       ..sort((a, b) {
-        final cmp = a.lastName.toLowerCase().compareTo(b.lastName.toLowerCase());
+        final cmp =
+            a.lastName.toLowerCase().compareTo(b.lastName.toLowerCase());
         if (cmp != 0) return cmp;
         return a.firstName.toLowerCase().compareTo(b.firstName.toLowerCase());
       });
-      
-    final isLoading = authState.status == AuthStatus.loading || 
-                      employeeState.status == state.EmployeeStatus.loading ||
-                      objectState.status == ObjectStatus.loading;
-    
+
+    final isLoading = authState.status == AuthStatus.loading ||
+        employeeState.status == state.EmployeeStatus.loading ||
+        objectState.status == ObjectStatus.loading;
+
     final objects = objectState.objects;
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
+      extendBodyBehindAppBar: true,
       appBar: AppBarWidget(
         title: 'Сотрудники',
+        showSearchField: _showSearchField,
+        searchController: _searchController,
+        onSearchChanged: _onSearchChanged,
+        searchHint: 'Поиск сотрудников...',
         actions: [
-          if (isDesktop && selectedEmployee != null) ...[
-            IconButton(
-              icon: const Icon(Icons.edit, color: Colors.amber),
-              tooltip: 'Редактировать',
+          // Иконка статистики сотрудников
+          CupertinoButton(
+            padding: EdgeInsets.zero,
+            child: const Icon(Icons.info_outline),
+            onPressed: () => EmployeeStatisticsModal.show(context, employees),
+          ),
+          if (isDesktop) ...[
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              child: Icon(
+                _showSearchField ? Icons.search_off : Icons.search,
+                color: _showSearchField ? Colors.green : null,
+              ),
               onPressed: () {
-                ModalUtils.showEmployeeFormModal(context, employeeId: selectedEmployee!.id);
+                setState(() {
+                  _showSearchField = !_showSearchField;
+                  if (!_showSearchField) {
+                    _searchController.clear();
+                    _onSearchChanged('');
+                  }
+                });
               },
             ),
-            IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
-              tooltip: 'Удалить',
+          ],
+          if (isDesktop && selectedEmployee != null) ...[
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              child: const Icon(Icons.edit, color: Colors.amber),
+              onPressed: () {
+                ModalUtils.showEmployeeFormModal(context,
+                    employeeId: selectedEmployee!.id);
+              },
+            ),
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              child: const Icon(Icons.delete, color: Colors.red),
               onPressed: () => _showDeleteDialog(selectedEmployee!),
             ),
           ],
         ],
       ),
       drawer: const AppDrawer(activeRoute: AppRoute.employees),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          ModalUtils.showEmployeeFormModal(context);
-        },
-        backgroundColor: Colors.green,
-        child: const Icon(Icons.add, color: Colors.white),
+      floatingActionButton: AnimatedScale(
+        scale: _showFab ? 1.0 : 0.0,
+        duration: const Duration(milliseconds: 300),
+        child: FloatingActionButton(
+          onPressed: () {
+            ModalUtils.showEmployeeFormModal(context);
+          },
+          backgroundColor: Colors.green,
+          mini: ResponsiveUtils.isMobile(context),
+          shape: const CircleBorder(),
+          child: const Icon(Icons.add, color: Colors.white),
+        ),
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -181,16 +232,10 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
     required List<ObjectEntity> objects,
   }) {
     final theme = Theme.of(context);
-    
+
     return MasterDetailLayout(
       masterPanel: Column(
         children: [
-          // Поле поиска (всегда видимо)
-          SearchField(
-            controller: _searchController,
-            labelText: 'Поиск сотрудников',
-            onChanged: _filterEmployees,
-          ),
           // Список сотрудников
           Expanded(
             child: _buildEmployeesList(
@@ -210,7 +255,8 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
                 style: theme.textTheme.bodyLarge,
               ),
             )
-          : EmployeeDetailsScreen(employeeId: selectedEmployee!.id, showAppBar: false),
+          : EmployeeDetailsScreen(
+              employeeId: selectedEmployee!.id, showAppBar: false),
     );
   }
 
@@ -223,19 +269,8 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
     required bool isDesktop,
     required List<ObjectEntity> objects,
   }) {
-    final theme = Theme.of(context);
-    
     return Column(
       children: [
-        // Поле поиска с анимацией появления/исчезновения
-        SearchField(
-          controller: _searchController,
-          labelText: 'Поиск сотрудников',
-          onChanged: _filterEmployees,
-          isVisible: _isSearchVisible,
-        ),
-        // Подсказки для поиска
-        _buildSearchHint(isMobile, theme),
         // Список сотрудников
         Expanded(
           child: _buildEmployeesList(
@@ -250,34 +285,6 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
     );
   }
 
-  /// Отображает подсказку для поиска на мобильных устройствах.
-  Widget _buildSearchHint(bool isMobile, ThemeData theme) {
-    // Если не мобильный - не показываем подсказку
-    if (!isMobile) {
-      return const SizedBox.shrink();
-    }
-    
-    // Выбираем текст подсказки в зависимости от состояния поиска
-    final String hintText = _isSearchVisible
-        ? "↓ Потяните ещё раз для обновления списка ↓"
-        : "↓ Потяните вниз для поиска ↓";
-    
-    // Настраиваем отступы
-    final double verticalPadding = _isSearchVisible ? 4.0 : 8.0;
-    
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: verticalPadding),
-      child: Center(
-        child: Text(
-          hintText,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-          ),
-        ),
-      ),
-    );
-  }
-
   /// Строит список сотрудников.
   Widget _buildEmployeesList({
     required bool isLoading,
@@ -287,7 +294,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
     required List<ObjectEntity> objects,
   }) {
     final theme = Theme.of(context);
-    
+
     return RefreshIndicator(
       onRefresh: _handleRefresh,
       child: _buildEmployeesListContent(
@@ -300,7 +307,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
       ),
     );
   }
-  
+
   /// Создает содержимое списка сотрудников в зависимости от состояния.
   Widget _buildEmployeesListContent({
     required bool isLoading,
@@ -313,20 +320,19 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
     if (isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
-    
+
     if (employees.isEmpty) {
       return _buildEmptyState(employeeState.searchQuery.isEmpty, theme);
     }
-    
+
     return _buildEmployeesListView(employees, isDesktop, objects);
   }
-  
+
   /// Строит состояние пустого списка сотрудников.
   Widget _buildEmptyState(bool isEmptyList, ThemeData theme) {
-    final message = isEmptyList
-      ? 'Список сотрудников пуст'
-      : 'Сотрудники не найдены';
-      
+    final message =
+        isEmptyList ? 'Список сотрудников пуст' : 'Сотрудники не найдены';
+
     return Center(
       child: Text(
         message,
@@ -334,13 +340,10 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
       ),
     );
   }
-  
+
   /// Строит ListView с сотрудниками.
   Widget _buildEmployeesListView(
-    List<Employee> employees, 
-    bool isDesktop, 
-    List<ObjectEntity> objects
-  ) {
+      List<Employee> employees, bool isDesktop, List<ObjectEntity> objects) {
     return ListView.builder(
       controller: _scrollController,
       physics: const AlwaysScrollableScrollPhysics(),
@@ -348,7 +351,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
       itemBuilder: (context, index) {
         final employee = employees[index];
         final isSelected = selectedEmployee?.id == employee.id;
-        
+
         return EmployeeCard(
           employee: employee,
           isSelected: isSelected,
@@ -359,7 +362,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
       },
     );
   }
-  
+
   /// Обрабатывает нажатие на карточку сотрудника.
   void _handleEmployeeTap(Employee employee, bool isDesktop) {
     if (isDesktop) {
@@ -374,7 +377,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
       );
     }
   }
-  
+
   /// Показывает диалог подтверждения удаления.
   Future<void> _showDeleteDialog(Employee employee) async {
     final confirmed = await CupertinoDialogs.showDeleteConfirmDialog<bool>(
@@ -383,10 +386,12 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
       message: 'Вы уверены, что хотите удалить этого сотрудника?',
       onConfirm: () {},
     );
-    
+
     if (confirmed == true) {
       try {
-        await ref.read(state.employeeProvider.notifier).deleteEmployee(employee.id);
+        await ref
+            .read(state.employeeProvider.notifier)
+            .deleteEmployee(employee.id);
         if (!mounted) return;
         setState(() {
           selectedEmployee = null;
@@ -398,4 +403,4 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
       }
     }
   }
-} 
+}

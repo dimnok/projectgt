@@ -20,24 +20,33 @@ abstract class WorkModel with _$WorkModel {
   const factory WorkModel({
     /// Идентификатор смены.
     String? id,
+
     /// Дата смены.
     @JsonKey(name: 'date') required DateTime date,
+
     /// Идентификатор объекта.
     @JsonKey(name: 'object_id') required String objectId,
+
     /// Идентификатор пользователя, открывшего смену.
     @JsonKey(name: 'opened_by') required String openedBy,
+
     /// Статус смены.
     @JsonKey(name: 'status') required String status,
+
     /// Ссылка на фото смены.
     @JsonKey(name: 'photo_url') String? photoUrl,
+
     /// Ссылка на вечернее фото смены.
     @JsonKey(name: 'evening_photo_url') String? eveningPhotoUrl,
+
     /// Дата создания записи.
     @JsonKey(name: 'created_at') DateTime? createdAt,
+
     /// Дата последнего обновления.
     @JsonKey(name: 'updated_at') DateTime? updatedAt,
   }) = _WorkModel;
 
   /// Создаёт data-модель смены из JSON.
-  factory WorkModel.fromJson(Map<String, dynamic> json) => _$WorkModelFromJson(json);
-} 
+  factory WorkModel.fromJson(Map<String, dynamic> json) =>
+      _$WorkModelFromJson(json);
+}

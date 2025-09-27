@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/di/providers.dart';
 import 'package:go_router/go_router.dart';
@@ -41,7 +42,9 @@ class _EstimateFormScreenState extends ConsumerState<EstimateFormScreen> {
     super.initState();
     if (widget.estimateId != null) {
       Future.microtask(() async {
-        await ref.read(estimateNotifierProvider.notifier).selectEstimate(widget.estimateId!);
+        await ref
+            .read(estimateNotifierProvider.notifier)
+            .selectEstimate(widget.estimateId!);
         final estimate = ref.read(estimateNotifierProvider).selectedEstimate;
         if (estimate != null) {
           _titleController.text = estimate.estimateTitle ?? '';
@@ -88,9 +91,15 @@ class _EstimateFormScreenState extends ConsumerState<EstimateFormScreen> {
       article: _articleController.text.trim(),
       manufacturer: _manufacturerController.text.trim(),
       unit: _unitController.text.trim(),
-      quantity: double.tryParse(_quantityController.text.trim().replaceAll(',', '.')) ?? 0,
-      price: double.tryParse(_priceController.text.trim().replaceAll(',', '.')) ?? 0,
-      total: double.tryParse(_totalController.text.trim().replaceAll(',', '.')) ?? 0,
+      quantity: double.tryParse(
+              _quantityController.text.trim().replaceAll(',', '.')) ??
+          0,
+      price:
+          double.tryParse(_priceController.text.trim().replaceAll(',', '.')) ??
+              0,
+      total:
+          double.tryParse(_totalController.text.trim().replaceAll(',', '.')) ??
+              0,
       estimateTitle: _titleController.text.trim(),
     );
     if (widget.estimateId == null) {
@@ -106,9 +115,10 @@ class _EstimateFormScreenState extends ConsumerState<EstimateFormScreen> {
     final isEdit = widget.estimateId != null;
     final state = ref.watch(estimateNotifierProvider);
     return Scaffold(
-      appBar: AppBar(title: Text(isEdit ? 'Редактировать смету' : 'Создать смету')),
+      appBar:
+          AppBar(title: Text(isEdit ? 'Редактировать смету' : 'Создать смету')),
       body: state.isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CupertinoActivityIndicator())
           : Padding(
               padding: const EdgeInsets.all(16.0),
               child: Form(
@@ -117,17 +127,21 @@ class _EstimateFormScreenState extends ConsumerState<EstimateFormScreen> {
                   children: [
                     TextFormField(
                       controller: _titleController,
-                      decoration: const InputDecoration(labelText: 'Название сметы'),
-                      validator: (v) => v == null || v.isEmpty ? 'Обязательное поле' : null,
+                      decoration:
+                          const InputDecoration(labelText: 'Название сметы'),
+                      validator: (v) =>
+                          v == null || v.isEmpty ? 'Обязательное поле' : null,
                     ),
                     TextFormField(
                       controller: _systemController,
                       decoration: const InputDecoration(labelText: 'Система'),
-                      validator: (v) => v == null || v.isEmpty ? 'Обязательное поле' : null,
+                      validator: (v) =>
+                          v == null || v.isEmpty ? 'Обязательное поле' : null,
                     ),
                     TextFormField(
                       controller: _subsystemController,
-                      decoration: const InputDecoration(labelText: 'Подсистема'),
+                      decoration:
+                          const InputDecoration(labelText: 'Подсистема'),
                     ),
                     TextFormField(
                       controller: _numberController,
@@ -135,8 +149,10 @@ class _EstimateFormScreenState extends ConsumerState<EstimateFormScreen> {
                     ),
                     TextFormField(
                       controller: _nameController,
-                      decoration: const InputDecoration(labelText: 'Наименование материалов/работ'),
-                      validator: (v) => v == null || v.isEmpty ? 'Обязательное поле' : null,
+                      decoration: const InputDecoration(
+                          labelText: 'Наименование материалов/работ'),
+                      validator: (v) =>
+                          v == null || v.isEmpty ? 'Обязательное поле' : null,
                     ),
                     TextFormField(
                       controller: _articleController,
@@ -144,15 +160,18 @@ class _EstimateFormScreenState extends ConsumerState<EstimateFormScreen> {
                     ),
                     TextFormField(
                       controller: _manufacturerController,
-                      decoration: const InputDecoration(labelText: 'Производитель'),
+                      decoration:
+                          const InputDecoration(labelText: 'Производитель'),
                     ),
                     TextFormField(
                       controller: _unitController,
-                      decoration: const InputDecoration(labelText: 'Единица измерения'),
+                      decoration:
+                          const InputDecoration(labelText: 'Единица измерения'),
                     ),
                     TextFormField(
                       controller: _quantityController,
-                      decoration: const InputDecoration(labelText: 'Количество'),
+                      decoration:
+                          const InputDecoration(labelText: 'Количество'),
                       keyboardType: TextInputType.number,
                     ),
                     TextFormField(
@@ -176,4 +195,4 @@ class _EstimateFormScreenState extends ConsumerState<EstimateFormScreen> {
             ),
     );
   }
-} 
+}

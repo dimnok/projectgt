@@ -14,4 +14,4 @@ class DeleteEmployeeUseCase {
   Future<void> execute(String id) async {
     return await repository.deleteEmployee(id);
   }
-} 
+}

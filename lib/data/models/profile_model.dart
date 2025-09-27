@@ -5,10 +5,10 @@ part 'profile_model.freezed.dart';
 part 'profile_model.g.dart';
 
 /// Data-модель профиля пользователя для работы с Supabase и сериализации/десериализации.
-/// 
+///
 /// Используется для хранения и передачи информации о пользователе между слоями data и domain.
 /// Позволяет преобразовывать данные из/в доменную сущность [Profile].
-/// 
+///
 /// Пример создания:
 /// ```dart
 /// final profile = ProfileModel(
@@ -69,7 +69,8 @@ abstract class ProfileModel with _$ProfileModel {
   /// ```dart
   /// final model = ProfileModel.fromJson(jsonMap);
   /// ```
-  factory ProfileModel.fromJson(Map<String, dynamic> json) => _$ProfileModelFromJson(json);
+  factory ProfileModel.fromJson(Map<String, dynamic> json) =>
+      _$ProfileModelFromJson(json);
 
   /// Создаёт [ProfileModel] из доменной сущности [Profile].
   ///
@@ -89,7 +90,7 @@ abstract class ProfileModel with _$ProfileModel {
         createdAt: profile.createdAt,
         updatedAt: profile.updatedAt,
       );
-      
+
   /// Преобразует [ProfileModel] в доменную сущность [Profile].
   ///
   /// Возвращает [Profile] с соответствующими полями.
@@ -107,4 +108,4 @@ abstract class ProfileModel with _$ProfileModel {
         createdAt: createdAt,
         updatedAt: updatedAt,
       );
-} 
+}

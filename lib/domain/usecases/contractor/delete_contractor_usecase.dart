@@ -28,4 +28,4 @@ class DeleteContractorUseCase {
   Future<void> execute(String id) async {
     return repository.deleteContractor(id);
   }
-} 
+}

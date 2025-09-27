@@ -45,10 +45,10 @@ class DropdownTypeAheadField<T> extends StatefulWidget {
   /// Функция для поиска/фильтрации элементов.
   /// По умолчанию использует displayStringForOption для сравнения.
   final List<T> Function(String pattern, List<T> items)? filterFn;
-  
+
   /// Иконка в конце поля ввода (по умолчанию стрелка вниз)
   final IconData? suffixIcon;
-  
+
   /// Текст для пустого списка
   final String emptyText;
 
@@ -73,19 +73,20 @@ class DropdownTypeAheadField<T> extends StatefulWidget {
   });
 
   @override
-  State<DropdownTypeAheadField<T>> createState() => _DropdownTypeAheadFieldState<T>();
+  State<DropdownTypeAheadField<T>> createState() =>
+      _DropdownTypeAheadFieldState<T>();
 }
 
 class _DropdownTypeAheadFieldState<T> extends State<DropdownTypeAheadField<T>> {
   // FocusNode для управления фокусом ввода
   late FocusNode _focusNode;
-  
+
   @override
   void initState() {
     super.initState();
     _focusNode = FocusNode();
   }
-  
+
   @override
   void dispose() {
     _focusNode.dispose();
@@ -124,14 +125,17 @@ class _DropdownTypeAheadFieldState<T> extends State<DropdownTypeAheadField<T>> {
         if (pattern.isEmpty || pattern == ' ') {
           return widget.items;
         }
-        
+
         if (widget.filterFn != null) {
           return widget.filterFn!(pattern, widget.items);
         }
-        
-        return widget.items.where((item) => 
-          widget.displayStringForOption(item).toLowerCase().contains(pattern.toLowerCase())
-        ).toList();
+
+        return widget.items
+            .where((item) => widget
+                .displayStringForOption(item)
+                .toLowerCase()
+                .contains(pattern.toLowerCase()))
+            .toList();
       },
       builder: (context, controller, focusNode) {
         return Stack(
@@ -140,12 +144,13 @@ class _DropdownTypeAheadFieldState<T> extends State<DropdownTypeAheadField<T>> {
               controller: controller,
               focusNode: focusNode,
               readOnly: widget.readOnly,
-              decoration: widget.decoration ?? InputDecoration(
-                labelText: widget.labelText,
-                hintText: widget.hintText,
-                border: const OutlineInputBorder(),
-                suffixIcon: Icon(widget.suffixIcon),
-              ),
+              decoration: widget.decoration ??
+                  InputDecoration(
+                    labelText: widget.labelText,
+                    hintText: widget.hintText,
+                    border: const OutlineInputBorder(),
+                    suffixIcon: Icon(widget.suffixIcon),
+                  ),
               validator: widget.validator,
             ),
             // Прозрачный слой поверх TextFormField для открытия списка при нажатии
@@ -157,12 +162,12 @@ class _DropdownTypeAheadFieldState<T> extends State<DropdownTypeAheadField<T>> {
                     // При клике на любую часть поля открываем выпадающий список
                     // Для этого достаточно установить фокус на поле ввода
                     focusNode.requestFocus();
-                    
+
                     // Если поле пустое или заполнено, очищаем его и ставим пробел
                     // чтобы появился весь список вариантов
                     controller.clear();
                     controller.text = ' ';
-                    
+
                     // Сохраняем позицию курсора в конце
                     controller.selection = TextSelection.fromPosition(
                       TextPosition(offset: controller.text.length),
@@ -189,8 +194,9 @@ class _DropdownTypeAheadFieldState<T> extends State<DropdownTypeAheadField<T>> {
       emptyBuilder: (context) {
         // Если это пустой запрос (клик) и нет результатов, показываем все элементы
         final input = widget.controller.text.trim();
-        
-        if (!widget.allowCustomValues || (input.isEmpty && widget.items.isEmpty)) {
+
+        if (!widget.allowCustomValues ||
+            (input.isEmpty && widget.items.isEmpty)) {
           return ListTile(
             title: Text(widget.emptyText),
           );
@@ -211,7 +217,7 @@ class _DropdownTypeAheadFieldState<T> extends State<DropdownTypeAheadField<T>> {
             },
           );
         }
-        
+
         return const SizedBox();
       },
     );
@@ -224,22 +230,22 @@ class _DropdownTypeAheadFieldState<T> extends State<DropdownTypeAheadField<T>> {
 class EnumDropdownTypeAheadField<T> extends StatelessWidget {
   /// Контроллер для текстового поля.
   final TextEditingController controller;
-  
+
   /// Список значений Enum для выбора.
   final List<T> values;
-  
+
   /// Функция для получения текстового представления значения Enum.
   final String Function(T value) textConverter;
-  
+
   /// Заголовок поля.
   final String labelText;
-  
+
   /// Подсказка в пустом поле.
   final String hintText;
-  
+
   /// Обработчик выбора значения.
   final Function(T) onSelected;
-  
+
   /// Функция валидации.
   final String? Function(String?)? validator;
 
@@ -248,7 +254,7 @@ class EnumDropdownTypeAheadField<T> extends StatelessWidget {
 
   /// Флаг только для чтения.
   final bool readOnly;
-  
+
   /// Иконка в конце поля ввода (по умолчанию стрелка вниз)
   final IconData? suffixIcon;
 
@@ -280,7 +286,8 @@ class EnumDropdownTypeAheadField<T> extends StatelessWidget {
       isLoading: isLoading,
       readOnly: readOnly,
       suffixIcon: suffixIcon,
-      allowCustomValues: false, // для Enum не позволяем создавать новые значения
+      allowCustomValues:
+          false, // для Enum не позволяем создавать новые значения
     );
   }
 }
@@ -291,31 +298,31 @@ class EnumDropdownTypeAheadField<T> extends StatelessWidget {
 class StringDropdownTypeAheadField extends StatelessWidget {
   /// Контроллер для текстового поля.
   final TextEditingController controller;
-  
+
   /// Список строковых значений для выбора.
   final List<String> values;
-  
+
   /// Заголовок поля.
   final String labelText;
-  
+
   /// Подсказка в пустом поле.
   final String hintText;
-  
+
   /// Обработчик выбора значения.
   final Function(String) onSelected;
-  
+
   /// Функция валидации.
   final String? Function(String?)? validator;
-  
+
   /// Можно ли добавлять новые значения.
   final bool allowCustomValues;
-  
+
   /// Текст для добавления нового значения.
   final String? addNewItemText;
 
   /// Отображать ли индикатор загрузки.
   final bool isLoading;
-  
+
   /// Иконка в конце поля ввода (по умолчанию стрелка вниз)
   final IconData? suffixIcon;
 
@@ -350,4 +357,4 @@ class StringDropdownTypeAheadField extends StatelessWidget {
       suffixIcon: suffixIcon,
     );
   }
-} 
+}

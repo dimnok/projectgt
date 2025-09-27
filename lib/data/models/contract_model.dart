@@ -1,6 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:projectgt/domain/entities/contract.dart';
-import 'package:logger/logger.dart';
+// logger removed
 
 part 'contract_model.freezed.dart';
 part 'contract_model.g.dart';
@@ -48,8 +48,7 @@ abstract class ContractModel with _$ContractModel {
   /// Приватный конструктор для поддержки методов расширения.
   const ContractModel._();
 
-  /// Логгер для отладочной информации.
-  static final Logger _logger = Logger();
+  // logger removed
 
   /// Создаёт модель из JSON-ответа Supabase.
   ///
@@ -66,14 +65,13 @@ abstract class ContractModel with _$ContractModel {
   /// }
   /// ```
   factory ContractModel.fromJson(Map<String, dynamic> json) {
-    _logger.d('[CONTRACTS][FROM JSON] input: $json');
     // Парсим сокращённое наименование контрагента из join-ответа
     final model = _$ContractModelFromJson({
       ...json,
-      'contractor_name': json['contractor']?['short_name'] ?? json['contractor_name'],
+      'contractor_name':
+          json['contractor']?['short_name'] ?? json['contractor_name'],
       'object_name': json['object']?['name'] ?? json['object_name'],
     });
-    _logger.d('[CONTRACTS][FROM JSON] output: $model');
     return model;
   }
 
@@ -84,7 +82,6 @@ abstract class ContractModel with _$ContractModel {
     final json = _$ContractModelToJson(this as _ContractModel);
     json.remove('contractor_name');
     json.remove('object_name');
-    _logger.d('[CONTRACTS][TO JSON] output: $json');
     return json;
   }
 
@@ -105,7 +102,7 @@ abstract class ContractModel with _$ContractModel {
         createdAt: contract.createdAt,
         updatedAt: contract.updatedAt,
       );
-  
+
   /// Преобразует модель в доменную сущность [Contract].
   ///
   /// Используется для передачи данных в слой бизнес-логики.
@@ -128,4 +125,5 @@ abstract class ContractModel with _$ContractModel {
 /// Сериализует дату только в формате YYYY-MM-DD для API.
 ///
 /// Используется для корректной передачи дат в Supabase.
-String? _dateOnlyToJson(DateTime? date) => date?.toIso8601String().split('T').first; 
+String? _dateOnlyToJson(DateTime? date) =>
+    date?.toIso8601String().split('T').first;

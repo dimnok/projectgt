@@ -28,4 +28,4 @@ class GetEmployeesUseCase {
   Future<List<Employee>> execute() async {
     return await repository.getEmployees();
   }
-} 
+}

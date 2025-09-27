@@ -3,17 +3,14 @@ import 'package:intl/intl.dart';
 
 /// Утилиты для работы с балансом сотрудников
 class BalanceUtils {
-  static final _numberFormat = NumberFormat.currency(
-    locale: 'ru_RU', 
-    symbol: '₽', 
-    decimalDigits: 2
-  );
+  static final _numberFormat =
+      NumberFormat.currency(locale: 'ru_RU', symbol: '₽', decimalDigits: 2);
 
   /// Получает цвет для отображения баланса
-  /// 
+  ///
   /// Логика:
   /// - Положительный баланс (> 0): компания должна сотруднику → зеленый
-  /// - Отрицательный баланс (< 0): переплата сотруднику → красный  
+  /// - Отрицательный баланс (< 0): переплата сотруднику → красный
   /// - Нулевой баланс (= 0): полный расчет → серый
   static Color getBalanceColor(double balance, ThemeData theme) {
     if (balance > 0) {
@@ -60,7 +57,7 @@ class BalanceUtils {
 
   /// Создает виджет для отображения баланса с иконкой и цветом
   static Widget buildBalanceWidget(
-    double balance, 
+    double balance,
     ThemeData theme, {
     bool showIcon = true,
     bool showDescription = false,
@@ -70,7 +67,7 @@ class BalanceUtils {
     final icon = getBalanceIcon(balance);
     final formattedAmount = formatBalance(balance);
     final description = getBalanceDescription(balance);
-    
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -110,13 +107,13 @@ class BalanceUtils {
 
   /// Создает простой текстовый виджет баланса
   static Widget buildSimpleBalanceText(
-    double balance, 
+    double balance,
     ThemeData theme, {
     TextStyle? textStyle,
   }) {
     final color = getBalanceColor(balance, theme);
     final formattedAmount = formatBalance(balance);
-    
+
     return Text(
       formattedAmount,
       style: (textStyle ?? const TextStyle()).copyWith(
@@ -125,4 +122,4 @@ class BalanceUtils {
       ),
     );
   }
-} 
+}

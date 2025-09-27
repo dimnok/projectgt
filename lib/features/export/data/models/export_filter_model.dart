@@ -17,18 +17,24 @@ abstract class ExportFilterModel with _$ExportFilterModel {
   const factory ExportFilterModel({
     /// Дата начала периода.
     @JsonKey(name: 'date_from') required DateTime dateFrom,
+
     /// Дата окончания периода.
     @JsonKey(name: 'date_to') required DateTime dateTo,
+
     /// Список идентификаторов объектов для фильтрации.
     @JsonKey(name: 'object_ids') @Default([]) List<String> objectIds,
+
     /// Список идентификаторов договоров для фильтрации.
     @JsonKey(name: 'contract_ids') @Default([]) List<String> contractIds,
+
     /// Список систем для фильтрации.
     @Default([]) List<String> systems,
+
     /// Список подсистем для фильтрации.
     @Default([]) List<String> subsystems,
   }) = _ExportFilterModel;
 
   /// Создаёт data-модель фильтра выгрузки из JSON.
-  factory ExportFilterModel.fromJson(Map<String, dynamic> json) => _$ExportFilterModelFromJson(json);
-} 
+  factory ExportFilterModel.fromJson(Map<String, dynamic> json) =>
+      _$ExportFilterModelFromJson(json);
+}

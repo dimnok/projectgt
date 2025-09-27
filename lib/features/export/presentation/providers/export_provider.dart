@@ -6,17 +6,21 @@ import '../services/export_service.dart';
 import 'repositories_providers.dart';
 
 /// Состояние для модуля выгрузки.
-/// 
+///
 /// Содержит данные отчета [reports], фильтр [filter], флаг загрузки [isLoading] и возможную ошибку [error].
 class ExportState {
   /// Список данных отчета.
   final List<ExportReport> reports;
+
   /// Текущий фильтр.
   final ExportFilter? filter;
+
   /// Флаг, указывающий на процесс загрузки.
   final bool isLoading;
+
   /// Сообщение об ошибке, если есть.
   final String? error;
+
   /// Флаг экспорта.
   final bool isExporting;
 
@@ -51,11 +55,13 @@ class ExportState {
 class ExportNotifier extends StateNotifier<ExportState> {
   /// Репозиторий для работы с выгрузкой.
   final ExportRepository repository;
+
   /// Сервис экспорта.
   final ExportService exportService;
 
   /// Создаёт [ExportNotifier].
-  ExportNotifier(this.repository, this.exportService) : super(ExportState(reports: []));
+  ExportNotifier(this.repository, this.exportService)
+      : super(ExportState(reports: []));
 
   /// Загружает данные отчета согласно фильтру.
   Future<void> loadReportData(ExportFilter filter) async {
@@ -64,12 +70,18 @@ class ExportNotifier extends StateNotifier<ExportState> {
       final reports = await repository.getExportData(filter);
       state = state.copyWith(reports: reports, isLoading: false);
     } catch (e) {
-      state = state.copyWith(error: 'Ошибка загрузки данных: $e', isLoading: false);
+      state =
+          state.copyWith(error: 'Ошибка загрузки данных: $e', isLoading: false);
     }
   }
 
   /// Экспортирует данные в Excel файл.
-  Future<String?> exportToExcel(String fileName) async {
+  Future<String?> exportToExcel(
+    String fileName, {
+    List<String>? columns,
+    bool aggregate = false,
+    String? sheetName,
+  }) async {
     if (state.reports.isEmpty) {
       state = state.copyWith(error: 'Нет данных для экспорта');
       return null;
@@ -77,7 +89,13 @@ class ExportNotifier extends StateNotifier<ExportState> {
 
     state = state.copyWith(isExporting: true, error: null);
     try {
-      final filePath = await exportService.exportToExcel(state.reports, fileName);
+      final filePath = await exportService.exportToExcel(
+        state.reports,
+        fileName,
+        columns: columns,
+        aggregate: aggregate,
+        sheetName: sheetName,
+      );
       state = state.copyWith(isExporting: false);
       return filePath;
     } catch (e) {
@@ -93,20 +111,23 @@ class ExportNotifier extends StateNotifier<ExportState> {
 }
 
 /// Провайдер состояния модуля выгрузки.
-final exportProvider = StateNotifierProvider<ExportNotifier, ExportState>((ref) {
+final exportProvider =
+    StateNotifierProvider<ExportNotifier, ExportState>((ref) {
   final repository = ref.watch(exportRepositoryProvider);
   final exportService = ref.watch(exportServiceProvider);
   return ExportNotifier(repository, exportService);
 });
 
 /// Провайдер для получения списка доступных объектов.
-final availableObjectsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+final availableObjectsProvider =
+    FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final repository = ref.watch(exportRepositoryProvider);
   return await repository.getAvailableObjects();
 });
 
 /// Провайдер для получения списка доступных договоров.
-final availableContractsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+final availableContractsProvider =
+    FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final repository = ref.watch(exportRepositoryProvider);
   return await repository.getAvailableContracts();
 });
@@ -121,4 +142,4 @@ final availableSystemsProvider = FutureProvider<List<String>>((ref) async {
 final availableSubsystemsProvider = FutureProvider<List<String>>((ref) async {
   final repository = ref.watch(exportRepositoryProvider);
   return await repository.getAvailableSubsystems();
-}); 
+});

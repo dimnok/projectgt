@@ -26,4 +26,4 @@ abstract class ObjectRepository {
   ///
   /// Возвращает void. Бросает [Exception] при ошибке.
   Future<void> deleteObject(String id);
-} 
+}

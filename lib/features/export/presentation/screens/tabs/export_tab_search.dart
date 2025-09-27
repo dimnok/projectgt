@@ -12,7 +12,7 @@ import '../../providers/export_provider.dart';
 class ExportTabSearch extends ConsumerStatefulWidget {
   /// Callback для переключения на таб "Выгрузка".
   final VoidCallback? onSwitchToReports;
-  
+
   /// Создаёт таб поиска.
   const ExportTabSearch({
     super.key,
@@ -26,19 +26,19 @@ class ExportTabSearch extends ConsumerStatefulWidget {
 class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
   /// Контроллер для поля поиска.
   final TextEditingController _searchController = TextEditingController();
-  
+
   /// Контроллер для даты начала.
   final TextEditingController _startDateController = TextEditingController();
-  
+
   /// Контроллер для даты окончания.
   final TextEditingController _endDateController = TextEditingController();
-  
+
   /// Выбранная дата начала.
   DateTime? _startDate;
-  
+
   /// Выбранная дата окончания.
   DateTime? _endDate;
-  
+
   /// Выбранный объект.
   String? _selectedObjectId;
 
@@ -50,7 +50,7 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
 
   /// Индекс выбранного таба внутри поиска.
   int _selectedTabIndex = 1; // По умолчанию таб "Поиск"
-  
+
   /// Список табов.
   final List<Tab> _tabs = const [
     Tab(text: 'Выгрузка'),
@@ -78,7 +78,7 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
   void _onSearchChanged() {
     // Отменяем предыдущий таймер
     _debounceTimer?.cancel();
-    
+
     // Запускаем новый таймер
     _debounceTimer = Timer(const Duration(milliseconds: _debounceDelayMs), () {
       _performSearch();
@@ -114,7 +114,7 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
       children: [
         // Блок фильтров для поиска
         _buildAdvancedFilters(context, theme, objectsAsync),
-        
+
         // Табы под блоком фильтров
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 4.0),
@@ -123,7 +123,8 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
             initialIndex: _selectedTabIndex,
             child: Builder(
               builder: (context) {
-                final TabController tabController = DefaultTabController.of(context);
+                final TabController tabController =
+                    DefaultTabController.of(context);
                 tabController.addListener(() {
                   if (tabController.indexIsChanging) {
                     _onTabChanged(tabController.index);
@@ -140,7 +141,7 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
             ),
           ),
         ),
-        
+
         // Контент табов
         Expanded(
           child: IndexedStack(
@@ -161,9 +162,10 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
   }
 
   /// Строит продвинутый блок фильтров в стиле основного экспорта.
-  Widget _buildAdvancedFilters(BuildContext context, ThemeData theme, AsyncValue<List<Map<String, dynamic>>> objectsAsync) {
+  Widget _buildAdvancedFilters(BuildContext context, ThemeData theme,
+      AsyncValue<List<Map<String, dynamic>>> objectsAsync) {
     final isDesktop = ResponsiveUtils.isDesktop(context);
-    
+
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
@@ -176,7 +178,8 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
       child: Container(
         decoration: BoxDecoration(
           color: theme.brightness == Brightness.dark
-              ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.92)
+              ? theme.colorScheme.surfaceContainerHighest
+                  .withValues(alpha: 0.92)
               : theme.colorScheme.surface.withValues(alpha: 0.98),
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
@@ -208,7 +211,8 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
               children: [
                 Text(
                   'Поиск работ',
-                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 Row(
                   children: [
@@ -223,7 +227,7 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
               ],
             ),
             const SizedBox(height: 16),
-            
+
             // Фильтры
             if (isDesktop)
               Row(
@@ -275,7 +279,8 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
             decoration: InputDecoration(
               labelText: 'Дата начала',
               hintText: 'Выберите дату',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               prefixIcon: const Icon(Icons.date_range),
               suffixIcon: const Icon(Icons.keyboard_arrow_down),
             ),
@@ -291,7 +296,8 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
             decoration: InputDecoration(
               labelText: 'Дата окончания',
               hintText: 'Выберите дату',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               prefixIcon: const Icon(Icons.date_range),
               suffixIcon: const Icon(Icons.keyboard_arrow_down),
             ),
@@ -303,7 +309,8 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
   }
 
   /// Создает фильтр по объекту.
-  Widget _buildObjectFilter(ThemeData theme, AsyncValue<List<Map<String, dynamic>>> objectsAsync) {
+  Widget _buildObjectFilter(
+      ThemeData theme, AsyncValue<List<Map<String, dynamic>>> objectsAsync) {
     return objectsAsync.when(
       data: (objects) => DropdownButtonFormField<String>(
         value: _selectedObjectId,
@@ -387,7 +394,8 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
   }
 
   /// Строит результаты поиска.
-  Widget _buildSearchResults(BuildContext context, ThemeData theme, WorkSearchState searchState) {
+  Widget _buildSearchResults(
+      BuildContext context, ThemeData theme, WorkSearchState searchState) {
     if (searchState.isLoading) {
       return Card(
         elevation: 0,
@@ -475,7 +483,8 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
   }
 
   /// Строит таблицу результатов.
-  Widget _buildResultsTable(BuildContext context, ThemeData theme, List results) {
+  Widget _buildResultsTable(
+      BuildContext context, ThemeData theme, List results) {
     // Русская локализация для PlutoGrid
     const ruLocale = PlutoGridLocaleText(
       unfreezeColumn: 'Открепить',
@@ -512,13 +521,15 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
     );
 
     // Подсчет общего количества
-    final totalQuantity = results.fold<num>(0, (sum, result) => sum + result.quantity);
+    final totalQuantity =
+        results.fold<num>(0, (sum, result) => sum + result.quantity);
 
     // Создание строк для таблицы
     final rows = results.map((result) {
       return PlutoRow(
         cells: {
-          'date': PlutoCell(value: DateFormat('dd.MM.yyyy').format(result.workDate)),
+          'date': PlutoCell(
+              value: DateFormat('dd.MM.yyyy').format(result.workDate)),
           'object': PlutoCell(value: result.objectName),
           'system': PlutoCell(value: result.system),
           'subsystem': PlutoCell(value: result.subsystem),
@@ -567,8 +578,10 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
                   style: PlutoGridStyleConfig.dark(
                     gridBackgroundColor: theme.colorScheme.surface,
                     rowColor: theme.colorScheme.surface,
-                    evenRowColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-                    borderColor: theme.colorScheme.outline.withValues(alpha: 0.2),
+                    evenRowColor: theme.colorScheme.surfaceContainerHighest
+                        .withValues(alpha: 0.3),
+                    borderColor:
+                        theme.colorScheme.outline.withValues(alpha: 0.2),
                     activatedBorderColor: theme.colorScheme.primary,
                     gridBorderRadius: BorderRadius.circular(12),
                   ),
@@ -581,8 +594,10 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
                   style: PlutoGridStyleConfig(
                     gridBackgroundColor: theme.colorScheme.surface,
                     rowColor: theme.colorScheme.surface,
-                    evenRowColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-                    borderColor: theme.colorScheme.outline.withValues(alpha: 0.2),
+                    evenRowColor: theme.colorScheme.surfaceContainerHighest
+                        .withValues(alpha: 0.3),
+                    borderColor:
+                        theme.colorScheme.outline.withValues(alpha: 0.2),
                     activatedBorderColor: theme.colorScheme.primary,
                     gridBorderRadius: BorderRadius.circular(12),
                   ),
@@ -731,7 +746,7 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
   /// Выполняет поиск.
   void _performSearch() {
     final query = _searchController.text.trim();
-    
+
     // Если запрос пустой, очищаем результаты
     if (query.isEmpty) {
       ref.read(workSearchProvider.notifier).clearResults();
@@ -740,18 +755,18 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
 
     // Выполняем поиск только если есть текст для поиска
     ref.read(workSearchProvider.notifier).searchMaterials(
-      startDate: _startDate,
-      endDate: _endDate,
-      objectId: _selectedObjectId,
-      searchQuery: query,
-    );
+          startDate: _startDate,
+          endDate: _endDate,
+          objectId: _selectedObjectId,
+          searchQuery: query,
+        );
   }
 
   /// Очищает поиск.
   void _clearSearch() {
     // Отменяем таймер debounce
     _debounceTimer?.cancel();
-    
+
     _searchController.clear();
     setState(() {
       _startDate = null;
@@ -762,4 +777,4 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
     });
     ref.read(workSearchProvider.notifier).clearResults();
   }
-} 
+}

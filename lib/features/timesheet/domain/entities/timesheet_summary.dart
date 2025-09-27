@@ -9,6 +9,7 @@ part 'timesheet_summary.g.dart';
 @freezed
 abstract class TimesheetSummary with _$TimesheetSummary {
   @JsonSerializable(fieldRename: FieldRename.snake, explicitToJson: true)
+
   /// Создаёт сущность агрегированных данных по часам сотрудника.
   ///
   /// [employeeId] — идентификатор сотрудника
@@ -19,16 +20,21 @@ abstract class TimesheetSummary with _$TimesheetSummary {
   const factory TimesheetSummary({
     /// Идентификатор сотрудника.
     required String employeeId,
+
     /// Полное имя сотрудника.
     required String employeeName,
+
     /// Часы по датам: {'2023-05-01': 8, ...}.
     required Map<String, num> hoursByDate,
+
     /// Часы по объектам: {'Объект 1': 40, ...}.
     required Map<String, num> hoursByObject,
+
     /// Общее количество часов.
     required num totalHours,
   }) = _TimesheetSummary;
 
   /// Создаёт сущность агрегированных данных по часам сотрудника из JSON.
-  factory TimesheetSummary.fromJson(Map<String, dynamic> json) => _$TimesheetSummaryFromJson(json);
-} 
+  factory TimesheetSummary.fromJson(Map<String, dynamic> json) =>
+      _$TimesheetSummaryFromJson(json);
+}

@@ -27,9 +27,8 @@ class ProfileRepositoryImpl implements ProfileRepository {
 
   @override
   Future<Profile> updateProfile(Profile profile) async {
-    final profileModel = await dataSource.updateProfile(
-      ProfileModel.fromDomain(profile)
-    );
+    final profileModel =
+        await dataSource.updateProfile(ProfileModel.fromDomain(profile));
     return profileModel.toDomain();
   }
 
@@ -37,4 +36,4 @@ class ProfileRepositoryImpl implements ProfileRepository {
   Future<void> deleteProfile(String userId) async {
     await dataSource.deleteProfile(userId);
   }
-} 
+}

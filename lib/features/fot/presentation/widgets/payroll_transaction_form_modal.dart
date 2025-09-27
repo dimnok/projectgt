@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import 'package:collection/collection.dart';
@@ -15,17 +16,17 @@ import '../providers/payroll_providers.dart';
 import '../../../../core/utils/snackbar_utils.dart';
 
 /// Переиспользуемое модальное окно для добавления/редактирования транзакций ФОТ.
-/// 
+///
 /// Поддерживает как премии, так и штрафы с унифицированной логикой и валидацией.
 class PayrollTransactionFormModal extends ConsumerStatefulWidget {
   /// Тип транзакции (премия или штраф)
   final PayrollTransactionType transactionType;
-  
+
   /// Существующая транзакция для редактирования (null для создания новой)
   final PayrollTransaction? transaction;
 
   /// Создаёт модальное окно для транзакции ФОТ.
-  /// 
+  ///
   /// [transactionType] — тип транзакции (премия или штраф)
   /// [transaction] — существующая транзакция для редактирования
   const PayrollTransactionFormModal({
@@ -35,16 +36,18 @@ class PayrollTransactionFormModal extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<PayrollTransactionFormModal> createState() => _PayrollTransactionFormModalState();
+  ConsumerState<PayrollTransactionFormModal> createState() =>
+      _PayrollTransactionFormModalState();
 }
 
-class _PayrollTransactionFormModalState extends ConsumerState<PayrollTransactionFormModal> {
+class _PayrollTransactionFormModalState
+    extends ConsumerState<PayrollTransactionFormModal> {
   final _formKey = GlobalKey<FormState>();
   final _employeeController = TextEditingController();
   final _objectController = TextEditingController();
   final _amountController = TextEditingController();
   final _noteController = TextEditingController();
-  
+
   DateTime? _selectedDate;
   String? _selectedEmployeeId;
   String? _selectedObjectId;
@@ -93,7 +96,7 @@ class _PayrollTransactionFormModalState extends ConsumerState<PayrollTransaction
     final transaction = widget.transaction;
     if (transaction != null) {
       final filterState = ref.read(payrollFilterProvider);
-      
+
       // Заполняем имя сотрудника
       final employee = filterState.employees.firstWhereOrNull(
         (e) => e.id == transaction.employeeId,
@@ -106,7 +109,7 @@ class _PayrollTransactionFormModalState extends ConsumerState<PayrollTransaction
             employee.middleName
         ].join(' ');
       }
-      
+
       // Заполняем название объекта
       final object = filterState.objects.firstWhereOrNull(
         (o) => o.id == transaction.objectId,
@@ -152,21 +155,22 @@ class _PayrollTransactionFormModalState extends ConsumerState<PayrollTransaction
   /// Сохранение транзакции
   Future<void> _saveTransaction() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     setState(() => _isSaving = true);
-    
+
     try {
       const uuid = Uuid();
       final amount = num.parse(_amountController.text.replaceAll(',', '.'));
-      final reason = _noteController.text.isNotEmpty ? _noteController.text : null;
+      final reason =
+          _noteController.text.isNotEmpty ? _noteController.text : null;
       final date = _selectedDate ?? DateTime.now();
-      
+
       if (_type == PayrollTransactionType.bonus) {
         await _saveBonus(uuid, amount, reason, date);
       } else {
         await _savePenalty(uuid, amount, reason, date);
       }
-      
+
       if (mounted) {
         Navigator.pop(context);
         _invalidateProviders();
@@ -185,7 +189,8 @@ class _PayrollTransactionFormModalState extends ConsumerState<PayrollTransaction
   }
 
   /// Сохранение премии
-  Future<void> _saveBonus(Uuid uuid, num amount, String? reason, DateTime date) async {
+  Future<void> _saveBonus(
+      Uuid uuid, num amount, String? reason, DateTime date) async {
     final bonus = PayrollBonusModel(
       id: _isEditing ? widget.transaction!.id : uuid.v4(),
       employeeId: _selectedEmployeeId ?? '',
@@ -196,7 +201,7 @@ class _PayrollTransactionFormModalState extends ConsumerState<PayrollTransaction
       createdAt: _isEditing ? widget.transaction!.createdAt : DateTime.now(),
       objectId: _selectedObjectId,
     );
-    
+
     if (_isEditing) {
       final updateUseCase = ref.read(updateBonusUseCaseProvider);
       await updateUseCase(bonus);
@@ -207,7 +212,8 @@ class _PayrollTransactionFormModalState extends ConsumerState<PayrollTransaction
   }
 
   /// Сохранение штрафа
-  Future<void> _savePenalty(Uuid uuid, num amount, String? reason, DateTime date) async {
+  Future<void> _savePenalty(
+      Uuid uuid, num amount, String? reason, DateTime date) async {
     final penalty = PayrollPenaltyModel(
       id: _isEditing ? widget.transaction!.id : uuid.v4(),
       employeeId: _selectedEmployeeId ?? '',
@@ -218,7 +224,7 @@ class _PayrollTransactionFormModalState extends ConsumerState<PayrollTransaction
       createdAt: DateTime.now(),
       objectId: _selectedObjectId,
     );
-    
+
     if (_isEditing) {
       final updateUseCase = ref.read(updatePenaltyUseCaseProvider);
       await updateUseCase(penalty);
@@ -249,8 +255,8 @@ class _PayrollTransactionFormModalState extends ConsumerState<PayrollTransaction
     final screenWidth = MediaQuery.of(context).size.width;
 
     final modalContent = Container(
-      margin: isDesktop 
-          ? const EdgeInsets.only(top: 48) 
+      margin: isDesktop
+          ? const EdgeInsets.only(top: 48)
           : EdgeInsets.only(
               top: kToolbarHeight + MediaQuery.of(context).padding.top,
             ),
@@ -343,7 +349,8 @@ class _PayrollTransactionFormModalState extends ConsumerState<PayrollTransaction
   }
 
   /// Строит форму
-  Widget _buildForm(ThemeData theme, List<dynamic> employees, List<dynamic> objects) {
+  Widget _buildForm(
+      ThemeData theme, List<dynamic> employees, List<dynamic> objects) {
     return Card(
       margin: EdgeInsets.zero,
       elevation: 0,
@@ -400,9 +407,8 @@ class _PayrollTransactionFormModalState extends ConsumerState<PayrollTransaction
     return DropdownTypeAheadField<dynamic>(
       controller: _employeeController,
       labelText: 'Сотрудник',
-      hintText: employees.isEmpty 
-          ? 'Нет доступных значений' 
-          : 'Выберите сотрудника',
+      hintText:
+          employees.isEmpty ? 'Нет доступных значений' : 'Выберите сотрудника',
       items: employees,
       displayStringForOption: (e) => [
         e.lastName,
@@ -410,9 +416,8 @@ class _PayrollTransactionFormModalState extends ConsumerState<PayrollTransaction
         if (e.middleName != null && e.middleName!.isNotEmpty) e.middleName
       ].join(' '),
       onSelected: employees.isEmpty ? (_) {} : _onEmployeeSelected,
-      validator: (value) => _selectedEmployeeId == null 
-          ? 'Выберите сотрудника' 
-          : null,
+      validator: (value) =>
+          _selectedEmployeeId == null ? 'Выберите сотрудника' : null,
       allowCustomValues: false,
     );
   }
@@ -422,15 +427,12 @@ class _PayrollTransactionFormModalState extends ConsumerState<PayrollTransaction
     return DropdownTypeAheadField<dynamic>(
       controller: _objectController,
       labelText: 'Объект',
-      hintText: objects.isEmpty 
-          ? 'Нет доступных значений' 
-          : 'Выберите объект',
+      hintText: objects.isEmpty ? 'Нет доступных значений' : 'Выберите объект',
       items: objects,
       displayStringForOption: (o) => o.name,
       onSelected: objects.isEmpty ? (_) {} : _onObjectSelected,
-      validator: (value) => _selectedObjectId == null 
-          ? 'Выберите объект' 
-          : null,
+      validator: (value) =>
+          _selectedObjectId == null ? 'Выберите объект' : null,
       allowCustomValues: false,
     );
   }
@@ -459,13 +461,13 @@ class _PayrollTransactionFormModalState extends ConsumerState<PayrollTransaction
     return TextFormField(
       controller: _noteController,
       decoration: InputDecoration(
-        labelText: _type == PayrollTransactionType.bonus 
-            ? 'Примечание' 
+        labelText: _type == PayrollTransactionType.bonus
+            ? 'Примечание'
             : 'Комментарий',
         border: const OutlineInputBorder(),
         prefixIcon: const Icon(Icons.comment_outlined),
-        hintText: _type == PayrollTransactionType.bonus 
-            ? 'Причина или комментарий' 
+        hintText: _type == PayrollTransactionType.bonus
+            ? 'Причина или комментарий'
             : null,
       ),
       minLines: 1,
@@ -511,7 +513,7 @@ class _PayrollTransactionFormModalState extends ConsumerState<PayrollTransaction
                 ? const SizedBox(
                     height: 20,
                     width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: CupertinoActivityIndicator(),
                   )
                 : Text(_isEditing ? 'Обновить' : 'Сохранить'),
           ),
@@ -519,4 +521,4 @@ class _PayrollTransactionFormModalState extends ConsumerState<PayrollTransaction
       ],
     );
   }
-} 
+}

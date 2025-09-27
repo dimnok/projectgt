@@ -14,4 +14,4 @@ class DeleteEstimateUseCase {
   Future<void> call(String id) async {
     await repository.deleteEstimate(id);
   }
-} 
+}

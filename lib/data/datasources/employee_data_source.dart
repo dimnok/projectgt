@@ -55,12 +55,12 @@ class SupabaseEmployeeDataSource implements EmployeeDataSource {
   @override
   Future<List<EmployeeModel>> getEmployees() async {
     try {
-      final response = await client
-          .from('employees')
-          .select('*')
-          .order('last_name');
-      
-      return response.map<EmployeeModel>((json) => EmployeeModel.fromJson(json)).toList();
+      final response =
+          await client.from('employees').select('*').order('last_name');
+
+      return response
+          .map<EmployeeModel>((json) => EmployeeModel.fromJson(json))
+          .toList();
     } catch (e) {
       Logger().e('Error fetching employees: $e');
       return [];
@@ -70,12 +70,9 @@ class SupabaseEmployeeDataSource implements EmployeeDataSource {
   @override
   Future<EmployeeModel?> getEmployee(String id) async {
     try {
-      final response = await client
-          .from('employees')
-          .select('*')
-          .eq('id', id)
-          .single();
-      
+      final response =
+          await client.from('employees').select('*').eq('id', id).single();
+
       return EmployeeModel.fromJson(response);
     } catch (e) {
       Logger().e('Error fetching employee: $e');
@@ -88,18 +85,18 @@ class SupabaseEmployeeDataSource implements EmployeeDataSource {
     try {
       // Создаем дату для created_at и updated_at
       final now = DateTime.now().toIso8601String();
-      
+
       final employeeJson = employee.toJson();
       // Добавляем дату создания и обновления
       employeeJson['created_at'] = now;
       employeeJson['updated_at'] = now;
-      
+
       final response = await client
           .from('employees')
           .insert(employeeJson)
           .select('*')
           .single();
-      
+
       return EmployeeModel.fromJson(response);
     } catch (e) {
       Logger().e('Error creating employee: $e');
@@ -112,18 +109,18 @@ class SupabaseEmployeeDataSource implements EmployeeDataSource {
     try {
       // Обновляем только updated_at
       final now = DateTime.now().toIso8601String();
-      
+
       final employeeJson = employee.toJson();
       // Обновляем дату изменения
       employeeJson['updated_at'] = now;
-      
+
       final response = await client
           .from('employees')
           .update(employeeJson)
           .eq('id', employee.id)
           .select('*')
           .single();
-      
+
       return EmployeeModel.fromJson(response);
     } catch (e) {
       Logger().e('Error updating employee: $e');
@@ -134,13 +131,10 @@ class SupabaseEmployeeDataSource implements EmployeeDataSource {
   @override
   Future<void> deleteEmployee(String id) async {
     try {
-      await client
-          .from('employees')
-          .delete()
-          .eq('id', id);
+      await client.from('employees').delete().eq('id', id);
     } catch (e) {
       Logger().e('Error deleting employee: $e');
       rethrow;
     }
   }
-} 
+}

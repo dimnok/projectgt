@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:logger/logger.dart';
+// logger removed
 import '../../domain/repositories/export_repository.dart';
 import '../../data/repositories/export_repository_impl.dart';
 import '../../data/datasources/export_data_source.dart';
@@ -15,17 +15,13 @@ final supabaseClientProvider = Provider<SupabaseClient>((ref) {
 });
 
 /// Провайдер логгера.
-final loggerProvider = Provider<Logger>((ref) {
-  return Logger();
-});
+// logger provider removed
 
 /// Провайдер источника данных выгрузки.
 final exportDataSourceProvider = Provider<ExportDataSource>((ref) {
   final supabaseClient = ref.watch(supabaseClientProvider);
-  final logger = ref.watch(loggerProvider);
   return ExportDataSourceImpl(
     supabaseClient: supabaseClient,
-    logger: logger,
   );
 });
 
@@ -44,4 +40,4 @@ final exportServiceProvider = Provider<ExportService>((ref) {
 final workSearchRepositoryProvider = Provider((ref) {
   final client = Supabase.instance.client;
   return WorkSearchRepositoryImpl(WorkSearchDataSourceImpl(client));
-}); 
+});

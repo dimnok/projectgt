@@ -18,4 +18,4 @@ abstract class WorkDataSource {
 
   /// Удаляет смену по идентификатору [id].
   Future<void> deleteWork(String id);
-} 
+}

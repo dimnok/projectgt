@@ -29,4 +29,4 @@ class UpdateProfileUseCase {
   Future<Profile> call(Profile profile) async {
     return await repository.updateProfile(profile);
   }
-} 
+}

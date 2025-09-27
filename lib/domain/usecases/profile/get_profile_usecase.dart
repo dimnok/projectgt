@@ -30,4 +30,4 @@ class GetProfileUseCase {
   Future<Profile?> call(String id) async {
     return await repository.getProfile(id);
   }
-} 
+}

@@ -45,3 +45,12 @@ app.*.map.json
 /android/app/release
 
 docs/api/
+
+# Secrets and local configs
+.env
+.env.*
+.cursor/
+.secrets/
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+supabase/service_account.json

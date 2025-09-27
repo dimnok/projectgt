@@ -23,7 +23,8 @@ class ContractsListScreen extends ConsumerStatefulWidget {
   const ContractsListScreen({super.key});
 
   @override
-  ConsumerState<ContractsListScreen> createState() => _ContractsListScreenState();
+  ConsumerState<ContractsListScreen> createState() =>
+      _ContractsListScreenState();
 }
 
 /// Состояние экрана ContractsListScreen.
@@ -57,7 +58,9 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
           _isSearchVisible = true;
         });
       }
-    } else if (_scrollController.position.pixels > 0 && _isSearchVisible && _isMobileDevice()) {
+    } else if (_scrollController.position.pixels > 0 &&
+        _isSearchVisible &&
+        _isMobileDevice()) {
       setState(() {
         _isSearchVisible = false;
       });
@@ -98,15 +101,21 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
     final isLoading = state.status == ContractStatusState.loading;
     final isError = state.status == ContractStatusState.error;
     final searchQuery = _searchController.text;
-    final filteredContracts = List<Contract>.from(
-      searchQuery.isEmpty
+    final filteredContracts = List<Contract>.from(searchQuery.isEmpty
         ? contracts
-        : contracts.where((c) =>
-            c.number.toLowerCase().contains(searchQuery.toLowerCase()) ||
-            (c.contractorName?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false) ||
-            (c.objectName?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false)
-          ).toList()
-    )..sort((a, b) => b.date.compareTo(a.date));
+        : contracts
+            .where((c) =>
+                c.number.toLowerCase().contains(searchQuery.toLowerCase()) ||
+                (c.contractorName
+                        ?.toLowerCase()
+                        .contains(searchQuery.toLowerCase()) ??
+                    false) ||
+                (c.objectName
+                        ?.toLowerCase()
+                        .contains(searchQuery.toLowerCase()) ??
+                    false))
+            .toList())
+      ..sort((a, b) => b.date.compareTo(a.date));
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
@@ -123,7 +132,9 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                   isScrollControlled: true,
                   backgroundColor: Colors.transparent,
                   constraints: BoxConstraints(
-                    maxHeight: MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top - kToolbarHeight,
+                    maxHeight: MediaQuery.of(context).size.height -
+                        MediaQuery.of(context).padding.top -
+                        kToolbarHeight,
                   ),
                   builder: (context) {
                     final theme = Theme.of(context);
@@ -133,7 +144,8 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                       clipBehavior: Clip.antiAlias,
                       decoration: BoxDecoration(
                         color: theme.colorScheme.surface,
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+                        borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(32)),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withAlpha(46),
@@ -151,13 +163,15 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                         minChildSize: 0.5,
                         maxChildSize: 1.0,
                         expand: false,
-                        builder: (context, scrollController) => SingleChildScrollView(
+                        builder: (context, scrollController) =>
+                            SingleChildScrollView(
                           controller: scrollController,
                           child: Padding(
                             padding: EdgeInsets.only(
                               bottom: MediaQuery.of(context).viewInsets.bottom,
                             ),
-                            child: ContractFormModal(contract: selectedContract!),
+                            child:
+                                ContractFormModal(contract: selectedContract!),
                           ),
                         ),
                       ),
@@ -189,7 +203,8 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                   context: ctx,
                   builder: (ctx2) => AlertDialog(
                     title: const Text('Удалить договор?'),
-                    content: const Text('Вы уверены, что хотите удалить этот договор?'),
+                    content: const Text(
+                        'Вы уверены, что хотите удалить этот договор?'),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.of(ctx2).pop(false),
@@ -197,7 +212,8 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                       ),
                       TextButton(
                         onPressed: () => Navigator.of(ctx2).pop(true),
-                        child: const Text('Удалить', style: TextStyle(color: Colors.red)),
+                        child: const Text('Удалить',
+                            style: TextStyle(color: Colors.red)),
                       ),
                     ],
                   ),
@@ -205,7 +221,9 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                 if (!ctx.mounted) return;
                 if (confirmed == true) {
                   try {
-                    await ref.read(contractProvider.notifier).deleteContract(selectedContract!.id);
+                    await ref
+                        .read(contractProvider.notifier)
+                        .deleteContract(selectedContract!.id);
                     if (!ctx.mounted) return;
                     setState(() {
                       selectedContract = null;
@@ -213,7 +231,8 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                     SnackBarUtils.showError(ctx, 'Договор удалён');
                   } catch (e) {
                     if (!ctx.mounted) return;
-                    SnackBarUtils.showError(ctx, 'Ошибка удаления: ${e.toString()}');
+                    SnackBarUtils.showError(
+                        ctx, 'Ошибка удаления: ${e.toString()}');
                   }
                 }
               },
@@ -229,7 +248,9 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
             isScrollControlled: true,
             backgroundColor: Colors.transparent,
             constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top - kToolbarHeight,
+              maxHeight: MediaQuery.of(context).size.height -
+                  MediaQuery.of(context).padding.top -
+                  kToolbarHeight,
             ),
             builder: (context) {
               final theme = Theme.of(context);
@@ -239,7 +260,8 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                 clipBehavior: Clip.antiAlias,
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surface,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(32)),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withAlpha(46),
@@ -327,7 +349,9 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                           child: isLoading
                               ? const Center(child: CircularProgressIndicator())
                               : isError
-                                  ? Center(child: Text(state.errorMessage ?? 'Ошибка'))
+                                  ? Center(
+                                      child:
+                                          Text(state.errorMessage ?? 'Ошибка'))
                                   : filteredContracts.isEmpty
                                       ? Center(
                                           child: Text(
@@ -339,20 +363,31 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                                         )
                                       : ListView.builder(
                                           controller: _scrollController,
-                                          physics: const AlwaysScrollableScrollPhysics(),
+                                          physics:
+                                              const AlwaysScrollableScrollPhysics(),
                                           itemCount: filteredContracts.length,
                                           itemBuilder: (context, index) {
-                                            final contract = filteredContracts[index];
-                                            final isSelected = selectedContract?.id == contract.id;
+                                            final contract =
+                                                filteredContracts[index];
+                                            final isSelected =
+                                                selectedContract?.id ==
+                                                    contract.id;
                                             return Card(
-                                              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                              margin:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 12,
+                                                      vertical: 6),
                                               elevation: 0,
                                               shape: RoundedRectangleBorder(
-                                                borderRadius: BorderRadius.circular(12),
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
                                                 side: BorderSide(
                                                   color: isSelected
                                                       ? Colors.green
-                                                      : theme.colorScheme.outline.withValues(alpha: 0.1),
+                                                      : theme
+                                                          .colorScheme.outline
+                                                          .withValues(
+                                                              alpha: 0.1),
                                                   width: isSelected ? 2 : 1,
                                                 ),
                                               ),
@@ -362,46 +397,73 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                                                     selectedContract = contract;
                                                   });
                                                 },
-                                                borderRadius: BorderRadius.circular(12),
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
                                                 child: Padding(
-                                                  padding: const EdgeInsets.all(16.0),
+                                                  padding: const EdgeInsets.all(
+                                                      16.0),
                                                   child: Column(
-                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
                                                     children: [
                                                       Row(
                                                         children: [
                                                           Expanded(
                                                             child: Text(
                                                               '№ ${contract.number}',
-                                                              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                                                              style: theme
+                                                                  .textTheme
+                                                                  .titleMedium
+                                                                  ?.copyWith(
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .bold),
                                                               maxLines: 1,
-                                                              overflow: TextOverflow.ellipsis,
+                                                              overflow:
+                                                                  TextOverflow
+                                                                      .ellipsis,
                                                             ),
                                                           ),
-                                                          const SizedBox(width: 8),
+                                                          const SizedBox(
+                                                              width: 8),
                                                           AppBadge(
-                                                            text: _getContractStatusInfo(contract.status).$1,
-                                                            color: _getContractStatusInfo(contract.status).$2,
+                                                            text: _getContractStatusInfo(
+                                                                    contract
+                                                                        .status)
+                                                                .$1,
+                                                            color: _getContractStatusInfo(
+                                                                    contract
+                                                                        .status)
+                                                                .$2,
                                                           ),
                                                         ],
                                                       ),
                                                       const SizedBox(height: 4),
                                                       Text(
-                                                        _formatDate(contract.date),
-                                                        style: theme.textTheme.bodyMedium,
+                                                        _formatDate(
+                                                            contract.date),
+                                                        style: theme.textTheme
+                                                            .bodyMedium,
                                                       ),
                                                       const SizedBox(height: 4),
                                                       Text(
-                                                        contract.contractorName ?? '-',
-                                                        style: theme.textTheme.bodyMedium,
+                                                        contract.contractorName ??
+                                                            '-',
+                                                        style: theme.textTheme
+                                                            .bodyMedium,
                                                       ),
                                                       Text(
-                                                        contract.objectName ?? '-',
-                                                        style: theme.textTheme.bodyMedium,
+                                                        contract.objectName ??
+                                                            '-',
+                                                        style: theme.textTheme
+                                                            .bodyMedium,
                                                       ),
                                                       Text(
-                                                        _formatAmount(contract.amount),
-                                                        style: theme.textTheme.bodyMedium,
+                                                        _formatAmount(
+                                                            contract.amount),
+                                                        style: theme.textTheme
+                                                            .bodyMedium,
                                                       ),
                                                     ],
                                                   ),
@@ -486,7 +548,8 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                   child: !_isSearchVisible
                       ? NotificationListener<ScrollNotification>(
                           onNotification: (notification) {
-                            if (notification is OverscrollNotification && notification.overscroll < 0) {
+                            if (notification is OverscrollNotification &&
+                                notification.overscroll < 0) {
                               setState(() {
                                 _isSearchVisible = true;
                               });
@@ -496,7 +559,9 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                           child: isLoading
                               ? const Center(child: CircularProgressIndicator())
                               : isError
-                                  ? Center(child: Text(state.errorMessage ?? 'Ошибка'))
+                                  ? Center(
+                                      child:
+                                          Text(state.errorMessage ?? 'Ошибка'))
                                   : filteredContracts.isEmpty
                                       ? Center(
                                           child: Text(
@@ -508,17 +573,25 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                                         )
                                       : ListView.builder(
                                           controller: _scrollController,
-                                          physics: const AlwaysScrollableScrollPhysics(),
+                                          physics:
+                                              const AlwaysScrollableScrollPhysics(),
                                           itemCount: filteredContracts.length,
                                           itemBuilder: (context, index) {
-                                            final contract = filteredContracts[index];
+                                            final contract =
+                                                filteredContracts[index];
                                             return Card(
-                                              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                              margin:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 16,
+                                                      vertical: 8),
                                               elevation: 0,
                                               shape: RoundedRectangleBorder(
-                                                borderRadius: BorderRadius.circular(12),
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
                                                 side: BorderSide(
-                                                  color: theme.colorScheme.outline.withValues(alpha: 0.1),
+                                                  color: theme
+                                                      .colorScheme.outline
+                                                      .withValues(alpha: 0.1),
                                                   width: 1,
                                                 ),
                                               ),
@@ -526,50 +599,80 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                                                 onTap: () {
                                                   Navigator.of(context).push(
                                                     MaterialPageRoute(
-                                                      builder: (context) => ContractDetailsPanel(contract: contract),
+                                                      builder: (context) =>
+                                                          ContractDetailsPanel(
+                                                              contract:
+                                                                  contract),
                                                     ),
                                                   );
                                                 },
-                                                borderRadius: BorderRadius.circular(12),
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
                                                 child: Padding(
-                                                  padding: const EdgeInsets.all(16.0),
+                                                  padding: const EdgeInsets.all(
+                                                      16.0),
                                                   child: Column(
-                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
                                                     children: [
                                                       Row(
                                                         children: [
                                                           Expanded(
                                                             child: Text(
                                                               '№ ${contract.number}',
-                                                              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                                                              style: theme
+                                                                  .textTheme
+                                                                  .titleMedium
+                                                                  ?.copyWith(
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .bold),
                                                               maxLines: 1,
-                                                              overflow: TextOverflow.ellipsis,
+                                                              overflow:
+                                                                  TextOverflow
+                                                                      .ellipsis,
                                                             ),
                                                           ),
-                                                          const SizedBox(width: 8),
+                                                          const SizedBox(
+                                                              width: 8),
                                                           AppBadge(
-                                                            text: _getContractStatusInfo(contract.status).$1,
-                                                            color: _getContractStatusInfo(contract.status).$2,
+                                                            text: _getContractStatusInfo(
+                                                                    contract
+                                                                        .status)
+                                                                .$1,
+                                                            color: _getContractStatusInfo(
+                                                                    contract
+                                                                        .status)
+                                                                .$2,
                                                           ),
                                                         ],
                                                       ),
                                                       const SizedBox(height: 4),
                                                       Text(
-                                                        _formatDate(contract.date),
-                                                        style: theme.textTheme.bodyMedium,
+                                                        _formatDate(
+                                                            contract.date),
+                                                        style: theme.textTheme
+                                                            .bodyMedium,
                                                       ),
                                                       const SizedBox(height: 4),
                                                       Text(
-                                                        contract.contractorName ?? '-',
-                                                        style: theme.textTheme.bodyMedium,
+                                                        contract.contractorName ??
+                                                            '-',
+                                                        style: theme.textTheme
+                                                            .bodyMedium,
                                                       ),
                                                       Text(
-                                                        contract.objectName ?? '-',
-                                                        style: theme.textTheme.bodyMedium,
+                                                        contract.objectName ??
+                                                            '-',
+                                                        style: theme.textTheme
+                                                            .bodyMedium,
                                                       ),
                                                       Text(
-                                                        _formatAmount(contract.amount),
-                                                        style: theme.textTheme.bodyMedium,
+                                                        _formatAmount(
+                                                            contract.amount),
+                                                        style: theme.textTheme
+                                                            .bodyMedium,
                                                       ),
                                                     ],
                                                   ),
@@ -584,7 +687,9 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                           child: isLoading
                               ? const Center(child: CircularProgressIndicator())
                               : isError
-                                  ? Center(child: Text(state.errorMessage ?? 'Ошибка'))
+                                  ? Center(
+                                      child:
+                                          Text(state.errorMessage ?? 'Ошибка'))
                                   : filteredContracts.isEmpty
                                       ? Center(
                                           child: Text(
@@ -596,17 +701,25 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                                         )
                                       : ListView.builder(
                                           controller: _scrollController,
-                                          physics: const AlwaysScrollableScrollPhysics(),
+                                          physics:
+                                              const AlwaysScrollableScrollPhysics(),
                                           itemCount: filteredContracts.length,
                                           itemBuilder: (context, index) {
-                                            final contract = filteredContracts[index];
+                                            final contract =
+                                                filteredContracts[index];
                                             return Card(
-                                              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                              margin:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 16,
+                                                      vertical: 8),
                                               elevation: 0,
                                               shape: RoundedRectangleBorder(
-                                                borderRadius: BorderRadius.circular(12),
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
                                                 side: BorderSide(
-                                                  color: theme.colorScheme.outline.withValues(alpha: 0.1),
+                                                  color: theme
+                                                      .colorScheme.outline
+                                                      .withValues(alpha: 0.1),
                                                   width: 1,
                                                 ),
                                               ),
@@ -614,50 +727,80 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                                                 onTap: () {
                                                   Navigator.of(context).push(
                                                     MaterialPageRoute(
-                                                      builder: (context) => ContractDetailsPanel(contract: contract),
+                                                      builder: (context) =>
+                                                          ContractDetailsPanel(
+                                                              contract:
+                                                                  contract),
                                                     ),
                                                   );
                                                 },
-                                                borderRadius: BorderRadius.circular(12),
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
                                                 child: Padding(
-                                                  padding: const EdgeInsets.all(16.0),
+                                                  padding: const EdgeInsets.all(
+                                                      16.0),
                                                   child: Column(
-                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
                                                     children: [
                                                       Row(
                                                         children: [
                                                           Expanded(
                                                             child: Text(
                                                               '№ ${contract.number}',
-                                                              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                                                              style: theme
+                                                                  .textTheme
+                                                                  .titleMedium
+                                                                  ?.copyWith(
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .bold),
                                                               maxLines: 1,
-                                                              overflow: TextOverflow.ellipsis,
+                                                              overflow:
+                                                                  TextOverflow
+                                                                      .ellipsis,
                                                             ),
                                                           ),
-                                                          const SizedBox(width: 8),
+                                                          const SizedBox(
+                                                              width: 8),
                                                           AppBadge(
-                                                            text: _getContractStatusInfo(contract.status).$1,
-                                                            color: _getContractStatusInfo(contract.status).$2,
+                                                            text: _getContractStatusInfo(
+                                                                    contract
+                                                                        .status)
+                                                                .$1,
+                                                            color: _getContractStatusInfo(
+                                                                    contract
+                                                                        .status)
+                                                                .$2,
                                                           ),
                                                         ],
                                                       ),
                                                       const SizedBox(height: 4),
                                                       Text(
-                                                        _formatDate(contract.date),
-                                                        style: theme.textTheme.bodyMedium,
+                                                        _formatDate(
+                                                            contract.date),
+                                                        style: theme.textTheme
+                                                            .bodyMedium,
                                                       ),
                                                       const SizedBox(height: 4),
                                                       Text(
-                                                        contract.contractorName ?? '-',
-                                                        style: theme.textTheme.bodyMedium,
+                                                        contract.contractorName ??
+                                                            '-',
+                                                        style: theme.textTheme
+                                                            .bodyMedium,
                                                       ),
                                                       Text(
-                                                        contract.objectName ?? '-',
-                                                        style: theme.textTheme.bodyMedium,
+                                                        contract.objectName ??
+                                                            '-',
+                                                        style: theme.textTheme
+                                                            .bodyMedium,
                                                       ),
                                                       Text(
-                                                        _formatAmount(contract.amount),
-                                                        style: theme.textTheme.bodyMedium,
+                                                        _formatAmount(
+                                                            contract.amount),
+                                                        style: theme.textTheme
+                                                            .bodyMedium,
                                                       ),
                                                     ],
                                                   ),
@@ -693,17 +836,20 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
 class ContractDetailsPanel extends ConsumerStatefulWidget {
   /// Данные договора для отображения.
   final Contract contract;
+
   /// Создаёт панель деталей для [contract].
   const ContractDetailsPanel({super.key, required this.contract});
 
   @override
-  ConsumerState<ContractDetailsPanel> createState() => _ContractDetailsPanelState();
+  ConsumerState<ContractDetailsPanel> createState() =>
+      _ContractDetailsPanelState();
 }
 
 /// Состояние панели деталей договора.
 ///
 /// Управляет табами, загрузкой связанных данных, отображением секций.
-class _ContractDetailsPanelState extends ConsumerState<ContractDetailsPanel> with SingleTickerProviderStateMixin {
+class _ContractDetailsPanelState extends ConsumerState<ContractDetailsPanel>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
@@ -726,15 +872,18 @@ class _ContractDetailsPanelState extends ConsumerState<ContractDetailsPanel> wit
     final contractors = ref.watch(contractorProvider).contractors;
     final objects = ref.watch(objectProvider).objects;
     // Ищем контрагента и объект по id
-    final contractor = contractors.where((c) => c.id == contract.contractorId).isNotEmpty
-      ? contractors.firstWhere((c) => c.id == contract.contractorId)
-      : null;
+    final contractor =
+        contractors.where((c) => c.id == contract.contractorId).isNotEmpty
+            ? contractors.firstWhere((c) => c.id == contract.contractorId)
+            : null;
     final object = objects.where((o) => o.id == contract.objectId).isNotEmpty
-      ? objects.firstWhere((o) => o.id == contract.objectId)
-      : null;
+        ? objects.firstWhere((o) => o.id == contract.objectId)
+        : null;
     final contractorDisplay = contractor != null
-      ? (contractor.shortName.isNotEmpty ? contractor.shortName : contractor.fullName)
-      : contract.contractorId;
+        ? (contractor.shortName.isNotEmpty
+            ? contractor.shortName
+            : contractor.fullName)
+        : contract.contractorId;
     final objectDisplay = object != null ? object.name : contract.objectId;
     final (statusText, statusColor) = _getContractStatusInfo(contract.status);
 
@@ -760,7 +909,8 @@ class _ContractDetailsPanelState extends ConsumerState<ContractDetailsPanel> wit
               CircleAvatar(
                 radius: 36,
                 backgroundColor: theme.colorScheme.primary.withAlpha(20),
-                child: Icon(Icons.description_rounded, size: 40, color: theme.colorScheme.primary),
+                child: Icon(Icons.description_rounded,
+                    size: 40, color: theme.colorScheme.primary),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -769,7 +919,9 @@ class _ContractDetailsPanelState extends ConsumerState<ContractDetailsPanel> wit
                   children: [
                     Row(
                       children: [
-                        Text('№${contract.number}', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                        Text('№${contract.number}',
+                            style: theme.textTheme.titleLarge
+                                ?.copyWith(fontWeight: FontWeight.bold)),
                         const SizedBox(width: 12),
                         AppBadge(
                           text: statusText,
@@ -778,9 +930,12 @@ class _ContractDetailsPanelState extends ConsumerState<ContractDetailsPanel> wit
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Text('Сумма: ${_formatAmount(contract.amount)} ₽', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                    Text('Сумма: ${_formatAmount(contract.amount)} ₽',
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w600)),
                     const SizedBox(height: 8),
-                    Text('от ${_formatDate(contract.date)}', style: theme.textTheme.bodyMedium),
+                    Text('от ${_formatDate(contract.date)}',
+                        style: theme.textTheme.bodyMedium),
                   ],
                 ),
               ),
@@ -809,7 +964,8 @@ class _ContractDetailsPanelState extends ConsumerState<ContractDetailsPanel> wit
                     _buildInfoItem('Номер', contract.number),
                     _buildInfoItem('Дата', _formatDate(contract.date)),
                     if (contract.endDate != null)
-                      _buildInfoItem('Дата окончания', _formatDate(contract.endDate!)),
+                      _buildInfoItem(
+                          'Дата окончания', _formatDate(contract.endDate!)),
                     _buildInfoItem('Статус', _statusText(contract.status)),
                     _buildInfoItem('Сумма', _formatAmount(contract.amount)),
                   ]),
@@ -831,9 +987,11 @@ class _ContractDetailsPanelState extends ConsumerState<ContractDetailsPanel> wit
                 children: [
                   _buildSection('История', [
                     if (contract.createdAt != null)
-                      _buildInfoItem('Создан', _formatDateTime(contract.createdAt!)),
+                      _buildInfoItem(
+                          'Создан', _formatDateTime(contract.createdAt!)),
                     if (contract.updatedAt != null)
-                      _buildInfoItem('Обновлён', _formatDateTime(contract.updatedAt!)),
+                      _buildInfoItem(
+                          'Обновлён', _formatDateTime(contract.updatedAt!)),
                   ]),
                 ],
               ),
@@ -861,7 +1019,9 @@ class _ContractDetailsPanelState extends ConsumerState<ContractDetailsPanel> wit
                   isScrollControlled: true,
                   backgroundColor: Colors.transparent,
                   constraints: BoxConstraints(
-                    maxHeight: MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top - kToolbarHeight,
+                    maxHeight: MediaQuery.of(context).size.height -
+                        MediaQuery.of(context).padding.top -
+                        kToolbarHeight,
                   ),
                   builder: (context) {
                     final theme = Theme.of(context);
@@ -871,7 +1031,8 @@ class _ContractDetailsPanelState extends ConsumerState<ContractDetailsPanel> wit
                       clipBehavior: Clip.antiAlias,
                       decoration: BoxDecoration(
                         color: theme.colorScheme.surface,
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+                        borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(32)),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withAlpha(46),
@@ -889,7 +1050,8 @@ class _ContractDetailsPanelState extends ConsumerState<ContractDetailsPanel> wit
                         minChildSize: 0.5,
                         maxChildSize: 1.0,
                         expand: false,
-                        builder: (context, scrollController) => SingleChildScrollView(
+                        builder: (context, scrollController) =>
+                            SingleChildScrollView(
                           controller: scrollController,
                           child: Padding(
                             padding: EdgeInsets.only(
@@ -925,7 +1087,8 @@ class _ContractDetailsPanelState extends ConsumerState<ContractDetailsPanel> wit
                   context: context,
                   builder: (ctx2) => AlertDialog(
                     title: const Text('Удалить договор?'),
-                    content: const Text('Вы уверены, что хотите удалить этот договор?'),
+                    content: const Text(
+                        'Вы уверены, что хотите удалить этот договор?'),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.of(ctx2).pop(false),
@@ -933,7 +1096,8 @@ class _ContractDetailsPanelState extends ConsumerState<ContractDetailsPanel> wit
                       ),
                       TextButton(
                         onPressed: () => Navigator.of(ctx2).pop(true),
-                        child: const Text('Удалить', style: TextStyle(color: Colors.red)),
+                        child: const Text('Удалить',
+                            style: TextStyle(color: Colors.red)),
                       ),
                     ],
                   ),
@@ -941,13 +1105,16 @@ class _ContractDetailsPanelState extends ConsumerState<ContractDetailsPanel> wit
                 if (!context.mounted) return;
                 if (confirmed == true) {
                   try {
-                    await ref.read(contractProvider.notifier).deleteContract(contract.id);
+                    await ref
+                        .read(contractProvider.notifier)
+                        .deleteContract(contract.id);
                     if (!context.mounted) return;
                     context.pop();
                     SnackBarUtils.showError(context, 'Договор удалён');
                   } catch (e) {
                     if (!context.mounted) return;
-                    SnackBarUtils.showError(context, 'Ошибка удаления: ${e.toString()}');
+                    SnackBarUtils.showError(
+                        context, 'Ошибка удаления: ${e.toString()}');
                   }
                 }
               },
@@ -976,7 +1143,9 @@ class _ContractDetailsPanelState extends ConsumerState<ContractDetailsPanel> wit
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+            Text(title,
+                style: theme.textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             ...children,
           ],
@@ -995,10 +1164,14 @@ class _ContractDetailsPanelState extends ConsumerState<ContractDetailsPanel> wit
         children: [
           SizedBox(
             width: 140,
-            child: Text(label, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurface.withAlpha(180))),
+            child: Text(label,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurface.withAlpha(180))),
           ),
           Expanded(
-            child: Text(value, style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500)),
+            child: Text(value,
+                style: theme.textTheme.bodyLarge
+                    ?.copyWith(fontWeight: FontWeight.w500)),
           ),
         ],
       ),
@@ -1044,4 +1217,4 @@ class _ContractDetailsPanelState extends ConsumerState<ContractDetailsPanel> wit
     case ContractStatus.completed:
       return ('Завершен', Colors.grey);
   }
-} 
+}

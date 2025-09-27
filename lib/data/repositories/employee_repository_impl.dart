@@ -28,17 +28,15 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
 
   @override
   Future<Employee> createEmployee(Employee employee) async {
-    final employeeModel = await dataSource.createEmployee(
-      EmployeeModel.fromDomain(employee)
-    );
+    final employeeModel =
+        await dataSource.createEmployee(EmployeeModel.fromDomain(employee));
     return employeeModel.toDomain();
   }
 
   @override
   Future<Employee> updateEmployee(Employee employee) async {
-    final employeeModel = await dataSource.updateEmployee(
-      EmployeeModel.fromDomain(employee)
-    );
+    final employeeModel =
+        await dataSource.updateEmployee(EmployeeModel.fromDomain(employee));
     return employeeModel.toDomain();
   }
 
@@ -63,4 +61,4 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     }
     return positions.toList()..sort();
   }
-} 
+}

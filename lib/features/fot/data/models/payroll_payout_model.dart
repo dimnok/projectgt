@@ -4,13 +4,13 @@ part 'payroll_payout_model.freezed.dart';
 part 'payroll_payout_model.g.dart';
 
 /// Модель выплаты по расчёту ФОТ.
-/// 
+///
 /// Используется для представления информации о выплате, связанной с расчётом фонда оплаты труда (ФОТ).
 /// Содержит идентификаторы, сумму, дату выплаты, способ, тип, статус и дату создания.
 @freezed
 abstract class PayrollPayoutModel with _$PayrollPayoutModel {
   /// Конструктор модели выплаты.
-  /// 
+  ///
   /// [id] — уникальный идентификатор выплаты.
   /// [employeeId] — идентификатор сотрудника.
   /// [amount] — сумма выплаты.
@@ -29,5 +29,6 @@ abstract class PayrollPayoutModel with _$PayrollPayoutModel {
   }) = _PayrollPayoutModel;
 
   /// Создаёт экземпляр [PayrollPayoutModel] из JSON.
-  factory PayrollPayoutModel.fromJson(Map<String, dynamic> json) => _$PayrollPayoutModelFromJson(json);
-} 
+  factory PayrollPayoutModel.fromJson(Map<String, dynamic> json) =>
+      _$PayrollPayoutModelFromJson(json);
+}

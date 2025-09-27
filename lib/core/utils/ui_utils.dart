@@ -71,11 +71,12 @@ class UIUtils {
         ),
       ),
       padding: WidgetStateProperty.all<EdgeInsets>(
-        padding ?? const EdgeInsets.symmetric(
-          horizontal: 24,
-          vertical: 12,
-        ),
+        padding ??
+            const EdgeInsets.symmetric(
+              horizontal: 24,
+              vertical: 12,
+            ),
       ),
     );
   }
-} 
+}

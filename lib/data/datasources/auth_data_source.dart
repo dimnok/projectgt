@@ -32,6 +32,21 @@ abstract class AuthDataSource {
   ///
   /// Возвращает [UserModel], если пользователь авторизован, иначе null.
   Future<UserModel?> getCurrentUser();
+
+  /// Отправляет 6-значный код подтверждения на email (passwordless OTP).
+  Future<void> requestEmailOtp(String email);
+
+  /// Подтверждает 6-значный код и возвращает пользователя.
+  Future<UserModel> verifyEmailOtp(String email, String code);
+
+  /// Обновляет профиль пользователя при первой авторизации.
+  ///
+  /// [fullName] — полное ФИО пользователя.
+  /// [phone] — номер телефона в формате +7-(XXX)-XXX-XXXX.
+  Future<void> updateProfile({
+    required String fullName,
+    required String phone,
+  });
 }
 
 /// Реализация [AuthDataSource] через Supabase.
@@ -40,6 +55,9 @@ abstract class AuthDataSource {
 class SupabaseAuthDataSource implements AuthDataSource {
   /// Экземпляр клиента Supabase.
   final SupabaseClient client;
+
+  /// Логгер для записи событий.
+  final Logger logger = Logger();
 
   /// Создаёт источник данных аутентификации через Supabase.
   ///
@@ -53,11 +71,11 @@ class SupabaseAuthDataSource implements AuthDataSource {
         email: email,
         password: password,
       );
-      
+
       if (response.user == null) {
         throw Exception('Неверные учетные данные');
       }
-      
+
       // Получаем роль пользователя из профиля
       String role = 'user';
       try {
@@ -66,14 +84,14 @@ class SupabaseAuthDataSource implements AuthDataSource {
             .select('role')
             .eq('id', response.user!.id)
             .single();
-        
+
         if (profileData['role'] != null) {
           role = profileData['role'];
         }
       } catch (e) {
         Logger().e('Ошибка при получении роли: $e');
       }
-      
+
       return UserModel(
         id: response.user!.id,
         email: response.user!.email!,
@@ -84,7 +102,7 @@ class SupabaseAuthDataSource implements AuthDataSource {
     } catch (e) {
       // Обрабатываем конкретные ошибки Supabase
       final errorMessage = e.toString();
-      if (errorMessage.contains('invalid_credentials') || 
+      if (errorMessage.contains('invalid_credentials') ||
           errorMessage.contains('Invalid login credentials')) {
         throw Exception('Неверный email или пароль');
       } else if (errorMessage.contains('network')) {
@@ -105,50 +123,18 @@ class SupabaseAuthDataSource implements AuthDataSource {
           'name': name,
         },
       );
-      
+
       if (response.user == null) {
         throw Exception('Ошибка регистрации');
       }
-      
-      // По умолчанию роль 'user'
-      const role = 'user';
-      
-      // Создаем запись в таблице profiles
-      final userId = response.user!.id;
-      final fullName = name;
-      
-      // Генерируем сокращенное имя из полного
-      String? shortName;
-      if (fullName.isNotEmpty) {
-        final nameParts = fullName.split(' ');
-        if (nameParts.length > 1) {
-          // Если есть несколько частей в имени, используем инициалы
-          shortName = '${nameParts[0]} ${nameParts.sublist(1).map((p) => p.isNotEmpty ? '${p[0]}.' : '').join(' ')}';
-        } else {
-          shortName = fullName;
-        }
-      }
-      
-      // Создаем запись в таблице profiles
-      await client.from('profiles').insert({
-        'id': userId,
-        'email': email,
-        'full_name': fullName,
-        'short_name': shortName,
-        'role': role,
-        'status': true,
-        'created_at': DateTime.now().toIso8601String(),
-        'updated_at': DateTime.now().toIso8601String(),
-      });
-      
-      Logger().i('Профиль пользователя создан: $userId, $fullName, $shortName, роль: $role');
-      
+
+      // Профиль создастся серверным триггером handle_new_user(); возвращаем UserModel с базовыми полями
       return UserModel(
-        id: userId,
+        id: response.user!.id,
         email: email,
         name: name,
         photoUrl: null,
-        role: role,
+        role: 'user',
       );
     } catch (e) {
       // Обрабатываем конкретные ошибки Supabase
@@ -172,12 +158,20 @@ class SupabaseAuthDataSource implements AuthDataSource {
 
   @override
   Future<UserModel?> getCurrentUser() async {
-    final user = client.auth.currentUser;
-    
+    var user = client.auth.currentUser;
+    // Если локально пользователь ещё не подхвачен, пробуем получить через API
     if (user == null) {
-      return null;
+      try {
+        final res = await client.auth.getUser();
+        user = res.user;
+      } catch (e) {
+        // игнорируем, вернём null ниже
+      }
+      if (user == null) {
+        return null;
+      }
     }
-    
+
     // Получаем роль пользователя из профиля
     String role = 'user';
     try {
@@ -186,20 +180,127 @@ class SupabaseAuthDataSource implements AuthDataSource {
           .select('role')
           .eq('id', user.id)
           .single();
-      
+
       if (profileData['role'] != null) {
         role = profileData['role'];
       }
     } catch (e) {
       Logger().e('Ошибка при получении роли: $e');
     }
-    
+
     return UserModel(
       id: user.id,
-      email: user.email!,
+      email: user.email ?? '',
       name: user.userMetadata?['name'] as String?,
       photoUrl: user.userMetadata?['photoUrl'] as String?,
       role: role,
     );
   }
-} 
+
+  @override
+  Future<void> requestEmailOtp(String email) async {
+    try {
+      await client.auth.signInWithOtp(
+        email: email,
+        shouldCreateUser: true,
+      );
+      // Доп. гарантия для НОВЫХ пользователей: отправим confirm-signup OTP
+      try {
+        await client.auth.resend(
+          type: OtpType.signup,
+          email: email,
+        );
+      } catch (_) {
+        // игнорируем, если пользователь уже существует
+      }
+    } catch (e) {
+      final message = e.toString();
+      if (message.contains('network')) {
+        throw Exception('Ошибка сети. Проверьте подключение к интернету');
+      }
+      throw Exception('Не удалось отправить код: $e');
+    }
+  }
+
+  @override
+  Future<UserModel> verifyEmailOtp(String email, String code) async {
+    try {
+      // Пытаемся сначала как обычный email OTP
+      var res = await client.auth.verifyOTP(
+        email: email,
+        token: code,
+        type: OtpType.email,
+      );
+
+      final authed = res.user ?? client.auth.currentUser;
+      if (authed == null) {
+        // Возможен сценарий confirm-signup OTP для нового пользователя
+        res = await client.auth.verifyOTP(
+          email: email,
+          token: code,
+          type: OtpType.signup,
+        );
+      }
+      final user = res.user ?? client.auth.currentUser;
+      if (user == null) {
+        throw Exception('Не удалось подтвердить код');
+      }
+
+      String role = 'user';
+      try {
+        final profileData = await client
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+        if (profileData['role'] != null) {
+          role = profileData['role'];
+        }
+      } catch (_) {}
+
+      return UserModel(
+        id: user.id,
+        email: user.email ?? email,
+        name: user.userMetadata?['name'] as String?,
+        photoUrl: user.userMetadata?['photoUrl'] as String?,
+        role: role,
+      );
+    } catch (e) {
+      final message = e.toString();
+      if (message.contains('Token has expired') ||
+          message.contains('Invalid token')) {
+        throw Exception('Неверный или просроченный код');
+      }
+      if (message.contains('network')) {
+        throw Exception('Ошибка сети. Проверьте подключение к интернету');
+      }
+      throw Exception('Ошибка подтверждения кода: $e');
+    }
+  }
+
+  @override
+  Future<void> updateProfile({
+    required String fullName,
+    required String phone,
+  }) async {
+    final currentUser = client.auth.currentUser;
+    if (currentUser == null) {
+      throw Exception('Пользователь не авторизован');
+    }
+
+    try {
+      // Обновляем только поля full_name и phone для текущего пользователя
+      await client.from('profiles').update({
+        'full_name': fullName.trim(),
+        'phone': phone.trim(),
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', currentUser.id);
+
+      // Логируем успешное обновление профиля
+      logger.i('Профиль пользователя обновлён: ${currentUser.id}');
+    } catch (e) {
+      logger.e('Ошибка обновления профиля: $e');
+      throw Exception('Не удалось обновить профиль: $e');
+    }
+  }
+}

@@ -19,22 +19,30 @@ abstract class WorkMaterialModel with _$WorkMaterialModel {
   const factory WorkMaterialModel({
     /// Идентификатор материала.
     required String id,
+
     /// Идентификатор смены.
     @JsonKey(name: 'work_id') required String workId,
+
     /// Наименование материала.
     required String name,
+
     /// Единица измерения.
     required String unit,
+
     /// Количество.
     required num quantity,
+
     /// Комментарий к материалу.
     String? comment,
+
     /// Дата создания записи.
     @JsonKey(name: 'created_at') DateTime? createdAt,
+
     /// Дата последнего обновления.
     @JsonKey(name: 'updated_at') DateTime? updatedAt,
   }) = _WorkMaterialModel;
 
   /// Создаёт data-модель материала смены из JSON.
-  factory WorkMaterialModel.fromJson(Map<String, dynamic> json) => _$WorkMaterialModelFromJson(json);
-} 
+  factory WorkMaterialModel.fromJson(Map<String, dynamic> json) =>
+      _$WorkMaterialModelFromJson(json);
+}

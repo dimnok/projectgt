@@ -15,4 +15,4 @@ class UpdateEstimateUseCase {
   Future<void> call(Estimate estimate) async {
     await repository.updateEstimate(estimate);
   }
-} 
+}

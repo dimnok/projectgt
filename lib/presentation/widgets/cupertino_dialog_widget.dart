@@ -8,27 +8,27 @@ import 'package:go_router/go_router.dart';
 class CupertinoConfirmDialog extends StatelessWidget {
   /// Заголовок диалога.
   final String title;
-  
+
   /// Сообщение или описание.
   final String message;
-  
+
   /// Текст кнопки отмены.
   final String cancelButtonText;
-  
+
   /// Текст кнопки подтверждения.
   final String confirmButtonText;
-  
+
   /// Действие при подтверждении.
   final VoidCallback onConfirm;
-  
+
   /// Действие при отмене (опционально).
   final VoidCallback? onCancel;
-  
+
   /// Является ли действие подтверждения деструктивным (выделяется красным цветом).
   final bool isDestructiveAction;
-  
+
   /// Виджет содержимого (опциональный).
-  /// 
+  ///
   /// Если указан, заменяет стандартное текстовое сообщение.
   final Widget? contentWidget;
 
@@ -71,7 +71,7 @@ class CupertinoConfirmDialog extends StatelessWidget {
 /// Вспомогательные методы для показа диалогов Cupertino
 class CupertinoDialogs {
   /// Показывает подтверждающий диалог в стиле iOS
-  /// 
+  ///
   /// Упрощает использование CupertinoConfirmDialog, автоматически
   /// вызывая showCupertinoDialog.
   static Future<T?> showConfirmDialog<T>({
@@ -112,9 +112,9 @@ class CupertinoDialogs {
       ),
     );
   }
-  
+
   /// Показывает диалог подтверждения дублирования в стиле iOS
-  /// 
+  ///
   /// Специализированный диалог для подтверждения операции дублирования записи.
   static Future<T?> showDuplicateConfirmDialog<T>({
     required BuildContext context,
@@ -153,15 +153,16 @@ class CupertinoDialogs {
       ),
     );
   }
-  
+
   /// Показывает диалог подтверждения удаления в стиле iOS
-  /// 
+  ///
   /// Специализированный диалог для подтверждения операции удаления записи.
   static Future<T?> showDeleteConfirmDialog<T>({
     required BuildContext context,
     required VoidCallback onConfirm,
     String title = 'Подтверждение удаления',
-    String message = 'Вы уверены, что хотите удалить эту запись? Это действие невозможно отменить.',
+    String message =
+        'Вы уверены, что хотите удалить эту запись? Это действие невозможно отменить.',
     String cancelButtonText = 'Отмена',
     String confirmButtonText = 'Удалить',
     VoidCallback? onCancel,
@@ -194,9 +195,9 @@ class CupertinoDialogs {
       ),
     );
   }
-  
+
   /// Показывает диалог с сообщением в стиле iOS
-  /// 
+  ///
   /// Простой диалог с одной кнопкой "OK"
   static Future<T?> showMessageDialog<T>({
     required BuildContext context,
@@ -223,4 +224,4 @@ class CupertinoDialogs {
       ),
     );
   }
-} 
+}

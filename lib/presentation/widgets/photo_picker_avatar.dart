@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -95,37 +96,34 @@ class PhotoPickerAvatar extends ConsumerWidget {
     final theme = Theme.of(context);
     return Column(
       children: [
-        Stack(
-          children: [
-            CircleAvatar(
+        Material(
+          color: Colors.transparent,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: isLoading ? null : () => _showPhotoOptions(context, ref),
+            child: CircleAvatar(
               radius: radius,
-              backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.08),
+              backgroundColor:
+                  theme.colorScheme.primary.withValues(alpha: 0.08),
               backgroundImage: localFile != null
                   ? FileImage(localFile!) as ImageProvider<Object>?
                   : (imageUrl != null && imageUrl!.isNotEmpty)
-                      ? CachedNetworkImageProvider(imageUrl!) as ImageProvider<Object>?
+                      ? CachedNetworkImageProvider(imageUrl!)
+                          as ImageProvider<Object>?
                       : null,
-              child: (localFile == null && (imageUrl == null || imageUrl!.isEmpty))
-                  ? Icon(placeholderIcon, size: radius, color: theme.colorScheme.primary)
-                  : null,
+              child:
+                  (localFile == null && (imageUrl == null || imageUrl!.isEmpty))
+                      ? Icon(placeholderIcon,
+                          size: radius, color: theme.colorScheme.primary)
+                      : null,
             ),
-            Positioned(
-              bottom: 0,
-              right: 0,
-              child: InkWell(
-                onTap: isLoading ? null : () => _showPhotoOptions(context, ref),
-                borderRadius: BorderRadius.circular(24),
-                child: CircleAvatar(
-                  radius: 18,
-                  backgroundColor: theme.colorScheme.primary,
-                  child: Icon(Icons.photo_camera, color: theme.colorScheme.onPrimary, size: 18),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
-        const SizedBox(height: 8),
-        Text(label, style: theme.textTheme.bodySmall),
+        if (label.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(label, style: theme.textTheme.bodySmall),
+        ],
       ],
     );
   }
@@ -146,7 +144,8 @@ class PhotoPickerAvatar extends ConsumerWidget {
           children: [
             Text(
               label,
-              style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              style: theme.textTheme.titleLarge
+                  ?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),
             Row(
@@ -169,7 +168,9 @@ class PhotoPickerAvatar extends ConsumerWidget {
                     _pickAndUpload(context, ref, ImageSource.gallery);
                   },
                 ),
-                if (allowDelete && (localFile != null || (imageUrl != null && imageUrl!.isNotEmpty)))
+                if (allowDelete &&
+                    (localFile != null ||
+                        (imageUrl != null && imageUrl!.isNotEmpty)))
                   _PhotoOptionButton(
                     icon: Icons.delete_outline,
                     label: 'Удалить',
@@ -198,17 +199,31 @@ class PhotoPickerAvatar extends ConsumerWidget {
   }
 
   /// Открывает image picker и возвращает выбранное фото через onPhotoChanged.
-  Future<void> _pickAndUpload(BuildContext context, WidgetRef ref, ImageSource source) async {
+  Future<void> _pickAndUpload(
+      BuildContext context, WidgetRef ref, ImageSource source) async {
     final photoService = ref.read(photoServiceProvider);
-    final picked = await photoService.pickImage(source);
-    if (picked != null) {
-      final url = await photoService.uploadPhoto(
-        entity: entity,
-        id: id,
-        file: picked,
-        displayName: displayName,
-      );
-      onPhotoChanged(url);
+    if (kIsWeb) {
+      final Uint8List? bytes = await photoService.pickImageBytes(source);
+      if (bytes != null) {
+        final url = await photoService.uploadPhotoBytes(
+          entity: entity,
+          id: id,
+          bytes: bytes,
+          displayName: displayName,
+        );
+        onPhotoChanged(url);
+      }
+    } else {
+      final picked = await photoService.pickImage(source);
+      if (picked != null) {
+        final url = await photoService.uploadPhoto(
+          entity: entity,
+          id: id,
+          file: picked,
+          displayName: displayName,
+        );
+        onPhotoChanged(url);
+      }
     }
   }
 }
@@ -217,11 +232,14 @@ class PhotoPickerAvatar extends ConsumerWidget {
 class _PhotoOptionButton extends StatelessWidget {
   /// Иконка опции.
   final IconData icon;
+
   /// Подпись опции.
   final String label;
+
   /// Колбэк при выборе.
   final VoidCallback onTap;
-  const _PhotoOptionButton({required this.icon, required this.label, required this.onTap});
+  const _PhotoOptionButton(
+      {required this.icon, required this.label, required this.onTap});
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -232,7 +250,8 @@ class _PhotoOptionButton extends StatelessWidget {
           child: CircleAvatar(
             radius: 24,
             backgroundColor: Theme.of(context).colorScheme.primary,
-            child: Icon(icon, color: Theme.of(context).colorScheme.onPrimary, size: 24),
+            child: Icon(icon,
+                color: Theme.of(context).colorScheme.onPrimary, size: 24),
           ),
         ),
         const SizedBox(height: 8),
@@ -240,4 +259,4 @@ class _PhotoOptionButton extends StatelessWidget {
       ],
     );
   }
-} 
+}

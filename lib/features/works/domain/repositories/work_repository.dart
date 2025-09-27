@@ -1,7 +1,7 @@
 import '../entities/work.dart';
 
 /// Абстрактный репозиторий для работы со сменами.
-/// 
+///
 /// Определяет методы для получения, создания, обновления и удаления смен.
 abstract class WorkRepository {
   /// Возвращает список всех смен.
@@ -18,4 +18,4 @@ abstract class WorkRepository {
 
   /// Удаляет смену по идентификатору [id].
   Future<void> deleteWork(String id);
-} 
+}

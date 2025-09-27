@@ -29,4 +29,4 @@ class UpdateContractUseCase {
   Future<Contract> execute(Contract contract) async {
     return repository.updateContract(contract);
   }
-} 
+}
