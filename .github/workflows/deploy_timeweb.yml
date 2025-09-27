@@ -34,8 +34,10 @@ jobs:
             --dart-define=SUPABASE_URL=${SUPABASE_URL} \
             --dart-define=SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
 
-      - name: Setup AWS CLI
-        uses: aws-actions/setup-aws-cli@v4
+      - name: Install AWS CLI via pip
+        run: |
+          python3 -m pip install --upgrade --user pip awscli
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Deploy to Timeweb S3
         run: |
