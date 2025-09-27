@@ -104,11 +104,8 @@ class ExportService {
         'quantity': 'Количество',
         'price': 'Цена за единицу',
         'total': 'Итоговая сумма',
-        'employee': 'Сотрудник',
-        'hours': 'Часы',
-        'materials': 'Материалы',
       };
-      final selectedColumns = columns ??
+      final selectedColumns = (columns ??
           [
             'date',
             'object',
@@ -123,10 +120,9 @@ class ExportService {
             'quantity',
             'price',
             'total',
-            'employee',
-            'hours',
-            'materials',
-          ];
+          ])
+        ..removeWhere(
+            (k) => k == 'employee' || k == 'hours' || k == 'materials');
 
       // Стили
       final headerStyle = CellStyle(
@@ -235,9 +231,6 @@ class ExportService {
                 break;
               case 'section':
               case 'floor':
-              case 'employee':
-              case 'hours':
-              case 'materials':
                 value = TextCellValue('');
                 break;
               case 'unit':
@@ -308,17 +301,6 @@ class ExportService {
                 value = report.total != null
                     ? DoubleCellValue(report.total!)
                     : TextCellValue('');
-                break;
-              case 'employee':
-                value = TextCellValue(report.employeeName ?? '');
-                break;
-              case 'hours':
-                value = report.hours != null
-                    ? DoubleCellValue(report.hours!.toDouble())
-                    : TextCellValue('');
-                break;
-              case 'materials':
-                value = TextCellValue(report.materials ?? '');
                 break;
               default:
                 value = TextCellValue('');

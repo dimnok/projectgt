@@ -6,6 +6,7 @@ import 'dart:async';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import '../../providers/work_search_provider.dart';
 import '../../providers/export_provider.dart';
+import '../../widgets/export_date_filter.dart';
 
 /// Таб "Поиск" для расширенного поиска и фильтрации данных.
 /// Включает в себя собственные табы под блоком фильтров.
@@ -27,17 +28,7 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
   /// Контроллер для поля поиска.
   final TextEditingController _searchController = TextEditingController();
 
-  /// Контроллер для даты начала.
-  final TextEditingController _startDateController = TextEditingController();
-
-  /// Контроллер для даты окончания.
-  final TextEditingController _endDateController = TextEditingController();
-
-  /// Выбранная дата начала.
-  DateTime? _startDate;
-
-  /// Выбранная дата окончания.
-  DateTime? _endDate;
+  /// Диапазон дат берём из exportDateRangeProvider (кнопка в AppBar)
 
   /// Выбранный объект.
   String? _selectedObjectId;
@@ -69,8 +60,6 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
     _debounceTimer?.cancel();
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
-    _startDateController.dispose();
-    _endDateController.dispose();
     super.dispose();
   }
 
@@ -98,10 +87,7 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
     }
   }
 
-  /// Форматирует дату для отображения в стиле основного экспорта.
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
-  }
+  // Форматирование периода выполняется в AppBar чипе, локальная функция не нужна
 
   @override
   Widget build(BuildContext context) {
@@ -232,12 +218,6 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
             if (isDesktop)
               Row(
                 children: [
-                  // Период
-                  Expanded(
-                    flex: 2,
-                    child: _buildPeriodFilter(theme),
-                  ),
-                  const SizedBox(width: 16),
                   // Объект
                   Expanded(
                     child: _buildObjectFilter(theme, objectsAsync),
@@ -253,8 +233,6 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
             else
               Column(
                 children: [
-                  _buildPeriodFilter(theme),
-                  const SizedBox(height: 16),
                   _buildObjectFilter(theme, objectsAsync),
                   const SizedBox(height: 16),
                   _buildSearchField(theme),
@@ -267,46 +245,7 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
     );
   }
 
-  /// Создает фильтр по периоду.
-  Widget _buildPeriodFilter(ThemeData theme) {
-    return Row(
-      children: [
-        // Дата начала
-        Expanded(
-          child: TextFormField(
-            controller: _startDateController,
-            readOnly: true,
-            decoration: InputDecoration(
-              labelText: 'Дата начала',
-              hintText: 'Выберите дату',
-              border:
-                  OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-              prefixIcon: const Icon(Icons.date_range),
-              suffixIcon: const Icon(Icons.keyboard_arrow_down),
-            ),
-            onTap: () => _selectStartDate(context),
-          ),
-        ),
-        const SizedBox(width: 12),
-        // Дата окончания
-        Expanded(
-          child: TextFormField(
-            controller: _endDateController,
-            readOnly: true,
-            decoration: InputDecoration(
-              labelText: 'Дата окончания',
-              hintText: 'Выберите дату',
-              border:
-                  OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-              prefixIcon: const Icon(Icons.date_range),
-              suffixIcon: const Icon(Icons.keyboard_arrow_down),
-            ),
-            onTap: () => _selectEndDate(context),
-          ),
-        ),
-      ],
-    );
-  }
+  // Фильтр периода удалён: используем ExportDateRangeAction в AppBar
 
   /// Создает фильтр по объекту.
   Widget _buildObjectFilter(
@@ -703,49 +642,14 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
     ];
   }
 
-  /// Выбор даты начала.
-  Future<void> _selectStartDate(BuildContext context) async {
-    final date = await showDatePicker(
-      context: context,
-      initialDate: _startDate ?? DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-      locale: const Locale('ru'),
-    );
-
-    if (date != null) {
-      setState(() {
-        _startDate = date;
-        _startDateController.text = _formatDate(date);
-      });
-      // Автоматически запускаем поиск при изменении даты
-      _performSearch();
-    }
-  }
-
-  /// Выбор даты окончания.
-  Future<void> _selectEndDate(BuildContext context) async {
-    final date = await showDatePicker(
-      context: context,
-      initialDate: _endDate ?? DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-      locale: const Locale('ru'),
-    );
-
-    if (date != null) {
-      setState(() {
-        _endDate = date;
-        _endDateController.text = _formatDate(date);
-      });
-      // Автоматически запускаем поиск при изменении даты
-      _performSearch();
-    }
-  }
+  // Выбор дат удалён: период берём из exportDateRangeProvider
 
   /// Выполняет поиск.
   void _performSearch() {
     final query = _searchController.text.trim();
+    final range = ref.read(exportDateRangeProvider);
+    final startDate = range?.start;
+    final endDate = range?.end;
 
     // Если запрос пустой, очищаем результаты
     if (query.isEmpty) {
@@ -755,8 +659,8 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
 
     // Выполняем поиск только если есть текст для поиска
     ref.read(workSearchProvider.notifier).searchMaterials(
-          startDate: _startDate,
-          endDate: _endDate,
+          startDate: startDate,
+          endDate: endDate,
           objectId: _selectedObjectId,
           searchQuery: query,
         );
@@ -769,11 +673,7 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
 
     _searchController.clear();
     setState(() {
-      _startDate = null;
-      _endDate = null;
       _selectedObjectId = null;
-      _startDateController.clear();
-      _endDateController.clear();
     });
     ref.read(workSearchProvider.notifier).clearResults();
   }

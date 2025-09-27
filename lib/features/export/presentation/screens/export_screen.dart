@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
+import '../widgets/export_date_filter.dart';
+import '../widgets/export_filters_action.dart';
+import '../widgets/export_excel_action.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
-import '../widgets/export_filter_widget.dart';
 import 'tabs/export_tab_reports.dart';
 import 'tabs/export_tab_search.dart';
 
@@ -37,6 +39,11 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
     return Scaffold(
       appBar: const AppBarWidget(
         title: 'Выгрузка данных',
+        actions: const [
+          ExportDateRangeAction(),
+          ExportFiltersAction(),
+          ExportExcelAction()
+        ],
       ),
       drawer: const AppDrawer(activeRoute: AppRoute.export),
       body: _selectedTabIndex == 1
@@ -48,13 +55,10 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                 });
               },
             )
-          : // Таб "Выгрузка" - стандартная структура
+          : // Таб "Выгрузка"
           Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Фильтры для выгрузки
-                const ExportFilterWidget(),
-
                 // Табы
                 Padding(
                   padding: const EdgeInsets.symmetric(
