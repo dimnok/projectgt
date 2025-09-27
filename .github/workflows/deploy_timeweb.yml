@@ -1,0 +1,52 @@
+name: Deploy Flutter Web to Timeweb S3
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.TW_S3_ACCESS_KEY }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.TW_S3_SECRET_KEY }}
+      AWS_DEFAULT_REGION: ru-1
+      TW_S3_ENDPOINT: ${{ secrets.TW_S3_ENDPOINT }}
+      TW_S3_BUCKET: ${{ secrets.TW_S3_BUCKET }}
+      TW_S3_PATH_PREFIX: ${{ secrets.TW_S3_PATH_PREFIX }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.x'
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Build Flutter Web (release)
+        run: |
+          flutter build web --release \
+            --web-renderer canvaskit \
+            --dart-define=SUPABASE_URL=${SUPABASE_URL} \
+            --dart-define=SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+
+      - name: Install AWS CLI
+        run: sudo apt-get update && sudo apt-get install -y awscli
+
+      - name: Deploy to Timeweb S3
+        run: |
+          DEST="s3://${TW_S3_BUCKET}${TW_S3_PATH_PREFIX:+/${TW_S3_PATH_PREFIX}}"
+          echo "Sync build/web -> ${DEST}"
+          aws s3 sync build/web "$DEST" --delete --endpoint-url "$TW_S3_ENDPOINT"
+
+      - name: Summary
+        run: |
+          echo "Deployed to bucket: ${TW_S3_BUCKET}${TW_S3_PATH_PREFIX:+/${TW_S3_PATH_PREFIX}}" >> $GITHUB_STEP_SUMMARY
+          echo "Endpoint: ${TW_S3_ENDPOINT}" >> $GITHUB_STEP_SUMMARY
+
