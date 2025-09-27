@@ -34,8 +34,8 @@ jobs:
             --dart-define=SUPABASE_URL=${SUPABASE_URL} \
             --dart-define=SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
 
-      - name: Install AWS CLI
-        run: sudo apt-get update && sudo apt-get install -y awscli
+      - name: Setup AWS CLI
+        uses: aws-actions/setup-aws-cli@v4
 
       - name: Deploy to Timeweb S3
         run: |
