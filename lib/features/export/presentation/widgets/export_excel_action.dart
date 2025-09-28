@@ -3,11 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/export_provider.dart';
 
-/// Кнопка экспорта текущих отчётов в Excel (в AppBar)
+/// Кнопка экспорта текущих отчётов в Excel (в AppBar).
+///
+/// Открывает диалог выбора колонок и опции агрегации, затем формирует
+/// и сохраняет Excel-файл с данными текущего отчёта.
 class ExportExcelAction extends ConsumerWidget {
+  /// Создаёт кнопку экспорта в Excel на панели действий.
   const ExportExcelAction({super.key});
 
   @override
+
+  /// Строит кнопку и обрабатывает открытие диалога настроек экспорта,
+  /// включая выбор колонок и опцию агрегации данных.
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(exportProvider);
     final isExporting = state.isExporting;
@@ -32,7 +39,7 @@ class ExportExcelAction extends ConsumerWidget {
       MapEntry('total', 'Итоговая сумма'),
     ];
 
-    Future<void> _export(
+    Future<void> doExport(
         {List<String>? columns, bool aggregate = false}) async {
       final scaffoldMessenger = ScaffoldMessenger.of(context);
       final theme = Theme.of(context);
@@ -78,7 +85,7 @@ class ExportExcelAction extends ConsumerWidget {
       }
     }
 
-    Future<void> _openExportDialog() async {
+    Future<void> openExportDialog() async {
       final prefs = await SharedPreferences.getInstance();
       const removedKeys = {'employee', 'hours', 'materials'};
       final savedColumns = prefs
@@ -148,7 +155,7 @@ class ExportExcelAction extends ConsumerWidget {
                       await prefs.setBool(prefsAggregateKey, aggregate);
                       if (!context.mounted) return;
                       Navigator.of(context).pop();
-                      await _export(
+                      await doExport(
                         columns: filtered,
                         aggregate: aggregate,
                       );
@@ -165,7 +172,7 @@ class ExportExcelAction extends ConsumerWidget {
 
     return IconButton(
       tooltip: 'Экспорт в Excel',
-      onPressed: hasData && !isExporting ? _openExportDialog : null,
+      onPressed: hasData && !isExporting ? openExportDialog : null,
       icon: isExporting
           ? const SizedBox(
               width: 18,

@@ -129,7 +129,12 @@ class SnackBarUtils {
     );
   }
 
-  static void showSuccessByMessenger(ScaffoldMessengerState messenger, String message) {
+  /// Показывает успешное уведомление через заранее кэшированный [ScaffoldMessengerState].
+  ///
+  /// [messenger] — ссылка на кэшированный messenger (полученный до await).
+  /// [message] — текст уведомления, отображаемый пользователю.
+  static void showSuccessByMessenger(
+      ScaffoldMessengerState messenger, String message) {
     showByMessenger(
       messenger: messenger,
       message: message,
@@ -138,7 +143,12 @@ class SnackBarUtils {
     );
   }
 
-  static void showErrorByMessenger(ScaffoldMessengerState messenger, String message) {
+  /// Показывает уведомление об ошибке через заранее кэшированный [ScaffoldMessengerState].
+  ///
+  /// [messenger] — ссылка на кэшированный messenger (полученный до await).
+  /// [message] — текст ошибки. Отображается дольше стандартного уведомления.
+  static void showErrorByMessenger(
+      ScaffoldMessengerState messenger, String message) {
     showByMessenger(
       messenger: messenger,
       message: message,
@@ -148,7 +158,12 @@ class SnackBarUtils {
     );
   }
 
-  static void showInfoByMessenger(ScaffoldMessengerState messenger, String message) {
+  /// Показывает информационное уведомление через заранее кэшированный [ScaffoldMessengerState].
+  ///
+  /// [messenger] — ссылка на кэшированный messenger (полученный до await).
+  /// [message] — текст информационного сообщения.
+  static void showInfoByMessenger(
+      ScaffoldMessengerState messenger, String message) {
     showByMessenger(
       messenger: messenger,
       message: message,
@@ -157,7 +172,12 @@ class SnackBarUtils {
     );
   }
 
-  static void showWarningByMessenger(ScaffoldMessengerState messenger, String message) {
+  /// Показывает предупреждение через заранее кэшированный [ScaffoldMessengerState].
+  ///
+  /// [messenger] — ссылка на кэшированный messenger (полученный до await).
+  /// [message] — текст предупреждения.
+  static void showWarningByMessenger(
+      ScaffoldMessengerState messenger, String message) {
     showByMessenger(
       messenger: messenger,
       message: message,

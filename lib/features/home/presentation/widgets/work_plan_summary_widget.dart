@@ -98,8 +98,7 @@ class WorkPlanSummaryWidget extends ConsumerWidget {
                 : '';
             return _ProgressBar(
               percent: finalPercent,
-              label:
-                  'Выполнение: ${finalPercent.toStringAsFixed(0)}%$suffix',
+              label: 'Выполнение: ${finalPercent.toStringAsFixed(0)}%$suffix',
             );
           },
         ),
@@ -261,10 +260,9 @@ class _ProgressBar extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           child: LinearProgressIndicator(
             value: p,
-            minHeight: 10,
-            backgroundColor:
-                theme.colorScheme.onSurface.withValues(alpha: 0.08),
-            color: theme.colorScheme.primary,
+            minHeight: 14,
+            backgroundColor: Colors.green.withValues(alpha: 0.15),
+            color: Colors.green,
           ),
         ),
         const SizedBox(height: 6),
