@@ -40,6 +40,18 @@ class WorkPlanSummaryWidget extends ConsumerWidget {
         selected.workBlocks.expand((b) => b.workerIds).toSet().length;
     final double perSpecialist = workers > 0 ? (totalPlan / workers) : 0;
 
+    // Прогресс: если есть фактические данные — используем их,
+    // иначе — доля заполненных блоков (isComplete) среди всех блоков.
+    final double actualBased = selected.completionPercentage.clamp(0, 100);
+    final int totalBlocks = selected.workBlocks.length;
+    final int completeBlocks =
+        selected.workBlocks.where((b) => b.isComplete).length;
+    final double setupBased = totalBlocks > 0
+        ? (completeBlocks / totalBlocks * 100.0)
+        : 0.0;
+    final double progressPercent =
+        (actualBased > 0 ? actualBased : setupBased).clamp(0, 100);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -74,9 +86,9 @@ class WorkPlanSummaryWidget extends ConsumerWidget {
         const SizedBox(height: 12),
         // Прогресс выполнения плана
         _ProgressBar(
-          percent: selected.completionPercentage.clamp(0, 100),
-          label:
-              'Выполнение: ${selected.completionPercentage.clamp(0, 100).toStringAsFixed(0)}%',
+          percent: progressPercent,
+          label: 'Выполнение: ${progressPercent.toStringAsFixed(0)}%'
+              '${(actualBased <= 0 && totalBlocks > 0) ? ' · ${completeBlocks}/${totalBlocks} блоков' : ''}',
         ),
         const Spacer(),
         Row(
