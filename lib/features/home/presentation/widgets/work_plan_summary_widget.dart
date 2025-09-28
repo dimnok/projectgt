@@ -71,6 +71,13 @@ class WorkPlanSummaryWidget extends ConsumerWidget {
           value: formatCurrency(perSpecialist),
           color: Colors.teal,
         ),
+        const SizedBox(height: 12),
+        // Прогресс выполнения плана
+        _ProgressBar(
+          percent: selected.completionPercentage.clamp(0, 100),
+          label:
+              'Выполнение: ${selected.completionPercentage.clamp(0, 100).toStringAsFixed(0)}%',
+        ),
         const Spacer(),
         Row(
           children: [
@@ -178,6 +185,41 @@ class _Chip extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ProgressBar extends StatelessWidget {
+  final double percent; // 0..100
+  final String label;
+  const _ProgressBar({required this.percent, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final p = percent.clamp(0, 100) / 100.0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: LinearProgressIndicator(
+            value: p,
+            minHeight: 10,
+            backgroundColor:
+                theme.colorScheme.onSurface.withValues(alpha: 0.08),
+            color: theme.colorScheme.primary,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          label,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
     );
   }
 }
