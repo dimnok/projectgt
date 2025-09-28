@@ -89,6 +89,83 @@ class SnackBarUtils {
     });
   }
 
+  // ===== Варианты с заранее кэшированным ScaffoldMessenger =====
+  /// Унифицированный показ через уже кэшированный [ScaffoldMessengerState].
+  static void showByMessenger({
+    required ScaffoldMessengerState messenger,
+    required String message,
+    Color? backgroundColor,
+    IconData? icon,
+    Duration duration = const Duration(milliseconds: 2000),
+  }) {
+    messenger.showSnackBar(
+      SnackBar(
+        content: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, color: Colors.white, size: 20),
+              const SizedBox(width: 12),
+            ],
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: backgroundColor ?? Colors.black87,
+        duration: duration,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12.0),
+        ),
+      ),
+    );
+  }
+
+  static void showSuccessByMessenger(ScaffoldMessengerState messenger, String message) {
+    showByMessenger(
+      messenger: messenger,
+      message: message,
+      backgroundColor: Colors.green[600],
+      icon: Icons.check_circle_outline,
+    );
+  }
+
+  static void showErrorByMessenger(ScaffoldMessengerState messenger, String message) {
+    showByMessenger(
+      messenger: messenger,
+      message: message,
+      backgroundColor: Colors.red[600],
+      icon: Icons.error_outline,
+      duration: const Duration(milliseconds: 3000),
+    );
+  }
+
+  static void showInfoByMessenger(ScaffoldMessengerState messenger, String message) {
+    showByMessenger(
+      messenger: messenger,
+      message: message,
+      backgroundColor: Colors.blue[600],
+      icon: Icons.info_outline,
+    );
+  }
+
+  static void showWarningByMessenger(ScaffoldMessengerState messenger, String message) {
+    showByMessenger(
+      messenger: messenger,
+      message: message,
+      backgroundColor: Colors.orange[600],
+      icon: Icons.warning_outlined,
+    );
+  }
+
   /// Показывает ошибку поверх всех модальных окон.
   ///
   /// Использует корневой Overlay для отображения поверх модальных окон.

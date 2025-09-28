@@ -193,20 +193,17 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
                               .read(state.employeeProvider)
                               .canBeResponsibleMap[current.id] ==
                           true;
-                      messenger.showSnackBar(
-                        SnackBar(
-                          content: Text(isOn
-                              ? 'Назначен статус ответственного'
-                              : 'Снят статус ответственного'),
-                        ),
+                      SnackBarUtils.showSuccessByMessenger(
+                        messenger,
+                        isOn
+                            ? 'Назначен статус ответственного'
+                            : 'Снят статус ответственного',
                       );
                     } catch (e) {
                       if (!mounted) return;
-                      messenger.showSnackBar(
-                        SnackBar(
-                          content: Text('Ошибка: ${e.toString()}'),
-                          backgroundColor: Colors.red,
-                        ),
+                      SnackBarUtils.showErrorByMessenger(
+                        messenger,
+                        'Ошибка: ${e.toString()}',
                       );
                     }
                   },

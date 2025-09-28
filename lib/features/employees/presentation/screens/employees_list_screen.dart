@@ -19,6 +19,7 @@ import 'package:projectgt/features/employees/presentation/widgets/employee_stati
 import 'package:projectgt/features/employees/presentation/widgets/master_detail_layout.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/presentation/widgets/cupertino_dialog_widget.dart';
+import 'package:projectgt/core/utils/snackbar_utils.dart';
 
 /// Экран со списком сотрудников.
 ///
@@ -194,22 +195,17 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
                           .read(state.employeeProvider)
                           .canBeResponsibleMap[current.id] ==
                       true;
-                  messenger.showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        isOn
-                            ? 'Назначен статус ответственного'
-                            : 'Снят статус ответственного',
-                      ),
-                    ),
+                  SnackBarUtils.showSuccessByMessenger(
+                    messenger,
+                    isOn
+                        ? 'Назначен статус ответственного'
+                        : 'Снят статус ответственного',
                   );
                 } catch (e) {
                   if (!mounted) return;
-                  messenger.showSnackBar(
-                    SnackBar(
-                      content: Text('Ошибка: ${e.toString()}'),
-                      backgroundColor: Colors.red,
-                    ),
+                  SnackBarUtils.showErrorByMessenger(
+                    messenger,
+                    'Ошибка: ${e.toString()}',
                   );
                 }
               },
