@@ -219,9 +219,8 @@ class SupabaseEmployeeDataSource implements EmployeeDataSource {
   @override
   Future<Map<String, bool>> getCanBeResponsibleMap() async {
     try {
-      final rows = await client
-          .from('employees')
-          .select('id, can_be_responsible');
+      final rows =
+          await client.from('employees').select('id, can_be_responsible');
       final map = <String, bool>{};
       for (final row in rows as List<dynamic>) {
         final id = (row as Map)['id'] as String?;

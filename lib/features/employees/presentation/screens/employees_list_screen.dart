@@ -190,8 +190,18 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
                       .read(state.employeeProvider.notifier)
                       .toggleCanBeResponsible(current.id, null);
                   if (!mounted) return;
+                  final isOn = ref
+                          .read(state.employeeProvider)
+                          .canBeResponsibleMap[current.id] ==
+                      true;
                   messenger.showSnackBar(
-                    const SnackBar(content: Text('Настройка сохранена')),
+                    SnackBar(
+                      content: Text(
+                        isOn
+                            ? 'Назначен статус ответственного'
+                            : 'Снят статус ответственного',
+                      ),
+                    ),
                   );
                 } catch (e) {
                   if (!mounted) return;
