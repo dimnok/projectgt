@@ -52,6 +52,12 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
   static const double _sectionSpacing = 16.0;
   static const double _labelWidth = 150.0;
 
+  Color _canBeResponsibleColor(WidgetRef ref, String employeeId) {
+    final map = ref.read(state.employeeProvider).canBeResponsibleMap;
+    final isOn = map[employeeId] == true;
+    return isOn ? Colors.green : Colors.red;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -163,6 +169,37 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
               leading: const BackButton(),
               showThemeSwitch: false,
               actions: [
+                // Тоггл "Может быть ответственным"
+                CupertinoButton(
+                  padding: EdgeInsets.zero,
+                  child: Icon(
+                    Icons.verified_user,
+                    color: _canBeResponsibleColor(ref, employee.id),
+                  ),
+                  onPressed: () async {
+                    final current = ref.read(state.employeeProvider).employee;
+                    if (current == null) return;
+                    // Кэшируем messenger до await согласно правилам безопасного использования BuildContext
+                    final messenger = ScaffoldMessenger.of(context);
+                    try {
+                      await ref
+                          .read(state.employeeProvider.notifier)
+                          .toggleCanBeResponsible(current.id, null);
+                      if (!mounted) return;
+                      messenger.showSnackBar(
+                        const SnackBar(content: Text('Настройка сохранена')),
+                      );
+                    } catch (e) {
+                      if (!mounted) return;
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text('Ошибка: ${e.toString()}'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  },
+                ),
                 CupertinoButton(
                   padding: EdgeInsets.zero,
                   child: const Icon(Icons.edit, color: Colors.amber),

@@ -20,6 +20,9 @@ class WorkBlockWidget extends StatelessWidget {
   /// Список доступных сотрудников.
   final List<domain_employee.Employee> availableEmployees;
 
+  /// Список доступных сотрудников, которые могут быть ответственными.
+  final List<domain_employee.Employee> availableResponsibles;
+
   /// Список ID уже выбранных работников во всех блоках (для предотвращения дублей).
   final Set<String> alreadySelectedWorkerIds;
 
@@ -65,6 +68,7 @@ class WorkBlockWidget extends StatelessWidget {
     required this.blockIndex,
     required this.blockState,
     required this.availableEmployees,
+    required this.availableResponsibles,
     required this.alreadySelectedWorkerIds,
     required this.selectedObject,
     this.isLoading = false,
@@ -337,7 +341,7 @@ class WorkBlockWidget extends StatelessWidget {
       children: [
         // 1. Dropdown для выбора ответственного
         GTDropdown<domain_employee.Employee>(
-          items: availableEmployees,
+          items: availableResponsibles,
           itemDisplayBuilder: (employee) =>
               '${employee.lastName} ${employee.firstName}${employee.middleName != null ? ' ${employee.middleName}' : ''}',
           selectedItem: blockState.selectedResponsible,
@@ -347,11 +351,11 @@ class WorkBlockWidget extends StatelessWidget {
                   onResponsibleChanged?.call(blockIndex, responsible);
                 },
           labelText: 'Ответственный',
-          hintText: availableEmployees.isEmpty && selectedObject != null
+          hintText: availableResponsibles.isEmpty && selectedObject != null
               ? 'Нет сотрудников для данного объекта'
               : 'Выберите ответственного сотрудника',
           allowClear: true,
-          readOnly: isLoading || availableEmployees.isEmpty,
+          readOnly: isLoading || availableResponsibles.isEmpty,
         ),
 
         const SizedBox(height: 16),

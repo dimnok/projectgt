@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart';
 import 'package:projectgt/domain/entities/object.dart';
 import 'package:projectgt/domain/entities/employee.dart' as domain_employee;
 import 'package:projectgt/core/widgets/gt_dropdown.dart';
@@ -39,6 +38,9 @@ class WorkPlanFormContent extends StatelessWidget {
 
   /// Список доступных сотрудников.
   final List<domain_employee.Employee> availableEmployees;
+
+  /// Список доступных сотрудников, которые могут быть ответственными.
+  final List<domain_employee.Employee> availableResponsibles;
 
   /// Список ID уже выбранных работников во всех блоках (для предотвращения дублей).
   final Set<String> alreadySelectedWorkerIds;
@@ -93,6 +95,7 @@ class WorkPlanFormContent extends StatelessWidget {
     required this.selectedObject,
     required this.onObjectChanged,
     required this.availableEmployees,
+    required this.availableResponsibles,
     required this.alreadySelectedWorkerIds,
     required this.workBlocks,
     this.onBlockResponsibleChanged,
@@ -334,7 +337,8 @@ class WorkPlanFormContent extends StatelessWidget {
               margin: const EdgeInsets.symmetric(horizontal: 24),
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceVariant.withValues(alpha: 0.3),
+                color: theme.colorScheme.surfaceContainerHighest
+                    .withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: theme.colorScheme.outline.withValues(alpha: 0.2),
@@ -375,6 +379,7 @@ class WorkPlanFormContent extends StatelessWidget {
                 blockIndex: index,
                 blockState: blockState,
                 availableEmployees: availableEmployees,
+                availableResponsibles: availableResponsibles,
                 alreadySelectedWorkerIds: alreadySelectedWorkerIds,
                 selectedObject: selectedObject,
                 isLoading: isLoading,
@@ -388,7 +393,7 @@ class WorkPlanFormContent extends StatelessWidget {
                 onDeleteBlock: onDeleteBlock,
                 onToggleCollapsed: onToggleCollapsed,
               );
-            }).toList(),
+            }),
         ],
 
         // Кнопки действий

@@ -38,6 +38,9 @@ class EmployeeState {
   /// Поисковый запрос для фильтрации сотрудников.
   final String searchQuery;
 
+  /// Кэш флага can_be_responsible по сотрудникам (id -> bool).
+  final Map<String, bool> canBeResponsibleMap;
+
   /// Создаёт новое состояние для работы с сотрудниками.
   ///
   /// [status] — статус загрузки/операции.
@@ -51,6 +54,7 @@ class EmployeeState {
     this.employees = const [],
     this.errorMessage,
     this.searchQuery = '',
+    this.canBeResponsibleMap = const {},
   });
 
   /// Возвращает начальное состояние ([EmployeeStatus.initial]).
@@ -71,6 +75,7 @@ class EmployeeState {
     List<Employee>? employees,
     String? errorMessage,
     String? searchQuery,
+    Map<String, bool>? canBeResponsibleMap,
   }) {
     return EmployeeState(
       status: status ?? this.status,
@@ -78,6 +83,7 @@ class EmployeeState {
       employees: employees ?? this.employees,
       errorMessage: errorMessage ?? this.errorMessage,
       searchQuery: searchQuery ?? this.searchQuery,
+      canBeResponsibleMap: canBeResponsibleMap ?? this.canBeResponsibleMap,
     );
   }
 
@@ -314,6 +320,50 @@ class EmployeeNotifier extends StateNotifier<EmployeeState> {
   Future<void> refreshEmployees() async {
     _isLoadingEmployees = false;
     return getEmployees();
+  }
+
+  /// Переключает флаг can_be_responsible у сотрудника и обновляет состояние.
+  Future<void> toggleCanBeResponsible(String employeeId, bool? value) async {
+    try {
+      final ds = _ref.read(employeeDataSourceProvider);
+      // если value не передан, читаем текущее и инвертируем
+      bool nextValue;
+      if (value == null) {
+        final current = await ds.getCanBeResponsible(employeeId);
+        nextValue = !current;
+      } else {
+        nextValue = value;
+      }
+
+      final updatedModel = await ds.setCanBeResponsible(
+        employeeId: employeeId,
+        value: nextValue,
+      );
+      final updated = updatedModel.toDomain();
+
+      // Обновляем кэш деталей
+      _employeeDetailsCache[employeeId] = updated;
+
+      // Обновляем список
+      final updatedEmployees =
+          state.employees.map((e) => e.id == employeeId ? updated : e).toList();
+
+      state = state.copyWith(
+        status: EmployeeStatus.success,
+        employee: state.employee?.id == employeeId ? updated : state.employee,
+        employees: updatedEmployees,
+        canBeResponsibleMap: {
+          ...state.canBeResponsibleMap,
+          employeeId: nextValue,
+        },
+      );
+    } catch (e) {
+      state = state.copyWith(
+        status: EmployeeStatus.error,
+        errorMessage: e.toString(),
+      );
+      rethrow;
+    }
   }
 }
 

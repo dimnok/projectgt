@@ -55,6 +55,9 @@ class _WorkPlanFormModalState extends ConsumerState<WorkPlanFormModal> {
   /// Список состояний блоков работ.
   List<WorkBlockState> _workBlocks = [];
 
+  /// Список сотрудников, которые могут быть ответственными для выбранного объекта.
+  List<domain_employee.Employee> _availableResponsibles = [];
+
   @override
   void initState() {
     super.initState();
@@ -316,6 +319,7 @@ class _WorkPlanFormModalState extends ConsumerState<WorkPlanFormModal> {
       if (object != null) {
         // Создаем первый блок если объект выбран
         _addNewBlock();
+        _loadResponsibles(object.id);
       }
     });
   }
@@ -330,9 +334,26 @@ class _WorkPlanFormModalState extends ConsumerState<WorkPlanFormModal> {
       // Загружаем данные для нового блока
       _loadSystemsForBlock(newBlock, _selectedObject!.id);
       _loadSectionsForBlock(newBlock, _selectedObject!.id);
+      _loadResponsibles(_selectedObject!.id);
 
       _workBlocks.add(newBlock);
     });
+  }
+
+  /// Загружает сотрудников, которые могут быть ответственными, для объекта.
+  Future<void> _loadResponsibles(String objectId) async {
+    try {
+      final ds = ref.read(employeeDataSourceProvider);
+      final models = await ds.getResponsibleEmployees(objectId);
+      setState(() {
+        _availableResponsibles = models.map((m) => m.toDomain()).toList()
+          ..sort((a, b) => a.lastName.compareTo(b.lastName));
+      });
+    } catch (_) {
+      setState(() {
+        _availableResponsibles = [];
+      });
+    }
   }
 
   /// Удаляет блок работ.
@@ -588,6 +609,7 @@ class _WorkPlanFormModalState extends ConsumerState<WorkPlanFormModal> {
           selectedObject: _selectedObject,
           onObjectChanged: _handleObjectChanged,
           availableEmployees: availableEmployees,
+          availableResponsibles: _availableResponsibles,
           alreadySelectedWorkerIds: alreadySelectedWorkerIds,
           workBlocks: _workBlocks,
           onBlockResponsibleChanged: _handleBlockResponsibleChanged,

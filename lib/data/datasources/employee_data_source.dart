@@ -38,6 +38,22 @@ abstract class EmployeeDataSource {
   /// [id] — идентификатор сотрудника.
   /// Генерирует исключение при ошибке.
   Future<void> deleteEmployee(String id);
+
+  /// Получает сотрудников, которые могут быть назначены ответственными по объекту.
+  ///
+  /// [objectId] — идентификатор объекта.
+  /// Возвращает список [EmployeeModel] с can_be_responsible=true, status='working'
+  /// и привязкой к объекту.
+  Future<List<EmployeeModel>> getResponsibleEmployees(String objectId);
+
+  /// Обновляет флаг can_be_responsible для сотрудника.
+  Future<EmployeeModel> setCanBeResponsible({
+    required String employeeId,
+    required bool value,
+  });
+
+  /// Возвращает текущее значение флага can_be_responsible для сотрудника.
+  Future<bool> getCanBeResponsible(String employeeId);
 }
 
 /// Реализация [EmployeeDataSource] через Supabase.
@@ -135,6 +151,65 @@ class SupabaseEmployeeDataSource implements EmployeeDataSource {
     } catch (e) {
       Logger().e('Error deleting employee: $e');
       rethrow;
+    }
+  }
+
+  @override
+  Future<List<EmployeeModel>> getResponsibleEmployees(String objectId) async {
+    try {
+      final response = await client
+          .from('employees')
+          .select('*')
+          .eq('status', 'working')
+          .eq('can_be_responsible', true)
+          .contains('object_ids', [objectId]).order('last_name');
+
+      return response
+          .map<EmployeeModel>((json) => EmployeeModel.fromJson(json))
+          .toList();
+    } catch (e) {
+      Logger().e('Error fetching responsible employees: $e');
+      return [];
+    }
+  }
+
+  @override
+  Future<EmployeeModel> setCanBeResponsible({
+    required String employeeId,
+    required bool value,
+  }) async {
+    try {
+      final now = DateTime.now().toIso8601String();
+      final response = await client
+          .from('employees')
+          .update({
+            'can_be_responsible': value,
+            'updated_at': now,
+          })
+          .eq('id', employeeId)
+          .select('*')
+          .single();
+
+      return EmployeeModel.fromJson(response);
+    } catch (e) {
+      Logger().e('Error updating can_be_responsible: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<bool> getCanBeResponsible(String employeeId) async {
+    try {
+      final response = await client
+          .from('employees')
+          .select('can_be_responsible')
+          .eq('id', employeeId)
+          .single();
+      final value = response['can_be_responsible'] as bool?;
+      return value == true;
+    } catch (e) {
+      Logger().e('Error reading can_be_responsible: $e');
+      return false;
     }
   }
 }

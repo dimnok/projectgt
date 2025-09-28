@@ -15,6 +15,7 @@ import 'package:projectgt/features/export/presentation/providers/export_provider
 import 'package:projectgt/features/export/domain/entities/export_filter.dart';
 import 'package:projectgt/features/home/presentation/widgets/contract_progress_widget.dart';
 import 'package:projectgt/features/home/presentation/widgets/shifts_calendar_widgets.dart';
+import 'package:projectgt/features/home/presentation/widgets/work_plan_summary_widget.dart';
 // import removed: notification test utilities
 // import removed: works provider used only in tests
 
@@ -63,6 +64,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       Future.microtask(() {
         ref.read(employeeProvider.notifier).getEmployees();
         ref.read(estimateNotifierProvider.notifier).loadEstimates();
+        ref.read(workPlanNotifierProvider.notifier).loadWorkPlans();
         final now = DateTime.now();
         final dateFrom = DateTime(now.year, now.month, now.day)
             .subtract(const Duration(days: 30));
@@ -201,7 +203,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       (width - (crossAxisCount - 1) * crossAxisSpacing) /
                           crossAxisCount;
 
-                  // Desktop: два отдельных контейнера рядом
+                  // Desktop: карточки рядом
                   if (width >= 1100) {
                     return Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -250,6 +252,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ),
                           ),
                         ),
+                        const SizedBox(width: 16),
+                        Container(
+                          width: cardWidth,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: theme.colorScheme.outline
+                                  .withValues(alpha: 0.18),
+                            ),
+                          ),
+                          child: const Padding(
+                            padding: EdgeInsets.all(16),
+                            child: SizedBox(
+                              height: 300,
+                              child: WorkPlanSummaryWidget(),
+                            ),
+                          ),
+                        ),
                       ],
                     );
                   }
@@ -285,6 +305,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   ),
                                   // Страница 2: Прогресс договора
                                   const ContractProgressWidget(),
+                                  // Страница 3: План работ
+                                  const WorkPlanSummaryWidget(),
                                 ],
                               ),
                             ),
@@ -295,6 +317,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 _buildDot(theme, _mainCardsPageIndex == 0),
                                 const SizedBox(width: 6),
                                 _buildDot(theme, _mainCardsPageIndex == 1),
+                                const SizedBox(width: 6),
+                                _buildDot(theme, _mainCardsPageIndex == 2),
                               ],
                             ),
                           ],

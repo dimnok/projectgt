@@ -11,7 +11,6 @@ import 'package:projectgt/presentation/state/object_state.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 import 'package:projectgt/features/employees/presentation/screens/employee_details_screen.dart';
-import 'package:projectgt/core/utils/snackbar_utils.dart';
 import 'package:projectgt/core/utils/modal_utils.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_card.dart';
@@ -45,6 +44,12 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
   Timer? _fabTimer;
 
   Employee? selectedEmployee;
+
+  Color _toggleColor(WidgetRef ref, String employeeId) {
+    final map = ref.read(state.employeeProvider).canBeResponsibleMap;
+    final isOn = map[employeeId] == true;
+    return isOn ? Colors.green : Colors.red;
+  }
 
   @override
   void initState() {
@@ -169,6 +174,36 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
             ),
           ],
           if (isDesktop && selectedEmployee != null) ...[
+            // Тоггл can_be_responsible для выделенного сотрудника (desktop)
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              child: Icon(
+                Icons.verified_user,
+                color: _toggleColor(ref, selectedEmployee!.id),
+              ),
+              onPressed: () async {
+                final current = selectedEmployee;
+                if (current == null) return;
+                final messenger = ScaffoldMessenger.of(context);
+                try {
+                  await ref
+                      .read(state.employeeProvider.notifier)
+                      .toggleCanBeResponsible(current.id, null);
+                  if (!mounted) return;
+                  messenger.showSnackBar(
+                    const SnackBar(content: Text('Настройка сохранена')),
+                  );
+                } catch (e) {
+                  if (!mounted) return;
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text('Ошибка: ${e.toString()}'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+            ),
             CupertinoButton(
               padding: EdgeInsets.zero,
               child: const Icon(Icons.edit, color: Colors.amber),
@@ -380,6 +415,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
 
   /// Показывает диалог подтверждения удаления.
   Future<void> _showDeleteDialog(Employee employee) async {
+    final messenger = ScaffoldMessenger.of(context);
     final confirmed = await CupertinoDialogs.showDeleteConfirmDialog<bool>(
       context: context,
       title: 'Удалить сотрудника?',
@@ -396,10 +432,17 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
         setState(() {
           selectedEmployee = null;
         });
-        SnackBarUtils.showError(context, 'Сотрудник удалён');
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Сотрудник удалён')),
+        );
       } catch (e) {
         if (!mounted) return;
-        SnackBarUtils.showError(context, 'Ошибка удаления: ${e.toString()}');
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Ошибка удаления: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
