@@ -65,6 +65,9 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
     // Загружаем данные сотрудника
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(state.employeeProvider.notifier).getEmployee(widget.employeeId);
+      // Также подтягиваем фактический флаг can_be_responsible в мапу
+      // чтобы цвет щита соответствовал БД при первом открытии
+      ref.read(state.employeeProvider.notifier).refreshEmployees();
     });
   }
 

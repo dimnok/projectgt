@@ -54,6 +54,9 @@ abstract class EmployeeDataSource {
 
   /// Возвращает текущее значение флага can_be_responsible для сотрудника.
   Future<bool> getCanBeResponsible(String employeeId);
+
+  /// Возвращает мапу флага can_be_responsible для всех сотрудников: id -> bool.
+  Future<Map<String, bool>> getCanBeResponsibleMap();
 }
 
 /// Реализация [EmployeeDataSource] через Supabase.
@@ -210,6 +213,27 @@ class SupabaseEmployeeDataSource implements EmployeeDataSource {
     } catch (e) {
       Logger().e('Error reading can_be_responsible: $e');
       return false;
+    }
+  }
+
+  @override
+  Future<Map<String, bool>> getCanBeResponsibleMap() async {
+    try {
+      final rows = await client
+          .from('employees')
+          .select('id, can_be_responsible');
+      final map = <String, bool>{};
+      for (final row in rows as List<dynamic>) {
+        final id = (row as Map)['id'] as String?;
+        final v = row['can_be_responsible'] as bool?;
+        if (id != null) {
+          map[id] = v == true;
+        }
+      }
+      return map;
+    } catch (e) {
+      Logger().e('Error fetching can_be_responsible map: $e');
+      return {};
     }
   }
 }

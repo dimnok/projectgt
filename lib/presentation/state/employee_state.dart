@@ -206,9 +206,13 @@ class EmployeeNotifier extends StateNotifier<EmployeeState> {
 
     try {
       final employees = await _ref.read(getEmployeesUseCaseProvider).execute();
+      // Подтягиваем фактические значения can_be_responsible из БД в мапу
+      final ds = _ref.read(employeeDataSourceProvider);
+      final canMap = await ds.getCanBeResponsibleMap();
       state = state.copyWith(
         status: EmployeeStatus.success,
         employees: employees,
+        canBeResponsibleMap: canMap,
       );
     } catch (e) {
       state = state.copyWith(
