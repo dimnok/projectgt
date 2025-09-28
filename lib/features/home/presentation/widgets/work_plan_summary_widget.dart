@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/domain/entities/work_plan.dart';
 import 'package:projectgt/core/utils/formatters.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Карточка «План работ» для главного экрана.
 ///
@@ -46,9 +47,8 @@ class WorkPlanSummaryWidget extends ConsumerWidget {
     final int totalBlocks = selected.workBlocks.length;
     final int completeBlocks =
         selected.workBlocks.where((b) => b.isComplete).length;
-    final double setupBased = totalBlocks > 0
-        ? (completeBlocks / totalBlocks * 100.0)
-        : 0.0;
+    final double setupBased =
+        totalBlocks > 0 ? (completeBlocks / totalBlocks * 100.0) : 0.0;
     final double progressPercent =
         (actualBased > 0 ? actualBased : setupBased).clamp(0, 100);
 
@@ -85,10 +85,23 @@ class WorkPlanSummaryWidget extends ConsumerWidget {
         ),
         const SizedBox(height: 12),
         // Прогресс выполнения плана
-        _ProgressBar(
-          percent: progressPercent,
-          label: 'Выполнение: ${progressPercent.toStringAsFixed(0)}%'
-              '${(actualBased <= 0 && totalBlocks > 0) ? ' · ${completeBlocks}/${totalBlocks} блоков' : ''}',
+        // Фактическая выработка по сменам на объекте за дату плана
+        FutureBuilder<double>(
+          future: _fetchActualSum(selected.objectId, selected.date),
+          builder: (context, snapshot) {
+            final double actualSum = snapshot.data ?? 0.0;
+            final double finalPercent = totalPlan > 0
+                ? ((actualSum / totalPlan) * 100).clamp(0, 100)
+                : progressPercent;
+            final String suffix = (actualSum <= 0 && totalBlocks > 0)
+                ? ' · ${completeBlocks}/${totalBlocks} блоков'
+                : '';
+            return _ProgressBar(
+              percent: finalPercent,
+              label:
+                  'Выполнение: ${finalPercent.toStringAsFixed(0)}%$suffix',
+            );
+          },
         ),
         const Spacer(),
         Row(
@@ -118,6 +131,37 @@ class WorkPlanSummaryWidget extends ConsumerWidget {
     final List<WorkPlan> sorted = List<WorkPlan>.from(plans)
       ..sort((a, b) => b.date.compareTo(a.date));
     return sorted.first;
+  }
+}
+
+/// Загружает фактическую выработку по сменам на объекте за конкретную дату.
+Future<double> _fetchActualSum(String objectId, DateTime date) async {
+  try {
+    final supa = Supabase.instance.client;
+    final dateStr = DateTime(date.year, date.month, date.day)
+        .toIso8601String()
+        .split('T')
+        .first; // YYYY-MM-DD
+
+    final resp = await supa
+        .from('works')
+        .select('work_items(total)')
+        .eq('object_id', objectId)
+        .eq('date', dateStr);
+
+    double sum = 0.0;
+    for (final row in (resp as List<dynamic>)) {
+      final items = (row as Map)['work_items'] as List<dynamic>?;
+      if (items == null) continue;
+      for (final it in items) {
+        final m = it as Map;
+        final t = m['total'];
+        if (t is num) sum += t.toDouble();
+      }
+    }
+    return sum;
+  } catch (_) {
+    return 0.0;
   }
 }
 
