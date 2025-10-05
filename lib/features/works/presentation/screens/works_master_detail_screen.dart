@@ -509,29 +509,34 @@ class _WorksMasterDetailScreenState
                                         final formatter =
                                             NumberFormat('#,##0', 'ru_RU');
 
+                                        final totalTextStyle = (isDesktop
+                                                ? theme.textTheme.bodySmall
+                                                : theme.textTheme.titleSmall)
+                                            ?.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                          color: theme.colorScheme.primary,
+                                        );
+
+                                        final productivityTextStyle = (isDesktop
+                                                ? theme.textTheme.bodySmall
+                                                : theme.textTheme.bodyMedium)
+                                            ?.copyWith(
+                                          color: theme.colorScheme.secondary,
+                                        );
+
                                         return Column(
                                           crossAxisAlignment:
                                               CrossAxisAlignment.end,
                                           children: [
                                             Text(
                                               '${formatter.format(totalAmount)} ₽',
-                                              style: theme.textTheme.bodySmall
-                                                  ?.copyWith(
-                                                fontWeight: FontWeight.w600,
-                                                color:
-                                                    theme.colorScheme.primary,
-                                              ),
+                                              style: totalTextStyle,
                                             ),
                                             if (uniqueEmployees > 0) ...[
                                               const SizedBox(height: 2),
                                               Text(
                                                 '${formatter.format(productivityPerEmployee)} ₽/чел',
-                                                style: theme.textTheme.bodySmall
-                                                    ?.copyWith(
-                                                  fontSize: 10,
-                                                  color: theme
-                                                      .colorScheme.secondary,
-                                                ),
+                                                style: productivityTextStyle,
                                               ),
                                             ],
                                           ],

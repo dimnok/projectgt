@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/payroll_filter_provider.dart';
+import '../../../../presentation/state/employee_state.dart';
+import '../../../../domain/entities/employee.dart';
 import 'package:intl/intl.dart';
-import 'package:dropdown_textfield/dropdown_textfield.dart';
-import 'package:collection/collection.dart';
 import '../providers/payroll_providers.dart';
 import '../providers/balance_providers.dart';
 import '../../data/models/payroll_payout_model.dart';
 import '../../../../core/utils/snackbar_utils.dart';
+import '../../../../core/widgets/modal_container_wrapper.dart';
+import '../../../../core/widgets/gt_dropdown.dart';
 import 'payroll_payout_amount_modal.dart';
-import 'package:projectgt/core/widgets/dropdown_typeahead_field.dart';
 
 /// Класс, представляющий способ выплаты сотруднику в рамках модуля ФОТ.
 ///
@@ -37,6 +37,16 @@ class PaymentMethod {
     PaymentMethod('cash', 'Наличные'),
     PaymentMethod('bank_transfer', 'Банковский перевод'),
   ];
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PaymentMethod &&
+          runtimeType == other.runtimeType &&
+          value == other.value;
+
+  @override
+  int get hashCode => value.hashCode;
 }
 
 /// Класс, представляющий тип выплаты сотруднику (например, зарплата или аванс).
@@ -62,6 +72,16 @@ class PaymentType {
     PaymentType('salary', 'Зарплата'),
     PaymentType('advance', 'Аванс'),
   ];
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PaymentType &&
+          runtimeType == other.runtimeType &&
+          value == other.value;
+
+  @override
+  int get hashCode => value.hashCode;
 }
 
 /// Модальное окно для создания/редактирования выплаты
@@ -93,24 +113,13 @@ class _PayrollPayoutFormModalState
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
   final _commentController = TextEditingController();
-
-  // Для редактирования - одиночный выбор
-  final _singleEmployeeController = SingleValueDropDownController();
-
-  // Для создания - множественный выбор
-  final _multiEmployeeController = MultiValueDropDownController();
-
-  // Контроллеры для новых выпадающих списков
-  final _methodController = TextEditingController();
-  final _typeController = TextEditingController();
-
   final _isSaving = ValueNotifier<bool>(false);
 
-  String? _selectedEmployeeId; // Для редактирования
-  List<String> _selectedEmployeeIds = []; // Для создания
+  Employee? _selectedEmployee; // Для редактирования
+  List<Employee> _selectedEmployees = []; // Для создания
   DateTime? _selectedDate;
-  String _method = 'cash';
-  String _type = 'salary'; // Добавляем тип оплаты
+  PaymentMethod _selectedMethod = PaymentMethod.values.first;
+  PaymentType _selectedType = PaymentType.values.first;
 
   bool get isEditing => widget.payout != null;
 
@@ -119,83 +128,64 @@ class _PayrollPayoutFormModalState
     super.initState();
     if (isEditing) {
       _initializeForEditing();
-    } else {
-      // Инициализируем значения по умолчанию для создания
-      _methodController.text = _getMethodDisplayName(_method);
-      _typeController.text = _getTypeDisplayName(_type);
     }
   }
 
   void _initializeForEditing() {
     final payout = widget.payout!;
-    _selectedEmployeeId = payout.employeeId;
     _amountController.text = payout.amount.toString();
     _selectedDate = payout.payoutDate;
-    _method = payout.method;
-    _type = payout.type; // Инициализируем тип при редактировании
 
-    // Инициализируем контроллеры для выпадающих списков
-    _methodController.text = _getMethodDisplayName(_method);
-    _typeController.text = _getTypeDisplayName(_type);
+    // Находим соответствующий PaymentMethod
+    _selectedMethod = PaymentMethod.values.firstWhere(
+      (m) => m.value == payout.method,
+      orElse: () => PaymentMethod.values.first,
+    );
+
+    // Находим соответствующий PaymentType
+    _selectedType = PaymentType.values.firstWhere(
+      (t) => t.value == payout.type,
+      orElse: () => PaymentType.values.first,
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (isEditing && _selectedEmployee == null) {
+      _populateSelectedEmployee();
+    }
+  }
+
+  /// Устанавливает выбранного сотрудника при редактировании
+  void _populateSelectedEmployee() {
+    final payout = widget.payout;
+    if (payout == null) return;
+
+    final employeeState = ref.read(employeeProvider);
+    if (employeeState.employees.isNotEmpty) {
+      _selectedEmployee = employeeState.employees
+          .where((e) => e.id == payout.employeeId)
+          .firstOrNull;
+    }
   }
 
   @override
   void dispose() {
     _commentController.dispose();
     _amountController.dispose();
-    _singleEmployeeController.dispose();
-    _multiEmployeeController.dispose();
-    _methodController.dispose();
-    _typeController.dispose();
     _isSaving.dispose();
     super.dispose();
   }
 
-  /// Получает отображаемое название способа выплаты
-  String _getMethodDisplayName(String method) {
-    switch (method) {
-      case 'card':
-        return 'Карта';
-      case 'cash':
-        return 'Наличные';
-      case 'bank_transfer':
-        return 'Банковский перевод';
-      default:
-        return 'Наличные';
-    }
-  }
-
-  /// Получает отображаемое название типа оплаты
-  String _getTypeDisplayName(String type) {
-    switch (type) {
-      case 'salary':
-        return 'Зарплата';
-      case 'advance':
-        return 'Аванс';
-      default:
-        return 'Зарплата';
-    }
-  }
-
-  /// Обработка выбора способа выплаты
-  void _onMethodSelected(PaymentMethod method) {
-    _method = method.value;
-    _methodController.text = method.displayName;
-  }
-
-  /// Обработка выбора типа оплаты
-  void _onTypeSelected(PaymentType type) {
-    _type = type.value;
-    _typeController.text = type.displayName;
-  }
-
+  /// Выбор даты
   Future<void> _pickDate() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate ?? now,
-      firstDate: DateTime(now.year - 2),
-      lastDate: DateTime(now.year + 2),
+      firstDate: DateTime(now.year - 1),
+      lastDate: DateTime(now.year + 1),
       locale: const Locale('ru'),
     );
     if (picked != null) {
@@ -203,42 +193,37 @@ class _PayrollPayoutFormModalState
     }
   }
 
-  Future<void> _proceedToNextStep() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+  /// Сохранение выплаты
+  Future<void> _savePayout() async {
+    if (!_formKey.currentState!.validate()) return;
 
     if (isEditing) {
-      // Для редактирования - сохраняем как раньше
-      await _saveEditedPayout();
+      await _updatePayout();
     } else {
-      // Для создания - переходим ко второму этапу
-      await _proceedToBulkAmountSelection();
+      await _createMultiplePayouts();
     }
   }
 
-  Future<void> _saveEditedPayout() async {
-    if (_selectedEmployeeId == null) {
-      return;
-    }
-
+  /// Обновление существующей выплаты
+  Future<void> _updatePayout() async {
     _isSaving.value = true;
 
     try {
       final amount = double.parse(_amountController.text.replaceAll(',', '.'));
 
-      final updatedPayout = widget.payout!.copyWith(
-        employeeId: _selectedEmployeeId!,
+      final updatedPayout = PayrollPayoutModel(
+        id: widget.payout!.id,
+        employeeId: _selectedEmployee!.id,
         amount: amount,
-        payoutDate: _selectedDate!,
-        method: _method,
-        type: _type, // Добавляем тип при обновлении
+        payoutDate: _selectedDate ?? DateTime.now(),
+        method: _selectedMethod.value,
+        type: _selectedType.value,
+        createdAt: widget.payout!.createdAt,
       );
 
       final updateUseCase = ref.read(updatePayoutUseCaseProvider);
       await updateUseCase(updatedPayout);
 
-      // Обновляем провайдеры
       ref.invalidate(filteredPayrollPayoutsProvider);
       ref.invalidate(employeeAggregatedBalanceProvider);
       ref.invalidate(payrollPayoutsByMonthProvider);
@@ -249,108 +234,115 @@ class _PayrollPayoutFormModalState
       }
     } catch (e) {
       if (mounted) {
-        SnackBarUtils.showError(context, 'Ошибка: $e');
+        SnackBarUtils.showError(context, 'Ошибка: ${e.toString()}');
       }
     } finally {
       _isSaving.value = false;
     }
   }
 
-  Future<void> _proceedToBulkAmountSelection() async {
-    // Валидация уже выполнена в _proceedToNextStep через _formKey.currentState!.validate()
-    // Дополнительная проверка на всякий случай
-    if (_selectedEmployeeIds.isEmpty) {
-      SnackBarUtils.showError(
-          context, 'Ошибка валидации: не выбраны сотрудники');
+  /// Создание множественных выплат
+  Future<void> _createMultiplePayouts() async {
+    if (_selectedEmployees.isEmpty) {
+      SnackBarUtils.showError(context, 'Выберите сотрудников');
       return;
     }
 
-    if (_selectedDate == null) {
-      SnackBarUtils.showError(context, 'Ошибка валидации: не выбрана дата');
-      return;
+    final amount = double.tryParse(_amountController.text.replaceAll(',', '.'));
+
+    // Если сумма указана, создаём сразу
+    if (amount != null && amount > 0) {
+      await _createPayoutsWithAmount(amount);
+    } else {
+      // Открываем второе окно для указания индивидуальных сумм
+      if (!mounted) return;
+      await _openAmountModal();
     }
+  }
 
-    // Получаем выбранных сотрудников
-    final filterState = ref.read(payrollFilterProvider);
-    final allEmployees = filterState.employees;
-    final selectedEmployees = allEmployees
-        .where((emp) => _selectedEmployeeIds.contains(emp.id))
-        .toList();
+  /// Создание выплат с единой суммой
+  Future<void> _createPayoutsWithAmount(double amount) async {
+    _isSaving.value = true;
 
-    if (selectedEmployees.isEmpty) {
-      SnackBarUtils.showError(
-          context, 'Не удалось найти выбранных сотрудников в системе');
-      return;
+    try {
+      final createUseCase = ref.read(createPayoutUseCaseProvider);
+
+      for (final employee in _selectedEmployees) {
+        final payout = PayrollPayoutModel(
+          id: '', // Будет сгенерировано в БД
+          employeeId: employee.id,
+          amount: amount,
+          payoutDate: _selectedDate ?? DateTime.now(),
+          method: _selectedMethod.value,
+          type: _selectedType.value,
+          createdAt: DateTime.now(),
+        );
+
+        await createUseCase(payout);
+      }
+
+      ref.invalidate(filteredPayrollPayoutsProvider);
+      ref.invalidate(employeeAggregatedBalanceProvider);
+      ref.invalidate(payrollPayoutsByMonthProvider);
+
+      if (mounted) {
+        Navigator.pop(context);
+        SnackBarUtils.showSuccess(
+            context, 'Создано выплат: ${_selectedEmployees.length}');
+      }
+    } catch (e) {
+      if (mounted) {
+        SnackBarUtils.showError(context, 'Ошибка: ${e.toString()}');
+      }
+    } finally {
+      _isSaving.value = false;
     }
+  }
 
-    // Открываем второй модал
-    if (mounted) {
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height -
-              MediaQuery.of(context).padding.top -
-              kToolbarHeight,
-        ),
-        builder: (ctx) => PayrollPayoutAmountModal(
-          selectedEmployees: selectedEmployees,
-          payoutDate: _selectedDate!,
-          method: _method,
-          type: _type, // Передаем тип во второй модал
-          comment: _commentController.text,
-        ),
-      );
+  /// Открытие модального окна для указания индивидуальных сумм
+  Future<void> _openAmountModal() async {
+    final comment = _commentController.text.trim();
+
+    final result = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => PayrollPayoutAmountModal(
+        selectedEmployees: _selectedEmployees,
+        payoutDate: _selectedDate ?? DateTime.now(),
+        method: _selectedMethod.value,
+        type: _selectedType.value,
+        comment: comment.isEmpty ? '' : comment,
+      ),
+    );
+
+    if (result == true && mounted) {
+      Navigator.pop(context);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final filterState = ref.watch(payrollFilterProvider);
-    final employees = filterState.employees;
-    final employeeDropDownList = employees.map((e) {
-      final fio = [
-        e.lastName,
-        e.firstName,
-        if (e.middleName != null && e.middleName.isNotEmpty) e.middleName
-      ].join(' ');
-      return DropDownValueModel(name: fio, value: e.id);
-    }).toList();
-    final isDesktop = MediaQuery.of(context).size.width >= 900;
-    final screenWidth = MediaQuery.of(context).size.width;
+    final employeeState = ref.watch(employeeProvider);
 
-    // Устанавливаем начальное значение для dropdown при редактировании
-    if (isEditing && _selectedEmployeeId != null) {
-      final selectedEmployee = employeeDropDownList
-          .firstWhereOrNull((e) => e.value == _selectedEmployeeId);
-      if (selectedEmployee != null) {
-        _singleEmployeeController.setDropDown(selectedEmployee);
-      }
-    }
+    // Сортировка сотрудников по алфавиту
+    final employees = List<Employee>.from(employeeState.employees)
+      ..sort((a, b) {
+        final fioA = [
+          a.lastName,
+          a.firstName,
+          if (a.middleName != null && a.middleName!.isNotEmpty) a.middleName
+        ].join(' ');
+        final fioB = [
+          b.lastName,
+          b.firstName,
+          if (b.middleName != null && b.middleName!.isNotEmpty) b.middleName
+        ].join(' ');
+        return fioA.compareTo(fioB);
+      });
 
-    final modalContent = Container(
-      margin: isDesktop
-          ? const EdgeInsets.only(top: 48)
-          : EdgeInsets.only(
-              top: kToolbarHeight + MediaQuery.of(context).padding.top),
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.18),
-            blurRadius: 24,
-            offset: const Offset(0, -8),
-          ),
-        ],
-        border: Border.all(
-          color: theme.colorScheme.outline.withValues(alpha: 0.12),
-          width: 1.5,
-        ),
-      ),
+    return ModalContainerWrapper(
       child: DraggableScrollableSheet(
         initialChildSize: 1.0,
         minChildSize: 0.5,
@@ -370,360 +362,11 @@ class _PayrollPayoutFormModalState
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 16.0),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              isEditing
-                                  ? 'Редактировать выплату'
-                                  : 'Массовые выплаты',
-                              style: theme.textTheme.titleLarge
-                                  ?.copyWith(fontWeight: FontWeight.bold),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.close),
-                            style: IconButton.styleFrom(
-                                foregroundColor: Colors.red),
-                            onPressed: () => Navigator.pop(context),
-                          ),
-                        ],
-                      ),
-                    ),
+                    _buildHeader(theme),
                     const Divider(),
-                    if (!isEditing)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 16.0),
-                        child: Card(
-                          margin: EdgeInsets.zero,
-                          elevation: 0,
-                          color: theme.colorScheme.primaryContainer
-                              .withValues(alpha: 0.3),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            side: BorderSide(
-                              color: theme.colorScheme.primary
-                                  .withValues(alpha: 0.3),
-                            ),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(12.0),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.info_outline,
-                                  color: theme.colorScheme.primary,
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'Этап 1 из 2: Выберите сотрудников, дату и способ выплаты',
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: theme.colorScheme.primary,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    Card(
-                      margin: EdgeInsets.zero,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(
-                          color:
-                              theme.colorScheme.outline.withValues(alpha: 51),
-                        ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Дата выплаты
-                            GestureDetector(
-                              onTap: _pickDate,
-                              child: AbsorbPointer(
-                                child: TextFormField(
-                                  decoration: const InputDecoration(
-                                    labelText: 'Дата выплаты',
-                                    border: OutlineInputBorder(),
-                                    prefixIcon: Icon(Icons.event),
-                                  ),
-                                  controller: TextEditingController(
-                                    text: _selectedDate != null
-                                        ? DateFormat('dd.MM.yyyy')
-                                            .format(_selectedDate!)
-                                        : '',
-                                  ),
-                                  validator: (_) => _selectedDate == null
-                                      ? 'Выберите дату'
-                                      : null,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-
-                            // Выбор сотрудников
-                            if (isEditing)
-                              // Для редактирования - одиночный выбор
-                              FormField<String>(
-                                validator: (_) => _selectedEmployeeId == null
-                                    ? 'Выберите сотрудника'
-                                    : null,
-                                builder: (FormFieldState<String> field) {
-                                  return Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      DropDownTextField(
-                                        controller: _singleEmployeeController,
-                                        dropDownList: employeeDropDownList,
-                                        listTextStyle: theme
-                                            .textTheme.bodyMedium
-                                            ?.copyWith(color: Colors.black),
-                                        textFieldDecoration: InputDecoration(
-                                          labelText: 'Сотрудник',
-                                          border: OutlineInputBorder(
-                                            borderSide: BorderSide(
-                                              color: field.hasError
-                                                  ? theme.colorScheme.error
-                                                  : theme.colorScheme.outline,
-                                            ),
-                                          ),
-                                          errorBorder: OutlineInputBorder(
-                                            borderSide: BorderSide(
-                                                color: theme.colorScheme.error),
-                                          ),
-                                        ),
-                                        onChanged: (val) {
-                                          if (val is DropDownValueModel) {
-                                            setState(() {
-                                              _selectedEmployeeId =
-                                                  val.value as String;
-                                            });
-                                            field
-                                                .didChange(val.value as String);
-                                          }
-                                        },
-                                      ),
-                                      if (field.hasError)
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                              top: 8.0, left: 12.0),
-                                          child: Text(
-                                            field.errorText!,
-                                            style: theme.textTheme.bodySmall
-                                                ?.copyWith(
-                                              color: theme.colorScheme.error,
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  );
-                                },
-                              )
-                            else
-                              // Для создания - множественный выбор
-                              FormField<List<String>>(
-                                validator: (_) => _selectedEmployeeIds.isEmpty
-                                    ? 'Выберите хотя бы одного сотрудника'
-                                    : null,
-                                builder: (FormFieldState<List<String>> field) {
-                                  return Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      DropDownTextField.multiSelection(
-                                        controller: _multiEmployeeController,
-                                        dropDownList: employeeDropDownList,
-                                        submitButtonText: 'Ок',
-                                        submitButtonColor: Colors.green,
-                                        checkBoxProperty: CheckBoxProperty(
-                                          fillColor:
-                                              WidgetStateProperty.all<Color>(
-                                                  Colors.green),
-                                          checkColor: Colors.white,
-                                        ),
-                                        displayCompleteItem: true,
-                                        textFieldDecoration: InputDecoration(
-                                          labelText: 'Сотрудники',
-                                          hintText:
-                                              'Выберите одного или несколько сотрудников',
-                                          border: OutlineInputBorder(
-                                            borderSide: BorderSide(
-                                              color: field.hasError
-                                                  ? theme.colorScheme.error
-                                                  : theme.colorScheme.outline,
-                                            ),
-                                          ),
-                                          errorBorder: OutlineInputBorder(
-                                            borderSide: BorderSide(
-                                                color: theme.colorScheme.error),
-                                          ),
-                                        ),
-                                        listTextStyle: theme
-                                            .textTheme.bodyMedium
-                                            ?.copyWith(color: Colors.black),
-                                        onChanged: (val) {
-                                          if (val == null) return;
-                                          final list = val
-                                                  is List<DropDownValueModel>
-                                              ? val
-                                              : List<DropDownValueModel>.from(
-                                                  val);
-                                          _selectedEmployeeIds = list
-                                              .map((e) => e.value as String?)
-                                              .where((value) => value != null)
-                                              .cast<String>()
-                                              .toList();
-                                          field.didChange(_selectedEmployeeIds);
-                                        },
-                                      ),
-                                      if (field.hasError)
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                              top: 8.0, left: 12.0),
-                                          child: Text(
-                                            field.errorText!,
-                                            style: theme.textTheme.bodySmall
-                                                ?.copyWith(
-                                              color: theme.colorScheme.error,
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  );
-                                },
-                              ),
-
-                            const SizedBox(height: 16),
-
-                            // Сумма выплаты (только для редактирования)
-                            if (isEditing) ...[
-                              TextFormField(
-                                controller: _amountController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Сумма выплаты',
-                                  border: OutlineInputBorder(),
-                                  prefixIcon: Icon(Icons.currency_ruble),
-                                ),
-                                keyboardType:
-                                    const TextInputType.numberWithOptions(
-                                        decimal: true),
-                                validator: (val) {
-                                  if (val == null || val.trim().isEmpty) {
-                                    return 'Введите сумму';
-                                  }
-                                  final amount =
-                                      double.tryParse(val.replaceAll(',', '.'));
-                                  if (amount == null || amount <= 0) {
-                                    return 'Введите корректную сумму';
-                                  }
-                                  return null;
-                                },
-                              ),
-                              const SizedBox(height: 16),
-                            ],
-
-                            // Способ выплаты
-                            DropdownTypeAheadField<PaymentMethod>(
-                              controller: _methodController,
-                              labelText: 'Способ',
-                              hintText: 'Выберите способ выплаты',
-                              items: PaymentMethod.values,
-                              displayStringForOption: (method) =>
-                                  method.displayName,
-                              onSelected: _onMethodSelected,
-                              allowCustomValues: false,
-                              validator: (value) => _method.isEmpty
-                                  ? 'Выберите способ выплаты'
-                                  : null,
-                            ),
-                            const SizedBox(height: 16),
-
-                            // Тип оплаты
-                            DropdownTypeAheadField<PaymentType>(
-                              controller: _typeController,
-                              labelText: 'Тип оплаты',
-                              hintText: 'Выберите тип оплаты',
-                              items: PaymentType.values,
-                              displayStringForOption: (type) =>
-                                  type.displayName,
-                              onSelected: _onTypeSelected,
-                              allowCustomValues: false,
-                              validator: (value) =>
-                                  _type.isEmpty ? 'Выберите тип оплаты' : null,
-                            ),
-                            const SizedBox(height: 16),
-
-                            // Комментарий
-                            TextFormField(
-                              controller: _commentController,
-                              decoration: const InputDecoration(
-                                labelText: 'Комментарий',
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.comment_outlined),
-                              ),
-                              maxLines: 2,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                    _buildForm(theme, employees),
                     const SizedBox(height: 24),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () => Navigator.pop(context),
-                            style: OutlinedButton.styleFrom(
-                              minimumSize: const Size.fromHeight(44),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              textStyle: const TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.bold),
-                            ),
-                            child: const Text('Отмена'),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: ValueListenableBuilder<bool>(
-                            valueListenable: _isSaving,
-                            builder: (context, isSaving, child) {
-                              return ElevatedButton(
-                                onPressed: isSaving ? null : _proceedToNextStep,
-                                style: ElevatedButton.styleFrom(
-                                  minimumSize: const Size.fromHeight(44),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  textStyle: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold),
-                                ),
-                                child: isSaving
-                                    ? const SizedBox(
-                                        height: 20,
-                                        width: 20,
-                                        child: CupertinoActivityIndicator())
-                                    : Text(isEditing ? 'Сохранить' : 'Далее'),
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
+                    _buildButtons(),
                     const SizedBox(height: 32),
                   ],
                 ),
@@ -733,18 +376,258 @@ class _PayrollPayoutFormModalState
         ),
       ),
     );
-    if (isDesktop) {
-      return Align(
-        alignment: Alignment.topCenter,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: screenWidth * 0.5,
+  }
+
+  /// Строит заголовок модального окна
+  Widget _buildHeader(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16.0),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              isEditing ? 'Редактировать выплату' : 'Создать выплаты',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
           ),
-          child: modalContent,
+          IconButton(
+            icon: const Icon(Icons.close),
+            style: IconButton.styleFrom(foregroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Строит форму
+  Widget _buildForm(ThemeData theme, List<Employee> employees) {
+    return Card(
+      margin: EdgeInsets.zero,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: theme.colorScheme.outline.withValues(alpha: 0.2),
         ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildDateField(),
+            const SizedBox(height: 16),
+            _buildEmployeeField(employees),
+            const SizedBox(height: 16),
+            _buildMethodField(),
+            const SizedBox(height: 16),
+            _buildTypeField(),
+            const SizedBox(height: 16),
+            _buildAmountField(),
+            const SizedBox(height: 16),
+            _buildCommentField(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Поле выбора даты
+  Widget _buildDateField() {
+    return GestureDetector(
+      onTap: _pickDate,
+      child: AbsorbPointer(
+        child: TextFormField(
+          decoration: const InputDecoration(
+            labelText: 'Дата выплаты',
+            border: OutlineInputBorder(),
+            prefixIcon: Icon(Icons.event),
+          ),
+          controller: TextEditingController(
+            text: _selectedDate != null
+                ? DateFormat('dd.MM.yyyy').format(_selectedDate!)
+                : '',
+          ),
+          validator: (_) =>
+              _selectedDate == null ? 'Выберите дату выплаты' : null,
+        ),
+      ),
+    );
+  }
+
+  /// Поле выбора сотрудника/сотрудников (GTDropdown)
+  Widget _buildEmployeeField(List<Employee> employees) {
+    if (isEditing) {
+      // Одиночный выбор для редактирования
+      return GTDropdown<Employee>(
+        items: employees,
+        itemDisplayBuilder: (e) => [
+          e.lastName,
+          e.firstName,
+          if (e.middleName != null && e.middleName!.isNotEmpty) e.middleName
+        ].join(' '),
+        selectedItem: _selectedEmployee,
+        onSelectionChanged: (employee) {
+          setState(() {
+            _selectedEmployee = employee;
+          });
+        },
+        labelText: 'Сотрудник',
+        hintText: employees.isEmpty
+            ? 'Нет доступных сотрудников'
+            : 'Выберите сотрудника',
+        validator: (_) =>
+            _selectedEmployee == null ? 'Выберите сотрудника' : null,
       );
     } else {
-      return modalContent;
+      // Множественный выбор для создания
+      return GTDropdown<Employee>(
+        items: employees,
+        itemDisplayBuilder: (e) => [
+          e.lastName,
+          e.firstName,
+          if (e.middleName != null && e.middleName!.isNotEmpty) e.middleName
+        ].join(' '),
+        selectedItems: _selectedEmployees,
+        onMultiSelectionChanged: (selectedList) {
+          setState(() {
+            _selectedEmployees = selectedList;
+          });
+        },
+        labelText: 'Сотрудники',
+        hintText: employees.isEmpty
+            ? 'Нет доступных сотрудников'
+            : 'Выберите сотрудников',
+        allowMultipleSelection: true,
+        validator: (_) =>
+            _selectedEmployees.isEmpty ? 'Выберите сотрудников' : null,
+      );
     }
+  }
+
+  /// Поле выбора способа выплаты (GTDropdown)
+  Widget _buildMethodField() {
+    return GTDropdown<PaymentMethod>(
+      items: PaymentMethod.values,
+      itemDisplayBuilder: (method) => method.displayName,
+      selectedItem: _selectedMethod,
+      onSelectionChanged: (method) {
+        setState(() {
+          _selectedMethod = method ?? PaymentMethod.values.first;
+        });
+      },
+      labelText: 'Способ выплаты',
+      hintText: 'Выберите способ выплаты',
+      allowClear: false,
+    );
+  }
+
+  /// Поле выбора типа выплаты (GTDropdown)
+  Widget _buildTypeField() {
+    return GTDropdown<PaymentType>(
+      items: PaymentType.values,
+      itemDisplayBuilder: (type) => type.displayName,
+      selectedItem: _selectedType,
+      onSelectionChanged: (type) {
+        setState(() {
+          _selectedType = type ?? PaymentType.values.first;
+        });
+      },
+      labelText: 'Тип выплаты',
+      hintText: 'Выберите тип выплаты',
+      allowClear: false,
+    );
+  }
+
+  /// Поле ввода суммы
+  Widget _buildAmountField() {
+    return TextFormField(
+      controller: _amountController,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      decoration: InputDecoration(
+        labelText: isEditing ? 'Сумма' : 'Сумма (необязательно)',
+        border: const OutlineInputBorder(),
+        prefixIcon: const Icon(Icons.currency_ruble),
+        hintText: isEditing ? null : 'Оставьте пустым для индивидуальных сумм',
+      ),
+      validator: (value) {
+        if (isEditing) {
+          if (value == null || value.isEmpty) return 'Введите сумму';
+          final num? n = num.tryParse(value.replaceAll(',', '.'));
+          if (n == null || n <= 0) return 'Некорректная сумма';
+        }
+        return null;
+      },
+    );
+  }
+
+  /// Поле комментария
+  Widget _buildCommentField() {
+    return TextFormField(
+      controller: _commentController,
+      decoration: const InputDecoration(
+        labelText: 'Комментарий (необязательно)',
+        border: OutlineInputBorder(),
+        prefixIcon: Icon(Icons.comment_outlined),
+      ),
+      minLines: 1,
+      maxLines: 3,
+    );
+  }
+
+  /// Кнопки действий
+  Widget _buildButtons() {
+    return ValueListenableBuilder<bool>(
+      valueListenable: _isSaving,
+      builder: (context, isSaving, _) {
+        return Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: isSaving ? null : () => Navigator.pop(context),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(44),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  textStyle: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                child: const Text('Отмена'),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: isSaving ? null : _savePayout,
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(44),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  textStyle: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                child: isSaving
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CupertinoActivityIndicator(),
+                      )
+                    : Text(isEditing ? 'Обновить' : 'Продолжить'),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 }

@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/timesheet_entry.dart';
-import '../../domain/entities/timesheet_summary.dart';
 import '../../domain/repositories/timesheet_repository.dart';
 import 'repositories_providers.dart';
 
@@ -8,9 +7,6 @@ import 'repositories_providers.dart';
 class TimesheetState {
   /// Список записей табеля
   final List<TimesheetEntry> entries;
-
-  /// Сводные данные по часам сотрудников
-  final List<TimesheetSummary> summaries;
 
   /// Флаг загрузки данных
   final bool isLoading;
@@ -24,14 +20,8 @@ class TimesheetState {
   /// Конечная дата для фильтрации
   final DateTime endDate;
 
-  /// Выбранные сотрудники для фильтрации (мультивыбор)
-  final List<String>? selectedEmployeeIds;
-
-  /// Выбранный объект для фильтрации
-  final String? selectedObjectId;
-
-  /// Флаг группировки по сотрудникам
-  final bool isGroupedByEmployee;
+  /// Выбранные объекты для фильтрации (мультивыбор)
+  final List<String>? selectedObjectIds;
 
   /// Выбранные должности для фильтрации
   final List<String>? selectedPositions;
@@ -42,25 +32,19 @@ class TimesheetState {
   /// Создает экземпляр состояния [TimesheetState].
   ///
   /// [entries] — список записей табеля (по умолчанию пустой).
-  /// [summaries] — сводные данные по часам сотрудников (по умолчанию пустой).
   /// [isLoading] — флаг загрузки данных (по умолчанию false).
   /// [error] — текст ошибки, если есть (по умолчанию null).
   /// [startDate] — начальная дата для фильтрации (обязательный параметр).
   /// [endDate] — конечная дата для фильтрации (обязательный параметр).
-  /// [selectedEmployeeIds] — выбранные сотрудники для фильтрации (мультивыбор, по умолчанию null).
-  /// [selectedObjectId] — выбранный объект для фильтрации (по умолчанию null).
-  /// [isGroupedByEmployee] — флаг группировки по сотрудникам (по умолчанию true).
+  /// [selectedObjectIds] — выбранные объекты для фильтрации (мультивыбор, по умолчанию null).
   /// [selectedPositions] — выбранные должности для фильтрации (по умолчанию null).
   TimesheetState({
     this.entries = const [],
-    this.summaries = const [],
     this.isLoading = false,
     this.error,
     required this.startDate,
     required this.endDate,
-    this.selectedEmployeeIds,
-    this.selectedObjectId,
-    this.isGroupedByEmployee = true,
+    this.selectedObjectIds,
     this.selectedPositions,
   });
 
@@ -69,43 +53,32 @@ class TimesheetState {
   /// Позволяет частично изменить поля состояния без необходимости указывать все параметры.
   ///
   /// [entries] — новый список записей табеля (опционально).
-  /// [summaries] — новые сводные данные по часам сотрудников (опционально).
   /// [isLoading] — новое состояние загрузки (опционально).
   /// [error] — новый текст ошибки (опционально).
   /// [startDate] — новая начальная дата фильтрации (опционально).
   /// [endDate] — новая конечная дата фильтрации (опционально).
-  /// [selectedEmployeeIds] — новые выбранные сотрудники для фильтрации (опционально, поддерживает sentinel для различения null и отсутствия значения).
-  /// [selectedObjectId] — новый выбранный объект для фильтрации (опционально, поддерживает sentinel для различения null и отсутствия значения).
-  /// [isGroupedByEmployee] — новое состояние группировки (опционально).
+  /// [selectedObjectIds] — новые выбранные объекты для фильтрации (опционально, поддерживает sentinel для различения null и отсутствия значения).
   /// [selectedPositions] — новые выбранные должности для фильтрации (опционально).
   ///
   /// Возвращает новый экземпляр [TimesheetState] с обновлёнными значениями.
   TimesheetState copyWith({
     List<TimesheetEntry>? entries,
-    List<TimesheetSummary>? summaries,
     bool? isLoading,
     String? error,
     DateTime? startDate,
     DateTime? endDate,
-    Object? selectedEmployeeIds = _sentinel,
-    Object? selectedObjectId = _sentinel,
-    bool? isGroupedByEmployee,
+    Object? selectedObjectIds = _sentinel,
     List<String>? selectedPositions,
   }) {
     return TimesheetState(
       entries: entries ?? this.entries,
-      summaries: summaries ?? this.summaries,
       isLoading: isLoading ?? this.isLoading,
       error: error,
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
-      selectedEmployeeIds: selectedEmployeeIds == _sentinel
-          ? this.selectedEmployeeIds
-          : selectedEmployeeIds as List<String>?,
-      selectedObjectId: selectedObjectId == _sentinel
-          ? this.selectedObjectId
-          : selectedObjectId as String?,
-      isGroupedByEmployee: isGroupedByEmployee ?? this.isGroupedByEmployee,
+      selectedObjectIds: selectedObjectIds == _sentinel
+          ? this.selectedObjectIds
+          : selectedObjectIds as List<String>?,
       selectedPositions: selectedPositions ?? this.selectedPositions,
     );
   }
@@ -127,42 +100,27 @@ class TimesheetNotifier extends StateNotifier<TimesheetState> {
     loadTimesheet();
   }
 
-  /// Загружает данные табеля с учетом текущих фильтров
+  /// Загружает данные табеля с учетом текущих фильтров.
+  ///
+  /// Все фильтры применяются на серверной стороне для оптимизации производительности.
   Future<void> loadTimesheet() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
+      // Передаём все фильтры в репозиторий для обработки на сервере
       final entries = await repository.getTimesheetEntries(
         startDate: state.startDate,
         endDate: state.endDate,
-        employeeId: null, // фильтрация по нескольким сотрудникам ниже
-        objectId: state.selectedObjectId,
+        employeeId: null,
+        objectIds: state.selectedObjectIds?.isNotEmpty == true
+            ? state.selectedObjectIds
+            : null,
+        positions: state.selectedPositions?.isNotEmpty == true
+            ? state.selectedPositions
+            : null,
       );
-      // Фильтрация по сотрудникам (мультивыбор)
-      final filteredByEmployee = (state.selectedEmployeeIds != null &&
-              state.selectedEmployeeIds!.isNotEmpty)
-          ? entries
-              .where((e) => state.selectedEmployeeIds!.contains(e.employeeId))
-              .toList()
-          : entries;
-      // Фильтрация по должностям (локально)
-      final filteredEntries = (state.selectedPositions != null &&
-              state.selectedPositions!.isNotEmpty)
-          ? filteredByEmployee
-              .where((e) =>
-                  e.employeePosition != null &&
-                  state.selectedPositions!.contains(e.employeePosition))
-              .toList()
-          : filteredByEmployee;
-      final summaries = await repository.getTimesheetSummary(
-        startDate: state.startDate,
-        endDate: state.endDate,
-        employeeIds: state.selectedEmployeeIds,
-        objectIds:
-            state.selectedObjectId != null ? [state.selectedObjectId!] : null,
-      );
+
       state = state.copyWith(
-        entries: filteredEntries,
-        summaries: summaries,
+        entries: entries,
         isLoading: false,
       );
     } catch (e) {
@@ -179,21 +137,10 @@ class TimesheetNotifier extends StateNotifier<TimesheetState> {
     loadTimesheet();
   }
 
-  /// Устанавливает выбранных сотрудников для фильтрации (мультивыбор)
-  void setSelectedEmployees(List<String> employeeIds) {
-    state = state.copyWith(selectedEmployeeIds: employeeIds);
+  /// Устанавливает выбранные объекты для фильтрации (мультивыбор)
+  void setSelectedObjects(List<String> objectIds) {
+    state = state.copyWith(selectedObjectIds: objectIds);
     loadTimesheet();
-  }
-
-  /// Устанавливает выбранный объект для фильтрации
-  void setSelectedObject(String? objectId) {
-    state = state.copyWith(selectedObjectId: objectId);
-    loadTimesheet();
-  }
-
-  /// Переключает режим группировки (по сотрудникам/по датам)
-  void toggleGrouping() {
-    state = state.copyWith(isGroupedByEmployee: !state.isGroupedByEmployee);
   }
 
   /// Устанавливает выбранные должности для фильтрации
@@ -208,8 +155,7 @@ class TimesheetNotifier extends StateNotifier<TimesheetState> {
     state = state.copyWith(
       startDate: DateTime(now.year, now.month, 1),
       endDate: DateTime(now.year, now.month + 1, 0),
-      selectedEmployeeIds: <String>[],
-      selectedObjectId: null,
+      selectedObjectIds: <String>[],
       selectedPositions: <String>[],
     );
     loadTimesheet();

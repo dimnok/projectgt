@@ -1,6 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/payroll_penalty_model.dart';
-import 'payroll_penalty_repository.dart';
+import '../../domain/repositories/payroll_penalty_repository.dart';
 
 /// Имплементация репозитория для работы со штрафами по расчёту ФОТ через Supabase.
 ///

@@ -1,6 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/payroll_bonus_model.dart';
-import 'payroll_bonus_repository.dart';
+import '../../domain/repositories/payroll_bonus_repository.dart';
 
 /// Имплементация репозитория для работы с премиями по расчёту ФОТ через Supabase.
 ///

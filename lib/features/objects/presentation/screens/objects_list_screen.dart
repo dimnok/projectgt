@@ -9,10 +9,22 @@ import 'package:projectgt/presentation/widgets/app_drawer.dart';
 import 'package:uuid/uuid.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
 
+void showSuccessMessage(BuildContext context, String message) {
+  SnackBarUtils.showSuccess(context, message);
+}
+
+void showInfoMessage(BuildContext context, String message) {
+  SnackBarUtils.showInfo(context, message);
+}
+
+void showErrorMessage(BuildContext context, String message) {
+  SnackBarUtils.showError(context, message);
+}
+
 /// Экран для отображения списка объектов.
 ///
-/// Позволяет просматривать, фильтровать и выбирать объекты.
-/// Поддерживает поиск, фильтрацию, адаптивную верстку (desktop/mobile), создание, редактирование и удаление объектов.
+/// Позволяет просматривать и выбирать объекты.
+/// Поддерживает адаптивную верстку (desktop/mobile), создание, редактирование и удаление объектов.
 /// Использует [objectProvider] для управления состоянием.
 ///
 /// Пример использования:
@@ -29,64 +41,169 @@ class ObjectsListScreen extends ConsumerStatefulWidget {
 
 /// Состояние для [ObjectsListScreen].
 ///
-/// Управляет поиском, выбором, обновлением и отображением объектов.
+/// Управляет выбором, обновлением и отображением объектов.
 class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
-  /// Контроллер для поля поиска.
-  final _searchController = TextEditingController();
-
   /// Контроллер для прокрутки списка.
   final _scrollController = ScrollController();
-
-  /// Флаг видимости поиска (только для mobile).
-  final bool _isSearchVisible = false;
-
-  /// Флаг предотвращения повторного обновления.
-  final bool _preventRefresh = false;
 
   /// Текущий выбранный объект (desktop режим).
   ObjectEntity? selectedObject;
 
   @override
   void dispose() {
-    _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  /// Определяет, является ли устройство мобильным по ширине экрана.
-  bool _isMobileDevice() {
-    final width = MediaQuery.of(context).size.width;
-    return width < 600;
-  }
-
-  /// Фильтрует объекты по строке поиска [query].
-  void _filterObjects(String query) {
-    setState(() {});
-  }
-
   /// Обновляет список объектов (pull-to-refresh).
   Future<void> _handleRefresh() async {
-    if (_preventRefresh) return;
     await ref.read(objectProvider.notifier).loadObjects();
+  }
+
+  /// Открывает модальное окно создания/редактирования объекта.
+  void _openObjectForm({ObjectEntity? object}) {
+    final theme = Theme.of(context);
+    final mediaQuery = MediaQuery.of(context);
+    final isDesktopWidth = mediaQuery.size.width >= 900;
+    final maxHeight =
+        mediaQuery.size.height - mediaQuery.padding.top - kToolbarHeight;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      constraints: BoxConstraints(maxHeight: maxHeight),
+      builder: (modalContext) {
+        Widget modalContent = Container(
+          margin: isDesktopWidth ? const EdgeInsets.only(top: 48) : null,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.18),
+                blurRadius: 24,
+                offset: const Offset(0, -8),
+              ),
+            ],
+            border: Border.all(
+              color: theme.colorScheme.outline.withValues(alpha: 0.12),
+              width: 1.5,
+            ),
+          ),
+          child: DraggableScrollableSheet(
+            initialChildSize: 1.0,
+            minChildSize: 0.5,
+            maxChildSize: 1.0,
+            expand: false,
+            builder: (sheetContext, scrollController) => SingleChildScrollView(
+              controller: scrollController,
+              child: Padding(
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
+                ),
+                child: ObjectFormModal(
+                  object: object,
+                  onSuccess: (isNew) {
+                    if (isNew) {
+                      showSuccessMessage(context, 'Объект успешно создан');
+                    } else {
+                      showInfoMessage(context, 'Изменения успешно сохранены');
+                    }
+                  },
+                ),
+              ),
+            ),
+          ),
+        );
+
+        if (isDesktopWidth) {
+          final width = MediaQuery.of(modalContext).size.width;
+          return Center(
+            child: AnimatedScale(
+              scale: 1.0,
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutBack,
+              child: AnimatedOpacity(
+                opacity: 1.0,
+                duration: const Duration(milliseconds: 220),
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: width * 0.5),
+                    child: modalContent,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+
+        return modalContent;
+      },
+    );
+  }
+
+  Widget _buildObjectCard({
+    required BuildContext context,
+    required ObjectEntity object,
+    required VoidCallback onTap,
+    EdgeInsets margin = const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    bool isSelected = false,
+  }) {
+    final theme = Theme.of(context);
+    final borderColor = isSelected
+        ? Colors.green
+        : theme.colorScheme.outline.withValues(alpha: 0.1);
+    final borderWidth = isSelected ? 2.0 : 1.0;
+
+    return Card(
+      margin: margin,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: borderColor, width: borderWidth),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                object.name,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                object.address,
+                style: theme.textTheme.bodyMedium,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final state = ref.watch(objectProvider);
-    final isMobile = _isMobileDevice();
     final isDesktop = MediaQuery.of(context).size.width >= 900;
     final objects = state.objects;
     final isLoading = state.status == ObjectStatus.loading;
     final isError = state.status == ObjectStatus.error;
-    final searchQuery = _searchController.text;
-    final filteredObjects = List<ObjectEntity>.from(searchQuery.isEmpty
-        ? objects
-        : objects
-            .where((o) =>
-                o.name.toLowerCase().contains(searchQuery.toLowerCase()) ||
-                o.address.toLowerCase().contains(searchQuery.toLowerCase()))
-            .toList())
+    final sortedObjects = List<ObjectEntity>.from(objects)
       ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
     return Scaffold(
@@ -98,94 +215,7 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
             IconButton(
               icon: const Icon(Icons.edit, color: Colors.amber),
               tooltip: 'Редактировать',
-              onPressed: () {
-                final theme = Theme.of(context);
-                final isDesktop = MediaQuery.of(context).size.width >= 900;
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
-                  constraints: BoxConstraints(
-                    maxHeight: MediaQuery.of(context).size.height -
-                        MediaQuery.of(context).padding.top -
-                        kToolbarHeight,
-                  ),
-                  builder: (context) {
-                    Widget modalContent = Container(
-                      margin: isDesktop ? const EdgeInsets.only(top: 48) : null,
-                      clipBehavior: Clip.antiAlias,
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surface,
-                        borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(32)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.18),
-                            blurRadius: 24,
-                            offset: const Offset(0, -8),
-                          ),
-                        ],
-                        border: Border.all(
-                          color:
-                              theme.colorScheme.outline.withValues(alpha: 0.12),
-                          width: 1.5,
-                        ),
-                      ),
-                      child: DraggableScrollableSheet(
-                        initialChildSize: 1.0,
-                        minChildSize: 0.5,
-                        maxChildSize: 1.0,
-                        expand: false,
-                        builder: (context, scrollController) =>
-                            SingleChildScrollView(
-                          controller: scrollController,
-                          child: Padding(
-                            padding: EdgeInsets.only(
-                              bottom: MediaQuery.of(context).viewInsets.bottom,
-                            ),
-                            child: ObjectFormModal(
-                                object: selectedObject,
-                                onSuccess: (isNew) {
-                                  if (isNew) {
-                                    SnackBarUtils.showSuccess(
-                                        context, 'Объект успешно создан');
-                                  } else {
-                                    SnackBarUtils.showInfo(
-                                        context, 'Изменения успешно сохранены');
-                                  }
-                                }),
-                          ),
-                        ),
-                      ),
-                    );
-                    if (isDesktop) {
-                      return Center(
-                        child: AnimatedScale(
-                          scale: 1.0,
-                          duration: const Duration(milliseconds: 220),
-                          curve: Curves.easeOutBack,
-                          child: AnimatedOpacity(
-                            opacity: 1.0,
-                            duration: const Duration(milliseconds: 220),
-                            child: Align(
-                              alignment: Alignment.topCenter,
-                              child: ConstrainedBox(
-                                constraints: BoxConstraints(
-                                  maxWidth:
-                                      MediaQuery.of(context).size.width * 0.5,
-                                ),
-                                child: modalContent,
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    } else {
-                      return modalContent;
-                    }
-                  },
-                );
-              },
+              onPressed: () => _openObjectForm(object: selectedObject),
             ),
             IconButton(
               icon: const Icon(Icons.delete, color: Colors.red),
@@ -222,11 +252,10 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
                     setState(() {
                       selectedObject = null;
                     });
-                    SnackBarUtils.showError(ctx, 'Объект удалён');
+                    showErrorMessage(ctx, 'Объект удалён');
                   } catch (e) {
                     if (!ctx.mounted) return;
-                    SnackBarUtils.showError(
-                        ctx, 'Ошибка удаления: ${e.toString()}');
+                    showErrorMessage(ctx, 'Ошибка удаления: ${e.toString()}');
                   }
                 }
               },
@@ -236,89 +265,7 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
       ),
       drawer: const AppDrawer(activeRoute: AppRoute.objects),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          final theme = Theme.of(context);
-          final isDesktop = MediaQuery.of(context).size.width >= 900;
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height -
-                  MediaQuery.of(context).padding.top -
-                  kToolbarHeight,
-            ),
-            builder: (context) {
-              Widget modalContent = Container(
-                margin: isDesktop ? const EdgeInsets.only(top: 48) : null,
-                clipBehavior: Clip.antiAlias,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surface,
-                  borderRadius:
-                      const BorderRadius.vertical(top: Radius.circular(32)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.18),
-                      blurRadius: 24,
-                      offset: const Offset(0, -8),
-                    ),
-                  ],
-                  border: Border.all(
-                    color: theme.colorScheme.outline.withValues(alpha: 0.12),
-                    width: 1.5,
-                  ),
-                ),
-                child: DraggableScrollableSheet(
-                  initialChildSize: 1.0,
-                  minChildSize: 0.5,
-                  maxChildSize: 1.0,
-                  expand: false,
-                  builder: (context, scrollController) => SingleChildScrollView(
-                    controller: scrollController,
-                    child: Padding(
-                      padding: EdgeInsets.only(
-                        bottom: MediaQuery.of(context).viewInsets.bottom,
-                      ),
-                      child: ObjectFormModal(onSuccess: (isNew) {
-                        if (isNew) {
-                          SnackBarUtils.showSuccess(
-                              context, 'Объект успешно создан');
-                        } else {
-                          SnackBarUtils.showInfo(
-                              context, 'Изменения успешно сохранены');
-                        }
-                      }),
-                    ),
-                  ),
-                ),
-              );
-              if (isDesktop) {
-                return Center(
-                  child: AnimatedScale(
-                    scale: 1.0,
-                    duration: const Duration(milliseconds: 220),
-                    curve: Curves.easeOutBack,
-                    child: AnimatedOpacity(
-                      opacity: 1.0,
-                      duration: const Duration(milliseconds: 220),
-                      child: Align(
-                        alignment: Alignment.topCenter,
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxWidth: MediaQuery.of(context).size.width * 0.5,
-                          ),
-                          child: modalContent,
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              } else {
-                return modalContent;
-              }
-            },
-          );
-        },
+        onPressed: () => _openObjectForm(),
         backgroundColor: Colors.green,
         child: const Icon(Icons.add, color: Colors.white),
       ),
@@ -332,28 +279,13 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
                   width: 570,
                   child: Column(
                     children: [
-                      // Поиск
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        height: 80,
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: TextField(
-                            controller: _searchController,
-                            decoration: InputDecoration(
-                              labelText: 'Поиск объектов',
-                              prefixIcon: const Icon(Icons.search),
-                              suffixIcon: _searchController.text.isNotEmpty
-                                  ? IconButton(
-                                      icon: const Icon(Icons.clear),
-                                      onPressed: () {
-                                        _searchController.clear();
-                                        _filterObjects('');
-                                      },
-                                    )
-                                  : null,
-                            ),
-                            onChanged: _filterObjects,
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Всего объектов: ${sortedObjects.length}',
+                            style: theme.textTheme.titleMedium,
                           ),
                         ),
                       ),
@@ -366,12 +298,10 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
                                   ? Center(
                                       child:
                                           Text(state.errorMessage ?? 'Ошибка'))
-                                  : filteredObjects.isEmpty
+                                  : sortedObjects.isEmpty
                                       ? Center(
                                           child: Text(
-                                            searchQuery.isEmpty
-                                                ? 'Список объектов пуст'
-                                                : 'Объекты не найдены',
+                                            'Список объектов пуст',
                                             style: theme.textTheme.bodyLarge,
                                           ),
                                         )
@@ -379,72 +309,25 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
                                           controller: _scrollController,
                                           physics:
                                               const AlwaysScrollableScrollPhysics(),
-                                          itemCount: filteredObjects.length,
+                                          itemCount: sortedObjects.length,
                                           itemBuilder: (context, index) {
-                                            final object =
-                                                filteredObjects[index];
+                                            final object = sortedObjects[index];
                                             final isSelected =
                                                 selectedObject?.id == object.id;
-                                            return Card(
+                                            return _buildObjectCard(
+                                              context: context,
+                                              object: object,
+                                              isSelected: isSelected,
                                               margin:
                                                   const EdgeInsets.symmetric(
-                                                      horizontal: 12,
-                                                      vertical: 6),
-                                              elevation: 0,
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                                side: BorderSide(
-                                                  color: isSelected
-                                                      ? Colors.green
-                                                      : theme
-                                                          .colorScheme.outline
-                                                          .withValues(
-                                                              alpha: 0.1),
-                                                  width: isSelected ? 2 : 1,
-                                                ),
+                                                horizontal: 12,
+                                                vertical: 6,
                                               ),
-                                              child: InkWell(
-                                                onTap: () {
-                                                  setState(() {
-                                                    selectedObject = object;
-                                                  });
-                                                },
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                                child: Padding(
-                                                  padding: const EdgeInsets.all(
-                                                      16.0),
-                                                  child: Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    children: [
-                                                      Text(
-                                                        object.name,
-                                                        style: theme.textTheme
-                                                            .titleMedium
-                                                            ?.copyWith(
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .bold),
-                                                        maxLines: 1,
-                                                        overflow: TextOverflow
-                                                            .ellipsis,
-                                                      ),
-                                                      const SizedBox(height: 4),
-                                                      Text(
-                                                        object.address,
-                                                        style: theme.textTheme
-                                                            .bodyMedium,
-                                                        maxLines: 1,
-                                                        overflow: TextOverflow
-                                                            .ellipsis,
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ),
+                                              onTap: () {
+                                                setState(() {
+                                                  selectedObject = object;
+                                                });
+                                              },
                                             );
                                           },
                                         ),
@@ -467,61 +350,18 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
               ],
             );
           } else {
-            // Мобильный режим
             return Column(
               children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  height: _isSearchVisible ? 80 : 0,
-                  child: _isSearchVisible
-                      ? Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: TextField(
-                            controller: _searchController,
-                            decoration: InputDecoration(
-                              labelText: 'Поиск объектов',
-                              prefixIcon: const Icon(Icons.search),
-                              suffixIcon: _searchController.text.isNotEmpty
-                                  ? IconButton(
-                                      icon: const Icon(Icons.clear),
-                                      onPressed: () {
-                                        _searchController.clear();
-                                        _filterObjects('');
-                                      },
-                                    )
-                                  : null,
-                            ),
-                            onChanged: _filterObjects,
-                          ),
-                        )
-                      : const SizedBox.shrink(),
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Всего объектов: ${sortedObjects.length}',
+                      style: theme.textTheme.titleMedium,
+                    ),
+                  ),
                 ),
-                if (isMobile && !_isSearchVisible)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8.0),
-                    child: Center(
-                      child: Text(
-                        "↓ Потяните вниз для поиска ↓",
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.5),
-                        ),
-                      ),
-                    ),
-                  ),
-                if (isMobile && _isSearchVisible)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4.0),
-                    child: Center(
-                      child: Text(
-                        "↓ Потяните ещё раз для обновления списка ↓",
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.5),
-                        ),
-                      ),
-                    ),
-                  ),
                 Expanded(
                   child: RefreshIndicator(
                     onRefresh: _handleRefresh,
@@ -530,12 +370,10 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
                         : isError
                             ? Center(
                                 child: Text(state.errorMessage ?? 'Ошибка'))
-                            : filteredObjects.isEmpty
+                            : sortedObjects.isEmpty
                                 ? Center(
                                     child: Text(
-                                      searchQuery.isEmpty
-                                          ? 'Список объектов пуст'
-                                          : 'Объекты не найдены',
+                                      'Список объектов пуст',
                                       style: theme.textTheme.bodyLarge,
                                     ),
                                   )
@@ -543,64 +381,21 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
                                     controller: _scrollController,
                                     physics:
                                         const AlwaysScrollableScrollPhysics(),
-                                    itemCount: filteredObjects.length,
+                                    itemCount: sortedObjects.length,
                                     itemBuilder: (context, index) {
-                                      final object = filteredObjects[index];
-                                      return Card(
-                                        margin: const EdgeInsets.symmetric(
-                                            horizontal: 16, vertical: 8),
-                                        elevation: 0,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                          side: BorderSide(
-                                            color: theme.colorScheme.outline
-                                                .withValues(alpha: 0.1),
-                                            width: 1,
-                                          ),
-                                        ),
-                                        child: InkWell(
-                                          onTap: () {
-                                            Navigator.of(context).push(
-                                              MaterialPageRoute(
-                                                builder: (context) =>
-                                                    ObjectDetailsScreen(
-                                                        object: object),
-                                              ),
-                                            );
-                                          },
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                          child: Padding(
-                                            padding: const EdgeInsets.all(16.0),
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  object.name,
-                                                  style: theme
-                                                      .textTheme.titleMedium
-                                                      ?.copyWith(
-                                                          fontWeight:
-                                                              FontWeight.bold),
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                ),
-                                                const SizedBox(height: 4),
-                                                Text(
-                                                  object.address,
-                                                  style: theme
-                                                      .textTheme.bodyMedium,
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                ),
-                                              ],
+                                      final object = sortedObjects[index];
+                                      return _buildObjectCard(
+                                        context: context,
+                                        object: object,
+                                        onTap: () {
+                                          Navigator.of(context).push(
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  ObjectDetailsScreen(
+                                                      object: object),
                                             ),
-                                          ),
-                                        ),
+                                          );
+                                        },
                                       );
                                     },
                                   ),
@@ -636,7 +431,7 @@ class _ObjectDetailsPanelState extends State<_ObjectDetailsPanel>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
   }
 
   @override
@@ -652,195 +447,11 @@ class _ObjectDetailsPanelState extends State<_ObjectDetailsPanel>
     return Column(
       children: [
         // Шапка с иконкой и названием
-        Container(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            boxShadow: [
-              BoxShadow(
-                color: theme.colorScheme.shadow.withValues(alpha: 0.1),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              CircleAvatar(
-                radius: 40,
-                backgroundColor:
-                    theme.colorScheme.primary.withValues(alpha: 0.08),
-                child: Icon(
-                  Icons.location_city_rounded,
-                  size: 48,
-                  color: theme.colorScheme.primary,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      object.name,
-                      style: theme.textTheme.titleLarge
-                          ?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Icon(Icons.place,
-                            size: 20,
-                            color: theme.colorScheme.primary
-                                .withValues(alpha: 0.7)),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            object.address,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurface
-                                  .withValues(alpha: 0.85),
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        // TabBar
-        TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Основное'),
-            Tab(text: 'Описание'),
-            Tab(text: 'Командировочные'),
-          ],
-        ),
-        // TabBarView
+        ObjectDetailsHeader(object: object),
         Expanded(
-          child: TabBarView(
+          child: ObjectDetailsTabSection(
             controller: _tabController,
-            children: [
-              // Вкладка Основное
-              ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  Card(
-                    margin: EdgeInsets.zero,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(
-                        color: theme.colorScheme.outline.withValues(alpha: 0.1),
-                      ),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Основная информация',
-                            style: theme.textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 16),
-                          buildInfoItem(context, 'Наименование', object.name),
-                          buildInfoItem(context, 'Адрес', object.address),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              // Вкладка Описание
-              ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  Card(
-                    margin: EdgeInsets.zero,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(
-                        color: theme.colorScheme.outline.withValues(alpha: 0.1),
-                      ),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Описание',
-                            style: theme.textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 16),
-                          if (object.description != null &&
-                              object.description!.isNotEmpty)
-                            Text(
-                              object.description!,
-                              style: theme.textTheme.bodyLarge,
-                            )
-                          else
-                            Text(
-                              'Нет описания',
-                              style: theme.textTheme.bodyLarge?.copyWith(
-                                  color: theme.colorScheme.onSurface
-                                      .withValues(alpha: 0.5)),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              // Вкладка Командировочные
-              ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  Card(
-                    margin: EdgeInsets.zero,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(
-                        color: theme.colorScheme.outline.withValues(alpha: 0.1),
-                      ),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Командировочные выплаты',
-                            style: theme.textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Для всех сотрудников, работающих на этом объекте, будет начисляться фиксированная сумма командировочных за каждую смену.',
-                            style: theme.textTheme.bodyMedium,
-                          ),
-                          const SizedBox(height: 16),
-                          buildInfoItem(context, 'Сумма командировочных',
-                              '${object.businessTripAmount} ₽'),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+            object: object,
           ),
         ),
       ],
@@ -901,7 +512,7 @@ class _ObjectDetailsScreenState extends ConsumerState<ObjectDetailsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
   }
 
   @override
@@ -965,10 +576,10 @@ class _ObjectDetailsScreenState extends ConsumerState<ObjectDetailsScreen>
                             object: object,
                             onSuccess: (isNew) {
                               if (isNew) {
-                                SnackBarUtils.showSuccess(
+                                showSuccessMessage(
                                     context, 'Объект успешно создан');
                               } else {
-                                SnackBarUtils.showInfo(
+                                showInfoMessage(
                                     context, 'Изменения успешно сохранены');
                               }
                             }),
@@ -1011,11 +622,10 @@ class _ObjectDetailsScreenState extends ConsumerState<ObjectDetailsScreen>
                       .deleteObject(widget.object.id);
                   if (!ctx.mounted) return;
                   Navigator.of(ctx).pop();
-                  SnackBarUtils.showError(ctx, 'Объект удалён');
+                  showErrorMessage(ctx, 'Объект удалён');
                 } catch (e) {
                   if (!ctx.mounted) return;
-                  SnackBarUtils.showError(
-                      ctx, 'Ошибка удаления: ${e.toString()}');
+                  showErrorMessage(ctx, 'Ошибка удаления: ${e.toString()}');
                 }
               }
             },
@@ -1024,189 +634,82 @@ class _ObjectDetailsScreenState extends ConsumerState<ObjectDetailsScreen>
       ),
       body: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              boxShadow: [
-                BoxShadow(
-                  color: theme.colorScheme.shadow.withValues(alpha: 0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+          ObjectDetailsHeader(object: object),
+          Expanded(
+            child: ObjectDetailsTabSection(
+              controller: _tabController,
+              object: object,
             ),
-            child: Row(
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Заголовок с ключевой информацией об объекте.
+class ObjectDetailsHeader extends StatelessWidget {
+  /// Объект для отображения.
+  final ObjectEntity object;
+
+  /// Создаёт заголовок с названием, адресом и иконкой объекта.
+  const ObjectDetailsHeader({required this.object, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.shadow.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            radius: 40,
+            backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.08),
+            child: Icon(
+              Icons.location_city_rounded,
+              size: 48,
+              color: theme.colorScheme.primary,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CircleAvatar(
-                  radius: 40,
-                  backgroundColor:
-                      theme.colorScheme.primary.withValues(alpha: 0.08),
-                  child: Icon(
-                    Icons.location_city_rounded,
-                    size: 48,
-                    color: theme.colorScheme.primary,
-                  ),
+                Text(
+                  object.name,
+                  style: theme.textTheme.titleLarge
+                      ?.copyWith(fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        object.name,
-                        style: theme.textTheme.titleLarge
-                            ?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Icon(Icons.place,
-                              size: 20,
-                              color: theme.colorScheme.primary
-                                  .withValues(alpha: 0.7)),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              object.address,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.onSurface
-                                    .withValues(alpha: 0.85),
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          TabBar(
-            controller: _tabController,
-            tabs: const [
-              Tab(text: 'Основное'),
-              Tab(text: 'Описание'),
-              Tab(text: 'Командировочные'),
-            ],
-          ),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                ListView(
-                  padding: const EdgeInsets.all(16),
+                const SizedBox(height: 12),
+                Row(
                   children: [
-                    Card(
-                      margin: EdgeInsets.zero,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(
-                          color:
-                              theme.colorScheme.outline.withValues(alpha: 0.1),
-                        ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Основная информация',
-                              style: theme.textTheme.titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 16),
-                            buildInfoItem(context, 'Наименование', object.name),
-                            buildInfoItem(context, 'Адрес', object.address),
-                          ],
-                        ),
-                      ),
+                    Icon(
+                      Icons.place,
+                      size: 20,
+                      color: theme.colorScheme.primary.withValues(alpha: 0.7),
                     ),
-                  ],
-                ),
-                ListView(
-                  padding: const EdgeInsets.all(16),
-                  children: [
-                    Card(
-                      margin: EdgeInsets.zero,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(
-                          color:
-                              theme.colorScheme.outline.withValues(alpha: 0.1),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        object.address,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurface
+                              .withValues(alpha: 0.85),
                         ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Описание',
-                              style: theme.textTheme.titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 16),
-                            if (object.description != null &&
-                                object.description!.isNotEmpty)
-                              Text(
-                                object.description!,
-                                style: theme.textTheme.bodyLarge,
-                              )
-                            else
-                              Text(
-                                'Нет описания',
-                                style: theme.textTheme.bodyLarge?.copyWith(
-                                    color: theme.colorScheme.onSurface
-                                        .withValues(alpha: 0.5)),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                // Вкладка Командировочные
-                ListView(
-                  padding: const EdgeInsets.all(16),
-                  children: [
-                    Card(
-                      margin: EdgeInsets.zero,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(
-                          color:
-                              theme.colorScheme.outline.withValues(alpha: 0.1),
-                        ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Командировочные выплаты',
-                              style: theme.textTheme.titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Для всех сотрудников, работающих на этом объекте, будет начисляться фиксированная сумма командировочных за каждую смену.',
-                              style: theme.textTheme.bodyMedium,
-                            ),
-                            const SizedBox(height: 16),
-                            buildInfoItem(context, 'Сумма командировочных',
-                                '${object.businessTripAmount} ₽'),
-                          ],
-                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -1216,6 +719,118 @@ class _ObjectDetailsScreenState extends ConsumerState<ObjectDetailsScreen>
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Табы с подробной информацией об объекте.
+class ObjectDetailsTabSection extends StatelessWidget {
+  /// Контроллер табов для синхронизации с `TabBarView`.
+  final TabController controller;
+
+  /// Данные выбранного объекта.
+  final ObjectEntity object;
+
+  /// Создаёт секцию табов с основными данными и описанием.
+  const ObjectDetailsTabSection({
+    required this.controller,
+    required this.object,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      children: [
+        TabBar(
+          controller: controller,
+          tabs: const [
+            Tab(text: 'Основное'),
+            Tab(text: 'Описание'),
+          ],
+        ),
+        Expanded(
+          child: TabBarView(
+            controller: controller,
+            children: [
+              ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  Card(
+                    margin: EdgeInsets.zero,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(
+                        color: theme.colorScheme.outline.withValues(alpha: 0.1),
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Основная информация',
+                            style: theme.textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 16),
+                          buildInfoItem(context, 'Наименование', object.name),
+                          buildInfoItem(context, 'Адрес', object.address),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  Card(
+                    margin: EdgeInsets.zero,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(
+                        color: theme.colorScheme.outline.withValues(alpha: 0.1),
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Описание',
+                            style: theme.textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 16),
+                          if (object.description != null &&
+                              object.description!.isNotEmpty)
+                            Text(
+                              object.description!,
+                              style: theme.textTheme.bodyLarge,
+                            )
+                          else
+                            Text(
+                              'Нет описания',
+                              style: theme.textTheme.bodyLarge?.copyWith(
+                                  color: theme.colorScheme.onSurface
+                                      .withValues(alpha: 0.5)),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1244,7 +859,6 @@ class _ObjectFormModalState extends ConsumerState<ObjectFormModal> {
   late final TextEditingController _nameController;
   late final TextEditingController _addressController;
   late final TextEditingController _descriptionController;
-  late final TextEditingController _businessTripAmountController;
   bool _isLoading = false;
 
   @override
@@ -1255,8 +869,6 @@ class _ObjectFormModalState extends ConsumerState<ObjectFormModal> {
         TextEditingController(text: widget.object?.address ?? '');
     _descriptionController =
         TextEditingController(text: widget.object?.description ?? '');
-    _businessTripAmountController = TextEditingController(
-        text: widget.object?.businessTripAmount.toString() ?? '');
   }
 
   @override
@@ -1264,7 +876,6 @@ class _ObjectFormModalState extends ConsumerState<ObjectFormModal> {
     _nameController.dispose();
     _addressController.dispose();
     _descriptionController.dispose();
-    _businessTripAmountController.dispose();
     super.dispose();
   }
 
@@ -1284,9 +895,6 @@ class _ObjectFormModalState extends ConsumerState<ObjectFormModal> {
       description: _descriptionController.text.trim().isEmpty
           ? null
           : _descriptionController.text.trim(),
-      businessTripAmount: _businessTripAmountController.text.trim().isEmpty
-          ? 0
-          : double.parse(_businessTripAmountController.text.trim()),
     );
     final navigator = Navigator.of(context);
     if (isNew) {
@@ -1307,7 +915,6 @@ class _ObjectFormModalState extends ConsumerState<ObjectFormModal> {
       nameController: _nameController,
       addressController: _addressController,
       descriptionController: _descriptionController,
-      businessTripAmountController: _businessTripAmountController,
       formKey: _formKey,
       onSave: _handleSave,
       onCancel: () => Navigator.pop(context),

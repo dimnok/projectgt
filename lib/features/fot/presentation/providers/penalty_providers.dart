@@ -1,13 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/payroll_penalty_model.dart';
-import '../../data/repositories/payroll_penalty_repository.dart';
+import '../../domain/repositories/payroll_penalty_repository.dart';
 import '../../data/repositories/payroll_penalty_repository_impl.dart';
-import '../../domain/usecases/create_penalty_usecase.dart';
-import '../../domain/usecases/update_penalty_usecase.dart';
-import '../../domain/usecases/delete_penalty_usecase.dart';
 import 'package:projectgt/core/di/providers.dart';
-import 'payroll_filter_provider.dart';
 import 'package:collection/collection.dart';
+import 'package:projectgt/presentation/state/employee_state.dart';
+import 'payroll_filter_providers.dart';
 
 /// Провайдер репозитория штрафов (реализация Supabase).
 final payrollPenaltyRepositoryProvider =
@@ -16,19 +14,40 @@ final payrollPenaltyRepositoryProvider =
   return PayrollPenaltyRepositoryImpl(client);
 });
 
-/// Провайдер usecase создания штрафа.
-final createPenaltyUseCaseProvider = Provider<CreatePenaltyUseCase>((ref) {
-  return CreatePenaltyUseCase(ref.watch(payrollPenaltyRepositoryProvider));
+/// Провайдер функции создания штрафа.
+///
+/// Используется для создания новых штрафов через репозиторий.
+/// @returns Future<PayrollPenaltyModel> Function(PayrollPenaltyModel) — функция создания штрафа.
+final createPenaltyUseCaseProvider =
+    Provider<Future<PayrollPenaltyModel> Function(PayrollPenaltyModel)>((ref) {
+  final repo = ref.watch(payrollPenaltyRepositoryProvider);
+  return (PayrollPenaltyModel penalty) async {
+    return await repo.createPenalty(penalty);
+  };
 });
 
-/// Провайдер usecase обновления штрафа.
-final updatePenaltyUseCaseProvider = Provider<UpdatePenaltyUseCase>((ref) {
-  return UpdatePenaltyUseCase(ref.watch(payrollPenaltyRepositoryProvider));
+/// Провайдер функции обновления штрафа.
+///
+/// Используется для обновления существующих штрафов через репозиторий.
+/// @returns Future<PayrollPenaltyModel> Function(PayrollPenaltyModel) — функция обновления штрафа.
+final updatePenaltyUseCaseProvider =
+    Provider<Future<PayrollPenaltyModel> Function(PayrollPenaltyModel)>((ref) {
+  final repo = ref.watch(payrollPenaltyRepositoryProvider);
+  return (PayrollPenaltyModel penalty) async {
+    return await repo.updatePenalty(penalty);
+  };
 });
 
-/// Провайдер usecase удаления штрафа.
-final deletePenaltyUseCaseProvider = Provider<DeletePenaltyUseCase>((ref) {
-  return DeletePenaltyUseCase(ref.watch(payrollPenaltyRepositoryProvider));
+/// Провайдер функции удаления штрафа по ID.
+///
+/// Используется для удаления штрафов через репозиторий.
+/// @returns Future<void> Function(String) — функция удаления штрафа по ID.
+final deletePenaltyUseCaseProvider =
+    Provider<Future<void> Function(String)>((ref) {
+  final repo = ref.watch(payrollPenaltyRepositoryProvider);
+  return (String id) async {
+    await repo.deletePenalty(id);
+  };
 });
 
 /// Провайдер асинхронной загрузки всех штрафов (PayrollPenaltyModel) из репозитория.
@@ -41,39 +60,34 @@ final allPenaltiesProvider =
   return await repo.getAllPenalties();
 });
 
-/// Провайдер отфильтрованных штрафов по выбранным критериям фильтрации ФОТ.
+/// Провайдер всех штрафов с опциональной фильтрацией.
 ///
-/// Выполняет фильтрацию всех штрафов по периоду (год/месяц), сотрудникам, объектам и должностям,
-/// используя состояние payrollFilterProvider и список сотрудников.
+/// По умолчанию показывает ВСЕ штрафы.
+/// Если в фильтрах выбран период (не текущий месяц) - фильтрует по периоду.
 /// Возвращает List<PayrollPenaltyModel> для отображения в таблице штрафов.
 final filteredPenaltiesProvider = Provider<List<PayrollPenaltyModel>>((ref) {
   final penaltiesAsync = ref.watch(allPenaltiesProvider);
-  final filter = ref.watch(payrollFilterProvider);
-  final employees = filter.employees;
+  final employeeState = ref.watch(employeeProvider);
+  final employees = employeeState.employees;
+  final filterState = ref.watch(payrollFilterProvider);
+
+  // Проверяем, изменен ли период от текущего месяца
+  final now = DateTime.now();
+  final isPeriodFiltered = filterState.selectedYear != now.year ||
+      filterState.selectedMonth != now.month;
+
   return penaltiesAsync.maybeWhen(
     data: (allPenalties) {
-      final filteredPenalties = allPenalties.where((penalty) {
-        // Фильтр по дате
-        final date = penalty.date;
-        final inMonth = date != null &&
-            date.year == filter.year &&
-            date.month == filter.month;
-        // Фильтр по сотруднику
-        final byEmployee = filter.employeeIds.isEmpty ||
-            filter.employeeIds.contains(penalty.employeeId);
-        // Фильтр по объекту
-        final byObject = filter.objectIds.isEmpty ||
-            (penalty.objectId != null &&
-                filter.objectIds.contains(penalty.objectId));
-        // Фильтр по должности
-        final byPosition = filter.positionNames.isEmpty ||
-            (() {
-              final emp =
-                  employees.firstWhereOrNull((e) => e.id == penalty.employeeId);
-              return emp != null && filter.positionNames.contains(emp.position);
-            })();
-        return inMonth && byEmployee && byObject && byPosition;
-      }).toList();
+      // Применяем фильтр по периоду только если выбран НЕ текущий месяц
+      final filteredPenalties = isPeriodFiltered
+          ? allPenalties.where((penalty) {
+              // Используем penalty.date (дата штрафа), fallback на createdAt если date == null
+              final date = penalty.date ?? penalty.createdAt;
+              return date != null &&
+                  date.year == filterState.selectedYear &&
+                  date.month == filterState.selectedMonth;
+            }).toList()
+          : allPenalties; // Показываем ВСЕ штрафы если фильтр не применен
 
       // Сортируем по алфавиту (ФИО сотрудников)
       filteredPenalties.sort((a, b) {

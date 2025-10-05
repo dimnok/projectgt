@@ -24,10 +24,11 @@ class TimesheetDataSourceImpl implements TimesheetDataSource {
     DateTime? startDate,
     DateTime? endDate,
     String? employeeId,
-    String? objectId,
+    List<String>? objectIds,
+    List<String>? positions,
   }) async {
     try {
-      // Базовый запрос с join
+      // Базовый запрос с join для получения данных из связанных таблиц
       String query = '''
         id,
         work_id,
@@ -38,17 +39,34 @@ class TimesheetDataSourceImpl implements TimesheetDataSource {
         updated_at,
         works:work_id (
           date,
-          object_id
+          object_id,
+          status
+        ),
+        employees:employee_id (
+          position
         )
       ''';
 
-      // Выполняем запрос
-      final response =
-          await client.from(workHoursTable).select(query).order('created_at');
+      // Строим запрос с серверной фильтрацией
+      var queryBuilder = client.from(workHoursTable).select(query);
 
-      // Получаем результаты и преобразуем их в плоский формат
-      var flatResults = response.map<Map<String, dynamic>>((record) {
+      // Серверная фильтрация по employeeId (прямое поле в work_hours)
+      if (employeeId != null) {
+        queryBuilder = queryBuilder.eq('employee_id', employeeId);
+      }
+
+      // Серверная фильтрация только закрытых смен (через works)
+      queryBuilder = queryBuilder.eq('works.status', 'closed');
+
+      // Выполняем запрос с сортировкой
+      final response = await queryBuilder.order('created_at');
+
+      // Преобразуем результаты в плоский формат
+      var flatResults = response
+          .where((record) => record['works'] != null)
+          .map<Map<String, dynamic>>((record) {
         final works = record['works'] as Map<String, dynamic>;
+        final employees = record['employees'] as Map<String, dynamic>?;
 
         return {
           'id': record['id'],
@@ -58,47 +76,39 @@ class TimesheetDataSourceImpl implements TimesheetDataSource {
           'comment': record['comment'],
           'date': works['date'],
           'object_id': works['object_id'],
+          'employee_position': employees?['position'],
           'created_at': record['created_at'],
           'updated_at': record['updated_at'],
         };
       }).toList();
 
-      // Фильтрация на стороне клиента
-      if (employeeId != null) {
+      // Клиентская фильтрация по диапазону дат
+      if (startDate != null) {
+        flatResults = flatResults.where((record) {
+          final date = DateTime.tryParse(record['date'] ?? '');
+          return date != null && !date.isBefore(startDate);
+        }).toList();
+      }
+
+      if (endDate != null) {
+        flatResults = flatResults.where((record) {
+          final date = DateTime.tryParse(record['date'] ?? '');
+          return date != null && !date.isAfter(endDate);
+        }).toList();
+      }
+
+      // Клиентская фильтрация по объектам (мультивыбор)
+      if (objectIds != null && objectIds.isNotEmpty) {
         flatResults = flatResults
-            .where((record) => record['employee_id'] == employeeId)
+            .where((record) => objectIds.contains(record['object_id']))
             .toList();
       }
 
-      // Дополнительная фильтрация по дате и объекту
-      if (startDate != null || endDate != null || objectId != null) {
+      // Клиентская фильтрация по должностям
+      if (positions != null && positions.isNotEmpty) {
         flatResults = flatResults.where((record) {
-          final date = DateTime.tryParse(record['date']);
-
-          bool matchesDateRange = true;
-          if (date != null) {
-            // Проверяем, что дата не раньше startDate
-            if (startDate != null && date.isBefore(startDate)) {
-              matchesDateRange = false;
-            }
-            // Проверяем, что дата не позже endDate
-            // Важно: включаем записи за весь последний день месяца (до 23:59:59.999)
-            if (endDate != null) {
-              // Создаем конец дня для endDate (23:59:59.999)
-              final endOfDay = DateTime(
-                  endDate.year, endDate.month, endDate.day, 23, 59, 59, 999);
-              if (date.isAfter(endOfDay)) {
-                matchesDateRange = false;
-              }
-            }
-          }
-
-          bool matchesObject = true;
-          if (objectId != null) {
-            matchesObject = record['object_id'] == objectId;
-          }
-
-          return matchesDateRange && matchesObject;
+          final position = record['employee_position'];
+          return position != null && positions.contains(position);
         }).toList();
       }
 

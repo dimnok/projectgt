@@ -42,9 +42,6 @@ class ObjectFormContent extends StatelessWidget {
   /// Контроллер для поля "Описание".
   final TextEditingController descriptionController;
 
-  /// Контроллер для поля "Сумма командировочных выплат".
-  final TextEditingController businessTripAmountController;
-
   /// Ключ формы для валидации.
   final GlobalKey<FormState> formKey;
 
@@ -64,7 +61,6 @@ class ObjectFormContent extends StatelessWidget {
     required this.nameController,
     required this.addressController,
     required this.descriptionController,
-    required this.businessTripAmountController,
     required this.formKey,
     required this.onSave,
     required this.onCancel,
@@ -165,28 +161,6 @@ class ObjectFormContent extends StatelessWidget {
                           maxLines: 4,
                           enabled: !isLoading,
                         ),
-                        const SizedBox(height: 16),
-                        // Сумма командировочных выплат
-                        TextFormField(
-                          controller: businessTripAmountController,
-                          decoration: const InputDecoration(
-                            labelText: 'Сумма командировочных',
-                            hintText: 'Введите сумму (₽)',
-                          ),
-                          keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true),
-                          validator: (v) {
-                            if (v == null || v.trim().isEmpty) {
-                              return 'Введите сумму';
-                            }
-                            final value = double.tryParse(v);
-                            if (value == null || value < 0) {
-                              return 'Некорректная сумма';
-                            }
-                            return null;
-                          },
-                          enabled: !isLoading,
-                        ),
                       ],
                     ),
                   ),
@@ -281,9 +255,6 @@ class _ObjectFormScreenState extends ConsumerState<ObjectFormScreen> {
   /// Контроллер для поля "Описание".
   final _descriptionController = TextEditingController();
 
-  /// Контроллер для поля "Сумма командировочных выплат".
-  final _businessTripAmountController = TextEditingController();
-
   /// Флаг состояния загрузки (true — кнопки заблокированы, показывается индикатор).
   bool _isLoading = false;
 
@@ -294,8 +265,6 @@ class _ObjectFormScreenState extends ConsumerState<ObjectFormScreen> {
       _nameController.text = widget.object!.name;
       _addressController.text = widget.object!.address;
       _descriptionController.text = widget.object!.description ?? '';
-      _businessTripAmountController.text =
-          widget.object!.businessTripAmount.toString();
     }
   }
 
@@ -304,7 +273,6 @@ class _ObjectFormScreenState extends ConsumerState<ObjectFormScreen> {
     _nameController.dispose();
     _addressController.dispose();
     _descriptionController.dispose();
-    _businessTripAmountController.dispose();
     super.dispose();
   }
 
@@ -324,9 +292,6 @@ class _ObjectFormScreenState extends ConsumerState<ObjectFormScreen> {
       description: _descriptionController.text.trim().isEmpty
           ? null
           : _descriptionController.text.trim(),
-      businessTripAmount: _businessTripAmountController.text.trim().isEmpty
-          ? 0
-          : double.parse(_businessTripAmountController.text.trim()),
     );
     try {
       if (isNew) {
@@ -358,7 +323,6 @@ class _ObjectFormScreenState extends ConsumerState<ObjectFormScreen> {
         nameController: _nameController,
         addressController: _addressController,
         descriptionController: _descriptionController,
-        businessTripAmountController: _businessTripAmountController,
         formKey: _formKey,
         onSave: _handleSave,
         onCancel: () => Navigator.pop(context),

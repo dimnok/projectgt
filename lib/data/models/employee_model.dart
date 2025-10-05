@@ -15,7 +15,7 @@ abstract class EmployeeModel with _$EmployeeModel {
   /// [birthDate]/[birthPlace] — дата и место рождения, [citizenship] — гражданство,
   /// [phone] — телефон, [clothingSize]/[shoeSize]/[height] — размеры,
   /// [employmentDate]/[employmentType] — дата и тип трудоустройства, [position] — должность,
-  /// [hourlyRate] — ставка, [status] — статус, [objectIds] — объекты,
+  /// [status] — статус, [objectIds] — объекты,
   /// паспортные и налоговые данные, [createdAt]/[updatedAt] — даты создания/обновления.
   @JsonSerializable(explicitToJson: true, fieldRename: FieldRename.snake)
   const factory EmployeeModel({
@@ -36,7 +36,6 @@ abstract class EmployeeModel with _$EmployeeModel {
     @Default(EmploymentType.official)
     EmploymentType employmentType,
     String? position,
-    @JsonKey(name: 'hourly_rate') double? hourlyRate,
     @Default(EmployeeStatus.working) EmployeeStatus status,
     @JsonKey(name: 'object_ids') @Default(<String>[]) List<String> objectIds,
     @JsonKey(name: 'passport_series') String? passportSeries,
@@ -49,6 +48,11 @@ abstract class EmployeeModel with _$EmployeeModel {
     String? snils,
     @JsonKey(name: 'created_at') DateTime? createdAt,
     @JsonKey(name: 'updated_at') DateTime? updatedAt,
+    @JsonKey(
+        name: 'current_hourly_rate',
+        includeFromJson: false,
+        includeToJson: false)
+    double? currentHourlyRate,
   }) = _EmployeeModel;
 
   /// Приватный конструктор для поддержки методов расширения.
@@ -75,7 +79,6 @@ abstract class EmployeeModel with _$EmployeeModel {
         employmentDate: employee.employmentDate,
         employmentType: employee.employmentType,
         position: employee.position,
-        hourlyRate: employee.hourlyRate,
         status: employee.status,
         objectIds: employee.objectIds,
         passportSeries: employee.passportSeries,
@@ -88,6 +91,7 @@ abstract class EmployeeModel with _$EmployeeModel {
         snils: employee.snils,
         createdAt: employee.createdAt,
         updatedAt: employee.updatedAt,
+        currentHourlyRate: employee.currentHourlyRate,
       );
 
   /// Преобразует модель в доменную сущность [Employee].
@@ -107,7 +111,6 @@ abstract class EmployeeModel with _$EmployeeModel {
         employmentDate: employmentDate,
         employmentType: employmentType,
         position: position,
-        hourlyRate: hourlyRate,
         status: status,
         objectIds: objectIds,
         passportSeries: passportSeries,
@@ -120,5 +123,6 @@ abstract class EmployeeModel with _$EmployeeModel {
         snils: snils,
         createdAt: createdAt,
         updatedAt: updatedAt,
+        currentHourlyRate: currentHourlyRate,
       );
 }

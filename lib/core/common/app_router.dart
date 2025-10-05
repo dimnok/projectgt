@@ -10,7 +10,8 @@ import 'package:projectgt/features/profile/presentation/screens/financial_info_s
 import 'package:projectgt/features/employees/presentation/screens/employees_list_screen.dart';
 import 'package:projectgt/features/employees/presentation/screens/employee_details_screen.dart';
 import 'package:projectgt/features/employees/presentation/screens/employee_form_screen.dart';
-// import 'package:projectgt/presentation/state/auth_state.dart';
+import 'package:projectgt/presentation/state/auth_state.dart';
+import 'package:projectgt/presentation/state/profile_state.dart';
 import 'package:projectgt/features/objects/presentation/screens/objects_list_screen.dart';
 import 'package:projectgt/features/objects/presentation/screens/object_form_screen.dart';
 import 'package:projectgt/features/contractors/presentation/screens/contractors_list_screen.dart';
@@ -35,13 +36,71 @@ import 'package:projectgt/features/materials/presentation/screens/materials_mapp
 // Telegram moderation экраны удалены
 import 'package:projectgt/core/widgets/auth_gate.dart';
 
+/// Проверяет, является ли текущий пользователь администратором.
+///
+/// Используется для защиты маршрутов, доступных только админам.
+bool _isAdmin(WidgetRef ref) {
+  final authState = ref.watch(authProvider);
+  return authState.user?.role == 'admin';
+}
+
+/// Проверяет, может ли пользователь просматривать информацию о конкретном сотруднике.
+///
+/// Админы могут просматривать всех сотрудников.
+/// Обычные пользователи могут просматривать только своего привязанного сотрудника.
+bool _canViewEmployee(WidgetRef ref, String employeeId) {
+  final authState = ref.watch(authProvider);
+
+  // Админы могут просматривать всех
+  if (authState.user?.role == 'admin') {
+    return true;
+  }
+
+  // Обычные пользователи могут просматривать только своего привязанного сотрудника
+  final profileState = ref.watch(currentUserProfileProvider);
+  final profile = profileState.profile;
+  final linkedEmployeeId = profile?.object?['employee_id'] as String?;
+
+  return linkedEmployeeId != null && linkedEmployeeId == employeeId;
+}
+
+/// Создаёт экран "Доступ запрещён" для неавторизованных пользователей.
+Widget _buildAccessDeniedScreen() {
+  return Scaffold(
+    appBar: AppBar(
+      title: const Text('Доступ запрещён'),
+    ),
+    body: const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.lock_outline,
+            size: 64,
+            color: Colors.grey,
+          ),
+          SizedBox(height: 16),
+          Text(
+            'Недостаточно прав для доступа к данному разделу',
+            style: TextStyle(fontSize: 16),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Обратитесь к администратору',
+            style: TextStyle(fontSize: 14, color: Colors.grey),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 /// Провайдер маршрутизатора приложения на базе GoRouter.
 ///
 /// Управляет навигацией, авторизацией, доступом к защищённым и административным маршрутам.
 /// Использует Riverpod для внедрения зависимостей и состояния авторизации.
 final routerProvider = Provider<GoRouter>((ref) {
-  // final authState = ref.watch(authProvider);
-
   return GoRouter(
     initialLocation: AppRoutes.home,
     redirect: (context, state) {
@@ -99,128 +158,284 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'users',
         builder: (context, state) => const UsersListScreen(),
       ),
-      // Маршрут для списка сотрудников
+      // Маршрут для списка сотрудников - только для админов
       GoRoute(
         path: AppRoutes.employees,
         name: 'employees',
-        builder: (context, state) => const EmployeesListScreen(),
+        builder: (context, state) {
+          return Consumer(
+            builder: (context, ref, child) {
+              if (_isAdmin(ref)) {
+                return const EmployeesListScreen();
+              }
+              return _buildAccessDeniedScreen();
+            },
+          );
+        },
       ),
-      // Маршрут для создания нового сотрудника
+      // Маршрут для создания нового сотрудника - только для админов
       GoRoute(
         path: '${AppRoutes.employees}/create',
         name: 'employee_new',
-        builder: (context, state) => const EmployeeFormScreen(),
+        builder: (context, state) {
+          return Consumer(
+            builder: (context, ref, child) {
+              if (_isAdmin(ref)) {
+                return const EmployeeFormScreen();
+              }
+              return _buildAccessDeniedScreen();
+            },
+          );
+        },
       ),
-      // Маршрут для редактирования существующего сотрудника
+      // Маршрут для редактирования существующего сотрудника - только для админов
       GoRoute(
         path: '${AppRoutes.employees}/:employeeId/edit',
         name: 'employee_edit',
         builder: (context, state) {
-          final employeeId = state.pathParameters['employeeId']!;
-          return EmployeeFormScreen(employeeId: employeeId);
+          return Consumer(
+            builder: (context, ref, child) {
+              if (_isAdmin(ref)) {
+                final employeeId = state.pathParameters['employeeId']!;
+                return EmployeeFormScreen(employeeId: employeeId);
+              }
+              return _buildAccessDeniedScreen();
+            },
+          );
         },
       ),
-      // Маршрут для просмотра конкретного сотрудника
+      // Маршрут для просмотра конкретного сотрудника - админы или просмотр своей карточки
       GoRoute(
         path: '${AppRoutes.employees}/:employeeId',
         name: 'employee_details',
         builder: (context, state) {
-          final employeeId = state.pathParameters['employeeId']!;
-          return EmployeeDetailsScreen(employeeId: employeeId);
+          return Consumer(
+            builder: (context, ref, child) {
+              final employeeId = state.pathParameters['employeeId']!;
+
+              if (_canViewEmployee(ref, employeeId)) {
+                return EmployeeDetailsScreen(employeeId: employeeId);
+              }
+              return _buildAccessDeniedScreen();
+            },
+          );
         },
       ),
-      // Маршрут для объектов
+      // Маршрут для объектов - только для админов
       GoRoute(
         path: AppRoutes.objects,
         name: 'objects',
-        builder: (context, state) => const ObjectsListScreen(),
+        builder: (context, state) {
+          return Consumer(
+            builder: (context, ref, child) {
+              if (_isAdmin(ref)) {
+                return const ObjectsListScreen();
+              }
+              return _buildAccessDeniedScreen();
+            },
+          );
+        },
       ),
-      // Маршрут для создания нового объекта
+      // Маршрут для создания нового объекта - только для админов
       GoRoute(
         path: '${AppRoutes.objects}/create',
         name: 'object_new',
-        builder: (context, state) => const ObjectFormScreen(),
+        builder: (context, state) {
+          return Consumer(
+            builder: (context, ref, child) {
+              if (_isAdmin(ref)) {
+                return const ObjectFormScreen();
+              }
+              return _buildAccessDeniedScreen();
+            },
+          );
+        },
       ),
-      // Маршрут для контрагентов
+      // Маршрут для контрагентов - только для админов
       GoRoute(
         path: AppRoutes.contractors,
         name: 'contractors',
-        builder: (context, state) => const ContractorsListScreen(),
+        builder: (context, state) {
+          return Consumer(
+            builder: (context, ref, child) {
+              if (_isAdmin(ref)) {
+                return const ContractorsListScreen();
+              }
+              return _buildAccessDeniedScreen();
+            },
+          );
+        },
       ),
+      // Маршрут для создания нового контрагента - только для админов
       GoRoute(
         path: '${AppRoutes.contractors}/create',
         name: 'contractor_new',
-        builder: (context, state) => const ContractorFormScreen(),
+        builder: (context, state) {
+          return Consumer(
+            builder: (context, ref, child) {
+              if (_isAdmin(ref)) {
+                return const ContractorFormScreen();
+              }
+              return _buildAccessDeniedScreen();
+            },
+          );
+        },
       ),
+      // Маршрут для редактирования контрагента - только для админов
       GoRoute(
         path: '${AppRoutes.contractors}/:contractorId/edit',
         name: 'contractor_edit',
         builder: (context, state) {
-          final contractorId = state.pathParameters['contractorId']!;
-          return ContractorFormScreen(contractorId: contractorId);
+          return Consumer(
+            builder: (context, ref, child) {
+              if (_isAdmin(ref)) {
+                final contractorId = state.pathParameters['contractorId']!;
+                return ContractorFormScreen(contractorId: contractorId);
+              }
+              return _buildAccessDeniedScreen();
+            },
+          );
         },
       ),
+      // Маршрут для просмотра контрагента - только для админов
       GoRoute(
         path: '${AppRoutes.contractors}/:contractorId',
         name: 'contractor_details',
         builder: (context, state) {
-          final contractorId = state.pathParameters['contractorId']!;
-          return ContractorDetailsScreen(contractorId: contractorId);
+          return Consumer(
+            builder: (context, ref, child) {
+              if (_isAdmin(ref)) {
+                final contractorId = state.pathParameters['contractorId']!;
+                return ContractorDetailsScreen(contractorId: contractorId);
+              }
+              return _buildAccessDeniedScreen();
+            },
+          );
         },
       ),
-      // Маршрут для договоров
+      // Маршрут для договоров - только для админов
       GoRoute(
         path: AppRoutes.contracts,
         name: 'contracts',
-        builder: (context, state) => const ContractsListScreen(),
+        builder: (context, state) {
+          return Consumer(
+            builder: (context, ref, child) {
+              if (_isAdmin(ref)) {
+                return const ContractsListScreen();
+              }
+              return _buildAccessDeniedScreen();
+            },
+          );
+        },
       ),
+      // Маршрут для создания нового договора - только для админов
       GoRoute(
         path: '${AppRoutes.contracts}/create',
         name: 'contract_new',
-        builder: (context, state) => const ContractFormScreen(),
+        builder: (context, state) {
+          return Consumer(
+            builder: (context, ref, child) {
+              if (_isAdmin(ref)) {
+                return const ContractFormScreen();
+              }
+              return _buildAccessDeniedScreen();
+            },
+          );
+        },
       ),
+      // Маршрут для редактирования договора - только для админов
       GoRoute(
         path: '${AppRoutes.contracts}/:contractId/edit',
         name: 'contract_edit',
         builder: (context, state) {
-          // Передаем contractId, ContractFormScreen сам найдет контракт по id
-          // (или можно доработать для передачи объекта)
-          return const ContractFormScreen();
+          return Consumer(
+            builder: (context, ref, child) {
+              if (_isAdmin(ref)) {
+                // Передаем contractId, ContractFormScreen сам найдет контракт по id
+                // (или можно доработать для передачи объекта)
+                return const ContractFormScreen();
+              }
+              return _buildAccessDeniedScreen();
+            },
+          );
         },
       ),
+      // Маршрут для просмотра договора - только для админов
       GoRoute(
         path: '${AppRoutes.contracts}/:contractId',
         name: 'contract_details',
         builder: (context, state) {
-          final contractId = state.pathParameters['contractId']!;
-          return ContractDetailsScreen(contractId: contractId);
+          return Consumer(
+            builder: (context, ref, child) {
+              if (_isAdmin(ref)) {
+                final contractId = state.pathParameters['contractId']!;
+                return ContractDetailsScreen(contractId: contractId);
+              }
+              return _buildAccessDeniedScreen();
+            },
+          );
         },
       ),
-      // Маршрут для смет
+      // Маршрут для смет - только для админов
       GoRoute(
         path: AppRoutes.estimates,
         name: 'estimates',
-        builder: (context, state) => const EstimatesListScreen(),
+        builder: (context, state) {
+          return Consumer(
+            builder: (context, ref, child) {
+              if (_isAdmin(ref)) {
+                return const EstimatesListScreen();
+              }
+              return _buildAccessDeniedScreen();
+            },
+          );
+        },
       ),
+      // Маршрут для создания сметы - только для админов
       GoRoute(
         path: '${AppRoutes.estimates}/create',
         name: 'estimate_new',
-        builder: (context, state) => const EstimateFormScreen(),
+        builder: (context, state) {
+          return Consumer(
+            builder: (context, ref, child) {
+              if (_isAdmin(ref)) {
+                return const EstimateFormScreen();
+              }
+              return _buildAccessDeniedScreen();
+            },
+          );
+        },
       ),
+      // Маршрут для редактирования сметы - только для админов
       GoRoute(
         path: '${AppRoutes.estimates}/:estimateId/edit',
         name: 'estimate_edit',
         builder: (context, state) {
-          final estimateId = state.pathParameters['estimateId']!;
-          return EstimateFormScreen(estimateId: estimateId);
+          return Consumer(
+            builder: (context, ref, child) {
+              if (_isAdmin(ref)) {
+                final estimateId = state.pathParameters['estimateId']!;
+                return EstimateFormScreen(estimateId: estimateId);
+              }
+              return _buildAccessDeniedScreen();
+            },
+          );
         },
       ),
+      // Маршрут для просмотра сметы - только для админов
       GoRoute(
         path: '${AppRoutes.estimates}/:estimateTitle',
         name: 'estimate_details',
         builder: (context, state) {
-          final estimateTitle = state.pathParameters['estimateTitle']!;
-          return EstimateDetailsScreen(estimateTitle: estimateTitle);
+          return Consumer(
+            builder: (context, ref, child) {
+              if (_isAdmin(ref)) {
+                final estimateTitle = state.pathParameters['estimateTitle']!;
+                return EstimateDetailsScreen(estimateTitle: estimateTitle);
+              }
+              return _buildAccessDeniedScreen();
+            },
+          );
         },
       ),
       // Маршрут для работ
@@ -269,17 +484,35 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'timesheet',
         builder: (context, state) => const TimesheetScreen(),
       ),
-      // Маршрут для расчётов ФОТ
+      // Маршрут для расчётов ФОТ - только для админов
       GoRoute(
         path: AppRoutes.payrolls,
         name: 'payrolls',
-        builder: (context, state) => const PayrollListScreen(),
+        builder: (context, state) {
+          return Consumer(
+            builder: (context, ref, child) {
+              if (_isAdmin(ref)) {
+                return const PayrollListScreen();
+              }
+              return _buildAccessDeniedScreen();
+            },
+          );
+        },
       ),
-      // Маршрут для экспорта
+      // Маршрут для экспорта - только для админов
       GoRoute(
         path: AppRoutes.export,
         name: 'export',
-        builder: (context, state) => const ExportScreen(),
+        builder: (context, state) {
+          return Consumer(
+            builder: (context, ref, child) {
+              if (_isAdmin(ref)) {
+                return const ExportScreen();
+              }
+              return _buildAccessDeniedScreen();
+            },
+          );
+        },
       ),
 
       // Маршрут для материалов (чистая страница с AppBar)

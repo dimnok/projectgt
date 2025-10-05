@@ -71,6 +71,7 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
   DateTime? _birthDate;
   DateTime? _passportIssueDate;
   DateTime? _employmentDate;
+  DateTime? _rateValidFrom;
 
   // Состояния
   EmployeeStatus _status = EmployeeStatus.working;
@@ -126,6 +127,8 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
   void initState() {
     super.initState();
     _isNewEmployee = widget.employeeId == null;
+    _rateValidFrom =
+        DateTime.now(); // Инициализируем дату начала действия ставки
     _loadPositions();
     if (!_isNewEmployee) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -185,7 +188,8 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
             employee.registrationAddress ?? '';
         _innController.text = employee.inn ?? '';
         _snilsController.text = employee.snils ?? '';
-        _hourlyRateController.text = employee.hourlyRate?.toString() ?? '';
+        // hourlyRate больше не загружается из employee,
+        // будет загружен отдельно из employee_rates
         _selectedPosition = employee.position;
         _selectedObjectIds = List<String>.from(employee.objectIds);
         _employmentType = employee.employmentType;
@@ -198,6 +202,16 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
           _employmentDate = employee.employmentDate;
           _isLoading = false;
         });
+
+        // Загружаем текущую ставку отдельно из employee_rates
+        final rateDataSource = ref.read(employeeRateDataSourceProvider);
+        final currentRate = await rateDataSource.getCurrentRate(employee.id);
+        if (currentRate != null) {
+          _hourlyRateController.text = currentRate.hourlyRate.toString();
+          _rateValidFrom = currentRate.validFrom;
+        } else {
+          _rateValidFrom = employee.employmentDate;
+        }
       } else {
         setState(() {
           _isLoading = false;
@@ -261,18 +275,27 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
           position: _selectedPosition,
           employmentDate: _employmentDate,
           employmentType: _employmentType,
-          hourlyRate: _hourlyRateController.text.trim().isEmpty
-              ? null
-              : double.tryParse(_hourlyRateController.text.trim()),
           objectIds: _selectedObjectIds,
           status: _status,
         );
+
+        final newRate = _hourlyRateController.text.trim().isEmpty
+            ? null
+            : double.tryParse(_hourlyRateController.text.trim());
 
         if (_isNewEmployee) {
           // Создаем нового сотрудника
           await ref
               .read(employee_state.employeeProvider.notifier)
               .createEmployee(employee);
+
+          // Если указана ставка, создаём запись в employee_rates
+          if (newRate != null && newRate > 0) {
+            final setRateUseCase = ref.read(setEmployeeRateUseCaseProvider);
+            final validFrom = _rateValidFrom ?? DateTime.now();
+            await setRateUseCase(employee.id, newRate, validFrom);
+          }
+
           if (mounted) {
             SnackBarUtils.showSuccess(
               context,
@@ -280,10 +303,24 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
             );
           }
         } else {
+          // Проверяем, изменилась ли ставка
+          final rateDataSource = ref.read(employeeRateDataSourceProvider);
+          final currentRate = await rateDataSource.getCurrentRate(employee.id);
+          final oldRate = currentRate?.hourlyRate;
+          final rateChanged = (oldRate != newRate);
+
           // Обновляем существующего сотрудника
           await ref
               .read(employee_state.employeeProvider.notifier)
               .updateEmployee(employee);
+
+          // Если ставка изменилась, создаём новую запись в employee_rates
+          if (rateChanged && newRate != null && newRate > 0) {
+            final setRateUseCase = ref.read(setEmployeeRateUseCaseProvider);
+            final validFrom = _rateValidFrom ?? DateTime.now();
+            await setRateUseCase(employee.id, newRate, validFrom);
+          }
+
           if (mounted) {
             SnackBarUtils.showInfo(
               context,
@@ -611,6 +648,18 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                                       },
                                     ),
                                     const SizedBox(height: 16),
+
+                                    // Дата начала действия ставки
+                                    DatePickerField(
+                                      date: _rateValidFrom,
+                                      labelText: 'Дата начала действия ставки',
+                                      hintText: 'Выберите дату',
+                                      onDateSelected: (date) {
+                                        setState(() {
+                                          _rateValidFrom = date;
+                                        });
+                                      },
+                                    ),
 
                                     // Объекты и статус сотрудника
                                     Consumer(

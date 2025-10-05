@@ -94,9 +94,6 @@ abstract class Employee with _$Employee {
     /// Должность.
     String? position,
 
-    /// Почасовая ставка.
-    double? hourlyRate,
-
     /// Статус сотрудника ([EmployeeStatus]).
     @Default(EmployeeStatus.working) EmployeeStatus status,
 
@@ -132,6 +129,9 @@ abstract class Employee with _$Employee {
 
     /// Дата последнего обновления записи.
     DateTime? updatedAt,
+
+    /// Текущая почасовая ставка сотрудника (из таблицы employee_rates).
+    double? currentHourlyRate,
   }) = _Employee;
 
   /// Приватный конструктор для расширения функциональности через методы.

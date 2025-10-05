@@ -10,6 +10,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
 import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/presentation/state/auth_state.dart';
 import 'package:projectgt/domain/entities/object.dart';
 import 'package:go_router/go_router.dart';
 import 'package:projectgt/core/utils/employee_ui_utils.dart';
@@ -21,6 +22,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:file_saver/file_saver.dart';
 import 'package:flutter/foundation.dart';
 import 'package:gal/gal.dart';
+import '../widgets/employee_trip_editor_form.dart';
+import '../widgets/employee_business_trip_summary_widget.dart';
+import '../widgets/employee_rate_summary_widget.dart';
 
 /// Экран с подробной информацией о сотруднике.
 ///
@@ -172,55 +176,58 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
               leading: const BackButton(),
               showThemeSwitch: false,
               actions: [
-                // Тоггл "Может быть ответственным"
-                CupertinoButton(
-                  padding: EdgeInsets.zero,
-                  child: Icon(
-                    Icons.verified_user,
-                    color: _canBeResponsibleColor(ref, employee.id),
+                // Показываем кнопки только для администраторов
+                if (ref.read(authProvider).user?.role == 'admin') ...[
+                  // Тоггл "Может быть ответственным"
+                  CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    child: Icon(
+                      Icons.verified_user,
+                      color: _canBeResponsibleColor(ref, employee.id),
+                    ),
+                    onPressed: () async {
+                      final current = ref.read(state.employeeProvider).employee;
+                      if (current == null) return;
+                      // Кэшируем messenger до await согласно правилам безопасного использования BuildContext
+                      final messenger = ScaffoldMessenger.of(context);
+                      try {
+                        await ref
+                            .read(state.employeeProvider.notifier)
+                            .toggleCanBeResponsible(current.id, null);
+                        if (!mounted) return;
+                        final isOn = ref
+                                .read(state.employeeProvider)
+                                .canBeResponsibleMap[current.id] ==
+                            true;
+                        SnackBarUtils.showSuccessByMessenger(
+                          messenger,
+                          isOn
+                              ? 'Назначен статус ответственного'
+                              : 'Снят статус ответственного',
+                        );
+                      } catch (e) {
+                        if (!mounted) return;
+                        SnackBarUtils.showErrorByMessenger(
+                          messenger,
+                          'Ошибка: ${e.toString()}',
+                        );
+                      }
+                    },
                   ),
-                  onPressed: () async {
-                    final current = ref.read(state.employeeProvider).employee;
-                    if (current == null) return;
-                    // Кэшируем messenger до await согласно правилам безопасного использования BuildContext
-                    final messenger = ScaffoldMessenger.of(context);
-                    try {
-                      await ref
-                          .read(state.employeeProvider.notifier)
-                          .toggleCanBeResponsible(current.id, null);
-                      if (!mounted) return;
-                      final isOn = ref
-                              .read(state.employeeProvider)
-                              .canBeResponsibleMap[current.id] ==
-                          true;
-                      SnackBarUtils.showSuccessByMessenger(
-                        messenger,
-                        isOn
-                            ? 'Назначен статус ответственного'
-                            : 'Снят статус ответственного',
-                      );
-                    } catch (e) {
-                      if (!mounted) return;
-                      SnackBarUtils.showErrorByMessenger(
-                        messenger,
-                        'Ошибка: ${e.toString()}',
-                      );
-                    }
-                  },
-                ),
-                CupertinoButton(
-                  padding: EdgeInsets.zero,
-                  child: const Icon(Icons.edit, color: Colors.amber),
-                  onPressed: () {
-                    ModalUtils.showEmployeeFormModal(context,
-                        employeeId: employee.id);
-                  },
-                ),
-                CupertinoButton(
-                  padding: EdgeInsets.zero,
-                  child: const Icon(Icons.delete, color: Colors.red),
-                  onPressed: () => _showDeleteDialog(employee),
-                ),
+                  CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    child: const Icon(Icons.edit, color: Colors.amber),
+                    onPressed: () {
+                      ModalUtils.showEmployeeFormModal(context,
+                          employeeId: employee.id);
+                    },
+                  ),
+                  CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    child: const Icon(Icons.delete, color: Colors.red),
+                    onPressed: () => _showDeleteDialog(employee),
+                  ),
+                ],
               ],
             )
           : null,
@@ -652,14 +659,27 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
                           valueStyle),
                       _buildInfoItem('Вид трудоустройства', employmentTypeText,
                           labelStyle, valueStyle),
-                      _buildInfoItem(
-                        'Ставка (руб/час)',
-                        employee.hourlyRate != null
-                            ? '${employee.hourlyRate} ₽/час'
-                            : 'Не указана',
-                        labelStyle,
-                        valueStyle,
+
+                      // Текущая ставка (раскрывающаяся)
+                      EmployeeRateSummaryWidget(
+                        employee: employee,
+                        labelStyle: labelStyle,
+                        valueStyle: valueStyle,
+                        theme: theme,
                       ),
+
+                      // Суточные выплаты (раскрывающиеся)
+                      EmployeeBusinessTripSummaryWidget(
+                        employee: employee,
+                        labelStyle: labelStyle,
+                        valueStyle: valueStyle,
+                        theme: theme,
+                        onAddBusinessTrip:
+                            ref.read(authProvider).user?.role == 'admin'
+                                ? () => _showBusinessTripModal(employee)
+                                : null,
+                      ),
+
                       _buildInfoItem(
                           'Объекты', objectsText, labelStyle, valueStyle),
                       _buildInfoItem(
@@ -673,6 +693,7 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
                     sectionTitleStyle,
                     icon: Icons.work,
                   ),
+                  const SizedBox(height: _sectionSpacing),
                 ]),
 
                 // Вкладка с документами
@@ -891,6 +912,21 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
                 ),
               ],
             ),
+    );
+  }
+
+  /// Показывает модальное окно для настройки суточных.
+  void _showBusinessTripModal(Employee employee) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => EmployeeTripEditorForm(
+        employee: employee,
+        onSaved: () {
+          // Можно добавить обновление данных если потребуется
+        },
+      ),
     );
   }
 
@@ -1118,26 +1154,5 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
         );
       }
     }
-  }
-}
-
-/// Расширение для удобного создания цвета с изменёнными компонентами.
-extension ColorExtension on Color {
-  /// Возвращает новый цвет с изменёнными компонентами (r, g, b, a).
-  ///
-  /// [red], [green], [blue] — новые значения каналов (0..255), если не указаны — берутся из исходного цвета.
-  /// [alpha] — новый альфа-канал (0.0..1.0), если не указан — берётся из исходного цвета.
-  Color withValues({
-    int? red,
-    int? green,
-    int? blue,
-    double? alpha,
-  }) {
-    return Color.fromRGBO(
-      (red ?? r).toInt(),
-      (green ?? g).toInt(),
-      (blue ?? b).toInt(),
-      (alpha ?? a).toDouble(),
-    );
   }
 }

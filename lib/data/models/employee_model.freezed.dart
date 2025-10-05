@@ -40,8 +40,6 @@ mixin _$EmployeeModel {
   @JsonKey(name: 'employment_type')
   EmploymentType get employmentType;
   String? get position;
-  @JsonKey(name: 'hourly_rate')
-  double? get hourlyRate;
   EmployeeStatus get status;
   @JsonKey(name: 'object_ids')
   List<String> get objectIds;
@@ -63,6 +61,9 @@ mixin _$EmployeeModel {
   DateTime? get createdAt;
   @JsonKey(name: 'updated_at')
   DateTime? get updatedAt;
+  @JsonKey(
+      name: 'current_hourly_rate', includeFromJson: false, includeToJson: false)
+  double? get currentHourlyRate;
 
   /// Create a copy of EmployeeModel
   /// with the given fields replaced by the non-null parameter values.
@@ -107,8 +108,6 @@ mixin _$EmployeeModel {
                 other.employmentType == employmentType) &&
             (identical(other.position, position) ||
                 other.position == position) &&
-            (identical(other.hourlyRate, hourlyRate) ||
-                other.hourlyRate == hourlyRate) &&
             (identical(other.status, status) || other.status == status) &&
             const DeepCollectionEquality().equals(other.objectIds, objectIds) &&
             (identical(other.passportSeries, passportSeries) ||
@@ -128,7 +127,9 @@ mixin _$EmployeeModel {
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
-                other.updatedAt == updatedAt));
+                other.updatedAt == updatedAt) &&
+            (identical(other.currentHourlyRate, currentHourlyRate) ||
+                other.currentHourlyRate == currentHourlyRate));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -150,7 +151,6 @@ mixin _$EmployeeModel {
         employmentDate,
         employmentType,
         position,
-        hourlyRate,
         status,
         const DeepCollectionEquality().hash(objectIds),
         passportSeries,
@@ -162,12 +162,13 @@ mixin _$EmployeeModel {
         inn,
         snils,
         createdAt,
-        updatedAt
+        updatedAt,
+        currentHourlyRate
       ]);
 
   @override
   String toString() {
-    return 'EmployeeModel(id: $id, photoUrl: $photoUrl, lastName: $lastName, firstName: $firstName, middleName: $middleName, birthDate: $birthDate, birthPlace: $birthPlace, citizenship: $citizenship, phone: $phone, clothingSize: $clothingSize, shoeSize: $shoeSize, height: $height, employmentDate: $employmentDate, employmentType: $employmentType, position: $position, hourlyRate: $hourlyRate, status: $status, objectIds: $objectIds, passportSeries: $passportSeries, passportNumber: $passportNumber, passportIssuedBy: $passportIssuedBy, passportIssueDate: $passportIssueDate, passportDepartmentCode: $passportDepartmentCode, registrationAddress: $registrationAddress, inn: $inn, snils: $snils, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'EmployeeModel(id: $id, photoUrl: $photoUrl, lastName: $lastName, firstName: $firstName, middleName: $middleName, birthDate: $birthDate, birthPlace: $birthPlace, citizenship: $citizenship, phone: $phone, clothingSize: $clothingSize, shoeSize: $shoeSize, height: $height, employmentDate: $employmentDate, employmentType: $employmentType, position: $position, status: $status, objectIds: $objectIds, passportSeries: $passportSeries, passportNumber: $passportNumber, passportIssuedBy: $passportIssuedBy, passportIssueDate: $passportIssueDate, passportDepartmentCode: $passportDepartmentCode, registrationAddress: $registrationAddress, inn: $inn, snils: $snils, createdAt: $createdAt, updatedAt: $updatedAt, currentHourlyRate: $currentHourlyRate)';
   }
 }
 
@@ -193,7 +194,6 @@ abstract mixin class $EmployeeModelCopyWith<$Res> {
       @JsonKey(name: 'employment_date') DateTime? employmentDate,
       @JsonKey(name: 'employment_type') EmploymentType employmentType,
       String? position,
-      @JsonKey(name: 'hourly_rate') double? hourlyRate,
       EmployeeStatus status,
       @JsonKey(name: 'object_ids') List<String> objectIds,
       @JsonKey(name: 'passport_series') String? passportSeries,
@@ -205,7 +205,12 @@ abstract mixin class $EmployeeModelCopyWith<$Res> {
       String? inn,
       String? snils,
       @JsonKey(name: 'created_at') DateTime? createdAt,
-      @JsonKey(name: 'updated_at') DateTime? updatedAt});
+      @JsonKey(name: 'updated_at') DateTime? updatedAt,
+      @JsonKey(
+          name: 'current_hourly_rate',
+          includeFromJson: false,
+          includeToJson: false)
+      double? currentHourlyRate});
 }
 
 /// @nodoc
@@ -236,7 +241,6 @@ class _$EmployeeModelCopyWithImpl<$Res>
     Object? employmentDate = freezed,
     Object? employmentType = null,
     Object? position = freezed,
-    Object? hourlyRate = freezed,
     Object? status = null,
     Object? objectIds = null,
     Object? passportSeries = freezed,
@@ -249,6 +253,7 @@ class _$EmployeeModelCopyWithImpl<$Res>
     Object? snils = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
+    Object? currentHourlyRate = freezed,
   }) {
     return _then(_self.copyWith(
       id: null == id
@@ -311,10 +316,6 @@ class _$EmployeeModelCopyWithImpl<$Res>
           ? _self.position
           : position // ignore: cast_nullable_to_non_nullable
               as String?,
-      hourlyRate: freezed == hourlyRate
-          ? _self.hourlyRate
-          : hourlyRate // ignore: cast_nullable_to_non_nullable
-              as double?,
       status: null == status
           ? _self.status
           : status // ignore: cast_nullable_to_non_nullable
@@ -363,6 +364,10 @@ class _$EmployeeModelCopyWithImpl<$Res>
           ? _self.updatedAt
           : updatedAt // ignore: cast_nullable_to_non_nullable
               as DateTime?,
+      currentHourlyRate: freezed == currentHourlyRate
+          ? _self.currentHourlyRate
+          : currentHourlyRate // ignore: cast_nullable_to_non_nullable
+              as double?,
     ));
   }
 }
@@ -388,7 +393,6 @@ class _EmployeeModel extends EmployeeModel {
       @JsonKey(name: 'employment_type')
       this.employmentType = EmploymentType.official,
       this.position,
-      @JsonKey(name: 'hourly_rate') this.hourlyRate,
       this.status = EmployeeStatus.working,
       @JsonKey(name: 'object_ids')
       final List<String> objectIds = const <String>[],
@@ -401,7 +405,12 @@ class _EmployeeModel extends EmployeeModel {
       this.inn,
       this.snils,
       @JsonKey(name: 'created_at') this.createdAt,
-      @JsonKey(name: 'updated_at') this.updatedAt})
+      @JsonKey(name: 'updated_at') this.updatedAt,
+      @JsonKey(
+          name: 'current_hourly_rate',
+          includeFromJson: false,
+          includeToJson: false)
+      this.currentHourlyRate})
       : _objectIds = objectIds,
         super._();
   factory _EmployeeModel.fromJson(Map<String, dynamic> json) =>
@@ -448,9 +457,6 @@ class _EmployeeModel extends EmployeeModel {
   @override
   final String? position;
   @override
-  @JsonKey(name: 'hourly_rate')
-  final double? hourlyRate;
-  @override
   @JsonKey()
   final EmployeeStatus status;
   final List<String> _objectIds;
@@ -490,6 +496,10 @@ class _EmployeeModel extends EmployeeModel {
   @override
   @JsonKey(name: 'updated_at')
   final DateTime? updatedAt;
+  @override
+  @JsonKey(
+      name: 'current_hourly_rate', includeFromJson: false, includeToJson: false)
+  final double? currentHourlyRate;
 
   /// Create a copy of EmployeeModel
   /// with the given fields replaced by the non-null parameter values.
@@ -538,8 +548,6 @@ class _EmployeeModel extends EmployeeModel {
                 other.employmentType == employmentType) &&
             (identical(other.position, position) ||
                 other.position == position) &&
-            (identical(other.hourlyRate, hourlyRate) ||
-                other.hourlyRate == hourlyRate) &&
             (identical(other.status, status) || other.status == status) &&
             const DeepCollectionEquality()
                 .equals(other._objectIds, _objectIds) &&
@@ -560,7 +568,9 @@ class _EmployeeModel extends EmployeeModel {
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
-                other.updatedAt == updatedAt));
+                other.updatedAt == updatedAt) &&
+            (identical(other.currentHourlyRate, currentHourlyRate) ||
+                other.currentHourlyRate == currentHourlyRate));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -582,7 +592,6 @@ class _EmployeeModel extends EmployeeModel {
         employmentDate,
         employmentType,
         position,
-        hourlyRate,
         status,
         const DeepCollectionEquality().hash(_objectIds),
         passportSeries,
@@ -594,12 +603,13 @@ class _EmployeeModel extends EmployeeModel {
         inn,
         snils,
         createdAt,
-        updatedAt
+        updatedAt,
+        currentHourlyRate
       ]);
 
   @override
   String toString() {
-    return 'EmployeeModel(id: $id, photoUrl: $photoUrl, lastName: $lastName, firstName: $firstName, middleName: $middleName, birthDate: $birthDate, birthPlace: $birthPlace, citizenship: $citizenship, phone: $phone, clothingSize: $clothingSize, shoeSize: $shoeSize, height: $height, employmentDate: $employmentDate, employmentType: $employmentType, position: $position, hourlyRate: $hourlyRate, status: $status, objectIds: $objectIds, passportSeries: $passportSeries, passportNumber: $passportNumber, passportIssuedBy: $passportIssuedBy, passportIssueDate: $passportIssueDate, passportDepartmentCode: $passportDepartmentCode, registrationAddress: $registrationAddress, inn: $inn, snils: $snils, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'EmployeeModel(id: $id, photoUrl: $photoUrl, lastName: $lastName, firstName: $firstName, middleName: $middleName, birthDate: $birthDate, birthPlace: $birthPlace, citizenship: $citizenship, phone: $phone, clothingSize: $clothingSize, shoeSize: $shoeSize, height: $height, employmentDate: $employmentDate, employmentType: $employmentType, position: $position, status: $status, objectIds: $objectIds, passportSeries: $passportSeries, passportNumber: $passportNumber, passportIssuedBy: $passportIssuedBy, passportIssueDate: $passportIssueDate, passportDepartmentCode: $passportDepartmentCode, registrationAddress: $registrationAddress, inn: $inn, snils: $snils, createdAt: $createdAt, updatedAt: $updatedAt, currentHourlyRate: $currentHourlyRate)';
   }
 }
 
@@ -627,7 +637,6 @@ abstract mixin class _$EmployeeModelCopyWith<$Res>
       @JsonKey(name: 'employment_date') DateTime? employmentDate,
       @JsonKey(name: 'employment_type') EmploymentType employmentType,
       String? position,
-      @JsonKey(name: 'hourly_rate') double? hourlyRate,
       EmployeeStatus status,
       @JsonKey(name: 'object_ids') List<String> objectIds,
       @JsonKey(name: 'passport_series') String? passportSeries,
@@ -639,7 +648,12 @@ abstract mixin class _$EmployeeModelCopyWith<$Res>
       String? inn,
       String? snils,
       @JsonKey(name: 'created_at') DateTime? createdAt,
-      @JsonKey(name: 'updated_at') DateTime? updatedAt});
+      @JsonKey(name: 'updated_at') DateTime? updatedAt,
+      @JsonKey(
+          name: 'current_hourly_rate',
+          includeFromJson: false,
+          includeToJson: false)
+      double? currentHourlyRate});
 }
 
 /// @nodoc
@@ -670,7 +684,6 @@ class __$EmployeeModelCopyWithImpl<$Res>
     Object? employmentDate = freezed,
     Object? employmentType = null,
     Object? position = freezed,
-    Object? hourlyRate = freezed,
     Object? status = null,
     Object? objectIds = null,
     Object? passportSeries = freezed,
@@ -683,6 +696,7 @@ class __$EmployeeModelCopyWithImpl<$Res>
     Object? snils = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
+    Object? currentHourlyRate = freezed,
   }) {
     return _then(_EmployeeModel(
       id: null == id
@@ -745,10 +759,6 @@ class __$EmployeeModelCopyWithImpl<$Res>
           ? _self.position
           : position // ignore: cast_nullable_to_non_nullable
               as String?,
-      hourlyRate: freezed == hourlyRate
-          ? _self.hourlyRate
-          : hourlyRate // ignore: cast_nullable_to_non_nullable
-              as double?,
       status: null == status
           ? _self.status
           : status // ignore: cast_nullable_to_non_nullable
@@ -797,6 +807,10 @@ class __$EmployeeModelCopyWithImpl<$Res>
           ? _self.updatedAt
           : updatedAt // ignore: cast_nullable_to_non_nullable
               as DateTime?,
+      currentHourlyRate: freezed == currentHourlyRate
+          ? _self.currentHourlyRate
+          : currentHourlyRate // ignore: cast_nullable_to_non_nullable
+              as double?,
     ));
   }
 }

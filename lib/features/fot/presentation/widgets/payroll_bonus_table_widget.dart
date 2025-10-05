@@ -5,13 +5,16 @@ import 'package:collection/collection.dart';
 import '../providers/bonus_providers.dart';
 import '../providers/balance_providers.dart';
 import '../providers/payroll_providers.dart';
-import '../providers/payroll_filter_provider.dart';
+import '../providers/payroll_filter_providers.dart';
 import '../../../../core/utils/snackbar_utils.dart';
 import 'payroll_transaction_form_modal.dart';
+import 'payroll_search_action.dart';
 import '../../domain/entities/payroll_transaction.dart';
 import 'package:flutter/cupertino.dart';
+import '../../../../presentation/state/employee_state.dart';
+import 'package:projectgt/core/di/providers.dart';
 
-/// Виджет для отображения таблицы премий сотрудников за выбранный период в модуле ФОТ.
+/// Виджет для отображения таблицы премий сотрудников за текущий месяц в модуле ФОТ.
 ///
 /// Использует данные из провайдера filteredBonusesProvider и отображает премии с деталями по сотруднику, объекту, сумме, дате и примечанию.
 /// Поддерживает адаптивную верстку (desktop/tablet/mobile), сортировку и действия (редактирование, удаление).
@@ -30,20 +33,42 @@ class PayrollBonusTableWidget extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final bonuses = ref.watch(filteredBonusesProvider);
+    final allBonuses = ref.watch(filteredBonusesProvider);
+    final searchQuery = ref.watch(payrollSearchQueryProvider);
+
+    // Применяем фильтрацию по поисковому запросу
+    final bonuses = filterTransactionsByEmployeeName(
+      allBonuses,
+      searchQuery,
+      ref,
+    );
+
+    final employeeState = ref.watch(employeeProvider);
+    final objectState = ref.watch(objectProvider);
+    final employees = employeeState.employees;
+    final objects = objectState.objects;
     final filterState = ref.watch(payrollFilterProvider);
-    final employees = filterState.employees;
-    final objects = filterState.objects;
+
+    // Проверяем, применен ли фильтр по периоду
+    final now = DateTime.now();
+    final isPeriodFiltered = filterState.selectedYear != now.year ||
+        filterState.selectedMonth != now.month;
+
+    final monthDate =
+        DateTime(filterState.selectedYear, filterState.selectedMonth);
+    final tableTitle = isPeriodFiltered
+        ? 'Премии за ${DateFormat.yMMMM('ru').format(monthDate)}'
+        : 'Премии (все)';
+
     if (bonuses.isEmpty) {
       return Center(
-        child: Text('Нет премий за выбранный период',
+        child: Text(
+            isPeriodFiltered
+                ? 'Нет премий за ${DateFormat.yMMMM('ru').format(monthDate)}'
+                : 'Нет премий',
             style: theme.textTheme.titleMedium),
       );
     }
-    final filterMonth = filterState.month;
-    final filterYear = filterState.year;
-    final monthDate = DateTime(filterYear, filterMonth);
-    final tableTitle = 'Премии ${DateFormat.yMMMM('ru').format(monthDate)}';
     final numberFormat =
         NumberFormat.currency(locale: 'ru_RU', symbol: '₽', decimalDigits: 2);
     return Column(
@@ -99,9 +124,10 @@ class PayrollBonusTableWidget extends ConsumerWidget {
                         for (int i = 0; i < bonuses.length; i++)
                           () {
                             final bonus = bonuses[i];
-                            final dateStr = bonus.createdAt != null
-                                ? DateFormat('dd.MM.yyyy')
-                                    .format(bonus.createdAt!)
+                            // Используем bonus.date (дата премии), fallback на createdAt если date == null
+                            final displayDate = bonus.date ?? bonus.createdAt;
+                            final dateStr = displayDate != null
+                                ? DateFormat('dd.MM.yyyy').format(displayDate)
                                 : '';
                             final employee = employees.firstWhereOrNull(
                                 (e) => e.id == bonus.employeeId);
@@ -110,7 +136,7 @@ class PayrollBonusTableWidget extends ConsumerWidget {
                                     employee.lastName,
                                     employee.firstName,
                                     if (employee.middleName != null &&
-                                        employee.middleName.isNotEmpty)
+                                        employee.middleName!.isNotEmpty)
                                       employee.middleName
                                   ].join(' ')
                                 : bonus.employeeId;
@@ -205,19 +231,29 @@ class PayrollBonusTableWidget extends ConsumerWidget {
                                                 child: const Text('Удалить'),
                                                 onPressed: () async {
                                                   Navigator.of(ctx).pop();
-                                                  final deleteBonus = ref.read(
-                                                      deleteBonusUseCaseProvider);
-                                                  await deleteBonus(bonus.id);
-                                                  ref.invalidate(
-                                                      allBonusesProvider);
-                                                  ref.invalidate(
-                                                      employeeAggregatedBalanceProvider);
-                                                  ref.invalidate(
-                                                      payrollPayoutsByMonthProvider);
-                                                  if (context.mounted) {
-                                                    SnackBarUtils.showSuccess(
-                                                        context,
-                                                        'Премия удалена');
+                                                  try {
+                                                    final deleteBonus = ref.read(
+                                                        deleteBonusUseCaseProvider);
+                                                    await deleteBonus(bonus.id);
+                                                    ref.invalidate(
+                                                        allBonusesProvider);
+                                                    ref.invalidate(
+                                                        employeeAggregatedBalanceProvider);
+                                                    ref.invalidate(
+                                                        payrollPayoutsByMonthProvider);
+                                                    ref.invalidate(
+                                                        filteredPayrollsProvider);
+                                                    if (context.mounted) {
+                                                      SnackBarUtils.showSuccess(
+                                                          context,
+                                                          'Премия удалена');
+                                                    }
+                                                  } catch (e) {
+                                                    if (context.mounted) {
+                                                      SnackBarUtils.showError(
+                                                          context,
+                                                          'Ошибка удаления: $e');
+                                                    }
                                                   }
                                                 },
                                               ),

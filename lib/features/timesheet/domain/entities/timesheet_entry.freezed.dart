@@ -51,6 +51,11 @@ mixin _$TimesheetEntry {
   /// Дата обновления записи.
   DateTime? get updatedAt;
 
+  /// Признак ручного ввода часов (не хранится в БД).
+  /// true = часы введены вручную (employee_attendance)
+  /// false = часы из смен (work_hours)
+  bool get isManualEntry;
+
   /// Create a copy of TimesheetEntry
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -85,7 +90,9 @@ mixin _$TimesheetEntry {
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
-                other.updatedAt == updatedAt));
+                other.updatedAt == updatedAt) &&
+            (identical(other.isManualEntry, isManualEntry) ||
+                other.isManualEntry == isManualEntry));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -103,11 +110,12 @@ mixin _$TimesheetEntry {
       objectName,
       employeePosition,
       createdAt,
-      updatedAt);
+      updatedAt,
+      isManualEntry);
 
   @override
   String toString() {
-    return 'TimesheetEntry(id: $id, workId: $workId, employeeId: $employeeId, hours: $hours, comment: $comment, date: $date, objectId: $objectId, employeeName: $employeeName, objectName: $objectName, employeePosition: $employeePosition, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'TimesheetEntry(id: $id, workId: $workId, employeeId: $employeeId, hours: $hours, comment: $comment, date: $date, objectId: $objectId, employeeName: $employeeName, objectName: $objectName, employeePosition: $employeePosition, createdAt: $createdAt, updatedAt: $updatedAt, isManualEntry: $isManualEntry)';
   }
 }
 
@@ -129,7 +137,8 @@ abstract mixin class $TimesheetEntryCopyWith<$Res> {
       String? objectName,
       String? employeePosition,
       DateTime? createdAt,
-      DateTime? updatedAt});
+      DateTime? updatedAt,
+      bool isManualEntry});
 }
 
 /// @nodoc
@@ -157,6 +166,7 @@ class _$TimesheetEntryCopyWithImpl<$Res>
     Object? employeePosition = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
+    Object? isManualEntry = null,
   }) {
     return _then(_self.copyWith(
       id: null == id
@@ -207,6 +217,10 @@ class _$TimesheetEntryCopyWithImpl<$Res>
           ? _self.updatedAt
           : updatedAt // ignore: cast_nullable_to_non_nullable
               as DateTime?,
+      isManualEntry: null == isManualEntry
+          ? _self.isManualEntry
+          : isManualEntry // ignore: cast_nullable_to_non_nullable
+              as bool,
     ));
   }
 }
@@ -227,7 +241,8 @@ class _TimesheetEntry implements TimesheetEntry {
       this.objectName,
       this.employeePosition,
       this.createdAt,
-      this.updatedAt});
+      this.updatedAt,
+      this.isManualEntry = false});
   factory _TimesheetEntry.fromJson(Map<String, dynamic> json) =>
       _$TimesheetEntryFromJson(json);
 
@@ -279,6 +294,13 @@ class _TimesheetEntry implements TimesheetEntry {
   @override
   final DateTime? updatedAt;
 
+  /// Признак ручного ввода часов (не хранится в БД).
+  /// true = часы введены вручную (employee_attendance)
+  /// false = часы из смен (work_hours)
+  @override
+  @JsonKey()
+  final bool isManualEntry;
+
   /// Create a copy of TimesheetEntry
   /// with the given fields replaced by the non-null parameter values.
   @override
@@ -317,7 +339,9 @@ class _TimesheetEntry implements TimesheetEntry {
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
-                other.updatedAt == updatedAt));
+                other.updatedAt == updatedAt) &&
+            (identical(other.isManualEntry, isManualEntry) ||
+                other.isManualEntry == isManualEntry));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -335,11 +359,12 @@ class _TimesheetEntry implements TimesheetEntry {
       objectName,
       employeePosition,
       createdAt,
-      updatedAt);
+      updatedAt,
+      isManualEntry);
 
   @override
   String toString() {
-    return 'TimesheetEntry(id: $id, workId: $workId, employeeId: $employeeId, hours: $hours, comment: $comment, date: $date, objectId: $objectId, employeeName: $employeeName, objectName: $objectName, employeePosition: $employeePosition, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'TimesheetEntry(id: $id, workId: $workId, employeeId: $employeeId, hours: $hours, comment: $comment, date: $date, objectId: $objectId, employeeName: $employeeName, objectName: $objectName, employeePosition: $employeePosition, createdAt: $createdAt, updatedAt: $updatedAt, isManualEntry: $isManualEntry)';
   }
 }
 
@@ -363,7 +388,8 @@ abstract mixin class _$TimesheetEntryCopyWith<$Res>
       String? objectName,
       String? employeePosition,
       DateTime? createdAt,
-      DateTime? updatedAt});
+      DateTime? updatedAt,
+      bool isManualEntry});
 }
 
 /// @nodoc
@@ -391,6 +417,7 @@ class __$TimesheetEntryCopyWithImpl<$Res>
     Object? employeePosition = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
+    Object? isManualEntry = null,
   }) {
     return _then(_TimesheetEntry(
       id: null == id
@@ -441,6 +468,10 @@ class __$TimesheetEntryCopyWithImpl<$Res>
           ? _self.updatedAt
           : updatedAt // ignore: cast_nullable_to_non_nullable
               as DateTime?,
+      isManualEntry: null == isManualEntry
+          ? _self.isManualEntry
+          : isManualEntry // ignore: cast_nullable_to_non_nullable
+              as bool,
     ));
   }
 }

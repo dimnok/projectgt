@@ -2,18 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
-import 'package:collection/collection.dart';
-import 'package:projectgt/core/widgets/dropdown_typeahead_field.dart';
 
 import '../../domain/entities/payroll_transaction.dart';
 import '../../data/models/payroll_bonus_model.dart';
 import '../../data/models/payroll_penalty_model.dart';
-import '../providers/payroll_filter_provider.dart';
+import '../../../../presentation/state/employee_state.dart';
+import '../../../../domain/entities/employee.dart';
+import '../../../../domain/entities/object.dart';
+import 'package:projectgt/core/di/providers.dart';
 import '../providers/bonus_providers.dart';
 import '../providers/penalty_providers.dart';
 import '../providers/balance_providers.dart';
 import '../providers/payroll_providers.dart';
 import '../../../../core/utils/snackbar_utils.dart';
+import '../../../../core/widgets/modal_container_wrapper.dart';
+import '../../../../core/widgets/gt_dropdown.dart';
 
 /// Переиспользуемое модальное окно для добавления/редактирования транзакций ФОТ.
 ///
@@ -43,14 +46,12 @@ class PayrollTransactionFormModal extends ConsumerStatefulWidget {
 class _PayrollTransactionFormModalState
     extends ConsumerState<PayrollTransactionFormModal> {
   final _formKey = GlobalKey<FormState>();
-  final _employeeController = TextEditingController();
-  final _objectController = TextEditingController();
   final _amountController = TextEditingController();
   final _noteController = TextEditingController();
 
   DateTime? _selectedDate;
-  String? _selectedEmployeeId;
-  String? _selectedObjectId;
+  Employee? _selectedEmployee;
+  ObjectEntity? _selectedObject;
   bool _isSaving = false;
 
   bool get _isEditing => widget.transaction != null;
@@ -65,13 +66,13 @@ class _PayrollTransactionFormModalState
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _populateControllers();
+    if (_isEditing) {
+      _populateSelectedItems();
+    }
   }
 
   @override
   void dispose() {
-    _employeeController.dispose();
-    _objectController.dispose();
     _amountController.dispose();
     _noteController.dispose();
     super.dispose();
@@ -86,37 +87,27 @@ class _PayrollTransactionFormModalState
       if (transaction.reason != null) {
         _noteController.text = transaction.reason!;
       }
-      _selectedEmployeeId = transaction.employeeId;
-      _selectedObjectId = transaction.objectId;
     }
   }
 
-  /// Заполняет контроллеры именами сотрудника и объекта
-  void _populateControllers() {
+  /// Устанавливает выбранного сотрудника и объект при редактировании
+  void _populateSelectedItems() {
     final transaction = widget.transaction;
-    if (transaction != null) {
-      final filterState = ref.read(payrollFilterProvider);
+    if (transaction == null) return;
 
-      // Заполняем имя сотрудника
-      final employee = filterState.employees.firstWhereOrNull(
-        (e) => e.id == transaction.employeeId,
-      );
-      if (employee != null) {
-        _employeeController.text = [
-          employee.lastName,
-          employee.firstName,
-          if (employee.middleName != null && employee.middleName!.isNotEmpty)
-            employee.middleName
-        ].join(' ');
-      }
+    final employeeState = ref.read(employeeProvider);
+    final objectState = ref.read(objectProvider);
 
-      // Заполняем название объекта
-      final object = filterState.objects.firstWhereOrNull(
-        (o) => o.id == transaction.objectId,
-      );
-      if (object != null) {
-        _objectController.text = object.name;
-      }
+    if (_selectedEmployee == null && employeeState.employees.isNotEmpty) {
+      _selectedEmployee = employeeState.employees
+          .where((e) => e.id == transaction.employeeId)
+          .firstOrNull;
+    }
+
+    if (_selectedObject == null && objectState.objects.isNotEmpty) {
+      _selectedObject = objectState.objects
+          .where((o) => o.id == transaction.objectId)
+          .firstOrNull;
     }
   }
 
@@ -133,23 +124,6 @@ class _PayrollTransactionFormModalState
     if (picked != null) {
       setState(() => _selectedDate = picked);
     }
-  }
-
-  /// Обработка выбора сотрудника
-  void _onEmployeeSelected(dynamic employee) {
-    _selectedEmployeeId = employee.id;
-    _employeeController.text = [
-      employee.lastName,
-      employee.firstName,
-      if (employee.middleName != null && employee.middleName!.isNotEmpty)
-        employee.middleName
-    ].join(' ');
-  }
-
-  /// Обработка выбора объекта
-  void _onObjectSelected(dynamic object) {
-    _selectedObjectId = object.id;
-    _objectController.text = object.name;
   }
 
   /// Сохранение транзакции
@@ -193,13 +167,13 @@ class _PayrollTransactionFormModalState
       Uuid uuid, num amount, String? reason, DateTime date) async {
     final bonus = PayrollBonusModel(
       id: _isEditing ? widget.transaction!.id : uuid.v4(),
-      employeeId: _selectedEmployeeId ?? '',
+      employeeId: _selectedEmployee?.id ?? '',
       type: 'manual',
       amount: amount,
       reason: reason,
       date: date,
       createdAt: _isEditing ? widget.transaction!.createdAt : DateTime.now(),
-      objectId: _selectedObjectId,
+      objectId: _selectedObject?.id,
     );
 
     if (_isEditing) {
@@ -216,13 +190,13 @@ class _PayrollTransactionFormModalState
       Uuid uuid, num amount, String? reason, DateTime date) async {
     final penalty = PayrollPenaltyModel(
       id: _isEditing ? widget.transaction!.id : uuid.v4(),
-      employeeId: _selectedEmployeeId ?? '',
+      employeeId: _selectedEmployee?.id ?? '',
       type: 'manual',
       amount: amount,
       reason: reason,
       date: date,
       createdAt: DateTime.now(),
-      objectId: _selectedObjectId,
+      objectId: _selectedObject?.id,
     );
 
     if (_isEditing) {
@@ -243,39 +217,34 @@ class _PayrollTransactionFormModalState
     }
     ref.invalidate(employeeAggregatedBalanceProvider);
     ref.invalidate(payrollPayoutsByMonthProvider);
+    ref.invalidate(filteredPayrollsProvider); // Обновляем основную таблицу ФОТ
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final filterState = ref.watch(payrollFilterProvider);
-    final employees = filterState.employees;
-    final objects = filterState.objects;
-    final isDesktop = MediaQuery.of(context).size.width >= 900;
-    final screenWidth = MediaQuery.of(context).size.width;
+    final employeeState = ref.watch(employeeProvider);
+    final objectState = ref.watch(objectProvider);
 
-    final modalContent = Container(
-      margin: isDesktop
-          ? const EdgeInsets.only(top: 48)
-          : EdgeInsets.only(
-              top: kToolbarHeight + MediaQuery.of(context).padding.top,
-            ),
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.18),
-            blurRadius: 24,
-            offset: const Offset(0, -8),
-          ),
-        ],
-        border: Border.all(
-          color: theme.colorScheme.outline.withValues(alpha: 0.12),
-          width: 1.5,
-        ),
-      ),
+    // Сортировка сотрудников по алфавиту (Фамилия Имя Отчество)
+    final employees = List<Employee>.from(employeeState.employees)
+      ..sort((a, b) {
+        final fioA = [
+          a.lastName,
+          a.firstName,
+          if (a.middleName != null && a.middleName!.isNotEmpty) a.middleName
+        ].join(' ');
+        final fioB = [
+          b.lastName,
+          b.firstName,
+          if (b.middleName != null && b.middleName!.isNotEmpty) b.middleName
+        ].join(' ');
+        return fioA.compareTo(fioB);
+      });
+
+    final objects = objectState.objects;
+
+    return ModalContainerWrapper(
       child: DraggableScrollableSheet(
         initialChildSize: 1.0,
         minChildSize: 0.5,
@@ -309,18 +278,6 @@ class _PayrollTransactionFormModalState
         ),
       ),
     );
-
-    if (isDesktop) {
-      return Align(
-        alignment: Alignment.topCenter,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: screenWidth * 0.5),
-          child: modalContent,
-        ),
-      );
-    } else {
-      return modalContent;
-    }
   }
 
   /// Строит заголовок модального окна
@@ -350,14 +307,14 @@ class _PayrollTransactionFormModalState
 
   /// Строит форму
   Widget _buildForm(
-      ThemeData theme, List<dynamic> employees, List<dynamic> objects) {
+      ThemeData theme, List<Employee> employees, List<ObjectEntity> objects) {
     return Card(
       margin: EdgeInsets.zero,
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: theme.colorScheme.outline.withValues(alpha: 51),
+          color: theme.colorScheme.outline.withValues(alpha: 0.2),
         ),
       ),
       child: Padding(
@@ -402,38 +359,44 @@ class _PayrollTransactionFormModalState
     );
   }
 
-  /// Поле выбора сотрудника
-  Widget _buildEmployeeField(List<dynamic> employees) {
-    return DropdownTypeAheadField<dynamic>(
-      controller: _employeeController,
-      labelText: 'Сотрудник',
-      hintText:
-          employees.isEmpty ? 'Нет доступных значений' : 'Выберите сотрудника',
+  /// Поле выбора сотрудника (GTDropdown)
+  Widget _buildEmployeeField(List<Employee> employees) {
+    return GTDropdown<Employee>(
       items: employees,
-      displayStringForOption: (e) => [
+      itemDisplayBuilder: (e) => [
         e.lastName,
         e.firstName,
         if (e.middleName != null && e.middleName!.isNotEmpty) e.middleName
       ].join(' '),
-      onSelected: employees.isEmpty ? (_) {} : _onEmployeeSelected,
-      validator: (value) =>
-          _selectedEmployeeId == null ? 'Выберите сотрудника' : null,
-      allowCustomValues: false,
+      selectedItem: _selectedEmployee,
+      onSelectionChanged: (employee) {
+        setState(() {
+          _selectedEmployee = employee;
+        });
+      },
+      labelText: 'Сотрудник',
+      hintText: employees.isEmpty
+          ? 'Нет доступных сотрудников'
+          : 'Выберите сотрудника',
+      validator: (_) =>
+          _selectedEmployee == null ? 'Выберите сотрудника' : null,
     );
   }
 
-  /// Поле выбора объекта
-  Widget _buildObjectField(List<dynamic> objects) {
-    return DropdownTypeAheadField<dynamic>(
-      controller: _objectController,
-      labelText: 'Объект',
-      hintText: objects.isEmpty ? 'Нет доступных значений' : 'Выберите объект',
+  /// Поле выбора объекта (GTDropdown)
+  Widget _buildObjectField(List<ObjectEntity> objects) {
+    return GTDropdown<ObjectEntity>(
       items: objects,
-      displayStringForOption: (o) => o.name,
-      onSelected: objects.isEmpty ? (_) {} : _onObjectSelected,
-      validator: (value) =>
-          _selectedObjectId == null ? 'Выберите объект' : null,
-      allowCustomValues: false,
+      itemDisplayBuilder: (o) => o.name,
+      selectedItem: _selectedObject,
+      onSelectionChanged: (object) {
+        setState(() {
+          _selectedObject = object;
+        });
+      },
+      labelText: 'Объект',
+      hintText: objects.isEmpty ? 'Нет доступных объектов' : 'Выберите объект',
+      validator: (_) => _selectedObject == null ? 'Выберите объект' : null,
     );
   }
 

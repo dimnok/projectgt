@@ -33,9 +33,6 @@ abstract class ObjectModel with _$ObjectModel {
     required String name,
     required String address,
     String? description,
-
-    /// Сумма командировочных выплат для объекта
-    @Default(0) num businessTripAmount,
   }) = _ObjectModel;
 
   /// Приватный конструктор для поддержки расширения через [freezed].
@@ -62,7 +59,6 @@ abstract class ObjectModel with _$ObjectModel {
         name: object.name,
         address: object.address,
         description: object.description,
-        businessTripAmount: object.businessTripAmount,
       );
 
   /// Преобразует [ObjectModel] в доменную сущность [ObjectEntity].
@@ -73,6 +69,5 @@ abstract class ObjectModel with _$ObjectModel {
         name: name,
         address: address,
         description: description,
-        businessTripAmount: businessTripAmount,
       );
 }

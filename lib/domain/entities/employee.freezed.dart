@@ -60,9 +60,6 @@ mixin _$Employee {
   /// Должность.
   String? get position;
 
-  /// Почасовая ставка.
-  double? get hourlyRate;
-
   /// Статус сотрудника ([EmployeeStatus]).
   EmployeeStatus get status;
 
@@ -98,6 +95,9 @@ mixin _$Employee {
 
   /// Дата последнего обновления записи.
   DateTime? get updatedAt;
+
+  /// Текущая почасовая ставка сотрудника (из таблицы employee_rates).
+  double? get currentHourlyRate;
 
   /// Create a copy of Employee
   /// with the given fields replaced by the non-null parameter values.
@@ -138,8 +138,6 @@ mixin _$Employee {
                 other.employmentType == employmentType) &&
             (identical(other.position, position) ||
                 other.position == position) &&
-            (identical(other.hourlyRate, hourlyRate) ||
-                other.hourlyRate == hourlyRate) &&
             (identical(other.status, status) || other.status == status) &&
             const DeepCollectionEquality().equals(other.objectIds, objectIds) &&
             (identical(other.passportSeries, passportSeries) ||
@@ -159,7 +157,9 @@ mixin _$Employee {
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
-                other.updatedAt == updatedAt));
+                other.updatedAt == updatedAt) &&
+            (identical(other.currentHourlyRate, currentHourlyRate) ||
+                other.currentHourlyRate == currentHourlyRate));
   }
 
   @override
@@ -180,7 +180,6 @@ mixin _$Employee {
         employmentDate,
         employmentType,
         position,
-        hourlyRate,
         status,
         const DeepCollectionEquality().hash(objectIds),
         passportSeries,
@@ -192,12 +191,13 @@ mixin _$Employee {
         inn,
         snils,
         createdAt,
-        updatedAt
+        updatedAt,
+        currentHourlyRate
       ]);
 
   @override
   String toString() {
-    return 'Employee(id: $id, photoUrl: $photoUrl, lastName: $lastName, firstName: $firstName, middleName: $middleName, birthDate: $birthDate, birthPlace: $birthPlace, citizenship: $citizenship, phone: $phone, clothingSize: $clothingSize, shoeSize: $shoeSize, height: $height, employmentDate: $employmentDate, employmentType: $employmentType, position: $position, hourlyRate: $hourlyRate, status: $status, objectIds: $objectIds, passportSeries: $passportSeries, passportNumber: $passportNumber, passportIssuedBy: $passportIssuedBy, passportIssueDate: $passportIssueDate, passportDepartmentCode: $passportDepartmentCode, registrationAddress: $registrationAddress, inn: $inn, snils: $snils, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'Employee(id: $id, photoUrl: $photoUrl, lastName: $lastName, firstName: $firstName, middleName: $middleName, birthDate: $birthDate, birthPlace: $birthPlace, citizenship: $citizenship, phone: $phone, clothingSize: $clothingSize, shoeSize: $shoeSize, height: $height, employmentDate: $employmentDate, employmentType: $employmentType, position: $position, status: $status, objectIds: $objectIds, passportSeries: $passportSeries, passportNumber: $passportNumber, passportIssuedBy: $passportIssuedBy, passportIssueDate: $passportIssueDate, passportDepartmentCode: $passportDepartmentCode, registrationAddress: $registrationAddress, inn: $inn, snils: $snils, createdAt: $createdAt, updatedAt: $updatedAt, currentHourlyRate: $currentHourlyRate)';
   }
 }
 
@@ -222,7 +222,6 @@ abstract mixin class $EmployeeCopyWith<$Res> {
       DateTime? employmentDate,
       EmploymentType employmentType,
       String? position,
-      double? hourlyRate,
       EmployeeStatus status,
       List<String> objectIds,
       String? passportSeries,
@@ -234,7 +233,8 @@ abstract mixin class $EmployeeCopyWith<$Res> {
       String? inn,
       String? snils,
       DateTime? createdAt,
-      DateTime? updatedAt});
+      DateTime? updatedAt,
+      double? currentHourlyRate});
 }
 
 /// @nodoc
@@ -264,7 +264,6 @@ class _$EmployeeCopyWithImpl<$Res> implements $EmployeeCopyWith<$Res> {
     Object? employmentDate = freezed,
     Object? employmentType = null,
     Object? position = freezed,
-    Object? hourlyRate = freezed,
     Object? status = null,
     Object? objectIds = null,
     Object? passportSeries = freezed,
@@ -277,6 +276,7 @@ class _$EmployeeCopyWithImpl<$Res> implements $EmployeeCopyWith<$Res> {
     Object? snils = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
+    Object? currentHourlyRate = freezed,
   }) {
     return _then(_self.copyWith(
       id: null == id
@@ -339,10 +339,6 @@ class _$EmployeeCopyWithImpl<$Res> implements $EmployeeCopyWith<$Res> {
           ? _self.position
           : position // ignore: cast_nullable_to_non_nullable
               as String?,
-      hourlyRate: freezed == hourlyRate
-          ? _self.hourlyRate
-          : hourlyRate // ignore: cast_nullable_to_non_nullable
-              as double?,
       status: null == status
           ? _self.status
           : status // ignore: cast_nullable_to_non_nullable
@@ -391,6 +387,10 @@ class _$EmployeeCopyWithImpl<$Res> implements $EmployeeCopyWith<$Res> {
           ? _self.updatedAt
           : updatedAt // ignore: cast_nullable_to_non_nullable
               as DateTime?,
+      currentHourlyRate: freezed == currentHourlyRate
+          ? _self.currentHourlyRate
+          : currentHourlyRate // ignore: cast_nullable_to_non_nullable
+              as double?,
     ));
   }
 }
@@ -414,7 +414,6 @@ class _Employee extends Employee {
       this.employmentDate,
       this.employmentType = EmploymentType.official,
       this.position,
-      this.hourlyRate,
       this.status = EmployeeStatus.working,
       final List<String> objectIds = const <String>[],
       this.passportSeries,
@@ -426,7 +425,8 @@ class _Employee extends Employee {
       this.inn,
       this.snils,
       this.createdAt,
-      this.updatedAt})
+      this.updatedAt,
+      this.currentHourlyRate})
       : _objectIds = objectIds,
         super._();
 
@@ -491,10 +491,6 @@ class _Employee extends Employee {
   @override
   final String? position;
 
-  /// Почасовая ставка.
-  @override
-  final double? hourlyRate;
-
   /// Статус сотрудника ([EmployeeStatus]).
   @override
   @JsonKey()
@@ -552,6 +548,10 @@ class _Employee extends Employee {
   @override
   final DateTime? updatedAt;
 
+  /// Текущая почасовая ставка сотрудника (из таблицы employee_rates).
+  @override
+  final double? currentHourlyRate;
+
   /// Create a copy of Employee
   /// with the given fields replaced by the non-null parameter values.
   @override
@@ -592,8 +592,6 @@ class _Employee extends Employee {
                 other.employmentType == employmentType) &&
             (identical(other.position, position) ||
                 other.position == position) &&
-            (identical(other.hourlyRate, hourlyRate) ||
-                other.hourlyRate == hourlyRate) &&
             (identical(other.status, status) || other.status == status) &&
             const DeepCollectionEquality()
                 .equals(other._objectIds, _objectIds) &&
@@ -614,7 +612,9 @@ class _Employee extends Employee {
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
-                other.updatedAt == updatedAt));
+                other.updatedAt == updatedAt) &&
+            (identical(other.currentHourlyRate, currentHourlyRate) ||
+                other.currentHourlyRate == currentHourlyRate));
   }
 
   @override
@@ -635,7 +635,6 @@ class _Employee extends Employee {
         employmentDate,
         employmentType,
         position,
-        hourlyRate,
         status,
         const DeepCollectionEquality().hash(_objectIds),
         passportSeries,
@@ -647,12 +646,13 @@ class _Employee extends Employee {
         inn,
         snils,
         createdAt,
-        updatedAt
+        updatedAt,
+        currentHourlyRate
       ]);
 
   @override
   String toString() {
-    return 'Employee(id: $id, photoUrl: $photoUrl, lastName: $lastName, firstName: $firstName, middleName: $middleName, birthDate: $birthDate, birthPlace: $birthPlace, citizenship: $citizenship, phone: $phone, clothingSize: $clothingSize, shoeSize: $shoeSize, height: $height, employmentDate: $employmentDate, employmentType: $employmentType, position: $position, hourlyRate: $hourlyRate, status: $status, objectIds: $objectIds, passportSeries: $passportSeries, passportNumber: $passportNumber, passportIssuedBy: $passportIssuedBy, passportIssueDate: $passportIssueDate, passportDepartmentCode: $passportDepartmentCode, registrationAddress: $registrationAddress, inn: $inn, snils: $snils, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'Employee(id: $id, photoUrl: $photoUrl, lastName: $lastName, firstName: $firstName, middleName: $middleName, birthDate: $birthDate, birthPlace: $birthPlace, citizenship: $citizenship, phone: $phone, clothingSize: $clothingSize, shoeSize: $shoeSize, height: $height, employmentDate: $employmentDate, employmentType: $employmentType, position: $position, status: $status, objectIds: $objectIds, passportSeries: $passportSeries, passportNumber: $passportNumber, passportIssuedBy: $passportIssuedBy, passportIssueDate: $passportIssueDate, passportDepartmentCode: $passportDepartmentCode, registrationAddress: $registrationAddress, inn: $inn, snils: $snils, createdAt: $createdAt, updatedAt: $updatedAt, currentHourlyRate: $currentHourlyRate)';
   }
 }
 
@@ -679,7 +679,6 @@ abstract mixin class _$EmployeeCopyWith<$Res>
       DateTime? employmentDate,
       EmploymentType employmentType,
       String? position,
-      double? hourlyRate,
       EmployeeStatus status,
       List<String> objectIds,
       String? passportSeries,
@@ -691,7 +690,8 @@ abstract mixin class _$EmployeeCopyWith<$Res>
       String? inn,
       String? snils,
       DateTime? createdAt,
-      DateTime? updatedAt});
+      DateTime? updatedAt,
+      double? currentHourlyRate});
 }
 
 /// @nodoc
@@ -721,7 +721,6 @@ class __$EmployeeCopyWithImpl<$Res> implements _$EmployeeCopyWith<$Res> {
     Object? employmentDate = freezed,
     Object? employmentType = null,
     Object? position = freezed,
-    Object? hourlyRate = freezed,
     Object? status = null,
     Object? objectIds = null,
     Object? passportSeries = freezed,
@@ -734,6 +733,7 @@ class __$EmployeeCopyWithImpl<$Res> implements _$EmployeeCopyWith<$Res> {
     Object? snils = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
+    Object? currentHourlyRate = freezed,
   }) {
     return _then(_Employee(
       id: null == id
@@ -796,10 +796,6 @@ class __$EmployeeCopyWithImpl<$Res> implements _$EmployeeCopyWith<$Res> {
           ? _self.position
           : position // ignore: cast_nullable_to_non_nullable
               as String?,
-      hourlyRate: freezed == hourlyRate
-          ? _self.hourlyRate
-          : hourlyRate // ignore: cast_nullable_to_non_nullable
-              as double?,
       status: null == status
           ? _self.status
           : status // ignore: cast_nullable_to_non_nullable
@@ -848,6 +844,10 @@ class __$EmployeeCopyWithImpl<$Res> implements _$EmployeeCopyWith<$Res> {
           ? _self.updatedAt
           : updatedAt // ignore: cast_nullable_to_non_nullable
               as DateTime?,
+      currentHourlyRate: freezed == currentHourlyRate
+          ? _self.currentHourlyRate
+          : currentHourlyRate // ignore: cast_nullable_to_non_nullable
+              as double?,
     ));
   }
 }

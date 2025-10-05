@@ -381,19 +381,6 @@ class AppDrawer extends ConsumerWidget {
                             },
                           ),
                           DrawerItemWidget(
-                            icon: Icons.people_alt_rounded,
-                            title: 'Сотрудники',
-                            isSelected: activeRoute == AppRoute.employees,
-                            onTap: () {
-                              if (activeRoute == AppRoute.employees) {
-                                context.pop();
-                              } else {
-                                context.pop();
-                                context.goNamed('employees');
-                              }
-                            },
-                          ),
-                          DrawerItemWidget(
                             icon: Icons.work_outline,
                             title: 'Работы',
                             isSelected:
@@ -401,19 +388,6 @@ class AppDrawer extends ConsumerWidget {
                             onTap: () {
                               context.pop();
                               context.goNamed('works');
-                            },
-                          ),
-                          DrawerItemWidget(
-                            icon: Icons.inventory_2_outlined,
-                            title: 'Материал',
-                            isSelected: activeRoute == AppRoute.material,
-                            onTap: () {
-                              if (activeRoute == AppRoute.material) {
-                                context.pop();
-                              } else {
-                                context.pop();
-                                context.goNamed('material');
-                              }
                             },
                           ),
                           DrawerItemWidget(
@@ -430,41 +404,15 @@ class AppDrawer extends ConsumerWidget {
                             },
                           ),
                           DrawerItemWidget(
-                            icon: Icons.business_rounded,
-                            title: 'Контрагенты',
-                            isSelected: activeRoute == AppRoute.contractors,
+                            icon: Icons.inventory_2_outlined,
+                            title: 'Материал',
+                            isSelected: activeRoute == AppRoute.material,
                             onTap: () {
-                              if (activeRoute == AppRoute.contractors) {
+                              if (activeRoute == AppRoute.material) {
                                 context.pop();
                               } else {
                                 context.pop();
-                                context.goNamed('contractors');
-                              }
-                            },
-                          ),
-                          DrawerItemWidget(
-                            icon: Icons.description_rounded,
-                            title: 'Договоры',
-                            isSelected: activeRoute == AppRoute.contracts,
-                            onTap: () {
-                              if (activeRoute == AppRoute.contracts) {
-                                context.pop();
-                              } else {
-                                context.pop();
-                                context.goNamed('contracts');
-                              }
-                            },
-                          ),
-                          DrawerItemWidget(
-                            icon: Icons.table_chart_rounded,
-                            title: 'Сметы',
-                            isSelected: activeRoute == AppRoute.estimates,
-                            onTap: () {
-                              if (activeRoute == AppRoute.estimates) {
-                                context.pop();
-                              } else {
-                                context.pop();
-                                context.goNamed('estimates');
+                                context.goNamed('material');
                               }
                             },
                           ),
@@ -477,38 +425,98 @@ class AppDrawer extends ConsumerWidget {
                               context.goNamed('timesheet');
                             },
                           ),
-                          DrawerItemWidget(
-                            icon: Icons.payments,
-                            title: 'ФОТ',
-                            isSelected:
-                                activeRoute.toString() == 'AppRoute.payrolls',
-                            onTap: () {
-                              context.pop();
-                              context.goNamed('payrolls');
-                            },
-                          ),
-                          DrawerItemWidget(
-                            icon: Icons.file_download_outlined,
-                            title: 'Выгрузка',
-                            isSelected: activeRoute == AppRoute.export,
-                            onTap: () {
-                              if (activeRoute == AppRoute.export) {
+                          // Админские разделы
+                          if (user?.role == 'admin')
+                            DrawerItemWidget(
+                              icon: Icons.people_alt_rounded,
+                              title: 'Сотрудники',
+                              isSelected: activeRoute == AppRoute.employees,
+                              onTap: () {
+                                if (activeRoute == AppRoute.employees) {
+                                  context.pop();
+                                } else {
+                                  context.pop();
+                                  context.goNamed('employees');
+                                }
+                              },
+                            ),
+                          if (user?.role == 'admin')
+                            DrawerItemWidget(
+                              icon: Icons.location_city_rounded,
+                              title: 'Объекты',
+                              isSelected: activeRoute == AppRoute.objects,
+                              onTap: () {
                                 context.pop();
-                              } else {
+                                context.goNamed('objects');
+                              },
+                            ),
+                          if (user?.role == 'admin')
+                            DrawerItemWidget(
+                              icon: Icons.business_rounded,
+                              title: 'Контрагенты',
+                              isSelected: activeRoute == AppRoute.contractors,
+                              onTap: () {
+                                if (activeRoute == AppRoute.contractors) {
+                                  context.pop();
+                                } else {
+                                  context.pop();
+                                  context.goNamed('contractors');
+                                }
+                              },
+                            ),
+                          if (user?.role == 'admin')
+                            DrawerItemWidget(
+                              icon: Icons.description_rounded,
+                              title: 'Договоры',
+                              isSelected: activeRoute == AppRoute.contracts,
+                              onTap: () {
+                                if (activeRoute == AppRoute.contracts) {
+                                  context.pop();
+                                } else {
+                                  context.pop();
+                                  context.goNamed('contracts');
+                                }
+                              },
+                            ),
+                          if (user?.role == 'admin')
+                            DrawerItemWidget(
+                              icon: Icons.table_chart_rounded,
+                              title: 'Сметы',
+                              isSelected: activeRoute == AppRoute.estimates,
+                              onTap: () {
+                                if (activeRoute == AppRoute.estimates) {
+                                  context.pop();
+                                } else {
+                                  context.pop();
+                                  context.goNamed('estimates');
+                                }
+                              },
+                            ),
+                          if (user?.role == 'admin')
+                            DrawerItemWidget(
+                              icon: Icons.payments,
+                              title: 'ФОТ',
+                              isSelected:
+                                  activeRoute.toString() == 'AppRoute.payrolls',
+                              onTap: () {
                                 context.pop();
-                                context.goNamed('export');
-                              }
-                            },
-                          ),
-                          DrawerItemWidget(
-                            icon: Icons.location_city_rounded,
-                            title: 'Объекты',
-                            isSelected: activeRoute == AppRoute.objects,
-                            onTap: () {
-                              context.pop();
-                              context.goNamed('objects');
-                            },
-                          ),
+                                context.goNamed('payrolls');
+                              },
+                            ),
+                          if (user?.role == 'admin')
+                            DrawerItemWidget(
+                              icon: Icons.file_download_outlined,
+                              title: 'Выгрузка',
+                              isSelected: activeRoute == AppRoute.export,
+                              onTap: () {
+                                if (activeRoute == AppRoute.export) {
+                                  context.pop();
+                                } else {
+                                  context.pop();
+                                  context.goNamed('export');
+                                }
+                              },
+                            ),
                           if (user?.role == 'admin')
                             DrawerItemWidget(
                               icon: Icons.people_rounded,

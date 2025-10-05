@@ -120,6 +120,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       }
     }
 
+    final isAdmin = authState.user?.role == 'admin';
+
     final metrics = [
       _Metric(
         label: 'Работы',
@@ -130,42 +132,46 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         accent: _telegramBlue,
         onTap: () => context.goNamed('works'),
       ),
-      _Metric(
-        label: 'Сотрудники',
-        value: employeesState.employees.length,
-        icon: CupertinoIcons.person_2,
-        subtitle: 'Список персонала',
-        isLoading: employeesState.status == EmployeeStatus.loading,
-        accent: _telegramBlue,
-        onTap: () => context.goNamed('employees'),
-      ),
-      _Metric(
-        label: 'Контрагенты',
-        value: contractorsState.contractors.length,
-        icon: CupertinoIcons.building_2_fill,
-        subtitle: 'Партнёры и компании',
-        isLoading: contractorsState.status == ContractorStatus.loading,
-        accent: _whatsappGreen,
-        onTap: () => context.goNamed('contractors'),
-      ),
-      _Metric(
-        label: 'Договоры',
-        value: contractsState.contracts.length,
-        icon: CupertinoIcons.doc_text,
-        subtitle: 'Текущие соглашения',
-        isLoading: contractsState.status == ContractStatusState.loading,
-        accent: _telegramBlue,
-        onTap: () => context.goNamed('contracts'),
-      ),
-      _Metric(
-        label: 'Сметы',
-        value: estimatesState.estimates.length,
-        icon: CupertinoIcons.table,
-        subtitle: 'Расчёты и материалы',
-        isLoading: estimatesState.isLoading,
-        accent: _whatsappGreen,
-        onTap: () => context.goNamed('estimates'),
-      ),
+      if (isAdmin)
+        _Metric(
+          label: 'Сотрудники',
+          value: employeesState.employees.length,
+          icon: CupertinoIcons.person_2,
+          subtitle: 'Список персонала',
+          isLoading: employeesState.status == EmployeeStatus.loading,
+          accent: _telegramBlue,
+          onTap: () => context.goNamed('employees'),
+        ),
+      if (isAdmin)
+        _Metric(
+          label: 'Контрагенты',
+          value: contractorsState.contractors.length,
+          icon: CupertinoIcons.building_2_fill,
+          subtitle: 'Партнёры и компании',
+          isLoading: contractorsState.status == ContractorStatus.loading,
+          accent: _whatsappGreen,
+          onTap: () => context.goNamed('contractors'),
+        ),
+      if (isAdmin)
+        _Metric(
+          label: 'Договоры',
+          value: contractsState.contracts.length,
+          icon: CupertinoIcons.doc_text,
+          subtitle: 'Текущие соглашения',
+          isLoading: contractsState.status == ContractStatusState.loading,
+          accent: _telegramBlue,
+          onTap: () => context.goNamed('contracts'),
+        ),
+      if (isAdmin)
+        _Metric(
+          label: 'Сметы',
+          value: estimatesState.estimates.length,
+          icon: CupertinoIcons.table,
+          subtitle: 'Расчёты и материалы',
+          isLoading: estimatesState.isLoading,
+          accent: _whatsappGreen,
+          onTap: () => context.goNamed('estimates'),
+        ),
     ];
 
     return Scaffold(

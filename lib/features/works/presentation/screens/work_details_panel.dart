@@ -293,8 +293,7 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
         : null;
     final objectDisplay = object != null ? object.name : workAsync.objectId;
 
-    // Получаем информацию о статусе
-    final (statusText, statusColor) = _getWorkStatusInfo(workAsync.status);
+    // Статусный баннер удалён, вычисление статуса не требуется в хедере
 
     // В мобильном и десктопном режиме используется одинаковая структура единого блока
     return Column(
@@ -359,33 +358,23 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // Иконка смены
+                                  // Иконка замка как в карточках списка смен
                                   Container(
+                                    width: 48,
+                                    height: 48,
                                     decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: theme.colorScheme.outline
-                                            .withValues(alpha: 0.3),
-                                        width: 1,
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: theme.colorScheme.shadow
-                                              .withValues(alpha: 0.1),
-                                          blurRadius: 6,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ],
+                                      color: theme.colorScheme.surface,
+                                      borderRadius: BorderRadius.circular(8),
                                     ),
-                                    child: CircleAvatar(
-                                      radius: 36,
-                                      backgroundColor: theme.colorScheme.primary
-                                          .withValues(alpha: 0.1),
-                                      child: Icon(
-                                        Icons.work_rounded,
-                                        size: 40,
-                                        color: theme.colorScheme.primary,
-                                      ),
+                                    child: Icon(
+                                      workAsync.status.toLowerCase() == 'closed'
+                                          ? Icons.lock
+                                          : Icons.lock_open,
+                                      color: workAsync.status.toLowerCase() ==
+                                              'closed'
+                                          ? Colors.red
+                                          : Colors.green,
+                                      size: 32,
                                     ),
                                   ),
                                   const SizedBox(width: 16),
@@ -427,31 +416,6 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                                               style: theme.textTheme.bodyMedium,
                                             );
                                           },
-                                        ),
-                                        const SizedBox(height: 12),
-                                        // Статус
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 12, vertical: 6),
-                                          decoration: BoxDecoration(
-                                            color: statusColor.withValues(
-                                                alpha: 0.1),
-                                            border: Border.all(
-                                              color: statusColor.withValues(
-                                                  alpha: 0.3),
-                                              width: 0.5,
-                                            ),
-                                            borderRadius:
-                                                BorderRadius.circular(8),
-                                          ),
-                                          child: Text(
-                                            statusText,
-                                            style: theme.textTheme.bodyMedium
-                                                ?.copyWith(
-                                              color: statusColor,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
                                         ),
                                       ],
                                     ),
@@ -1678,45 +1642,6 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                 child: const Icon(Icons.add),
               ),
             ),
-          // Сообщение о закрытой смене, если смена закрыта
-          if (isWorkClosed)
-            Positioned(
-              right: 16,
-              bottom: 16 + MediaQuery.viewPaddingOf(context).bottom,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.lock,
-                      size: 16,
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Смена закрыта',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -1738,18 +1663,7 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
     return formatter.format(amount);
   }
 
-  /// Возвращает текст и цвет статуса смены.
-  (String, Color) _getWorkStatusInfo(String status) {
-    final theme = Theme.of(context);
-    switch (status.toLowerCase()) {
-      case 'open':
-        return ('Открыта', theme.colorScheme.primary);
-      case 'closed':
-        return ('Закрыта', theme.colorScheme.outline);
-      default:
-        return (status, theme.colorScheme.secondary);
-    }
-  }
+  // Статусный баннер и вычисление статуса в хедере удалены по требованию
 
   /// Показывает диалог подтверждения удаления для свайпа (работы)
   Future<bool?> _showDeleteConfirmationDialog(

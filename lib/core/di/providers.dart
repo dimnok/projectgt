@@ -78,6 +78,24 @@ import 'package:projectgt/features/works/domain/repositories/work_hour_repositor
 import 'package:projectgt/features/works/data/datasources/work_hour_data_source.dart';
 import 'package:projectgt/features/works/data/datasources/work_hour_data_source_impl.dart';
 import 'package:projectgt/features/works/data/repositories/work_hour_repository_impl.dart';
+import 'package:projectgt/data/datasources/employee_rate_data_source.dart';
+
+// Business Trip Rates imports
+import 'package:projectgt/data/datasources/business_trip_rate_data_source.dart';
+import 'package:projectgt/data/repositories/business_trip_rate_repository_impl.dart';
+import 'package:projectgt/domain/repositories/business_trip_rate_repository.dart';
+import 'package:projectgt/domain/usecases/business_trip_rate/get_business_trip_rates_usecase.dart';
+import 'package:projectgt/domain/usecases/business_trip_rate/get_business_trip_rates_by_object_usecase.dart';
+import 'package:projectgt/domain/usecases/business_trip_rate/get_active_business_trip_rate_usecase.dart';
+import 'package:projectgt/domain/usecases/business_trip_rate/create_business_trip_rate_usecase.dart';
+import 'package:projectgt/domain/usecases/business_trip_rate/update_business_trip_rate_usecase.dart';
+import 'package:projectgt/domain/usecases/business_trip_rate/delete_business_trip_rate_usecase.dart';
+import 'package:projectgt/domain/usecases/business_trip_rate/get_business_trip_rates_by_employee_usecase.dart';
+import 'package:projectgt/data/repositories/employee_rate_repository_impl.dart';
+import 'package:projectgt/domain/repositories/employee_rate_repository.dart';
+import 'package:projectgt/domain/usecases/employee_rate/get_employee_rate_for_date_usecase.dart';
+import 'package:projectgt/domain/usecases/employee_rate/set_employee_rate_usecase.dart';
+import 'package:projectgt/domain/usecases/employee_rate/get_employee_rates_usecase.dart';
 
 /// Провайдер Supabase клиента для доступа к базе данных.
 final supabaseClientProvider = Provider<SupabaseClient>((ref) {
@@ -447,6 +465,39 @@ final deleteWorkPlanUseCaseProvider = Provider<DeleteWorkPlanUseCase>((ref) {
   return DeleteWorkPlanUseCase(repository);
 });
 
+// Employee Rate providers
+/// Провайдер для EmployeeRateDataSource.
+final employeeRateDataSourceProvider = Provider<EmployeeRateDataSource>((ref) {
+  final client = ref.watch(supabaseClientProvider);
+  return EmployeeRateDataSourceImpl(client);
+});
+
+/// Провайдер для EmployeeRateRepository.
+final employeeRateRepositoryProvider = Provider<EmployeeRateRepository>((ref) {
+  final dataSource = ref.watch(employeeRateDataSourceProvider);
+  return EmployeeRateRepositoryImpl(dataSource);
+});
+
+/// Провайдер use-case для получения ставки на дату.
+final getEmployeeRateForDateUseCaseProvider =
+    Provider<GetEmployeeRateForDateUseCase>((ref) {
+  final repository = ref.watch(employeeRateRepositoryProvider);
+  return GetEmployeeRateForDateUseCase(repository);
+});
+
+/// Провайдер use-case для установки новой ставки.
+final setEmployeeRateUseCaseProvider = Provider<SetEmployeeRateUseCase>((ref) {
+  final repository = ref.watch(employeeRateRepositoryProvider);
+  return SetEmployeeRateUseCase(repository);
+});
+
+/// Провайдер use-case для получения истории ставок.
+final getEmployeeRatesUseCaseProvider =
+    Provider<GetEmployeeRatesUseCase>((ref) {
+  final repository = ref.watch(employeeRateRepositoryProvider);
+  return GetEmployeeRatesUseCase(repository);
+});
+
 /// Провайдер use-case для получения пользовательских планов работ.
 // Удалён провайдер getUserWorkPlansUseCaseProvider как неиспользуемый
 
@@ -533,3 +584,67 @@ final workHourRepositoryProvider = Provider<WorkHourRepository>((ref) {
 });
 
 // ФОТ теперь рассчитывается динамически и не требует предварительного создания
+
+// === BUSINESS TRIP RATES ===
+
+/// Провайдер для DataSource командировочных ставок
+final businessTripRateDataSourceProvider =
+    Provider<BusinessTripRateDataSource>((ref) {
+  return BusinessTripRateDataSource();
+});
+
+/// Провайдер для Repository командировочных ставок
+final businessTripRateRepositoryProvider =
+    Provider<BusinessTripRateRepository>((ref) {
+  final dataSource = ref.watch(businessTripRateDataSourceProvider);
+  return BusinessTripRateRepositoryImpl(dataSource);
+});
+
+/// Провайдер для UseCase получения всех ставок командировочных
+final getBusinessTripRatesUseCaseProvider =
+    Provider<GetBusinessTripRatesUseCase>((ref) {
+  final repository = ref.watch(businessTripRateRepositoryProvider);
+  return GetBusinessTripRatesUseCase(repository);
+});
+
+/// Провайдер для UseCase получения ставок по объекту
+final getBusinessTripRatesByObjectUseCaseProvider =
+    Provider<GetBusinessTripRatesByObjectUseCase>((ref) {
+  final repository = ref.watch(businessTripRateRepositoryProvider);
+  return GetBusinessTripRatesByObjectUseCase(repository);
+});
+
+/// Провайдер для UseCase получения активной ставки
+final getActiveBusinessTripRateUseCaseProvider =
+    Provider<GetActiveBusinessTripRateUseCase>((ref) {
+  final repository = ref.watch(businessTripRateRepositoryProvider);
+  return GetActiveBusinessTripRateUseCase(repository);
+});
+
+/// Провайдер для UseCase создания ставки
+final createBusinessTripRateUseCaseProvider =
+    Provider<CreateBusinessTripRateUseCase>((ref) {
+  final repository = ref.watch(businessTripRateRepositoryProvider);
+  return CreateBusinessTripRateUseCase(repository);
+});
+
+/// Провайдер для UseCase обновления ставки
+final updateBusinessTripRateUseCaseProvider =
+    Provider<UpdateBusinessTripRateUseCase>((ref) {
+  final repository = ref.watch(businessTripRateRepositoryProvider);
+  return UpdateBusinessTripRateUseCase(repository);
+});
+
+/// Провайдер для UseCase удаления ставки
+final deleteBusinessTripRateUseCaseProvider =
+    Provider<DeleteBusinessTripRateUseCase>((ref) {
+  final repository = ref.watch(businessTripRateRepositoryProvider);
+  return DeleteBusinessTripRateUseCase(repository);
+});
+
+/// Провайдер для UseCase получения ставок по сотруднику
+final getBusinessTripRatesByEmployeeUseCaseProvider =
+    Provider<GetBusinessTripRatesByEmployeeUseCase>((ref) {
+  final repository = ref.watch(businessTripRateRepositoryProvider);
+  return GetBusinessTripRatesByEmployeeUseCase(repository);
+});

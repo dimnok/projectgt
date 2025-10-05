@@ -102,6 +102,8 @@ dependencies:
   firebase_core: ^4.1.0
   firebase_messaging: ^16.0.1
   firebase_app_installations: ^0.4.0+1
+  pdf: ^3.11.3
+  printing: ^5.14.2
   # Firebase отключён
 
 dev_dependencies:

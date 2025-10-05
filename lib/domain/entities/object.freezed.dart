@@ -27,9 +27,6 @@ mixin _$ObjectEntity {
   /// Описание объекта.
   String? get description;
 
-  /// Сумма командировочных выплат для объекта
-  num get businessTripAmount;
-
   /// Create a copy of ObjectEntity
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -47,18 +44,15 @@ mixin _$ObjectEntity {
             (identical(other.name, name) || other.name == name) &&
             (identical(other.address, address) || other.address == address) &&
             (identical(other.description, description) ||
-                other.description == description) &&
-            (identical(other.businessTripAmount, businessTripAmount) ||
-                other.businessTripAmount == businessTripAmount));
+                other.description == description));
   }
 
   @override
-  int get hashCode => Object.hash(
-      runtimeType, id, name, address, description, businessTripAmount);
+  int get hashCode => Object.hash(runtimeType, id, name, address, description);
 
   @override
   String toString() {
-    return 'ObjectEntity(id: $id, name: $name, address: $address, description: $description, businessTripAmount: $businessTripAmount)';
+    return 'ObjectEntity(id: $id, name: $name, address: $address, description: $description)';
   }
 }
 
@@ -68,12 +62,7 @@ abstract mixin class $ObjectEntityCopyWith<$Res> {
           ObjectEntity value, $Res Function(ObjectEntity) _then) =
       _$ObjectEntityCopyWithImpl;
   @useResult
-  $Res call(
-      {String id,
-      String name,
-      String address,
-      String? description,
-      num businessTripAmount});
+  $Res call({String id, String name, String address, String? description});
 }
 
 /// @nodoc
@@ -92,7 +81,6 @@ class _$ObjectEntityCopyWithImpl<$Res> implements $ObjectEntityCopyWith<$Res> {
     Object? name = null,
     Object? address = null,
     Object? description = freezed,
-    Object? businessTripAmount = null,
   }) {
     return _then(_self.copyWith(
       id: null == id
@@ -111,10 +99,6 @@ class _$ObjectEntityCopyWithImpl<$Res> implements $ObjectEntityCopyWith<$Res> {
           ? _self.description
           : description // ignore: cast_nullable_to_non_nullable
               as String?,
-      businessTripAmount: null == businessTripAmount
-          ? _self.businessTripAmount
-          : businessTripAmount // ignore: cast_nullable_to_non_nullable
-              as num,
     ));
   }
 }
@@ -126,8 +110,7 @@ class _ObjectEntity extends ObjectEntity {
       {required this.id,
       required this.name,
       required this.address,
-      this.description,
-      this.businessTripAmount = 0})
+      this.description})
       : super._();
 
   /// Уникальный идентификатор объекта.
@@ -146,11 +129,6 @@ class _ObjectEntity extends ObjectEntity {
   @override
   final String? description;
 
-  /// Сумма командировочных выплат для объекта
-  @override
-  @JsonKey()
-  final num businessTripAmount;
-
   /// Create a copy of ObjectEntity
   /// with the given fields replaced by the non-null parameter values.
   @override
@@ -168,18 +146,15 @@ class _ObjectEntity extends ObjectEntity {
             (identical(other.name, name) || other.name == name) &&
             (identical(other.address, address) || other.address == address) &&
             (identical(other.description, description) ||
-                other.description == description) &&
-            (identical(other.businessTripAmount, businessTripAmount) ||
-                other.businessTripAmount == businessTripAmount));
+                other.description == description));
   }
 
   @override
-  int get hashCode => Object.hash(
-      runtimeType, id, name, address, description, businessTripAmount);
+  int get hashCode => Object.hash(runtimeType, id, name, address, description);
 
   @override
   String toString() {
-    return 'ObjectEntity(id: $id, name: $name, address: $address, description: $description, businessTripAmount: $businessTripAmount)';
+    return 'ObjectEntity(id: $id, name: $name, address: $address, description: $description)';
   }
 }
 
@@ -191,12 +166,7 @@ abstract mixin class _$ObjectEntityCopyWith<$Res>
       __$ObjectEntityCopyWithImpl;
   @override
   @useResult
-  $Res call(
-      {String id,
-      String name,
-      String address,
-      String? description,
-      num businessTripAmount});
+  $Res call({String id, String name, String address, String? description});
 }
 
 /// @nodoc
@@ -216,7 +186,6 @@ class __$ObjectEntityCopyWithImpl<$Res>
     Object? name = null,
     Object? address = null,
     Object? description = freezed,
-    Object? businessTripAmount = null,
   }) {
     return _then(_ObjectEntity(
       id: null == id
@@ -235,10 +204,6 @@ class __$ObjectEntityCopyWithImpl<$Res>
           ? _self.description
           : description // ignore: cast_nullable_to_non_nullable
               as String?,
-      businessTripAmount: null == businessTripAmount
-          ? _self.businessTripAmount
-          : businessTripAmount // ignore: cast_nullable_to_non_nullable
-              as num,
     ));
   }
 }

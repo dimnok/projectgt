@@ -77,9 +77,38 @@ class SupabaseEmployeeDataSource implements EmployeeDataSource {
       final response =
           await client.from('employees').select('*').order('last_name');
 
-      return response
+      final employees = response
           .map<EmployeeModel>((json) => EmployeeModel.fromJson(json))
           .toList();
+
+      // Загружаем текущие ставки для всех сотрудников одним запросом
+      try {
+        final ratesResponse = await client
+            .from('employee_rates')
+            .select('employee_id, hourly_rate')
+            .isFilter('valid_to', null);
+
+        // Создаем мапу employee_id -> hourly_rate
+        final ratesMap = <String, double>{};
+        for (final rate in ratesResponse) {
+          final employeeId = rate['employee_id'] as String;
+          final hourlyRate = (rate['hourly_rate'] as num?)?.toDouble();
+          if (hourlyRate != null) {
+            ratesMap[employeeId] = hourlyRate;
+          }
+        }
+
+        // Обновляем сотрудников с их текущими ставками
+        return employees.map((employee) {
+          final currentRate = ratesMap[employee.id];
+          return currentRate != null
+              ? employee.copyWith(currentHourlyRate: currentRate)
+              : employee;
+        }).toList();
+      } catch (e) {
+        Logger().e('Error fetching current rates: $e');
+        return employees;
+      }
     } catch (e) {
       Logger().e('Error fetching employees: $e');
       return [];
@@ -92,7 +121,28 @@ class SupabaseEmployeeDataSource implements EmployeeDataSource {
       final response =
           await client.from('employees').select('*').eq('id', id).single();
 
-      return EmployeeModel.fromJson(response);
+      final employee = EmployeeModel.fromJson(response);
+
+      // Загружаем текущую ставку сотрудника
+      try {
+        final rateResponse = await client
+            .from('employee_rates')
+            .select('hourly_rate')
+            .eq('employee_id', id)
+            .isFilter('valid_to', null)
+            .maybeSingle();
+
+        if (rateResponse != null) {
+          final currentRate = rateResponse['hourly_rate'] as num?;
+          return employee.copyWith(
+            currentHourlyRate: currentRate?.toDouble(),
+          );
+        }
+      } catch (e) {
+        Logger().e('Error fetching current rate: $e');
+      }
+
+      return employee;
     } catch (e) {
       Logger().e('Error fetching employee: $e');
       return null;

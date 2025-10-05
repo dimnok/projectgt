@@ -5,11 +5,13 @@ abstract class TimesheetDataSource {
   /// [startDate] - начальная дата для фильтрации
   /// [endDate] - конечная дата для фильтрации
   /// [employeeId] - ID сотрудника для фильтрации
-  /// [objectId] - ID объекта для фильтрации
+  /// [objectIds] - список ID объектов для фильтрации (мультивыбор)
+  /// [positions] - список должностей для фильтрации
   Future<List<Map<String, dynamic>>> getTimesheetEntries({
     DateTime? startDate,
     DateTime? endDate,
     String? employeeId,
-    String? objectId,
+    List<String>? objectIds,
+    List<String>? positions,
   });
 }

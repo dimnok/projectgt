@@ -1,6 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/payroll_payout_model.dart';
-import 'payroll_payout_repository.dart';
+import '../../domain/repositories/payroll_payout_repository.dart';
 
 /// Имплементация репозитория для работы с выплатами по расчёту ФОТ через Supabase.
 ///

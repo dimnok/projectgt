@@ -24,6 +24,7 @@ abstract class TimesheetEntry with _$TimesheetEntry {
   /// [employeePosition] — должность сотрудника (опционально)
   /// [createdAt] — дата создания записи (опционально)
   /// [updatedAt] — дата обновления записи (опционально)
+  /// [isManualEntry] — признак ручного ввода (true = employee_attendance, false = work_hours)
   const factory TimesheetEntry({
     /// Идентификатор записи (совпадает с id в work_hours).
     required String id,
@@ -60,6 +61,11 @@ abstract class TimesheetEntry with _$TimesheetEntry {
 
     /// Дата обновления записи.
     DateTime? updatedAt,
+
+    /// Признак ручного ввода часов (не хранится в БД).
+    /// true = часы введены вручную (employee_attendance)
+    /// false = часы из смен (work_hours)
+    @Default(false) bool isManualEntry,
   }) = _TimesheetEntry;
 
   /// Создаёт сущность записи в табеле рабочего времени сотрудника из JSON.

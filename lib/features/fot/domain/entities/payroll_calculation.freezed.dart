@@ -37,7 +37,7 @@ mixin _$PayrollCalculation {
   /// Сумма штрафов.
   double get penaltiesTotal;
 
-  /// Сумма командировочных выплат.
+  /// Сумма суточных выплат.
   double get businessTripTotal;
 
   /// К выплате (baseSalary + bonusesTotal + businessTripTotal - penaltiesTotal).
@@ -223,7 +223,7 @@ class _PayrollCalculation extends PayrollCalculation {
   @JsonKey()
   final double penaltiesTotal;
 
-  /// Сумма командировочных выплат.
+  /// Сумма суточных выплат.
   @override
   @JsonKey()
   final double businessTripTotal;

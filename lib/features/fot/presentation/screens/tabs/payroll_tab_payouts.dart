@@ -3,7 +3,7 @@ import '../../widgets/payroll_payout_table_widget.dart';
 import '../../widgets/payroll_payout_form_modal.dart';
 
 /// Таб "Выплаты" в модуле ФОТ.
-/// Отображает таблицу всех выплат за выбранный период с возможностью добавления выплат.
+/// Отображает таблицу всех выплат за текущий месяц с возможностью добавления выплат.
 class PayrollTabPayouts extends StatelessWidget {
   /// Конструктор [PayrollTabPayouts].
   ///

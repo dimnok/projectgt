@@ -7,6 +7,8 @@ import '../providers/payroll_providers.dart';
 import '../providers/balance_providers.dart';
 import '../../data/models/payroll_payout_model.dart';
 import '../../../../core/utils/snackbar_utils.dart';
+import '../../../../core/widgets/modal_container_wrapper.dart';
+import '../utils/payout_utils.dart';
 
 /// Модальное окно для указания индивидуальных сумм выплат для выбранных сотрудников.
 ///
@@ -192,27 +194,7 @@ class _PayrollPayoutAmountModalState
       double screenWidth,
       NumberFormat numberFormat,
       Map<String, double> balanceMap) {
-    final modalContent = Container(
-      margin: isDesktop
-          ? const EdgeInsets.only(top: 48)
-          : EdgeInsets.only(
-              top: kToolbarHeight + MediaQuery.of(context).padding.top),
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.18),
-            blurRadius: 24,
-            offset: const Offset(0, -8),
-          ),
-        ],
-        border: Border.all(
-          color: theme.colorScheme.outline.withValues(alpha: 0.12),
-          width: 1.5,
-        ),
-      ),
+    return ModalContainerWrapper(
       child: DraggableScrollableSheet(
         initialChildSize: 1.0,
         minChildSize: 0.5,
@@ -424,20 +406,6 @@ class _PayrollPayoutAmountModalState
         ),
       ),
     );
-
-    if (isDesktop) {
-      return Align(
-        alignment: Alignment.topCenter,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: screenWidth * 0.5,
-          ),
-          child: modalContent,
-        ),
-      );
-    } else {
-      return modalContent;
-    }
   }
 
   Widget _buildLoadingModal(BuildContext context, ThemeData theme,
@@ -689,27 +657,9 @@ class _PayrollPayoutAmountModalState
     }
   }
 
-  String _getMethodDisplayName(String method) {
-    switch (method) {
-      case 'card':
-        return 'Карта';
-      case 'cash':
-        return 'Наличные';
-      case 'bank_transfer':
-        return 'Банковский перевод';
-      default:
-        return method;
-    }
-  }
+  String _getMethodDisplayName(String method) =>
+      PayoutUtils.getMethodDisplayName(method);
 
-  String _getTypeDisplayName(String type) {
-    switch (type) {
-      case 'salary':
-        return 'Зарплата';
-      case 'advance':
-        return 'Аванс';
-      default:
-        return type;
-    }
-  }
+  String _getTypeDisplayName(String type) =>
+      PayoutUtils.getTypeDisplayName(type);
 }

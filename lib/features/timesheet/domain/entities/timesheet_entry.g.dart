@@ -24,6 +24,7 @@ _TimesheetEntry _$TimesheetEntryFromJson(Map<String, dynamic> json) =>
       updatedAt: json['updated_at'] == null
           ? null
           : DateTime.parse(json['updated_at'] as String),
+      isManualEntry: json['is_manual_entry'] as bool? ?? false,
     );
 
 Map<String, dynamic> _$TimesheetEntryToJson(_TimesheetEntry instance) =>
@@ -40,4 +41,5 @@ Map<String, dynamic> _$TimesheetEntryToJson(_TimesheetEntry instance) =>
       'employee_position': instance.employeePosition,
       'created_at': instance.createdAt?.toIso8601String(),
       'updated_at': instance.updatedAt?.toIso8601String(),
+      'is_manual_entry': instance.isManualEntry,
     };

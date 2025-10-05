@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../domain/entities/payroll_calculation.dart';
-import '../providers/payroll_filter_provider.dart';
 import '../../../../presentation/state/employee_state.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import '../providers/payroll_providers.dart';
@@ -50,9 +49,10 @@ class _PayrollTableWidgetState extends ConsumerState<PayrollTableWidget> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    // Оптимизировано: слушаем только нужные поля фильтра
-    final year = ref.watch(payrollFilterProvider.select((s) => s.year));
-    final month = ref.watch(payrollFilterProvider.select((s) => s.month));
+    // Используем текущий месяц
+    final now = DateTime.now();
+    final year = now.year;
+    final month = now.month;
     final monthDate = DateTime(year, month);
 
     // Получаем только список сотрудников (без лишних полей)
@@ -63,8 +63,7 @@ class _PayrollTableWidgetState extends ConsumerState<PayrollTableWidget> {
     final workHours = workHoursAsync.asData?.value ?? [];
 
     // Получаем выплаты за месяц
-    final payrollPayoutsAsync =
-        ref.watch(payrollPayoutsByMonthProvider(monthDate));
+    final payrollPayoutsAsync = ref.watch(payrollPayoutsByMonthProvider);
     final payrollPayouts = payrollPayoutsAsync.asData?.value ?? [];
     final payoutsByEmployee = <String, double>{};
     for (final payout in payrollPayouts) {
@@ -285,7 +284,7 @@ class _PayrollTableWidgetState extends ConsumerState<PayrollTableWidget> {
         const DataColumn(label: Text('Базовая сумма'), numeric: true),
         const DataColumn(label: Text('Премии'), numeric: true),
         const DataColumn(label: Text('Штрафы'), numeric: true),
-        const DataColumn(label: Text('Командировочные'), numeric: true),
+        const DataColumn(label: Text('Суточные'), numeric: true),
         DataColumn(
           label: Container(
             constraints: BoxConstraints(
@@ -308,7 +307,7 @@ class _PayrollTableWidgetState extends ConsumerState<PayrollTableWidget> {
         const DataColumn(label: Text('Часы'), numeric: true),
         const DataColumn(label: Text('Базовая сумма'), numeric: true),
         if (!isMobile) const DataColumn(label: Text('Премии'), numeric: true),
-        const DataColumn(label: Text('Командировочные'), numeric: true),
+        const DataColumn(label: Text('Суточные'), numeric: true),
         DataColumn(
           label: Container(
             constraints: BoxConstraints(
@@ -329,7 +328,7 @@ class _PayrollTableWidgetState extends ConsumerState<PayrollTableWidget> {
     } else {
       columns.addAll([
         const DataColumn(label: Text('Часы'), numeric: true),
-        const DataColumn(label: Text('Командировочные'), numeric: true),
+        const DataColumn(label: Text('Суточные'), numeric: true),
         DataColumn(
           label: Container(
             constraints: BoxConstraints(

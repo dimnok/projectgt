@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:collection/collection.dart';
-import '../providers/payroll_filter_provider.dart';
 import 'payroll_transaction_form_modal.dart';
+import 'payroll_search_action.dart';
 import '../../domain/entities/payroll_transaction.dart';
 import 'package:flutter/cupertino.dart';
 import '../providers/penalty_providers.dart'
@@ -13,9 +13,12 @@ import '../providers/penalty_providers.dart'
         allPenaltiesProvider;
 import '../providers/balance_providers.dart';
 import '../providers/payroll_providers.dart';
+import '../providers/payroll_filter_providers.dart';
 import '../../../../core/utils/snackbar_utils.dart';
+import '../../../../presentation/state/employee_state.dart';
+import 'package:projectgt/core/di/providers.dart';
 
-/// Виджет для отображения таблицы штрафов сотрудников за выбранный период в модуле ФОТ.
+/// Виджет для отображения таблицы штрафов сотрудников за текущий месяц в модуле ФОТ.
 ///
 /// Использует данные из провайдера filteredPenaltiesProvider и отображает штрафы с деталями по сотруднику, объекту, сумме, дате и примечанию.
 /// Поддерживает адаптивную верстку (desktop/tablet/mobile), сортировку и действия (редактирование, удаление).
@@ -34,20 +37,42 @@ class PayrollPenaltyTableWidget extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final penalties = ref.watch(filteredPenaltiesProvider);
+    final allPenalties = ref.watch(filteredPenaltiesProvider);
+    final searchQuery = ref.watch(payrollSearchQueryProvider);
+
+    // Применяем фильтрацию по поисковому запросу
+    final penalties = filterTransactionsByEmployeeName(
+      allPenalties,
+      searchQuery,
+      ref,
+    );
+
+    final employeeState = ref.watch(employeeProvider);
+    final objectState = ref.watch(objectProvider);
+    final employees = employeeState.employees;
+    final objects = objectState.objects;
     final filterState = ref.watch(payrollFilterProvider);
-    final employees = filterState.employees;
-    final objects = filterState.objects;
+
+    // Проверяем, применен ли фильтр по периоду
+    final now = DateTime.now();
+    final isPeriodFiltered = filterState.selectedYear != now.year ||
+        filterState.selectedMonth != now.month;
+
+    final monthDate =
+        DateTime(filterState.selectedYear, filterState.selectedMonth);
+    final tableTitle = isPeriodFiltered
+        ? 'Штрафы за ${DateFormat.yMMMM('ru').format(monthDate)}'
+        : 'Штрафы (все)';
+
     if (penalties.isEmpty) {
       return Center(
-        child: Text('Нет штрафов за выбранный период',
+        child: Text(
+            isPeriodFiltered
+                ? 'Нет штрафов за ${DateFormat.yMMMM('ru').format(monthDate)}'
+                : 'Нет штрафов',
             style: theme.textTheme.titleMedium),
       );
     }
-    final filterMonth = filterState.month;
-    final filterYear = filterState.year;
-    final monthDate = DateTime(filterYear, filterMonth);
-    final tableTitle = 'Штрафы  ${DateFormat.yMMMM('ru').format(monthDate)}';
     final numberFormat =
         NumberFormat.currency(locale: 'ru_RU', symbol: '₽', decimalDigits: 2);
     return Column(
@@ -115,8 +140,8 @@ class PayrollPenaltyTableWidget extends ConsumerWidget {
                                     employee.lastName,
                                     employee.firstName,
                                     if (employee.middleName != null &&
-                                        employee.middleName.isNotEmpty)
-                                      employee.middleName
+                                        employee.middleName!.isNotEmpty)
+                                      employee.middleName!
                                   ].join(' ')
                                 : penalty.employeeId;
                             final object = objects.firstWhereOrNull(
@@ -152,9 +177,9 @@ class PayrollPenaltyTableWidget extends ConsumerWidget {
                                         ),
                                         if (employee != null &&
                                             employee.position != null &&
-                                            employee.position.isNotEmpty)
+                                            employee.position!.isNotEmpty)
                                           Text(
-                                            employee.position,
+                                            employee.position!,
                                             style: theme.textTheme.bodySmall
                                                 ?.copyWith(
                                               color: theme
@@ -211,19 +236,29 @@ class PayrollPenaltyTableWidget extends ConsumerWidget {
                                                 child: const Text('Удалить'),
                                                 onPressed: () async {
                                                   Navigator.of(ctx).pop();
-                                                  final useCase = ref.read(
-                                                      deletePenaltyUseCaseProvider);
-                                                  await useCase(penalty.id);
-                                                  ref.invalidate(
-                                                      allPenaltiesProvider);
-                                                  ref.invalidate(
-                                                      employeeAggregatedBalanceProvider);
-                                                  ref.invalidate(
-                                                      payrollPayoutsByMonthProvider);
-                                                  if (context.mounted) {
-                                                    SnackBarUtils.showSuccess(
-                                                        context,
-                                                        'Штраф удалён');
+                                                  try {
+                                                    final useCase = ref.read(
+                                                        deletePenaltyUseCaseProvider);
+                                                    await useCase(penalty.id);
+                                                    ref.invalidate(
+                                                        allPenaltiesProvider);
+                                                    ref.invalidate(
+                                                        employeeAggregatedBalanceProvider);
+                                                    ref.invalidate(
+                                                        payrollPayoutsByMonthProvider);
+                                                    ref.invalidate(
+                                                        filteredPayrollsProvider);
+                                                    if (context.mounted) {
+                                                      SnackBarUtils.showSuccess(
+                                                          context,
+                                                          'Штраф удалён');
+                                                    }
+                                                  } catch (e) {
+                                                    if (context.mounted) {
+                                                      SnackBarUtils.showError(
+                                                          context,
+                                                          'Ошибка удаления: $e');
+                                                    }
                                                   }
                                                 },
                                               ),

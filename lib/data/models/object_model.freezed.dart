@@ -20,9 +20,6 @@ mixin _$ObjectModel {
   String get address;
   String? get description;
 
-  /// Сумма командировочных выплат для объекта
-  num get businessTripAmount;
-
   /// Create a copy of ObjectModel
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -42,19 +39,16 @@ mixin _$ObjectModel {
             (identical(other.name, name) || other.name == name) &&
             (identical(other.address, address) || other.address == address) &&
             (identical(other.description, description) ||
-                other.description == description) &&
-            (identical(other.businessTripAmount, businessTripAmount) ||
-                other.businessTripAmount == businessTripAmount));
+                other.description == description));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(
-      runtimeType, id, name, address, description, businessTripAmount);
+  int get hashCode => Object.hash(runtimeType, id, name, address, description);
 
   @override
   String toString() {
-    return 'ObjectModel(id: $id, name: $name, address: $address, description: $description, businessTripAmount: $businessTripAmount)';
+    return 'ObjectModel(id: $id, name: $name, address: $address, description: $description)';
   }
 }
 
@@ -64,12 +58,7 @@ abstract mixin class $ObjectModelCopyWith<$Res> {
           ObjectModel value, $Res Function(ObjectModel) _then) =
       _$ObjectModelCopyWithImpl;
   @useResult
-  $Res call(
-      {String id,
-      String name,
-      String address,
-      String? description,
-      num businessTripAmount});
+  $Res call({String id, String name, String address, String? description});
 }
 
 /// @nodoc
@@ -88,7 +77,6 @@ class _$ObjectModelCopyWithImpl<$Res> implements $ObjectModelCopyWith<$Res> {
     Object? name = null,
     Object? address = null,
     Object? description = freezed,
-    Object? businessTripAmount = null,
   }) {
     return _then(_self.copyWith(
       id: null == id
@@ -107,10 +95,6 @@ class _$ObjectModelCopyWithImpl<$Res> implements $ObjectModelCopyWith<$Res> {
           ? _self.description
           : description // ignore: cast_nullable_to_non_nullable
               as String?,
-      businessTripAmount: null == businessTripAmount
-          ? _self.businessTripAmount
-          : businessTripAmount // ignore: cast_nullable_to_non_nullable
-              as num,
     ));
   }
 }
@@ -123,8 +107,7 @@ class _ObjectModel extends ObjectModel {
       {required this.id,
       required this.name,
       required this.address,
-      this.description,
-      this.businessTripAmount = 0})
+      this.description})
       : super._();
   factory _ObjectModel.fromJson(Map<String, dynamic> json) =>
       _$ObjectModelFromJson(json);
@@ -137,11 +120,6 @@ class _ObjectModel extends ObjectModel {
   final String address;
   @override
   final String? description;
-
-  /// Сумма командировочных выплат для объекта
-  @override
-  @JsonKey()
-  final num businessTripAmount;
 
   /// Create a copy of ObjectModel
   /// with the given fields replaced by the non-null parameter values.
@@ -167,19 +145,16 @@ class _ObjectModel extends ObjectModel {
             (identical(other.name, name) || other.name == name) &&
             (identical(other.address, address) || other.address == address) &&
             (identical(other.description, description) ||
-                other.description == description) &&
-            (identical(other.businessTripAmount, businessTripAmount) ||
-                other.businessTripAmount == businessTripAmount));
+                other.description == description));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(
-      runtimeType, id, name, address, description, businessTripAmount);
+  int get hashCode => Object.hash(runtimeType, id, name, address, description);
 
   @override
   String toString() {
-    return 'ObjectModel(id: $id, name: $name, address: $address, description: $description, businessTripAmount: $businessTripAmount)';
+    return 'ObjectModel(id: $id, name: $name, address: $address, description: $description)';
   }
 }
 
@@ -191,12 +166,7 @@ abstract mixin class _$ObjectModelCopyWith<$Res>
       __$ObjectModelCopyWithImpl;
   @override
   @useResult
-  $Res call(
-      {String id,
-      String name,
-      String address,
-      String? description,
-      num businessTripAmount});
+  $Res call({String id, String name, String address, String? description});
 }
 
 /// @nodoc
@@ -215,7 +185,6 @@ class __$ObjectModelCopyWithImpl<$Res> implements _$ObjectModelCopyWith<$Res> {
     Object? name = null,
     Object? address = null,
     Object? description = freezed,
-    Object? businessTripAmount = null,
   }) {
     return _then(_ObjectModel(
       id: null == id
@@ -234,10 +203,6 @@ class __$ObjectModelCopyWithImpl<$Res> implements _$ObjectModelCopyWith<$Res> {
           ? _self.description
           : description // ignore: cast_nullable_to_non_nullable
               as String?,
-      businessTripAmount: null == businessTripAmount
-          ? _self.businessTripAmount
-          : businessTripAmount // ignore: cast_nullable_to_non_nullable
-              as num,
     ));
   }
 }

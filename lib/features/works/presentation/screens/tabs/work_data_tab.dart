@@ -18,6 +18,7 @@ import 'package:projectgt/core/notifications/notification_service.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
+import 'package:projectgt/features/works/presentation/widgets/work_distribution_card.dart';
 
 /// Вкладка "Данные" со сводной информацией по смене
 class WorkDataTab extends ConsumerStatefulWidget {
@@ -91,38 +92,9 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
                             final (canClose, message) = snapshot.data!;
 
                             if (isWorkClosed) {
-                              return Container(
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 16, horizontal: 24),
-                                decoration: BoxDecoration(
-                                  color:
-                                      theme.colorScheme.surfaceContainerHighest,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: theme.colorScheme.error
-                                        .withValues(alpha: 0.3),
-                                  ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.lock,
-                                        color: theme.colorScheme.error,
-                                        size: 24),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: Text(
-                                        'Смена закрыта и доступна только для просмотра',
-                                        style: theme.textTheme.titleMedium
-                                            ?.copyWith(
-                                          fontWeight: FontWeight.w500,
-                                          color: theme.colorScheme.error,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            } else if (canClose) {
+                              return const SizedBox.shrink();
+                            }
+                            if (canClose) {
                               return ElevatedButton.icon(
                                 onPressed: () =>
                                     _showCloseWorkConfirmation(work),
@@ -365,7 +337,8 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
                           ],
                         ),
                         const SizedBox(height: 24),
-                        if (items.isNotEmpty) _buildWorkDistributionCard(items),
+                        if (items.isNotEmpty)
+                          WorkDistributionCard(items: items),
                         const SizedBox(height: 24),
                         WorkPhotoView(work: work),
                         const SizedBox(height: 24),
@@ -396,36 +369,9 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
                               }
                               final (canClose, message) = snapshot.data!;
                               if (isWorkClosed) {
-                                return Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 16, horizontal: 24),
-                                  decoration: BoxDecoration(
-                                    color: theme
-                                        .colorScheme.surfaceContainerHighest,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                        color: theme.colorScheme.error
-                                            .withValues(alpha: 0.3)),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(Icons.lock,
-                                          color: theme.colorScheme.error,
-                                          size: 24),
-                                      const SizedBox(width: 16),
-                                      Expanded(
-                                        child: Text(
-                                            'Смена закрыта и доступна только для просмотра',
-                                            style: theme.textTheme.titleSmall
-                                                ?.copyWith(
-                                              fontWeight: FontWeight.w500,
-                                              color: theme.colorScheme.error,
-                                            )),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              } else if (canClose && canModify) {
+                                return const SizedBox.shrink();
+                              }
+                              if (canClose && canModify) {
                                 return ElevatedButton.icon(
                                   onPressed: () =>
                                       _showCloseWorkConfirmation(work),
@@ -617,7 +563,7 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
                           ),
                           if (items.isNotEmpty) ...[
                             const SizedBox(height: 32),
-                            _buildWorkDistributionCard(items),
+                            WorkDistributionCard(items: items),
                           ],
                           const SizedBox(height: 32),
                           WorkPhotoView(work: work),
@@ -747,190 +693,6 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
                       color: isLarge ? theme.colorScheme.primary : null,
                     )),
               ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildWorkDistributionCard(List<WorkItem> items) {
-    final theme = Theme.of(context);
-    final numberFormat = NumberFormat('#,##0.00', 'ru_RU');
-    final systemGroups = <String, int>{};
-    final systemSums = <String, double>{};
-    for (final item in items) {
-      systemGroups[item.system] = (systemGroups[item.system] ?? 0) + 1;
-      systemSums[item.system] =
-          (systemSums[item.system] ?? 0) + (item.total ?? 0);
-    }
-    final sortedSystems = systemGroups.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    final maxValue =
-        sortedSystems.isNotEmpty ? sortedSystems.first.value.toDouble() : 1.0;
-    final totalItems = items.length.toDouble();
-    final totalSum =
-        systemSums.values.fold<double>(0, (sum, value) => sum + value);
-    final List<Color> colors = [
-      const Color(0xFF2196F3),
-      const Color(0xFF4CAF50),
-      const Color(0xFFFF9800),
-      const Color(0xFF9C27B0),
-      const Color(0xFFF44336),
-    ];
-
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-            color: theme.colorScheme.outline.withValues(alpha: 0.2), width: 1),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Распределение работ по системам',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.primary,
-                )),
-            const SizedBox(height: 24),
-            ...sortedSystems.take(5).toList().asMap().entries.map((entry) {
-              final index = entry.key;
-              final systemEntry = entry.value;
-              final progress = systemEntry.value / maxValue;
-              final systemName = systemEntry.key;
-              final itemCount = systemEntry.value;
-              final systemSum = systemSums[systemName] ?? 0;
-              final countPercent =
-                  totalItems > 0 ? itemCount / totalItems : 0.0;
-              final sumPercent = totalSum > 0 ? systemSum / totalSum : 0.0;
-              final color = colors[index % colors.length];
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        _buildPercentageCircle(countPercent, color,
-                            '${(countPercent * 100).round()}%'),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      systemName,
-                                      style: theme.textTheme.bodyMedium
-                                          ?.copyWith(
-                                              fontWeight: FontWeight.w600),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Text(
-                                          '$itemCount шт. (${(countPercent * 100).round()}%)',
-                                          style: theme.textTheme.bodyMedium
-                                              ?.copyWith(
-                                                  fontWeight: FontWeight.bold)),
-                                      Text(
-                                          '${numberFormat.format(systemSum)} ₽ (${(sumPercent * 100).round()}%)',
-                                          style: theme.textTheme.bodySmall
-                                              ?.copyWith(
-                                                  color: color,
-                                                  fontWeight: FontWeight.w500)),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: LinearProgressIndicator(
-                                  value: progress,
-                                  minHeight: 8,
-                                  backgroundColor: theme.colorScheme.primary
-                                      .withValues(alpha: 0.1),
-                                  valueColor:
-                                      AlwaysStoppedAnimation<Color>(color),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              );
-            }),
-            const Divider(height: 32),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      margin: const EdgeInsets.only(right: 12),
-                      child: Icon(Icons.data_usage_rounded,
-                          color: theme.colorScheme.primary, size: 24),
-                    ),
-                    Text('Общая сумма:',
-                        style: theme.textTheme.bodyMedium
-                            ?.copyWith(fontWeight: FontWeight.bold)),
-                  ],
-                ),
-                Text(
-                    '${numberFormat.format(systemSums.values.fold<double>(0, (a, b) => a + b))} ₽',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.bold,
-                    )),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPercentageCircle(double percentage, Color color, String label) {
-    return Container(
-      width: 40,
-      height: 40,
-      margin: const EdgeInsets.only(right: 12),
-      child: Stack(
-        children: [
-          CustomPaint(
-            size: const Size(40, 40),
-            painter: CirclePercentPainter(
-              percentage: percentage,
-              color: color,
-              backgroundColor:
-                  Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
-              fillColor: Theme.of(context).colorScheme.surface,
-              strokeWidth: 4,
-            ),
-          ),
-          Center(
-            child: Text(
-              '${(percentage * 100).round()}%',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
             ),
           ),
         ],

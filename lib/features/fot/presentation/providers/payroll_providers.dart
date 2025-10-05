@@ -1,54 +1,54 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/payroll_calculation.dart';
 import 'package:projectgt/core/di/providers.dart';
-import 'payroll_filter_provider.dart';
 import 'package:collection/collection.dart';
 import 'package:projectgt/features/fot/presentation/providers/penalty_providers.dart';
 import 'package:projectgt/features/fot/presentation/providers/bonus_providers.dart';
 import 'package:projectgt/features/fot/data/models/payroll_payout_model.dart';
-import '../../data/repositories/payroll_payout_repository.dart';
+import '../../domain/repositories/payroll_payout_repository.dart';
 import '../../data/repositories/payroll_payout_repository_impl.dart';
-import 'payroll_payout_filter_provider.dart';
-import '../../domain/usecases/create_payout_usecase.dart';
-import '../../domain/usecases/update_payout_usecase.dart';
-import '../../domain/usecases/delete_payout_usecase.dart';
+import 'package:projectgt/presentation/state/employee_state.dart';
+import 'payroll_filter_providers.dart';
 
-/// Провайдер для независимой загрузки данных work_hours по периоду ФОТ.
+/// Провайдер для независимой загрузки данных work_hours и employee_attendance за выбранный месяц.
 ///
-/// Загружает данные work_hours напрямую из Supabase по выбранному в ФОТ периоду,
-/// не зависит от модуля табеля.
+/// Загружает данные из work_hours (смены) и employee_attendance (ручной ввод) напрямую из Supabase
+/// за выбранный период из фильтров, не зависит от модуля табеля.
 final payrollWorkHoursProvider = FutureProvider<List<dynamic>>((ref) async {
   final filterState = ref.watch(payrollFilterProvider);
-  final startDate = filterState.startDate;
-  final endDate = filterState.endDate;
+  final startDate =
+      DateTime(filterState.selectedYear, filterState.selectedMonth, 1);
+  final endDate =
+      DateTime(filterState.selectedYear, filterState.selectedMonth + 1, 0);
 
   try {
     final client = ref.watch(supabaseClientProvider);
 
-    // Загружаем данные work_hours с связанными данными works и employees
-    final response = await client
-        .from('work_hours')
-        .select('''
+    // 1️⃣ Загружаем часы из смен (work_hours)
+    // ⚠️ ВАЖНО: Учитываем только закрытые смены (status = 'closed')
+    final workHoursResponse = await client.from('work_hours').select('''
           id,
           work_id,
           employee_id,
           hours,
-          works:work_id (
+          works!inner(
             date,
-            object_id
-          ),
-          employees:employee_id (
-            position
+            object_id,
+            status
           )
-        ''')
-        .gte('works.date', startDate.toIso8601String())
-        .lte('works.date', endDate.toIso8601String());
+        ''').eq('works.status', 'closed');
 
-    // Преобразуем в плоский формат для совместимости
-    final workHours = response
+    // 2️⃣ Загружаем часы из ручного ввода (employee_attendance)
+    final attendanceResponse = await client
+        .from('employee_attendance')
+        .select('id, employee_id, object_id, date, hours')
+        .gte('date', startDate.toIso8601String())
+        .lte('date', endDate.toIso8601String());
+
+    // 3️⃣ Преобразуем work_hours в WorkHourEntry и фильтруем по датам
+    final workHoursEntries = workHoursResponse
         .map<dynamic>((record) {
           final works = record['works'] as Map<String, dynamic>?;
-          final employee = record['employees'] as Map<String, dynamic>?;
 
           if (works == null ||
               record['employee_id'] == null ||
@@ -57,21 +57,51 @@ final payrollWorkHoursProvider = FutureProvider<List<dynamic>>((ref) async {
             return null; // Пропускаем неполные записи
           }
 
+          final workDate = DateTime.parse(works['date']);
+          // Фильтруем по текущему месяцу
+          if (workDate.isBefore(startDate) || workDate.isAfter(endDate)) {
+            return null;
+          }
+
           return WorkHourEntry(
             id: record['id'],
             workId: record['work_id'],
             employeeId: record['employee_id'],
             hours: record['hours'],
-            date: DateTime.parse(works['date']),
+            date: workDate,
             objectId: works['object_id'] ?? '',
-            employeePosition: employee?['position'],
+            employeePosition: null,
           );
         })
         .where((entry) => entry != null)
         .toList();
 
-    return workHours;
+    // 4️⃣ Преобразуем employee_attendance в WorkHourEntry
+    final attendanceEntries = attendanceResponse
+        .map<dynamic>((record) {
+          if (record['employee_id'] == null ||
+              record['hours'] == null ||
+              record['date'] == null) {
+            return null;
+          }
+
+          return WorkHourEntry(
+            id: record['id'],
+            workId: '', // Нет work_id для ручного ввода
+            employeeId: record['employee_id'],
+            hours: record['hours'],
+            date: DateTime.parse(record['date']),
+            objectId: record['object_id'] ?? '',
+            employeePosition: null,
+          );
+        })
+        .where((entry) => entry != null)
+        .toList();
+
+    // 5️⃣ Объединяем данные из обеих таблиц
+    return [...workHoursEntries, ...attendanceEntries];
   } catch (e) {
+    print('⚠️ Error loading payroll work hours: $e');
     return [];
   }
 });
@@ -123,125 +153,164 @@ class WorkHourEntry {
 /// Провайдер, отслеживающий загрузку данных, необходимых для корректного отображения ФОТ.
 ///
 /// Возвращает true, когда все данные загружены и готовы к отображению.
-/// Теперь не зависит от модуля табеля.
 final payrollDataReadyProvider = Provider<bool>((ref) {
   // Проверяем состояние данных work_hours для ФОТ
   final workHoursState = ref.watch(payrollWorkHoursProvider);
 
-  // Получаем состояние фильтров - проверяем, загружены ли employees и objects
-  final filterState = ref.watch(payrollFilterProvider);
+  // Проверяем, загружены ли employees
+  final employeeState = ref.watch(employeeProvider);
 
   // Проверяем, загружены ли все необходимые данные
   final workHoursLoaded = !workHoursState.isLoading && workHoursState.hasValue;
-  final employeesLoaded = filterState.employees.isNotEmpty;
-  final objectsLoaded = filterState.objects.isNotEmpty;
+  final employeesLoaded = employeeState.employees.isNotEmpty;
 
   // Готовность данных для отображения
-  return workHoursLoaded && employeesLoaded && objectsLoaded;
+  return workHoursLoaded && employeesLoaded;
 });
 
-/// Провайдер отфильтрованных расчетов ФОТ с защитой от множественного обновления.
+/// Провайдер расчетов ФОТ за выбранный месяц.
 ///
-/// Теперь использует независимые данные work_hours вместо данных табеля.
+/// HYBRID ПОДХОД: Использует PostgreSQL функцию для батч-расчёта.
+/// При ошибке откатывается на клиентский расчёт (fallback).
 final filteredPayrollsProvider =
     FutureProvider<List<PayrollCalculation>>((ref) async {
-  // Проверяем готовность данных перед запуском тяжелых вычислений
-  final isDataReady = ref.watch(payrollDataReadyProvider);
-  if (!isDataReady) {
+  final filterState = ref.watch(payrollFilterProvider);
+  final year = filterState.selectedYear;
+  final month = filterState.selectedMonth;
+
+  final stopwatch = Stopwatch()..start();
+
+  try {
+    // 🚀 ОПТИМИЗАЦИЯ: Используем PostgreSQL функцию для батч-расчёта
+    final client = ref.watch(supabaseClientProvider);
+    final response = await client.rpc('calculate_payroll_for_month', params: {
+      'p_year': year,
+      'p_month': month,
+    });
+
+    stopwatch.stop();
+    print('✅ FOT data loaded via RPC in ${stopwatch.elapsedMilliseconds}ms');
+
+    // Маппинг данных из БД в PayrollCalculation
+    final List<PayrollCalculation> payrolls = [];
+    for (final row in response) {
+      payrolls.add(PayrollCalculation(
+        employeeId: row['employee_id'] as String,
+        periodMonth: DateTime(year, month, 1),
+        hoursWorked: (row['total_hours'] as num).toDouble(),
+        hourlyRate: (row['current_hourly_rate'] as num).toDouble(),
+        baseSalary: (row['base_salary'] as num).toDouble(),
+        bonusesTotal: (row['bonuses_total'] as num).toDouble(),
+        penaltiesTotal: (row['penalties_total'] as num).toDouble(),
+        businessTripTotal: (row['business_trip_total'] as num).toDouble(),
+        netSalary: (row['net_salary'] as num).toDouble(),
+      ));
+    }
+
+    return payrolls;
+  } catch (e) {
+    // 🔄 FALLBACK: Если RPC не работает — используем старую логику
+    print('⚠️ RPC failed, falling back to client-side calculation: $e');
+    stopwatch.stop();
+
+    return _calculatePayrollClientSide(ref, year, month);
+  }
+});
+
+/// Fallback-функция: клиентский расчёт ФОТ (старая логика).
+///
+/// Используется только если PostgreSQL функция недоступна.
+Future<List<PayrollCalculation>> _calculatePayrollClientSide(
+  Ref ref,
+  int year,
+  int month,
+) async {
+  final stopwatch = Stopwatch()..start();
+
+  // Получаем данные напрямую без watch для избежания циклических зависимостей
+  final workHoursAsync = ref.watch(payrollWorkHoursProvider);
+  final employeeState = ref.watch(employeeProvider);
+
+  // Проверяем готовность данных
+  if (!workHoursAsync.hasValue || employeeState.employees.isEmpty) {
     return [];
   }
 
   try {
-    final filterState = ref.watch(payrollFilterProvider);
-    final year = filterState.year;
-    final month = filterState.month;
-    final employeeIds = filterState.employeeIds;
-    final positionNames = filterState.positionNames;
-    final objectIds = filterState.objectIds;
-    final startDate = filterState.startDate;
-    final endDate = filterState.endDate;
+    // Используем независимые данные work_hours
+    final workHours = workHoursAsync.value!;
 
-    // Используем независимые данные work_hours вместо timesheetEntries
-    final workHoursAsync = await ref.watch(payrollWorkHoursProvider.future);
-    final workHours = workHoursAsync;
-
-    // --- Фильтрация записей по выбранным критериям ---
-    final filteredEntries = workHours.where((entry) {
-      final entryDate = entry.date;
-      final inPeriod =
-          entryDate.isAfter(startDate.subtract(const Duration(days: 1))) &&
-              entryDate.isBefore(endDate.add(const Duration(days: 1)));
-      final byObject = objectIds.isEmpty || objectIds.contains(entry.objectId);
-
-      // Для фильтрации по должности нужно получить данные из employees
-      bool byPosition = true;
-      if (positionNames.isNotEmpty) {
-        final employee = filterState.employees
-            .firstWhereOrNull((e) => e.id == entry.employeeId);
-        byPosition = employee != null &&
-            employee.position != null &&
-            positionNames.contains(employee.position);
-      }
-
-      return inPeriod && byObject && byPosition;
-    }).toList();
-
-    // 2. Группируем по сотруднику
+    // Группируем по сотруднику
     final Map<String, List<dynamic>> employeeEntries = {};
-    for (final entry in filteredEntries) {
+    for (final entry in workHours) {
       employeeEntries.putIfAbsent(entry.employeeId, () => []).add(entry);
     }
 
-    // 3. Получаем список сотрудников для фильтра
-    List<String> filteredEmployeeIds = employeeEntries.keys.toList();
-    if (employeeIds.isNotEmpty) {
-      filteredEmployeeIds =
-          filteredEmployeeIds.where((id) => employeeIds.contains(id)).toList();
-    }
+    final filteredEmployeeIds = employeeEntries.keys.toList();
 
-    // --- Получаем все штрафы и премии за период ---
+    // Получаем все штрафы и премии за период
     final penaltiesAsyncRaw = await ref.watch(allPenaltiesProvider.future);
     final bonusesAsyncRaw = await ref.watch(allBonusesProvider.future);
     final penaltiesAsync = penaltiesAsyncRaw;
     final bonusesAsync = bonusesAsyncRaw;
 
-    // 4. Формируем PayrollCalculation для каждого сотрудника
+    // Формируем PayrollCalculation для каждого сотрудника
     final List<PayrollCalculation> payrolls = [];
+
+    // Получаем use case для получения ставок
+    final getRateUseCase = ref.read(getEmployeeRateForDateUseCaseProvider);
+
     for (final employeeId in filteredEmployeeIds) {
       final entries = employeeEntries[employeeId]!;
       double hours = 0;
-      final Map<String, int> objectShiftCount = {};
+      double baseSalary = 0;
 
+      // Рассчитываем базовую зарплату с учётом исторических ставок
       for (final entry in entries) {
         if (entry.hours != null) {
-          hours += (entry.hours is num) ? entry.hours.toDouble() : 0.0;
-        }
-        final objectId = entry.objectId;
-        if (objectId != null && objectId.isNotEmpty) {
-          objectShiftCount[objectId] = (objectShiftCount[objectId] ?? 0) + 1;
+          final entryHours =
+              (entry.hours is num) ? entry.hours.toDouble() : 0.0;
+          hours += entryHours;
+
+          // Получаем ставку на дату конкретной смены
+          final rateForDate = await getRateUseCase(employeeId, entry.date);
+          baseSalary += entryHours * rateForDate;
         }
       }
 
-      final objectTripMap = {
-        for (final obj in filterState.objects)
-          if (obj.businessTripAmount != null && obj.businessTripAmount > 0)
-            obj.id: obj.businessTripAmount.toDouble(),
-      };
-
+      // Получаем ставки суточных для каждого объекта и даты смены
+      // с учётом индивидуальных ставок и минимального количества часов
       double businessTripTotal = 0;
-      objectShiftCount.forEach((objectId, shiftCount) {
-        final tripAmount = objectTripMap[objectId] ?? 0;
-        if (tripAmount > 0) {
-          businessTripTotal += tripAmount * shiftCount;
+      final tripRateDataSource = ref.read(businessTripRateDataSourceProvider);
+
+      for (final entry in entries) {
+        final objectId = entry.objectId;
+        if (objectId != null && objectId.isNotEmpty) {
+          try {
+            // Используем новый метод с учётом employee_id и hours
+            final rate =
+                await tripRateDataSource.getActiveRateForEmployeeAndDate(
+              employeeId,
+              objectId,
+              entry.date,
+              entry.hours,
+            );
+            if (rate != null) {
+              businessTripTotal += rate.rate;
+            }
+          } catch (e) {
+            // Игнорируем ошибки получения ставок
+          }
         }
-      });
+      }
 
-      final employee =
-          filterState.employees.firstWhereOrNull((e) => e.id == employeeId);
-      final hourlyRate = employee?.hourlyRate ?? 0.0;
-      final baseSalary = hours * hourlyRate;
+      // Получаем текущую ставку из employee_rates
+      final currentRateAsync = await ref
+          .read(employeeRateDataSourceProvider)
+          .getCurrentRate(employeeId);
+      final currentHourlyRate = currentRateAsync?.hourlyRate ?? 0.0;
 
-      // --- Расчёт штрафов из базы ---
+      // Расчёт штрафов из базы
       final penaltiesTotal = (penaltiesAsync)
           .where((p) =>
               p.employeeId == employeeId &&
@@ -250,7 +319,7 @@ final filteredPayrollsProvider =
               p.date!.month == month)
           .fold<double>(0, (sum, p) => sum + p.amount);
 
-      // --- Расчёт премий из базы ---
+      // Расчёт премий из базы
       final bonusesTotal = (bonusesAsync)
           .where((b) =>
               b.employeeId == employeeId &&
@@ -271,7 +340,7 @@ final filteredPayrollsProvider =
         employeeId: employeeId,
         periodMonth: DateTime(year, month, 1),
         hoursWorked: hours,
-        hourlyRate: hourlyRate,
+        hourlyRate: currentHourlyRate,
         baseSalary: baseSalary,
         bonusesTotal: bonusesTotal,
         penaltiesTotal: penaltiesTotal,
@@ -283,11 +352,12 @@ final filteredPayrollsProvider =
     }
 
     // Сортировка по алфавиту
+    final employeeState = ref.watch(employeeProvider);
+    final employees = employeeState.employees;
+
     payrolls.sort((a, b) {
-      final empA =
-          filterState.employees.firstWhereOrNull((e) => e.id == a.employeeId);
-      final empB =
-          filterState.employees.firstWhereOrNull((e) => e.id == b.employeeId);
+      final empA = employees.firstWhereOrNull((e) => e.id == a.employeeId);
+      final empB = employees.firstWhereOrNull((e) => e.id == b.employeeId);
       final nameA = empA != null
           ? ('${empA.lastName} ${empA.firstName} ${empA.middleName ?? ''}')
               .trim()
@@ -301,24 +371,34 @@ final filteredPayrollsProvider =
       return nameA.compareTo(nameB);
     });
 
+    stopwatch.stop();
+    print(
+        '⚠️ FOT data loaded via CLIENT-SIDE in ${stopwatch.elapsedMilliseconds}ms');
+
     return payrolls;
   } catch (e) {
+    stopwatch.stop();
+    print('❌ CLIENT-SIDE calculation failed: $e');
     return [];
   }
-});
+}
 
-/// Провайдер получения выплат по месяцу (DateTime — первый день месяца).
+/// Провайдер получения выплат за выбранный месяц.
 final payrollPayoutsByMonthProvider =
-    FutureProvider.family<List<PayrollPayoutModel>, DateTime>(
-        (ref, month) async {
+    FutureProvider<List<PayrollPayoutModel>>((ref) async {
   final client = ref.watch(supabaseClientProvider);
-  final startDate = DateTime(month.year, month.month, 1);
-  final endDate = DateTime(month.year, month.month + 1, 0);
+  final filterState = ref.watch(payrollFilterProvider);
+  final startDate =
+      DateTime(filterState.selectedYear, filterState.selectedMonth, 1);
+  final endDate =
+      DateTime(filterState.selectedYear, filterState.selectedMonth + 1, 0);
+
   final response = await client
       .from('payroll_payout')
       .select()
       .gte('payout_date', startDate.toIso8601String())
       .lte('payout_date', endDate.toIso8601String());
+
   return (response as List)
       .map((json) => PayrollPayoutModel.fromJson(json as Map<String, dynamic>))
       .toList();
@@ -331,63 +411,57 @@ final payrollPayoutRepositoryProvider =
   return PayrollPayoutRepositoryImpl(client);
 });
 
-/// Провайдер usecase создания выплаты.
-final createPayoutUseCaseProvider = Provider<CreatePayoutUseCase>((ref) {
-  return CreatePayoutUseCase(ref.watch(payrollPayoutRepositoryProvider));
-});
-
-/// Провайдер usecase обновления выплаты.
-final updatePayoutUseCaseProvider = Provider<UpdatePayoutUseCase>((ref) {
-  return UpdatePayoutUseCase(ref.watch(payrollPayoutRepositoryProvider));
-});
-
-/// Провайдер usecase удаления выплаты.
-final deletePayoutUseCaseProvider = Provider<DeletePayoutUseCase>((ref) {
-  return DeletePayoutUseCase(ref.watch(payrollPayoutRepositoryProvider));
-});
-
-/// Провайдер отфильтрованных выплат по ФОТ с использованием специальных фильтров выплат.
+/// Провайдер функции создания выплаты.
 ///
-/// Использует фильтры из payrollPayoutFilterProvider для фильтрации выплат по диапазону дат,
-/// способу выплаты и сотрудникам.
+/// Используется для создания новых выплат через репозиторий.
+/// @returns Future<PayrollPayoutModel> Function(PayrollPayoutModel) — функция создания выплаты.
+final createPayoutUseCaseProvider =
+    Provider<Future<PayrollPayoutModel> Function(PayrollPayoutModel)>((ref) {
+  final repo = ref.watch(payrollPayoutRepositoryProvider);
+  return (PayrollPayoutModel payout) async {
+    return await repo.createPayout(payout);
+  };
+});
+
+/// Провайдер функции обновления выплаты.
+///
+/// Используется для обновления существующих выплат через репозиторий.
+/// @returns Future<PayrollPayoutModel> Function(PayrollPayoutModel) — функция обновления выплаты.
+final updatePayoutUseCaseProvider =
+    Provider<Future<PayrollPayoutModel> Function(PayrollPayoutModel)>((ref) {
+  final repo = ref.watch(payrollPayoutRepositoryProvider);
+  return (PayrollPayoutModel payout) async {
+    return await repo.updatePayout(payout);
+  };
+});
+
+/// Провайдер функции удаления выплаты по ID.
+///
+/// Используется для удаления выплат через репозиторий.
+/// @returns Future<void> Function(String) — функция удаления выплаты по ID.
+final deletePayoutUseCaseProvider =
+    Provider<Future<void> Function(String)>((ref) {
+  final repo = ref.watch(payrollPayoutRepositoryProvider);
+  return (String id) async {
+    await repo.deletePayout(id);
+  };
+});
+
+/// Провайдер всех выплат за текущий месяц с сортировкой.
 final filteredPayrollPayoutsProvider =
     FutureProvider<List<PayrollPayoutModel>>((ref) async {
   try {
-    final filterState = ref.watch(payrollPayoutFilterProvider);
-
-    final client = ref.watch(supabaseClientProvider);
-
-    // Базовый запрос выплат
-    var query = client.from('payroll_payout').select();
-
-    // Фильтр по диапазону дат выплат
-    query = query
-        .gte('payout_date', filterState.startDate.toIso8601String())
-        .lte('payout_date', filterState.endDate.toIso8601String());
-
-    // Фильтр по сотрудникам
-    if (filterState.employeeIds.isNotEmpty) {
-      query = query.filter('employee_id', 'in', filterState.employeeIds);
-    }
-
-    // Фильтр по способу выплаты
-    if (filterState.payoutMethods.isNotEmpty) {
-      query = query.filter('method', 'in', filterState.payoutMethods);
-    }
-
-    final response = await query;
-
-    final payouts = (response as List)
-        .map(
-            (json) => PayrollPayoutModel.fromJson(json as Map<String, dynamic>))
-        .toList();
+    final payouts = await ref.watch(payrollPayoutsByMonthProvider.future);
 
     // Получаем данные о сотрудниках для сортировки
-    final payrollFilterState = ref.watch(payrollFilterProvider);
-    final employees = payrollFilterState.employees;
+    final employeeState = ref.watch(employeeProvider);
+    final employees = employeeState.employees;
+
+    // Создаем копию списка для сортировки
+    final sortedPayouts = List<PayrollPayoutModel>.from(payouts);
 
     // Сортируем по алфавиту (ФИО сотрудников)
-    payouts.sort((a, b) {
+    sortedPayouts.sort((a, b) {
       final empA = employees.firstWhereOrNull((e) => e.id == a.employeeId);
       final empB = employees.firstWhereOrNull((e) => e.id == b.employeeId);
       final nameA = empA != null
@@ -404,9 +478,9 @@ final filteredPayrollPayoutsProvider =
     });
 
     // Дополнительная сортировка по дате выплаты (самые новые сверху)
-    payouts.sort((a, b) => b.payoutDate.compareTo(a.payoutDate));
+    sortedPayouts.sort((a, b) => b.payoutDate.compareTo(a.payoutDate));
 
-    return payouts;
+    return sortedPayouts;
   } catch (e) {
     return [];
   }

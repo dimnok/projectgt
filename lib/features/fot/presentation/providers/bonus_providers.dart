@@ -1,10 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/payroll_bonus_model.dart';
-import '../../data/repositories/payroll_bonus_repository.dart';
+import '../../domain/repositories/payroll_bonus_repository.dart';
 import '../../data/repositories/payroll_bonus_repository_impl.dart';
-import 'payroll_filter_provider.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:collection/collection.dart';
+import 'package:projectgt/presentation/state/employee_state.dart';
+import 'payroll_filter_providers.dart';
 
 /// Провайдер репозитория премий (реализация внедряется выше).
 ///
@@ -25,40 +26,35 @@ final allBonusesProvider = FutureProvider<List<PayrollBonusModel>>((ref) async {
   return await repo.getAllBonuses();
 });
 
-/// Провайдер отфильтрованных премий по выбранному периоду и сотрудникам.
+/// Провайдер всех премий с опциональной фильтрацией.
 ///
-/// Фильтрует премии по дате, сотруднику, объекту и должности (если реализовано).
+/// По умолчанию показывает ВСЕ премии.
+/// Если в фильтрах выбран период (не текущий месяц) - фильтрует по периоду.
 /// Используется для отображения премий в таблице премий.
-/// @returns List<PayrollBonusModel> — отфильтрованные премии.
+/// @returns List<PayrollBonusModel> — премии (все или отфильтрованные).
 final filteredBonusesProvider = Provider<List<PayrollBonusModel>>((ref) {
   final bonusesAsync = ref.watch(allBonusesProvider);
-  final filter = ref.watch(payrollFilterProvider);
-  final employees = filter.employees;
+  final employeeState = ref.watch(employeeProvider);
+  final employees = employeeState.employees;
+  final filterState = ref.watch(payrollFilterProvider);
+
+  // Проверяем, изменен ли период от текущего месяца
+  final now = DateTime.now();
+  final isPeriodFiltered = filterState.selectedYear != now.year ||
+      filterState.selectedMonth != now.month;
+
   return bonusesAsync.maybeWhen(
     data: (allBonuses) {
-      final filteredBonuses = allBonuses.where((bonus) {
-        // Фильтр по дате
-        final date = bonus.createdAt;
-        final inMonth = date != null &&
-            date.year == filter.year &&
-            date.month == filter.month;
-        // Фильтр по сотруднику
-        final byEmployee = filter.employeeIds.isEmpty ||
-            (bonus.employeeId.isNotEmpty &&
-                filter.employeeIds.contains(bonus.employeeId));
-        // Фильтр по объекту
-        final byObject = filter.objectIds.isEmpty ||
-            (bonus.objectId != null &&
-                filter.objectIds.contains(bonus.objectId));
-        // Фильтр по должности
-        final byPosition = filter.positionNames.isEmpty ||
-            (() {
-              final emp =
-                  employees.firstWhereOrNull((e) => e.id == bonus.employeeId);
-              return emp != null && filter.positionNames.contains(emp.position);
-            })();
-        return inMonth && byEmployee && byObject && byPosition;
-      }).toList();
+      // Применяем фильтр по периоду только если выбран НЕ текущий месяц
+      final filteredBonuses = isPeriodFiltered
+          ? allBonuses.where((bonus) {
+              // Используем bonus.date (дата премии), fallback на createdAt если date == null
+              final date = bonus.date ?? bonus.createdAt;
+              return date != null &&
+                  date.year == filterState.selectedYear &&
+                  date.month == filterState.selectedMonth;
+            }).toList()
+          : allBonuses; // Показываем ВСЕ премии если фильтр не применен
 
       // Сортируем по алфавиту (ФИО сотрудников)
       filteredBonuses.sort((a, b) {

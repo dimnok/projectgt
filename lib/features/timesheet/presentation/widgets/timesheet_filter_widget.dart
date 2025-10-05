@@ -1,545 +1,423 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
-import 'package:projectgt/core/utils/responsive_utils.dart';
-import 'package:projectgt/presentation/state/employee_state.dart';
-import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/core/widgets/gt_dropdown.dart';
+import '../../domain/entities/timesheet_entry.dart';
 import '../providers/timesheet_provider.dart';
-import 'package:projectgt/core/widgets/dropdown_typeahead_field.dart';
-import 'package:dropdown_textfield/dropdown_textfield.dart';
+import '../providers/timesheet_filters_providers.dart';
 
-/// Виджет фильтрации данных табеля
-class TimesheetFilterWidget extends ConsumerStatefulWidget {
-  /// Создает виджет фильтров табеля.
-  const TimesheetFilterWidget({super.key});
+/// Провайдеры состояния поиска табеля
+final timesheetSearchQueryProvider = StateProvider<String>((ref) => '');
+
+/// Видимость поля поиска в AppBar
+final timesheetSearchVisibleProvider = StateProvider<bool>((ref) => false);
+
+/// Контроллер поля ввода поиска с авто-диспозом
+final _timesheetSearchControllerProvider =
+    Provider.autoDispose<TextEditingController>((ref) {
+  final initial = ref.read(timesheetSearchQueryProvider);
+  final controller = TextEditingController(text: initial);
+  ref.onDispose(controller.dispose);
+
+  // Синхронизируемся при внешнем изменении провайдера
+  ref.listen<String>(timesheetSearchQueryProvider, (prev, next) {
+    if (controller.text != next) {
+      controller.text = next;
+      controller.selection = TextSelection.fromPosition(
+        TextPosition(offset: controller.text.length),
+      );
+    }
+  });
+
+  return controller;
+});
+
+/// Виджет действий поиска для AppBar: анимированное поле + кнопка лупы
+class TimesheetSearchAction extends ConsumerWidget {
+  /// Конструктор виджета действий поиска.
+  const TimesheetSearchAction({super.key});
 
   @override
-  ConsumerState<TimesheetFilterWidget> createState() =>
-      _TimesheetFilterWidgetState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final visible = ref.watch(timesheetSearchVisibleProvider);
+    final query = ref.watch(timesheetSearchQueryProvider);
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeInOut,
+          width: visible ? 300 : 0,
+          child: visible
+              ? Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surface,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.10),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                        BoxShadow(
+                          color: Colors.white.withValues(alpha: 0.06),
+                          blurRadius: 1,
+                          offset: const Offset(-1, -1),
+                        ),
+                      ],
+                    ),
+                    child: TextField(
+                      controller: ref.watch(_timesheetSearchControllerProvider),
+                      autofocus: true,
+                      onChanged: (value) => ref
+                          .read(timesheetSearchQueryProvider.notifier)
+                          .state = value,
+                      decoration: InputDecoration(
+                        hintText: 'Поиск по ФИО...',
+                        isDense: true,
+                        border: InputBorder.none,
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide(
+                            color: theme.colorScheme.outline
+                                .withValues(alpha: 0.25),
+                            width: 1,
+                          ),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                        prefixIcon: const Icon(Icons.person_search, size: 20),
+                      ),
+                    ),
+                  ),
+                )
+              : const SizedBox.shrink(),
+        ),
+        IconButton(
+          icon: Icon(
+            query.trim().isNotEmpty ? Icons.close : Icons.search,
+            color: query.trim().isNotEmpty ? Colors.red : null,
+          ),
+          tooltip: query.trim().isNotEmpty ? 'Очистить поиск' : 'Поиск по ФИО',
+          onPressed: () {
+            if (query.trim().isNotEmpty) {
+              // Очищаем поиск
+              ref.read(timesheetSearchQueryProvider.notifier).state = '';
+            } else {
+              // Переключаем видимость поля поиска
+              final newVisible = !ref.read(timesheetSearchVisibleProvider);
+              ref.read(timesheetSearchVisibleProvider.notifier).state =
+                  newVisible;
+            }
+          },
+        ),
+      ],
+    );
+  }
 }
 
-class _TimesheetFilterWidgetState extends ConsumerState<TimesheetFilterWidget> {
-  // Контроллеры для полей фильтров
-  final TextEditingController _yearController = TextEditingController();
-  final TextEditingController _monthController = TextEditingController();
-  final MultiValueDropDownController _employeeController =
-      MultiValueDropDownController();
-  final MultiValueDropDownController _objectController =
-      MultiValueDropDownController();
-  final MultiValueDropDownController _positionController =
-      MultiValueDropDownController();
+class _Option {
+  final String value;
+  final String label;
+  const _Option(this.value, this.label);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || (other is _Option && other.value == value);
+  @override
+  int get hashCode => value.hashCode;
+}
+
+/// Кнопка в AppBar для открытия панели фильтров табеля (объекты, должности).
+class TimesheetFiltersAction extends ConsumerWidget {
+  /// Создаёт кнопку фильтров для раскрытия всплывающей панели с фильтрами табеля.
+  const TimesheetFiltersAction({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final iconKey = GlobalKey();
+
+    Future<void> openPopup() async {
+      final box = iconKey.currentContext!.findRenderObject() as RenderBox;
+      final overlay =
+          Overlay.of(context).context.findRenderObject() as RenderBox;
+      final offset = box.localToGlobal(Offset.zero, ancestor: overlay);
+      final position = RelativeRect.fromLTRB(
+        offset.dx,
+        offset.dy + box.size.height,
+        offset.dx + box.size.width,
+        offset.dy,
+      );
+
+      await showMenu(
+        context: context,
+        position: position,
+        elevation: 0,
+        color: Theme.of(context).colorScheme.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+          ),
+        ),
+        items: const [
+          PopupMenuItem(
+            enabled: false,
+            padding: EdgeInsets.zero,
+            child: _TimesheetFiltersPanel(),
+          ),
+        ],
+      );
+    }
+
+    return Container(
+      key: iconKey,
+      child: IconButton(
+        tooltip: 'Фильтры',
+        icon: const Icon(Icons.tune),
+        onPressed: openPopup,
+      ),
+    );
+  }
+}
+
+/// Панель фильтров табеля (объекты и должности)
+class _TimesheetFiltersPanel extends ConsumerStatefulWidget {
+  const _TimesheetFiltersPanel();
+
+  @override
+  ConsumerState<_TimesheetFiltersPanel> createState() =>
+      _TimesheetFiltersPanelState();
+}
+
+/// Константные списки месяцев
+const _kMonthOptions = [
+  _Option('1', 'Январь'),
+  _Option('2', 'Февраль'),
+  _Option('3', 'Март'),
+  _Option('4', 'Апрель'),
+  _Option('5', 'Май'),
+  _Option('6', 'Июнь'),
+  _Option('7', 'Июль'),
+  _Option('8', 'Август'),
+  _Option('9', 'Сентябрь'),
+  _Option('10', 'Октябрь'),
+  _Option('11', 'Ноябрь'),
+  _Option('12', 'Декабрь'),
+];
+
+class _TimesheetFiltersPanelState
+    extends ConsumerState<_TimesheetFiltersPanel> {
+  // Локальное состояние для редактирования фильтров без немедленного применения
+  List<String> _selectedObjectIds = [];
   List<String> _selectedPositions = [];
+  int _selectedYear = DateTime.now().year;
+  int _selectedMonth = DateTime.now().month;
+
+  // Генерируем список годов один раз
+  late final List<_Option> _yearOptions = List.generate(
+    10,
+    (i) {
+      final year = DateTime.now().year - 5 + i;
+      return _Option(year.toString(), year.toString());
+    },
+  );
 
   @override
   void initState() {
     super.initState();
-    // Инициируем загрузку данных через Future.microtask, чтобы избежать изменения
-    // состояния провайдеров во время построения виджет-дерева
-    Future.microtask(() {
-      // Инициируем загрузку данных сотрудников и объектов
-      final employeeState = ref.read(employeeProvider);
-      final objectState = ref.read(objectProvider);
-
-      // Если список сотрудников пуст, запрашиваем их загрузку
-      if (employeeState.employees.isEmpty) {
-        ref.read(employeeProvider.notifier).getEmployees();
-      }
-
-      // Если список объектов пуст, запрашиваем их загрузку
-      if (objectState.objects.isEmpty) {
-        ref.read(objectProvider.notifier).loadObjects();
-      }
-
-      // Инициализируем контроллеры
-      _updateControllers();
-    });
-  }
-
-  @override
-  void dispose() {
-    _employeeController.dispose();
-    _objectController.dispose();
-    _yearController.dispose();
-    _monthController.dispose();
-    _positionController.dispose();
-    super.dispose();
-  }
-
-  @override
-  void didUpdateWidget(TimesheetFilterWidget oldWidget) {
-    super.didUpdateWidget(oldWidget);
-
-    // Обновляем контроллеры при изменении состояния
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _updateControllers();
-    });
-  }
-
-  /// Обновляет значения контроллеров в соответствии с текущим состоянием
-  void _updateControllers() {
-    final state = ref.read(timesheetProvider);
-
-    // Обновляем год
-    _yearController.text = state.startDate.year.toString();
-
-    // Обновляем месяц
-    _monthController.text = DateFormat.MMMM('ru').format(state.startDate);
+    // Инициализируем локальное состояние текущими значениями из провайдера
+    final ts = ref.read(timesheetProvider);
+    _selectedObjectIds = ts.selectedObjectIds ?? [];
+    _selectedPositions = ts.selectedPositions ?? [];
+    _selectedYear = ts.startDate.year;
+    _selectedMonth = ts.startDate.month;
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final state = ref.watch(timesheetProvider);
-    final isDesktop = ResponsiveUtils.isDesktop(context);
+    final objects = ref.watch(availableObjectsForTimesheetProvider);
+    final positionsAsync = ref.watch(availablePositionsForTimesheetProvider);
 
-    // Загружаем данные для выпадающих списков и делаем проверку на существование
-    final employeeState = ref.watch(employeeProvider);
-    final objectState = ref.watch(objectProvider);
-
-    // Получаем сотрудников только с часами (есть записи в timesheetState.entries)
-    final employeesWithHours = employeeState.employees
-        .where((employee) =>
-            state.entries.any((entry) => entry.employeeId == employee.id))
+    final objectOptions = objects
+        .map<_Option>((o) => _Option(o.id as String, o.name as String))
         .toList();
 
-    // Получаем id объектов, которые есть в табеле
-    final objectIdsWithEntries = state.entries.map((e) => e.objectId).toSet();
-    // Оставляем только объекты, которые есть в табеле
-    final filteredObjects = objectState.objects
-        .where((o) => objectIdsWithEntries.contains(o.id))
+    // Обрабатываем AsyncValue для должностей
+    final positionOptions = positionsAsync.when(
+      data: (positions) =>
+          positions.map<_Option>((p) => _Option(p, p)).toList(),
+      loading: () => <_Option>[],
+      error: (_, __) => <_Option>[],
+    );
+
+    // Находим выбранные элементы из существующих списков
+    final selectedYearOption = _yearOptions.firstWhere(
+      (o) => o.value == _selectedYear.toString(),
+      orElse: () => _yearOptions.first,
+    );
+    final selectedMonthOption = _kMonthOptions.firstWhere(
+      (o) => o.value == _selectedMonth.toString(),
+      orElse: () => _kMonthOptions.first,
+    );
+    final selectedObjectOptions = _selectedObjectIds
+        .map<_Option>((id) => objectOptions.firstWhere((o) => o.value == id,
+            orElse: () => _Option(id, id)))
         .toList();
+    final selectedPositionOptions =
+        _selectedPositions.map<_Option>((p) => _Option(p, p)).toList();
 
-    // Получаем только те должности, которые есть в табеле
-    final positionsInTimesheet = state.entries
-        .map((e) => e.employeePosition)
-        .where((p) => p != null && p.isNotEmpty)
-        .map((p) => p!)
-        .toSet()
-        .toList()
-      ..sort();
-    final positionDropDownList = positionsInTimesheet
-        .map((p) => DropDownValueModel(name: p, value: p))
-        .toList();
-
-    // Цвета для чекбокса, галочки, текста и кнопки 'Ок' — всегда как в светлой теме
-    const textColor = Colors.black;
-    const checkboxColor = Colors.green;
-    const checkMarkColor = Colors.red;
-    const okButtonColor = Colors.green;
-
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: theme.colorScheme.outline.withAlpha(51),
-        ),
-      ),
-      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      child: Container(
-        decoration: BoxDecoration(
-          color: theme.brightness == Brightness.dark
-              ? theme.colorScheme.surfaceContainerHighest
-                  .withValues(alpha: 0.92)
-              : theme.colorScheme.surface.withValues(alpha: 0.98),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: theme.brightness == Brightness.dark
-                  ? Colors.black.withValues(alpha: 0.28)
-                  : Colors.black.withValues(alpha: 0.16),
-              blurRadius: 48,
-              spreadRadius: 0,
-              offset: const Offset(0, 16),
-            ),
-            BoxShadow(
-              color: theme.brightness == Brightness.dark
-                  ? Colors.black.withValues(alpha: 0.10)
-                  : Colors.black.withValues(alpha: 0.06),
-              blurRadius: 12,
-              spreadRadius: 0,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 360, maxWidth: 420),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Text('Фильтры',
+                style: theme.textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+
+            // Год
+            GTDropdown<_Option>(
+              items: _yearOptions,
+              itemDisplayBuilder: (o) => o.label,
+              selectedItem: selectedYearOption,
+              onSelectionChanged: (opt) {
+                if (opt != null) {
+                  setState(() {
+                    _selectedYear = int.parse(opt.value);
+                  });
+                }
+              },
+              labelText: 'Год',
+              hintText: 'Выберите...',
+              allowMultipleSelection: false,
+            ),
+            const SizedBox(height: 12),
+
+            // Месяц
+            GTDropdown<_Option>(
+              items: _kMonthOptions,
+              itemDisplayBuilder: (o) => o.label,
+              selectedItem: selectedMonthOption,
+              onSelectionChanged: (opt) {
+                if (opt != null) {
+                  setState(() {
+                    _selectedMonth = int.parse(opt.value);
+                  });
+                }
+              },
+              labelText: 'Месяц',
+              hintText: 'Выберите...',
+              allowMultipleSelection: false,
+            ),
+            const SizedBox(height: 12),
+
+            // Объекты (мультивыбор)
+            GTDropdown<_Option>(
+              items: objectOptions,
+              itemDisplayBuilder: (o) => o.label,
+              selectedItems: selectedObjectOptions,
+              onMultiSelectionChanged: (opts) {
+                setState(() {
+                  _selectedObjectIds = opts.map((e) => e.value).toList();
+                });
+              },
+              labelText: 'Объекты',
+              hintText: 'Выберите...',
+              allowMultipleSelection: true,
+            ),
+            const SizedBox(height: 12),
+
+            // Должности (мультивыбор)
+            GTDropdown<_Option>(
+              items: positionOptions,
+              itemDisplayBuilder: (o) => o.label,
+              selectedItems: selectedPositionOptions,
+              onMultiSelectionChanged: (opts) {
+                setState(() {
+                  _selectedPositions = opts.map((e) => e.value).toList();
+                });
+              },
+              labelText: 'Должности',
+              hintText: 'Выберите...',
+              allowMultipleSelection: true,
+            ),
+
+            const SizedBox(height: 16),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Text(
-                  'Фильтры',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                TextButton.icon(
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Сбросить'),
+                TextButton(
                   onPressed: () {
+                    // Сбрасываем фильтры
                     ref.read(timesheetProvider.notifier).resetFilters();
-                    _employeeController.setDropDown([]);
-                    _objectController.setDropDown([]);
-                    _positionController.setDropDown([]);
-                    _yearController.text = DateTime.now().year.toString();
-                    _monthController.text =
-                        DateFormat.MMMM('ru').format(DateTime.now());
+                    if (!context.mounted) return;
+                    Navigator.of(context).pop();
                   },
+                  child: const Text('Сброс'),
+                ),
+                const SizedBox(width: 8),
+                FilledButton(
+                  onPressed: () {
+                    // Применяем фильтры из локального состояния
+                    final startDate =
+                        DateTime(_selectedYear, _selectedMonth, 1);
+                    final endDate =
+                        DateTime(_selectedYear, _selectedMonth + 1, 0);
+                    ref
+                        .read(timesheetProvider.notifier)
+                        .setDateRange(startDate, endDate);
+                    ref
+                        .read(timesheetProvider.notifier)
+                        .setSelectedObjects(_selectedObjectIds);
+                    ref
+                        .read(timesheetProvider.notifier)
+                        .setSelectedPositions(_selectedPositions);
+                    if (!context.mounted) return;
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('Применить'),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            if (isDesktop) ...[
-              // Десктопный вид (в одну строку)
-              Row(
-                children: [
-                  // Фильтр по периоду (год и месяц)
-                  Expanded(
-                    child: _buildPeriodFilter(theme, state),
-                  ),
-                  const SizedBox(width: 16),
-                  // Фильтр по сотруднику
-                  Expanded(
-                    child: DropDownTextField.multiSelection(
-                      controller: _employeeController,
-                      dropDownList: [
-                        ...employeesWithHours.map((employee) {
-                          final fio = [
-                            employee.lastName,
-                            employee.firstName,
-                            if (employee.middleName != null &&
-                                employee.middleName!.isNotEmpty)
-                              employee.middleName
-                          ].join(' ');
-                          return DropDownValueModel(
-                            name: fio,
-                            value: employee.id,
-                          );
-                        }),
-                      ],
-                      submitButtonText: 'Ок',
-                      submitButtonColor: okButtonColor,
-                      checkBoxProperty: CheckBoxProperty(
-                        fillColor:
-                            WidgetStateProperty.all<Color>(checkboxColor),
-                        checkColor: checkMarkColor,
-                      ),
-                      displayCompleteItem: true,
-                      textFieldDecoration: InputDecoration(
-                        labelText: 'Сотрудник',
-                        hintText: 'Выберите одного или несколько',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      listTextStyle: theme.textTheme.bodyMedium
-                          ?.copyWith(color: textColor),
-                      onChanged: (val) {
-                        final list = val is List<DropDownValueModel>
-                            ? val
-                            : List<DropDownValueModel>.from(val);
-                        final selectedIds = list
-                            .map((e) => e.value as String?)
-                            .where((id) => id != null)
-                            .cast<String>()
-                            .toList();
-                        ref
-                            .read(timesheetProvider.notifier)
-                            .setSelectedEmployees(selectedIds);
-                        setState(() {
-                          _employeeController.setDropDown(list);
-                        });
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  // Фильтр по объекту
-                  Expanded(
-                    child: DropDownTextField.multiSelection(
-                      controller: _objectController,
-                      dropDownList: [
-                        ...filteredObjects.map((object) => DropDownValueModel(
-                              name: object.name,
-                              value: object.id,
-                            )),
-                      ],
-                      submitButtonText: 'Ок',
-                      submitButtonColor: okButtonColor,
-                      checkBoxProperty: CheckBoxProperty(
-                        fillColor:
-                            WidgetStateProperty.all<Color>(checkboxColor),
-                        checkColor: checkMarkColor,
-                      ),
-                      displayCompleteItem: true,
-                      textFieldDecoration: InputDecoration(
-                        labelText: 'Объект',
-                        hintText: 'Выберите один или несколько',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      listTextStyle: theme.textTheme.bodyMedium
-                          ?.copyWith(color: textColor),
-                      onChanged: (val) {
-                        final list = val is List<DropDownValueModel>
-                            ? val
-                            : List<DropDownValueModel>.from(val);
-                        final selectedIds = list
-                            .map((e) => e.value as String?)
-                            .where((id) => id != null)
-                            .toList();
-                        ref.read(timesheetProvider.notifier).setSelectedObject(
-                            selectedIds.isEmpty ? null : selectedIds.first);
-                        setState(() {
-                          _objectController.setDropDown(list);
-                        });
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  // Новый фильтр по должности (мультивыбор)
-                  Expanded(
-                    child: DropDownTextField.multiSelection(
-                      controller: _positionController,
-                      dropDownList: positionDropDownList,
-                      submitButtonText: 'Ок',
-                      submitButtonColor: okButtonColor,
-                      checkBoxProperty: CheckBoxProperty(
-                        fillColor:
-                            WidgetStateProperty.all<Color>(checkboxColor),
-                        checkColor: checkMarkColor,
-                      ),
-                      displayCompleteItem: true,
-                      textFieldDecoration: InputDecoration(
-                        labelText: 'Должность',
-                        hintText: 'Выберите одну или несколько',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      listTextStyle: theme.textTheme.bodyMedium
-                          ?.copyWith(color: textColor),
-                      onChanged: (val) {
-                        final list = val is List<DropDownValueModel>
-                            ? val
-                            : List<DropDownValueModel>.from(val);
-                        setState(() {
-                          _selectedPositions =
-                              list.map((e) => e.value.toString()).toList();
-                        });
-                        ref
-                            .read(timesheetProvider.notifier)
-                            .setSelectedPositions(_selectedPositions);
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ] else ...[
-              // Мобильный вид (в столбец)
-              _buildPeriodFilter(theme, state),
-              const SizedBox(height: 16),
-              DropDownTextField.multiSelection(
-                controller: _employeeController,
-                dropDownList: [
-                  ...employeesWithHours.map((employee) {
-                    final fio = [
-                      employee.lastName,
-                      employee.firstName,
-                      if (employee.middleName != null &&
-                          employee.middleName!.isNotEmpty)
-                        employee.middleName
-                    ].join(' ');
-                    return DropDownValueModel(
-                      name: fio,
-                      value: employee.id,
-                    );
-                  }),
-                ],
-                submitButtonText: 'Ок',
-                submitButtonColor: okButtonColor,
-                checkBoxProperty: CheckBoxProperty(
-                  fillColor: WidgetStateProperty.all<Color>(checkboxColor),
-                  checkColor: checkMarkColor,
-                ),
-                displayCompleteItem: true,
-                textFieldDecoration: InputDecoration(
-                  labelText: 'Сотрудник',
-                  hintText: 'Выберите одного или несколько',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                listTextStyle:
-                    theme.textTheme.bodyMedium?.copyWith(color: textColor),
-                onChanged: (val) {
-                  final list = val is List<DropDownValueModel>
-                      ? val
-                      : List<DropDownValueModel>.from(val);
-                  final selectedIds = list
-                      .map((e) => e.value as String?)
-                      .where((id) => id != null)
-                      .cast<String>()
-                      .toList();
-                  ref
-                      .read(timesheetProvider.notifier)
-                      .setSelectedEmployees(selectedIds);
-                  setState(() {
-                    _employeeController.setDropDown(list);
-                  });
-                },
-              ),
-              const SizedBox(height: 16),
-              DropDownTextField.multiSelection(
-                controller: _objectController,
-                dropDownList: [
-                  ...filteredObjects.map((object) => DropDownValueModel(
-                        name: object.name,
-                        value: object.id,
-                      )),
-                ],
-                submitButtonText: 'Ок',
-                submitButtonColor: okButtonColor,
-                checkBoxProperty: CheckBoxProperty(
-                  fillColor: WidgetStateProperty.all<Color>(checkboxColor),
-                  checkColor: checkMarkColor,
-                ),
-                displayCompleteItem: true,
-                textFieldDecoration: InputDecoration(
-                  labelText: 'Объект',
-                  hintText: 'Выберите один или несколько',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                listTextStyle:
-                    theme.textTheme.bodyMedium?.copyWith(color: textColor),
-                onChanged: (val) {
-                  final list = val is List<DropDownValueModel>
-                      ? val
-                      : List<DropDownValueModel>.from(val);
-                  final selectedIds = list
-                      .map((e) => e.value as String?)
-                      .where((id) => id != null)
-                      .toList();
-                  ref.read(timesheetProvider.notifier).setSelectedObject(
-                      selectedIds.isEmpty ? null : selectedIds.first);
-                  setState(() {
-                    _objectController.setDropDown(list);
-                  });
-                },
-              ),
-              const SizedBox(height: 16),
-              // Новый фильтр по должности (мультивыбор)
-              DropDownTextField.multiSelection(
-                controller: _positionController,
-                dropDownList: positionDropDownList,
-                submitButtonText: 'Ок',
-                submitButtonColor: okButtonColor,
-                checkBoxProperty: CheckBoxProperty(
-                  fillColor: WidgetStateProperty.all<Color>(checkboxColor),
-                  checkColor: checkMarkColor,
-                ),
-                displayCompleteItem: true,
-                textFieldDecoration: InputDecoration(
-                  labelText: 'Должность',
-                  hintText: 'Выберите одну или несколько',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                listTextStyle:
-                    theme.textTheme.bodyMedium?.copyWith(color: textColor),
-                onChanged: (val) {
-                  final list = val is List<DropDownValueModel>
-                      ? val
-                      : List<DropDownValueModel>.from(val);
-                  setState(() {
-                    _selectedPositions =
-                        list.map((e) => e.value.toString()).toList();
-                  });
-                  ref
-                      .read(timesheetProvider.notifier)
-                      .setSelectedPositions(_selectedPositions);
-                },
-              ),
-            ],
           ],
         ),
       ),
     );
   }
+}
 
-  /// Создает фильтр по периоду (год и месяц)
-  Widget _buildPeriodFilter(ThemeData theme, TimesheetState state) {
-    final now = DateTime.now();
-    final years = List.generate(
-        6,
-        (i) =>
-            (now.year - 3 + i).toString()); // 3 года назад, текущий, 2 вперёд
-    final months = List.generate(12, (i) => DateTime(2000, i + 1));
+/// Утилита фильтрации записей табеля по ФИО сотрудника
+List<TimesheetEntry> filterTimesheetByEmployeeName(
+  List<TimesheetEntry> entries,
+  String query,
+) {
+  final searchQuery = query.trim().toLowerCase();
+  if (searchQuery.isEmpty) return entries;
 
-    return Row(
-      children: [
-        // Год
-        Expanded(
-          child: StringDropdownTypeAheadField(
-            controller: _yearController,
-            labelText: 'Год',
-            hintText: 'Выберите год',
-            values: years,
-            allowCustomValues: false,
-            onSelected: (year) {
-              final selectedYear = int.tryParse(year);
-              if (selectedYear != null) {
-                final newStart =
-                    DateTime(selectedYear, state.startDate.month, 1);
-                final newEnd =
-                    DateTime(selectedYear, state.startDate.month + 1, 0);
-                ref
-                    .read(timesheetProvider.notifier)
-                    .setDateRange(newStart, newEnd);
-              }
-            },
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Выберите год';
-              }
-              return null;
-            },
-          ),
-        ),
-        const SizedBox(width: 12),
-        // Месяц
-        Expanded(
-          child: DropdownTypeAheadField<DateTime>(
-            controller: _monthController,
-            labelText: 'Месяц',
-            hintText: 'Выберите месяц',
-            items: months,
-            displayStringForOption: (date) =>
-                DateFormat.MMMM('ru').format(date),
-            onSelected: (date) {
-              final newStart = DateTime(state.startDate.year, date.month, 1);
-              final newEnd = DateTime(state.startDate.year, date.month + 1, 0);
-              ref
-                  .read(timesheetProvider.notifier)
-                  .setDateRange(newStart, newEnd);
-            },
-            allowCustomValues: false,
-            suffixIcon: Icons.keyboard_arrow_down,
-            decoration: InputDecoration(
-              labelText: 'Месяц',
-              hintText: 'Выберите месяц',
-              border:
-                  OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-              prefixIcon: const Icon(Icons.date_range),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+  return entries.where((entry) {
+    final employeeName = (entry.employeeName ?? '').toLowerCase();
+    // Поиск по частичному совпадению в ФИО
+    return employeeName.contains(searchQuery);
+  }).toList();
+}
+
+/// Утилита получения отфильтрованного списка сотрудников для выпадающего списка
+List<String> getFilteredEmployeeNames(
+  List<TimesheetEntry> allEntries,
+  String searchQuery,
+) {
+  final entries = filterTimesheetByEmployeeName(allEntries, searchQuery);
+  return entries
+      .map((e) => e.employeeName ?? 'Неизвестный сотрудник')
+      .toSet()
+      .toList()
+    ..sort();
 }

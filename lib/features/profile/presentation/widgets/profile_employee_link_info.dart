@@ -7,14 +7,24 @@ import 'package:projectgt/presentation/state/employee_state.dart';
 ///
 /// Показывает ФИО сотрудника по `profile.object['employee_id']`,
 /// либо «Не привязан», если связь отсутствует.
+/// Поддерживает клик для перехода к деталям сотрудника.
 class ProfileLinkedEmployeeInfo extends ConsumerStatefulWidget {
   /// Профиль пользователя для отображения привязанного сотрудника.
   final Profile? profile;
 
+  /// Callback для обработки клика по сотруднику.
+  /// Получает ID сотрудника в качестве параметра.
+  final void Function(String employeeId)? onEmployeeTap;
+
   /// Создает виджет отображения привязанного сотрудника.
   ///
   /// [profile] - профиль пользователя с информацией о привязке к сотруднику.
-  const ProfileLinkedEmployeeInfo({super.key, required this.profile});
+  /// [onEmployeeTap] - callback для обработки клика по сотруднику.
+  const ProfileLinkedEmployeeInfo({
+    super.key,
+    required this.profile,
+    this.onEmployeeTap,
+  });
 
   @override
   ConsumerState<ProfileLinkedEmployeeInfo> createState() =>
@@ -78,6 +88,42 @@ class _ProfileLinkedEmployeeInfoState
             : '';
     final fio = '${employee.lastName} ${employee.firstName}$middle';
     final theme = Theme.of(context);
+
+    // Если есть callback для клика, делаем текст кликабельным
+    if (widget.onEmployeeTap != null) {
+      return InkWell(
+        onTap: () => widget.onEmployeeTap!(linkedEmployeeId),
+        borderRadius: BorderRadius.circular(4),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  fio,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: theme.colorScheme.primary,
+                    decoration: TextDecoration.underline,
+                    decorationColor:
+                        theme.colorScheme.primary.withValues(alpha: 0.5),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 14,
+                color: theme.colorScheme.primary.withValues(alpha: 0.7),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Обычный текст без клика
     return Text(
       fio,
       style: theme.textTheme.titleMedium?.copyWith(

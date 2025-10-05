@@ -4,18 +4,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:collection/collection.dart';
 import '../providers/payroll_providers.dart';
-import '../providers/payroll_payout_filter_provider.dart';
-import '../providers/payroll_filter_provider.dart';
 import '../providers/balance_providers.dart';
+import '../providers/payroll_filter_providers.dart';
 import '../utils/balance_utils.dart';
 import '../../../../core/utils/snackbar_utils.dart';
 import 'payroll_payout_form_modal.dart';
+import 'payroll_search_action.dart';
+import '../../../../presentation/state/employee_state.dart';
 
-/// Таблица выплат по ФОТ за выбранный период.
+/// Таблица выплат по ФОТ за текущий месяц.
 class PayrollPayoutTableWidget extends ConsumerStatefulWidget {
   /// Конструктор [PayrollPayoutTableWidget].
   ///
-  /// Используется для отображения таблицы выплат по ФОТ за выбранный период.
+  /// Используется для отображения таблицы выплат по ФОТ за текущий месяц.
   ///
   /// [key] — уникальный ключ виджета (опционально).
   const PayrollPayoutTableWidget({super.key});
@@ -46,19 +47,38 @@ class _PayrollPayoutTableWidgetState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final filterState = ref.watch(payrollPayoutFilterProvider);
-    // Используем сотрудников из основного провайдера фильтров ФОТ для консистентности
-    final payrollFilterState = ref.watch(payrollFilterProvider);
-    final employees = payrollFilterState.employees;
+    // Получаем сотрудников из основного провайдера
+    final employeeState = ref.watch(employeeProvider);
+    final employees = employeeState.employees;
 
     // Используем новый провайдер отфильтрованных выплат
     final payoutsAsync = ref.watch(filteredPayrollPayoutsProvider);
+    final searchQuery = ref.watch(payrollSearchQueryProvider);
     final balanceAsync = ref.watch(employeeAggregatedBalanceProvider);
     final numberFormat =
         NumberFormat.currency(locale: 'ru_RU', symbol: '₽', decimalDigits: 2);
 
     return payoutsAsync.when(
-      data: (payouts) {
+      data: (allPayouts) {
+        // Применяем фильтрацию по поисковому запросу
+        final payouts = filterPayoutsByEmployeeName(
+          allPayouts,
+          searchQuery,
+          ref,
+        );
+
+        // Получаем период из фильтров
+        final filterState = ref.watch(payrollFilterProvider);
+        final now = DateTime.now();
+        final isPeriodFiltered = filterState.selectedYear != now.year ||
+            filterState.selectedMonth != now.month;
+
+        final monthDate =
+            DateTime(filterState.selectedYear, filterState.selectedMonth);
+        final tableTitle = isPeriodFiltered
+            ? 'Выплаты за ${DateFormat.yMMMM('ru').format(monthDate)}'
+            : 'Выплаты (все)';
+
         if (payouts.isEmpty) {
           return Center(
             child: Column(
@@ -71,7 +91,9 @@ class _PayrollPayoutTableWidgetState
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Нет выплат за выбранный период',
+                  isPeriodFiltered
+                      ? 'Нет выплат за ${DateFormat.yMMMM('ru').format(monthDate)}'
+                      : 'Нет выплат',
                   style: theme.textTheme.titleMedium?.copyWith(
                     color: theme.colorScheme.outline,
                   ),
@@ -83,9 +105,6 @@ class _PayrollPayoutTableWidgetState
 
         return balanceAsync.when(
           data: (balanceMap) {
-            final tableTitle =
-                'Выплаты ${DateFormat('dd.MM.yyyy').format(filterState.startDate)} - ${DateFormat('dd.MM.yyyy').format(filterState.endDate)}';
-
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -163,8 +182,8 @@ class _PayrollPayoutTableWidgetState
                                                 if (employee.middleName !=
                                                         null &&
                                                     employee
-                                                        .middleName.isNotEmpty)
-                                                  employee.middleName
+                                                        .middleName!.isNotEmpty)
+                                                  employee.middleName!
                                               ].join(' ')
                                             : payout.employeeId;
                                         final position =

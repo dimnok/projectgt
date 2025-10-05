@@ -439,8 +439,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 .toList(),
           ),
         ),
-      // Отображение привязанного сотрудника — только для админа
-      if (ref.read(authProvider).user?.role == 'admin')
+      // Отображение привязанного сотрудника — для всех пользователей
+      if (profile?.object?['employee_id'] != null)
         _ProfileInfoItem(
           icon: Icons.badge_outlined,
           title: 'Привязанный сотрудник',
@@ -573,6 +573,74 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
           ),
         ),
+        const SizedBox(height: 12),
+        // Кнопка "Детальная информация" для перехода к деталям связанного сотрудника
+        if (profile?.object?['employee_id'] != null &&
+            (profile!.object!['employee_id'] as String).isNotEmpty)
+          InkWell(
+            onTap: () {
+              final employeeId = profile.object!['employee_id'] as String;
+              context.pushNamed('employee_details', pathParameters: {
+                'employeeId': employeeId,
+              });
+            },
+            borderRadius: BorderRadius.circular(16),
+            child: Ink(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
+                  width: 1,
+                ),
+                color: theme.colorScheme.surface,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surface,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.person_outline,
+                        color: theme.colorScheme.primary,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Детальная информация',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            'Подробные данные о сотруднике',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurface
+                                  .withValues(alpha: 0.7),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right,
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         const SizedBox(height: 24),
         _buildBottomActions(
           theme,

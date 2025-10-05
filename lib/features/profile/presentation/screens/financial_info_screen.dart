@@ -629,24 +629,34 @@ final _financialInfoProvider =
   final monthEnd = DateTime(args.monthStart.year, args.monthStart.month + 1, 0);
   final employeeId = args.employeeId;
 
-  // Work hours с join-ами для месяца
+  // Work hours с join-ами для месяца (только закрытые смены)
   final workHoursResp = await client.from('work_hours').select('''
         hours,
-        works!inner(date, object_id),
-        employees!inner(hourly_rate)
-      ''').eq('employee_id', employeeId);
+        works!inner(date, object_id, status)
+      ''').eq('employee_id', employeeId).eq('works.status', 'closed');
 
-  // Объекты для суточных
-  final objectsResp =
-      await client.from('objects').select('id, business_trip_amount');
-  final Map<String, double> objectTripMap = {
-    for (final obj in (objectsResp as List))
-      if (obj['id'] != null && (obj['business_trip_amount'] as num?) != null)
-        obj['id'] as String: (obj['business_trip_amount'] as num).toDouble(),
-  };
+  // Получаем текущую ставку сотрудника из employee_rates
+  final currentRateResp = await client
+      .from('employee_rates')
+      .select('hourly_rate')
+      .eq('employee_id', employeeId)
+      .isFilter('valid_to', null)
+      .maybeSingle();
+
+  final currentHourlyRate = currentRateResp != null
+      ? (currentRateResp['hourly_rate'] as num?)?.toDouble() ?? 0.0
+      : 0.0;
+
+  // Получаем активные ставки командировочных для периода и сотрудника
+  final businessTripRatesResp = await client
+      .from('business_trip_rates')
+      .select(
+          'object_id, rate, valid_from, valid_to, employee_id, minimum_hours')
+      .eq('employee_id', employeeId)
+      .or('valid_to.is.null,valid_to.gte.${monthStart.toIso8601String().split('T')[0]}')
+      .lte('valid_from', monthEnd.toIso8601String().split('T')[0]);
 
   double monthHours = 0;
-  double monthHourlyRate = 0;
   final Map<String, int> monthObjectShiftCount = {};
   final Map<DateTime, double> monthHoursByDate = {};
 
@@ -663,11 +673,7 @@ final _financialInfoProvider =
     monthHours += hours;
     final dayKey = DateTime(workDate.year, workDate.month, workDate.day);
     monthHoursByDate[dayKey] = (monthHoursByDate[dayKey] ?? 0) + hours;
-    final employeeMap = record['employees'] as Map<String, dynamic>?;
-    if (employeeMap != null) {
-      monthHourlyRate =
-          (employeeMap['hourly_rate'] as num?)?.toDouble() ?? monthHourlyRate;
-    }
+
     final objectId = works['object_id'] as String?;
     if (objectId != null && objectId.isNotEmpty) {
       monthObjectShiftCount[objectId] =
@@ -675,13 +681,46 @@ final _financialInfoProvider =
     }
   }
 
+  // Рассчитываем командировочные с учетом дат смен и минимальных часов
   double monthBusinessTrips = 0;
-  monthObjectShiftCount.forEach((objectId, shiftCount) {
-    final tripAmount = objectTripMap[objectId] ?? 0;
-    if (tripAmount > 0) {
-      monthBusinessTrips += tripAmount * shiftCount;
+  for (final record in (workHoursResp as List)) {
+    final works = record['works'] as Map<String, dynamic>?;
+    if (works == null) continue;
+    final workDateStr = works['date'] as String?;
+    if (workDateStr == null) continue;
+    final workDate = DateTime.tryParse(workDateStr);
+    if (workDate == null) continue;
+    if (workDate.isBefore(monthStart) || workDate.isAfter(monthEnd)) continue;
+
+    final hours = (record['hours'] as num?)?.toDouble() ?? 0;
+    final objectId = works['object_id'] as String?;
+    if (objectId != null && objectId.isNotEmpty) {
+      // Ищем активную ставку на дату смены для данного сотрудника
+      for (final rateRecord in (businessTripRatesResp as List)) {
+        if (rateRecord['object_id'] == objectId &&
+            rateRecord['employee_id'] == employeeId) {
+          final validFrom =
+              DateTime.tryParse(rateRecord['valid_from'] as String? ?? '');
+          final validToStr = rateRecord['valid_to'] as String?;
+          final validTo =
+              validToStr != null ? DateTime.tryParse(validToStr) : null;
+
+          if (validFrom != null &&
+              !workDate.isBefore(validFrom) &&
+              (validTo == null || !workDate.isAfter(validTo))) {
+            // Проверяем условие минимальных часов
+            final minimumHours =
+                (rateRecord['minimum_hours'] as num?)?.toDouble() ?? 0.0;
+            if (hours >= minimumHours) {
+              final rate = (rateRecord['rate'] as num?)?.toDouble() ?? 0;
+              monthBusinessTrips += rate;
+            }
+            break; // Используем первую подходящую ставку
+          }
+        }
+      }
     }
-  });
+  }
 
   // Премии и штрафы за месяц
   final bonusesResp = await client
@@ -736,14 +775,14 @@ final _financialInfoProvider =
         ),
   ];
 
-  final double monthBase = monthHours * monthHourlyRate;
+  final double monthBase = monthHours * currentHourlyRate;
   final double monthNet =
       monthBase + monthBonuses + monthBusinessTrips - monthPenalties;
 
   final monthSummary = _FinancialMonthSummary(
     monthStart: monthStart,
     hours: monthHours,
-    hourlyRate: monthHourlyRate,
+    hourlyRate: currentHourlyRate,
     baseSalary: monthBase,
     bonuses: monthBonuses,
     penalties: monthPenalties,
@@ -757,11 +796,8 @@ final _financialInfoProvider =
 
   for (final record in (workHoursResp as List)) {
     final hours = (record['hours'] as num?)?.toDouble() ?? 0;
-    final employeeMap = record['employees'] as Map<String, dynamic>?;
-    final rate = (employeeMap != null)
-        ? (employeeMap['hourly_rate'] as num?)?.toDouble() ?? 0
-        : 0;
-    allEarnedBase += hours * rate;
+    // Используем текущую ставку для всех расчетов
+    allEarnedBase += hours * currentHourlyRate;
     final works = record['works'] as Map<String, dynamic>?;
     final objectId = works != null ? works['object_id'] as String? : null;
     if (objectId != null && objectId.isNotEmpty) {
@@ -769,11 +805,51 @@ final _financialInfoProvider =
     }
   }
 
+  // Командировочные за все время - получаем все ставки для сотрудника
+  final allBusinessTripRatesResp = await client
+      .from('business_trip_rates')
+      .select(
+          'object_id, rate, valid_from, valid_to, employee_id, minimum_hours')
+      .eq('employee_id', employeeId);
+
   double allTrips = 0;
-  allObjectShiftCount.forEach((objectId, count) {
-    final tripAmount = objectTripMap[objectId] ?? 0;
-    if (tripAmount > 0) allTrips += tripAmount * count;
-  });
+  for (final record in (workHoursResp as List)) {
+    final works = record['works'] as Map<String, dynamic>?;
+    if (works == null) continue;
+    final workDateStr = works['date'] as String?;
+    if (workDateStr == null) continue;
+    final workDate = DateTime.tryParse(workDateStr);
+    if (workDate == null) continue;
+
+    final hours = (record['hours'] as num?)?.toDouble() ?? 0;
+    final objectId = works['object_id'] as String?;
+    if (objectId != null && objectId.isNotEmpty) {
+      // Ищем активную ставку на дату смены для данного сотрудника
+      for (final rateRecord in (allBusinessTripRatesResp as List)) {
+        if (rateRecord['object_id'] == objectId &&
+            rateRecord['employee_id'] == employeeId) {
+          final validFrom =
+              DateTime.tryParse(rateRecord['valid_from'] as String? ?? '');
+          final validToStr = rateRecord['valid_to'] as String?;
+          final validTo =
+              validToStr != null ? DateTime.tryParse(validToStr) : null;
+
+          if (validFrom != null &&
+              !workDate.isBefore(validFrom) &&
+              (validTo == null || !workDate.isAfter(validTo))) {
+            // Проверяем условие минимальных часов
+            final minimumHours =
+                (rateRecord['minimum_hours'] as num?)?.toDouble() ?? 0.0;
+            if (hours >= minimumHours) {
+              final rate = (rateRecord['rate'] as num?)?.toDouble() ?? 0;
+              allTrips += rate;
+            }
+            break; // Используем первую подходящую ставку
+          }
+        }
+      }
+    }
+  }
 
   // Все премии/штрафы (без фильтра по дате)
   double allBonuses = 0;

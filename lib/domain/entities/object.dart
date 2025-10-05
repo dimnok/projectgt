@@ -22,9 +22,6 @@ abstract class ObjectEntity with _$ObjectEntity {
 
     /// Описание объекта.
     String? description,
-
-    /// Сумма командировочных выплат для объекта
-    @Default(0) num businessTripAmount,
   }) = _ObjectEntity;
 
   /// Приватный конструктор для расширения функциональности через методы.
