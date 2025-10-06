@@ -50,6 +50,9 @@ enum AppRoute {
 
   /// Экран плана работ.
   workPlans,
+
+  /// Экран управления версиями.
+  versionManagement,
 }
 
 /// Боковое меню (Drawer) для навигации по основным разделам приложения.
@@ -503,20 +506,20 @@ class AppDrawer extends ConsumerWidget {
                                 context.goNamed('payrolls');
                               },
                             ),
-                          if (user?.role == 'admin')
-                            DrawerItemWidget(
-                              icon: Icons.file_download_outlined,
-                              title: 'Выгрузка',
-                              isSelected: activeRoute == AppRoute.export,
-                              onTap: () {
-                                if (activeRoute == AppRoute.export) {
-                                  context.pop();
-                                } else {
-                                  context.pop();
-                                  context.goNamed('export');
-                                }
-                              },
-                            ),
+                          // Выгрузка доступна всем пользователям
+                          DrawerItemWidget(
+                            icon: Icons.file_download_outlined,
+                            title: 'Выгрузка',
+                            isSelected: activeRoute == AppRoute.export,
+                            onTap: () {
+                              if (activeRoute == AppRoute.export) {
+                                context.pop();
+                              } else {
+                                context.pop();
+                                context.goNamed('export');
+                              }
+                            },
+                          ),
                           if (user?.role == 'admin')
                             DrawerItemWidget(
                               icon: Icons.people_rounded,
@@ -528,6 +531,21 @@ class AppDrawer extends ConsumerWidget {
                                 } else {
                                   context.pop();
                                   context.goNamed('users');
+                                }
+                              },
+                            ),
+                          if (user?.role == 'admin')
+                            DrawerItemWidget(
+                              icon: Icons.system_update_alt,
+                              title: 'Управление версиями',
+                              isSelected:
+                                  activeRoute == AppRoute.versionManagement,
+                              onTap: () {
+                                if (activeRoute == AppRoute.versionManagement) {
+                                  context.pop();
+                                } else {
+                                  context.pop();
+                                  context.goNamed('version_management');
                                 }
                               },
                             ),

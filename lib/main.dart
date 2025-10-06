@@ -16,6 +16,9 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:projectgt/core/notifications/notification_service.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:projectgt/data/services/fcm_token_service.dart';
+import 'package:projectgt/features/version_control/providers/version_providers.dart';
+import 'package:projectgt/core/utils/version_utils.dart';
+import 'package:projectgt/core/constants/app_constants.dart';
 
 /// Обработчик фоновых сообщений Firebase Cloud Messaging.
 ///
@@ -130,6 +133,26 @@ class MyApp extends ConsumerWidget {
 
     // Инициализация сервиса FCM-токена (запрос прав, sync token, onTokenRefresh)
     ref.read(fcmTokenServiceProvider).initialize();
+
+    // Подписка на изменения версии приложения через Realtime
+    ref.listen<AsyncValue<dynamic>>(
+      watchAppVersionProvider,
+      (previous, next) {
+        next.whenData((versionInfo) {
+          // Проверяем актуальность версии
+          final isSupported = VersionUtils.isVersionSupported(
+            AppConstants.appVersion,
+            versionInfo.minimumVersion,
+          );
+
+          // Если версия не поддерживается - редирект на экран обновления
+          if (!isSupported) {
+            final router = ref.read(routerProvider);
+            router.go('/force-update');
+          }
+        });
+      },
+    );
 
     final router = ref.watch(routerProvider);
     final themeState = ref.watch(themeNotifierProvider);

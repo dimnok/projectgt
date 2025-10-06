@@ -35,6 +35,8 @@ import 'package:projectgt/features/materials/presentation/screens/material_scree
 import 'package:projectgt/features/materials/presentation/screens/materials_mapping_screen.dart';
 // Telegram moderation экраны удалены
 import 'package:projectgt/core/widgets/auth_gate.dart';
+import 'package:projectgt/features/version_control/presentation/force_update_screen.dart';
+import 'package:projectgt/features/version_control/presentation/version_management_screen.dart';
 
 /// Проверяет, является ли текущий пользователь администратором.
 ///
@@ -499,20 +501,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      // Маршрут для экспорта - только для админов
+      // Маршрут для экспорта - доступен всем пользователям
       GoRoute(
         path: AppRoutes.export,
         name: 'export',
-        builder: (context, state) {
-          return Consumer(
-            builder: (context, ref, child) {
-              if (_isAdmin(ref)) {
-                return const ExportScreen();
-              }
-              return _buildAccessDeniedScreen();
-            },
-          );
-        },
+        builder: (context, state) => const ExportScreen(),
       ),
 
       // Маршрут для материалов (чистая страница с AppBar)
@@ -527,6 +520,29 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.materialMapping,
         name: 'material_mapping',
         builder: (context, state) => const MaterialsMappingScreen(),
+      ),
+
+      // Маршрут для экрана принудительного обновления
+      GoRoute(
+        path: AppRoutes.forceUpdate,
+        name: 'force_update',
+        builder: (context, state) => const ForceUpdateScreen(),
+      ),
+
+      // Маршрут для управления версиями - только для админов
+      GoRoute(
+        path: AppRoutes.versionManagement,
+        name: 'version_management',
+        builder: (context, state) {
+          return Consumer(
+            builder: (context, ref, child) {
+              if (_isAdmin(ref)) {
+                return const VersionManagementScreen();
+              }
+              return _buildAccessDeniedScreen();
+            },
+          );
+        },
       ),
 
       // Страницы статусов доступа управляются через AuthGate
@@ -592,6 +608,12 @@ class AppRoutes {
 
   /// Маршрут для экрана сопоставления материалов
   static const String materialMapping = '/material/mapping';
+
+  /// Маршрут для экрана принудительного обновления
+  static const String forceUpdate = '/force-update';
+
+  /// Маршрут для управления версиями (админ)
+  static const String versionManagement = '/version-management';
 
   // Telegram маршруты удалены
 
