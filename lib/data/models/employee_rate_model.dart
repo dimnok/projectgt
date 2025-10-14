@@ -47,8 +47,9 @@ abstract class EmployeeRateModel with _$EmployeeRateModel {
 
   /// Проверяет, действует ли ставка на указанную дату
   bool isActiveOn(DateTime date) {
-    return validFrom.isBefore(date.add(Duration(days: 1))) &&
-        (validTo == null || validTo!.isAfter(date.subtract(Duration(days: 1))));
+    return validFrom.isBefore(date.add(const Duration(days: 1))) &&
+        (validTo == null ||
+            validTo!.isAfter(date.subtract(const Duration(days: 1))));
   }
 
   /// Является ли эта ставка текущей (активной)

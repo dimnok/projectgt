@@ -50,34 +50,17 @@ class ProfileStatusSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final statusText = value ? 'Активен' : 'Не активен';
-    final statusColor = value ? Colors.green : Colors.red;
-
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            statusText,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w500,
-              color: statusColor,
-            ),
-          ),
-        ),
-        Switch.adaptive(
-          value: value,
-          onChanged: (!canToggle || isBusy)
-              ? null
-              : (next) async {
-                  if (!next) {
-                    final ok = await _confirmDisable(context);
-                    if (!ok) return;
-                  }
-                  onChanged(next);
-                },
-        ),
-      ],
+    return Switch.adaptive(
+      value: value,
+      onChanged: (!canToggle || isBusy)
+          ? null
+          : (next) async {
+              if (!next) {
+                final ok = await _confirmDisable(context);
+                if (!ok) return;
+              }
+              onChanged(next);
+            },
     );
   }
 }

@@ -89,6 +89,9 @@ class MaterialsImportAction extends StatelessWidget {
     );
     if (result == null || result.files.isEmpty) return;
 
+    // Проверяем context перед использованием
+    if (!context.mounted) return;
+
     // Показать диалог прогресса до начала тяжёлой подготовки (парсинг/сбор данных)
     // Диалог закроется автоматически после завершения парсинга
     // Не ждём результата showDialog — он вернётся только при закрытии

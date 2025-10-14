@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/core/utils/modal_utils.dart';
@@ -321,7 +322,7 @@ class _NewMaterialModalState extends ConsumerState<NewMaterialModal> {
                           ? const SizedBox(
                               height: 20,
                               width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                              child: CupertinoActivityIndicator(radius: 10),
                             )
                           : const Text('Сохранить'),
                     ),

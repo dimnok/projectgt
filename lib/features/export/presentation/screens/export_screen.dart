@@ -39,7 +39,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
     return Scaffold(
       appBar: const AppBarWidget(
         title: 'Выгрузка данных',
-        actions: const [
+        actions: [
           ExportDateRangeAction(),
           ExportFiltersAction(),
           ExportExcelAction()

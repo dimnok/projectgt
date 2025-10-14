@@ -433,12 +433,13 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved>
                                   if (_headerSearchVisible) {
                                     WidgetsBinding.instance
                                         .addPostFrameCallback((_) {
-                                      if (mounted)
+                                      if (mounted) {
                                         _headerSearchFocusNode.requestFocus();
+                                      }
                                     });
                                   }
                                 },
-                                minSize: 40,
+                                minimumSize: const Size(40, 40),
                                 child: Icon(
                                   (_headerSearchVisible &&
                                           _headerSearchQuery.isNotEmpty)
@@ -669,11 +670,9 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved>
                                     ? const SizedBox(
                                         height: 20,
                                         width: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor:
-                                              AlwaysStoppedAnimation<Color>(
-                                                  Colors.white),
+                                        child: CupertinoActivityIndicator(
+                                          radius: 10,
+                                          color: Colors.white,
                                         ),
                                       )
                                     : Text(widget.initial == null

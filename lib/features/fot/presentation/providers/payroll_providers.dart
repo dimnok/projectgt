@@ -101,7 +101,6 @@ final payrollWorkHoursProvider = FutureProvider<List<dynamic>>((ref) async {
     // 5️⃣ Объединяем данные из обеих таблиц
     return [...workHoursEntries, ...attendanceEntries];
   } catch (e) {
-    print('⚠️ Error loading payroll work hours: $e');
     return [];
   }
 });
@@ -178,8 +177,6 @@ final filteredPayrollsProvider =
   final year = filterState.selectedYear;
   final month = filterState.selectedMonth;
 
-  final stopwatch = Stopwatch()..start();
-
   try {
     // 🚀 ОПТИМИЗАЦИЯ: Используем PostgreSQL функцию для батч-расчёта
     final client = ref.watch(supabaseClientProvider);
@@ -187,9 +184,6 @@ final filteredPayrollsProvider =
       'p_year': year,
       'p_month': month,
     });
-
-    stopwatch.stop();
-    print('✅ FOT data loaded via RPC in ${stopwatch.elapsedMilliseconds}ms');
 
     // Маппинг данных из БД в PayrollCalculation
     final List<PayrollCalculation> payrolls = [];
@@ -210,9 +204,6 @@ final filteredPayrollsProvider =
     return payrolls;
   } catch (e) {
     // 🔄 FALLBACK: Если RPC не работает — используем старую логику
-    print('⚠️ RPC failed, falling back to client-side calculation: $e');
-    stopwatch.stop();
-
     return _calculatePayrollClientSide(ref, year, month);
   }
 });
@@ -225,8 +216,6 @@ Future<List<PayrollCalculation>> _calculatePayrollClientSide(
   int year,
   int month,
 ) async {
-  final stopwatch = Stopwatch()..start();
-
   // Получаем данные напрямую без watch для избежания циклических зависимостей
   final workHoursAsync = ref.watch(payrollWorkHoursProvider);
   final employeeState = ref.watch(employeeProvider);
@@ -371,14 +360,8 @@ Future<List<PayrollCalculation>> _calculatePayrollClientSide(
       return nameA.compareTo(nameB);
     });
 
-    stopwatch.stop();
-    print(
-        '⚠️ FOT data loaded via CLIENT-SIDE in ${stopwatch.elapsedMilliseconds}ms');
-
     return payrolls;
   } catch (e) {
-    stopwatch.stop();
-    print('❌ CLIENT-SIDE calculation failed: $e');
     return [];
   }
 }

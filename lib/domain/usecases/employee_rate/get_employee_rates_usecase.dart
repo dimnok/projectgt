@@ -5,6 +5,7 @@ import '../../repositories/employee_rate_repository.dart';
 class GetEmployeeRatesUseCase {
   final EmployeeRateRepository _repository;
 
+  /// Создаёт экземпляр [GetEmployeeRatesUseCase] с заданным [_repository].
   const GetEmployeeRatesUseCase(this._repository);
 
   /// Получает историю всех ставок сотрудника

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
@@ -6,7 +7,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:projectgt/presentation/widgets/cupertino_dialog_widget.dart';
 
 import 'package:projectgt/core/utils/responsive_utils.dart';
-import 'package:projectgt/domain/entities/profile.dart';
 import 'package:projectgt/features/works/domain/entities/work.dart';
 import 'package:projectgt/features/works/domain/entities/work_item.dart';
 import 'package:projectgt/features/works/domain/entities/work_hour.dart';
@@ -49,7 +49,7 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
         final hoursAsync = ref.watch(workHoursProvider(work.id!));
 
         final isWorkClosed = work.status.toLowerCase() == 'closed';
-        final currentProfile = ref.watch(profileProvider).profile;
+        final currentProfile = ref.watch(currentUserProfileProvider).profile;
         final bool isOwner =
             currentProfile != null && work.openedBy == currentProfile.id;
         final bool canModify = isOwner && !isWorkClosed;
@@ -60,11 +60,13 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
               data: (hours) {
                 final canCloseWorkFuture = _canCloseWork(work, items, hours);
 
-                final worksCount = items.length;
-                final uniqueEmployees =
+                // Используем агрегатные данные из БД (рассчитываются триггерами)
+                final worksCount = work.itemsCount ?? items.length;
+                final uniqueEmployees = work.employeesCount ??
                     hours.map((h) => h.employeeId).toSet().length;
-                final totalAmount = items.fold<double>(
-                    0, (sum, item) => sum + (item.total ?? 0));
+                final totalAmount = work.totalAmount ??
+                    items.fold<double>(
+                        0, (sum, item) => sum + (item.total ?? 0));
                 final productivityPerEmployee =
                     uniqueEmployees > 0 ? totalAmount / uniqueEmployees : 0.0;
                 final formatter = NumberFormat('#,##0.00', 'ru_RU');
@@ -87,7 +89,7 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
                           builder: (context, snapshot) {
                             if (!snapshot.hasData) {
                               return const Center(
-                                  child: CircularProgressIndicator());
+                                  child: CupertinoActivityIndicator());
                             }
                             final (canClose, message) = snapshot.data!;
 
@@ -206,135 +208,76 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
                           },
                         ),
                         const SizedBox(height: 32),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Card(
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                  side: BorderSide(
-                                    color: theme.colorScheme.outline
-                                        .withValues(alpha: 0.2),
-                                    width: 1,
-                                  ),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(24),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text('Общая информация',
-                                          style: theme.textTheme.titleMedium
-                                              ?.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                            color: theme.colorScheme.primary,
-                                          )),
-                                      const SizedBox(height: 16),
-                                      _buildDataRow(
-                                          icon: Icons.calendar_today,
-                                          label: 'Дата:',
-                                          value: _formatDate(work.date)),
-                                      const Divider(height: 32),
-                                      _buildDataRow(
-                                          icon: Icons.business,
-                                          label: 'Объект:',
-                                          value: widget.objectDisplay),
-                                      const Divider(height: 32),
-                                      _buildDataRow(
-                                        icon: Icons.person,
-                                        label: 'Открыл:',
-                                        value: FutureBuilder<Profile?>(
-                                          future: ref
-                                              .read(profileRepositoryProvider)
-                                              .getProfile(work.openedBy),
-                                          builder: (context, snapshot) {
-                                            final String openedBy = snapshot
-                                                        .hasData &&
-                                                    snapshot.data?.shortName !=
-                                                        null
-                                                ? snapshot.data!.shortName!
-                                                : 'ID: ${work.openedBy.length > 4 ? "${work.openedBy.substring(0, 4)}..." : work.openedBy}';
-                                            return Text(openedBy,
-                                                style: theme
-                                                    .textTheme.titleMedium);
-                                          },
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
+                        Card(
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(
+                              color: theme.colorScheme.outline
+                                  .withValues(alpha: 0.2),
+                              width: 1,
                             ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  Card(
-                                    elevation: 0,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                      side: BorderSide(
-                                        color: theme.colorScheme.outline
-                                            .withValues(alpha: 0.2),
-                                        width: 1,
-                                      ),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Производственные показатели',
+                                    style:
+                                        theme.textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: theme.colorScheme.primary,
+                                    )),
+                                const SizedBox(height: 16),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: _buildMetricCard(
+                                          icon: Icons.work,
+                                          label: 'Работ',
+                                          value: worksCount.toString(),
+                                          iconColor:
+                                              theme.colorScheme.tertiary),
                                     ),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(24),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text('Производственные показатели',
-                                              style: theme.textTheme.titleMedium
-                                                  ?.copyWith(
-                                                fontWeight: FontWeight.bold,
-                                                color:
-                                                    theme.colorScheme.primary,
-                                              )),
-                                          const SizedBox(height: 16),
-                                          _buildMetricCard(
-                                              icon: Icons.work,
-                                              label: 'Работ',
-                                              value: worksCount.toString(),
-                                              iconColor:
-                                                  theme.colorScheme.tertiary),
-                                          const SizedBox(height: 16),
-                                          _buildMetricCard(
-                                              icon: Icons.groups,
-                                              label: 'Сотрудников',
-                                              value: uniqueEmployees.toString(),
-                                              iconColor:
-                                                  theme.colorScheme.secondary),
-                                          const SizedBox(height: 16),
-                                          _buildMetricCard(
-                                              icon: Icons.paid,
-                                              label: 'Общая сумма',
-                                              value:
-                                                  '${formatter.format(totalAmount)} ₽',
-                                              iconColor:
-                                                  theme.colorScheme.primary,
-                                              isLarge: true),
-                                          const SizedBox(height: 16),
-                                          _buildMetricCard(
-                                              icon: Icons.trending_up,
-                                              label: 'Выработка на сотрудника',
-                                              value:
-                                                  '${formatter.format(productivityPerEmployee)} ₽/чел.',
-                                              iconColor:
-                                                  theme.colorScheme.tertiary),
-                                        ],
-                                      ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: _buildMetricCard(
+                                          icon: Icons.paid,
+                                          label: 'Общая сумма',
+                                          value:
+                                              '${formatter.format(totalAmount)} ₽',
+                                          iconColor: theme.colorScheme.primary,
+                                          isLarge: true),
                                     ),
-                                  ),
-                                ],
-                              ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: _buildMetricCard(
+                                          icon: Icons.groups,
+                                          label: 'Сотрудников',
+                                          value: uniqueEmployees.toString(),
+                                          iconColor:
+                                              theme.colorScheme.secondary),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: _buildMetricCard(
+                                          icon: Icons.trending_up,
+                                          label: 'Выработка на сотрудника',
+                                          value:
+                                              '${formatter.format(productivityPerEmployee)} ₽/чел.',
+                                          iconColor:
+                                              theme.colorScheme.tertiary),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
                         const SizedBox(height: 24),
                         if (items.isNotEmpty)
@@ -365,7 +308,7 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
                             builder: (context, snapshot) {
                               if (!snapshot.hasData) {
                                 return const Center(
-                                    child: CircularProgressIndicator());
+                                    child: CupertinoActivityIndicator());
                               }
                               final (canClose, message) = snapshot.data!;
                               if (isWorkClosed) {
@@ -499,35 +442,13 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  _buildDataRow(
-                                      icon: Icons.calendar_today,
-                                      label: 'Дата:',
-                                      value: _formatDate(work.date)),
-                                  const Divider(height: 32),
-                                  _buildDataRow(
-                                      icon: Icons.business,
-                                      label: 'Объект:',
-                                      value: widget.objectDisplay),
-                                  const Divider(height: 32),
-                                  _buildDataRow(
-                                    icon: Icons.person,
-                                    label: 'Открыл:',
-                                    value: FutureBuilder<Profile?>(
-                                      future: ref
-                                          .read(profileRepositoryProvider)
-                                          .getProfile(work.openedBy),
-                                      builder: (context, snapshot) {
-                                        final String openedBy = snapshot
-                                                    .hasData &&
-                                                snapshot.data?.shortName != null
-                                            ? snapshot.data!.shortName!
-                                            : 'ID: ${work.openedBy.length > 4 ? "${work.openedBy.substring(0, 4)}..." : work.openedBy}';
-                                        return Text(openedBy,
-                                            style: theme.textTheme.titleMedium);
-                                      },
-                                    ),
-                                  ),
-                                  const Divider(height: 32),
+                                  Text('Производственные показатели',
+                                      style:
+                                          theme.textTheme.titleMedium?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: theme.colorScheme.primary,
+                                      )),
+                                  const SizedBox(height: 16),
                                   _buildDataRow(
                                       icon: Icons.groups,
                                       label: 'Сотрудников:',
@@ -573,12 +494,12 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
                   ),
                 );
               },
-              loading: () => const Center(child: CircularProgressIndicator()),
+              loading: () => const Center(child: CupertinoActivityIndicator()),
               error: (e, st) =>
                   Center(child: Text('Ошибка загрузки сотрудников: $e')),
             );
           },
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const Center(child: CupertinoActivityIndicator()),
           error: (e, st) => Center(child: Text('Ошибка загрузки работ: $e')),
         );
       },
@@ -785,7 +706,7 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
   }
 
   void _showEveningPhotoOptions(Work work) {
-    final currentProfile = ref.read(profileProvider).profile;
+    final currentProfile = ref.read(currentUserProfileProvider).profile;
     final bool isOwner =
         currentProfile != null && work.openedBy == currentProfile.id;
     final bool isOpen = work.status.toLowerCase() == 'open';
@@ -871,11 +792,6 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
       await ref.read(worksProvider.notifier).updateWork(updatedWork);
       if (!mounted) return;
     }
-  }
-
-  String _formatDate(DateTime date) {
-    final formatter = DateFormat('dd.MM.yyyy');
-    return formatter.format(date);
   }
 }
 

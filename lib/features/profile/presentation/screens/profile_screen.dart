@@ -3,16 +3,18 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:projectgt/presentation/state/auth_state.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 import 'package:projectgt/presentation/widgets/photo_picker_avatar.dart';
 import 'package:projectgt/features/profile/presentation/widgets/profile_status_switch.dart';
+import 'package:projectgt/features/profile/presentation/screens/applications_screen.dart';
+import 'package:projectgt/features/profile/presentation/screens/instructions_screen.dart';
 import 'package:projectgt/domain/entities/object.dart';
 import 'package:projectgt/domain/entities/profile.dart';
 import 'package:projectgt/core/di/providers.dart';
-import 'package:projectgt/features/profile/presentation/widgets/profile_employee_link_info.dart';
 import 'package:projectgt/features/profile/presentation/widgets/profile_employee_link_edit_field.dart';
 
 /// Экран профиля пользователя.
@@ -49,18 +51,42 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   /// Список всех объектов, доступных пользователю.
   List<ObjectEntity> _allObjects = [];
 
+  /// Информация о версии приложения.
+  String _appVersion = '';
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadProfileIfNeeded();
       _loadObjects();
+      _loadAppVersion();
     });
   }
 
-  @override
-  void dispose() {
-    super.dispose();
+  /// Загружает информацию о версии приложения.
+  Future<void> _loadAppVersion() async {
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+
+      if (mounted) {
+        setState(() {
+          // Проверяем, что version не пустой
+          if (packageInfo.version.isNotEmpty) {
+            _appVersion = '${packageInfo.version}+${packageInfo.buildNumber}';
+          } else {
+            _appVersion = 'Build ${packageInfo.buildNumber}';
+          }
+        });
+      }
+    } catch (e) {
+      // Тихий fallback на версию из pubspec.yaml для Web
+      if (mounted) {
+        setState(() {
+          _appVersion = '1.0.1+21';
+        });
+      }
+    }
   }
 
   /// Загружает профиль пользователя, если он ещё не был загружен.
@@ -80,6 +106,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   /// Загружает список объектов из репозитория.
   Future<void> _loadObjects() async {
     final objects = await ref.read(objectRepositoryProvider).getObjects();
+    if (!mounted) return;
     setState(() {
       _allObjects = objects;
     });
@@ -103,14 +130,32 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return authUser?.id == profile?.id;
   }
 
-  /// Капитализирует каждое слово в строке (делает первую букву заглавной).
-  String _capitalizeWords(String text) {
-    if (text.isEmpty) return text;
+  /// Генерирует сокращенное имя из полного в формате "Фамилия И.О.".
+  String? _generateShortName(String fullName) {
+    if (fullName.isEmpty) return null;
 
-    return text.split(' ').map((word) {
-      if (word.isEmpty) return word;
-      return word[0].toUpperCase() + word.substring(1).toLowerCase();
-    }).join(' ');
+    final nameParts = fullName.split(' ');
+    if (nameParts.length > 1) {
+      final lastName = nameParts[0];
+      final initials = nameParts
+          .sublist(1)
+          .where((part) => part.isNotEmpty)
+          .map((part) => '${part[0]}.')
+          .join('');
+      return '$lastName $initials';
+    }
+    return fullName;
+  }
+
+  /// Обновляет профиль пользователя (текущий или просматриваемый).
+  Future<void> _updateProfile(Profile updatedProfile, bool isOwn) async {
+    if (isOwn) {
+      await ref
+          .read(currentUserProfileProvider.notifier)
+          .updateCurrentUserProfile(updatedProfile);
+    } else {
+      await ref.read(profileProvider.notifier).updateProfile(updatedProfile);
+    }
   }
 
   void _editProfile() {
@@ -119,10 +164,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final profile = isOwn
         ? ref.read(currentUserProfileProvider).profile
         : ref.read(profileProvider).profile;
-    final currentUser = ref.read(authProvider).user;
     final currentProfile = ref.read(currentUserProfileProvider).profile;
-    final bool isAdmin =
-        (currentUser?.role == 'admin') || (currentProfile?.role == 'admin');
+    final bool isAdmin = currentProfile?.role == 'admin';
     if (profile != null) {
       showModalBottomSheet(
         context: context,
@@ -142,34 +185,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             profile: profile,
             allObjects: _allObjects,
             isAdmin: isAdmin,
-            initialEmployeeId: (profile.object != null)
-                ? (profile.object!['employee_id'] as String?)
-                : null,
+            initialEmployeeId: profile.object?['employee_id'] as String?,
             onSave: (fullName, phone, selectedObjectIds, employeeId) {
-              // Капитализируем ФИО перед обработкой
-              final capitalizedFullName = _capitalizeWords(fullName);
+              // Генерируем сокращенное имя
+              final shortName = _generateShortName(fullName);
 
-              // Генерируем сокращенное имя из полного в формате "Фамилия И.О."
-              String? shortName;
-              if (capitalizedFullName.isNotEmpty) {
-                final nameParts = capitalizedFullName.split(' ');
-                if (nameParts.length > 1) {
-                  String lastName = nameParts[0];
-                  String initials = nameParts
-                      .sublist(1)
-                      .where((part) => part.isNotEmpty)
-                      .map((part) => '${part[0]}.')
-                      .join('');
-                  shortName = '$lastName $initials';
-                } else {
-                  shortName = capitalizedFullName;
-                }
-              }
-              // Временно сохраняем связь в object.employee_id, не меняя схему
-              final Map<String, dynamic> baseObject = profile.object == null
+              // Обновляем связь с сотрудником
+              final newObject = profile.object == null
                   ? <String, dynamic>{}
                   : Map<String, dynamic>.from(profile.object!);
-              final Map<String, dynamic> newObject = {...baseObject};
+
               if (employeeId != null && employeeId.isNotEmpty) {
                 newObject['employee_id'] = employeeId;
               } else {
@@ -177,23 +202,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               }
 
               final updatedProfile = profile.copyWith(
-                fullName: capitalizedFullName,
+                fullName: fullName,
                 shortName: shortName,
                 phone: phone,
                 objectIds: selectedObjectIds,
                 object: newObject,
                 updatedAt: DateTime.now(),
               );
-              if (isOwn) {
-                ref
-                    .read(currentUserProfileProvider.notifier)
-                    .updateCurrentUserProfile(updatedProfile);
-              } else {
-                ref
-                    .read(profileProvider.notifier)
-                    .updateProfile(updatedProfile);
+
+              _updateProfile(updatedProfile, isOwn);
+
+              if (context.mounted) {
+                Navigator.pop(context);
               }
-              Navigator.pop(context);
             },
           ),
         ),
@@ -227,60 +248,38 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
-  Widget _buildEditButton(ThemeData theme) {
-    return FilledButton(
-      onPressed: _editProfile,
-      style: FilledButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        minimumSize: const Size(0, 56),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-      ),
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.edit_outlined, size: 18),
-          SizedBox(width: 8),
-          Text('Редактировать'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLogoutButton(ThemeData theme) {
-    return FilledButton(
-      style: FilledButton.styleFrom(
-        backgroundColor: theme.colorScheme.error,
-        foregroundColor: theme.colorScheme.onError,
-        shape: const CircleBorder(),
-        padding: EdgeInsets.zero,
-        minimumSize: const Size(56, 56),
-      ),
-      onPressed: _confirmLogout,
-      child: const Icon(Icons.logout, size: 24),
-    );
-  }
-
-  Widget _buildBottomActions(ThemeData theme,
-      {required bool showLogout, required bool showEdit}) {
+  /// Строит группу действий (редактирование, выход) в стиле Apple Settings.
+  Widget _buildActionsGroup({
+    required bool showLogout,
+    required bool showEdit,
+  }) {
     if (!showLogout && !showEdit) return const SizedBox.shrink();
-    return SizedBox(
-      height: 56,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          if (showEdit)
-            Align(
-              alignment: Alignment.centerRight,
-              child: _buildEditButton(theme),
-            ),
-          if (showLogout)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: _buildLogoutButton(theme),
-            ),
-        ],
-      ),
-    );
+
+    final actions = <Widget>[];
+
+    if (showEdit) {
+      actions.add(
+        _AppleMenuItem(
+          icon: Icons.edit_outlined,
+          iconColor: Colors.blue,
+          title: 'Редактировать профиль',
+          onTap: _editProfile,
+        ),
+      );
+    }
+
+    if (showLogout) {
+      actions.add(
+        _AppleMenuItem(
+          icon: Icons.logout,
+          iconColor: Colors.red,
+          title: 'Выйти из аккаунта',
+          onTap: _confirmLogout,
+        ),
+      );
+    }
+
+    return _AppleMenuGroup(children: actions);
   }
 
   Widget _wrapDesktop({
@@ -323,15 +322,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 photoUrl: url,
                 updatedAt: DateTime.now(),
               );
-              if (isOwn) {
-                await ref
-                    .read(currentUserProfileProvider.notifier)
-                    .updateCurrentUserProfile(updatedProfile);
-              } else {
-                await ref
-                    .read(profileProvider.notifier)
-                    .updateProfile(updatedProfile);
-              }
+              await _updateProfile(updatedProfile, isOwn);
             }
           },
           placeholderIcon: Icons.person,
@@ -374,280 +365,186 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     required dynamic user,
     required bool isOwn,
   }) {
-    final infoItems = <Widget>[
-      _ProfileInfoItem(
-        icon: Icons.person_outline,
-        title: 'ФИО',
-        value: profile?.fullName ?? 'Не указано',
-      ),
-      _ProfileInfoItem(
-        icon: Icons.email_outlined,
-        title: 'Email',
-        value: profile?.email ?? 'Не указан',
-      ),
-      _ProfileInfoItem(
-        icon: Icons.phone_outlined,
-        title: 'Телефон',
-        value: profile?.phone ?? 'Не указан',
-      ),
-      _ProfileInfoItem(
-        icon: Icons.verified_user_outlined,
-        title: 'Роль',
-        value: profile?.role == 'admin' ? 'ADMIN' : 'USER',
-        valueColor: profile?.role == 'admin'
-            ? Colors.purple
-            : theme.colorScheme.onSurface.withValues(alpha: 0.7),
-      ),
-      _ProfileInfoItem(
-        icon: Icons.circle,
-        title: 'Статус',
-        valueWidget: ProfileStatusSwitch(
-          value: profile?.status == true,
-          canToggle: ref.read(authProvider).user?.role == 'admin',
-          isBusy: profileState.status == ProfileStatus.loading,
-          onChanged: (v) async {
-            final p = profile!;
-            if (isOwn) {
-              await ref
-                  .read(currentUserProfileProvider.notifier)
-                  .updateCurrentUserProfile(
-                    p.copyWith(status: v, updatedAt: DateTime.now()),
-                  );
-            } else {
-              await ref.read(profileProvider.notifier).updateProfile(
-                    p.copyWith(status: v, updatedAt: DateTime.now()),
-                  );
-            }
-          },
-        ),
-      ),
-      if ((profile?.objectIds?.isNotEmpty ?? false) && _allObjects.isNotEmpty)
-        _ProfileInfoItem(
-          icon: Icons.location_city,
-          title: 'Объекты',
-          valueWidget: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: _allObjects
-                .where((obj) => profile!.objectIds!.contains(obj.id))
-                .toList()
-                .asMap()
-                .entries
-                .map((entry) => Text(
-                      '${entry.key + 1}. ${entry.value.name}',
-                      style: theme.textTheme.titleMedium,
-                    ))
-                .toList(),
-          ),
-        ),
-      // Отображение привязанного сотрудника — для всех пользователей
-      if (profile?.object?['employee_id'] != null)
-        _ProfileInfoItem(
-          icon: Icons.badge_outlined,
-          title: 'Привязанный сотрудник',
-          valueWidget: ProfileLinkedEmployeeInfo(profile: profile),
-        ),
-    ];
-
     final content = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _ProfileInfoCard(title: 'Личная информация', items: infoItems),
-        const SizedBox(height: 12),
-        // Кнопка перехода к настройкам уведомлений в стиле контейнера
-        Builder(builder: (context) {
-          // Определяем, включены ли уведомления
-          final obj = profile?.object;
-          final hasSlots = (obj != null && obj.containsKey('slot_times'))
-              ? (((obj['slot_times'] as List?) ?? const [])).isNotEmpty
-              : false;
-          final bool notifEnabled =
-              (obj != null && obj['notifications_enabled'] is bool)
-                  ? (obj['notifications_enabled'] as bool)
-                  : hasSlots;
-          final iconData = notifEnabled
-              ? Icons.notifications_active_outlined
-              : Icons.notifications_off_outlined;
-          final iconColor = notifEnabled ? Colors.green : Colors.red;
-          return InkWell(
-            onTap: () => context.push('/profile/notifications'),
-            borderRadius: BorderRadius.circular(16),
-            child: Ink(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
-                  width: 1,
-                ),
-                color: theme.colorScheme.surface,
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surface,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(iconData, color: iconColor, size: 20),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Уведомления',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox.shrink(),
-                        ],
-                      ),
-                    ),
-                    Icon(
-                      Icons.chevron_right,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                    ),
-                  ],
-                ),
-              ),
+        // Группа: Основная информация
+        _AppleMenuGroup(
+          children: [
+            Builder(
+              builder: (context) {
+                final employeeId = profile?.object?['employee_id'] as String?;
+                final hasEmployee = employeeId != null && employeeId.isNotEmpty;
+
+                return _AppleMenuItem(
+                  icon: Icons.person_outline,
+                  iconColor: Colors.blue,
+                  title: profile?.fullName ?? 'Не указано',
+                  showChevron: hasEmployee,
+                  onTap: hasEmployee
+                      ? () {
+                          context
+                              .pushNamed('employee_details', pathParameters: {
+                            'employeeId': employeeId,
+                          });
+                        }
+                      : null,
+                );
+              },
             ),
-          );
-        }),
-        const SizedBox(height: 12),
-        // Кнопка "Финансовая информация" в том же стиле, под уведомлениями
-        InkWell(
-          onTap: () => context.push('/profile/financial'),
-          borderRadius: BorderRadius.circular(16),
-          child: Ink(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
-                width: 1,
-              ),
-              color: theme.colorScheme.surface,
+            _AppleMenuItem(
+              icon: Icons.email_outlined,
+              iconColor: Colors.grey,
+              title: profile?.email ?? 'Не указан',
+              showChevron: false,
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surface,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      Icons.account_balance_wallet_outlined,
-                      color: theme.colorScheme.primary,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Финансовая информация',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox.shrink(),
-                      ],
-                    ),
-                  ),
-                  Icon(
-                    Icons.chevron_right,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                  ),
-                ],
+            if (profile?.phone != null && profile!.phone!.isNotEmpty)
+              _AppleMenuItem(
+                icon: Icons.phone_outlined,
+                iconColor: Colors.green,
+                title: profile.phone!,
+                showChevron: false,
               ),
-            ),
-          ),
+          ],
         ),
-        const SizedBox(height: 12),
-        // Кнопка "Детальная информация" для перехода к деталям связанного сотрудника
-        if (profile?.object?['employee_id'] != null &&
-            (profile!.object!['employee_id'] as String).isNotEmpty)
-          InkWell(
-            onTap: () {
-              final employeeId = profile.object!['employee_id'] as String;
-              context.pushNamed('employee_details', pathParameters: {
-                'employeeId': employeeId,
-              });
-            },
-            borderRadius: BorderRadius.circular(16),
-            child: Ink(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
-                  width: 1,
-                ),
-                color: theme.colorScheme.surface,
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surface,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        Icons.person_outline,
-                        color: theme.colorScheme.primary,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Детальная информация',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            'Подробные данные о сотруднике',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurface
-                                  .withValues(alpha: 0.7),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Icon(
-                      Icons.chevron_right,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                    ),
-                  ],
+        const SizedBox(height: 20),
+        // Группа: Роль и статус
+        _AppleMenuGroup(
+          children: [
+            _AppleMenuItem(
+              icon: Icons.verified_user_outlined,
+              iconColor: profile?.role == 'admin' ? Colors.purple : Colors.grey,
+              title: 'Роль',
+              trailing: Text(
+                profile?.role == 'admin' ? 'ADMIN' : 'USER',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                 ),
               ),
             ),
+            _AppleMenuItem(
+              icon: Icons.circle,
+              iconColor: profile?.status == true ? Colors.green : Colors.red,
+              title: 'Статус',
+              subtitle: profile?.status == true ? 'Активен' : 'Не активен',
+              trailing: ProfileStatusSwitch(
+                value: profile?.status == true,
+                canToggle: ref.read(authProvider).user?.role == 'admin',
+                isBusy: profileState.status == ProfileStatus.loading,
+                onChanged: (v) async {
+                  if (profile != null) {
+                    final updatedProfile = profile.copyWith(
+                      status: v,
+                      updatedAt: DateTime.now(),
+                    );
+                    await _updateProfile(updatedProfile, isOwn);
+                  }
+                },
+              ),
+              showChevron: false,
+            ),
+          ],
+        ),
+        if ((profile?.objectIds?.isNotEmpty ?? false) &&
+            _allObjects.isNotEmpty) ...[
+          const SizedBox(height: 20),
+          // Группа: Объекты
+          _AppleMenuGroup(
+            children: [
+              _AppleMenuItem(
+                icon: Icons.location_city,
+                iconColor: Colors.orange,
+                title: 'Объекты',
+                subtitle: _allObjects
+                    .where((obj) => profile!.objectIds!.contains(obj.id))
+                    .map((obj) => obj.name)
+                    .join(', '),
+                showChevron: false,
+              ),
+            ],
           ),
-        const SizedBox(height: 24),
-        _buildBottomActions(
-          theme,
-          showLogout: (widget.userId == null ||
-              ref.read(authProvider).user?.id == profile?.id),
+        ],
+        const SizedBox(height: 20),
+        // Группа: Дополнительные разделы
+        _AppleMenuGroup(
+          children: [
+            Builder(builder: (context) {
+              final obj = profile?.object;
+              final hasSlots = obj != null &&
+                  obj.containsKey('slot_times') &&
+                  ((obj['slot_times'] as List?) ?? const []).isNotEmpty;
+
+              final notifEnabled =
+                  obj != null && obj['notifications_enabled'] is bool
+                      ? obj['notifications_enabled'] as bool
+                      : hasSlots;
+
+              return _AppleMenuItem(
+                icon: Icons.notifications_outlined,
+                iconColor: notifEnabled ? Colors.green : Colors.red,
+                title: 'Уведомления',
+                onTap: () => context.push('/profile/notifications'),
+              );
+            }),
+            _AppleMenuItem(
+              icon: Icons.account_balance_wallet_outlined,
+              iconColor: Colors.green,
+              title: 'Финансовая информация',
+              onTap: () => context.push('/profile/financial'),
+            ),
+            _AppleMenuItem(
+              icon: Icons.description_outlined,
+              iconColor: Colors.orange,
+              title: 'Заявления',
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const ApplicationsScreen(),
+                  ),
+                );
+              },
+            ),
+            _AppleMenuItem(
+              icon: Icons.help_outline,
+              iconColor: Colors.blue,
+              title: 'Инструкции',
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const InstructionsScreen(),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        // Группа: Действия
+        _buildActionsGroup(
+          showLogout: widget.userId == null ||
+              ref.read(authProvider).user?.id == profile?.id,
           showEdit: isCurrentUser,
         ),
+        if (_appVersion.isNotEmpty) ...[
+          const SizedBox(height: 20),
+          _AppleMenuGroup(
+            children: [
+              _AppleMenuItem(
+                icon: Icons.info_outline,
+                iconColor: Colors.grey,
+                title: 'Версия приложения',
+                trailing: Text(
+                  _appVersion,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                ),
+                showChevron: false,
+              ),
+            ],
+          ),
+        ],
+        const SizedBox(height: 24),
       ],
     );
 
@@ -689,7 +586,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     const double contentMaxWidth = 880;
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: theme.brightness == Brightness.light
+          ? const Color(0xFFF2F2F7) // iOS светлый grouped background
+          : const Color(0xFF1C1C1E), // iOS темный grouped background
       extendBodyBehindAppBar: true,
       appBar: AppBarWidget(
         title: 'Профиль',
@@ -730,7 +629,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           end: Alignment.bottomCenter,
                           colors: [
                             theme.colorScheme.primary.withValues(alpha: 0.05),
-                            theme.colorScheme.surface,
+                            theme.brightness == Brightness.light
+                                ? const Color(0xFFF2F2F7)
+                                : const Color(0xFF1C1C1E),
                           ],
                         ),
                       ),
@@ -766,117 +667,210 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 }
 
-class _ProfileInfoCard extends StatelessWidget {
-  final String title;
-  final List<Widget> items;
+/// Группа элементов меню в стиле Apple Settings.
+///
+/// Объединяет несколько [_AppleMenuItem] в одну карточку с закругленными углами.
+class _AppleMenuGroup extends StatelessWidget {
+  /// Список элементов меню внутри группы.
+  final List<Widget> children;
 
-  const _ProfileInfoCard({
-    required this.title,
-    required this.items,
+  /// Создаёт группу элементов меню.
+  const _AppleMenuGroup({
+    required this.children,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
-          width: 1,
-        ),
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            ...items,
-          ],
+          children: _buildChildrenWithDividers(context),
         ),
       ),
     );
   }
+
+  /// Добавляет разделители между элементами списка.
+  List<Widget> _buildChildrenWithDividers(BuildContext context) {
+    final theme = Theme.of(context);
+    final List<Widget> widgets = [];
+
+    for (int i = 0; i < children.length; i++) {
+      widgets.add(children[i]);
+      if (i < children.length - 1) {
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(left: 60, right: 16),
+            child: Divider(
+              height: 1,
+              thickness: 1,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.05),
+            ),
+          ),
+        );
+      }
+    }
+
+    return widgets;
+  }
 }
 
-class _ProfileInfoItem extends StatelessWidget {
+/// Элемент меню в стиле Apple Settings.
+///
+/// Отображает иконку, заголовок, опциональный подзаголовок и стрелку вправо.
+class _AppleMenuItem extends StatelessWidget {
+  /// Иконка элемента.
   final IconData icon;
-  final String title;
-  final String? value;
-  final Widget? valueWidget;
-  final Color? valueColor;
 
-  const _ProfileInfoItem({
+  /// Цвет иконки.
+  final Color iconColor;
+
+  /// Основной текст элемента.
+  final String title;
+
+  /// Дополнительный текст под заголовком (опционально).
+  final String? subtitle;
+
+  /// Виджет справа (опционально, вместо стрелки).
+  final Widget? trailing;
+
+  /// Показывать ли стрелку вправо.
+  final bool showChevron;
+
+  /// Коллбэк при нажатии.
+  final VoidCallback? onTap;
+
+  /// Создаёт элемент меню в стиле Apple.
+  const _AppleMenuItem({
     required this.icon,
+    required this.iconColor,
     required this.title,
-    this.value,
-    this.valueWidget,
-    this.valueColor,
+    this.subtitle,
+    this.trailing,
+    this.showChevron = true,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+
+    final content = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Иконка в цветном квадратике
           Container(
-            width: 40,
-            height: 40,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
+              color: iconColor.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
               icon,
-              color: theme.colorScheme.primary,
-              size: 20,
+              color: iconColor,
+              size: 18,
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
+          // Текст
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
-                if (valueWidget != null)
-                  valueWidget!
-                else if (value != null)
+                if (subtitle != null)
                   Text(
-                    value!,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w500,
-                      color: valueColor ?? theme.colorScheme.onSurface,
+                    subtitle!,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                     ),
                   ),
               ],
             ),
           ),
+          // Trailing виджет или стрелка
+          if (trailing != null)
+            trailing!
+          else if (showChevron)
+            Icon(
+              Icons.chevron_right,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
+              size: 20,
+            ),
         ],
+      ),
+    );
+
+    if (onTap != null) {
+      return _IOSTapEffect(
+        onTap: onTap!,
+        child: content,
+      );
+    }
+
+    return content;
+  }
+}
+
+/// Виджет для создания iOS-подобного эффекта затемнения при нажатии.
+///
+/// При нажатии элемент затемняется серым фоном, как в iOS Settings.
+class _IOSTapEffect extends StatefulWidget {
+  /// Дочерний виджет.
+  final Widget child;
+
+  /// Коллбэк при нажатии.
+  final VoidCallback onTap;
+
+  /// Создаёт виджет с iOS-подобным эффектом нажатия.
+  const _IOSTapEffect({
+    required this.child,
+    required this.onTap,
+  });
+
+  @override
+  State<_IOSTapEffect> createState() => _IOSTapEffectState();
+}
+
+/// Состояние для [_IOSTapEffect].
+class _IOSTapEffectState extends State<_IOSTapEffect> {
+  /// Флаг нажатия.
+  bool _isPressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) => setState(() => _isPressed = false),
+      onTapCancel: () => setState(() => _isPressed = false),
+      onTap: widget.onTap,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 100),
+        color: _isPressed
+            ? theme.colorScheme.onSurface.withValues(alpha: 0.08)
+            : Colors.transparent,
+        child: widget.child,
       ),
     );
   }
 }
-
-// Удалён _ProfileActionCard как неиспользуемый
-
-// Удалён _ProfileActionItem как неиспользуемый
 
 /// Форма редактирования профиля пользователя.
 ///
@@ -1041,7 +1035,7 @@ class _ProfileEditFormState extends State<ProfileEditForm> {
             onPressed: () {
               if (_formKey.currentState?.validate() ?? false) {
                 widget.onSave(
-                  _capitalizeWords(_fullNameController.text.trim()),
+                  _fullNameController.text.trim(),
                   _phoneController.text.trim(),
                   _selectedObjectIds,
                   _selectedEmployeeId.isEmpty ? null : _selectedEmployeeId,
@@ -1052,7 +1046,11 @@ class _ProfileEditFormState extends State<ProfileEditForm> {
           ),
           const SizedBox(height: 8),
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              if (context.mounted) {
+                Navigator.pop(context);
+              }
+            },
             child: const Text('Отмена'),
           ),
           const SizedBox(height: 8),
@@ -1061,5 +1059,3 @@ class _ProfileEditFormState extends State<ProfileEditForm> {
     );
   }
 }
-
-// удалено: валидатор времени уведомлений (перенос настроек в отдельный экран)

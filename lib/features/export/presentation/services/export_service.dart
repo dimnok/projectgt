@@ -89,40 +89,38 @@ class ExportService {
       // Удаляем стандартный лист
       excel.delete('Sheet1');
 
-      // Конфигурация колонок и порядок
+      // Конфигурация колонок и порядок (без даты, порядок по скриншоту)
       final columnConfig = <String, String>{
-        'date': 'Дата смены',
         'object': 'Объект',
         'contract': 'Договор',
         'system': 'Система',
         'subsystem': 'Подсистема',
+        'section': 'Участок',
+        'floor': 'Этаж',
         'position': '№ позиции',
         'work': 'Наименование работы',
-        'section': 'Секция',
-        'floor': 'Этаж',
-        'unit': 'Единица измерения',
-        'quantity': 'Количество',
+        'unit': 'Ед. изм.',
+        'quantity': 'Кол-во',
         'price': 'Цена за единицу',
-        'total': 'Итоговая сумма',
+        'total': 'Сумма',
       };
       final selectedColumns = (columns ??
           [
-            'date',
             'object',
             'contract',
             'system',
             'subsystem',
-            'position',
-            'work',
             'section',
             'floor',
+            'position',
+            'work',
             'unit',
             'quantity',
             'price',
             'total',
           ])
-        ..removeWhere(
-            (k) => k == 'employee' || k == 'hours' || k == 'materials');
+        ..removeWhere((k) =>
+            k == 'employee' || k == 'hours' || k == 'materials' || k == 'date');
 
       // Стили
       final headerStyle = CellStyle(
@@ -224,13 +222,20 @@ class ExportService {
                 value = TextCellValue(entry.subsystem);
                 break;
               case 'position':
-                value = TextCellValue(entry.positionNumber);
+                // Попытка преобразовать номер позиции в число
+                final posNum = double.tryParse(entry.positionNumber);
+                value = posNum != null
+                    ? DoubleCellValue(posNum)
+                    : TextCellValue(entry.positionNumber);
                 break;
               case 'work':
                 value = TextCellValue(entry.workName);
                 break;
               case 'section':
+                value = TextCellValue('');
+                break;
               case 'floor':
+                // Этаж всегда пустой при агрегации
                 value = TextCellValue('');
                 break;
               case 'unit':
@@ -275,7 +280,11 @@ class ExportService {
                 value = TextCellValue(report.subsystem);
                 break;
               case 'position':
-                value = TextCellValue(report.positionNumber);
+                // Попытка преобразовать номер позиции в число
+                final posNum = double.tryParse(report.positionNumber);
+                value = posNum != null
+                    ? DoubleCellValue(posNum)
+                    : TextCellValue(report.positionNumber);
                 break;
               case 'work':
                 value = TextCellValue(report.workName);
@@ -284,7 +293,11 @@ class ExportService {
                 value = TextCellValue(report.section);
                 break;
               case 'floor':
-                value = TextCellValue(report.floor);
+                // Попытка преобразовать этаж в число
+                final floorNum = double.tryParse(report.floor);
+                value = floorNum != null
+                    ? DoubleCellValue(floorNum)
+                    : TextCellValue(report.floor);
                 break;
               case 'unit':
                 value = TextCellValue(report.unit);

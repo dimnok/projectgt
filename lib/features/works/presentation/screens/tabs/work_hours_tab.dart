@@ -125,7 +125,7 @@ class _WorkHoursTabState extends ConsumerState<WorkHoursTab> {
     // Получаем смену для проверки статуса/прав
     final workAsync = ref.watch(workProvider(widget.workId));
     final isWorkClosed = workAsync?.status.toLowerCase() == 'closed';
-    final currentProfile = ref.watch(profileProvider).profile;
+    final currentProfile = ref.watch(currentUserProfileProvider).profile;
     final isAdmin = ref.watch(authProvider).user?.role == 'admin';
     final bool isOwner = currentProfile != null &&
         workAsync != null &&
@@ -313,7 +313,7 @@ class _WorkHoursTabState extends ConsumerState<WorkHoursTab> {
                         },
                       );
               },
-              loading: () => const Center(child: CircularProgressIndicator()),
+              loading: () => const Center(child: CupertinoActivityIndicator()),
               error: (e, st) => Center(child: Text('Ошибка: $e')),
             );
           },

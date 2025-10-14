@@ -7,6 +7,10 @@
   <meta name="description" content="Система управления проектами и сметами">
   <meta name="keywords" content="project management, estimates, construction">
   
+  <!-- App version info for package_info_plus -->
+  <meta name="version" content="1.0.1">
+  <meta name="build-number" content="21">
+  
   <!-- PWA meta tags -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#ffffff">
@@ -100,48 +104,25 @@
         return themeMeta ? themeMeta.getAttribute('content') : '#000000';
       }
     };
-    // Временный SW для очистки кэша и автообновления
-    if ('serviceWorker' in navigator) {
-      let refreshing = false;
-      navigator.serviceWorker.addEventListener('controllerchange', function() {
-        if (refreshing) return;
-        refreshing = true;
-        window.location.reload();
-      });
-
-      window.addEventListener('load', function() {
-        navigator.serviceWorker.register('flutter_service_worker.js')
-          .then(function(reg) {
-            // Явная проверка обновлений на старте
-            reg.update();
-
-            function sendSkipWaiting(sw) {
-              if (!sw) return;
-              sw.postMessage({ type: 'SKIP_WAITING' });
-            }
-
-            // Если уже есть обновление, активируем сразу
-            if (reg.waiting) {
-              sendSkipWaiting(reg.waiting);
-            }
-
-            // Когда появляется новое installing, ждём installed и активируем
-            reg.addEventListener('updatefound', function() {
-              const newSW = reg.installing;
-              if (!newSW) return;
-              newSW.addEventListener('statechange', function() {
-                if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
-                  sendSkipWaiting(newSW);
-                }
-              });
-            });
-          })
-          .catch(function(err) { console.error('SW registration failed', err); });
-      });
-    }
+    
+    // Конфигурация для Flutter.js с автоматической регистрацией service worker
+    window.addEventListener('load', function() {
+      // Service Worker будет зарегистрирован автоматически через flutter.js
+      // Настроим обработку обновлений
+      if ('serviceWorker' in navigator) {
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', function() {
+          if (refreshing) return;
+          refreshing = true;
+          window.location.reload();
+        });
+      }
+    });
   </script>
+  
 </head>
 <body>
+  <!-- Flutter Bootstrap - современный способ инициализации -->
   <script src="flutter_bootstrap.js" async></script>
 
 </body>

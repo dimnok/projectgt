@@ -63,11 +63,12 @@
 ### 8. Supabase Edge Function (отправка уведомлений)
 - [x] Секреты с сервисным JSON — установлен `SERVICE_ACCOUNT` в проекте
 - [x] Edge Function `send-fcm` — развернута (FCM v1)
-- [x] Edge Function `send_admin_work_event` — развернута (verify_jwt=true)
+- [x] Edge Function `send_admin_work_event` — развернута (v32, verify_jwt=true)
   - Вход: `{ action: 'open'|'close', work_id: UUID }`
   - Открытие: Title «Смена - ОТКРЫТА», Body: `Объект`, `Пользователь`, `Сотрудников: N`
-  - Закрытие: Title «Смена - ЗАКРЫТА», Body: `Объект`, `Пользователь`, `Сумма`, `Выработка` (Сумма / кол-во сотрудников)
+  - Закрытие: Title «Смена - ЗАКРЫТА», Body: `Объект`, `Пользователь`, `Сумма: 125 000 ₽`, `Выработка: 25 000 ₽` (форматировано с пробелами)
   - Data payload: `type, action, work_id, object_id, employees_count?, sum?, production?`
+  - Форматирование: суммы отображаются с пробелами между тысячами (245 766 ₽)
 
 ### 9. Проверка доставки (валидирование)
 - [x] HTTP v1 тест на iOS (prod) — 200 OK (`projects/pgtmess/messages/...`)

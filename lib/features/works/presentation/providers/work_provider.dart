@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/work.dart';
 import '../../domain/repositories/work_repository.dart';
+import 'month_groups_provider.dart';
 import 'repositories_providers.dart';
 
 /// Состояние для списка смен.
@@ -37,17 +38,26 @@ class WorksState {
   }
 }
 
-/// StateNotifier для управления состоянием списка смен.
+/// StateNotifier для управления операциями со сменами (add/update/delete).
+///
+/// ⚠️ НЕ загружает список смен автоматически! Для списка используйте monthGroupsProvider.
+/// Этот провайдер используется для:
+/// - Операций add/update/delete
+/// - Явной загрузки всех смен (метод loadWorks) для специфичных сценариев (notifications)
 class WorksNotifier extends StateNotifier<WorksState> {
   /// Репозиторий для работы со сменами.
   final WorkRepository repository;
 
-  /// Создаёт [WorksNotifier] и сразу загружает список смен.
-  WorksNotifier(this.repository) : super(WorksState(works: [])) {
-    loadWorks();
-  }
+  /// Создаёт [WorksNotifier] БЕЗ автоматической загрузки.
+  ///
+  /// Для списка смен в UI используйте monthGroupsProvider.
+  /// Вызовите loadWorks() явно только если нужны ВСЕ смены.
+  WorksNotifier(this.repository) : super(WorksState(works: []));
 
-  /// Загружает список смен из репозитория.
+  /// Загружает список ВСЕ смен из репозитория.
+  ///
+  /// ⚠️ Используйте только для специфичных задач (notifications, reports).
+  /// Для UI списка смен используйте monthGroupsProvider!
   Future<void> loadWorks() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
@@ -83,6 +93,10 @@ class WorksNotifier extends StateNotifier<WorksState> {
         eveningPhotoUrl: eveningPhotoUrl,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
+        // Агрегатные поля инициализируются нулями (триггеры пересчитают при добавлении работ)
+        totalAmount: 0,
+        itemsCount: 0,
+        employeesCount: 0,
       );
       final created = await repository.addWork(work);
       state = state.copyWith(
@@ -131,19 +145,31 @@ class WorksNotifier extends StateNotifier<WorksState> {
   }
 }
 
-/// Провайдер состояния списка смен.
+/// Провайдер для операций со сменами (add/update/delete).
+///
+/// ⚠️ Используйте только для операций! Для списка смен используйте monthGroupsProvider.
+/// Не хранит список смен для избежания дублирования с monthGroupsProvider.
 final worksProvider = StateNotifierProvider<WorksNotifier, WorksState>((ref) {
   final repository = ref.watch(workRepositoryProvider);
   return WorksNotifier(repository);
 });
 
 /// Провайдер для получения конкретной смены по [id].
+///
+/// Пытается найти смену в monthGroupsProvider сначала, иначе загружает из БД.
 final workProvider = Provider.family<Work?, String>((ref, id) {
-  final state = ref.watch(worksProvider);
-  if (state.works.isEmpty) return null;
-  try {
-    return state.works.firstWhere((work) => work.id == id);
-  } catch (_) {
-    return null;
+  // Пытаемся найти смену в загруженных группах месяцев
+  final monthGroupsState = ref.watch(monthGroupsProvider);
+  for (final group in monthGroupsState.groups) {
+    if (group.works != null) {
+      try {
+        return group.works!.firstWhere((work) => work.id == id);
+      } catch (_) {
+        continue;
+      }
+    }
   }
+  // Если не найдено в группах, возвращаем null
+  // В реальности смена должна быть в одной из раскрытых групп
+  return null;
 });

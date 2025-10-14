@@ -4,6 +4,7 @@ import '../../repositories/employee_rate_repository.dart';
 class GetEmployeeRateForDateUseCase {
   final EmployeeRateRepository _repository;
 
+  /// Создаёт экземпляр [GetEmployeeRateForDateUseCase] с заданным [_repository].
   const GetEmployeeRateForDateUseCase(this._repository);
 
   /// Получает ставку сотрудника на указанную дату

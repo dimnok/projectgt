@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/domain/entities/work_plan.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
@@ -335,7 +334,7 @@ class _WorkPlanDetailsScreenState extends ConsumerState<WorkPlanDetailsScreen> {
           final index = entry.key;
           final block = entry.value;
           return _buildWorkBlockCard(block, index, theme, employeeState);
-        }).toList(),
+        }),
       ],
     );
   }
@@ -419,7 +418,7 @@ class _WorkPlanDetailsScreenState extends ConsumerState<WorkPlanDetailsScreen> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.person_outline,
                     size: 16,
                     color: Colors.red,
@@ -550,7 +549,7 @@ class _WorkPlanDetailsScreenState extends ConsumerState<WorkPlanDetailsScreen> {
                     ],
                   ),
                 );
-              }).toList(),
+              }),
             ],
           ],
         ),

@@ -85,8 +85,9 @@ class WorkSearchDataSourceImpl implements WorkSearchDataSource {
 
         // Проверяем, что work_item соответствует поисковому запросу
         final itemName = workItem['name'] as String? ?? '';
-        if (!itemName.toLowerCase().contains(searchQuery.toLowerCase()))
+        if (!itemName.toLowerCase().contains(searchQuery.toLowerCase())) {
           continue;
+        }
 
         final object = work['objects'] as Map<String, dynamic>?;
 

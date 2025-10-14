@@ -257,13 +257,101 @@ class MaterialsMappingScreen extends ConsumerWidget {
                         if (isExpanded && r.aliases.isNotEmpty) {
                           for (final a in r.aliases) {
                             list.add(TableRow(children: [
-                              const SizedBox.shrink(),
+                              // Иконка
+                              Container(
+                                color: childBg,
+                                alignment: Alignment.center,
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 6, horizontal: 4),
+                                child: a.isKitComponent
+                                    ? const Icon(
+                                        Icons.widgets_outlined,
+                                        size: 14,
+                                        color: Colors.blue,
+                                      )
+                                    : const SizedBox.shrink(),
+                              ),
+                              // Название материала/компонента с количеством
                               Container(
                                 color: childBg,
                                 padding: const EdgeInsets.symmetric(
                                     vertical: 6, horizontal: 8),
-                                child: Text(a.aliasRaw, style: childTextStyle),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        a.aliasRaw,
+                                        style: childTextStyle?.copyWith(
+                                          color: Colors.blue,
+                                        ),
+                                      ),
+                                    ),
+                                    // Количество для комплектов
+                                    if (a.isKitComponent &&
+                                        a.qtyPerKit != null) ...[
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 5,
+                                          vertical: 1,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.blue
+                                              .withValues(alpha: 0.15),
+                                          borderRadius:
+                                              BorderRadius.circular(3),
+                                          border: Border.all(
+                                            color: Colors.blue
+                                                .withValues(alpha: 0.4),
+                                            width: 0.5,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          '×${a.qtyPerKit!.toStringAsFixed(a.qtyPerKit! % 1 == 0 ? 0 : 1)}',
+                                          style: theme.textTheme.bodySmall
+                                              ?.copyWith(
+                                            fontSize: 11,
+                                            color: Colors.blue,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                    // Коэффициент для обычных связей
+                                    if (!a.isKitComponent &&
+                                        a.multiplier != null) ...[
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 5,
+                                          vertical: 1,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.blue
+                                              .withValues(alpha: 0.15),
+                                          borderRadius:
+                                              BorderRadius.circular(3),
+                                          border: Border.all(
+                                            color: Colors.blue
+                                                .withValues(alpha: 0.4),
+                                            width: 0.5,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          '×${a.multiplier!.toStringAsFixed(a.multiplier! % 1 == 0 ? 0 : 1)}',
+                                          style: theme.textTheme.bodySmall
+                                              ?.copyWith(
+                                            fontSize: 11,
+                                            color: Colors.blue,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
                               ),
+                              // Единица измерения
                               Container(
                                 color: childBg,
                                 padding: const EdgeInsets.symmetric(
@@ -271,10 +359,12 @@ class MaterialsMappingScreen extends ConsumerWidget {
                                 child: Text(
                                   a.uomRaw ?? '—',
                                   textAlign: TextAlign.center,
-                                  style: childTextStyle,
+                                  style: childTextStyle?.copyWith(
+                                    color: Colors.blue,
+                                  ),
                                 ),
                               ),
-                              // Колонка «Связь»: жёлтая кнопка минус (unlink)
+                              // Колонка «Связь»: жёлтая кнопка минус
                               Container(
                                 color: childBg,
                                 alignment: Alignment.center,

@@ -133,6 +133,6 @@ class WorkBlockState {
 
   @override
   String toString() {
-    return 'WorkBlockState(id: $id, system: $selectedSystem, works: ${worksCount}, workers: ${workersCount}, cost: ${totalCost.toStringAsFixed(2)})';
+    return 'WorkBlockState(id: $id, system: $selectedSystem, works: $worksCount, workers: $workersCount, cost: ${totalCost.toStringAsFixed(2)})';
   }
 }

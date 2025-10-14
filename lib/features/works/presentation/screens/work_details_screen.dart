@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/work.dart';
 import '../providers/work_provider.dart';
+import '../providers/month_groups_provider.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 
@@ -26,12 +27,12 @@ class WorkDetailsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final workAsync = ref.watch(workProvider(workId));
+    final work = ref.watch(workProvider(workId));
     final isMobile = ResponsiveUtils.isDesktop(context) == false;
-    final currentProfile = ref.watch(profileProvider).profile;
+    final currentProfile = ref.watch(currentUserProfileProvider).profile;
     final isAdmin = ref.watch(authProvider).user?.role == 'admin';
 
-    if (workAsync == null) {
+    if (work == null) {
       return Scaffold(
         appBar: AppBarWidget(
           title: 'Смена',
@@ -41,25 +42,25 @@ class WorkDetailsScreen extends ConsumerWidget {
       );
     }
 
-    final bool canModify = workAsync.status.toLowerCase() == 'open' &&
-        ((currentProfile != null && workAsync.openedBy == currentProfile.id) ||
+    final bool canModify = work.status.toLowerCase() == 'open' &&
+        ((currentProfile != null && work.openedBy == currentProfile.id) ||
             isAdmin);
     final bool showAdminActions = isAdmin || canModify;
 
     return Scaffold(
       appBar: AppBarWidget(
-        title: isMobile ? 'Смена' : 'Смена: ${_formatDate(workAsync.date)}',
+        title: isMobile ? 'Смена' : 'Смена: ${_formatDate(work.date)}',
         leading: isMobile ? const BackButton() : null,
         actions: [
           if (showAdminActions) ...[
             IconButton(
               icon: const Icon(Icons.edit, color: Colors.amber),
-              onPressed: () => _showEditWorkDialog(context, ref, workAsync),
+              onPressed: () => _showEditWorkDialog(context, ref, work),
               tooltip: 'Редактировать',
             ),
             IconButton(
               icon: const Icon(Icons.delete, color: Colors.red),
-              onPressed: () => _confirmDeleteWork(context, ref, workAsync),
+              onPressed: () => _confirmDeleteWork(context, ref, work),
               tooltip: 'Удалить',
             ),
           ],
@@ -149,6 +150,10 @@ class WorkDetailsScreen extends ConsumerWidget {
         if (work.id == null) return;
 
         await ref.read(worksProvider.notifier).deleteWork(work.id!);
+
+        // Обновляем список смен для немедленного отображения изменений
+        await ref.read(monthGroupsProvider.notifier).refresh();
+
         if (context.mounted) {
           context.goNamed('works');
           SnackBarUtils.showSuccess(context, 'Смена успешно удалена');

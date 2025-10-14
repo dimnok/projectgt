@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:logger/logger.dart';
 import '../models/work_model.dart';
+import '../models/month_group.dart';
 import 'work_data_source.dart';
 
 /// Реализация источника данных для работы со сменами через Supabase.
@@ -95,6 +96,69 @@ class WorkDataSourceImpl implements WorkDataSource {
       await client.from(table).delete().eq('id', id);
     } catch (e) {
       _logger.e('Ошибка удаления смены: $e');
+      rethrow;
+    }
+  }
+
+  /// Возвращает заголовки групп месяцев с агрегированными данными.
+  ///
+  /// Использует SQL-агрегацию через RPC-функцию для максимальной производительности.
+  @override
+  Future<List<MonthGroup>> getMonthsHeaders() async {
+    try {
+      // Вызываем RPC-функцию PostgreSQL для группировки на стороне БД
+      // Это в 100x быстрее чем загружать все смены и группировать на клиенте!
+      final response = await client.rpc('get_months_summary');
+
+      // Преобразуем результат в MonthGroup
+      final groups = (response as List).map<MonthGroup>((json) {
+        final month = DateTime.parse(json['month'] as String);
+        final worksCount = (json['works_count'] as num).toInt();
+        final totalAmount = (json['total_amount_sum'] as num).toDouble();
+
+        return MonthGroup(
+          month: month,
+          worksCount: worksCount,
+          totalAmount: totalAmount,
+          isExpanded: false, // ВСЕ месяцы свёрнуты - загрузка только по клику
+          works: null, // Будут загружены лениво при раскрытии
+        );
+      }).toList();
+
+      return groups;
+    } catch (e) {
+      _logger.e('Ошибка получения заголовков месяцев: $e');
+      rethrow;
+    }
+  }
+
+  /// Возвращает смены конкретного месяца с пагинацией.
+  @override
+  Future<List<WorkModel>> getMonthWorks(
+    DateTime month, {
+    int offset = 0,
+    int limit = 30,
+  }) async {
+    try {
+      // Начало месяца
+      final startDate = DateTime(month.year, month.month, 1);
+      // Начало следующего месяца
+      final endDate = DateTime(month.year, month.month + 1, 1);
+
+      // Загружаем смены месяца с пагинацией
+      final response = await client
+          .from(table)
+          .select('*')
+          .gte('date', startDate.toIso8601String())
+          .lt('date', endDate.toIso8601String())
+          .order('date', ascending: false)
+          .range(offset, offset + limit - 1);
+
+      return response
+          .map<WorkModel>((json) => WorkModel.fromJson(json))
+          .toList();
+    } catch (e) {
+      _logger.e('Ошибка получения смен месяца: $e');
       rethrow;
     }
   }

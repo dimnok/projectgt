@@ -50,6 +50,24 @@ mixin _$WorkModel {
   @JsonKey(name: 'updated_at')
   DateTime? get updatedAt;
 
+  /// Общая сумма всех работ в смене.
+  ///
+  /// Вычисляется автоматически через триггеры БД.
+  @JsonKey(name: 'total_amount')
+  double? get totalAmount;
+
+  /// Количество работ в смене.
+  ///
+  /// Вычисляется автоматически через триггеры БД.
+  @JsonKey(name: 'items_count')
+  int? get itemsCount;
+
+  /// Количество уникальных сотрудников в смене.
+  ///
+  /// Вычисляется автоматически через триггеры БД.
+  @JsonKey(name: 'employees_count')
+  int? get employeesCount;
+
   /// Create a copy of WorkModel
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -79,17 +97,35 @@ mixin _$WorkModel {
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
-                other.updatedAt == updatedAt));
+                other.updatedAt == updatedAt) &&
+            (identical(other.totalAmount, totalAmount) ||
+                other.totalAmount == totalAmount) &&
+            (identical(other.itemsCount, itemsCount) ||
+                other.itemsCount == itemsCount) &&
+            (identical(other.employeesCount, employeesCount) ||
+                other.employeesCount == employeesCount));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, id, date, objectId, openedBy,
-      status, photoUrl, eveningPhotoUrl, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+      runtimeType,
+      id,
+      date,
+      objectId,
+      openedBy,
+      status,
+      photoUrl,
+      eveningPhotoUrl,
+      createdAt,
+      updatedAt,
+      totalAmount,
+      itemsCount,
+      employeesCount);
 
   @override
   String toString() {
-    return 'WorkModel(id: $id, date: $date, objectId: $objectId, openedBy: $openedBy, status: $status, photoUrl: $photoUrl, eveningPhotoUrl: $eveningPhotoUrl, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'WorkModel(id: $id, date: $date, objectId: $objectId, openedBy: $openedBy, status: $status, photoUrl: $photoUrl, eveningPhotoUrl: $eveningPhotoUrl, createdAt: $createdAt, updatedAt: $updatedAt, totalAmount: $totalAmount, itemsCount: $itemsCount, employeesCount: $employeesCount)';
   }
 }
 
@@ -107,7 +143,10 @@ abstract mixin class $WorkModelCopyWith<$Res> {
       @JsonKey(name: 'photo_url') String? photoUrl,
       @JsonKey(name: 'evening_photo_url') String? eveningPhotoUrl,
       @JsonKey(name: 'created_at') DateTime? createdAt,
-      @JsonKey(name: 'updated_at') DateTime? updatedAt});
+      @JsonKey(name: 'updated_at') DateTime? updatedAt,
+      @JsonKey(name: 'total_amount') double? totalAmount,
+      @JsonKey(name: 'items_count') int? itemsCount,
+      @JsonKey(name: 'employees_count') int? employeesCount});
 }
 
 /// @nodoc
@@ -131,6 +170,9 @@ class _$WorkModelCopyWithImpl<$Res> implements $WorkModelCopyWith<$Res> {
     Object? eveningPhotoUrl = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
+    Object? totalAmount = freezed,
+    Object? itemsCount = freezed,
+    Object? employeesCount = freezed,
   }) {
     return _then(_self.copyWith(
       id: freezed == id
@@ -169,6 +211,18 @@ class _$WorkModelCopyWithImpl<$Res> implements $WorkModelCopyWith<$Res> {
           ? _self.updatedAt
           : updatedAt // ignore: cast_nullable_to_non_nullable
               as DateTime?,
+      totalAmount: freezed == totalAmount
+          ? _self.totalAmount
+          : totalAmount // ignore: cast_nullable_to_non_nullable
+              as double?,
+      itemsCount: freezed == itemsCount
+          ? _self.itemsCount
+          : itemsCount // ignore: cast_nullable_to_non_nullable
+              as int?,
+      employeesCount: freezed == employeesCount
+          ? _self.employeesCount
+          : employeesCount // ignore: cast_nullable_to_non_nullable
+              as int?,
     ));
   }
 }
@@ -185,7 +239,10 @@ class _WorkModel implements WorkModel {
       @JsonKey(name: 'photo_url') this.photoUrl,
       @JsonKey(name: 'evening_photo_url') this.eveningPhotoUrl,
       @JsonKey(name: 'created_at') this.createdAt,
-      @JsonKey(name: 'updated_at') this.updatedAt});
+      @JsonKey(name: 'updated_at') this.updatedAt,
+      @JsonKey(name: 'total_amount') this.totalAmount,
+      @JsonKey(name: 'items_count') this.itemsCount,
+      @JsonKey(name: 'employees_count') this.employeesCount});
   factory _WorkModel.fromJson(Map<String, dynamic> json) =>
       _$WorkModelFromJson(json);
 
@@ -233,6 +290,27 @@ class _WorkModel implements WorkModel {
   @JsonKey(name: 'updated_at')
   final DateTime? updatedAt;
 
+  /// Общая сумма всех работ в смене.
+  ///
+  /// Вычисляется автоматически через триггеры БД.
+  @override
+  @JsonKey(name: 'total_amount')
+  final double? totalAmount;
+
+  /// Количество работ в смене.
+  ///
+  /// Вычисляется автоматически через триггеры БД.
+  @override
+  @JsonKey(name: 'items_count')
+  final int? itemsCount;
+
+  /// Количество уникальных сотрудников в смене.
+  ///
+  /// Вычисляется автоматически через триггеры БД.
+  @override
+  @JsonKey(name: 'employees_count')
+  final int? employeesCount;
+
   /// Create a copy of WorkModel
   /// with the given fields replaced by the non-null parameter values.
   @override
@@ -267,17 +345,35 @@ class _WorkModel implements WorkModel {
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
-                other.updatedAt == updatedAt));
+                other.updatedAt == updatedAt) &&
+            (identical(other.totalAmount, totalAmount) ||
+                other.totalAmount == totalAmount) &&
+            (identical(other.itemsCount, itemsCount) ||
+                other.itemsCount == itemsCount) &&
+            (identical(other.employeesCount, employeesCount) ||
+                other.employeesCount == employeesCount));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, id, date, objectId, openedBy,
-      status, photoUrl, eveningPhotoUrl, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+      runtimeType,
+      id,
+      date,
+      objectId,
+      openedBy,
+      status,
+      photoUrl,
+      eveningPhotoUrl,
+      createdAt,
+      updatedAt,
+      totalAmount,
+      itemsCount,
+      employeesCount);
 
   @override
   String toString() {
-    return 'WorkModel(id: $id, date: $date, objectId: $objectId, openedBy: $openedBy, status: $status, photoUrl: $photoUrl, eveningPhotoUrl: $eveningPhotoUrl, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'WorkModel(id: $id, date: $date, objectId: $objectId, openedBy: $openedBy, status: $status, photoUrl: $photoUrl, eveningPhotoUrl: $eveningPhotoUrl, createdAt: $createdAt, updatedAt: $updatedAt, totalAmount: $totalAmount, itemsCount: $itemsCount, employeesCount: $employeesCount)';
   }
 }
 
@@ -298,7 +394,10 @@ abstract mixin class _$WorkModelCopyWith<$Res>
       @JsonKey(name: 'photo_url') String? photoUrl,
       @JsonKey(name: 'evening_photo_url') String? eveningPhotoUrl,
       @JsonKey(name: 'created_at') DateTime? createdAt,
-      @JsonKey(name: 'updated_at') DateTime? updatedAt});
+      @JsonKey(name: 'updated_at') DateTime? updatedAt,
+      @JsonKey(name: 'total_amount') double? totalAmount,
+      @JsonKey(name: 'items_count') int? itemsCount,
+      @JsonKey(name: 'employees_count') int? employeesCount});
 }
 
 /// @nodoc
@@ -322,6 +421,9 @@ class __$WorkModelCopyWithImpl<$Res> implements _$WorkModelCopyWith<$Res> {
     Object? eveningPhotoUrl = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
+    Object? totalAmount = freezed,
+    Object? itemsCount = freezed,
+    Object? employeesCount = freezed,
   }) {
     return _then(_WorkModel(
       id: freezed == id
@@ -360,6 +462,18 @@ class __$WorkModelCopyWithImpl<$Res> implements _$WorkModelCopyWith<$Res> {
           ? _self.updatedAt
           : updatedAt // ignore: cast_nullable_to_non_nullable
               as DateTime?,
+      totalAmount: freezed == totalAmount
+          ? _self.totalAmount
+          : totalAmount // ignore: cast_nullable_to_non_nullable
+              as double?,
+      itemsCount: freezed == itemsCount
+          ? _self.itemsCount
+          : itemsCount // ignore: cast_nullable_to_non_nullable
+              as int?,
+      employeesCount: freezed == employeesCount
+          ? _self.employeesCount
+          : employeesCount // ignore: cast_nullable_to_non_nullable
+              as int?,
     ));
   }
 }

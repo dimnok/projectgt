@@ -1,8 +1,29 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
-// import removed: math no longer used
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:projectgt/core/di/providers.dart';
+
+// Константы для визуализации прогресса
+const double _kCircleSize = 180.0;
+const double _kStrokeWidth = 18.0;
+const double _kProgressHeight = 220.0;
+const int _kColorSteps = 9;
+
+// Константы цветовой палитры
+const List<Color> _kColorAnchors = [
+  Color(0xFFFF3B30), // красный
+  Color(0xFFFF9500), // оранжевый
+  Color(0xFFFFCC00), // жёлтый
+  Color(0xFF34C759), // зелёный
+];
+
+// Кэш для NumberFormat и цветовой палитры
+final _moneyFormat =
+    NumberFormat.currency(locale: 'ru_RU', symbol: '₽', decimalDigits: 0);
+final _colorPalette =
+    _buildRedToGreenColors(steps: _kColorSteps, anchors: _kColorAnchors);
 
 class _ContractProgress {
   final double estimatesTotal;
@@ -15,6 +36,15 @@ class _AllProgress {
   final Map<String, _ContractProgress> byContract;
   final String? bestContractId;
   const _AllProgress({required this.byContract, required this.bestContractId});
+}
+
+/// Вычисляет общую сумму из строки данных.
+///
+/// Использует значение `total`, если оно указано, иначе вычисляет как `quantity * price`.
+double _calculateRowTotal(Map<String, dynamic> row) {
+  final double quantity = (row['quantity'] as num?)?.toDouble() ?? 0;
+  final double price = (row['price'] as num?)?.toDouble() ?? 0;
+  return (row['total'] as num?)?.toDouble() ?? (quantity * price);
 }
 
 /// Провайдер прогресса выполнения по всем договорам.
@@ -33,10 +63,7 @@ final allContractsProgressProvider = FutureProvider<_AllProgress>((ref) async {
   for (final row in (estimatesResp as List)) {
     final String? contractId = row['contract_id'] as String?;
     if (contractId == null) continue;
-    final double quantity = (row['quantity'] as num?)?.toDouble() ?? 0;
-    final double price = (row['price'] as num?)?.toDouble() ?? 0;
-    final double rowTotal =
-        (row['total'] as num?)?.toDouble() ?? (quantity * price);
+    final double rowTotal = _calculateRowTotal(row);
     estimatesTotalByContract[contractId] =
         (estimatesTotalByContract[contractId] ?? 0) + rowTotal;
   }
@@ -53,10 +80,7 @@ final allContractsProgressProvider = FutureProvider<_AllProgress>((ref) async {
     if (estimates == null) continue;
     final String? contractId = estimates['contract_id'] as String?;
     if (contractId == null) continue;
-    final double quantity = (row['quantity'] as num?)?.toDouble() ?? 0;
-    final double price = (row['price'] as num?)?.toDouble() ?? 0;
-    final double rowTotal =
-        (row['total'] as num?)?.toDouble() ?? (quantity * price);
+    final double rowTotal = _calculateRowTotal(row);
     executedTotalByContract[contractId] =
         (executedTotalByContract[contractId] ?? 0) + rowTotal;
   }
@@ -87,11 +111,36 @@ final allContractsProgressProvider = FutureProvider<_AllProgress>((ref) async {
 
 /// Провайдер прогресса выполнения для конкретного договора.
 ///
-/// Вычисляет сумму смет и выполненных работ для указанного договора.
+/// Использует данные из [allContractsProgressProvider] для избежания дублирования запросов к БД.
+/// Если данных нет в общем провайдере, делает отдельные запросы.
 ///
 /// [contractId] - идентификатор договора.
 final contractProgressProvider =
     FutureProvider.family<_ContractProgress, String>((ref, contractId) async {
+  // Пытаемся получить данные из общего провайдера (оптимизация)
+  final allProgressAsync = ref.watch(allContractsProgressProvider);
+
+  return allProgressAsync.when(
+    data: (allProgress) {
+      // Если данные есть в кэше - используем их
+      if (allProgress.byContract.containsKey(contractId)) {
+        return allProgress.byContract[contractId]!;
+      }
+      // Если данных нет - делаем отдельный запрос (fallback)
+      return _fetchContractProgress(ref, contractId);
+    },
+    loading: () => _fetchContractProgress(ref, contractId),
+    error: (_, __) => _fetchContractProgress(ref, contractId),
+  );
+});
+
+/// Выполняет прямые запросы к БД для получения прогресса конкретного договора.
+///
+/// Используется как fallback, когда данные недоступны в [allContractsProgressProvider].
+Future<_ContractProgress> _fetchContractProgress(
+  Ref ref,
+  String contractId,
+) async {
   final client = ref.watch(supabaseClientProvider);
 
   // Сумма смет по договору
@@ -102,14 +151,10 @@ final contractProgressProvider =
 
   double estimatesTotal = 0;
   for (final row in (estimatesResp as List)) {
-    final double quantity = (row['quantity'] as num?)?.toDouble() ?? 0;
-    final double price = (row['price'] as num?)?.toDouble() ?? 0;
-    final double rowTotal =
-        (row['total'] as num?)?.toDouble() ?? (quantity * price);
-    estimatesTotal += rowTotal;
+    estimatesTotal += _calculateRowTotal(row);
   }
 
-  // Сумма выполнения по договору из смен: work_items с join на estimates(contract_id)
+  // Сумма выполнения по договору из смен
   final workItemsResp = await client
       .from('work_items')
       .select('total, quantity, price, estimates!inner(contract_id)')
@@ -117,16 +162,14 @@ final contractProgressProvider =
 
   double executedTotal = 0;
   for (final row in (workItemsResp as List)) {
-    final double quantity = (row['quantity'] as num?)?.toDouble() ?? 0;
-    final double price = (row['price'] as num?)?.toDouble() ?? 0;
-    final double rowTotal =
-        (row['total'] as num?)?.toDouble() ?? (quantity * price);
-    executedTotal += rowTotal;
+    executedTotal += _calculateRowTotal(row);
   }
 
   return _ContractProgress(
-      estimatesTotal: estimatesTotal, executedTotal: executedTotal);
-});
+    estimatesTotal: estimatesTotal,
+    executedTotal: executedTotal,
+  );
+}
 
 /// Виджет отображения прогресса выполнения договоров.
 ///
@@ -146,28 +189,39 @@ class _ContractProgressWidgetState
     extends ConsumerState<ContractProgressWidget> {
   String? _selectedContractId;
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Выбор по умолчанию делаем по наибольшему прогрессу через провайдер allContractsProgressProvider
+  /// Возвращает заголовок для отображения договора.
+  String _getContractTitle(String? contractId, List<dynamic> contracts) {
+    if (contractId == null) return 'Договор';
+    final int idx = contracts.indexWhere((c) => c.id == contractId);
+    return idx >= 0 ? 'Договор ${contracts[idx].number}' : 'Договор';
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final contractsState = ref.watch(contractProvider);
-    final money =
-        NumberFormat.currency(locale: 'ru_RU', symbol: '₽', decimalDigits: 0);
-
     final contracts = contractsState.contracts;
     final allProgressAsync = ref.watch(allContractsProgressProvider);
-    String? contractId = _selectedContractId;
-    allProgressAsync.whenData((ap) {
-      if (contractId == null && ap.bestContractId != null) {
-        contractId = ap.bestContractId;
-        if (mounted) setState(() => _selectedContractId = ap.bestContractId);
-      }
-    });
+
+    // Используем listen для установки начального значения вместо setState в build
+    ref.listen<AsyncValue<_AllProgress>>(
+      allContractsProgressProvider,
+      (previous, next) {
+        next.whenData((ap) {
+          if (_selectedContractId == null && ap.bestContractId != null) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                setState(() => _selectedContractId = ap.bestContractId);
+              }
+            });
+          }
+        });
+      },
+    );
+
+    // Определяем текущий contractId для отображения
+    final String? contractId =
+        _selectedContractId ?? allProgressAsync.asData?.value.bestContractId;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -179,22 +233,12 @@ class _ContractProgressWidgetState
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
             const SizedBox(width: 8),
             Expanded(
-              child: Builder(builder: (context) {
-                String title = 'Договор';
-                if (contractId != null) {
-                  final int idx =
-                      contracts.indexWhere((c) => c.id == contractId);
-                  if (idx >= 0) {
-                    title = 'Договор ${contracts[idx].number}';
-                  }
-                }
-                return Text(
-                  title,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w700),
-                );
-              }),
+              child: Text(
+                _getContractTitle(contractId, contracts),
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w700),
+              ),
             ),
             IconButton(
               tooltip: 'Предыдущий',
@@ -228,8 +272,7 @@ class _ContractProgressWidgetState
             ),
           ],
         ),
-        const SizedBox(height: 8),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         if (contractId == null || contracts.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 24),
@@ -243,7 +286,10 @@ class _ContractProgressWidgetState
         else
           Consumer(
             builder: (context, ref, _) {
-              final async = ref.watch(contractProgressProvider(contractId!));
+              // contractId точно не null из-за условия выше, но добавим проверку для линтера
+              final String currentContractId = contractId;
+              final async =
+                  ref.watch(contractProgressProvider(currentContractId));
               return async.when(
                 loading: () => const SizedBox(
                   height: 160,
@@ -269,30 +315,30 @@ class _ContractProgressWidgetState
                     builder: (context, ratio, _) {
                       final String percentStr =
                           '${(ratio * 100).toStringAsFixed(0)}%';
-                      final List<Color> palette =
-                          _buildRedToGreenColors(steps: 9);
-                      final Color currentColor = _colorAt(ratio, palette);
+                      // Используем кэшированную палитру вместо создания новой в каждом кадре
+                      final Color currentColor = _colorAt(ratio, _colorPalette);
                       return Align(
                         alignment: Alignment.center,
                         child: SizedBox(
-                          height: 220,
+                          height: _kProgressHeight,
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               SizedBox(
-                                width: 180,
-                                height: 180,
+                                width: _kCircleSize,
+                                height: _kCircleSize,
                                 child: Stack(
                                   alignment: Alignment.center,
                                   children: [
                                     CustomPaint(
-                                      size: const Size(180, 180),
+                                      size: const Size(
+                                          _kCircleSize, _kCircleSize),
                                       painter: _GradientCircularPainter(
                                         ratio: ratio,
                                         trackColor: theme.colorScheme.onSurface
                                             .withValues(alpha: 0.08),
-                                        gradientColors: palette,
-                                        strokeWidth: 18,
+                                        gradientColors: _colorPalette,
+                                        strokeWidth: _kStrokeWidth,
                                       ),
                                     ),
                                     Text(
@@ -309,7 +355,7 @@ class _ContractProgressWidgetState
                               ),
                               const SizedBox(height: 12),
                               Text(
-                                '${money.format(total)} / ${money.format(done)}',
+                                '${_moneyFormat.format(done)} / ${_moneyFormat.format(total)}',
                                 style: theme.textTheme.bodyMedium?.copyWith(
                                   color: theme.colorScheme.onSurface
                                       .withValues(alpha: 0.7),
@@ -332,40 +378,46 @@ class _ContractProgressWidgetState
   // Прокрутка чипов удалена
 }
 
-List<Color> _buildRedToGreenColors({int steps = 7}) {
-  // Профессиональная палитра от красного к зелёному:
-  // старт — фирменный iOS-красный, финиш — iOS-зелёный, с мягкими переходами
-  const List<Color> anchors = [
-    Color(0xFFFF3B30), // красный
-    Color(0xFFFF9500), // оранжевый
-    Color(0xFFFFCC00), // жёлтый
-    Color(0xFF34C759), // зелёный
-  ];
+/// Создает интерполированную палитру цветов от красного к зелёному.
+///
+/// [steps] - количество цветов в палитре.
+/// [anchors] - якорные цвета для интерполяции.
+List<Color> _buildRedToGreenColors({
+  required int steps,
+  required List<Color> anchors,
+}) {
+  if (anchors.isEmpty) return const [Colors.red];
+  if (steps <= 0) return [anchors.first];
+  if (steps == 1) return [anchors.first];
+
   if (steps <= anchors.length) {
-    // если шагов мало — используем подмножество
+    // Для малого количества шагов - возвращаем подмножество якорей
     final double step = (anchors.length - 1) / (steps - 1);
-    return [for (int i = 0; i < steps; i++) anchors[(i * step).round()]];
+    return List.generate(steps, (i) => anchors[(i * step).round()]);
   }
-  // Иначе — интерполируем между якорями
-  final List<Color> colors = <Color>[];
+
+  // Интерполяция между якорными цветами
+  final List<Color> colors = [];
   final int segments = anchors.length - 1;
-  final int perSeg = (steps / segments).ceil();
+  final int colorsPerSegment = (steps / segments).ceil();
+
   for (int s = 0; s < segments; s++) {
-    final Color a = anchors[s];
-    final Color b = anchors[s + 1];
-    for (int i = 0; i < perSeg; i++) {
-      if (s * perSeg + i >= steps) break;
-      final double t = i / (perSeg - 1).clamp(1, double.maxFinite);
-      colors.add(Color.lerp(a, b, t) ?? a);
+    final Color startColor = anchors[s];
+    final Color endColor = anchors[s + 1];
+
+    for (int i = 0; i < colorsPerSegment && colors.length < steps; i++) {
+      final double t = colorsPerSegment > 1 ? i / (colorsPerSegment - 1) : 0.0;
+      colors.add(Color.lerp(startColor, endColor, t) ?? startColor);
     }
   }
-  // Гарантируем длину и конечные цвета
-  if (colors.isEmpty) return anchors;
-  colors[0] = anchors.first;
-  colors[colors.length - 1] = anchors.last;
+
+  // Гарантируем правильную длину и корректные крайние цвета
   if (colors.length > steps) {
     colors.removeRange(steps, colors.length);
   }
+  colors[0] = anchors.first;
+  colors[colors.length - 1] = anchors.last;
+
   return colors;
 }
 
@@ -385,58 +437,58 @@ class _GradientCircularPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = (size.width / 2) - (strokeWidth / 2) - 2;
 
+    // Фоновый трек (серый круг)
     final trackPaint = Paint()
       ..color = trackColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.butt
       ..isAntiAlias = true;
 
     canvas.drawCircle(center, radius, trackPaint);
 
     if (ratio <= 0) return;
 
-    // Старт в верхней точке и слегка смещаем назад на половину толщины,
-    // чтобы в начале всегда был красный сектор и не проскакивал зелёный
-    final startAngle = -3.141592653589793 / 2 - (strokeWidth / radius) * 0.02;
-    final sweep = 2 * 3.141592653589793 * ratio;
+    // Старт строго в верхней точке (12 часов)
+    const startAngle = -math.pi / 2;
+    final sweep = 2 * math.pi * ratio;
     final rect = Rect.fromCircle(center: center, radius: radius);
 
-    // (stops не требуется при кусочной отрисовке)
-    // Рисуем прогресс кусочно (штрихами) чтобы гарантировать начало с красного
-    final int segments = (90 + 180 * ratio).toInt().clamp(1, 270);
-    final double segSweep = sweep / segments;
+    // Количество сегментов для плавного градиента
+    // Минимум 60 сегментов для качественного градиента
+    final int segments = math.max(60, (ratio * 180).toInt());
+    final double segmentAngle = sweep / segments;
+
+    // Рисуем каждый сегмент с правильным цветом
     for (int i = 0; i < segments; i++) {
-      // Цвет дуги должен соответствовать реальному прогрессу.
-      // Используем глобальную позицию относительно полного диапазона [0..1],
-      // умноженную на ratio, чтобы при малых значениях кончик не становился зелёным.
-      final double tm = ((i + 0.5) / segments) * ratio;
-      final Color c = _colorAt(tm, gradientColors);
-      final Paint p = Paint()
-        ..color = c
+      // КЛЮЧЕВОЙ МОМЕНТ: мапим сегменты на диапазон [0..ratio]
+      // Для 2%: все сегменты будут в диапазоне [0..0.02] - красные
+      // Для 50%: сегменты в диапазоне [0..0.5] - от красного до оранжевого
+      // Для 100%: сегменты в диапазоне [0..1.0] - от красного до зелёного
+      final double normalizedPosition = i / (segments - 1); // от 0 до 1
+      final double colorProgress = normalizedPosition * ratio; // от 0 до ratio
+
+      // Получаем цвет для этой позиции в палитре
+      final Color segmentColor = _colorAt(colorProgress, gradientColors);
+
+      final Paint paint = Paint()
+        ..color = segmentColor
         ..style = PaintingStyle.stroke
         ..strokeWidth = strokeWidth
-        ..strokeCap = StrokeCap.round
+        ..strokeCap = StrokeCap.butt
         ..isAntiAlias = true;
-      final double a0 = startAngle + segSweep * i;
-      canvas.drawArc(rect, a0, segSweep, false, p);
+
+      final double currentAngle = startAngle + (segmentAngle * i);
+
+      // Рисуем сегмент без перекрытия (StrokeCap.butt обеспечивает плотное прилегание)
+      canvas.drawArc(
+        rect,
+        currentAngle,
+        segmentAngle,
+        false,
+        paint,
+      );
     }
-
-    // Объёмный эффект: мягкая внешняя тень и внутренняя подсветка вдоль дуги
-    final Paint outerShadow = Paint()
-      ..color = const Color(0xFF000000).withValues(alpha: 0.08)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth + 3
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2)
-      ..isAntiAlias = true;
-    canvas.drawArc(rect, startAngle, sweep, false, outerShadow);
-
-    final Paint innerHighlight = Paint()
-      ..color = const Color(0xFFFFFFFF).withValues(alpha: 0.10)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth - 3
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.5)
-      ..isAntiAlias = true;
-    canvas.drawArc(rect, startAngle, sweep, false, innerHighlight);
   }
 
   @override

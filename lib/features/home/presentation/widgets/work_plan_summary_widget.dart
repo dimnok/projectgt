@@ -13,6 +13,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// - сумма плана считается как WorkPlan.totalPlannedCost
 /// - «на специалиста» = сумма плана / число уникальных работников в планах блоков
 class WorkPlanSummaryWidget extends ConsumerWidget {
+  /// Создаёт виджет карточки «План работ» для главного экрана.
   const WorkPlanSummaryWidget({super.key});
 
   @override
@@ -94,7 +95,7 @@ class WorkPlanSummaryWidget extends ConsumerWidget {
                 ? ((actualSum / totalPlan) * 100).clamp(0, 100)
                 : progressPercent;
             final String suffix = (actualSum <= 0 && totalBlocks > 0)
-                ? ' · ${completeBlocks}/${totalBlocks} блоков'
+                ? ' · $completeBlocks/$totalBlocks блоков'
                 : '';
             return _ProgressBar(
               percent: finalPercent,

@@ -600,7 +600,7 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
     // Получаем смену для проверки статуса
     final workAsync = ref.watch(workProvider(widget.workId));
     final isWorkClosed = workAsync?.status.toLowerCase() == 'closed';
-    final currentProfile = ref.watch(profileProvider).profile;
+    final currentProfile = ref.watch(currentUserProfileProvider).profile;
     final isAdmin = ref.watch(authProvider).user?.role == 'admin';
     final bool isOwner = currentProfile != null &&
         workAsync != null &&
@@ -997,15 +997,11 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                                 numberWidget = Container(
                                   width: 30,
                                   alignment: Alignment.center,
-                                  child: SizedBox(
+                                  child: const SizedBox(
                                     width: 18,
                                     height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .primary
-                                          .withValues(alpha: 0.5),
+                                    child: CupertinoActivityIndicator(
+                                      radius: 9,
                                     ),
                                   ),
                                 );
@@ -1608,7 +1604,8 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                     ],
                   );
                 },
-                loading: () => const Center(child: CircularProgressIndicator()),
+                loading: () =>
+                    const Center(child: CupertinoActivityIndicator()),
                 error: (e, st) => Center(child: Text('Ошибка: $e')),
               );
             },

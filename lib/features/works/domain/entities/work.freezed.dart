@@ -42,6 +42,24 @@ mixin _$Work {
   /// Дата последнего обновления.
   DateTime? get updatedAt;
 
+  /// Общая сумма всех работ в смене.
+  ///
+  /// Вычисляется автоматически через триггеры БД при изменении work_items.
+  /// Nullable для обратной совместимости.
+  double? get totalAmount;
+
+  /// Количество работ в смене.
+  ///
+  /// Вычисляется автоматически через триггеры БД при изменении work_items.
+  /// Nullable для обратной совместимости.
+  int? get itemsCount;
+
+  /// Количество уникальных сотрудников в смене.
+  ///
+  /// Вычисляется автоматически через триггеры БД при изменении work_hours.
+  /// Nullable для обратной совместимости.
+  int? get employeesCount;
+
   /// Create a copy of Work
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -68,16 +86,34 @@ mixin _$Work {
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
-                other.updatedAt == updatedAt));
+                other.updatedAt == updatedAt) &&
+            (identical(other.totalAmount, totalAmount) ||
+                other.totalAmount == totalAmount) &&
+            (identical(other.itemsCount, itemsCount) ||
+                other.itemsCount == itemsCount) &&
+            (identical(other.employeesCount, employeesCount) ||
+                other.employeesCount == employeesCount));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, id, date, objectId, openedBy,
-      status, photoUrl, eveningPhotoUrl, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+      runtimeType,
+      id,
+      date,
+      objectId,
+      openedBy,
+      status,
+      photoUrl,
+      eveningPhotoUrl,
+      createdAt,
+      updatedAt,
+      totalAmount,
+      itemsCount,
+      employeesCount);
 
   @override
   String toString() {
-    return 'Work(id: $id, date: $date, objectId: $objectId, openedBy: $openedBy, status: $status, photoUrl: $photoUrl, eveningPhotoUrl: $eveningPhotoUrl, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'Work(id: $id, date: $date, objectId: $objectId, openedBy: $openedBy, status: $status, photoUrl: $photoUrl, eveningPhotoUrl: $eveningPhotoUrl, createdAt: $createdAt, updatedAt: $updatedAt, totalAmount: $totalAmount, itemsCount: $itemsCount, employeesCount: $employeesCount)';
   }
 }
 
@@ -95,7 +131,10 @@ abstract mixin class $WorkCopyWith<$Res> {
       String? photoUrl,
       String? eveningPhotoUrl,
       DateTime? createdAt,
-      DateTime? updatedAt});
+      DateTime? updatedAt,
+      double? totalAmount,
+      int? itemsCount,
+      int? employeesCount});
 }
 
 /// @nodoc
@@ -119,6 +158,9 @@ class _$WorkCopyWithImpl<$Res> implements $WorkCopyWith<$Res> {
     Object? eveningPhotoUrl = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
+    Object? totalAmount = freezed,
+    Object? itemsCount = freezed,
+    Object? employeesCount = freezed,
   }) {
     return _then(_self.copyWith(
       id: freezed == id
@@ -157,6 +199,18 @@ class _$WorkCopyWithImpl<$Res> implements $WorkCopyWith<$Res> {
           ? _self.updatedAt
           : updatedAt // ignore: cast_nullable_to_non_nullable
               as DateTime?,
+      totalAmount: freezed == totalAmount
+          ? _self.totalAmount
+          : totalAmount // ignore: cast_nullable_to_non_nullable
+              as double?,
+      itemsCount: freezed == itemsCount
+          ? _self.itemsCount
+          : itemsCount // ignore: cast_nullable_to_non_nullable
+              as int?,
+      employeesCount: freezed == employeesCount
+          ? _self.employeesCount
+          : employeesCount // ignore: cast_nullable_to_non_nullable
+              as int?,
     ));
   }
 }
@@ -173,7 +227,10 @@ class _Work implements Work {
       this.photoUrl,
       this.eveningPhotoUrl,
       this.createdAt,
-      this.updatedAt});
+      this.updatedAt,
+      this.totalAmount,
+      this.itemsCount,
+      this.employeesCount});
 
   /// Идентификатор смены.
   @override
@@ -211,6 +268,27 @@ class _Work implements Work {
   @override
   final DateTime? updatedAt;
 
+  /// Общая сумма всех работ в смене.
+  ///
+  /// Вычисляется автоматически через триггеры БД при изменении work_items.
+  /// Nullable для обратной совместимости.
+  @override
+  final double? totalAmount;
+
+  /// Количество работ в смене.
+  ///
+  /// Вычисляется автоматически через триггеры БД при изменении work_items.
+  /// Nullable для обратной совместимости.
+  @override
+  final int? itemsCount;
+
+  /// Количество уникальных сотрудников в смене.
+  ///
+  /// Вычисляется автоматически через триггеры БД при изменении work_hours.
+  /// Nullable для обратной совместимости.
+  @override
+  final int? employeesCount;
+
   /// Create a copy of Work
   /// with the given fields replaced by the non-null parameter values.
   @override
@@ -238,16 +316,34 @@ class _Work implements Work {
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
-                other.updatedAt == updatedAt));
+                other.updatedAt == updatedAt) &&
+            (identical(other.totalAmount, totalAmount) ||
+                other.totalAmount == totalAmount) &&
+            (identical(other.itemsCount, itemsCount) ||
+                other.itemsCount == itemsCount) &&
+            (identical(other.employeesCount, employeesCount) ||
+                other.employeesCount == employeesCount));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, id, date, objectId, openedBy,
-      status, photoUrl, eveningPhotoUrl, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+      runtimeType,
+      id,
+      date,
+      objectId,
+      openedBy,
+      status,
+      photoUrl,
+      eveningPhotoUrl,
+      createdAt,
+      updatedAt,
+      totalAmount,
+      itemsCount,
+      employeesCount);
 
   @override
   String toString() {
-    return 'Work(id: $id, date: $date, objectId: $objectId, openedBy: $openedBy, status: $status, photoUrl: $photoUrl, eveningPhotoUrl: $eveningPhotoUrl, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'Work(id: $id, date: $date, objectId: $objectId, openedBy: $openedBy, status: $status, photoUrl: $photoUrl, eveningPhotoUrl: $eveningPhotoUrl, createdAt: $createdAt, updatedAt: $updatedAt, totalAmount: $totalAmount, itemsCount: $itemsCount, employeesCount: $employeesCount)';
   }
 }
 
@@ -266,7 +362,10 @@ abstract mixin class _$WorkCopyWith<$Res> implements $WorkCopyWith<$Res> {
       String? photoUrl,
       String? eveningPhotoUrl,
       DateTime? createdAt,
-      DateTime? updatedAt});
+      DateTime? updatedAt,
+      double? totalAmount,
+      int? itemsCount,
+      int? employeesCount});
 }
 
 /// @nodoc
@@ -290,6 +389,9 @@ class __$WorkCopyWithImpl<$Res> implements _$WorkCopyWith<$Res> {
     Object? eveningPhotoUrl = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
+    Object? totalAmount = freezed,
+    Object? itemsCount = freezed,
+    Object? employeesCount = freezed,
   }) {
     return _then(_Work(
       id: freezed == id
@@ -328,6 +430,18 @@ class __$WorkCopyWithImpl<$Res> implements _$WorkCopyWith<$Res> {
           ? _self.updatedAt
           : updatedAt // ignore: cast_nullable_to_non_nullable
               as DateTime?,
+      totalAmount: freezed == totalAmount
+          ? _self.totalAmount
+          : totalAmount // ignore: cast_nullable_to_non_nullable
+              as double?,
+      itemsCount: freezed == itemsCount
+          ? _self.itemsCount
+          : itemsCount // ignore: cast_nullable_to_non_nullable
+              as int?,
+      employeesCount: freezed == employeesCount
+          ? _self.employeesCount
+          : employeesCount // ignore: cast_nullable_to_non_nullable
+              as int?,
     ));
   }
 }

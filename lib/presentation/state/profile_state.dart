@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/domain/entities/profile.dart';
 import 'package:projectgt/presentation/state/auth_state.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Перечисление возможных статусов загрузки и обработки профиля пользователя.
 ///
@@ -219,6 +220,48 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
     }
   }
 
+  /// Обновляет профиль без смены статуса на loading (оптимистичное обновление).
+  ///
+  /// Используется для быстрых обновлений UI (переключение статуса, изменение роли)
+  /// без показа индикатора загрузки и перерисовки всего экрана.
+  Future<void> updateProfileSilently(Profile profile) async {
+    // Оптимистично обновляем UI сразу
+    final optimisticList = state.profiles.isEmpty
+        ? state.profiles
+        : state.profiles.map((p) => p.id == profile.id ? profile : p).toList();
+
+    state = state.copyWith(
+      profile: state.profile?.id == profile.id ? profile : state.profile,
+      profiles: optimisticList,
+    );
+
+    try {
+      // Отправляем изменения на сервер в фоне
+      final updatedProfile =
+          await _ref.read(updateProfileUseCaseProvider).call(profile);
+
+      // Обновляем с реальными данными с сервера (без смены статуса)
+      final updatedList = state.profiles.isEmpty
+          ? state.profiles
+          : state.profiles
+              .map((p) => p.id == updatedProfile.id ? updatedProfile : p)
+              .toList();
+
+      state = state.copyWith(
+        profile: state.profile?.id == updatedProfile.id
+            ? updatedProfile
+            : state.profile,
+        profiles: updatedList,
+      );
+    } catch (e) {
+      // При ошибке откатываем изменения и показываем ошибку
+      state = state.copyWith(
+        status: ProfileStatus.error,
+        errorMessage: e.toString(),
+      );
+    }
+  }
+
   /// Принудительно обновляет данные профиля по [userId].
   ///
   /// Сбрасывает флаг загрузки и выполняет повторный запрос.
@@ -244,6 +287,8 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
 ///
 /// Всегда содержит профиль текущего пользователя и не перезаписывается при просмотре чужих профилей.
 /// Используется для UI компонентов, которые должны показывать данные текущего пользователя.
+///
+/// Подписывается на Realtime изменения статуса — если админ деактивирует пользователя, происходит мгновенный logout.
 class CurrentUserProfileNotifier extends StateNotifier<ProfileState> {
   /// Провайдер use case для получения профиля.
   final getProfileUseCase = getProfileUseCaseProvider;
@@ -253,6 +298,9 @@ class CurrentUserProfileNotifier extends StateNotifier<ProfileState> {
 
   /// Флаг, указывающий, что профиль сейчас загружается.
   bool _isLoadingProfile = false;
+
+  /// Realtime канал для отслеживания изменений статуса текущего пользователя.
+  RealtimeChannel? _statusChannel;
 
   /// Создаёт [CurrentUserProfileNotifier] и подписывается на изменения авторизации.
   CurrentUserProfileNotifier(Ref ref)
@@ -264,6 +312,12 @@ class CurrentUserProfileNotifier extends StateNotifier<ProfileState> {
   /// Ссылка на [Ref] для доступа к провайдерам.
   final Ref _ref;
 
+  @override
+  void dispose() {
+    _unsubscribeFromStatusChanges();
+    super.dispose();
+  }
+
   /// Подписывается на изменения статуса авторизации и автоматически загружает профиль текущего пользователя.
   void _listenToAuthChanges() {
     _ref.listen(authProvider, (previous, current) {
@@ -273,6 +327,7 @@ class CurrentUserProfileNotifier extends StateNotifier<ProfileState> {
           (previous?.user?.id != current.user!.id || state.profile == null)) {
         getCurrentUserProfile(current.user!.id);
       } else if (current.status == AuthStatus.unauthenticated) {
+        _unsubscribeFromStatusChanges();
         state = ProfileState.initial();
       }
     });
@@ -307,6 +362,8 @@ class CurrentUserProfileNotifier extends StateNotifier<ProfileState> {
           status: ProfileStatus.success,
           profile: profile,
         );
+        // Подписываемся на Realtime изменения статуса
+        _subscribeToStatusChanges(userId);
       } else {
         state = state.copyWith(
           status: ProfileStatus.error,
@@ -320,6 +377,49 @@ class CurrentUserProfileNotifier extends StateNotifier<ProfileState> {
       );
     } finally {
       _isLoadingProfile = false;
+    }
+  }
+
+  /// Подписывается на Realtime изменения статуса текущего пользователя.
+  ///
+  /// При деактивации (status = false) мгновенно переводит на экран "Доступ временно отключён".
+  void _subscribeToStatusChanges(String userId) {
+    _unsubscribeFromStatusChanges();
+
+    final client = _ref.read(supabaseClientProvider);
+
+    _statusChannel = client
+        .channel('profile_status:$userId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'profiles',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'id',
+            value: userId,
+          ),
+          callback: (payload) {
+            final status = payload.newRecord['status'] as bool?;
+
+            if (status == false) {
+              final authNotifier = _ref.read(authProvider.notifier);
+              authNotifier.state = authNotifier.state.copyWith(
+                status: AuthStatus.disabled,
+              );
+            }
+          },
+        )
+        .subscribe();
+  }
+
+  /// Отписывается от Realtime изменений статуса.
+  void _unsubscribeFromStatusChanges() {
+    if (_statusChannel != null) {
+      final client = _ref.read(supabaseClientProvider);
+      _statusChannel!.unsubscribe();
+      client.removeChannel(_statusChannel!);
+      _statusChannel = null;
     }
   }
 

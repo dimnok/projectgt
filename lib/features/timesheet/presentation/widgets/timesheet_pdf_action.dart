@@ -44,7 +44,7 @@ class TimesheetPdfAction extends ConsumerWidget {
       final dateFormatter = DateFormat('dd.MM.yyyy');
       final startDateStr = dateFormatter.format(state.startDate);
       final endDateStr = dateFormatter.format(state.endDate);
-      final fileName = 'Табель_${startDateStr}_${endDateStr}.pdf';
+      final fileName = 'Табель_${startDateStr}_$endDateStr.pdf';
 
       // Создаем сервис с репозиторием и экспортируем
       final employeeRepository = ref.read(employeeRepositoryProvider);

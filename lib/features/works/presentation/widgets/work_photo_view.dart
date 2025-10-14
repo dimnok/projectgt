@@ -303,13 +303,8 @@ class WorkPhotoView extends StatelessWidget {
                         width: double.infinity,
                         height: 300,
                         color: theme.colorScheme.surface.withValues(alpha: 0.7),
-                        child: Center(
-                          child: CircularProgressIndicator(
-                            value: loadingProgress.expectedTotalBytes != null
-                                ? loadingProgress.cumulativeBytesLoaded /
-                                    loadingProgress.expectedTotalBytes!
-                                : null,
-                          ),
+                        child: const Center(
+                          child: CupertinoActivityIndicator(),
                         ),
                       );
                     },
@@ -409,7 +404,7 @@ class _FullscreenPhotoViewState extends ConsumerState<_FullscreenPhotoView> {
   }
 
   bool get _canModify {
-    final profile = ref.read(profileProvider).profile;
+    final profile = ref.read(currentUserProfileProvider).profile;
     return profile != null &&
         widget.work.openedBy == profile.id &&
         widget.work.status.toLowerCase() == 'open';
@@ -570,17 +565,11 @@ class _FullscreenPhotoViewState extends ConsumerState<_FullscreenPhotoView> {
             _currentIndex = index;
           });
         },
-        loadingBuilder: (context, event) => Center(
+        loadingBuilder: (context, event) => const Center(
           child: SizedBox(
             width: 30.0,
             height: 30.0,
-            child: CircularProgressIndicator(
-              value: event == null
-                  ? 0
-                  : event.cumulativeBytesLoaded / event.expectedTotalBytes!,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                  Theme.of(context).colorScheme.primary),
-            ),
+            child: CupertinoActivityIndicator(),
           ),
         ),
       ),

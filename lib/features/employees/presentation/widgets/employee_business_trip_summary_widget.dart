@@ -277,7 +277,7 @@ class _EmployeeBusinessTripSummaryWidgetState
                       ),
                     ),
                     Text(
-                      'от ${(rate.minimumHours ?? 0.0).toStringAsFixed(1)} часов',
+                      'от ${rate.minimumHours.toStringAsFixed(1)} часов',
                       style: widget.theme.textTheme.bodySmall?.copyWith(
                         color: widget.theme.colorScheme.onSurface
                             .withValues(alpha: 0.7),
@@ -300,7 +300,7 @@ class _EmployeeBusinessTripSummaryWidgetState
               ],
             ),
           );
-        }).toList(),
+        }),
       ],
     );
   }

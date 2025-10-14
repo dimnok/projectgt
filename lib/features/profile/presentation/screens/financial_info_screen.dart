@@ -6,7 +6,9 @@ import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
 import 'package:projectgt/core/di/providers.dart';
 
-/// Пустая страница "Финансовая информация" (заглушка).
+/// Экран финансовой информации сотрудника.
+///
+/// Отображает финансовые данные: часы, зарплату, премии, штрафы, суточные и выплаты.
 class FinancialInfoScreen extends ConsumerStatefulWidget {
   /// Создает экран финансовой информации.
   const FinancialInfoScreen({super.key});
@@ -40,8 +42,16 @@ class _FinancialInfoScreenState extends ConsumerState<FinancialInfoScreen> {
         ? (profileState.profile!.object!['employee_id'] as String?)
         : null;
 
+    // Проверяем, является ли выбранный месяц текущим
+    final now = DateTime.now();
+    final currentMonth = DateTime(now.year, now.month, 1);
+    final isCurrentMonth = _monthStart.year == currentMonth.year &&
+        _monthStart.month == currentMonth.month;
+
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: theme.brightness == Brightness.light
+          ? const Color(0xFFF2F2F7) // iOS светлый grouped background
+          : const Color(0xFF1C1C1E), // iOS темный grouped background
       appBar: const AppBarWidget(
         title: 'Финансовая информация',
         leading: BackButton(),
@@ -56,23 +66,11 @@ class _FinancialInfoScreenState extends ConsumerState<FinancialInfoScreen> {
             )
           : Column(
               children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                  child: Row(
-                    children: [
-                      OutlinedButton.icon(
-                        onPressed: () => _shiftMonth(-1),
-                        icon: const Icon(Icons.chevron_left),
-                        label: const Text('Пред.'),
-                      ),
-                      const Spacer(),
-                      OutlinedButton.icon(
-                        onPressed: () => _shiftMonth(1),
-                        icon: const Icon(Icons.chevron_right),
-                        label: const Text('След.'),
-                      ),
-                    ],
-                  ),
+                _MonthNavigationBar(
+                  monthStart: _monthStart,
+                  isCurrentMonth: isCurrentMonth,
+                  onPreviousMonth: () => _shiftMonth(-1),
+                  onNextMonth: () => _shiftMonth(1),
                 ),
                 Expanded(
                   child: _FinancialInfoBody(
@@ -82,6 +80,111 @@ class _FinancialInfoScreenState extends ConsumerState<FinancialInfoScreen> {
                 ),
               ],
             ),
+    );
+  }
+}
+
+/// Панель навигации по месяцам в стиле Apple.
+class _MonthNavigationBar extends StatelessWidget {
+  final DateTime monthStart;
+  final bool isCurrentMonth;
+  final VoidCallback onPreviousMonth;
+  final VoidCallback onNextMonth;
+
+  const _MonthNavigationBar({
+    required this.monthStart,
+    required this.isCurrentMonth,
+    required this.onPreviousMonth,
+    required this.onNextMonth,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final monthTitle = DateFormat('LLLL yyyy', 'ru_RU').format(monthStart);
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          // Кнопка "Назад"
+          _NavigationButton(
+            icon: Icons.chevron_left,
+            onPressed: onPreviousMonth,
+          ),
+          // Название месяца
+          Expanded(
+            child: Text(
+              monthTitle,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          // Кнопка "Вперед" (скрыта для текущего месяца)
+          if (!isCurrentMonth)
+            _NavigationButton(
+              icon: Icons.chevron_right,
+              onPressed: onNextMonth,
+            )
+          else
+            const SizedBox(width: 36), // Для симметрии
+        ],
+      ),
+    );
+  }
+}
+
+/// Кнопка навигации в стиле iOS.
+class _NavigationButton extends StatefulWidget {
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  const _NavigationButton({
+    required this.icon,
+    required this.onPressed,
+  });
+
+  @override
+  State<_NavigationButton> createState() => _NavigationButtonState();
+}
+
+class _NavigationButtonState extends State<_NavigationButton> {
+  bool _isPressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) {
+        setState(() => _isPressed = false);
+        widget.onPressed();
+      },
+      onTapCancel: () => setState(() => _isPressed = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 100),
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: _isPressed
+              ? theme.colorScheme.primary.withValues(alpha: 0.15)
+              : theme.colorScheme.primary.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(
+          widget.icon,
+          color: theme.colorScheme.primary,
+          size: 20,
+        ),
+      ),
     );
   }
 }
@@ -109,8 +212,6 @@ class _FinancialInfoBody extends ConsumerWidget {
       data: (data) {
         final month = data.month;
         final totals = data.totals;
-        final monthTitle =
-            DateFormat('LLLL yyyy', 'ru_RU').format(month.monthStart);
         final money = NumberFormat.currency(
             locale: 'ru_RU', symbol: '₽', decimalDigits: 0);
         final hoursFmt = NumberFormat('#,##0.##', 'ru_RU');
@@ -120,15 +221,20 @@ class _FinancialInfoBody extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _CardBlock(
-                title: 'Текущий период',
+              // Текущий период
+              _AppleMenuGroup(
                 children: [
-                  _MonthChip(title: monthTitle),
-                  const SizedBox(height: 8),
-                  _MetricRow(
-                    label: 'Отработанные часы',
-                    value: '${hoursFmt.format(month.hours)} ч',
-                    leadingIcon: Icons.access_time,
+                  _AppleMenuItem(
+                    icon: Icons.access_time,
+                    iconColor: Colors.blue,
+                    title: 'Отработанные часы',
+                    trailing: Text(
+                      '${hoursFmt.format(month.hours)} ч',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color:
+                            theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                      ),
+                    ),
                     onTap: () {
                       _showHoursCalendarModal(
                         context: context,
@@ -137,27 +243,47 @@ class _FinancialInfoBody extends ConsumerWidget {
                       );
                     },
                   ),
-                  _MetricRow(
-                    label: 'Заработано (база)',
-                    value: money.format(month.baseSalary),
-                    valueColor: _colorForAmount(month.baseSalary, theme),
-                    leadingIcon: Icons.work_outline,
+                  _AppleMenuItem(
+                    icon: Icons.work_outline,
+                    iconColor: Colors.purple,
+                    title: 'Заработано (база)',
+                    trailing: Text(
+                      money.format(month.baseSalary),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: _colorForAmount(month.baseSalary, theme),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    showChevron: false,
                   ),
-                  _MetricRow(
-                    label: 'Суточные',
-                    value: money.format(month.businessTripTotal),
-                    valueColor: _colorForAmount(month.businessTripTotal, theme),
-                    leadingIcon: Icons.card_travel_outlined,
+                  _AppleMenuItem(
+                    icon: Icons.card_travel_outlined,
+                    iconColor: Colors.orange,
+                    title: 'Суточные',
+                    trailing: Text(
+                      money.format(month.businessTripTotal),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: _colorForAmount(month.businessTripTotal, theme),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    showChevron: false,
                   ),
-                  _MetricRow(
-                    label: 'Премии',
-                    value: money.format(month.bonuses),
-                    valueColor: _colorForAmount(month.bonuses, theme),
-                    leadingIcon: Icons.emoji_events_outlined,
+                  _AppleMenuItem(
+                    icon: Icons.emoji_events_outlined,
+                    iconColor: Colors.green,
+                    title: 'Премии',
+                    trailing: Text(
+                      money.format(month.bonuses),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: _colorForAmount(month.bonuses, theme),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     onTap: () {
                       _showMoneyListModal(
                         context: context,
-                        title: 'Премии — $monthTitle',
+                        title: 'Премии',
                         records: data.monthBonusRecords,
                         money: money,
                         positive: true,
@@ -165,15 +291,21 @@ class _FinancialInfoBody extends ConsumerWidget {
                       );
                     },
                   ),
-                  _MetricRow(
-                    label: 'Штрафы',
-                    value: money.format(month.penalties),
-                    valueColor: theme.colorScheme.error,
-                    leadingIcon: Icons.report_gmailerrorred_outlined,
+                  _AppleMenuItem(
+                    icon: Icons.report_gmailerrorred_outlined,
+                    iconColor: Colors.red,
+                    title: 'Штрафы',
+                    trailing: Text(
+                      money.format(month.penalties),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: Colors.red,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     onTap: () {
                       _showMoneyListModal(
                         context: context,
-                        title: 'Штрафы — $monthTitle',
+                        title: 'Штрафы',
                         records: data.monthPenaltyRecords,
                         money: money,
                         positive: false,
@@ -181,31 +313,56 @@ class _FinancialInfoBody extends ConsumerWidget {
                       );
                     },
                   ),
-                  const Divider(height: 24),
-                  _MetricRow(
-                    label: 'Итого к выплате',
-                    value: money.format(month.netSalary),
-                    emphasized: true,
-                    valueColor: _colorForAmount(month.netSalary, theme),
-                    leadingIcon: Icons.account_balance_wallet_outlined,
+                ],
+              ),
+              const SizedBox(height: 12),
+              // Итого к выплате - отдельная группа
+              _AppleMenuGroup(
+                children: [
+                  _AppleMenuItem(
+                    icon: Icons.account_balance_wallet_outlined,
+                    iconColor: Colors.teal,
+                    title: 'Итого к выплате',
+                    trailing: Text(
+                      money.format(month.netSalary),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: _colorForAmount(month.netSalary, theme),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    showChevron: false,
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              _CardBlock(
-                title: 'Итоги',
+              const SizedBox(height: 20),
+              // Итоги за весь период
+              _AppleMenuGroup(
                 children: [
-                  _MetricRow(
-                    label: 'Общая сумма заработанного',
-                    value: money.format(totals.totalEarned),
-                    valueColor: _colorForAmount(totals.totalEarned, theme),
-                    leadingIcon: Icons.trending_up,
+                  _AppleMenuItem(
+                    icon: Icons.trending_up,
+                    iconColor: Colors.green,
+                    title: 'Общая сумма заработанного',
+                    trailing: Text(
+                      money.format(totals.totalEarned),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: _colorForAmount(totals.totalEarned, theme),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    showChevron: false,
                   ),
-                  _MetricRow(
-                    label: 'Общая сумма выплат',
-                    value: money.format(totals.totalPayouts),
-                    valueColor: theme.colorScheme.onSurface,
-                    leadingIcon: Icons.payments_outlined,
+                  _AppleMenuItem(
+                    icon: Icons.payments_outlined,
+                    iconColor: Colors.blue,
+                    title: 'Общая сумма выплат',
+                    trailing: Text(
+                      money.format(totals.totalPayouts),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color:
+                            theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     onTap: () {
                       _showMoneyListModal(
                         context: context,
@@ -217,16 +374,28 @@ class _FinancialInfoBody extends ConsumerWidget {
                       );
                     },
                   ),
-                  const Divider(height: 24),
-                  _MetricRow(
-                    label: 'Общий остаток',
-                    value: money.format(totals.totalBalance),
-                    emphasized: true,
-                    valueColor: _colorForAmount(totals.totalBalance, theme),
-                    leadingIcon: Icons.account_balance_outlined,
+                ],
+              ),
+              const SizedBox(height: 12),
+              // Общий остаток - отдельная группа
+              _AppleMenuGroup(
+                children: [
+                  _AppleMenuItem(
+                    icon: Icons.account_balance_outlined,
+                    iconColor: Colors.purple,
+                    title: 'Общий остаток',
+                    trailing: Text(
+                      money.format(totals.totalBalance),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: _colorForAmount(totals.totalBalance, theme),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    showChevron: false,
                   ),
                 ],
               ),
+              const SizedBox(height: 24),
             ],
           ),
         );
@@ -235,146 +404,163 @@ class _FinancialInfoBody extends ConsumerWidget {
   }
 }
 
-class _CardBlock extends StatelessWidget {
-  final String title;
+/// Группа элементов меню в стиле Apple Settings.
+class _AppleMenuGroup extends StatelessWidget {
   final List<Widget> children;
-  const _CardBlock({required this.title, required this.children});
+
+  const _AppleMenuGroup({
+    required this.children,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
-          width: 1,
-        ),
+
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            ...children,
-          ],
+          children: _buildChildrenWithDividers(context),
         ),
       ),
     );
   }
+
+  List<Widget> _buildChildrenWithDividers(BuildContext context) {
+    final theme = Theme.of(context);
+    final List<Widget> widgets = [];
+
+    for (int i = 0; i < children.length; i++) {
+      widgets.add(children[i]);
+      if (i < children.length - 1) {
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(left: 60, right: 16),
+            child: Divider(
+              height: 1,
+              thickness: 1,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.05),
+            ),
+          ),
+        );
+      }
+    }
+
+    return widgets;
+  }
 }
 
-class _MetricRow extends StatelessWidget {
-  final String label;
-  final String value;
-  final bool emphasized;
-  final Color? valueColor;
-  final IconData? leadingIcon;
+/// Элемент меню в стиле Apple Settings.
+class _AppleMenuItem extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final Widget? trailing;
+  final bool showChevron;
   final VoidCallback? onTap;
-  const _MetricRow({
-    required this.label,
-    required this.value,
-    this.emphasized = false,
-    this.valueColor,
-    this.leadingIcon,
+
+  const _AppleMenuItem({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    this.trailing,
+    this.showChevron = true,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final textStyle = emphasized
-        ? theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w700,
-          )
-        : theme.textTheme.titleMedium;
-    final row = Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+
+    final content = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          if (leadingIcon != null) ...[
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                leadingIcon,
-                size: 18,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-              ),
+          // Иконка в цветном квадратике
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
             ),
-            const SizedBox(width: 12),
-          ],
+            child: Icon(
+              icon,
+              color: iconColor,
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Текст
           Expanded(
             child: Text(
-              label,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+              title,
+              style: theme.textTheme.bodyLarge?.copyWith(
+                fontWeight: FontWeight.w400,
               ),
             ),
           ),
-          Text(
-            value,
-            style: textStyle!.copyWith(
-              color:
-                  valueColor ?? textStyle.color ?? theme.colorScheme.onSurface,
+          // Trailing виджет или стрелка
+          if (trailing != null)
+            trailing!
+          else if (showChevron)
+            Icon(
+              Icons.chevron_right,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
+              size: 20,
             ),
-          ),
         ],
       ),
     );
-    if (onTap == null) return row;
-    return InkWell(
-      borderRadius: BorderRadius.circular(8),
-      onTap: onTap,
-      child: row,
-    );
+
+    if (onTap != null) {
+      return _IOSTapEffect(
+        onTap: onTap!,
+        child: content,
+      );
+    }
+
+    return content;
   }
 }
 
-class _MonthChip extends StatelessWidget {
-  final String title;
-  const _MonthChip({required this.title});
+/// Виджет для создания iOS-подобного эффекта затемнения при нажатии.
+class _IOSTapEffect extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onTap;
+
+  const _IOSTapEffect({
+    required this.child,
+    required this.onTap,
+  });
+
+  @override
+  State<_IOSTapEffect> createState() => _IOSTapEffectState();
+}
+
+class _IOSTapEffectState extends State<_IOSTapEffect> {
+  bool _isPressed = false;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.primary.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: theme.colorScheme.primary.withValues(alpha: 0.25),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.calendar_today_outlined,
-              size: 14, color: theme.colorScheme.primary),
-          const SizedBox(width: 6),
-          Text(
-            title,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.primary,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.2,
-            ),
-          ),
-        ],
+
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) => setState(() => _isPressed = false),
+      onTapCancel: () => setState(() => _isPressed = false),
+      onTap: widget.onTap,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 100),
+        color: _isPressed
+            ? theme.colorScheme.onSurface.withValues(alpha: 0.08)
+            : Colors.transparent,
+        child: widget.child,
       ),
     );
   }
@@ -556,12 +742,13 @@ void _showMoneyListModal({
 class _FinancialMonthSummary {
   final DateTime monthStart;
   final double hours;
-  final double hourlyRate; // текущая ставка из employees при join
+  final double hourlyRate;
   final double baseSalary;
   final double bonuses;
   final double penalties;
   final double businessTripTotal;
   final double netSalary;
+
   const _FinancialMonthSummary({
     required this.monthStart,
     required this.hours,
@@ -656,46 +843,35 @@ final _financialInfoProvider =
       .or('valid_to.is.null,valid_to.gte.${monthStart.toIso8601String().split('T')[0]}')
       .lte('valid_from', monthEnd.toIso8601String().split('T')[0]);
 
+  // Обрабатываем часы за месяц в одном проходе
   double monthHours = 0;
-  final Map<String, int> monthObjectShiftCount = {};
+  double monthBusinessTrips = 0;
   final Map<DateTime, double> monthHoursByDate = {};
 
   for (final record in (workHoursResp as List)) {
     final works = record['works'] as Map<String, dynamic>?;
     if (works == null) continue;
+
     final workDateStr = works['date'] as String?;
     if (workDateStr == null) continue;
+
     final workDate = DateTime.tryParse(workDateStr);
     if (workDate == null) continue;
-    if (workDate.isBefore(monthStart) || workDate.isAfter(monthEnd)) continue;
 
     final hours = (record['hours'] as num?)?.toDouble() ?? 0;
-    monthHours += hours;
-    final dayKey = DateTime(workDate.year, workDate.month, workDate.day);
-    monthHoursByDate[dayKey] = (monthHoursByDate[dayKey] ?? 0) + hours;
+    final isInMonth =
+        !workDate.isBefore(monthStart) && !workDate.isAfter(monthEnd);
 
-    final objectId = works['object_id'] as String?;
-    if (objectId != null && objectId.isNotEmpty) {
-      monthObjectShiftCount[objectId] =
-          (monthObjectShiftCount[objectId] ?? 0) + 1;
+    // Считаем часы за месяц
+    if (isInMonth) {
+      monthHours += hours;
+      final dayKey = DateTime(workDate.year, workDate.month, workDate.day);
+      monthHoursByDate[dayKey] = (monthHoursByDate[dayKey] ?? 0) + hours;
     }
-  }
 
-  // Рассчитываем командировочные с учетом дат смен и минимальных часов
-  double monthBusinessTrips = 0;
-  for (final record in (workHoursResp as List)) {
-    final works = record['works'] as Map<String, dynamic>?;
-    if (works == null) continue;
-    final workDateStr = works['date'] as String?;
-    if (workDateStr == null) continue;
-    final workDate = DateTime.tryParse(workDateStr);
-    if (workDate == null) continue;
-    if (workDate.isBefore(monthStart) || workDate.isAfter(monthEnd)) continue;
-
-    final hours = (record['hours'] as num?)?.toDouble() ?? 0;
+    // Рассчитываем командировочные для месяца
     final objectId = works['object_id'] as String?;
-    if (objectId != null && objectId.isNotEmpty) {
-      // Ищем активную ставку на дату смены для данного сотрудника
+    if (isInMonth && objectId != null && objectId.isNotEmpty) {
       for (final rateRecord in (businessTripRatesResp as List)) {
         if (rateRecord['object_id'] == objectId &&
             rateRecord['employee_id'] == employeeId) {
@@ -708,14 +884,13 @@ final _financialInfoProvider =
           if (validFrom != null &&
               !workDate.isBefore(validFrom) &&
               (validTo == null || !workDate.isAfter(validTo))) {
-            // Проверяем условие минимальных часов
             final minimumHours =
                 (rateRecord['minimum_hours'] as num?)?.toDouble() ?? 0.0;
             if (hours >= minimumHours) {
               final rate = (rateRecord['rate'] as num?)?.toDouble() ?? 0;
               monthBusinessTrips += rate;
             }
-            break; // Используем первую подходящую ставку
+            break;
           }
         }
       }
@@ -790,41 +965,31 @@ final _financialInfoProvider =
     netSalary: monthNet,
   );
 
-  // Тоталы по всему периоду
-  double allEarnedBase = 0;
-  final Map<String, int> allObjectShiftCount = {};
-
-  for (final record in (workHoursResp as List)) {
-    final hours = (record['hours'] as num?)?.toDouble() ?? 0;
-    // Используем текущую ставку для всех расчетов
-    allEarnedBase += hours * currentHourlyRate;
-    final works = record['works'] as Map<String, dynamic>?;
-    final objectId = works != null ? works['object_id'] as String? : null;
-    if (objectId != null && objectId.isNotEmpty) {
-      allObjectShiftCount[objectId] = (allObjectShiftCount[objectId] ?? 0) + 1;
-    }
-  }
-
-  // Командировочные за все время - получаем все ставки для сотрудника
+  // Получаем все ставки командировочных для расчета итогов
   final allBusinessTripRatesResp = await client
       .from('business_trip_rates')
       .select(
           'object_id, rate, valid_from, valid_to, employee_id, minimum_hours')
       .eq('employee_id', employeeId);
 
+  // Обрабатываем все часы за весь период в одном проходе
+  double allEarnedBase = 0;
   double allTrips = 0;
+
   for (final record in (workHoursResp as List)) {
     final works = record['works'] as Map<String, dynamic>?;
     if (works == null) continue;
-    final workDateStr = works['date'] as String?;
-    if (workDateStr == null) continue;
-    final workDate = DateTime.tryParse(workDateStr);
-    if (workDate == null) continue;
 
     final hours = (record['hours'] as num?)?.toDouble() ?? 0;
+    allEarnedBase += hours * currentHourlyRate;
+
+    // Рассчитываем командировочные за все время
+    final workDateStr = works['date'] as String?;
+    final workDate =
+        workDateStr != null ? DateTime.tryParse(workDateStr) : null;
     final objectId = works['object_id'] as String?;
-    if (objectId != null && objectId.isNotEmpty) {
-      // Ищем активную ставку на дату смены для данного сотрудника
+
+    if (workDate != null && objectId != null && objectId.isNotEmpty) {
       for (final rateRecord in (allBusinessTripRatesResp as List)) {
         if (rateRecord['object_id'] == objectId &&
             rateRecord['employee_id'] == employeeId) {
@@ -837,14 +1002,13 @@ final _financialInfoProvider =
           if (validFrom != null &&
               !workDate.isBefore(validFrom) &&
               (validTo == null || !workDate.isAfter(validTo))) {
-            // Проверяем условие минимальных часов
             final minimumHours =
                 (rateRecord['minimum_hours'] as num?)?.toDouble() ?? 0.0;
             if (hours >= minimumHours) {
               final rate = (rateRecord['rate'] as num?)?.toDouble() ?? 0;
               allTrips += rate;
             }
-            break; // Используем первую подходящую ставку
+            break;
           }
         }
       }

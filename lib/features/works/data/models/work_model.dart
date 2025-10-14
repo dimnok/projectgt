@@ -17,6 +17,9 @@ abstract class WorkModel with _$WorkModel {
   /// [eveningPhotoUrl] — ссылка на вечернее фото (опционально)
   /// [createdAt] — дата создания записи (опционально)
   /// [updatedAt] — дата последнего обновления (опционально)
+  /// [totalAmount] — общая сумма всех работ (опционально, вычисляется через триггеры БД)
+  /// [itemsCount] — количество работ (опционально, вычисляется через триггеры БД)
+  /// [employeesCount] — количество сотрудников (опционально, вычисляется через триггеры БД)
   const factory WorkModel({
     /// Идентификатор смены.
     String? id,
@@ -44,6 +47,21 @@ abstract class WorkModel with _$WorkModel {
 
     /// Дата последнего обновления.
     @JsonKey(name: 'updated_at') DateTime? updatedAt,
+
+    /// Общая сумма всех работ в смене.
+    ///
+    /// Вычисляется автоматически через триггеры БД.
+    @JsonKey(name: 'total_amount') double? totalAmount,
+
+    /// Количество работ в смене.
+    ///
+    /// Вычисляется автоматически через триггеры БД.
+    @JsonKey(name: 'items_count') int? itemsCount,
+
+    /// Количество уникальных сотрудников в смене.
+    ///
+    /// Вычисляется автоматически через триггеры БД.
+    @JsonKey(name: 'employees_count') int? employeesCount,
   }) = _WorkModel;
 
   /// Создаёт data-модель смены из JSON.

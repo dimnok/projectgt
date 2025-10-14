@@ -15,6 +15,7 @@ import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
 import '../providers/work_provider.dart';
 import '../providers/work_hours_provider.dart';
+import '../providers/month_groups_provider.dart';
 import '../../domain/entities/work_hour.dart';
 import 'package:projectgt/core/utils/modal_utils.dart';
 import 'package:projectgt/core/notifications/notification_service.dart';
@@ -69,7 +70,7 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
 
   /// Автоматически выбирает объект, если доступен только один
   Future<void> _autoSelectSingleObject() async {
-    final profile = ref.read(profileProvider).profile;
+    final profile = ref.read(currentUserProfileProvider).profile;
     if (profile == null) return;
 
     final objects = await ref.read(objectRepositoryProvider).getObjects();
@@ -349,7 +350,7 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
 
     try {
       final notifier = ref.read(worksProvider.notifier);
-      final profile = ref.read(profileProvider).profile;
+      final profile = ref.read(currentUserProfileProvider).profile;
       if (profile == null) return;
 
       // Загружаем фото в облако, если есть выбранный файл
@@ -433,14 +434,37 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
       }
 
       if (mounted) {
-        Navigator.pop(context);
-        SnackBarUtils.showSuccess(
-            widget.parentContext ?? context, 'Смена успешно открыта');
+        // Кэшируем зависимости от контекста ДО async операции
+        final navigator = Navigator.of(context);
+        final scaffoldMessenger = widget.parentContext != null
+            ? ScaffoldMessenger.of(widget.parentContext!)
+            : ScaffoldMessenger.of(context);
+
+        // Обновляем список смен в monthGroupsProvider для отображения новой смены
+        await ref.read(monthGroupsProvider.notifier).refresh();
+
+        // Проверяем mounted ПОСЛЕ async операции
+        if (!mounted) return;
+
+        navigator.pop();
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(
+            content: Text('Смена успешно открыта'),
+            backgroundColor: Colors.green,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
-        SnackBarUtils.showError(
-            widget.parentContext ?? context, 'Ошибка: ${e.toString()}');
+        final scaffoldMessenger = widget.parentContext != null
+            ? ScaffoldMessenger.of(widget.parentContext!)
+            : ScaffoldMessenger.of(context);
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text('Ошибка: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } finally {
       if (mounted) {
@@ -454,7 +478,7 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final profile = ref.watch(profileProvider).profile;
+    final profile = ref.watch(currentUserProfileProvider).profile;
     final allObjects = ref.watch(objectRepositoryProvider).getObjects();
     final allEmployees = ref.watch(employeeRepositoryProvider).getEmployees();
     final dateStr = DateFormat('dd.MM.yyyy').format(DateTime.now());

@@ -2,6 +2,7 @@ import '../../domain/entities/work.dart';
 import '../../domain/repositories/work_repository.dart';
 import '../datasources/work_data_source.dart';
 import '../models/work_model.dart';
+import '../models/month_group.dart';
 import 'package:projectgt/core/services/photo_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -45,6 +46,10 @@ class WorkRepositoryImpl implements WorkRepository {
       eveningPhotoUrl: work.eveningPhotoUrl,
       createdAt: work.createdAt,
       updatedAt: work.updatedAt,
+      // Агрегатные поля инициализируются нулями
+      totalAmount: work.totalAmount ?? 0,
+      itemsCount: work.itemsCount ?? 0,
+      employeesCount: work.employeesCount ?? 0,
     );
     final result = await dataSource.addWork(model);
     return _mapToEntity(result);
@@ -63,6 +68,10 @@ class WorkRepositoryImpl implements WorkRepository {
       eveningPhotoUrl: work.eveningPhotoUrl,
       createdAt: work.createdAt,
       updatedAt: work.updatedAt,
+      // Агрегатные поля (триггеры могут пересчитать, но передаём текущие значения)
+      totalAmount: work.totalAmount,
+      itemsCount: work.itemsCount,
+      employeesCount: work.employeesCount,
     );
     final result = await dataSource.updateWork(model);
     return _mapToEntity(result);
@@ -89,6 +98,27 @@ class WorkRepositoryImpl implements WorkRepository {
     await dataSource.deleteWork(id);
   }
 
+  /// Возвращает заголовки групп месяцев с агрегированными данными.
+  @override
+  Future<List<MonthGroup>> getMonthsHeaders() async {
+    return await dataSource.getMonthsHeaders();
+  }
+
+  /// Возвращает смены конкретного месяца с пагинацией.
+  @override
+  Future<List<Work>> getMonthWorks(
+    DateTime month, {
+    int offset = 0,
+    int limit = 30,
+  }) async {
+    final models = await dataSource.getMonthWorks(
+      month,
+      offset: offset,
+      limit: limit,
+    );
+    return models.map(_mapToEntity).toList();
+  }
+
   /// Преобразует модель смены [WorkModel] в доменную сущность [Work].
   Work _mapToEntity(WorkModel model) {
     return Work(
@@ -101,6 +131,9 @@ class WorkRepositoryImpl implements WorkRepository {
       eveningPhotoUrl: model.eveningPhotoUrl,
       createdAt: model.createdAt,
       updatedAt: model.updatedAt,
+      totalAmount: model.totalAmount,
+      itemsCount: model.itemsCount,
+      employeesCount: model.employeesCount,
     );
   }
 }

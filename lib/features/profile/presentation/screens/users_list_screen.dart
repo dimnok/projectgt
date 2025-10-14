@@ -55,7 +55,7 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
     }
   }
 
-  // Функция обновления списка
+  /// Обновляет список пользователей (Pull-to-Refresh).
   Future<void> _handleRefresh() async {
     await ref.read(profileProvider.notifier).refreshProfiles();
   }
@@ -102,10 +102,10 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
                               currentUser?.role == 'admin';
                           if (!isAdmin) return;
 
+                          // Оптимистичное обновление без перерисовки страницы
                           final notifier = ref.read(profileProvider.notifier);
                           final updated = profile.copyWith(status: value);
-                          await notifier.updateProfile(updated);
-                          await _handleRefresh();
+                          await notifier.updateProfileSilently(updated);
                         },
                       );
                     },

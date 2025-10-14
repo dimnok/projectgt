@@ -330,17 +330,30 @@ class _BusinessTripRatesScreenState
           ),
           TextButton(
             onPressed: () async {
-              Navigator.pop(context);
+              final navigator = Navigator.of(context);
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              navigator.pop();
+
               try {
                 final useCase = ref.read(deleteBusinessTripRateUseCaseProvider);
                 await useCase(rate.id);
                 if (mounted) {
                   setState(() {}); // Обновляем список
-                  SnackBarUtils.showSuccess(context, 'Ставка удалена');
+                  scaffoldMessenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('Ставка удалена'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
                 }
               } catch (e) {
                 if (mounted) {
-                  SnackBarUtils.showError(context, 'Ошибка удаления: $e');
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(
+                      content: Text('Ошибка удаления: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
                 }
               }
             },

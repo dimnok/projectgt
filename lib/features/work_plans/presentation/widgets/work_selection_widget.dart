@@ -228,7 +228,7 @@ class _WorkSelectionWidgetState extends State<WorkSelectionWidget> {
                 filled: true,
                 fillColor: Theme.of(context)
                     .colorScheme
-                    .surfaceVariant
+                    .surfaceContainerHighest
                     .withValues(alpha: 0.3),
               ),
             ),

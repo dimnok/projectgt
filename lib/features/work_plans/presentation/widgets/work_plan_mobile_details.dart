@@ -439,7 +439,7 @@ class _WorkPlanMobileDetailsState extends ConsumerState<WorkPlanMobileDetails> {
           final index = entry.key;
           final block = entry.value;
           return _buildWorkBlockCard(block, index, theme, employeeState);
-        }).toList(),
+        }),
       ],
     );
   }
@@ -543,7 +543,7 @@ class _WorkPlanMobileDetailsState extends ConsumerState<WorkPlanMobileDetails> {
                 if (responsible != null) ...[
                   Row(
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.person_outline,
                         size: 16,
                         color: Colors.red,
@@ -714,7 +714,7 @@ class _WorkPlanMobileDetailsState extends ConsumerState<WorkPlanMobileDetails> {
                         ],
                       ),
                     );
-                  }).toList(),
+                  }),
                 ],
               ],
             ),

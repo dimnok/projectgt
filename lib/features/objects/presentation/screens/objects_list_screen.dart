@@ -9,14 +9,26 @@ import 'package:projectgt/presentation/widgets/app_drawer.dart';
 import 'package:uuid/uuid.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
 
+/// Отображает сообщение об успешной операции через SnackBar.
+///
+/// [context] — контекст виджета для отображения.
+/// [message] — текст сообщения.
 void showSuccessMessage(BuildContext context, String message) {
   SnackBarUtils.showSuccess(context, message);
 }
 
+/// Отображает информационное сообщение через SnackBar.
+///
+/// [context] — контекст виджета для отображения.
+/// [message] — текст сообщения.
 void showInfoMessage(BuildContext context, String message) {
   SnackBarUtils.showInfo(context, message);
 }
 
+/// Отображает сообщение об ошибке через SnackBar.
+///
+/// [context] — контекст виджета для отображения.
+/// [message] — текст сообщения.
 void showErrorMessage(BuildContext context, String message) {
   SnackBarUtils.showError(context, message);
 }
@@ -442,7 +454,6 @@ class _ObjectDetailsPanelState extends State<_ObjectDetailsPanel>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final object = widget.object;
     return Column(
       children: [

@@ -114,19 +114,15 @@ class ExportDataSourceImpl implements ExportDataSource {
 
       // processed
 
-      // Группируем записи по всем полям кроме quantity, при этом учитываем дату (по дням)
+      // Группируем записи по всем полям кроме quantity, ВКЛЮЧАЯ дату
+      // Записи группируются только в рамках одной даты
       final Map<String, ExportReportModel> groupedReports = {};
 
       for (final report in reports) {
-        // Создаем ключ группировки из всех полей кроме quantity и total,
-        // НО с учётом даты (по дню), чтобы не смешивать суммы между разными датами
-        final String dateKey = DateTime(
-          report.workDate.year,
-          report.workDate.month,
-          report.workDate.day,
-        ).toIso8601String();
-
-        final groupKey = '${dateKey}_'
+        // Создаем ключ группировки из всех полей кроме quantity и total, ВКЛЮЧАЯ дату
+        // Объединяем записи ТОЛЬКО С ОДНОЙ ДАТЫ, если совпадают:
+        // ДАТА, объект, договор, система, подсистема, позиция, работа, секция, этаж, ед.изм., цена
+        final groupKey = '${report.workDate.toIso8601String()}_'
             '${report.objectName}_'
             '${report.contractName}_'
             '${report.system}_'

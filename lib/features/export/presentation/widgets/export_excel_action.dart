@@ -21,22 +21,22 @@ class ExportExcelAction extends ConsumerWidget {
     final hasData = state.reports.isNotEmpty;
 
     // Настройки по умолчанию и ключи
-    const prefsColumnsKey = 'export_columns_v1';
-    const prefsAggregateKey = 'export_aggregate_v1';
+    // v2 - новый порядок колонок без даты (09.10.2025)
+    const prefsColumnsKey = 'export_columns_v2';
+    const prefsAggregateKey = 'export_aggregate_v2';
     const availableColumns = <MapEntry<String, String>>[
-      MapEntry('date', 'Дата смены'),
       MapEntry('object', 'Объект'),
       MapEntry('contract', 'Договор'),
       MapEntry('system', 'Система'),
       MapEntry('subsystem', 'Подсистема'),
+      MapEntry('section', 'Участок'),
+      MapEntry('floor', 'Этаж'),
       MapEntry('position', '№ позиции'),
       MapEntry('work', 'Наименование работы'),
-      MapEntry('section', 'Секция'),
-      MapEntry('floor', 'Этаж'),
-      MapEntry('unit', 'Единица измерения'),
-      MapEntry('quantity', 'Количество'),
+      MapEntry('unit', 'Ед. изм.'),
+      MapEntry('quantity', 'Кол-во'),
       MapEntry('price', 'Цена за единицу'),
-      MapEntry('total', 'Итоговая сумма'),
+      MapEntry('total', 'Сумма'),
     ];
 
     Future<void> doExport(
@@ -87,7 +87,7 @@ class ExportExcelAction extends ConsumerWidget {
 
     Future<void> openExportDialog() async {
       final prefs = await SharedPreferences.getInstance();
-      const removedKeys = {'employee', 'hours', 'materials'};
+      const removedKeys = {'employee', 'hours', 'materials', 'date'};
       final savedColumns = prefs
           .getStringList(prefsColumnsKey)
           ?.where((k) => !removedKeys.contains(k))

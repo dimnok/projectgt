@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -51,12 +52,24 @@ class MaterialAliasRow {
   /// Поставщик (если есть).
   final String? supplierId;
 
+  /// Количество на комплект (только для компонентов комплекта).
+  final double? qtyPerKit;
+
+  /// Коэффициент конверсии единиц измерения (для обычных связей).
+  final double? multiplier;
+
+  /// Является ли компонентом комплекта.
+  final bool isKitComponent;
+
   /// Создаёт модель алиаса материала.
   const MaterialAliasRow({
     required this.id,
     required this.aliasRaw,
     this.uomRaw,
     this.supplierId,
+    this.qtyPerKit,
+    this.multiplier,
+    this.isKitComponent = false,
   });
 }
 
@@ -165,13 +178,18 @@ class EstimatesMappingPager
 
       if (page.isNotEmpty) {
         final ids = page.map((e) => e['id'] as String).toList();
+
+        // Загружаем обычные алиасы
         final aliasRows = await _client
             .from('material_aliases')
-            .select('id,estimate_id,alias_raw,uom_raw,supplier_id')
+            .select(
+                'id,estimate_id,alias_raw,uom_raw,supplier_id,multiplier_to_estimate')
             .inFilter('estimate_id', ids)
             .order('alias_raw');
 
         final Map<String, List<MaterialAliasRow>> aliasesByEstimate = {};
+
+        // 1. Добавляем обычные алиасы
         for (final row in aliasRows as List) {
           final id = row['estimate_id']?.toString();
           if (id == null || id.isEmpty) continue;
@@ -182,7 +200,39 @@ class EstimatesMappingPager
             aliasRaw: (row['alias_raw'] ?? '').toString(),
             uomRaw: row['uom_raw']?.toString(),
             supplierId: row['supplier_id']?.toString(),
+            multiplier: double.tryParse(
+                row['multiplier_to_estimate']?.toString() ?? '1'),
+            isKitComponent: false,
           ));
+        }
+
+        // 2. Загружаем компоненты комплектов через PostgreSQL функцию
+        try {
+          final kitComponentsData =
+              await _client.rpc('get_kit_components_with_names', params: {
+            'parent_ids': ids,
+          });
+
+          if (kitComponentsData != null) {
+            for (final row in kitComponentsData as List) {
+              final parentId = row['parent_estimate_id']?.toString();
+              if (parentId == null || parentId.isEmpty) continue;
+
+              final list = aliasesByEstimate.putIfAbsent(
+                  parentId, () => <MaterialAliasRow>[]);
+              list.add(MaterialAliasRow(
+                id: (row['id'] ?? '').toString(),
+                aliasRaw: (row['component_name'] ?? 'Без названия').toString(),
+                uomRaw: row['uom_component']?.toString(),
+                qtyPerKit:
+                    double.tryParse(row['qty_per_kit']?.toString() ?? '1'),
+                isKitComponent: true,
+              ));
+            }
+          }
+        } catch (e, st) {
+          // Ошибка загрузки компонентов - продолжаем без них
+          debugPrint('Error loading kit components: $e\n$st');
         }
 
         final mapped = page.map((e) {

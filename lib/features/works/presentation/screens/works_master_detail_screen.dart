@@ -2,31 +2,27 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/work_provider.dart';
+import '../providers/month_groups_provider.dart';
 import 'work_details_panel.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 import 'package:go_router/go_router.dart';
 import 'package:projectgt/features/works/domain/entities/work.dart';
-import 'package:intl/intl.dart';
-import 'package:projectgt/presentation/widgets/app_badge.dart';
-import 'package:projectgt/core/di/providers.dart';
-import 'package:projectgt/domain/entities/profile.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
-import '../providers/work_hours_provider.dart';
-import '../providers/work_items_provider.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
-
 import 'package:projectgt/core/utils/modal_utils.dart';
-// developer import removed
-
 import 'package:projectgt/features/employees/presentation/widgets/master_detail_layout.dart';
+import '../widgets/month_group_header.dart';
+import '../widgets/month_works_list.dart';
+import '../widgets/month_details_panel.dart';
+import '../../data/models/month_group.dart';
 
-/// Экран списка смен с поддержкой поиска, фильтрации и адаптивного отображения.
+/// Экран списка смен с адаптивным отображением и группировкой по месяцам.
 ///
 /// - На десктопе реализован мастер-детейл паттерн (список + детали).
-/// - На мобильных поиск открывается жестом вниз, поддерживается pull-to-refresh.
+/// - На мобильных поддерживается pull-to-refresh.
 /// - Использует Riverpod для управления состоянием и загрузкой данных.
+/// - Смены группируются по месяцам с ленивой загрузкой.
 class WorksMasterDetailScreen extends ConsumerStatefulWidget {
   /// Создаёт экран списка смен.
   const WorksMasterDetailScreen({super.key});
@@ -38,39 +34,20 @@ class WorksMasterDetailScreen extends ConsumerStatefulWidget {
 
 class _WorksMasterDetailScreenState
     extends ConsumerState<WorksMasterDetailScreen> {
-  final _searchController = TextEditingController();
   final _scrollController = ScrollController();
-  bool _showSearchField = false;
   bool _showFab = true;
   int _activeTabIndex =
       0; // Индекс активного таба (0 - Данные, 1 - Работы, 2 - Сотрудники)
   Timer? _fabTimer;
   Work? selectedWork;
-
-  /// Кэш профилей пользователей для оптимизации отображения.
-  final Map<String, Profile?> _profileCache = {};
-
-  /// Получает профиль пользователя из кэша или репозитория.
-  Future<Profile?> _getUserProfile(String userId) async {
-    if (_profileCache.containsKey(userId)) {
-      return _profileCache[userId];
-    }
-
-    try {
-      final profile =
-          await ref.read(profileRepositoryProvider).getProfile(userId);
-      _profileCache[userId] = profile;
-      return profile;
-    } catch (e) {
-      return null;
-    }
-  }
+  MonthGroup?
+      selectedMonth; // Выбранная группа месяца для отображения в детальной панели
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(worksProvider.notifier).loadWorks();
+      ref.read(monthGroupsProvider.notifier).loadMonths();
     });
     _scrollController.addListener(_onScroll);
   }
@@ -79,28 +56,12 @@ class _WorksMasterDetailScreenState
   void dispose() {
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
-    _searchController.dispose();
     _fabTimer?.cancel();
     super.dispose();
   }
 
-  /// Обработчик прокрутки для показа/скрытия поля поиска и FAB.
+  /// Обработчик прокрутки для показа/скрытия FAB.
   void _onScroll() {
-    final scrollPosition = _scrollController.position;
-
-    // Показываем поиск при pull-down (отрицательные значения)
-    if (scrollPosition.pixels < -100 && !_showSearchField) {
-      setState(() {
-        _showSearchField = true;
-      });
-    }
-    // Скрываем поиск при прокрутке вниз
-    else if (scrollPosition.pixels > 50 && _showSearchField) {
-      setState(() {
-        _showSearchField = false;
-      });
-    }
-
     // Скрываем FAB во время прокрутки
     if (_showFab) {
       setState(() {
@@ -121,15 +82,9 @@ class _WorksMasterDetailScreenState
     });
   }
 
-  /// Обработчик изменения поискового запроса.
-  void _onSearchChanged(String query) {
-    // Поиск будет выполняться в build методе через фильтрацию
-    setState(() {});
-  }
-
   /// Обрабатывает pull-to-refresh.
   Future<void> _handleRefresh() async {
-    await ref.read(worksProvider.notifier).loadWorks();
+    await ref.read(monthGroupsProvider.notifier).refresh();
   }
 
   /// Показывает модальную форму для открытия смены.
@@ -140,66 +95,28 @@ class _WorksMasterDetailScreenState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final worksState = ref.watch(worksProvider);
-    final profile = ref.watch(profileProvider).profile;
+    final monthGroupsState = ref.watch(monthGroupsProvider);
+    final profile = ref.watch(currentUserProfileProvider).profile;
     final isDesktop = ResponsiveUtils.isDesktop(context);
-    final works = worksState.works;
-    final isLoading = worksState.isLoading;
-    final searchQuery = _searchController.text;
+    final groups = monthGroupsState.groups;
+    final isLoading = monthGroupsState.isLoading;
 
-    // У пользователя может быть только одна открытая смена
-    final hasOpenByUser = works.any((w) =>
-        w.status.toLowerCase() == 'open' && w.openedBy == (profile?.id ?? ''));
-
-    // Фильтруем и сортируем смены
-    final filteredWorks = List<Work>.from(searchQuery.isEmpty
-        ? works
-        : works.where((w) {
-            final objectName = ref
-                    .watch(objectProvider)
-                    .objects
-                    .where((o) => o.id == w.objectId)
-                    .map((o) => o.name)
-                    .firstOrNull ??
-                '';
-
-            return w.objectId
-                    .toLowerCase()
-                    .contains(searchQuery.toLowerCase()) ||
-                w.status.toLowerCase().contains(searchQuery.toLowerCase()) ||
-                objectName.toLowerCase().contains(searchQuery.toLowerCase());
-          }).toList())
-      ..sort((a, b) => b.date.compareTo(a.date));
+    // Проверяем есть ли у пользователя открытая смена
+    bool hasOpenByUser = false;
+    for (final group in groups) {
+      if (group.works != null) {
+        hasOpenByUser = group.works!.any((w) =>
+            w.status.toLowerCase() == 'open' &&
+            w.openedBy == (profile?.id ?? ''));
+        if (hasOpenByUser) break;
+      }
+    }
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
       extendBodyBehindAppBar: true,
-      appBar: AppBarWidget(
+      appBar: const AppBarWidget(
         title: 'Смены',
-        showSearchField: _showSearchField,
-        searchController: _searchController,
-        onSearchChanged: _onSearchChanged,
-        searchHint: 'Поиск смен...',
-        actions: [
-          if (isDesktop) ...[
-            CupertinoButton(
-              padding: EdgeInsets.zero,
-              child: Icon(
-                _showSearchField ? Icons.search_off : Icons.search,
-                color: _showSearchField ? Colors.green : null,
-              ),
-              onPressed: () {
-                setState(() {
-                  _showSearchField = !_showSearchField;
-                  if (!_showSearchField) {
-                    _searchController.clear();
-                    _onSearchChanged('');
-                  }
-                });
-              },
-            ),
-          ],
-        ],
       ),
       drawer: const AppDrawer(activeRoute: AppRoute.works),
       floatingActionButton: AnimatedScale(
@@ -226,13 +143,13 @@ class _WorksMasterDetailScreenState
           if (isDesktop) {
             return _buildDesktopLayout(
               isLoading: isLoading,
-              filteredWorks: filteredWorks,
+              groups: groups,
               theme: theme,
             );
           } else {
             return _buildMobileLayout(
               isLoading: isLoading,
-              filteredWorks: filteredWorks,
+              groups: groups,
               theme: theme,
             );
           }
@@ -244,75 +161,96 @@ class _WorksMasterDetailScreenState
   /// Строит десктопную версию интерфейса (мастер-детейл).
   Widget _buildDesktopLayout({
     required bool isLoading,
-    required List<Work> filteredWorks,
+    required List groups,
     required ThemeData theme,
   }) {
     return MasterDetailLayout(
       masterPanel: _buildWorksList(
         isLoading: isLoading,
-        filteredWorks: filteredWorks,
+        groups: groups,
         theme: theme,
         isDesktop: true,
       ),
-      detailPanel: selectedWork == null
-          ? Center(
-              child: Text(
-                'Выберите смену из списка',
-                style: theme.textTheme.bodyLarge,
-              ),
-            )
-          : selectedWork!.id != null
-              ? Column(
-                  children: [
-                    // Отступ сверху для мастер-детейл режима (когда AppBar скрыт в детейл-панели)
-                    SizedBox(
-                      height: MediaQuery.of(context).viewPadding.top +
-                          kToolbarHeight +
-                          24,
-                    ),
-                    Expanded(
-                      child: WorkDetailsPanel(
-                        workId: selectedWork!.id!,
-                        parentContext: context,
-                        onTabChanged: (tabIndex) {
-                          setState(() {
-                            _activeTabIndex = tabIndex;
-                          });
-                        },
-                      ),
-                    ),
-                  ],
-                )
-              : const Center(child: Text('Ошибка: ID смены не задан')),
+      detailPanel: _buildDetailPanel(theme),
     );
+  }
+
+  /// Строит панель деталей (смена или месяц).
+  Widget _buildDetailPanel(ThemeData theme) {
+    // Приоритет: месяц > смена > placeholder
+    if (selectedMonth != null) {
+      return Column(
+        children: [
+          // Отступ сверху для мастер-детейл режима
+          SizedBox(
+            height:
+                MediaQuery.of(context).viewPadding.top + kToolbarHeight + 24,
+          ),
+          Expanded(
+            child: MonthDetailsPanel(group: selectedMonth!),
+          ),
+        ],
+      );
+    } else if (selectedWork != null) {
+      return selectedWork!.id != null
+          ? Column(
+              children: [
+                // Отступ сверху для мастер-детейл режима
+                SizedBox(
+                  height: MediaQuery.of(context).viewPadding.top +
+                      kToolbarHeight +
+                      24,
+                ),
+                Expanded(
+                  child: WorkDetailsPanel(
+                    workId: selectedWork!.id!,
+                    parentContext: context,
+                    onTabChanged: (tabIndex) {
+                      setState(() {
+                        _activeTabIndex = tabIndex;
+                      });
+                    },
+                  ),
+                ),
+              ],
+            )
+          : const Center(child: Text('Ошибка: ID смены не задан'));
+    } else {
+      return Center(
+        child: Text(
+          'Выберите смену или месяц из списка',
+          style: theme.textTheme.bodyLarge,
+        ),
+      );
+    }
   }
 
   /// Строит мобильную версию интерфейса.
   Widget _buildMobileLayout({
     required bool isLoading,
-    required List<Work> filteredWorks,
+    required List groups,
     required ThemeData theme,
   }) {
     return _buildWorksList(
       isLoading: isLoading,
-      filteredWorks: filteredWorks,
+      groups: groups,
       theme: theme,
       isDesktop: false,
     );
   }
 
-  /// Строит список смен.
+  /// Строит список смен с группировкой по месяцам.
   Widget _buildWorksList({
     required bool isLoading,
-    required List<Work> filteredWorks,
+    required List groups,
     required ThemeData theme,
     required bool isDesktop,
   }) {
     if (isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: CupertinoActivityIndicator());
     }
 
-    if (filteredWorks.isEmpty) {
+    if (groups.isEmpty) {
       return const Center(child: Text('Смены не найдены'));
     }
 
@@ -320,263 +258,64 @@ class _WorksMasterDetailScreenState
       onRefresh: _handleRefresh,
       child: ListView.builder(
         controller: _scrollController,
-        itemCount: filteredWorks.length,
-        itemBuilder: (context, i) {
-          final work = filteredWorks[i];
-          final selected = isDesktop ? work.id == selectedWork?.id : false;
+        itemCount: groups.length,
+        itemBuilder: (context, index) {
+          final group = groups[index];
 
-          // Получаем название объекта
-          final objectName = ref
-                  .watch(objectProvider)
-                  .objects
-                  .where((o) => o.id == work.objectId)
-                  .map((o) => o.name)
-                  .firstOrNull ??
-              work.objectId;
+          return Column(
+            key: ValueKey(group.month),
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Заголовок группы месяца
+              MonthGroupHeader(
+                group: group,
+                onTap: () {
+                  // Раскрываем/сворачиваем месяц
+                  ref
+                      .read(monthGroupsProvider.notifier)
+                      .toggleMonth(group.month);
 
-          // Получаем статус работы с цветом
-          final (statusText, statusColor) = _getWorkStatusInfo(work.status);
+                  // На десктопе показываем информацию о месяце в детальной панели
+                  if (isDesktop) {
+                    setState(() {
+                      selectedMonth = group;
+                      selectedWork = null; // Сбрасываем выбранную смену
+                    });
+                  }
+                },
+              ),
 
-          return FutureBuilder<Profile?>(
-              future: _getUserProfile(work.openedBy),
-              builder: (context, snapshot) {
-                final String createdBy = snapshot.hasData &&
-                        snapshot.data?.shortName != null
-                    ? snapshot.data!.shortName!
-                    : 'ID: ${work.openedBy.length > 4 ? "${work.openedBy.substring(0, 4)}..." : work.openedBy}';
-
-                return Card(
-                  margin: EdgeInsets.symmetric(
-                    horizontal: isDesktop ? 0 : 16,
-                    vertical: isDesktop ? 6 : 8,
-                  ),
-                  elevation: isDesktop ? 0 : 8,
-                  shadowColor: isDesktop
-                      ? null
-                      : theme.colorScheme.shadow.withValues(alpha: 0.2),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(
-                        ResponsiveUtils.borderRadiusMedium),
-                    side: BorderSide(
-                      color: selected
-                          ? Colors.green
-                          : theme.colorScheme.outline.withValues(alpha: 0.1),
-                      width: selected ? 2 : 1,
-                    ),
-                  ),
-                  child: InkWell(
-                    onTap: () {
-                      if (isDesktop) {
-                        setState(() {
-                          selectedWork = work;
-                        });
-                      } else {
-                        if (work.id != null) {
-                          context.goNamed(
-                            'work_details',
-                            pathParameters: {'workId': work.id!},
-                          );
-                        }
+              // Список смен (если группа развёрнута)
+              if (group.isExpanded)
+                MonthWorksList(
+                  group: group,
+                  onWorkSelected: (work) {
+                    if (isDesktop) {
+                      setState(() {
+                        selectedWork = work;
+                        selectedMonth = null; // Сбрасываем выбранный месяц
+                      });
+                    } else {
+                      if (work.id != null) {
+                        context.goNamed(
+                          'work_details',
+                          pathParameters: {'workId': work.id!},
+                        );
                       }
-                    },
-                    borderRadius: BorderRadius.circular(
-                        ResponsiveUtils.borderRadiusMedium),
-                    child: Stack(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.all(12.0),
-                          child: Row(
-                            children: [
-                              // Иконка смены вместо фото
-                              Container(
-                                width: 48,
-                                height: 48,
-                                decoration: BoxDecoration(
-                                  color: theme.colorScheme.surface,
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: theme.colorScheme.outlineVariant,
-                                  ),
-                                ),
-                                child: Icon(
-                                  work.status.toLowerCase() == 'closed'
-                                      ? Icons.lock
-                                      : Icons.lock_open,
-                                  color: work.status.toLowerCase() == 'closed'
-                                      ? Colors.red
-                                      : Colors.green,
-                                  size: 32,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              // Информация о смене
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        // Цветовая точка статуса только в мобильном режиме
-                                        if (!isDesktop) ...[
-                                          Container(
-                                            width: 8,
-                                            height: 8,
-                                            decoration: BoxDecoration(
-                                              color: statusColor,
-                                              shape: BoxShape.circle,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                        ],
-                                        Text(
-                                          _formatDate(work.date),
-                                          style: theme.textTheme.titleSmall
-                                              ?.copyWith(
-                                                  fontWeight: FontWeight.bold),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      objectName,
-                                      style: theme.textTheme.bodySmall,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      'Открыл: $createdBy',
-                                      style:
-                                          theme.textTheme.bodySmall?.copyWith(
-                                        color: theme.colorScheme.secondary,
-                                        fontSize: 12,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Positioned(
-                          top: 8,
-                          right: 8,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              if (isDesktop) ...[
-                                AppBadge(
-                                  text: statusText,
-                                  color: statusColor,
-                                ),
-                                const SizedBox(height: 8),
-                              ],
-                              // Общая сумма и выработка
-                              Consumer(
-                                builder: (context, ref, _) {
-                                  if (work.id == null) {
-                                    return const SizedBox.shrink();
-                                  }
-
-                                  final itemsAsync =
-                                      ref.watch(workItemsProvider(work.id!));
-                                  final hoursAsync =
-                                      ref.watch(workHoursProvider(work.id!));
-
-                                  return itemsAsync.when(
-                                    data: (items) => hoursAsync.when(
-                                      data: (hours) {
-                                        // Расчет общей суммы
-                                        final totalAmount = items.fold<double>(
-                                            0,
-                                            (sum, item) =>
-                                                sum + (item.total ?? 0));
-
-                                        // Количество уникальных сотрудников
-                                        final uniqueEmployees = hours
-                                            .map((h) => h.employeeId)
-                                            .toSet()
-                                            .length;
-
-                                        // Выработка на сотрудника
-                                        final productivityPerEmployee =
-                                            uniqueEmployees > 0
-                                                ? totalAmount / uniqueEmployees
-                                                : 0.0;
-
-                                        final formatter =
-                                            NumberFormat('#,##0', 'ru_RU');
-
-                                        final totalTextStyle = (isDesktop
-                                                ? theme.textTheme.bodySmall
-                                                : theme.textTheme.titleSmall)
-                                            ?.copyWith(
-                                          fontWeight: FontWeight.w600,
-                                          color: theme.colorScheme.primary,
-                                        );
-
-                                        final productivityTextStyle = (isDesktop
-                                                ? theme.textTheme.bodySmall
-                                                : theme.textTheme.bodyMedium)
-                                            ?.copyWith(
-                                          color: theme.colorScheme.secondary,
-                                        );
-
-                                        return Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.end,
-                                          children: [
-                                            Text(
-                                              '${formatter.format(totalAmount)} ₽',
-                                              style: totalTextStyle,
-                                            ),
-                                            if (uniqueEmployees > 0) ...[
-                                              const SizedBox(height: 2),
-                                              Text(
-                                                '${formatter.format(productivityPerEmployee)} ₽/чел',
-                                                style: productivityTextStyle,
-                                              ),
-                                            ],
-                                          ],
-                                        );
-                                      },
-                                      loading: () => const SizedBox.shrink(),
-                                      error: (_, __) => const SizedBox.shrink(),
-                                    ),
-                                    loading: () => const SizedBox.shrink(),
-                                    error: (_, __) => const SizedBox.shrink(),
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              });
+                    }
+                  },
+                  onLoadMore: () {
+                    // Подгрузка дополнительных смен при infinite scroll
+                    ref
+                        .read(monthGroupsProvider.notifier)
+                        .loadMoreMonthWorks(group.month);
+                  },
+                  selectedWork: selectedWork,
+                ),
+            ],
+          );
         },
       ),
     );
-  }
-
-  /// Форматирует дату в строку ДД.ММ.ГГГГ.
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
-  }
-
-  /// Возвращает текст и цвет статуса смены.
-  (String, Color) _getWorkStatusInfo(String status) {
-    switch (status.toLowerCase()) {
-      case 'open':
-        return ('Открыта', Colors.green);
-      case 'closed':
-        return ('Закрыта', Colors.red);
-      default:
-        return (status, Colors.blue);
-    }
   }
 }

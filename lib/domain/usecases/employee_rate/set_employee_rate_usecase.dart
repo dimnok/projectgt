@@ -4,6 +4,7 @@ import '../../repositories/employee_rate_repository.dart';
 class SetEmployeeRateUseCase {
   final EmployeeRateRepository _repository;
 
+  /// Создаёт экземпляр [SetEmployeeRateUseCase] с заданным [_repository].
   const SetEmployeeRateUseCase(this._repository);
 
   /// Устанавливает новую ставку для сотрудника

@@ -23,6 +23,7 @@ abstract class EmployeeRateDataSource {
 class EmployeeRateDataSourceImpl implements EmployeeRateDataSource {
   final SupabaseClient _client;
 
+  /// Создаёт экземпляр [EmployeeRateDataSourceImpl] с заданным [_client].
   const EmployeeRateDataSourceImpl(this._client);
 
   @override
@@ -63,12 +64,8 @@ class EmployeeRateDataSourceImpl implements EmployeeRateDataSource {
   @override
   Future<void> setNewRate(
       String employeeId, double rate, DateTime validFrom) async {
-    print(
-        'DEBUG: setNewRate called with employeeId=$employeeId, rate=$rate, validFrom=${validFrom.toIso8601String()}');
-
     // Получаем текущую активную ставку
     final currentRate = await getCurrentRate(employeeId);
-    print('DEBUG: currentRate = ${currentRate?.toJson()}');
 
     if (currentRate != null) {
       final currentValidFrom = currentRate.validFrom;
@@ -77,38 +74,30 @@ class EmployeeRateDataSourceImpl implements EmployeeRateDataSource {
       final currentValidFromDate = DateTime(
           currentValidFrom.year, currentValidFrom.month, currentValidFrom.day);
 
-      print(
-          'DEBUG: comparing dates - validFromDate=$validFromDate, currentValidFromDate=$currentValidFromDate');
-
       // Если новая ставка устанавливается на ту же дату, что и текущая активная
       if (validFromDate.isAtSameMomentAs(currentValidFromDate)) {
-        print('DEBUG: updating existing rate');
         // Просто обновляем сумму существующей записи
         await _client
             .from('employee_rates')
             .update({'hourly_rate': rate}).eq('id', currentRate.id);
         return;
       } else if (validFromDate.isAfter(currentValidFromDate)) {
-        print('DEBUG: closing current rate and creating new one');
         // Если новая дата позже текущей, закрываем текущую ставку
         final previousDay = validFrom.subtract(const Duration(days: 1));
         await closeCurrentRate(employeeId, previousDay);
       } else {
-        print('DEBUG: deleting current rate (new date is earlier or equal)');
         // Если новая дата раньше текущей, удаляем текущую активную ставку
         // чтобы избежать нарушения constraint valid_dates_check
         await _client.from('employee_rates').delete().eq('id', currentRate.id);
       }
     }
 
-    print('DEBUG: inserting new rate');
     // Добавляем новую ставку
     await _client.from('employee_rates').insert({
       'employee_id': employeeId,
       'hourly_rate': rate,
       'valid_from': validFrom.toIso8601String().split('T')[0],
     });
-    print('DEBUG: new rate inserted successfully');
   }
 
   @override

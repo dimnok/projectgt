@@ -7,6 +7,7 @@ import '../../domain/entities/employee_rate.dart';
 class EmployeeRateRepositoryImpl implements EmployeeRateRepository {
   final EmployeeRateDataSource _dataSource;
 
+  /// Создаёт экземпляр [EmployeeRateRepositoryImpl] с заданным [_dataSource].
   const EmployeeRateRepositoryImpl(this._dataSource);
 
   @override
@@ -31,7 +32,7 @@ class EmployeeRateRepositoryImpl implements EmployeeRateRepository {
       String employeeId, double rate, DateTime validFrom) async {
     // 1. Закрываем текущую ставку (если есть)
     await _dataSource.closeCurrentRate(
-        employeeId, validFrom.subtract(Duration(days: 1)));
+        employeeId, validFrom.subtract(const Duration(days: 1)));
 
     // 2. Создаём новую ставку
     await _dataSource.setNewRate(employeeId, rate, validFrom);

@@ -263,7 +263,7 @@ class _EmployeeRateSummaryWidgetState
                   ],
                 ),
               );
-            }).toList(),
+            }),
           ],
         );
       },
