@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:projectgt/features/version_control/providers/version_providers.dart';
 import 'package:projectgt/domain/entities/app_version.dart';
 import 'package:projectgt/core/constants/app_constants.dart';
@@ -24,12 +25,44 @@ class _VersionManagementScreenState
   final _messageController = TextEditingController();
   bool _forceUpdate = false;
   String? _versionId;
+  String _deviceVersion = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDeviceVersion();
+  }
 
   @override
   void dispose() {
     _minimumVersionController.dispose();
     _messageController.dispose();
     super.dispose();
+  }
+
+  /// Загружает информацию о версии устройства.
+  Future<void> _loadDeviceVersion() async {
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+
+      if (mounted) {
+        setState(() {
+          // Проверяем, что version не пустой
+          if (packageInfo.version.isNotEmpty) {
+            _deviceVersion = '${packageInfo.version}+${packageInfo.buildNumber}';
+          } else {
+            _deviceVersion = 'Build ${packageInfo.buildNumber}';
+          }
+        });
+      }
+    } catch (e) {
+      // Тихий fallback на версию из AppConstants для Web
+      if (mounted) {
+        setState(() {
+          _deviceVersion = AppConstants.appVersion;
+        });
+      }
+    }
   }
 
   /// Сохраняет изменения версии.
@@ -321,7 +354,9 @@ class _VersionManagementScreenState
                                     const SizedBox(height: 12),
                                     _buildInfoRow(
                                       'Версия на этом устройстве:',
-                                      AppConstants.appVersion,
+                                      _deviceVersion.isNotEmpty
+                                          ? _deviceVersion
+                                          : 'Загрузка...',
                                       theme,
                                       Icons.phone_android_rounded,
                                       theme.colorScheme.secondary,
