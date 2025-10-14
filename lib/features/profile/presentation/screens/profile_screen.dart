@@ -83,7 +83,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       // Тихий fallback на версию из pubspec.yaml для Web
       if (mounted) {
         setState(() {
-          _appVersion = '1.0.1+21';
+          _appVersion = '1.0.2+22';
         });
       }
     }
