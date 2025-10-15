@@ -76,6 +76,13 @@ class WorkDataSourceImpl implements WorkDataSource {
       final workJson = work.toJson();
       workJson['updated_at'] = now;
 
+      // КРИТИЧНО: Удаляем агрегатные поля, которые управляются триггерами БД.
+      // Эти поля вычисляются автоматически при изменении work_items и work_hours.
+      // Если их оставить в JSON, они перезапишут рассчитанные триггерами значения!
+      workJson.remove('total_amount');
+      workJson.remove('items_count');
+      workJson.remove('employees_count');
+
       final response = await client
           .from(table)
           .update(workJson)

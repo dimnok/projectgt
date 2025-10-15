@@ -124,6 +124,16 @@ class MonthGroupsNotifier extends StateNotifier<MonthGroupsState> {
     }
   }
 
+  /// Проверяет, раскрыта ли группа месяца.
+  bool isMonthExpanded(DateTime month) {
+    for (final group in state.groups) {
+      if (group.month == month) {
+        return group.isExpanded;
+      }
+    }
+    return false;
+  }
+
   /// Загружает смены конкретного месяца.
   ///
   /// [month] — дата начала месяца.

@@ -159,7 +159,6 @@ class SupabaseProfileDataSource implements ProfileDataSource {
         updates['employee_id'] = employeeIdFromObject;
       } else {
         // Если явного значения нет и пользователь очистил поле — установим NULL
-        // Проверка: если profile.object присутствует и ключ employee_id отсутствует, считаем как очистку
         if ((profile.object != null) &&
             !(profile.object!.containsKey('employee_id'))) {
           updates['employee_id'] = null;
@@ -171,10 +170,18 @@ class SupabaseProfileDataSource implements ProfileDataSource {
           .update(updates)
           .eq('id', profile.id)
           .select('*')
-          .single();
+          .maybeSingle();
+
+      // Если ничего не вернулось - попробуем прочитать профиль напрямую
+      final responseData = response ??
+          await client
+              .from('profiles')
+              .select('*, slot_times')
+              .eq('id', profile.id)
+              .single();
 
       // В ответе slot_times приходит в отдельной колонке — подмешаем обратно в object
-      final json = Map<String, dynamic>.from(response as Map);
+      final json = Map<String, dynamic>.from(responseData as Map);
       final slotTimes = json['slot_times'];
       final obj = Map<String, dynamic>.from((json['object'] ?? {}) as Map);
       if (slotTimes != null) {

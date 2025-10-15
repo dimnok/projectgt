@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import '../providers/materials_mapping_providers.dart';
@@ -78,16 +79,34 @@ class MaterialsMappingScreen extends ConsumerWidget {
                   );
                 }
 
-                Widget bodyCell(Widget child,
-                    {Alignment align = Alignment.centerLeft, Color? color}) {
-                  return Container(
+                Widget bodyCell(
+                  Widget child, {
+                  Alignment align = Alignment.centerLeft,
+                  Color? color,
+                  VoidCallback? onTap,
+                }) {
+                  final content = Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
                     alignment: align,
                     child: DefaultTextStyle(
                       style: theme.textTheme.bodyMedium!.copyWith(
-                          color: color ?? theme.colorScheme.onSurface),
+                        color: color ?? theme.colorScheme.onSurface,
+                      ),
                       child: child,
+                    ),
+                  );
+
+                  if (onTap == null) {
+                    return content;
+                  }
+
+                  return MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: onTap,
+                      child: content,
                     ),
                   );
                 }
@@ -112,6 +131,22 @@ class MaterialsMappingScreen extends ConsumerWidget {
                   data: (rows) {
                     // Поиск выполняется на сервере. Локальной фильтрации нет.
                     final expanded = ref.watch(expandedEstimatesProvider);
+
+                    Future<void> copyName(String value) async {
+                      final trimmed = value.trim();
+                      if (trimmed.isEmpty) return;
+                      await Clipboard.setData(ClipboardData(text: trimmed));
+                      if (!context.mounted) return;
+                      final messenger = ScaffoldMessenger.of(context);
+                      messenger.hideCurrentSnackBar();
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text('Наименование "$trimmed" скопировано'),
+                          behavior: SnackBarBehavior.floating,
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    }
 
                     List<TableRow> buildRows() {
                       final list = <TableRow>[];
@@ -213,36 +248,35 @@ class MaterialsMappingScreen extends ConsumerWidget {
                               ? BoxDecoration(color: parentBg)
                               : null,
                           children: [
-                            GestureDetector(
-                              onTap: r.aliases.isNotEmpty
-                                  ? () => toggle(r.id)
-                                  : null,
-                              child: bodyCell(
-                                Text(
-                                  r.number.isEmpty ? '—' : r.number,
-                                  style: isExpanded ? parentTextStyle : null,
-                                ),
-                                align: Alignment.center,
+                            bodyCell(
+                              Text(
+                                r.number.isEmpty ? '—' : r.number,
+                                style: isExpanded ? parentTextStyle : null,
                               ),
-                            ),
-                            GestureDetector(
+                              align: Alignment.center,
                               onTap: r.aliases.isNotEmpty
                                   ? () => toggle(r.id)
                                   : null,
-                              child: bodyCell(
-                                Text(r.name,
-                                    style: isExpanded ? parentTextStyle : null),
+                            ),
+                            bodyCell(
+                              Text(
+                                r.name,
+                                style: isExpanded ? parentTextStyle : null,
                               ),
+                              onTap: () async {
+                                await copyName(r.name);
+                                if (r.aliases.isNotEmpty) toggle(r.id);
+                              },
                             ),
-                            GestureDetector(
+                            bodyCell(
+                              Text(
+                                r.unit,
+                                style: isExpanded ? parentTextStyle : null,
+                              ),
+                              align: Alignment.center,
                               onTap: r.aliases.isNotEmpty
                                   ? () => toggle(r.id)
                                   : null,
-                              child: bodyCell(
-                                  Text(r.unit,
-                                      style:
-                                          isExpanded ? parentTextStyle : null),
-                                  align: Alignment.center),
                             ),
                             bodyCell(
                               MaterialsLinkButton(
@@ -272,11 +306,8 @@ class MaterialsMappingScreen extends ConsumerWidget {
                                     : const SizedBox.shrink(),
                               ),
                               // Название материала/компонента с количеством
-                              Container(
-                                color: childBg,
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 6, horizontal: 8),
-                                child: Row(
+                              bodyCell(
+                                Row(
                                   children: [
                                     Expanded(
                                       child: Text(
@@ -350,19 +381,20 @@ class MaterialsMappingScreen extends ConsumerWidget {
                                     ],
                                   ],
                                 ),
+                                color: childBg,
+                                onTap: () => copyName(a.aliasRaw),
                               ),
                               // Единица измерения
-                              Container(
-                                color: childBg,
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 6, horizontal: 8),
-                                child: Text(
+                              bodyCell(
+                                Text(
                                   a.uomRaw ?? '—',
                                   textAlign: TextAlign.center,
                                   style: childTextStyle?.copyWith(
                                     color: Colors.blue,
                                   ),
                                 ),
+                                align: Alignment.center,
+                                color: childBg,
                               ),
                               // Колонка «Связь»: жёлтая кнопка минус
                               Container(

@@ -103,7 +103,9 @@ class _MonthNavigationBar extends StatelessWidget {
     final theme = Theme.of(context);
     final monthTitle = DateFormat('LLLL yyyy', 'ru_RU').format(monthStart);
 
-    return Container(
+    const double contentMaxWidth = 880;
+
+    final navigationBar = Container(
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
@@ -136,6 +138,13 @@ class _MonthNavigationBar extends StatelessWidget {
           else
             const SizedBox(width: 36), // Для симметрии
         ],
+      ),
+    );
+
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: contentMaxWidth),
+        child: navigationBar,
       ),
     );
   }
@@ -216,187 +225,195 @@ class _FinancialInfoBody extends ConsumerWidget {
             locale: 'ru_RU', symbol: '₽', decimalDigits: 0);
         final hoursFmt = NumberFormat('#,##0.##', 'ru_RU');
 
+        const double contentMaxWidth = 880;
+
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Текущий период
-              _AppleMenuGroup(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: contentMaxWidth),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _AppleMenuItem(
-                    icon: Icons.access_time,
-                    iconColor: Colors.blue,
-                    title: 'Отработанные часы',
-                    trailing: Text(
-                      '${hoursFmt.format(month.hours)} ч',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color:
-                            theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                  // Текущий период
+                  _AppleMenuGroup(
+                    children: [
+                      _AppleMenuItem(
+                        icon: Icons.access_time,
+                        iconColor: Colors.blue,
+                        title: 'Отработанные часы',
+                        trailing: Text(
+                          '${hoursFmt.format(month.hours)} ч',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurface
+                                .withValues(alpha: 0.7),
+                          ),
+                        ),
+                        onTap: () {
+                          _showHoursCalendarModal(
+                            context: context,
+                            monthStart: month.monthStart,
+                            hoursByDate: data.monthHoursByDate,
+                          );
+                        },
                       ),
-                    ),
-                    onTap: () {
-                      _showHoursCalendarModal(
-                        context: context,
-                        monthStart: month.monthStart,
-                        hoursByDate: data.monthHoursByDate,
-                      );
-                    },
-                  ),
-                  _AppleMenuItem(
-                    icon: Icons.work_outline,
-                    iconColor: Colors.purple,
-                    title: 'Заработано (база)',
-                    trailing: Text(
-                      money.format(month.baseSalary),
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: _colorForAmount(month.baseSalary, theme),
-                        fontWeight: FontWeight.w600,
+                      _AppleMenuItem(
+                        icon: Icons.work_outline,
+                        iconColor: Colors.purple,
+                        title: 'Заработано (база)',
+                        trailing: Text(
+                          money.format(month.baseSalary),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: _colorForAmount(month.baseSalary, theme),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        showChevron: false,
                       ),
-                    ),
-                    showChevron: false,
-                  ),
-                  _AppleMenuItem(
-                    icon: Icons.card_travel_outlined,
-                    iconColor: Colors.orange,
-                    title: 'Суточные',
-                    trailing: Text(
-                      money.format(month.businessTripTotal),
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: _colorForAmount(month.businessTripTotal, theme),
-                        fontWeight: FontWeight.w600,
+                      _AppleMenuItem(
+                        icon: Icons.card_travel_outlined,
+                        iconColor: Colors.orange,
+                        title: 'Суточные',
+                        trailing: Text(
+                          money.format(month.businessTripTotal),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color:
+                                _colorForAmount(month.businessTripTotal, theme),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        showChevron: false,
                       ),
-                    ),
-                    showChevron: false,
-                  ),
-                  _AppleMenuItem(
-                    icon: Icons.emoji_events_outlined,
-                    iconColor: Colors.green,
-                    title: 'Премии',
-                    trailing: Text(
-                      money.format(month.bonuses),
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: _colorForAmount(month.bonuses, theme),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    onTap: () {
-                      _showMoneyListModal(
-                        context: context,
+                      _AppleMenuItem(
+                        icon: Icons.emoji_events_outlined,
+                        iconColor: Colors.green,
                         title: 'Премии',
-                        records: data.monthBonusRecords,
-                        money: money,
-                        positive: true,
-                        initialMonthStart: month.monthStart,
-                      );
-                    },
-                  ),
-                  _AppleMenuItem(
-                    icon: Icons.report_gmailerrorred_outlined,
-                    iconColor: Colors.red,
-                    title: 'Штрафы',
-                    trailing: Text(
-                      money.format(month.penalties),
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: Colors.red,
-                        fontWeight: FontWeight.w600,
+                        trailing: Text(
+                          money.format(month.bonuses),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: _colorForAmount(month.bonuses, theme),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        onTap: () {
+                          _showMoneyListModal(
+                            context: context,
+                            title: 'Премии',
+                            records: data.monthBonusRecords,
+                            money: money,
+                            positive: true,
+                            initialMonthStart: month.monthStart,
+                          );
+                        },
                       ),
-                    ),
-                    onTap: () {
-                      _showMoneyListModal(
-                        context: context,
+                      _AppleMenuItem(
+                        icon: Icons.report_gmailerrorred_outlined,
+                        iconColor: Colors.red,
                         title: 'Штрафы',
-                        records: data.monthPenaltyRecords,
-                        money: money,
-                        positive: false,
-                        initialMonthStart: month.monthStart,
-                      );
-                    },
+                        trailing: Text(
+                          money.format(month.penalties),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: Colors.red,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        onTap: () {
+                          _showMoneyListModal(
+                            context: context,
+                            title: 'Штрафы',
+                            records: data.monthPenaltyRecords,
+                            money: money,
+                            positive: false,
+                            initialMonthStart: month.monthStart,
+                          );
+                        },
+                      ),
+                    ],
                   ),
+                  const SizedBox(height: 12),
+                  // Итого к выплате - отдельная группа
+                  _AppleMenuGroup(
+                    children: [
+                      _AppleMenuItem(
+                        icon: Icons.account_balance_wallet_outlined,
+                        iconColor: Colors.teal,
+                        title: 'Итого к выплате',
+                        trailing: Text(
+                          money.format(month.netSalary),
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: _colorForAmount(month.netSalary, theme),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        showChevron: false,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  // Итоги за весь период
+                  _AppleMenuGroup(
+                    children: [
+                      _AppleMenuItem(
+                        icon: Icons.trending_up,
+                        iconColor: Colors.green,
+                        title: 'Общая сумма заработанного',
+                        trailing: Text(
+                          money.format(totals.totalEarned),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: _colorForAmount(totals.totalEarned, theme),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        showChevron: false,
+                      ),
+                      _AppleMenuItem(
+                        icon: Icons.payments_outlined,
+                        iconColor: Colors.blue,
+                        title: 'Общая сумма выплат',
+                        trailing: Text(
+                          money.format(totals.totalPayouts),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurface
+                                .withValues(alpha: 0.7),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        onTap: () {
+                          _showMoneyListModal(
+                            context: context,
+                            title: 'Выплаты (все)',
+                            records: data.allPayoutRecords,
+                            money: money,
+                            positive: false,
+                            initialMonthStart: month.monthStart,
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  // Общий остаток - отдельная группа
+                  _AppleMenuGroup(
+                    children: [
+                      _AppleMenuItem(
+                        icon: Icons.account_balance_outlined,
+                        iconColor: Colors.purple,
+                        title: 'Общий остаток',
+                        trailing: Text(
+                          money.format(totals.totalBalance),
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: _colorForAmount(totals.totalBalance, theme),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        showChevron: false,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
                 ],
               ),
-              const SizedBox(height: 12),
-              // Итого к выплате - отдельная группа
-              _AppleMenuGroup(
-                children: [
-                  _AppleMenuItem(
-                    icon: Icons.account_balance_wallet_outlined,
-                    iconColor: Colors.teal,
-                    title: 'Итого к выплате',
-                    trailing: Text(
-                      money.format(month.netSalary),
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: _colorForAmount(month.netSalary, theme),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    showChevron: false,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              // Итоги за весь период
-              _AppleMenuGroup(
-                children: [
-                  _AppleMenuItem(
-                    icon: Icons.trending_up,
-                    iconColor: Colors.green,
-                    title: 'Общая сумма заработанного',
-                    trailing: Text(
-                      money.format(totals.totalEarned),
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: _colorForAmount(totals.totalEarned, theme),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    showChevron: false,
-                  ),
-                  _AppleMenuItem(
-                    icon: Icons.payments_outlined,
-                    iconColor: Colors.blue,
-                    title: 'Общая сумма выплат',
-                    trailing: Text(
-                      money.format(totals.totalPayouts),
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color:
-                            theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    onTap: () {
-                      _showMoneyListModal(
-                        context: context,
-                        title: 'Выплаты (все)',
-                        records: data.allPayoutRecords,
-                        money: money,
-                        positive: false,
-                        initialMonthStart: month.monthStart,
-                      );
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              // Общий остаток - отдельная группа
-              _AppleMenuGroup(
-                children: [
-                  _AppleMenuItem(
-                    icon: Icons.account_balance_outlined,
-                    iconColor: Colors.purple,
-                    title: 'Общий остаток',
-                    trailing: Text(
-                      money.format(totals.totalBalance),
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: _colorForAmount(totals.totalBalance, theme),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    showChevron: false,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-            ],
+            ),
           ),
         );
       },

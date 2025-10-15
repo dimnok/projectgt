@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:projectgt/features/works/data/models/month_group.dart';
+import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 
 /// Виджет заголовка группы смен, сгруппированных по месяцу.
@@ -17,18 +17,22 @@ class MonthGroupHeader extends StatelessWidget {
   /// Колбэк при нажатии на заголовок (раскрыть/свернуть).
   final VoidCallback onTap;
 
+  /// Колбэк при долгом нажатии на заголовок (используется только на мобильных).
+  final VoidCallback? onMobileLongPress;
+
   /// Создаёт виджет заголовка группы месяца.
   const MonthGroupHeader({
     super.key,
     required this.group,
     required this.onTap,
+    this.onMobileLongPress,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDesktop = ResponsiveUtils.isDesktop(context);
-    final formatter = NumberFormat('#,##0', 'ru_RU');
+    final isMobile = ResponsiveUtils.isMobile(context);
     final isCurrentMonth = group.isCurrentMonth;
 
     // Формируем название месяца с точкой-разделителем
@@ -67,6 +71,7 @@ class MonthGroupHeader extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
+          onLongPress: isMobile ? onMobileLongPress : null,
           borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: EdgeInsets.symmetric(
@@ -115,7 +120,7 @@ class MonthGroupHeader extends StatelessWidget {
 
                       // Статистика (текст без декора)
                       Text(
-                        '${group.worksCount} ${_pluralizeWorks(group.worksCount)} • ${formatter.format(group.totalAmount)} ₽',
+                        '${group.worksCount} ${_pluralizeWorks(group.worksCount)} • ${formatCurrency(group.totalAmount)}',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                           fontWeight: FontWeight.w500,

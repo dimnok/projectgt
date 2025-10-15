@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:projectgt/features/version_control/providers/version_providers.dart';
 import 'package:projectgt/domain/entities/app_version.dart';
-import 'package:projectgt/core/constants/app_constants.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 
@@ -25,44 +23,12 @@ class _VersionManagementScreenState
   final _messageController = TextEditingController();
   bool _forceUpdate = false;
   String? _versionId;
-  String _deviceVersion = '';
-
-  @override
-  void initState() {
-    super.initState();
-    _loadDeviceVersion();
-  }
 
   @override
   void dispose() {
     _minimumVersionController.dispose();
     _messageController.dispose();
     super.dispose();
-  }
-
-  /// Загружает информацию о версии устройства.
-  Future<void> _loadDeviceVersion() async {
-    try {
-      final packageInfo = await PackageInfo.fromPlatform();
-
-      if (mounted) {
-        setState(() {
-          // Проверяем, что version не пустой
-          if (packageInfo.version.isNotEmpty) {
-            _deviceVersion = '${packageInfo.version}+${packageInfo.buildNumber}';
-          } else {
-            _deviceVersion = 'Build ${packageInfo.buildNumber}';
-          }
-        });
-      }
-    } catch (e) {
-      // Тихий fallback на версию из AppConstants для Web
-      if (mounted) {
-        setState(() {
-          _deviceVersion = AppConstants.appVersion;
-        });
-      }
-    }
   }
 
   /// Сохраняет изменения версии.
@@ -154,7 +120,9 @@ class _VersionManagementScreenState
     final isDesktop = screenWidth >= 1024;
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: theme.brightness == Brightness.light
+          ? const Color(0xFFF2F2F7) // iOS светлый grouped background
+          : const Color(0xFF1C1C1E), // iOS темный grouped background
       appBar: const AppBarWidget(title: 'Управление версией'),
       drawer: const AppDrawer(activeRoute: AppRoute.versionManagement),
       body: versionAsync.when(
@@ -180,317 +148,160 @@ class _VersionManagementScreenState
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.all(16),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // Заголовок и описание
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Контроль версий приложения',
-                              style: theme.textTheme.titleLarge?.copyWith(
+                      // Информация о текущей версии
+                      _AppleMenuGroup(
+                        children: [
+                          _AppleMenuItem(
+                            icon: Icons.info_outline_rounded,
+                            iconColor: Colors.blue,
+                            title: 'Текущая версия приложения',
+                            subtitle: 'iOS • Android • Web',
+                            trailing: Text(
+                              version.currentVersion,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.primary,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Управляйте минимальной версией приложения для всех платформ (iOS, Android, Web).',
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.onSurface
-                                    .withValues(alpha: 0.7),
+                            showChevron: false,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Все настройки в одной группе
+                      _AppleMenuGroup(
+                        children: [
+                          // Минимальная версия
+                          _SettingsField(
+                            label: 'Минимальная версия',
+                            child: TextField(
+                              controller: _minimumVersionController,
+                              decoration: InputDecoration(
+                                hintText: '1.0.0',
+                                helperText: 'Формат: 1.2.3',
+                                helperStyle: theme.textTheme.bodySmall,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                          // Сообщение
+                          _SettingsField(
+                            label: 'Сообщение для пользователей',
+                            child: TextField(
+                              controller: _messageController,
+                              decoration: InputDecoration(
+                                hintText:
+                                    'Обновите приложение до последней версии',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
+                              ),
+                              maxLines: 2,
+                            ),
+                          ),
+                          // Принудительное обновление
+                          _SwitchSettingsItem(
+                            icon: _forceUpdate
+                                ? Icons.lock_rounded
+                                : Icons.lock_open_rounded,
+                            iconColor: _forceUpdate ? Colors.red : Colors.green,
+                            title: 'Принудительное обновление',
+                            subtitle: _forceUpdate
+                                ? 'Блокировать старые версии'
+                                : 'Разрешить старые версии',
+                            value: _forceUpdate,
+                            onChanged: (value) {
+                              setState(() {
+                                _forceUpdate = value;
+                              });
+                            },
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
 
-                      // Предупреждение
+                      // Компактное предупреждение
                       Container(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                         decoration: BoxDecoration(
                           color: theme.colorScheme.errorContainer,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color:
-                                theme.colorScheme.error.withValues(alpha: 0.3),
-                            width: 1,
-                          ),
                         ),
                         child: Row(
                           children: [
                             Icon(
-                              Icons.warning_amber_rounded,
+                              Icons.warning_rounded,
                               color: theme.colorScheme.error,
-                              size: 24,
+                              size: 20,
                             ),
-                            const SizedBox(width: 12),
+                            const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                'Изменения применяются мгновенно через Realtime. '
-                                'Пользователи со старыми версиями будут заблокированы.',
-                                style: theme.textTheme.bodyMedium?.copyWith(
+                                'Изменения применяются мгновенно',
+                                style: theme.textTheme.bodySmall?.copyWith(
                                   color: theme.colorScheme.onErrorContainer,
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 20),
 
-                      // Карточка управления версией
-                      Card(
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          side: BorderSide(
-                            color: theme.colorScheme.outline
-                                .withValues(alpha: 0.2),
-                            width: 1,
+                      // Кнопка сохранения
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          onPressed: _saveVersion,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: theme.colorScheme.primary,
+                            foregroundColor: theme.colorScheme.onPrimary,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Заголовок
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: theme.colorScheme.primaryContainer,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Icon(
-                                      Icons.system_update_alt_rounded,
-                                      size: 28,
-                                      color: theme.colorScheme.primary,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Единая версия для всех платформ',
-                                          style: theme.textTheme.titleLarge
-                                              ?.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Row(
-                                          children: [
-                                            Icon(
-                                              Icons.apple_rounded,
-                                              size: 18,
-                                              color: theme.colorScheme.primary,
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Icon(
-                                              Icons.android_rounded,
-                                              size: 18,
-                                              color: theme.colorScheme.primary,
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Icon(
-                                              Icons.language_rounded,
-                                              size: 18,
-                                              color: theme.colorScheme.primary,
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              'iOS • Android • Web',
-                                              style: theme.textTheme.bodySmall
-                                                  ?.copyWith(
-                                                color: theme
-                                                    .colorScheme.onSurface
-                                                    .withValues(alpha: 0.6),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 24),
-                              Divider(
-                                color: theme.colorScheme.outline
-                                    .withValues(alpha: 0.2),
-                              ),
-                              const SizedBox(height: 24),
-
-                              // Текущие версии
-                              Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color:
-                                      theme.colorScheme.surfaceContainerHighest,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Column(
-                                  children: [
-                                    _buildInfoRow(
-                                      'Текущая версия приложения:',
-                                      version.currentVersion,
-                                      theme,
-                                      Icons.check_circle_rounded,
-                                      theme.colorScheme.primary,
-                                    ),
-                                    const SizedBox(height: 12),
-                                    _buildInfoRow(
-                                      'Версия на этом устройстве:',
-                                      _deviceVersion.isNotEmpty
-                                          ? _deviceVersion
-                                          : 'Загрузка...',
-                                      theme,
-                                      Icons.phone_android_rounded,
-                                      theme.colorScheme.secondary,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 24),
-
-                              // Поле минимальной версии
-                              TextField(
-                                controller: _minimumVersionController,
-                                decoration: InputDecoration(
-                                  labelText:
-                                      'Минимальная поддерживаемая версия *',
-                                  hintText: '1.0.0',
-                                  helperText:
-                                      'Формат: major.minor.patch (например: 1.2.3)',
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  prefixIcon: const Icon(Icons.edit_rounded),
-                                ),
-                              ),
-                              const SizedBox(height: 20),
-
-                              // Поле сообщения
-                              TextField(
-                                controller: _messageController,
-                                decoration: InputDecoration(
-                                  labelText: 'Сообщение для пользователей',
-                                  hintText:
-                                      'Пожалуйста, обновите приложение до последней версии',
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  prefixIcon: const Icon(Icons.message_rounded),
-                                ),
-                                maxLines: 3,
-                              ),
-                              const SizedBox(height: 20),
-
-                              // Переключатель принудительного обновления
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: _forceUpdate
-                                      ? theme.colorScheme.errorContainer
-                                      : theme
-                                          .colorScheme.surfaceContainerHighest,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: _forceUpdate
-                                        ? theme.colorScheme.error
-                                            .withValues(alpha: 0.3)
-                                        : theme.colorScheme.outline
-                                            .withValues(alpha: 0.2),
-                                    width: 1,
-                                  ),
-                                ),
-                                child: SwitchListTile(
-                                  title: Text(
-                                    'Принудительное обновление',
-                                    style:
-                                        theme.textTheme.titleMedium?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  subtitle: Text(
-                                    _forceUpdate
-                                        ? '✓ Доступ блокирован для старых версий'
-                                        : 'Старые версии продолжают работать',
-                                    style: theme.textTheme.bodySmall,
-                                  ),
-                                  value: _forceUpdate,
-                                  onChanged: (value) {
-                                    setState(() {
-                                      _forceUpdate = value;
-                                    });
-                                  },
-                                  secondary: Icon(
-                                    _forceUpdate
-                                        ? Icons.lock_rounded
-                                        : Icons.lock_open_rounded,
-                                    color: _forceUpdate
-                                        ? theme.colorScheme.error
-                                        : theme.colorScheme.primary,
-                                    size: 28,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 24),
-
-                              // Кнопка сохранения
-                              SizedBox(
-                                width: double.infinity,
-                                height: 56,
-                                child: ElevatedButton.icon(
-                                  onPressed: _saveVersion,
-                                  icon: const Icon(Icons.save_rounded),
-                                  label: const Text(
-                                    'Сохранить изменения',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: theme.colorScheme.primary,
-                                    foregroundColor:
-                                        theme.colorScheme.onPrimary,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                ),
-                              ),
-
-                              // Информация о последнем обновлении
-                              if (version.updatedAt != null) ...[
-                                const SizedBox(height: 16),
-                                Center(
-                                  child: Text(
-                                    'Последнее обновление: ${_formatDateTime(version.updatedAt!)}',
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: theme.colorScheme.onSurface
-                                          .withValues(alpha: 0.6),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
+                          child: const Text(
+                            'Сохранить изменения',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ),
+
+                      // Информация о последнем обновлении
+                      if (version.updatedAt != null) ...[
+                        const SizedBox(height: 12),
+                        Center(
+                          child: Text(
+                            'Обновлено: ${_formatDateTime(version.updatedAt!)}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurface
+                                  .withValues(alpha: 0.4),
+                            ),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 24),
                     ],
                   ),
                 ),
@@ -534,44 +345,273 @@ class _VersionManagementScreenState
       ),
     );
   }
+}
 
-  /// Создаёт строку с информацией.
-  Widget _buildInfoRow(
-    String label,
-    String value,
-    ThemeData theme,
-    IconData icon,
-    Color iconColor,
-  ) {
-    return Row(
-      children: [
-        Icon(
-          icon,
-          size: 20,
-          color: iconColor,
+/// Группа элементов меню в стиле Apple Settings.
+///
+/// Объединяет несколько [_AppleMenuItem] в одну карточку с закругленными углами.
+class _AppleMenuGroup extends StatelessWidget {
+  /// Список элементов меню внутри группы.
+  final List<Widget> children;
+
+  /// Создаёт группу элементов меню.
+  const _AppleMenuGroup({
+    required this.children,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Column(
+          children: _buildChildrenWithDividers(context),
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Row(
-            children: [
-              Text(
-                label,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                value,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: iconColor,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
+      ),
+    );
+  }
+
+  /// Добавляет разделители между элементами списка.
+  List<Widget> _buildChildrenWithDividers(BuildContext context) {
+    final theme = Theme.of(context);
+    final List<Widget> widgets = [];
+
+    for (int i = 0; i < children.length; i++) {
+      widgets.add(children[i]);
+      if (i < children.length - 1) {
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(left: 60, right: 16),
+            child: Divider(
+              height: 1,
+              thickness: 1,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.05),
+            ),
           ),
-        ),
-      ],
+        );
+      }
+    }
+
+    return widgets;
+  }
+}
+
+/// Иконка в цветном квадратике для элементов меню.
+class _MenuIcon extends StatelessWidget {
+  /// Иконка.
+  final IconData icon;
+
+  /// Цвет иконки.
+  final Color color;
+
+  /// Создаёт иконку в квадратике.
+  const _MenuIcon({
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 32,
+      height: 32,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Icon(
+        icon,
+        color: color,
+        size: 18,
+      ),
+    );
+  }
+}
+
+/// Элемент меню в стиле Apple Settings.
+///
+/// Отображает иконку, заголовок, опциональный подзаголовок.
+class _AppleMenuItem extends StatelessWidget {
+  /// Иконка элемента.
+  final IconData icon;
+
+  /// Цвет иконки.
+  final Color iconColor;
+
+  /// Основной текст элемента.
+  final String title;
+
+  /// Дополнительный текст под заголовком (опционально).
+  final String? subtitle;
+
+  /// Виджет справа (опционально).
+  final Widget? trailing;
+
+  /// Показывать ли стрелку вправо.
+  final bool showChevron;
+
+  /// Создаёт элемент меню в стиле Apple.
+  const _AppleMenuItem({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    this.subtitle,
+    this.trailing,
+    this.showChevron = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Row(
+        children: [
+          _MenuIcon(icon: icon, color: iconColor),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+                if (subtitle != null)
+                  Text(
+                    subtitle!,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (trailing != null)
+            trailing!
+          else if (showChevron)
+            Icon(
+              Icons.chevron_right,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
+              size: 20,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Поле настроек с заголовком и контентом.
+class _SettingsField extends StatelessWidget {
+  /// Заголовок поля.
+  final String label;
+
+  /// Контент поля (например, TextField).
+  final Widget child;
+
+  /// Создаёт поле настроек.
+  const _SettingsField({
+    required this.label,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+/// Элемент настроек с переключателем (Switch).
+class _SwitchSettingsItem extends StatelessWidget {
+  /// Иконка элемента.
+  final IconData icon;
+
+  /// Цвет иконки.
+  final Color iconColor;
+
+  /// Основной текст элемента.
+  final String title;
+
+  /// Дополнительный текст под заголовком.
+  final String subtitle;
+
+  /// Значение переключателя.
+  final bool value;
+
+  /// Коллбэк при изменении значения.
+  final ValueChanged<bool> onChanged;
+
+  /// Создаёт элемент с переключателем.
+  const _SwitchSettingsItem({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          _MenuIcon(icon: icon, color: iconColor),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch.adaptive(
+            value: value,
+            onChanged: onChanged,
+          ),
+        ],
+      ),
     );
   }
 }

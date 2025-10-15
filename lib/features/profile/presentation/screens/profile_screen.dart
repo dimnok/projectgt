@@ -201,11 +201,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 newObject.remove('employee_id');
               }
 
+              // ⚠️ ВАЖНО: Если пользователь НЕ админ - НЕ меняем object_ids!
+              final objectIdsToSave =
+                  isAdmin ? selectedObjectIds : profile.objectIds ?? [];
+
               final updatedProfile = profile.copyWith(
                 fullName: fullName,
                 shortName: shortName,
                 phone: phone,
-                objectIds: selectedObjectIds,
+                objectIds:
+                    objectIdsToSave, // ← Используем оригинальные если не админ
                 object: newObject,
                 updatedAt: DateTime.now(),
               );
@@ -1009,28 +1014,32 @@ class _ProfileEditFormState extends State<ProfileEditForm> {
             ),
             const SizedBox(height: 16),
           ],
-          Text('Объекты', style: theme.textTheme.bodyLarge),
-          SizedBox(
-            height: 180,
-            child: ListView(
-              children: widget.allObjects.map((obj) {
-                return CheckboxListTile(
-                  title: Text(obj.name),
-                  value: _selectedObjectIds.contains(obj.id),
-                  onChanged: (checked) {
-                    setState(() {
-                      if (checked == true) {
-                        _selectedObjectIds.add(obj.id);
-                      } else {
-                        _selectedObjectIds.remove(obj.id);
-                      }
-                    });
-                  },
-                );
-              }).toList(),
+          if (widget.isAdmin) ...[
+            Text('Объекты', style: theme.textTheme.bodyLarge),
+            SizedBox(
+              height: 180,
+              child: ListView(
+                children: widget.allObjects.map((obj) {
+                  return CheckboxListTile(
+                    title: Text(obj.name),
+                    value: _selectedObjectIds.contains(obj.id),
+                    onChanged: (checked) {
+                      setState(() {
+                        if (checked == true) {
+                          _selectedObjectIds.add(obj.id);
+                        } else {
+                          _selectedObjectIds.remove(obj.id);
+                        }
+                      });
+                    },
+                  );
+                }).toList(),
+              ),
             ),
-          ),
-          const SizedBox(height: 24),
+            const SizedBox(height: 24),
+          ] else ...[
+            const SizedBox(height: 24),
+          ],
           ElevatedButton(
             onPressed: () {
               if (_formKey.currentState?.validate() ?? false) {

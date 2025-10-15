@@ -283,6 +283,19 @@ class _WorksMasterDetailScreenState
                     });
                   }
                 },
+                onMobileLongPress: () {
+                  if (!ResponsiveUtils.isMobile(context)) {
+                    return;
+                  }
+
+                  final notifier = ref.read(monthGroupsProvider.notifier);
+                  notifier.expandMonth(group.month);
+
+                  context.pushNamed(
+                    'month_details_mobile',
+                    extra: group,
+                  );
+                },
               ),
 
               // Список смен (если группа развёрнута)

@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -91,16 +92,34 @@ class MaterialScreen extends ConsumerWidget {
                   );
                 }
 
-                Widget bodyCell(Widget child,
-                    {Alignment align = Alignment.centerLeft, Color? color}) {
-                  return Container(
+                Widget bodyCell(
+                  Widget child, {
+                  Alignment align = Alignment.centerLeft,
+                  Color? color,
+                  VoidCallback? onTap,
+                }) {
+                  final content = Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
                     alignment: align,
                     child: DefaultTextStyle(
                       style: theme.textTheme.bodyMedium!.copyWith(
-                          color: color ?? theme.colorScheme.onSurface),
+                        color: color ?? theme.colorScheme.onSurface,
+                      ),
                       child: child,
+                    ),
+                  );
+
+                  if (onTap == null) {
+                    return content;
+                  }
+
+                  return MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: onTap,
+                      child: content,
                     ),
                   );
                 }
@@ -109,6 +128,25 @@ class MaterialScreen extends ConsumerWidget {
 
                 // Инициализация пагинатора при первом билде
                 final pager = ref.watch(materialsPagerProvider);
+
+                /// Копирует наименование материала в буфер обмена и показывает Snackbar.
+                Future<void> copyMaterialName(MaterialItem item) async {
+                  final name = item.name.trim();
+                  if (name.isEmpty) {
+                    return;
+                  }
+                  await Clipboard.setData(ClipboardData(text: name));
+                  if (!context.mounted) return;
+                  final messenger = ScaffoldMessenger.of(context);
+                  messenger.hideCurrentSnackBar();
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text('Наименование "$name" скопировано'),
+                      behavior: SnackBarBehavior.floating,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                }
 
                 List<TableRow> buildRows(List items) {
                   final list = <TableRow>[];
@@ -169,8 +207,18 @@ class MaterialScreen extends ConsumerWidget {
                         rowColor = Colors.green;
                       }
                     }
-                    Widget c(Widget ch, {Alignment a = Alignment.centerLeft}) =>
-                        bodyCell(ch, align: a, color: rowColor);
+                    Future<void> handleTap() => copyMaterialName(m);
+                    Widget c(
+                      Widget ch, {
+                      Alignment a = Alignment.centerLeft,
+                      bool allowTap = true,
+                    }) =>
+                        bodyCell(
+                          ch,
+                          align: a,
+                          color: rowColor,
+                          onTap: allowTap ? handleTap : null,
+                        );
                     list.add(TableRow(children: [
                       c(Text(idx.toString()), a: Alignment.center),
                       c(Row(
@@ -249,7 +297,8 @@ class MaterialScreen extends ConsumerWidget {
                                   ),
                                 )
                               : const Text('—'),
-                          a: Alignment.center),
+                          a: Alignment.center,
+                          allowTap: false),
                     ]));
                   }
 

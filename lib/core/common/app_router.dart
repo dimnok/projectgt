@@ -25,6 +25,8 @@ import 'package:projectgt/features/estimates/presentation/screens/estimate_form_
 import 'package:projectgt/features/estimates/presentation/screens/estimate_details_screen.dart';
 import 'package:projectgt/features/works/presentation/screens/works_master_detail_screen.dart';
 import 'package:projectgt/features/works/presentation/screens/work_details_screen.dart';
+import 'package:projectgt/features/works/data/models/month_group.dart';
+import 'package:projectgt/features/works/presentation/screens/month_details_mobile_screen.dart';
 import 'package:projectgt/features/timesheet/presentation/screens/timesheet_screen.dart';
 import 'package:projectgt/features/fot/presentation/screens/payroll_list_screen.dart';
 import 'package:projectgt/features/export/presentation/screens/export_screen.dart';
@@ -452,6 +454,21 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, state) {
               final workId = state.pathParameters['workId']!;
               return WorkDetailsScreen(workId: workId);
+            },
+          ),
+          GoRoute(
+            path: 'month/details',
+            name: 'month_details_mobile',
+            builder: (context, state) {
+              final extra = state.extra;
+              if (extra is! MonthGroup) {
+                return const Scaffold(
+                  body: Center(
+                    child: Text('Ошибка: не переданы данные месяца'),
+                  ),
+                );
+              }
+              return MonthDetailsMobileScreen(initialGroup: extra);
             },
           ),
         ],

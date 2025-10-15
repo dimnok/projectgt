@@ -154,8 +154,10 @@ class EstimatesMappingPager
       }
       if (_query.trim().isNotEmpty) {
         final term = _query.trim();
-        final pattern = '%$term%';
-        builder = builder.or('name.ilike.$pattern,unit.ilike.$pattern');
+        final normalized = term.replaceAll(RegExp('\\s+'), ' ');
+        final escaped = normalized.replaceAll('"', '""');
+        final pattern = '%$escaped%';
+        builder = builder.or('name.ilike."$pattern",unit.ilike."$pattern"');
       }
       final estimates =
           await builder.order('name', ascending: true).range(from, to);

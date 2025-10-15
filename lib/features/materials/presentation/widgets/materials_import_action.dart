@@ -255,11 +255,11 @@ class _ImportPreviewDialogState extends ConsumerState<_ImportPreviewDialog> {
         return;
       }
       final repo = MaterialsImportRepository(Supabase.instance.client);
-      // 1) Загрузка файлов накладных в Storage (если есть данные)
+      // 1) Загрузка файлов накладных в Storage
       final uploadedPaths = await _uploadAllReceiptFiles();
       // 2) Импорт строк в БД
       final summary = await repo.importViaServer(widget.results);
-      // 3) Проставление file_url на сервере через Edge Function (service role)
+      // 3) Проставление file_url через Edge Function (service role)
       await _applyFileUrlsServer(uploadedPaths);
       // 4) Обновляем таблицу материалов (пагинатор)
       ref.read(materialsPagerProvider.notifier).refresh();
@@ -338,13 +338,17 @@ class _ImportPreviewDialogState extends ConsumerState<_ImportPreviewDialog> {
       final dateStr = rd.toIso8601String().split('T').first;
       final cn = (r.contractNumber ?? '').trim();
       try {
-        // Вызов SQL-функции SECURITY DEFINER (обходит RLS)
-        await client.rpc('attach_material_file_url', params: {
-          '_receipt_number': rn,
-          '_receipt_date': dateStr,
-          '_contract_number': cn.isNotEmpty ? cn : null,
-          '_storage_path': storagePath,
+        final res =
+            await client.functions.invoke('receipts-attach-fileurl', body: {
+          'receiptNumber': rn,
+          'receiptDate': dateStr,
+          'contractNumber': cn.isNotEmpty ? cn : null,
+          'storagePath': storagePath,
         });
+        if (res.data is Map && res.data['error'] != null) {
+          errors.add(
+              'Не удалось проставить file_url для №$rn: ${res.data['error']}');
+        }
       } catch (e) {
         errors.add('Не удалось проставить file_url для №$rn: $e');
       }
