@@ -14,6 +14,7 @@ import 'package:excel/excel.dart' as excel;
 import 'package:excel/excel.dart' show TextCellValue, DoubleCellValue;
 import 'dart:typed_data';
 import 'import_estimate_form_modal.dart';
+import 'estimate_completion_report_screen.dart';
 import 'package:intl/intl.dart';
 import 'package:collection/collection.dart';
 import 'package:projectgt/presentation/widgets/app_badge.dart';
@@ -292,6 +293,18 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
       appBar: AppBarWidget(
         title: 'Сметы',
         actions: [
+          // Кнопка отчёта о выполнении
+          IconButton(
+            icon: const Icon(Icons.assessment),
+            tooltip: 'Отчёт о выполнении',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const EstimateCompletionReportScreen(),
+                ),
+              );
+            },
+          ),
           // Кнопка экспорта Excel
           IconButton(
             icon: const Icon(Icons.file_download),

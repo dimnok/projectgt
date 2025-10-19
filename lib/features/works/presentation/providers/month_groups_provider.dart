@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/features/works/data/models/month_group.dart';
+import 'package:projectgt/features/works/domain/entities/work.dart';
 import 'package:projectgt/features/works/domain/repositories/work_repository.dart';
 import 'repositories_providers.dart';
 
@@ -175,16 +176,64 @@ class MonthGroupsNotifier extends StateNotifier<MonthGroupsState> {
   ///
   /// [month] — дата начала месяца.
   Future<void> loadMoreMonthWorks(DateTime month) async {
-    final group = state.groups.firstWhere((g) => g.month == month);
-    if (group.works == null) return;
+    try {
+      final groupIndex = state.groups.indexWhere((g) => g.month == month);
+      if (groupIndex == -1) return;
 
-    final offset = group.works!.length;
-    await _loadMonthWorks(month, offset: offset);
+      final group = state.groups[groupIndex];
+      if (group.works == null) return;
+
+      // Проверяем, не загружены ли уже все смены месяца
+      if (group.works!.length >= group.worksCount) {
+        return; // Все смены уже загружены
+      }
+
+      final offset = group.works!.length;
+      await _loadMonthWorks(month, offset: offset);
+    } catch (e) {
+      state = state.copyWith(error: 'Ошибка подгрузки смен: $e');
+    }
   }
 
   /// Перезагружает данные (pull-to-refresh).
   Future<void> refresh() async {
     await loadMonths();
+  }
+
+  /// Обновляет работу в месячной группе (без полной инвалидации провайдера).
+  ///
+  /// Находит месячную группу по ID работы и обновляет работу в ней.
+  /// Это предотвращает временную потерю данных при инвалидации.
+  void updateWorkInGroup(dynamic updatedWork) {
+    // Ищем группу, содержащую эту работу
+    int? groupIndex;
+    int? workIndex;
+
+    for (int g = 0; g < state.groups.length; g++) {
+      if (state.groups[g].works != null) {
+        for (int w = 0; w < state.groups[g].works!.length; w++) {
+          if (state.groups[g].works![w].id == updatedWork.id) {
+            groupIndex = g;
+            workIndex = w;
+            break;
+          }
+        }
+      }
+      if (groupIndex != null) break;
+    }
+
+    if (groupIndex == null || workIndex == null) {
+      return;
+    }
+
+    // Обновляем работу в группе
+    final updatedGroups = List<MonthGroup>.from(state.groups);
+    final group = updatedGroups[groupIndex];
+    final updatedWorks = List<Work>.from(group.works!);
+    updatedWorks[workIndex] = updatedWork;
+    updatedGroups[groupIndex] = group.copyWith(works: updatedWorks);
+
+    state = state.copyWith(groups: updatedGroups);
   }
 }
 

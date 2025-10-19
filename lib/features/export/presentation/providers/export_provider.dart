@@ -77,12 +77,12 @@ class ExportNotifier extends StateNotifier<ExportState> {
 
   /// Экспортирует данные в Excel файл.
   Future<String?> exportToExcel(
+    List<ExportReport> reports,
     String fileName, {
     List<String>? columns,
-    bool aggregate = false,
     String? sheetName,
   }) async {
-    if (state.reports.isEmpty) {
+    if (reports.isEmpty) {
       state = state.copyWith(error: 'Нет данных для экспорта');
       return null;
     }
@@ -90,10 +90,9 @@ class ExportNotifier extends StateNotifier<ExportState> {
     state = state.copyWith(isExporting: true, error: null);
     try {
       final filePath = await exportService.exportToExcel(
-        state.reports,
+        reports,
         fileName,
         columns: columns,
-        aggregate: aggregate,
         sheetName: sheetName,
       );
       state = state.copyWith(isExporting: false);

@@ -163,8 +163,9 @@ final workProvider = Provider.family<Work?, String>((ref, id) {
   for (final group in monthGroupsState.groups) {
     if (group.works != null) {
       try {
-        return group.works!.firstWhere((work) => work.id == id);
-      } catch (_) {
+        final found = group.works!.firstWhere((work) => work.id == id);
+        return found;
+      } catch (e) {
         continue;
       }
     }

@@ -38,53 +38,51 @@ class _AllProgress {
   const _AllProgress({required this.byContract, required this.bestContractId});
 }
 
-/// Вычисляет общую сумму из строки данных.
-///
-/// Использует значение `total`, если оно указано, иначе вычисляет как `quantity * price`.
-double _calculateRowTotal(Map<String, dynamic> row) {
-  final double quantity = (row['quantity'] as num?)?.toDouble() ?? 0;
-  final double price = (row['price'] as num?)?.toDouble() ?? 0;
-  return (row['total'] as num?)?.toDouble() ?? (quantity * price);
-}
-
 /// Провайдер прогресса выполнения по всем договорам.
 ///
 /// Вычисляет общую сумму смет и выполненных работ для каждого договора,
 /// определяет договор с наибольшим прогрессом выполнения.
+/// Использует Server-Side RPC для масштабируемого решения (работает на любых объёмах данных).
 final allContractsProgressProvider = FutureProvider<_AllProgress>((ref) async {
   final client = ref.watch(supabaseClientProvider);
 
-  // Суммы смет по договору
-  final estimatesResp = await client
-      .from('estimates')
-      .select('contract_id, total, quantity, price');
+  // Объявляем переменные вне try, чтобы они были видны после блока
+  late final Map<String, double> estimatesTotalByContract;
+  late final Map<String, double> executedTotalByContract;
 
-  final Map<String, double> estimatesTotalByContract = {};
-  for (final row in (estimatesResp as List)) {
-    final String? contractId = row['contract_id'] as String?;
-    if (contractId == null) continue;
-    final double rowTotal = _calculateRowTotal(row);
-    estimatesTotalByContract[contractId] =
-        (estimatesTotalByContract[contractId] ?? 0) + rowTotal;
+  try {
+    // RPC запрос с timeout 30 сек
+    final rpcFuture = client.rpc('get_all_contracts_progress');
+    final List<dynamic> rpcResult = await rpcFuture.timeout(
+      const Duration(seconds: 30),
+      onTimeout: () => throw Exception(
+          'RPC get_all_contracts_progress timeout after 30 seconds'),
+    );
+
+    // Инициализируем переменные в try блоке
+    estimatesTotalByContract = {};
+    executedTotalByContract = {};
+
+    for (final row in rpcResult) {
+      final String? contractId = row['contract_id'] as String?;
+      if (contractId == null) continue;
+
+      final dynamic estTotal = row['estimate_total'];
+      final dynamic execTotal = row['executed_total'];
+
+      final double estimateTotal =
+          (estTotal is num) ? estTotal.toDouble() : 0.0;
+      final double executedTotal =
+          (execTotal is num) ? execTotal.toDouble() : 0.0;
+
+      estimatesTotalByContract[contractId] = estimateTotal;
+      executedTotalByContract[contractId] = executedTotal;
+    }
+  } catch (e) {
+    throw Exception('Не удалось получить данные по договорам: $e');
   }
 
-  // Выполнение по договору (сумма по work_items, join на estimates.contract_id)
-  final workItemsResp = await client
-      .from('work_items')
-      .select('total, quantity, price, estimates!inner(contract_id)');
-
-  final Map<String, double> executedTotalByContract = {};
-  for (final row in (workItemsResp as List)) {
-    final Map<String, dynamic>? estimates =
-        row['estimates'] as Map<String, dynamic>?;
-    if (estimates == null) continue;
-    final String? contractId = estimates['contract_id'] as String?;
-    if (contractId == null) continue;
-    final double rowTotal = _calculateRowTotal(row);
-    executedTotalByContract[contractId] =
-        (executedTotalByContract[contractId] ?? 0) + rowTotal;
-  }
-
+  // Итоговые данные - берём ВСЕ договоры из смет
   final Map<String, _ContractProgress> byContract = {};
   for (final entry in estimatesTotalByContract.entries) {
     final String contractId = entry.key;
@@ -108,68 +106,6 @@ final allContractsProgressProvider = FutureProvider<_AllProgress>((ref) async {
 
   return _AllProgress(byContract: byContract, bestContractId: best);
 });
-
-/// Провайдер прогресса выполнения для конкретного договора.
-///
-/// Использует данные из [allContractsProgressProvider] для избежания дублирования запросов к БД.
-/// Если данных нет в общем провайдере, делает отдельные запросы.
-///
-/// [contractId] - идентификатор договора.
-final contractProgressProvider =
-    FutureProvider.family<_ContractProgress, String>((ref, contractId) async {
-  // Пытаемся получить данные из общего провайдера (оптимизация)
-  final allProgressAsync = ref.watch(allContractsProgressProvider);
-
-  return allProgressAsync.when(
-    data: (allProgress) {
-      // Если данные есть в кэше - используем их
-      if (allProgress.byContract.containsKey(contractId)) {
-        return allProgress.byContract[contractId]!;
-      }
-      // Если данных нет - делаем отдельный запрос (fallback)
-      return _fetchContractProgress(ref, contractId);
-    },
-    loading: () => _fetchContractProgress(ref, contractId),
-    error: (_, __) => _fetchContractProgress(ref, contractId),
-  );
-});
-
-/// Выполняет прямые запросы к БД для получения прогресса конкретного договора.
-///
-/// Используется как fallback, когда данные недоступны в [allContractsProgressProvider].
-Future<_ContractProgress> _fetchContractProgress(
-  Ref ref,
-  String contractId,
-) async {
-  final client = ref.watch(supabaseClientProvider);
-
-  // Сумма смет по договору
-  final estimatesResp = await client
-      .from('estimates')
-      .select('total, quantity, price')
-      .eq('contract_id', contractId);
-
-  double estimatesTotal = 0;
-  for (final row in (estimatesResp as List)) {
-    estimatesTotal += _calculateRowTotal(row);
-  }
-
-  // Сумма выполнения по договору из смен
-  final workItemsResp = await client
-      .from('work_items')
-      .select('total, quantity, price, estimates!inner(contract_id)')
-      .eq('estimates.contract_id', contractId);
-
-  double executedTotal = 0;
-  for (final row in (workItemsResp as List)) {
-    executedTotal += _calculateRowTotal(row);
-  }
-
-  return _ContractProgress(
-    estimatesTotal: estimatesTotal,
-    executedTotal: executedTotal,
-  );
-}
 
 /// Виджет отображения прогресса выполнения договоров.
 ///
@@ -273,11 +209,12 @@ class _ContractProgressWidgetState
           ],
         ),
         const SizedBox(height: 16),
-        if (contractId == null || contracts.isEmpty)
+        if (contractId == null ||
+            allProgressAsync.asData?.value.byContract.isEmpty == true)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 24),
             child: Text(
-              contracts.isEmpty ? 'Нет договоров' : 'Выберите договор',
+              contractId == null ? 'Загрузка договоров...' : 'Нет договоров',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
               ),
@@ -288,8 +225,7 @@ class _ContractProgressWidgetState
             builder: (context, ref, _) {
               // contractId точно не null из-за условия выше, но добавим проверку для линтера
               final String currentContractId = contractId;
-              final async =
-                  ref.watch(contractProgressProvider(currentContractId));
+              final async = ref.watch(allContractsProgressProvider);
               return async.when(
                 loading: () => const SizedBox(
                   height: 160,
@@ -302,7 +238,16 @@ class _ContractProgressWidgetState
                       style: theme.textTheme.bodyMedium
                           ?.copyWith(color: theme.colorScheme.error)),
                 ),
-                data: (data) {
+                data: (allProgress) {
+                  // Извлекаем данные для конкретного договора
+                  final data = allProgress.byContract[currentContractId];
+                  if (data == null) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      child: Text('Данные не найдены',
+                          style: theme.textTheme.bodyMedium),
+                    );
+                  }
                   final double total = data.estimatesTotal;
                   final double done = data.executedTotal;
                   final double targetRatio =
@@ -374,8 +319,6 @@ class _ContractProgressWidgetState
       ],
     );
   }
-
-  // Прокрутка чипов удалена
 }
 
 /// Создает интерполированную палитру цветов от красного к зелёному.

@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-// logger removed
 import '../../domain/repositories/export_repository.dart';
 import '../../data/repositories/export_repository_impl.dart';
 import '../../data/datasources/export_data_source.dart';
@@ -13,9 +12,6 @@ import '../../data/datasources/work_search_data_source_impl.dart';
 final supabaseClientProvider = Provider<SupabaseClient>((ref) {
   return Supabase.instance.client;
 });
-
-/// Провайдер логгера.
-// logger provider removed
 
 /// Провайдер источника данных выгрузки.
 final exportDataSourceProvider = Provider<ExportDataSource>((ref) {

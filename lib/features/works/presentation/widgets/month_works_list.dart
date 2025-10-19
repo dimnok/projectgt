@@ -42,6 +42,9 @@ class MonthWorksList extends ConsumerStatefulWidget {
 class _MonthWorksListState extends ConsumerState<MonthWorksList> {
   final _scrollController = ScrollController();
 
+  /// Флаг, чтобы не загружать одновременно несколько порций смен.
+  bool _isLoadingMore = false;
+
   @override
   void initState() {
     super.initState();
@@ -56,11 +59,27 @@ class _MonthWorksListState extends ConsumerState<MonthWorksList> {
   }
 
   /// Обработчик скролла для infinite scroll.
+  ///
+  /// Срабатывает при приближении к концу списка (200px).
+  /// Содержит дебаунс для предотвращения множественных запросов.
   void _onScroll() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 200) {
-      // Подгружаем дополнительные смены когда осталось 200px до конца
+    // Пропускаем, если уже загружаем дополнительные смены
+    if (_isLoadingMore) return;
+
+    final position = _scrollController.position;
+    final isAtEnd = position.pixels >= position.maxScrollExtent - 200;
+
+    if (isAtEnd) {
+      // Устанавливаем флаг и запускаем загрузку
+      _isLoadingMore = true;
       widget.onLoadMore();
+
+      // Сбрасываем флаг через 500ms, чтобы предотвратить spam запросов
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          setState(() => _isLoadingMore = false);
+        }
+      });
     }
   }
 
@@ -91,11 +110,15 @@ class _MonthWorksListState extends ConsumerState<MonthWorksList> {
       );
     }
 
-    // Отображаем список смен
+    // Отображаем список смен с поддержкой infinite scroll.
+    //
+    // ВАЖНО: Не используем shrinkWrap: true, потому что это ломает расчёт
+    // maxScrollExtent. Вместо этого родитель (ConstrainedBox) задаёт
+    // фиксированную высоту, что позволяет ListView правильно вычислить
+    // границы скролла и срабатывает infinite scroll при приближении к концу.
     return ListView.builder(
       controller: _scrollController,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+      physics: const AlwaysScrollableScrollPhysics(),
       itemCount: works.length,
       itemBuilder: (context, index) {
         final work = works[index];

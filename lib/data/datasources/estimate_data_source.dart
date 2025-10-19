@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:excel/excel.dart';
 import 'dart:io';
 import '../models/estimate_model.dart';
+import '../models/estimate_completion_model.dart';
 
 /// Источник данных для работы со сметами (абстракция).
 ///
@@ -24,6 +25,9 @@ abstract class EstimateDataSource {
 
   /// Импортирует сметы из Excel-файла по [filePath].
   Future<List<EstimateModel>> importFromExcel(String filePath);
+
+  /// Получает отчёт о выполнении смет с информацией о выполненных работах.
+  Future<List<EstimateCompletionModel>> getEstimateCompletion();
 }
 
 /// Реализация EstimateDataSource через Supabase/PostgreSQL.
@@ -189,5 +193,23 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
         total: total,
       );
     }).toList();
+  }
+
+  @override
+  Future<List<EstimateCompletionModel>> getEstimateCompletion() async {
+    try {
+      final response = await client.rpc('get_estimate_completion_report');
+
+      if (response is! List) {
+        return [];
+      }
+
+      return response
+          .cast<Map<String, dynamic>>()
+          .map((json) => EstimateCompletionModel.fromJson(json))
+          .toList();
+    } catch (e) {
+      rethrow;
+    }
   }
 }

@@ -139,7 +139,7 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved>
         final quantity = entry.value ?? 0;
         itemsToAdd.add(
           WorkItem(
-            id: const Uuid().v4(),
+            id: isModifying ? widget.initial!.id : const Uuid().v4(),
             workId: widget.workId,
             section: _selectedSection!,
             floor: _selectedFloor!,
@@ -151,13 +151,20 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved>
             quantity: quantity,
             price: estimate.price,
             total: quantity > 0 ? estimate.price * quantity : 0,
-            createdAt: DateTime.now(),
+            createdAt: isModifying ? widget.initial!.createdAt : DateTime.now(),
             updatedAt: DateTime.now(),
           ),
         );
       }
 
-      await workItemsNotifier.addMany(itemsToAdd);
+      // Если редактируем, обновляем; если добавляем, сохраняем
+      if (isModifying) {
+        // Редактируем первую (и единственную) работу
+        await workItemsNotifier.updateOptimistic(itemsToAdd.first);
+      } else {
+        // Добавляем новые работы
+        await workItemsNotifier.addMany(itemsToAdd);
+      }
 
       // Закрываем модальное окно после успешного сохранения
       if (mounted) {
@@ -189,12 +196,27 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved>
     objectId = work?.objectId ?? '';
     if (objectId.isEmpty) {
       throw Exception('objectId не найден для данной смены');
-    }
-    if (isModifying) {
+    }    if (isModifying) {
       _selectedSection = widget.initial!.section;
       _selectedFloor = widget.initial!.floor;
       _selectedSystem = widget.initial!.system;
       _selectedSubsystem = widget.initial!.subsystem;
+    }
+
+    // Инициализируем выбранные элементы для редактирования
+    // (это может быть пусто, если сметы не загружены, но будет обновлено после _loadDropdownData)
+    if (isModifying && ref.read(estimateNotifierProvider).estimates.isNotEmpty) {
+      final estimate = ref.read(estimateNotifierProvider).estimates
+          .where((e) => e.id == widget.initial!.estimateId)
+          .firstOrNull;
+      if (estimate != null) {
+        _selectedEstimateItems[estimate] = widget.initial!.quantity is int 
+        ? (widget.initial!.quantity as int).toDouble()
+        : widget.initial!.quantity as double?;
+        _quantityControllers[estimate] = TextEditingController(
+          text: widget.initial!.quantity.toString(),
+        );
+      }
     }
 
     // Инициализация анимаций
@@ -231,6 +253,27 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved>
         ref.read(estimateNotifierProvider.notifier).loadEstimates();
       }
       _loadDropdownData();
+      // Обновляем отфильтрованный список (важно! это должно быть ДО инициализации выбранных работ)
+      _updateFilteredEstimates();
+      
+      // Если редактируем, загружаем выбранные работы
+      if (isModifying) {
+        final estimate = ref.read(estimateNotifierProvider).estimates
+            .where((e) => e.id == widget.initial!.estimateId)
+            .firstOrNull;
+        if (estimate != null) {
+          _selectedEstimateItems[estimate] = widget.initial!.quantity is int 
+        ? (widget.initial!.quantity as int).toDouble()
+        : widget.initial!.quantity as double?;
+          _quantityControllers[estimate] = TextEditingController(
+            text: widget.initial!.quantity.toString(),
+          );
+          // Обновляем UI после инициализации
+          if (mounted) {
+            setState(() {});
+          }
+        }
+      }
     });
   }
 
@@ -324,9 +367,16 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved>
           .toSet();
 
       // Убираем из отображаемого списка только те материалы, которые уже есть в этой комбинации
+      // НО при редактировании не исключаем выбранную работу
       filteredList = filteredList
-          .where(
-              (estimate) => !existingEstimateIdsForCombo.contains(estimate.id))
+          .where((estimate) {
+            // Если редактируем и это выбранная работа - не исключаем её
+            if (isModifying && estimate.id == widget.initial!.estimateId) {
+              return true;
+            }
+            // Иначе исключаем уже добавленные работы
+            return !existingEstimateIdsForCombo.contains(estimate.id);
+          })
           .toList();
     }
 
@@ -735,7 +785,16 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved>
               _selectedFloor = null;
               _selectedSystem = null;
               _selectedSubsystem = null;
-              _selectedEstimateItems.clear();
+              // Не очищаем выбранные элементы при редактировании
+
+              if (!isModifying) {
+
+                // Не очищаем выбранные элементы при редактировании
+                if (!isModifying) {
+                  _selectedEstimateItems.clear();
+                }
+
+              }
 
               // Управление анимацией кнопок
               if (_selectedEstimateItems.isEmpty) {
@@ -766,7 +825,16 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved>
                 _selectedFloor = value;
                 _selectedSystem = null;
                 _selectedSubsystem = null;
-                _selectedEstimateItems.clear();
+                // Не очищаем выбранные элементы при редактировании
+
+                if (!isModifying) {
+
+                  // Не очищаем выбранные элементы при редактировании
+                  if (!isModifying) {
+                    _selectedEstimateItems.clear();
+                  }
+
+                }
 
                 // Управление анимацией кнопок
                 if (_selectedEstimateItems.isEmpty) {
@@ -796,7 +864,16 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved>
               setState(() {
                 _selectedSystem = value;
                 _selectedSubsystem = null;
-                _selectedEstimateItems.clear();
+                // Не очищаем выбранные элементы при редактировании
+
+                if (!isModifying) {
+
+                  // Не очищаем выбранные элементы при редактировании
+                  if (!isModifying) {
+                    _selectedEstimateItems.clear();
+                  }
+
+                }
 
                 // Управление анимацией кнопок
                 if (_selectedEstimateItems.isEmpty) {
@@ -824,7 +901,16 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved>
             onSelectionChanged: (value) {
               setState(() {
                 _selectedSubsystem = value;
-                _selectedEstimateItems.clear();
+                // Не очищаем выбранные элементы при редактировании
+
+                if (!isModifying) {
+
+                  // Не очищаем выбранные элементы при редактировании
+                  if (!isModifying) {
+                    _selectedEstimateItems.clear();
+                  }
+
+                }
 
                 // Управление анимацией кнопок
                 if (_selectedEstimateItems.isEmpty) {

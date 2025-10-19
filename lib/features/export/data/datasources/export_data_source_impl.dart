@@ -1,5 +1,4 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-// logger removed
 import '../models/export_filter_model.dart';
 import '../models/export_report_model.dart';
 import 'export_data_source.dart';
@@ -8,8 +7,6 @@ import 'export_data_source.dart';
 class ExportDataSourceImpl implements ExportDataSource {
   /// Клиент Supabase для работы с базой данных.
   final SupabaseClient supabaseClient;
-
-  // logger removed
 
   /// Создаёт реализацию источника данных выгрузки.
   ExportDataSourceImpl({
@@ -114,47 +111,10 @@ class ExportDataSourceImpl implements ExportDataSource {
 
       // processed
 
-      // Группируем записи по всем полям кроме quantity, ВКЛЮЧАЯ дату
-      // Записи группируются только в рамках одной даты
-      final Map<String, ExportReportModel> groupedReports = {};
-
-      for (final report in reports) {
-        // Создаем ключ группировки из всех полей кроме quantity и total, ВКЛЮЧАЯ дату
-        // Объединяем записи ТОЛЬКО С ОДНОЙ ДАТЫ, если совпадают:
-        // ДАТА, объект, договор, система, подсистема, позиция, работа, секция, этаж, ед.изм., цена
-        final groupKey = '${report.workDate.toIso8601String()}_'
-            '${report.objectName}_'
-            '${report.contractName}_'
-            '${report.system}_'
-            '${report.subsystem}_'
-            '${report.positionNumber}_'
-            '${report.workName}_'
-            '${report.section}_'
-            '${report.floor}_'
-            '${report.unit}_'
-            '${report.price ?? 0}';
-
-        if (groupedReports.containsKey(groupKey)) {
-          // Если запись с таким ключом уже есть, суммируем quantity
-          final existing = groupedReports[groupKey]!;
-          final newQuantity = existing.quantity + report.quantity;
-          final newTotal =
-              report.price != null ? newQuantity * report.price! : null;
-
-          groupedReports[groupKey] = existing.copyWith(
-            quantity: newQuantity,
-            total: newTotal,
-          );
-        } else {
-          // Если записи с таким ключом нет, добавляем новую
-          groupedReports[groupKey] = report;
-        }
-      }
-
-      final groupedList = groupedReports.values.toList();
-      // grouped
-
-      return groupedList;
+      // Возвращаем RAW данные БЕЗ группировки
+      // Каждый work_item становится отдельной строкой в выгрузке
+      // Это обеспечивает полноту данных и корректность при экспорте
+      return reports;
     } catch (e) {
       rethrow;
     }

@@ -1,6 +1,7 @@
 import '../../domain/entities/export_filter.dart';
 import '../../domain/entities/export_report.dart';
 import '../../domain/repositories/export_repository.dart';
+import '../../domain/usecases/aggregate_reports.dart';
 import '../datasources/export_data_source.dart';
 import '../models/export_filter_model.dart';
 import '../models/export_report_model.dart';
@@ -19,7 +20,9 @@ class ExportRepositoryImpl implements ExportRepository {
   Future<List<ExportReport>> getExportData(ExportFilter filter) async {
     final filterModel = _mapFilterToModel(filter);
     final reportModels = await dataSource.getExportData(filterModel);
-    return reportModels.map(_mapReportModelToEntity).toList();
+    final reports = reportModels.map(_mapReportModelToEntity).toList();
+    // UI всегда получает детальную агрегацию (9 полей)
+    return aggregateReports(reports, level: AggregationLevel.detailed);
   }
 
   @override

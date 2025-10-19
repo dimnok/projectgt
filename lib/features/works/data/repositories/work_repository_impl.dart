@@ -1,6 +1,7 @@
 import '../../domain/entities/work.dart';
 import '../../domain/repositories/work_repository.dart';
 import '../datasources/work_data_source.dart';
+import '../datasources/work_data_source_impl.dart';
 import '../models/work_model.dart';
 import '../models/month_group.dart';
 import 'package:projectgt/core/services/photo_service.dart';
@@ -117,6 +118,30 @@ class WorkRepositoryImpl implements WorkRepository {
       limit: limit,
     );
     return models.map(_mapToEntity).toList();
+  }
+
+  /// Возвращает полную статистику по объектам за месяц.
+  @override
+  Future<List<ObjectSummary>> getObjectsSummary(DateTime month) async {
+    return await dataSource.getObjectsSummary(month);
+  }
+
+  /// Возвращает полную статистику по системам за месяц.
+  @override
+  Future<List<SystemSummary>> getSystemsSummary(DateTime month) async {
+    return await dataSource.getSystemsSummary(month);
+  }
+
+  /// Возвращает общее количество часов за месяц.
+  @override
+  Future<MonthHoursSummary> getTotalHours(DateTime month) async {
+    return await dataSource.getTotalHours(month);
+  }
+
+  /// Возвращает количество уникальных сотрудников за месяц.
+  @override
+  Future<MonthEmployeesSummary> getTotalEmployees(DateTime month) async {
+    return await dataSource.getTotalEmployees(month);
   }
 
   /// Преобразует модель смены [WorkModel] в доменную сущность [Work].

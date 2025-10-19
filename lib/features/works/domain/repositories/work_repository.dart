@@ -1,5 +1,6 @@
 import '../entities/work.dart';
 import '../../data/models/month_group.dart';
+import '../../data/datasources/work_data_source_impl.dart';
 
 /// Абстрактный репозиторий для работы со сменами.
 ///
@@ -35,4 +36,22 @@ abstract class WorkRepository {
     int offset = 0,
     int limit = 30,
   });
+
+  /// Возвращает полную статистику по объектам за месяц.
+  ///
+  /// Вычисляется на сервере (RPC функция), поэтому всегда полная,
+  /// не зависит от пагинации смен.
+  Future<List<ObjectSummary>> getObjectsSummary(DateTime month);
+
+  /// Возвращает полную статистику по системам за месяц.
+  ///
+  /// Вычисляется на сервере (RPC функция), поэтому всегда полная,
+  /// не зависит от пагинации смен.
+  Future<List<SystemSummary>> getSystemsSummary(DateTime month);
+
+  /// Возвращает общее количество часов за месяц.
+  Future<MonthHoursSummary> getTotalHours(DateTime month);
+
+  /// Возвращает общее количество специалистов за месяц.
+  Future<MonthEmployeesSummary> getTotalEmployees(DateTime month);
 }

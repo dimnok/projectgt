@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/di/providers.dart';
+import '../../domain/usecases/aggregate_reports.dart';
 
 /// Состояние фильтрации выгрузки данных.
 ///
@@ -36,6 +37,9 @@ class ExportFilterState {
   /// Список всех доступных подсистем.
   final List<String> availableSubsystems;
 
+  /// Уровень агрегации данных.
+  final AggregationLevel aggregationLevel;
+
   /// Конструктор состояния фильтрации выгрузки.
   ExportFilterState({
     this.objectIds = const [],
@@ -48,6 +52,7 @@ class ExportFilterState {
     this.contracts = const [],
     this.availableSystems = const [],
     this.availableSubsystems = const [],
+    this.aggregationLevel = AggregationLevel.detailed,
   })  : dateFrom =
             dateFrom ?? DateTime(DateTime.now().year, DateTime.now().month, 1),
         dateTo = dateTo ??
@@ -65,6 +70,7 @@ class ExportFilterState {
     List<dynamic>? contracts,
     List<String>? availableSystems,
     List<String>? availableSubsystems,
+    AggregationLevel? aggregationLevel,
   }) =>
       ExportFilterState(
         objectIds: objectIds ?? this.objectIds,
@@ -77,6 +83,7 @@ class ExportFilterState {
         contracts: contracts ?? this.contracts,
         availableSystems: availableSystems ?? this.availableSystems,
         availableSubsystems: availableSubsystems ?? this.availableSubsystems,
+        aggregationLevel: aggregationLevel ?? this.aggregationLevel,
       );
 }
 
@@ -211,6 +218,11 @@ class ExportFilterNotifier extends StateNotifier<ExportFilterState> {
 
   /// Установить дату окончания периода.
   void setDateTo(DateTime dateTo) => state = state.copyWith(dateTo: dateTo);
+
+  /// Установить уровень агрегации.
+  void setAggregationLevel(AggregationLevel level) {
+    state = state.copyWith(aggregationLevel: level);
+  }
 
   /// Сбросить все фильтры к значениям по умолчанию.
   void resetFilters() {

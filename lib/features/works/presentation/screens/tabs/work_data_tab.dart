@@ -19,6 +19,7 @@ import 'package:projectgt/presentation/state/profile_state.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
 import 'package:projectgt/features/works/presentation/widgets/work_distribution_card.dart';
+import 'package:projectgt/features/works/presentation/providers/month_groups_provider.dart';
 
 /// Вкладка "Данные" со сводной информацией по смене
 class WorkDataTab extends ConsumerStatefulWidget {
@@ -37,6 +38,12 @@ class WorkDataTab extends ConsumerStatefulWidget {
 }
 
 class _WorkDataTabState extends ConsumerState<WorkDataTab> {
+  /// Флаг загрузки вечернего фото
+  bool _isLoadingEveningPhoto = false;
+
+  /// Флаг успешной загрузки вечернего фото
+  bool _isEveningPhotoSuccessful = false;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -706,154 +713,273 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
   }
 
   void _showEveningPhotoOptions(Work work) {
-    final currentProfile = ref.read(currentUserProfileProvider).profile;
-    final bool isOwner =
-        currentProfile != null && work.openedBy == currentProfile.id;
-    final bool isOpen = work.status.toLowerCase() == 'open';
-    if (!isOwner || !isOpen) {
-      SnackBarUtils.showWarning(
-          context, 'Добавлять/изменять фото может только автор открытой смены');
-      return;
-    }
-    final theme = Theme.of(context);
     showModalBottomSheet(
       context: context,
       useRootNavigator: true,
-      backgroundColor: theme.colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Вечернее фото смены',
-                style: theme.textTheme.titleLarge
-                    ?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _PhotoOptionButton(
-                  icon: Icons.photo_camera,
-                  label: 'Камера',
-                  onTap: () {
-                    Navigator.pop(context);
-                    _pickEveningPhoto(ImageSource.camera, work);
-                  },
-                ),
-                _PhotoOptionButton(
-                  icon: Icons.photo_library,
-                  label: 'Галерея',
-                  onTap: () {
-                    Navigator.pop(context);
-                    _pickEveningPhoto(ImageSource.gallery, work);
-                  },
-                ),
-                if (work.eveningPhotoUrl != null &&
-                    work.eveningPhotoUrl!.isNotEmpty)
-                  _PhotoOptionButton(
-                    icon: Icons.delete_outline,
-                    label: 'Удалить',
-                    onTap: () async {
-                      Navigator.pop(context);
-                      final updatedWork = work.copyWith(
-                          eveningPhotoUrl: null, updatedAt: DateTime.now());
-                      await ref
-                          .read(worksProvider.notifier)
-                          .updateWork(updatedWork);
-                    },
-                  ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Отмена')),
-          ],
-        ),
-      ),
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setBottomSheetState) {
+            final messenger = ScaffoldMessenger.of(context);
+            final navigator = Navigator.of(context, rootNavigator: true);
+
+            return Container(
+              padding: const EdgeInsets.all(16),
+              child: _isLoadingEveningPhoto
+                  ? const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CupertinoActivityIndicator(radius: 16),
+                          SizedBox(height: 16),
+                          Text('Идёт загрузка...'),
+                        ],
+                      ),
+                    )
+                  : _isEveningPhotoSuccessful
+                      ? const Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.check_circle,
+                                color: Colors.green,
+                                size: 64,
+                              ),
+                              SizedBox(height: 16),
+                              Text(
+                                'Фото загружено',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Вечернее фото',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleLarge
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 16),
+                            if (work.eveningPhotoUrl != null &&
+                                work.eveningPhotoUrl!.isNotEmpty) ...[
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.network(
+                                  work.eveningPhotoUrl!,
+                                  height: 200,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  TextButton.icon(
+                                    onPressed: () async {
+                                      setBottomSheetState(() {
+                                        _isLoadingEveningPhoto = true;
+                                      });
+                                      try {
+                                        final photoService =
+                                            ref.read(photoServiceProvider);
+                                        await photoService.deleteWorkPhotoByUrl(
+                                          work.eveningPhotoUrl!,
+                                        );
+                                        final updatedWork = work.copyWith(
+                                          eveningPhotoUrl: null,
+                                          updatedAt: DateTime.now(),
+                                        );
+                                        await ref
+                                            .read(worksProvider.notifier)
+                                            .updateWork(updatedWork);
+
+                                        if (mounted) {
+                                          setBottomSheetState(() {
+                                            _isLoadingEveningPhoto = false;
+                                          });
+                                          navigator.pop();
+                                          _updateWorkInMonthGroups(updatedWork);
+                                          Future.delayed(
+                                            const Duration(milliseconds: 300),
+                                            () => SnackBarUtils
+                                                .showSuccessByMessenger(
+                                              messenger,
+                                              'Вечернее фото удалено',
+                                            ),
+                                          );
+                                        }
+                                      } catch (e) {
+                                        if (mounted) {
+                                          setBottomSheetState(() {
+                                            _isLoadingEveningPhoto = false;
+                                          });
+                                          SnackBarUtils.showErrorByMessenger(
+                                            messenger,
+                                            'Ошибка при удалении фото: $e',
+                                          );
+                                        }
+                                      }
+                                    },
+                                    icon: const Icon(Icons.delete_outline),
+                                    label: const Text('Удалить'),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                            ],
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                _PhotoOptionButton(
+                                  icon: Icons.camera_alt,
+                                  label: 'Камера',
+                                  onTap: () => _pickEveningPhoto(
+                                    ImageSource.camera,
+                                    work,
+                                    onLoadingStateChanged: (callback) {
+                                      setBottomSheetState(callback);
+                                    },
+                                  ),
+                                ),
+                                _PhotoOptionButton(
+                                  icon: Icons.image,
+                                  label: 'Галерея',
+                                  onTap: () => _pickEveningPhoto(
+                                    ImageSource.gallery,
+                                    work,
+                                    onLoadingStateChanged: (callback) {
+                                      setBottomSheetState(callback);
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              child: TextButton(
+                                onPressed: () => navigator.pop(),
+                                child: const Text('Отмена'),
+                              ),
+                            ),
+                          ],
+                        ),
+            );
+          },
+        );
+      },
     );
   }
 
-  Future<void> _pickEveningPhoto(ImageSource source, Work work) async {
-    final photoService = ref.read(photoServiceProvider);
-    final bytes = await photoService.pickImageBytes(source);
-    if (bytes == null) return;
-    if (!mounted) return;
-    final url = await photoService.uploadPhotoBytes(
+  Future<void> _pickEveningPhoto(
+    ImageSource source,
+    Work work, {
+    Function? onLoadingStateChanged,
+  }) async {
+    try {
+      final navigator = Navigator.of(context, rootNavigator: true);
+
+      final photoService = ref.read(photoServiceProvider);
+      final bytes = await photoService.pickImageBytes(source);
+
+      if (bytes == null) return;
+      if (!mounted) return;
+
+      onLoadingStateChanged?.call(() {
+        _isLoadingEveningPhoto = true;
+      });
+
+      final url = await photoService.uploadPhotoBytes(
         entity: 'work',
         id: work.objectId,
         bytes: bytes,
-        displayName: 'evening');
-    if (url != null) {
-      final updatedWork =
-          work.copyWith(eveningPhotoUrl: url, updatedAt: DateTime.now());
-      await ref.read(worksProvider.notifier).updateWork(updatedWork);
+        displayName: 'evening',
+        workDate: work.date,
+      );
+
       if (!mounted) return;
+
+      if (url != null && url.isNotEmpty) {
+        final updatedWork = work.copyWith(
+          eveningPhotoUrl: url,
+          updatedAt: DateTime.now(),
+        );
+
+        try {
+          await ref.read(worksProvider.notifier).updateWork(updatedWork);
+
+          if (!mounted) return;
+
+          onLoadingStateChanged?.call(() {
+            _isLoadingEveningPhoto = false;
+          });
+
+          // ✅ ПОКАЗЫВАЕМ АНИМАЦИЮ УСПЕХА
+          onLoadingStateChanged?.call(() {
+            _isEveningPhotoSuccessful = true;
+          });
+
+          // ⏳ ЖДЁМ 1.5 СЕКУНДЫ ДЛЯ АНИМАЦИИ
+          await Future.delayed(const Duration(milliseconds: 1500));
+
+          if (!mounted) return;
+
+          navigator.pop();
+          _updateWorkInMonthGroups(updatedWork);
+        } catch (e) {
+          if (!mounted) return;
+
+          onLoadingStateChanged?.call(() {
+            _isLoadingEveningPhoto = false;
+            _isEveningPhotoSuccessful = false;
+          });
+
+          SnackBarUtils.showError(context, 'Ошибка при сохранении фото: $e');
+          rethrow;
+        }
+      } else {
+        if (!mounted) return;
+
+        onLoadingStateChanged?.call(() {
+          _isLoadingEveningPhoto = false;
+          _isEveningPhotoSuccessful = false;
+        });
+
+        SnackBarUtils.showWarning(
+          context,
+          'Не удалось загрузить фото. Пожалуйста, попробуйте снова.',
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      onLoadingStateChanged?.call(() {
+        _isLoadingEveningPhoto = false;
+        _isEveningPhotoSuccessful = false;
+      });
+
+      SnackBarUtils.showError(context, 'Ошибка при загрузке фото: $e');
     }
   }
-}
 
-/// Отрисовщик кругового индикатора процента с настраиваемыми цветами.
-class CirclePercentPainter extends CustomPainter {
-  /// Значение прогресса в диапазоне 0..1.
-  final double percentage;
-
-  /// Цвет дуги прогресса.
-  final Color color;
-
-  /// Толщина линий индикатора.
-  final double strokeWidth;
-
-  /// Цвет фона (окружности) индикатора.
-  final Color backgroundColor;
-
-  /// Цвет заливки внутри индикатора.
-  final Color fillColor;
-
-  /// Создаёт отрисовщик кругового индикатора.
-  CirclePercentPainter({
-    required this.percentage,
-    required this.color,
-    required this.backgroundColor,
-    required this.fillColor,
-    this.strokeWidth = 4.0,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = (size.width < size.height ? size.width : size.height) / 2 -
-        strokeWidth / 2;
-    final backgroundPaint = Paint()
-      ..color = backgroundColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth;
-    canvas.drawCircle(center, radius, backgroundPaint);
-
-    final foregroundPaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round;
-    final sweepAngle = 2 * 3.141592653589793 * percentage;
-    canvas.drawArc(Rect.fromCircle(center: center, radius: radius),
-        -3.141592653589793 / 2, sweepAngle, false, foregroundPaint);
-
-    final fillPaint = Paint()
-      ..color = fillColor
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(center, radius - strokeWidth, fillPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CirclePercentPainter oldDelegate) {
-    return oldDelegate.percentage != percentage ||
-        oldDelegate.color != color ||
-        oldDelegate.strokeWidth != strokeWidth ||
-        oldDelegate.backgroundColor != backgroundColor ||
-        oldDelegate.fillColor != fillColor;
+  // 🔴 Извлеченный метод для обновления работы в monthGroupsProvider
+  void _updateWorkInMonthGroups(Work updatedWork) {
+    Future.microtask(() {
+      try {
+        ref.read(monthGroupsProvider.notifier).updateWorkInGroup(updatedWork);
+      } catch (e) {
+        // Ignore errors
+      }
+    });
   }
 }
 
@@ -861,11 +987,16 @@ class _PhotoOptionButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  const _PhotoOptionButton(
-      {required this.icon, required this.label, required this.onTap});
+
+  const _PhotoOptionButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Column(
       children: [
         InkWell(
@@ -873,13 +1004,12 @@ class _PhotoOptionButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(24),
           child: CircleAvatar(
             radius: 24,
-            backgroundColor: Theme.of(context).colorScheme.primary,
-            child: Icon(icon,
-                color: Theme.of(context).colorScheme.onPrimary, size: 24),
+            backgroundColor: theme.colorScheme.primary,
+            child: Icon(icon, color: theme.colorScheme.onPrimary, size: 24),
           ),
         ),
         const SizedBox(height: 8),
-        Text(label, style: Theme.of(context).textTheme.bodySmall),
+        Text(label, style: theme.textTheme.bodySmall),
       ],
     );
   }

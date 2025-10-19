@@ -4,6 +4,7 @@ import 'package:projectgt/data/datasources/auth_data_source.dart';
 // Telegram data source удалён
 import 'package:projectgt/data/datasources/profile_data_source.dart';
 import 'package:projectgt/data/datasources/employee_data_source.dart';
+import 'package:projectgt/data/models/estimate_completion_model.dart';
 import 'package:projectgt/data/repositories/auth_repository_impl.dart';
 import 'package:projectgt/data/repositories/profile_repository_impl.dart';
 import 'package:projectgt/data/repositories/employee_repository_impl.dart';
@@ -647,4 +648,11 @@ final getBusinessTripRatesByEmployeeUseCaseProvider =
     Provider<GetBusinessTripRatesByEmployeeUseCase>((ref) {
   final repository = ref.watch(businessTripRateRepositoryProvider);
   return GetBusinessTripRatesByEmployeeUseCase(repository);
+});
+
+/// Провайдер для получения отчёта о выполнении смет.
+final estimateCompletionProvider =
+    FutureProvider<List<EstimateCompletionModel>>((ref) async {
+  final dataSource = ref.watch(estimateDataSourceProvider);
+  return dataSource.getEstimateCompletion();
 });

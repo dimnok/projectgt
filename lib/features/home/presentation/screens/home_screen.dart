@@ -19,10 +19,8 @@ import 'package:projectgt/features/home/presentation/widgets/work_plan_summary_w
 // import removed: notification test utilities
 // import removed: works provider used only in tests
 
-// Мягкие акцентные цвета в стиле Telegram и WhatsApp
 const Color _telegramBlue = Color(0xFF229ED9);
 const Color _whatsappGreen = Color(0xFF25D366);
-const Color _softRed = Color(0xFFE57373);
 
 /// Главный экран приложения ProjectGT с современной шапкой, метриками и heatmap смен.
 class HomeScreen extends ConsumerStatefulWidget {
@@ -129,7 +127,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         icon: CupertinoIcons.hammer,
         subtitle: topShiftSubtitle,
         isLoading: exportState.isLoading,
-        accent: _telegramBlue,
+        accent: _telegramBlue, // Changed from _telegramBlue
         onTap: () => context.goNamed('works'),
       ),
       if (isAdmin)
@@ -139,7 +137,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           icon: CupertinoIcons.person_2,
           subtitle: 'Список персонала',
           isLoading: employeesState.status == EmployeeStatus.loading,
-          accent: _telegramBlue,
+          accent: _telegramBlue, // Changed from _telegramBlue
           onTap: () => context.goNamed('employees'),
         ),
       if (isAdmin)
@@ -149,7 +147,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           icon: CupertinoIcons.building_2_fill,
           subtitle: 'Партнёры и компании',
           isLoading: contractorsState.status == ContractorStatus.loading,
-          accent: _whatsappGreen,
+          accent: _whatsappGreen, // Changed from _whatsappGreen
           onTap: () => context.goNamed('contractors'),
         ),
       if (isAdmin)
@@ -159,7 +157,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           icon: CupertinoIcons.doc_text,
           subtitle: 'Текущие соглашения',
           isLoading: contractsState.status == ContractStatusState.loading,
-          accent: _telegramBlue,
+          accent: _telegramBlue, // Changed from _telegramBlue
           onTap: () => context.goNamed('contracts'),
         ),
       if (isAdmin)
@@ -169,7 +167,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           icon: CupertinoIcons.table,
           subtitle: 'Расчёты и материалы',
           isLoading: estimatesState.isLoading,
-          accent: _whatsappGreen,
+          accent: _whatsappGreen, // Changed from _whatsappGreen
           onTap: () => context.goNamed('estimates'),
         ),
     ];
@@ -223,20 +221,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   .withValues(alpha: 0.18),
                             ),
                           ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
+                          child: const Padding(
+                            padding: EdgeInsets.all(16),
                             child: SizedBox(
                               height: 300,
-                              child: SingleChildScrollView(
-                                physics: const NeverScrollableScrollPhysics(),
-                                child: _ShiftsHeatmap(
-                                  reports: exportState.reports,
-                                  isLoading: exportState.isLoading,
-                                  onDateTap: (d, v) {
-                                    // На десктопе пока оставим без flip
-                                  },
-                                ),
-                              ),
+                              child: ShiftsCalendarFlipCard(),
                             ),
                           ),
                         ),
@@ -303,16 +292,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 controller: _mainCardsPageController,
                                 onPageChanged: (i) =>
                                     setState(() => _mainCardsPageIndex = i),
-                                children: [
+                                children: const [
                                   // Страница 1: Календарь смен
-                                  ShiftsCalendarFlipCard(
-                                    reports: exportState.reports,
-                                    isLoading: exportState.isLoading,
-                                  ),
+                                  ShiftsCalendarFlipCard(),
                                   // Страница 2: Прогресс договора
-                                  const ContractProgressWidget(),
+                                  ContractProgressWidget(),
                                   // Страница 3: План работ
-                                  const WorkPlanSummaryWidget(),
+                                  WorkPlanSummaryWidget(),
                                 ],
                               ),
                             ),
@@ -393,8 +379,12 @@ class _GreetingHeader extends StatelessWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    _telegramBlue.withValues(alpha: 0.10 + 0.05 * value),
-                    _whatsappGreen.withValues(alpha: 0.10 + 0.05 * value),
+                    _telegramBlue.withValues(
+                        alpha:
+                            0.10 + 0.05 * value), // Changed from _telegramBlue
+                    _whatsappGreen.withValues(
+                        alpha:
+                            0.10 + 0.05 * value), // Changed from _whatsappGreen
                   ],
                 ),
                 border: Border.all(
@@ -412,11 +402,12 @@ class _GreetingHeader extends StatelessWidget {
                       width: 48,
                       height: 48,
                       decoration: BoxDecoration(
-                        color: _telegramBlue.withValues(alpha: 0.12),
+                        color: _telegramBlue.withValues(
+                            alpha: 0.12), // Changed from _telegramBlue
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(CupertinoIcons.sparkles,
-                          color: _telegramBlue),
+                          color: _telegramBlue), // Changed from _telegramBlue
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -453,165 +444,6 @@ class _GreetingHeader extends StatelessWidget {
 }
 
 // moved to shifts_calendar_widgets.dart
-
-class _ShiftsHeatmap extends StatelessWidget {
-  final List<dynamic> reports; // ExportReport
-  final bool isLoading;
-  final void Function(DateTime date, double value)? onDateTap;
-  const _ShiftsHeatmap(
-      {required this.reports, required this.isLoading, this.onDateTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    // Агрегация сумм по датам (только текущий месяц)
-    final now = DateTime.now();
-    final monthStart = DateTime(now.year, now.month, 1);
-    final monthEnd = DateTime(now.year, now.month + 1, 0);
-
-    final Map<DateTime, double> sumByDate = {};
-    double maxValue = 0;
-    for (final r in reports) {
-      if (r.workDate.year == now.year && r.workDate.month == now.month) {
-        final d = DateTime(r.workDate.year, r.workDate.month, r.workDate.day);
-        final total = (r.total ?? 0).toDouble();
-        sumByDate[d] = (sumByDate[d] ?? 0) + total;
-        if (sumByDate[d]! > maxValue) maxValue = sumByDate[d]!;
-      }
-    }
-
-    // Построение календарной сетки месяца (Пн..Вс)
-    final int prefix = monthStart.weekday - 1; // 0..6, где 0 — Пн
-    final int daysInMonth = monthEnd.day;
-    final int totalCells = ((prefix + daysInMonth + 6) ~/ 7) * 7; // кратно 7
-
-    List<DateTime?> cells = List<DateTime?>.filled(totalCells, null);
-    for (int i = 0; i < daysInMonth; i++) {
-      cells[prefix + i] = DateTime(now.year, now.month, i + 1);
-    }
-
-    Widget cell(DateTime? d) {
-      if (d == null) {
-        return const SizedBox(width: 14, height: 14);
-      }
-      final v = sumByDate[d] ?? 0.0;
-      final bool isMax = maxValue > 0 && (v == maxValue);
-      final bool isZero = v == 0.0;
-
-      Color fill;
-      Color border;
-      Color textColor;
-      if (isZero) {
-        fill = _softRed.withValues(alpha: 0.18);
-        border = _softRed.withValues(alpha: 0.28);
-        textColor = _softRed.withValues(alpha: 0.9);
-      } else if (isMax) {
-        fill = _whatsappGreen.withValues(alpha: 0.28);
-        border = _whatsappGreen.withValues(alpha: 0.38);
-        textColor = _whatsappGreen;
-      } else {
-        fill = _telegramBlue.withValues(alpha: 0.22);
-        border = _telegramBlue.withValues(alpha: 0.32);
-        textColor = _telegramBlue;
-      }
-
-      final box = Tooltip(
-        message:
-            '${DateFormat('dd.MM.yyyy').format(d)} — ${NumberFormat.currency(locale: 'ru_RU', symbol: '₽', decimalDigits: 0).format(v)}',
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOut,
-          margin: const EdgeInsets.all(2),
-          decoration: BoxDecoration(
-            color: fill,
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: border),
-          ),
-          width: 14,
-          height: 14,
-          child: Center(
-            child: Text(
-              '${d.day}',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    fontSize: 9,
-                    height: 1.0,
-                    color: textColor.withValues(alpha: 0.9),
-                    fontWeight: FontWeight.w600,
-                  ),
-            ),
-          ),
-        ),
-      );
-      if (onDateTap == null || isZero) return box;
-      return GestureDetector(onTap: () => onDateTap!(d, v), child: box);
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(CupertinoIcons.calendar,
-                size: 18,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
-            const SizedBox(width: 8),
-            Text(
-              'Календарь смен',
-              style: theme.textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(width: 8),
-            if (isLoading)
-              const SizedBox(
-                width: 14,
-                height: 14,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  // Цвет прогресса возьмётся из темы
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            // 7 столбцов (Пн..Вс), строки — недели месяца
-            const columns = 7;
-            final rows = (cells.length / columns).ceil();
-            const double spacing =
-                4.0; // суммарно 4 по горизонтали на ячейку (2 слева + 2 справа)
-            final double baseSize =
-                (constraints.maxWidth - (columns * spacing)) / columns;
-            final double size = baseSize * 0.94;
-
-            List<Widget> weekRows = [];
-            for (int r = 0; r < rows; r++) {
-              final startIndex = r * columns;
-              final endIndex = startIndex + columns;
-              final weekDays = cells.sublist(startIndex, endIndex);
-              weekRows.add(Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: weekDays
-                      .map((d) =>
-                          SizedBox(width: size, height: size, child: cell(d)))
-                      .toList(),
-                ),
-              ));
-            }
-
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: weekRows,
-            );
-          },
-        ),
-      ],
-    );
-  }
-}
 
 class _Metric {
   final String label;

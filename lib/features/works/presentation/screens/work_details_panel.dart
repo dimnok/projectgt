@@ -27,6 +27,7 @@ import 'package:projectgt/presentation/state/auth_state.dart';
 
 import 'tabs/work_data_tab.dart';
 import 'tabs/work_hours_tab.dart';
+import 'work_item_context_menu.dart';
 
 /// Панель деталей смены с табами: работы, материалы, часы.
 ///
@@ -605,7 +606,7 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
     final bool isOwner = currentProfile != null &&
         workAsync != null &&
         workAsync.openedBy == currentProfile.id;
-    final bool canModify = !isWorkClosed && (isOwner || isAdmin);
+    final bool canModify = (isOwner && !isWorkClosed) || isAdmin;
 
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
@@ -1046,128 +1047,129 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                                   !ResponsiveUtils.isDesktop(context);
 
                               // Обертываем карточку в Dismissible для мобильного свайпа
-                              Widget cardWidget = Card(
-                                margin: EdgeInsets.zero,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  side: BorderSide(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .outline
-                                        .withValues(alpha: 30),
-                                    width: 1,
+                              Widget cardWidget = InkWell(
+                                onLongPress: isAdmin
+                                    ? () {
+                                        WorkItemContextMenu.show(
+                                          context: context,
+                                          item: item,
+                                          workId: widget.workId,
+                                          parentContext: widget.parentContext,
+                                          ref: ref,
+                                          onDeleteComplete: () {
+                                            if (mounted) {
+                                              final updatedItems = ref
+                                                      .read(workItemsProvider(
+                                                          widget.workId))
+                                                      .valueOrNull ??
+                                                  [];
+                                              setState(() {
+                                                _updateFiltersAfterDataChange(
+                                                    updatedItems);
+                                              });
+                                            }
+                                          },
+                                        );
+                                      }
+                                    : null,
+                                child: Card(
+                                  margin: EdgeInsets.zero,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    side: BorderSide(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .outline
+                                          .withValues(alpha: 30),
+                                      width: 1,
+                                    ),
                                   ),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 12, horizontal: 16),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          numberWidget,
-                                          const SizedBox(width: 4),
-                                          Expanded(
-                                            flex: 3,
-                                            child: Row(
-                                              children: [
-                                                Expanded(
-                                                  child: Text(
-                                                    item.name,
-                                                    style: Theme.of(context)
-                                                        .textTheme
-                                                        .bodyMedium
-                                                        ?.copyWith(
-                                                            fontWeight:
-                                                                FontWeight.w600,
-                                                            color: Theme.of(context)
-                                                                        .brightness ==
-                                                                    Brightness
-                                                                        .light
-                                                                ? Colors
-                                                                    .lightBlue
-                                                                    .shade700
-                                                                : Colors
-                                                                    .lightBlue
-                                                                    .shade300),
-                                                    maxLines: 2,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 12, horizontal: 16),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            numberWidget,
+                                            const SizedBox(width: 4),
+                                            Expanded(
+                                              flex: 3,
+                                              child: Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: Text(
+                                                      item.name,
+                                                      style: Theme.of(context)
+                                                          .textTheme
+                                                          .bodyMedium
+                                                          ?.copyWith(
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w600,
+                                                              color: Theme.of(context)
+                                                                          .brightness ==
+                                                                      Brightness
+                                                                          .light
+                                                                  ? Colors
+                                                                      .lightBlue
+                                                                      .shade700
+                                                                  : Colors
+                                                                      .lightBlue
+                                                                      .shade300),
+                                                      maxLines: 2,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                    ),
                                                   ),
-                                                ),
-                                                const SizedBox(width: 12),
-                                                // Область количества и единицы измерения
-                                                GestureDetector(
-                                                  onTap: canModify
-                                                      ? () {
-                                                          setState(() {
-                                                            // Переключаем режим редактирования
-                                                            _editingItemIndex =
-                                                                isEditing
-                                                                    ? null
-                                                                    : i;
+                                                  const SizedBox(width: 12),
+                                                  // Область количества и единицы измерения
+                                                  GestureDetector(
+                                                    onTap: canModify
+                                                        ? () {
+                                                            setState(() {
+                                                              // Переключаем режим редактирования
+                                                              _editingItemIndex =
+                                                                  isEditing
+                                                                      ? null
+                                                                      : i;
 
-                                                            if (_editingItemIndex ==
-                                                                i) {
-                                                              // Фокусируемся на поле ввода с небольшой задержкой
-                                                              Timer(
-                                                                  const Duration(
-                                                                      milliseconds:
-                                                                          50),
-                                                                  () {
-                                                                focusNode
-                                                                    .requestFocus();
-                                                                WidgetsBinding
-                                                                    .instance
-                                                                    .addPostFrameCallback(
-                                                                        (_) {
-                                                                  final ctx =
-                                                                      focusNode
-                                                                          .context;
-                                                                  if (ctx !=
-                                                                      null) {
-                                                                    Scrollable
-                                                                        .ensureVisible(
-                                                                      ctx,
-                                                                      alignment:
-                                                                          0.3,
-                                                                      duration: const Duration(
-                                                                          milliseconds:
-                                                                              200),
-                                                                    );
-                                                                  }
+                                                              if (_editingItemIndex ==
+                                                                  i) {
+                                                                // Фокусируемся на поле ввода с небольшой задержкой
+                                                                Timer(
+                                                                    const Duration(
+                                                                        milliseconds:
+                                                                            50),
+                                                                    () {
+                                                                  focusNode
+                                                                      .requestFocus();
+                                                                  WidgetsBinding
+                                                                      .instance
+                                                                      .addPostFrameCallback(
+                                                                          (_) {
+                                                                    final ctx =
+                                                                        focusNode
+                                                                            .context;
+                                                                    if (ctx !=
+                                                                        null) {
+                                                                      Scrollable
+                                                                          .ensureVisible(
+                                                                        ctx,
+                                                                        alignment:
+                                                                            0.3,
+                                                                        duration:
+                                                                            const Duration(milliseconds: 200),
+                                                                      );
+                                                                    }
+                                                                  });
                                                                 });
-                                                              });
-                                                            } else {
-                                                              // Сохраняем изменения при выходе из режима редактирования
-                                                              final raw =
-                                                                  controller
-                                                                      .text
-                                                                      .replaceAll(
-                                                                          ',',
-                                                                          '.');
-                                                              final newValue =
-                                                                  num.tryParse(
-                                                                      raw);
-                                                              _updateWorkItemQuantity(
-                                                                  item,
-                                                                  newValue);
-                                                            }
-                                                          });
-                                                        }
-                                                      : null,
-                                                  child: isEditing
-                                                      ? SizedBox(
-                                                          width: 60,
-                                                          height: 30,
-                                                          child: Focus(
-                                                            onFocusChange:
-                                                                (hasFocus) {
-                                                              if (!hasFocus) {
-                                                                final normalized =
+                                                              } else {
+                                                                // Сохраняем изменения при выходе из режима редактирования
+                                                                final raw =
                                                                     controller
                                                                         .text
                                                                         .replaceAll(
@@ -1175,257 +1177,350 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                                                                             '.');
                                                                 final newValue =
                                                                     num.tryParse(
-                                                                        normalized);
-                                                                setState(() {
-                                                                  _editingItemIndex =
-                                                                      null;
-                                                                });
+                                                                        raw);
                                                                 _updateWorkItemQuantity(
                                                                     item,
                                                                     newValue);
                                                               }
-                                                            },
-                                                            child: TextField(
-                                                              controller:
-                                                                  controller,
-                                                              focusNode:
-                                                                  focusNode,
-                                                              keyboardType:
-                                                                  const TextInputType
-                                                                      .numberWithOptions(
-                                                                      decimal:
-                                                                          true),
-                                                              inputFormatters: [
-                                                                FilteringTextInputFormatter
-                                                                    .allow(RegExp(
-                                                                        r'[0-9.,]')),
-                                                              ],
-                                                              textAlign:
-                                                                  TextAlign
-                                                                      .center,
-                                                              style: Theme.of(
-                                                                      context)
-                                                                  .textTheme
-                                                                  .bodyMedium
-                                                                  ?.copyWith(
-                                                                    color: Theme.of(
-                                                                            context)
-                                                                        .colorScheme
-                                                                        .primary,
-                                                                    fontWeight:
-                                                                        FontWeight
-                                                                            .w600,
-                                                                  ),
-                                                              decoration:
-                                                                  InputDecoration(
-                                                                isDense: true,
-                                                                contentPadding:
-                                                                    const EdgeInsets
-                                                                        .symmetric(
-                                                                        horizontal:
-                                                                            4,
-                                                                        vertical:
-                                                                            8),
-                                                                enabledBorder:
-                                                                    OutlineInputBorder(
-                                                                  borderSide:
-                                                                      BorderSide(
-                                                                    color: Theme.of(
-                                                                            context)
-                                                                        .colorScheme
-                                                                        .primary
-                                                                        .withValues(
-                                                                            alpha:
-                                                                                0.5),
-                                                                    width: 1,
-                                                                  ),
-                                                                  borderRadius:
-                                                                      BorderRadius
-                                                                          .circular(
-                                                                              4),
-                                                                ),
-                                                                focusedBorder:
-                                                                    OutlineInputBorder(
-                                                                  borderSide:
-                                                                      BorderSide(
-                                                                    color: Theme.of(
-                                                                            context)
-                                                                        .colorScheme
-                                                                        .primary,
-                                                                    width: 1.5,
-                                                                  ),
-                                                                  borderRadius:
-                                                                      BorderRadius
-                                                                          .circular(
-                                                                              4),
-                                                                ),
-                                                              ),
-                                                              onSubmitted:
-                                                                  (value) {
-                                                                setState(() {
-                                                                  _editingItemIndex =
-                                                                      null;
+                                                            });
+                                                          }
+                                                        : null,
+                                                    child: isEditing
+                                                        ? SizedBox(
+                                                            width: 60,
+                                                            height: 30,
+                                                            child: Focus(
+                                                              onFocusChange:
+                                                                  (hasFocus) {
+                                                                if (!hasFocus) {
                                                                   final normalized =
-                                                                      value.replaceAll(
-                                                                          ',',
-                                                                          '.');
+                                                                      controller
+                                                                          .text
+                                                                          .replaceAll(
+                                                                              ',',
+                                                                              '.');
                                                                   final newValue =
                                                                       num.tryParse(
                                                                           normalized);
+                                                                  setState(() {
+                                                                    _editingItemIndex =
+                                                                        null;
+                                                                  });
                                                                   _updateWorkItemQuantity(
                                                                       item,
                                                                       newValue);
-                                                                });
+                                                                }
                                                               },
+                                                              child: TextField(
+                                                                controller:
+                                                                    controller,
+                                                                focusNode:
+                                                                    focusNode,
+                                                                keyboardType:
+                                                                    const TextInputType
+                                                                        .numberWithOptions(
+                                                                        decimal:
+                                                                            true),
+                                                                inputFormatters: [
+                                                                  FilteringTextInputFormatter
+                                                                      .allow(RegExp(
+                                                                          r'[0-9.,]')),
+                                                                ],
+                                                                textAlign:
+                                                                    TextAlign
+                                                                        .center,
+                                                                style: Theme.of(
+                                                                        context)
+                                                                    .textTheme
+                                                                    .bodyMedium
+                                                                    ?.copyWith(
+                                                                      color: Theme.of(
+                                                                              context)
+                                                                          .colorScheme
+                                                                          .primary,
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .w600,
+                                                                    ),
+                                                                decoration:
+                                                                    InputDecoration(
+                                                                  isDense: true,
+                                                                  contentPadding: const EdgeInsets
+                                                                      .symmetric(
+                                                                      horizontal:
+                                                                          4,
+                                                                      vertical:
+                                                                          8),
+                                                                  enabledBorder:
+                                                                      OutlineInputBorder(
+                                                                    borderSide:
+                                                                        BorderSide(
+                                                                      color: Theme.of(
+                                                                              context)
+                                                                          .colorScheme
+                                                                          .primary
+                                                                          .withValues(
+                                                                              alpha: 0.5),
+                                                                      width: 1,
+                                                                    ),
+                                                                    borderRadius:
+                                                                        BorderRadius
+                                                                            .circular(4),
+                                                                  ),
+                                                                  focusedBorder:
+                                                                      OutlineInputBorder(
+                                                                    borderSide:
+                                                                        BorderSide(
+                                                                      color: Theme.of(
+                                                                              context)
+                                                                          .colorScheme
+                                                                          .primary,
+                                                                      width:
+                                                                          1.5,
+                                                                    ),
+                                                                    borderRadius:
+                                                                        BorderRadius
+                                                                            .circular(4),
+                                                                  ),
+                                                                ),
+                                                                onSubmitted:
+                                                                    (value) {
+                                                                  setState(() {
+                                                                    _editingItemIndex =
+                                                                        null;
+                                                                    final normalized =
+                                                                        value.replaceAll(
+                                                                            ',',
+                                                                            '.');
+                                                                    final newValue =
+                                                                        num.tryParse(
+                                                                            normalized);
+                                                                    _updateWorkItemQuantity(
+                                                                        item,
+                                                                        newValue);
+                                                                  });
+                                                                },
+                                                              ),
                                                             ),
+                                                          )
+                                                        : Row(
+                                                            mainAxisSize:
+                                                                MainAxisSize
+                                                                    .min,
+                                                            children: [
+                                                              Text(
+                                                                '× ${item.quantity % 1 == 0 ? item.quantity.toInt().toString() : item.quantity.toString()}',
+                                                                style: Theme.of(
+                                                                        context)
+                                                                    .textTheme
+                                                                    .bodyMedium
+                                                                    ?.copyWith(
+                                                                      color: Theme.of(context).brightness ==
+                                                                              Brightness
+                                                                                  .light
+                                                                          ? Colors
+                                                                              .lightBlue
+                                                                              .shade700
+                                                                          : Colors
+                                                                              .lightBlue
+                                                                              .shade300,
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .w600,
+                                                                    ),
+                                                              ),
+                                                              const SizedBox(
+                                                                  width: 2),
+                                                              Text(
+                                                                item.unit,
+                                                                style: Theme.of(
+                                                                        context)
+                                                                    .textTheme
+                                                                    .bodySmall
+                                                                    ?.copyWith(
+                                                                      color: Theme.of(
+                                                                              context)
+                                                                          .colorScheme
+                                                                          .outline,
+                                                                    ),
+                                                              ),
+                                                            ],
                                                           ),
-                                                        )
-                                                      : Row(
-                                                          mainAxisSize:
-                                                              MainAxisSize.min,
-                                                          children: [
-                                                            Text(
-                                                              '× ${item.quantity % 1 == 0 ? item.quantity.toInt().toString() : item.quantity.toString()}',
-                                                              style: Theme.of(
-                                                                      context)
-                                                                  .textTheme
-                                                                  .bodyMedium
-                                                                  ?.copyWith(
-                                                                    color: Theme.of(context).brightness ==
-                                                                            Brightness
-                                                                                .light
-                                                                        ? Colors
-                                                                            .lightBlue
-                                                                            .shade700
-                                                                        : Colors
-                                                                            .lightBlue
-                                                                            .shade300,
-                                                                    fontWeight:
-                                                                        FontWeight
-                                                                            .w600,
-                                                                  ),
-                                                            ),
-                                                            const SizedBox(
-                                                                width: 2),
-                                                            Text(
-                                                              item.unit,
-                                                              style: Theme.of(
-                                                                      context)
-                                                                  .textTheme
-                                                                  .bodySmall
-                                                                  ?.copyWith(
-                                                                    color: Theme.of(
-                                                                            context)
-                                                                        .colorScheme
-                                                                        .outline,
-                                                                  ),
-                                                            ),
-                                                          ],
-                                                        ),
-                                                ),
-                                                // Кнопка удаления работы - показываем только на десктопе
-                                                if (!isWorkClosed &&
-                                                    !isMobile) ...[
-                                                  const SizedBox(width: 8),
-                                                  Material(
-                                                    color: Colors.transparent,
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            20),
-                                                    child: InkWell(
+                                                  ),
+                                                  // Кнопка удаления работы - показываем только на десктопе
+                                                  if (!isWorkClosed &&
+                                                      !isMobile) ...[
+                                                    const SizedBox(width: 8),
+                                                    Material(
+                                                      color: Colors.transparent,
                                                       borderRadius:
                                                           BorderRadius.circular(
                                                               20),
-                                                      onTap: () =>
-                                                          _confirmDeleteItem(
-                                                              context,
-                                                              ref,
-                                                              item),
-                                                      child: MouseRegion(
-                                                        cursor:
-                                                            SystemMouseCursors
-                                                                .click,
-                                                        child: Container(
-                                                          padding:
-                                                              const EdgeInsets
-                                                                  .all(6),
-                                                          decoration:
-                                                              BoxDecoration(
-                                                            borderRadius:
-                                                                BorderRadius
-                                                                    .circular(
-                                                                        20),
-                                                          ),
-                                                          child: Icon(
-                                                            Icons
-                                                                .delete_outline,
-                                                            size: 20,
-                                                            color: Theme.of(
-                                                                    context)
-                                                                .colorScheme
-                                                                .error,
+                                                      child: InkWell(
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(20),
+                                                        onTap: () =>
+                                                            _confirmDeleteItem(
+                                                                context,
+                                                                ref,
+                                                                item),
+                                                        child: MouseRegion(
+                                                          cursor:
+                                                              SystemMouseCursors
+                                                                  .click,
+                                                          child: Container(
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .all(6),
+                                                            decoration:
+                                                                BoxDecoration(
+                                                              borderRadius:
+                                                                  BorderRadius
+                                                                      .circular(
+                                                                          20),
+                                                            ),
+                                                            child: Icon(
+                                                              Icons
+                                                                  .delete_outline,
+                                                              size: 20,
+                                                              color: Theme.of(
+                                                                      context)
+                                                                  .colorScheme
+                                                                  .error,
+                                                            ),
                                                           ),
                                                         ),
                                                       ),
                                                     ),
+                                                  ],
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 6),
+                                        // Разные отображения для мобильной и десктопной версии
+                                        if (isMobile)
+                                          Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              // Компактное отображение: модуль/этаж и система/подсистема
+                                              Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: Text(
+                                                      '${item.section.isNotEmpty ? item.section : '-'}/${item.floor.isNotEmpty ? item.floor : '-'}',
+                                                      style: TextStyle(
+                                                        fontSize: 12,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        color: Theme.of(context)
+                                                            .colorScheme
+                                                            .onSurface,
+                                                      ),
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                  Expanded(
+                                                    child: Text(
+                                                      '${item.system.isNotEmpty ? item.system : '-'}/${item.subsystem.isNotEmpty ? item.subsystem : '-'}',
+                                                      style: TextStyle(
+                                                        fontSize: 12,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        color: Theme.of(context)
+                                                            .colorScheme
+                                                            .onSurface,
+                                                      ),
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      textAlign: TextAlign.end,
+                                                    ),
                                                   ),
                                                 ],
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 6),
-                                      // Разные отображения для мобильной и десктопной версии
-                                      if (isMobile)
-                                        Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            // Компактное отображение: модуль/этаж и система/подсистема
-                                            Row(
-                                              children: [
-                                                Expanded(
-                                                  child: Text(
-                                                    '${item.section.isNotEmpty ? item.section : '-'}/${item.floor.isNotEmpty ? item.floor : '-'}',
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                      color: Theme.of(context)
-                                                          .colorScheme
-                                                          .onSurface,
+                                              ),
+                                              const SizedBox(height: 8),
+                                              // Цена и сумма
+                                              Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment
+                                                        .spaceBetween,
+                                                children: [
+                                                  Flexible(
+                                                    child: Text.rich(
+                                                      TextSpan(
+                                                        children: [
+                                                          const TextSpan(
+                                                              text: 'Цена: ',
+                                                              style: TextStyle(
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w500)),
+                                                          TextSpan(
+                                                            text:
+                                                                '${_formatAmount(item.price ?? 0)} ₽',
+                                                            style: TextStyle(
+                                                                color: Theme.of(
+                                                                        context)
+                                                                    .colorScheme
+                                                                    .primary),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                      style: Theme.of(context)
+                                                          .textTheme
+                                                          .bodySmall,
                                                     ),
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
                                                   ),
-                                                ),
-                                                Expanded(
-                                                  child: Text(
-                                                    '${item.system.isNotEmpty ? item.system : '-'}/${item.subsystem.isNotEmpty ? item.subsystem : '-'}',
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                      color: Theme.of(context)
-                                                          .colorScheme
-                                                          .onSurface,
+                                                  Flexible(
+                                                    child: Text.rich(
+                                                      TextSpan(
+                                                        children: [
+                                                          const TextSpan(
+                                                              text: 'Сумма: ',
+                                                              style: TextStyle(
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w500)),
+                                                          TextSpan(
+                                                            text:
+                                                                '${_formatAmount(item.total ?? 0)} ₽',
+                                                            style: TextStyle(
+                                                                color: Theme.of(
+                                                                        context)
+                                                                    .colorScheme
+                                                                    .primary,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                      style: Theme.of(context)
+                                                          .textTheme
+                                                          .bodySmall,
+                                                      textAlign: TextAlign.end,
                                                     ),
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    textAlign: TextAlign.end,
                                                   ),
-                                                ),
-                                              ],
-                                            ),
-                                            const SizedBox(height: 8),
-                                            // Цена и сумма
-                                            Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment
-                                                      .spaceBetween,
-                                              children: [
-                                                Flexible(
+                                                ],
+                                              ),
+                                            ],
+                                          )
+                                        else
+                                          Row(
+                                            children: [
+                                              _miniInfo('Модуль', item.section),
+                                              _miniInfo('Этаж', item.floor),
+                                              _miniInfo('Система', item.system),
+                                              _miniInfo(
+                                                  'Подсистема', item.subsystem),
+                                              Expanded(
+                                                child: Align(
+                                                  alignment:
+                                                      Alignment.centerRight,
                                                   child: Text.rich(
                                                     TextSpan(
                                                       children: [
@@ -1436,25 +1531,16 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                                                                     FontWeight
                                                                         .w500)),
                                                         TextSpan(
-                                                          text:
-                                                              '${_formatAmount(item.price ?? 0)} ₽',
-                                                          style: TextStyle(
-                                                              color: Theme.of(
-                                                                      context)
-                                                                  .colorScheme
-                                                                  .primary),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                    style: Theme.of(context)
-                                                        .textTheme
-                                                        .bodySmall,
-                                                  ),
-                                                ),
-                                                Flexible(
-                                                  child: Text.rich(
-                                                    TextSpan(
-                                                      children: [
+                                                            text: _formatAmount(
+                                                                item.price ??
+                                                                    0),
+                                                            style: TextStyle(
+                                                                color: Theme.of(
+                                                                        context)
+                                                                    .colorScheme
+                                                                    .primary)),
+                                                        const TextSpan(
+                                                            text: ' ₽  |  '),
                                                         const TextSpan(
                                                             text: 'Сумма: ',
                                                             style: TextStyle(
@@ -1462,91 +1548,31 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                                                                     FontWeight
                                                                         .w500)),
                                                         TextSpan(
-                                                          text:
-                                                              '${_formatAmount(item.total ?? 0)} ₽',
-                                                          style: TextStyle(
-                                                              color: Theme.of(
-                                                                      context)
-                                                                  .colorScheme
-                                                                  .primary,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold),
-                                                        ),
+                                                            text: _formatAmount(
+                                                                item.total ??
+                                                                    0),
+                                                            style: TextStyle(
+                                                                color: Theme.of(
+                                                                        context)
+                                                                    .colorScheme
+                                                                    .primary)),
+                                                        const TextSpan(
+                                                            text: ' ₽'),
                                                       ],
                                                     ),
                                                     style: Theme.of(context)
                                                         .textTheme
                                                         .bodySmall,
-                                                    textAlign: TextAlign.end,
                                                   ),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                        )
-                                      else
-                                        Row(
-                                          children: [
-                                            _miniInfo('Модуль', item.section),
-                                            _miniInfo('Этаж', item.floor),
-                                            _miniInfo('Система', item.system),
-                                            _miniInfo(
-                                                'Подсистема', item.subsystem),
-                                            Expanded(
-                                              child: Align(
-                                                alignment:
-                                                    Alignment.centerRight,
-                                                child: Text.rich(
-                                                  TextSpan(
-                                                    children: [
-                                                      const TextSpan(
-                                                          text: 'Цена: ',
-                                                          style: TextStyle(
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w500)),
-                                                      TextSpan(
-                                                          text: _formatAmount(
-                                                              item.price ?? 0),
-                                                          style: TextStyle(
-                                                              color: Theme.of(
-                                                                      context)
-                                                                  .colorScheme
-                                                                  .primary)),
-                                                      const TextSpan(
-                                                          text: ' ₽  |  '),
-                                                      const TextSpan(
-                                                          text: 'Сумма: ',
-                                                          style: TextStyle(
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w500)),
-                                                      TextSpan(
-                                                          text: _formatAmount(
-                                                              item.total ?? 0),
-                                                          style: TextStyle(
-                                                              color: Theme.of(
-                                                                      context)
-                                                                  .colorScheme
-                                                                  .primary)),
-                                                      const TextSpan(
-                                                          text: ' ₽'),
-                                                    ],
-                                                  ),
-                                                  style: Theme.of(context)
-                                                      .textTheme
-                                                      .bodySmall,
                                                 ),
                                               ),
-                                            ),
-                                          ],
-                                        ),
-                                    ],
+                                            ],
+                                          ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               );
-
                               // Возвращаем Dismissible для мобильных или обычную карточку для десктопа
                               if (isMobile && canModify) {
                                 return Dismissible(
@@ -1610,8 +1636,8 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
               );
             },
           ),
-          // Кнопка добавления работы - только владелец открытой смены и нет активного поля ввода
-          if (canModify && _editingItemIndex == null)
+          // Кнопка добавления работы - только для открытой смены (для закрытой достаточно таба с долгим табом)
+          if (!isWorkClosed && canModify && _editingItemIndex == null)
             Positioned(
               right: 16,
               bottom: 16 + MediaQuery.viewPaddingOf(context).bottom,

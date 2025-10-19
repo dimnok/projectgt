@@ -4,9 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../data/models/month_group.dart';
 import '../providers/month_groups_provider.dart';
-import '../providers/work_items_provider.dart';
-import '../providers/work_hours_provider.dart';
-import 'package:projectgt/core/di/providers.dart';
+import '../providers/month_summary_provider.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
@@ -38,62 +36,9 @@ class MonthDetailsPanel extends ConsumerStatefulWidget {
 }
 
 class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
-  Map<String, List<dynamic>>? _workItemsCache;
-  Map<String, List<dynamic>>? _workHoursCache;
-  bool _isLoadingDetails = false;
-
   @override
   void initState() {
     super.initState();
-    // Загружаем смены месяца, если ещё не загружены
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (widget.group.works == null) {
-        ref.read(monthGroupsProvider.notifier).expandMonth(widget.group.month);
-      }
-    });
-  }
-
-  /// Загружает детальные данные для всех смен месяца.
-  Future<void> _loadDetailsForWorks(List works) async {
-    if (_workItemsCache != null || _isLoadingDetails) return;
-
-    setState(() => _isLoadingDetails = true);
-
-    final itemsCache = <String, List<dynamic>>{};
-    final hoursCache = <String, List<dynamic>>{};
-
-    try {
-      // Загружаем work_items и work_hours для каждой смены
-      for (final work in works) {
-        if (work.id != null) {
-          // Загружаем items
-          await ref.read(workItemsProvider(work.id!).notifier).fetch();
-          final itemsAsync = ref.read(workItemsProvider(work.id!));
-          if (itemsAsync.hasValue) {
-            itemsCache[work.id!] = itemsAsync.value!;
-          }
-
-          // Загружаем hours
-          await ref.read(workHoursProvider(work.id!).notifier).fetch();
-          final hoursAsync = ref.read(workHoursProvider(work.id!));
-          if (hoursAsync.hasValue) {
-            hoursCache[work.id!] = hoursAsync.value!;
-          }
-        }
-      }
-
-      if (mounted) {
-        setState(() {
-          _workItemsCache = itemsCache;
-          _workHoursCache = hoursCache;
-          _isLoadingDetails = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isLoadingDetails = false);
-      }
-    }
   }
 
   @override
@@ -115,14 +60,7 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
     final isLoading = works == null;
 
     // Загружаем детальные данные после загрузки смен
-    if (works != null &&
-        works.isNotEmpty &&
-        _workItemsCache == null &&
-        !_isLoadingDetails) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _loadDetailsForWorks(works);
-      });
-    }
+    if (works != null && works.isNotEmpty) {}
 
     // Рассчитываем дополнительную статистику
     final totalEmployees = _calculateTotalEmployees();
@@ -471,30 +409,23 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
 
   /// Рассчитывает общее количество уникальных специалистов.
   int _calculateTotalEmployees() {
-    if (_workHoursCache == null) return 0;
-
-    final uniqueEmployees = <String>{};
-    for (final hours in _workHoursCache!.values) {
-      for (final hour in hours) {
-        if (hour.employeeId != null) {
-          uniqueEmployees.add(hour.employeeId!);
-        }
-      }
-    }
-    return uniqueEmployees.length;
+    final employeesAsync =
+        ref.watch(monthTotalEmployeesProvider(widget.group.month));
+    return employeesAsync.when(
+      data: (summary) => summary.totalEmployees,
+      loading: () => 0,
+      error: (_, __) => 0,
+    );
   }
 
   /// Рассчитывает общее количество часов.
   double _calculateTotalHours() {
-    if (_workHoursCache == null) return 0;
-
-    double total = 0;
-    for (final hours in _workHoursCache!.values) {
-      for (final hour in hours) {
-        total += (hour.hours ?? 0).toDouble();
-      }
-    }
-    return total;
+    final hoursAsync = ref.watch(monthTotalHoursProvider(widget.group.month));
+    return hoursAsync.when(
+      data: (summary) => summary.totalHours,
+      loading: () => 0,
+      error: (_, __) => 0,
+    );
   }
 
   /// Строит статистику по системам.
@@ -503,58 +434,40 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
       return _buildEmptyState(context, 'Нет данных по системам');
     }
 
-    // Если детальные данные ещё загружаются
-    if (_workItemsCache == null) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(16.0),
-          child: CupertinoActivityIndicator(),
-        ),
-      );
-    }
+    // Загружаем полную статистику по системам с сервера
+    final systemsSummaryAsync =
+        ref.watch(systemsSummaryProvider(widget.group.month));
 
-    // Собираем статистику по системам из реальных work_items
-    final systemsMap = <String, _SystemStats>{};
-
-    for (final entry in _workItemsCache!.entries) {
-      final items = entry.value;
-
-      for (final item in items) {
-        final systemName = item.system ?? 'Без системы';
-        final itemTotal = (item.total ?? 0).toDouble();
-
-        if (!systemsMap.containsKey(systemName)) {
-          systemsMap[systemName] = _SystemStats(
-            systemName: systemName,
-            itemsCount: 0,
-            totalAmount: 0,
-          );
+    return systemsSummaryAsync.when(
+      data: (summaries) {
+        if (summaries.isEmpty) {
+          return _buildEmptyState(context, 'Нет данных по системам');
         }
-        systemsMap[systemName]!.itemsCount += 1;
-        systemsMap[systemName]!.totalAmount += itemTotal;
-      }
-    }
 
-    if (systemsMap.isEmpty) {
-      return _buildEmptyState(context, 'Нет данных по системам');
-    }
-
-    // Сортируем по сумме (от большего к меньшему)
-    final sortedSystems = systemsMap.values.toList()
-      ..sort((a, b) => b.totalAmount.compareTo(a.totalAmount));
-
-    return Column(
-      children: sortedSystems.map((stat) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 4),
-          child: _buildSystemCard(
-            context: context,
-            systemName: stat.systemName,
-            itemsCount: stat.itemsCount,
-            totalAmount: stat.totalAmount,
-          ),
+        return Column(
+          children: summaries.map((stat) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: _buildSystemCard(
+                context: context,
+                systemName: stat.system,
+                itemsCount: stat.itemsCount,
+                totalAmount: stat.totalAmount,
+              ),
+            );
+          }).toList(),
         );
-      }).toList(),
+      },
+      loading: () => const Center(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: CircularProgressIndicator(),
+        ),
+      ),
+      error: (error, stackTrace) => _buildEmptyState(
+        context,
+        'Ошибка загрузки: $error',
+      ),
     );
   }
 
@@ -564,46 +477,40 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
       return _buildEmptyState(context, 'Нет данных по объектам');
     }
 
-    // Группируем по объектам
-    final objectsMap = <String, _ObjectStats>{};
-    final objects = ref.watch(objectProvider).objects;
+    // Загружаем полную статистику по объектам с сервера
+    final objectsSummaryAsync =
+        ref.watch(objectsSummaryProvider(widget.group.month));
 
-    for (final work in works) {
-      final objectId = work.objectId;
-      if (!objectsMap.containsKey(objectId)) {
-        final objectName = objects
-                .where((o) => o.id == objectId)
-                .map((o) => o.name)
-                .firstOrNull ??
-            'Объект $objectId';
+    return objectsSummaryAsync.when(
+      data: (summaries) {
+        if (summaries.isEmpty) {
+          return _buildEmptyState(context, 'Нет данных по объектам');
+        }
 
-        objectsMap[objectId] = _ObjectStats(
-          objectId: objectId,
-          objectName: objectName,
-          worksCount: 0,
-          totalAmount: 0,
+        return Column(
+          children: summaries.map((stat) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _buildObjectCard(
+                context: context,
+                objectName: stat.objectName,
+                worksCount: stat.worksCount,
+                totalAmount: stat.totalAmount,
+              ),
+            );
+          }).toList(),
         );
-      }
-      objectsMap[objectId]!.worksCount++;
-      objectsMap[objectId]!.totalAmount += work.totalAmount ?? 0;
-    }
-
-    // Сортируем по сумме
-    final sortedObjects = objectsMap.values.toList()
-      ..sort((a, b) => b.totalAmount.compareTo(a.totalAmount));
-
-    return Column(
-      children: sortedObjects.map((stat) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: _buildObjectCard(
-            context: context,
-            objectName: stat.objectName,
-            worksCount: stat.worksCount,
-            totalAmount: stat.totalAmount,
-          ),
-        );
-      }).toList(),
+      },
+      loading: () => const Center(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: CircularProgressIndicator(),
+        ),
+      ),
+      error: (error, stackTrace) => _buildEmptyState(
+        context,
+        'Ошибка загрузки: $error',
+      ),
     );
   }
 
@@ -897,34 +804,6 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
       ),
     );
   }
-}
-
-/// Вспомогательный класс для хранения статистики по системе.
-class _SystemStats {
-  final String systemName;
-  int itemsCount;
-  double totalAmount;
-
-  _SystemStats({
-    required this.systemName,
-    required this.itemsCount,
-    required this.totalAmount,
-  });
-}
-
-/// Вспомогательный класс для хранения статистики по объекту.
-class _ObjectStats {
-  final String objectId;
-  final String objectName;
-  int worksCount;
-  double totalAmount;
-
-  _ObjectStats({
-    required this.objectId,
-    required this.objectName,
-    required this.worksCount,
-    required this.totalAmount,
-  });
 }
 
 /// Группа элементов в стиле iOS для компактного отображения статистики.

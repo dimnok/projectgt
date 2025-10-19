@@ -28,12 +28,6 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
   /// Строки таблицы PlutoGrid.
   late List<PlutoRow> rows;
 
-  /// Контроллер состояния таблицы
-  PlutoGridStateManager? stateManager;
-
-  /// Контроллер для текста поиска
-  final TextEditingController _searchController = TextEditingController();
-
   /// Критерий сортировки для мобильного вида
   String _sortCriterion = 'objectName';
 
@@ -60,7 +54,6 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
 
   @override
   void dispose() {
-    _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -81,6 +74,45 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
 
       _previousScrollPosition = currentScrollPosition;
     }
+  }
+
+  /// Сортирует отчеты для мобильного вида
+  List<ExportReport> _sortReports(List<ExportReport> reports) {
+    final sorted = List<ExportReport>.from(reports);
+    sorted.sort((a, b) {
+      dynamic aValue, bValue;
+
+      switch (_sortCriterion) {
+        case 'objectName':
+          aValue = a.objectName;
+          bValue = b.objectName;
+          break;
+        case 'contractName':
+          aValue = a.contractName;
+          bValue = b.contractName;
+          break;
+        case 'system':
+          aValue = a.system;
+          bValue = b.system;
+          break;
+        case 'workName':
+          aValue = a.workName;
+          bValue = b.workName;
+          break;
+        case 'total':
+          aValue = a.total ?? 0;
+          bValue = b.total ?? 0;
+          break;
+        default:
+          aValue = a.objectName;
+          bValue = b.objectName;
+      }
+
+      final comparison = Comparable.compare(aValue, bValue);
+      return _sortAscending ? comparison : -comparison;
+    });
+
+    return sorted;
   }
 
   @override
@@ -133,7 +165,7 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
 
     // Фильтруем и сортируем элементы для мобильного представления
     final filteredReports =
-        isLargeScreen ? widget.reports : _filterAndSortReports(widget.reports);
+        isLargeScreen ? widget.reports : _sortReports(widget.reports);
 
     final cellStyle = theme.textTheme.bodyMedium ?? const TextStyle();
     final columnStyle =
@@ -171,7 +203,6 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
                     rows: rows,
                     mode: PlutoGridMode.normal,
                     onLoaded: (PlutoGridOnLoadedEvent event) {
-                      stateManager = event.stateManager;
                       event.stateManager.setShowColumnFilter(true);
                     },
                     configuration: isDark
@@ -224,30 +255,6 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
                             ),
                             child: Column(
                               children: [
-                                // Поиск
-                                TextField(
-                                  controller: _searchController,
-                                  decoration: InputDecoration(
-                                    hintText: 'Поиск по данным...',
-                                    prefixIcon: const Icon(Icons.search),
-                                    suffixIcon:
-                                        _searchController.text.isNotEmpty
-                                            ? IconButton(
-                                                icon: const Icon(Icons.clear),
-                                                onPressed: () {
-                                                  _searchController.clear();
-                                                  setState(() {});
-                                                },
-                                              )
-                                            : null,
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                  ),
-                                  onChanged: (value) => setState(() {}),
-                                ),
-                                const SizedBox(height: 12),
-
                                 // Сортировка
                                 Row(
                                   children: [
@@ -798,8 +805,25 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
       ),
     ];
 
+    // Сортируем отчеты по объекту, договору и номеру позиции
+    final sortedReports = List<ExportReport>.from(reports)
+      ..sort((a, b) {
+        // Сортировка по объекту
+        int objectCompare = a.objectName.compareTo(b.objectName);
+        if (objectCompare != 0) return objectCompare;
+
+        // Затем по договору
+        int contractCompare = a.contractName.compareTo(b.contractName);
+        if (contractCompare != 0) return contractCompare;
+
+        // Затем по номеру позиции
+        final aNum = double.tryParse(a.positionNumber) ?? double.infinity;
+        final bNum = double.tryParse(b.positionNumber) ?? double.infinity;
+        return aNum.compareTo(bNum);
+      });
+
     // Создаем строки данных
-    rows = reports
+    rows = sortedReports
         .map((report) => PlutoRow(cells: {
               'objectName': PlutoCell(value: report.objectName),
               'contractName': PlutoCell(value: report.contractName),
@@ -837,55 +861,6 @@ class _ExportTableWidgetState extends State<ExportTableWidget> {
         'total': PlutoCell(value: totalSum),
       }));
     }
-  }
-
-  /// Фильтрует и сортирует отчеты для мобильного вида
-  List<ExportReport> _filterAndSortReports(List<ExportReport> reports) {
-    var filtered = reports.where((report) {
-      if (_searchController.text.isEmpty) return true;
-
-      final searchText = _searchController.text.toLowerCase();
-      return report.workName.toLowerCase().contains(searchText) ||
-          report.objectName.toLowerCase().contains(searchText) ||
-          report.contractName.toLowerCase().contains(searchText) ||
-          report.system.toLowerCase().contains(searchText) ||
-          report.subsystem.toLowerCase().contains(searchText);
-    }).toList();
-
-    filtered.sort((a, b) {
-      dynamic aValue, bValue;
-
-      switch (_sortCriterion) {
-        case 'objectName':
-          aValue = a.objectName;
-          bValue = b.objectName;
-          break;
-        case 'contractName':
-          aValue = a.contractName;
-          bValue = b.contractName;
-          break;
-        case 'system':
-          aValue = a.system;
-          bValue = b.system;
-          break;
-        case 'workName':
-          aValue = a.workName;
-          bValue = b.workName;
-          break;
-        case 'total':
-          aValue = a.total ?? 0;
-          bValue = b.total ?? 0;
-          break;
-        default:
-          aValue = a.objectName;
-          bValue = b.objectName;
-      }
-
-      final comparison = Comparable.compare(aValue, bValue);
-      return _sortAscending ? comparison : -comparison;
-    });
-
-    return filtered;
   }
 
   /// Строит строку информации для карточки

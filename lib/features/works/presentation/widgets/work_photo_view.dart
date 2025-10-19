@@ -496,7 +496,15 @@ class _FullscreenPhotoViewState extends ConsumerState<_FullscreenPhotoView> {
         displayName: displayName,
       );
 
-      if (url == null) return;
+      if (!mounted) return;
+
+      if (url == null || url.isEmpty) {
+        SnackBarUtils.showWarning(
+          context,
+          'Не удалось загрузить фото. Пожалуйста, попробуйте снова.',
+        );
+        return;
+      }
 
       // Обновляем работу со ссылкой
       final updated = _currentIndex == 0
@@ -504,7 +512,13 @@ class _FullscreenPhotoViewState extends ConsumerState<_FullscreenPhotoView> {
           : widget.work
               .copyWith(eveningPhotoUrl: url, updatedAt: DateTime.now());
 
-      await ref.read(worksProvider.notifier).updateWork(updated);
+      try {
+        await ref.read(worksProvider.notifier).updateWork(updated);
+      } catch (e) {
+        if (!mounted) return;
+        SnackBarUtils.showError(context, 'Ошибка при сохранении фото: $e');
+        rethrow;
+      }
 
       // Обновляем локальный список URLов для мгновенного отражения
       setState(() {
@@ -520,11 +534,11 @@ class _FullscreenPhotoViewState extends ConsumerState<_FullscreenPhotoView> {
           }
         }
       });
+
       if (!mounted) return;
-      SnackBarUtils.showSuccess(context, 'Фото успешно заменено');
     } catch (e) {
       if (!mounted) return;
-      SnackBarUtils.showError(context, 'Не удалось заменить фото: $e');
+      SnackBarUtils.showError(context, 'Ошибка при загрузке фото: $e');
     }
   }
 

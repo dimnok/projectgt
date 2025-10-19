@@ -130,7 +130,7 @@ class PhotoService {
     final y = now.year.toString().padLeft(4, '0');
     final m = now.month.toString().padLeft(2, '0');
     final d = now.day.toString().padLeft(2, '0');
-    return '$y/$m/$d';
+    return '$d-$m-$y';
   }
 
   /// Преобразует строку в безопасный slug для имени файла.
@@ -355,6 +355,7 @@ class PhotoService {
     required String id,
     required Uint8List bytes,
     required String displayName,
+    DateTime? workDate,
   }) async {
     try {
       debugPrint('Начинаем загрузку фото (bytes) для $entity:$id:$displayName');
@@ -400,7 +401,12 @@ class PhotoService {
       final mime = _detectMimeFromBytes(compressedBytes);
       final ext = _detectExtension(mime);
       final unique = _uniqueId();
-      final datePrefix = _datePath(now);
+      // Используем дату смены если передана, иначе текущую дату
+      final dateToUse =
+          (entity == 'work' || entity == 'shift') && workDate != null
+              ? workDate
+              : now;
+      final datePrefix = _datePath(dateToUse);
 
       final fileName = (entity == 'shift' || entity == 'work')
           ? _getWorkFileName(displayName)

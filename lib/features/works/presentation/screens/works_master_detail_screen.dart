@@ -262,70 +262,81 @@ class _WorksMasterDetailScreenState
         itemBuilder: (context, index) {
           final group = groups[index];
 
-          return Column(
-            key: ValueKey(group.month),
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Заголовок группы месяца
-              MonthGroupHeader(
-                group: group,
-                onTap: () {
-                  // Раскрываем/сворачиваем месяц
-                  ref
-                      .read(monthGroupsProvider.notifier)
-                      .toggleMonth(group.month);
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              return Column(
+                key: ValueKey(group.month),
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Заголовок группы месяца
+                  MonthGroupHeader(
+                    group: group,
+                    onTap: () {
+                      // Раскрываем/сворачиваем месяц
+                      ref
+                          .read(monthGroupsProvider.notifier)
+                          .toggleMonth(group.month);
 
-                  // На десктопе показываем информацию о месяце в детальной панели
-                  if (isDesktop) {
-                    setState(() {
-                      selectedMonth = group;
-                      selectedWork = null; // Сбрасываем выбранную смену
-                    });
-                  }
-                },
-                onMobileLongPress: () {
-                  if (!ResponsiveUtils.isMobile(context)) {
-                    return;
-                  }
-
-                  final notifier = ref.read(monthGroupsProvider.notifier);
-                  notifier.expandMonth(group.month);
-
-                  context.pushNamed(
-                    'month_details_mobile',
-                    extra: group,
-                  );
-                },
-              ),
-
-              // Список смен (если группа развёрнута)
-              if (group.isExpanded)
-                MonthWorksList(
-                  group: group,
-                  onWorkSelected: (work) {
-                    if (isDesktop) {
-                      setState(() {
-                        selectedWork = work;
-                        selectedMonth = null; // Сбрасываем выбранный месяц
-                      });
-                    } else {
-                      if (work.id != null) {
-                        context.goNamed(
-                          'work_details',
-                          pathParameters: {'workId': work.id!},
-                        );
+                      // На десктопе показываем информацию о месяце в детальной панели
+                      if (isDesktop) {
+                        setState(() {
+                          selectedMonth = group;
+                          selectedWork = null; // Сбрасываем выбранную смену
+                        });
                       }
-                    }
-                  },
-                  onLoadMore: () {
-                    // Подгрузка дополнительных смен при infinite scroll
-                    ref
-                        .read(monthGroupsProvider.notifier)
-                        .loadMoreMonthWorks(group.month);
-                  },
-                  selectedWork: selectedWork,
-                ),
-            ],
+                    },
+                    onMobileLongPress: () {
+                      if (!ResponsiveUtils.isMobile(context)) {
+                        return;
+                      }
+
+                      final notifier = ref.read(monthGroupsProvider.notifier);
+                      notifier.expandMonth(group.month);
+
+                      context.pushNamed(
+                        'month_details_mobile',
+                        extra: group,
+                      );
+                    },
+                  ),
+
+                  // Список смен (если группа развёрнута)
+                  if (group.isExpanded)
+                    SizedBox(
+                      height: MediaQuery.of(context).size.height -
+                          MediaQuery.of(context).viewPadding.top -
+                          kToolbarHeight -
+                          120, // Высота заголовка месяца + отступы
+                      child: MonthWorksList(
+                        group: group,
+                        onWorkSelected: (work) {
+                          if (isDesktop) {
+                            setState(() {
+                              selectedWork = work;
+                              selectedMonth =
+                                  null; // Сбрасываем выбранный месяц
+                            });
+                          } else {
+                            if (work.id != null) {
+                              context.goNamed(
+                                'work_details',
+                                pathParameters: {'workId': work.id!},
+                              );
+                            }
+                          }
+                        },
+                        onLoadMore: () {
+                          // Подгрузка дополнительных смен при infinite scroll
+                          ref
+                              .read(monthGroupsProvider.notifier)
+                              .loadMoreMonthWorks(group.month);
+                        },
+                        selectedWork: selectedWork,
+                      ),
+                    ),
+                ],
+              );
+            },
           );
         },
       ),

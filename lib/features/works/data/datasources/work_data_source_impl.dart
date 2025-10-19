@@ -4,6 +4,104 @@ import '../models/work_model.dart';
 import '../models/month_group.dart';
 import 'work_data_source.dart';
 
+/// Сводка по объектам за месяц.
+class ObjectSummary {
+  /// ID объекта
+  final String objectId;
+
+  /// Название объекта
+  final String objectName;
+
+  /// Количество смен
+  final int worksCount;
+
+  /// Общая сумма
+  final double totalAmount;
+
+  /// Создаёт сводку по объекту с агрегированными данными.
+  ObjectSummary({
+    required this.objectId,
+    required this.objectName,
+    required this.worksCount,
+    required this.totalAmount,
+  });
+
+  /// Создаёт объект из JSON (результат RPC функции).
+  factory ObjectSummary.fromJson(Map<String, dynamic> json) {
+    return ObjectSummary(
+      objectId: json['object_id'] as String? ?? '',
+      objectName: json['object_name'] as String? ?? 'Неизвестный объект',
+      worksCount: (json['works_count'] as num?)?.toInt() ?? 0,
+      totalAmount: (json['total_amount'] as num?)?.toDouble() ?? 0,
+    );
+  }
+}
+
+/// Сводка по системам за месяц.
+class SystemSummary {
+  /// Название системы
+  final String system;
+
+  /// Количество смен
+  final int worksCount;
+
+  /// Количество работ (items)
+  final int itemsCount;
+
+  /// Общая сумма
+  final double totalAmount;
+
+  /// Создаёт сводку по системе с агрегированными данными.
+  SystemSummary({
+    required this.system,
+    required this.worksCount,
+    required this.itemsCount,
+    required this.totalAmount,
+  });
+
+  /// Создаёт объект из JSON (результат RPC функции).
+  factory SystemSummary.fromJson(Map<String, dynamic> json) {
+    return SystemSummary(
+      system: json['system'] as String? ?? 'Неизвестная система',
+      worksCount: (json['works_count'] as num?)?.toInt() ?? 0,
+      itemsCount: (json['items_count'] as num?)?.toInt() ?? 0,
+      totalAmount: (json['total_amount'] as num?)?.toDouble() ?? 0,
+    );
+  }
+}
+
+/// Сводка по часам за месяц.
+class MonthHoursSummary {
+  /// Общее количество часов
+  final double totalHours;
+
+  /// Создаёт сводку с общим количеством часов.
+  MonthHoursSummary({required this.totalHours});
+
+  /// Создаёт объект из JSON (результат RPC функции).
+  factory MonthHoursSummary.fromJson(Map<String, dynamic> json) {
+    return MonthHoursSummary(
+      totalHours: (json['total_hours'] as num?)?.toDouble() ?? 0,
+    );
+  }
+}
+
+/// Сводка по сотрудникам за месяц.
+class MonthEmployeesSummary {
+  /// Общее количество специалистов
+  final int totalEmployees;
+
+  /// Создаёт сводку с общим количеством специалистов.
+  MonthEmployeesSummary({required this.totalEmployees});
+
+  /// Создаёт объект из JSON (результат RPC функции).
+  factory MonthEmployeesSummary.fromJson(Map<String, dynamic> json) {
+    return MonthEmployeesSummary(
+      totalEmployees: (json['total_employees'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
 /// Реализация источника данных для работы со сменами через Supabase.
 class WorkDataSourceImpl implements WorkDataSource {
   /// Клиент Supabase для доступа к базе данных.
@@ -166,6 +264,89 @@ class WorkDataSourceImpl implements WorkDataSource {
           .toList();
     } catch (e) {
       _logger.e('Ошибка получения смен месяца: $e');
+      rethrow;
+    }
+  }
+
+  /// Возвращает полную статистику по объектам за месяц.
+  ///
+  /// Вызывает RPC функцию get_month_objects_summary для получения
+  /// агрегированных данных ВСЕ смен месяца (не зависит от пагинации).
+  @override
+  Future<List<ObjectSummary>> getObjectsSummary(DateTime month) async {
+    try {
+      final monthStr =
+          '${month.year}-${month.month.toString().padLeft(2, '0')}-01';
+
+      final response = await client.rpc('get_month_objects_summary', params: {
+        'p_month': monthStr,
+      });
+
+      return (response as List)
+          .map<ObjectSummary>((json) => ObjectSummary.fromJson(json))
+          .toList();
+    } catch (e) {
+      _logger.e('Ошибка получения статистики по объектам: $e');
+      rethrow;
+    }
+  }
+
+  /// Возвращает полную статистику по системам за месяц.
+  ///
+  /// Вызывает RPC функцию get_month_systems_summary для получения
+  /// агрегированных данных ВСЕ работ месяца (не зависит от пагинации).
+  @override
+  Future<List<SystemSummary>> getSystemsSummary(DateTime month) async {
+    try {
+      final monthStr =
+          '${month.year}-${month.month.toString().padLeft(2, '0')}-01';
+
+      final response = await client.rpc('get_month_systems_summary', params: {
+        'p_month': monthStr,
+      });
+
+      return (response as List)
+          .map<SystemSummary>((json) => SystemSummary.fromJson(json))
+          .toList();
+    } catch (e) {
+      _logger.e('Ошибка получения статистики по системам: $e');
+      rethrow;
+    }
+  }
+
+  /// Возвращает общее количество часов за месяц.
+  @override
+  Future<MonthHoursSummary> getTotalHours(DateTime month) async {
+    try {
+      final monthStr =
+          '${month.year}-${month.month.toString().padLeft(2, '0')}-01';
+
+      final response = await client.rpc('get_month_total_hours', params: {
+        'p_month': monthStr,
+      });
+
+      return MonthHoursSummary.fromJson(response.first as Map<String, dynamic>);
+    } catch (e) {
+      _logger.e('Ошибка получения общего количества часов: $e');
+      rethrow;
+    }
+  }
+
+  /// Возвращает количество уникальных сотрудников за месяц.
+  @override
+  Future<MonthEmployeesSummary> getTotalEmployees(DateTime month) async {
+    try {
+      final monthStr =
+          '${month.year}-${month.month.toString().padLeft(2, '0')}-01';
+
+      final response = await client.rpc('get_month_total_employees', params: {
+        'p_month': monthStr,
+      });
+
+      return MonthEmployeesSummary.fromJson(
+          response.first as Map<String, dynamic>);
+    } catch (e) {
+      _logger.e('Ошибка получения количества сотрудников: $e');
       rethrow;
     }
   }

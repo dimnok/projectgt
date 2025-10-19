@@ -45,11 +45,9 @@ class WorkFormScreen extends ConsumerStatefulWidget {
 class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
-  String? _photoUrl;
+  bool _isPhotoSuccessful = false;
   File? _selectedPhotoFile; // Локальный файл до загрузки (mobile)
   Uint8List? _selectedPhotoBytes; // Локальные байты (web)
-
-  // Контроллеры (не используются с GTDropdown)
 
   // Состояния формы
   String? _selectedObjectId;
@@ -84,11 +82,6 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
       });
       _updateOccupiedEmployees();
     }
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
   }
 
   /// Обновляет список занятых сотрудников с кешированием
@@ -158,7 +151,6 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
       setState(() {
         _selectedPhotoBytes = bytes;
         _selectedPhotoFile = null;
-        _photoUrl = null;
       });
     } else {
       final file = await photoService.pickImage(source);
@@ -167,7 +159,6 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
       setState(() {
         _selectedPhotoFile = file;
         _selectedPhotoBytes = null;
-        _photoUrl = null;
       });
     }
   }
@@ -212,14 +203,15 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
                     _pickPhoto(ImageSource.gallery);
                   },
                 ),
-                if (_photoUrl != null && _photoUrl!.isNotEmpty)
+                if (_selectedPhotoFile != null || _selectedPhotoBytes != null)
                   _PhotoOptionButton(
                     icon: Icons.delete_outline,
                     label: 'Удалить',
                     onTap: () async {
                       Navigator.pop(context);
                       setState(() {
-                        _photoUrl = null;
+                        _selectedPhotoFile = null;
+                        _selectedPhotoBytes = null;
                       });
                     },
                   ),
@@ -330,17 +322,23 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
   Future<void> _saveWork() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedObjectId == null || _selectedEmployeeIds.isEmpty) {
-      SnackBarUtils.showWarningOverlay(
-          widget.parentContext ?? context, 'Выберите объект и сотрудников');
+      ScaffoldMessenger.of(widget.parentContext ?? context).showSnackBar(
+        SnackBar(
+          content: const Text('Выберите объект и сотрудников'),
+          backgroundColor: Colors.orange[600],
+        ),
+      );
       return;
     }
 
     // Проверка обязательного фото смены
-    if (_selectedPhotoFile == null &&
-        _selectedPhotoBytes == null &&
-        _photoUrl == null) {
-      SnackBarUtils.showWarningOverlay(
-          widget.parentContext ?? context, 'Добавьте фото смены');
+    if (_selectedPhotoFile == null && _selectedPhotoBytes == null) {
+      ScaffoldMessenger.of(widget.parentContext ?? context).showSnackBar(
+        SnackBar(
+          content: const Text('Добавьте фото смены'),
+          backgroundColor: Colors.orange[600],
+        ),
+      );
       return;
     }
 
@@ -436,9 +434,6 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
       if (mounted) {
         // Кэшируем зависимости от контекста ДО async операции
         final navigator = Navigator.of(context);
-        final scaffoldMessenger = widget.parentContext != null
-            ? ScaffoldMessenger.of(widget.parentContext!)
-            : ScaffoldMessenger.of(context);
 
         // Обновляем список смен в monthGroupsProvider для отображения новой смены
         await ref.read(monthGroupsProvider.notifier).refresh();
@@ -446,24 +441,29 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
         // Проверяем mounted ПОСЛЕ async операции
         if (!mounted) return;
 
+        // ✅ ПОКАЗЫВАЕМ АНИМАЦИЮ УСПЕХА
+        setState(() {
+          _isPhotoSuccessful = true;
+        });
+
+        // ⏳ ЖДЁМ 1.5 СЕКУНДЫ ДЛЯ АНИМАЦИИ
+        await Future.delayed(const Duration(milliseconds: 1500));
+
+        if (!mounted) return;
+
         navigator.pop();
-        scaffoldMessenger.showSnackBar(
-          const SnackBar(
-            content: Text('Смена успешно открыта'),
-            backgroundColor: Colors.green,
-          ),
-        );
       }
     } catch (e) {
       if (mounted) {
+        setState(() {
+          _isPhotoSuccessful = false;
+        });
         final scaffoldMessenger = widget.parentContext != null
             ? ScaffoldMessenger.of(widget.parentContext!)
             : ScaffoldMessenger.of(context);
-        scaffoldMessenger.showSnackBar(
-          SnackBar(
-            content: Text('Ошибка: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
+        SnackBarUtils.showErrorByMessenger(
+          scaffoldMessenger,
+          'Ошибка: ${e.toString()}',
         );
       }
     } finally {
@@ -485,93 +485,119 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
 
     return Material(
       color: theme.colorScheme.surface,
-      child: _isLoading
-          ? const Center(child: CupertinoActivityIndicator())
-          : Stack(
-              children: [
-                // Основное содержимое
-                Column(
+      child: _isPhotoSuccessful
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.check_circle,
+                    color: Colors.green,
+                    size: 64,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Фото загружено',
+                    style: theme.textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Смена открыта',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.secondary,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : _isLoading
+              ? const Center(child: CupertinoActivityIndicator())
+              : Stack(
                   children: [
-                    // Заголовок (закреплен сверху)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surface,
-                        border: Border(
-                          bottom: BorderSide(
-                            color: theme.colorScheme.outline
-                                .withValues(alpha: 0.2),
-                            width: 1,
+                    // Основное содержимое
+                    Column(
+                      children: [
+                        // Заголовок (закреплен сверху)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surface,
+                            border: Border(
+                              bottom: BorderSide(
+                                color: theme.colorScheme.outline
+                                    .withValues(alpha: 0.2),
+                                width: 1,
+                              ),
+                            ),
+                          ),
+                          child: ModalUtils.buildModalHeader(
+                            title: 'Открытие смены',
+                            onClose: () => Navigator.pop(context),
+                            theme: theme,
                           ),
                         ),
-                      ),
-                      child: ModalUtils.buildModalHeader(
-                        title: 'Открытие смены',
-                        onClose: () => Navigator.pop(context),
-                        theme: theme,
-                      ),
-                    ),
 
-                    // Прокручиваемое содержимое
-                    Expanded(
-                      child: SingleChildScrollView(
-                        controller: widget.scrollController,
-                        padding: EdgeInsets.fromLTRB(
-                          24.0,
-                          24.0,
-                          24.0,
-                          100.0 + MediaQuery.of(context).viewInsets.bottom,
-                        ),
-                        child: ModalUtils.buildAdaptiveFormContainer(
-                          context: context,
-                          child: Form(
-                            key: _formKey,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Дата
-                                TextFormField(
-                                  initialValue: dateStr,
-                                  readOnly: true,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Дата',
-                                    prefixIcon: Icon(Icons.calendar_today),
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
+                        // Прокручиваемое содержимое
+                        Expanded(
+                          child: SingleChildScrollView(
+                            controller: widget.scrollController,
+                            padding: EdgeInsets.fromLTRB(
+                              24.0,
+                              24.0,
+                              24.0,
+                              100.0 + MediaQuery.of(context).viewInsets.bottom,
+                            ),
+                            child: ModalUtils.buildAdaptiveFormContainer(
+                              context: context,
+                              child: Form(
+                                key: _formKey,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Дата
+                                    TextFormField(
+                                      initialValue: dateStr,
+                                      readOnly: true,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Дата',
+                                        prefixIcon: Icon(Icons.calendar_today),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
 
-                                // Объект и сотрудники
-                                FutureBuilder(
-                                  future:
-                                      Future.wait([allObjects, allEmployees]),
-                                  builder: (context, snapshot) {
-                                    if (!snapshot.hasData) {
-                                      return const Center(
-                                          child: CupertinoActivityIndicator());
-                                    }
+                                    // Объект и сотрудники
+                                    FutureBuilder(
+                                      future: Future.wait(
+                                          [allObjects, allEmployees]),
+                                      builder: (context, snapshot) {
+                                        if (!snapshot.hasData) {
+                                          return const Center(
+                                              child:
+                                                  CupertinoActivityIndicator());
+                                        }
 
-                                    final objects = (snapshot.data![0]
-                                        as List<ObjectEntity>);
-                                    final employees =
-                                        (snapshot.data![1] as List<Employee>);
-                                    final profileObjectIds =
-                                        profile?.objectIds ?? [];
-                                    final availableObjects = objects
-                                        .where((o) =>
-                                            profileObjectIds.contains(o.id))
-                                        .toList();
+                                        final objects = (snapshot.data![0]
+                                            as List<ObjectEntity>);
+                                        final employees = (snapshot.data![1]
+                                            as List<Employee>);
+                                        final profileObjectIds =
+                                            profile?.objectIds ?? [];
+                                        final availableObjects = objects
+                                            .where((o) =>
+                                                profileObjectIds.contains(o.id))
+                                            .toList();
 
-                                    return Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        // Выбор объекта
-                                        GTStringDropdown(
-                                          items: availableObjects
-                                              .map((obj) => obj.name)
-                                              .toList(),
-                                          selectedItem:
-                                              _selectedObjectId != null
+                                        return Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            // Выбор объекта
+                                            GTStringDropdown(
+                                              items: availableObjects
+                                                  .map((obj) => obj.name)
+                                                  .toList(),
+                                              selectedItem: _selectedObjectId !=
+                                                      null
                                                   ? availableObjects
                                                       .where((obj) =>
                                                           obj.id ==
@@ -579,180 +605,203 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
                                                       .map((obj) => obj.name)
                                                       .firstOrNull
                                                   : null,
-                                          onSelectionChanged: (selectedName) {
-                                            if (selectedName != null) {
-                                              final selectedObject =
-                                                  availableObjects.firstWhere(
-                                                      (obj) =>
-                                                          obj.name ==
-                                                          selectedName);
-                                              setState(() {
-                                                _selectedObjectId =
-                                                    selectedObject.id;
-                                                _selectedEmployeeIds.clear();
-                                              });
-                                              _updateOccupiedEmployees();
-                                            } else {
-                                              setState(() {
-                                                _selectedObjectId = null;
-                                                _selectedEmployeeIds.clear();
-                                                _cachedOccupiedEmployeeIds =
-                                                    null;
-                                              });
-                                            }
-                                          },
-                                          labelText: 'Объект',
-                                          hintText: availableObjects.length == 1
-                                              ? 'Объект выбран автоматически'
-                                              : 'Выберите объект',
-                                          allowCustomInput: false,
-                                          validator: (value) {
-                                            if (_selectedObjectId == null) {
-                                              return 'Выберите объект';
-                                            }
-                                            return null;
-                                          },
-                                        ),
-                                        const SizedBox(height: 16),
+                                              onSelectionChanged:
+                                                  (selectedName) {
+                                                if (selectedName != null) {
+                                                  final selectedObject =
+                                                      availableObjects
+                                                          .firstWhere((obj) =>
+                                                              obj.name ==
+                                                              selectedName);
+                                                  setState(() {
+                                                    _selectedObjectId =
+                                                        selectedObject.id;
+                                                    _selectedEmployeeIds
+                                                        .clear();
+                                                  });
+                                                  _updateOccupiedEmployees();
+                                                } else {
+                                                  setState(() {
+                                                    _selectedObjectId = null;
+                                                    _selectedEmployeeIds
+                                                        .clear();
+                                                    _cachedOccupiedEmployeeIds =
+                                                        null;
+                                                  });
+                                                }
+                                              },
+                                              labelText: 'Объект',
+                                              hintText: availableObjects
+                                                          .length ==
+                                                      1
+                                                  ? 'Объект выбран автоматически'
+                                                  : 'Выберите объект',
+                                              allowCustomInput: false,
+                                              validator: (value) {
+                                                if (_selectedObjectId == null) {
+                                                  return 'Выберите объект';
+                                                }
+                                                return null;
+                                              },
+                                            ),
+                                            const SizedBox(height: 16),
 
-                                        // Сотрудники
-                                        Text('Сотрудники',
-                                            style: theme.textTheme.bodyLarge),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          'Отображаются только сотрудники со статусом "Работает"',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: theme.colorScheme.secondary,
-                                            fontStyle: FontStyle.italic,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        _buildEmployeesList(employees, theme),
-                                        const SizedBox(height: 16),
-
-                                        // Фото смены
-                                        if (_selectedPhotoFile != null ||
-                                            _selectedPhotoBytes != null)
-                                          // Превью локального фото (при клике открывается просмотр)
-                                          GestureDetector(
-                                            onTap: () =>
-                                                _showLocalPhotoViewer(context),
-                                            child: Container(
-                                              width: double.infinity,
-                                              height: 200,
-                                              decoration: BoxDecoration(
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                                border: Border.all(
-                                                  color: theme
-                                                      .colorScheme.outline
-                                                      .withValues(alpha: 0.2),
-                                                ),
-                                              ),
-                                              child: ClipRRect(
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                                child: _selectedPhotoBytes !=
-                                                        null
-                                                    ? Image.memory(
-                                                        _selectedPhotoBytes!,
-                                                        fit: BoxFit.cover,
-                                                      )
-                                                    : Image.file(
-                                                        _selectedPhotoFile!,
-                                                        fit: BoxFit.cover,
-                                                        errorBuilder: (context,
-                                                                error,
-                                                                stackTrace) =>
-                                                            Icon(
-                                                          Icons.broken_image,
-                                                          color: theme
-                                                              .colorScheme
-                                                              .error,
-                                                          size: 48,
-                                                        ),
-                                                      ),
+                                            // Сотрудники
+                                            Text('Сотрудники',
+                                                style:
+                                                    theme.textTheme.bodyLarge),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              'Отображаются только сотрудники со статусом "Работает"',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color:
+                                                    theme.colorScheme.secondary,
+                                                fontStyle: FontStyle.italic,
                                               ),
                                             ),
-                                          )
-                                        else
-                                          // Кнопка добавления фото (обязательное поле)
-                                          Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              OutlinedButton.icon(
-                                                onPressed:
-                                                    _selectedObjectId != null
-                                                        ? _showPhotoOptions
-                                                        : null,
-                                                icon: const Icon(
-                                                    Icons.add_a_photo),
-                                                label: Text(_selectedObjectId !=
-                                                        null
-                                                    ? 'Добавить фото смены *'
-                                                    : 'Сначала выберите объект'),
-                                                style: OutlinedButton.styleFrom(
-                                                  minimumSize:
-                                                      const Size.fromHeight(48),
-                                                  shape: RoundedRectangleBorder(
+                                            const SizedBox(height: 8),
+                                            _buildEmployeesList(
+                                                employees, theme),
+                                            const SizedBox(height: 16),
+
+                                            // Фото смены
+                                            if (_selectedPhotoFile != null ||
+                                                _selectedPhotoBytes != null)
+                                              // Превью локального фото (при клике открывается просмотр)
+                                              GestureDetector(
+                                                onTap: () =>
+                                                    _showLocalPhotoViewer(
+                                                        context),
+                                                child: Container(
+                                                  width: double.infinity,
+                                                  height: 200,
+                                                  decoration: BoxDecoration(
                                                     borderRadius:
                                                         BorderRadius.circular(
-                                                            8),
+                                                            12),
+                                                    border: Border.all(
+                                                      color: theme
+                                                          .colorScheme.outline
+                                                          .withValues(
+                                                              alpha: 0.2),
+                                                    ),
                                                   ),
-                                                  side: BorderSide(
-                                                    color: theme
-                                                        .colorScheme.error
-                                                        .withValues(alpha: 0.8),
-                                                    width: 1,
+                                                  child: ClipRRect(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            12),
+                                                    child:
+                                                        _selectedPhotoBytes !=
+                                                                null
+                                                            ? Image.memory(
+                                                                _selectedPhotoBytes!,
+                                                                fit: BoxFit
+                                                                    .cover,
+                                                              )
+                                                            : Image.file(
+                                                                _selectedPhotoFile!,
+                                                                fit: BoxFit
+                                                                    .cover,
+                                                                errorBuilder:
+                                                                    (context,
+                                                                            error,
+                                                                            stackTrace) =>
+                                                                        Icon(
+                                                                  Icons
+                                                                      .broken_image,
+                                                                  color: theme
+                                                                      .colorScheme
+                                                                      .error,
+                                                                  size: 48,
+                                                                ),
+                                                              ),
                                                   ),
                                                 ),
+                                              )
+                                            else
+                                              // Кнопка добавления фото (обязательное поле)
+                                              Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  OutlinedButton.icon(
+                                                    onPressed:
+                                                        _selectedObjectId !=
+                                                                null
+                                                            ? _showPhotoOptions
+                                                            : null,
+                                                    icon: const Icon(
+                                                        Icons.add_a_photo),
+                                                    label: Text(_selectedObjectId !=
+                                                            null
+                                                        ? 'Добавить фото смены *'
+                                                        : 'Сначала выберите объект'),
+                                                    style: OutlinedButton
+                                                        .styleFrom(
+                                                      minimumSize:
+                                                          const Size.fromHeight(
+                                                              48),
+                                                      shape:
+                                                          RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(8),
+                                                      ),
+                                                      side: BorderSide(
+                                                        color: theme
+                                                            .colorScheme.error
+                                                            .withValues(
+                                                                alpha: 0.8),
+                                                        width: 1,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    'Фото смены обязательно',
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      color: theme
+                                                          .colorScheme.error,
+                                                      fontStyle:
+                                                          FontStyle.italic,
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                'Фото смены обязательно',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color:
-                                                      theme.colorScheme.error,
-                                                  fontStyle: FontStyle.italic,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        const SizedBox(
-                                            height:
-                                                100), // Место для плавающих кнопок
-                                      ],
-                                    );
-                                  },
+                                            const SizedBox(
+                                                height:
+                                                    100), // Место для плавающих кнопок
+                                          ],
+                                        );
+                                      },
+                                    ),
+                                  ],
                                 ),
-                              ],
+                              ),
                             ),
                           ),
                         ),
-                      ),
+                      ],
+                    ),
+
+                    // Плавающие кнопки (как в модуле сотрудников)
+                    ModalUtils.buildFloatingButtons(
+                      onSave: () {
+                        if (_selectedObjectId != null &&
+                            _selectedEmployeeIds.isNotEmpty &&
+                            !_isLoading) {
+                          _saveWork();
+                        }
+                      },
+                      onCancel: () => Navigator.pop(context),
+                      isLoading: _isLoading,
+                      saveText: 'Открыть смену *',
+                      scrollController: widget.scrollController,
                     ),
                   ],
                 ),
-
-                // Плавающие кнопки (как в модуле сотрудников)
-                ModalUtils.buildFloatingButtons(
-                  onSave: () {
-                    if (_selectedObjectId != null &&
-                        _selectedEmployeeIds.isNotEmpty &&
-                        !_isLoading) {
-                      _saveWork();
-                    }
-                  },
-                  onCancel: () => Navigator.pop(context),
-                  isLoading: _isLoading,
-                  saveText: 'Открыть смену *',
-                  scrollController: widget.scrollController,
-                ),
-              ],
-            ),
     );
   }
 
