@@ -6,8 +6,10 @@ import 'package:flutter/foundation.dart';
 class AppConstants {
   /// Текущая версия приложения (синхронизирована с pubspec.yaml).
   ///
-  /// Формат: major.minor.patch (например, 1.0.2).
-  static const String appVersion = '1.0.2';
+  /// Формат: major.minor.patch (например, 1.0.3).
+  /// ⚠️ СИНХРОНИЗИРУЙТЕ С pubspec.yaml при каждом обновлении!
+  /// Используйте скрипт: bash scripts/update_version.sh
+  static const String appVersion = '1.0.4';
 
   /// Платформа приложения для проверки версии.
   ///
