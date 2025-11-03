@@ -88,7 +88,7 @@ class WorkDetailsScreen extends ConsumerWidget {
     showDialog(
       context: context,
       useRootNavigator: true,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Редактировать смену'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -105,29 +105,40 @@ class WorkDetailsScreen extends ConsumerWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('Отмена'),
           ),
           ElevatedButton(
             onPressed: () async {
               if (statusController.text.trim().isEmpty) {
-                SnackBarUtils.showWarning(context, 'Введите статус смены');
+                SnackBarUtils.showWarning(
+                    dialogContext, 'Введите статус смены');
                 return;
               }
+
+              final newStatus = statusController.text.trim();
               final updatedWork = Work(
                 id: work.id,
                 date: work.date,
                 objectId: work.objectId,
                 openedBy: work.openedBy,
-                status: statusController.text.trim(),
+                status: newStatus,
                 photoUrl: work.photoUrl,
                 eveningPhotoUrl: work.eveningPhotoUrl,
                 createdAt: work.createdAt,
                 updatedAt: DateTime.now(),
+                telegramMessageId: work.telegramMessageId,
               );
+
               await ref.read(worksProvider.notifier).updateWork(updatedWork);
+
+              if (dialogContext.mounted) {
+                // Закрываем диалог
+                Navigator.of(dialogContext).pop();
+              }
+
+              // Используем основной контекст экрана для Snackbar
               if (context.mounted) {
-                Navigator.of(context).pop();
                 SnackBarUtils.showInfo(context, 'Смена обновлена');
               }
             },

@@ -42,11 +42,6 @@ class ModalContainerWrapper extends StatelessWidget {
     final screenWidth = MediaQuery.of(context).size.width;
 
     final modalContent = Container(
-      margin: isDesktop
-          ? const EdgeInsets.only(top: 48)
-          : EdgeInsets.only(
-              top: kToolbarHeight + MediaQuery.of(context).padding.top,
-            ),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
@@ -66,10 +61,11 @@ class ModalContainerWrapper extends StatelessWidget {
       child: child,
     );
 
+    // Для desktop ограничиваем ширину, но всё равно показываем снизу
     if (isDesktop) {
       return Align(
-        alignment: Alignment.topCenter,
-        child: ConstrainedBox(
+        alignment: Alignment.bottomCenter,
+        child: Container(
           constraints: BoxConstraints(maxWidth: screenWidth * 0.5),
           child: modalContent,
         ),

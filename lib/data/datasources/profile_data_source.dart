@@ -61,7 +61,7 @@ class SupabaseProfileDataSource implements ProfileDataSource {
     try {
       final response = await client
           .from('profiles')
-          .select('*, slot_times')
+          .select('*, slot_times, employees(position)')
           .eq('id', userId)
           .single();
 
@@ -73,6 +73,14 @@ class SupabaseProfileDataSource implements ProfileDataSource {
         final employeeId = json['employee_id'];
         if (employeeId != null) {
           obj['employee_id'] = employeeId;
+        }
+        // Получаем должность из привязанного сотрудника
+        final employee = json['employees'];
+        if (employee != null && employee is Map) {
+          final position = employee['position'];
+          if (position != null) {
+            json['position'] = position;
+          }
         }
         if (slotTimes != null) {
           obj['slot_times'] = slotTimes;
@@ -95,7 +103,7 @@ class SupabaseProfileDataSource implements ProfileDataSource {
     try {
       final response = await client
           .from('profiles')
-          .select('*, slot_times')
+          .select('*, slot_times, employees(position)')
           .order('full_name');
 
       return (response as List).map<ProfileModel>((raw) {
@@ -106,6 +114,14 @@ class SupabaseProfileDataSource implements ProfileDataSource {
         final employeeId = json['employee_id'];
         if (employeeId != null) {
           obj['employee_id'] = employeeId;
+        }
+        // Получаем должность из привязанного сотрудника
+        final employee = json['employees'];
+        if (employee != null && employee is Map) {
+          final position = employee['position'];
+          if (position != null) {
+            json['position'] = position;
+          }
         }
         if (slotTimes != null) {
           obj['slot_times'] = slotTimes;
@@ -176,7 +192,7 @@ class SupabaseProfileDataSource implements ProfileDataSource {
       final responseData = response ??
           await client
               .from('profiles')
-              .select('*, slot_times')
+              .select('*, slot_times, employees(position)')
               .eq('id', profile.id)
               .single();
 
@@ -184,6 +200,14 @@ class SupabaseProfileDataSource implements ProfileDataSource {
       final json = Map<String, dynamic>.from(responseData as Map);
       final slotTimes = json['slot_times'];
       final obj = Map<String, dynamic>.from((json['object'] ?? {}) as Map);
+      // Получаем должность из привязанного сотрудника
+      final employee = json['employees'];
+      if (employee != null && employee is Map) {
+        final position = employee['position'];
+        if (position != null) {
+          json['position'] = position;
+        }
+      }
       if (slotTimes != null) {
         obj['slot_times'] = slotTimes;
       }

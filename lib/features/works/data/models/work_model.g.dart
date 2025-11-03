@@ -23,6 +23,7 @@ _WorkModel _$WorkModelFromJson(Map<String, dynamic> json) => _WorkModel(
       totalAmount: (json['total_amount'] as num?)?.toDouble(),
       itemsCount: (json['items_count'] as num?)?.toInt(),
       employeesCount: (json['employees_count'] as num?)?.toInt(),
+      telegramMessageId: (json['telegram_message_id'] as num?)?.toInt(),
     );
 
 Map<String, dynamic> _$WorkModelToJson(_WorkModel instance) =>
@@ -39,4 +40,5 @@ Map<String, dynamic> _$WorkModelToJson(_WorkModel instance) =>
       'total_amount': instance.totalAmount,
       'items_count': instance.itemsCount,
       'employees_count': instance.employeesCount,
+      'telegram_message_id': instance.telegramMessageId,
     };

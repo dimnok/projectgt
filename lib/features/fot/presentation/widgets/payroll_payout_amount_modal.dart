@@ -8,6 +8,7 @@ import '../providers/balance_providers.dart';
 import '../../data/models/payroll_payout_model.dart';
 import '../../../../core/utils/snackbar_utils.dart';
 import '../../../../core/widgets/modal_container_wrapper.dart';
+import '../../../../core/utils/modal_utils.dart';
 import '../utils/payout_utils.dart';
 
 /// Модальное окно для указания индивидуальных сумм выплат для выбранных сотрудников.
@@ -111,6 +112,8 @@ class _PayrollPayoutAmountModalState
       return;
     }
 
+    if (_isSaving.value) return; // Предотвращаем повторные вызовы
+
     _isSaving.value = true;
 
     try {
@@ -130,6 +133,7 @@ class _PayrollPayoutAmountModalState
               method: widget.method,
               type: widget.type,
               createdAt: DateTime.now(),
+              comment: widget.comment.isEmpty ? null : widget.comment,
             );
             payouts.add(payout);
           }
@@ -138,10 +142,11 @@ class _PayrollPayoutAmountModalState
 
       if (payouts.isEmpty) {
         SnackBarUtils.showWarning(context, 'Введите суммы для выплат');
+        _isSaving.value = false;
         return;
       }
 
-      // Сохраняем все выплаты
+      // Сохраняем все выплаты последовательно
       final createUseCase = ref.read(createPayoutUseCaseProvider);
       for (final payout in payouts) {
         await createUseCase(payout);
@@ -194,213 +199,177 @@ class _PayrollPayoutAmountModalState
       double screenWidth,
       NumberFormat numberFormat,
       Map<String, double> balanceMap) {
+    // Форматирование для сумм в строках сотрудников
+    final amountNumberFormat =
+        NumberFormat.currency(locale: 'ru_RU', symbol: '₽', decimalDigits: 2);
     return ModalContainerWrapper(
-      child: DraggableScrollableSheet(
-        initialChildSize: 1.0,
-        minChildSize: 0.5,
-        maxChildSize: 1.0,
-        expand: false,
-        builder: (context, scrollController) => SingleChildScrollView(
-          controller: scrollController,
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
           child: Padding(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(context).viewInsets.bottom,
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 16.0),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Массовые выплаты',
-                            style: theme.textTheme.titleLarge
-                                ?.copyWith(fontWeight: FontWeight.bold),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          style:
-                              IconButton.styleFrom(foregroundColor: Colors.red),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Divider(),
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ModalUtils.buildModalHeader(
+                  title: 'Массовые выплаты',
+                  onClose: () => Navigator.pop(context),
+                  theme: theme,
+                ),
+                const Divider(),
 
-                  // Информационная панель
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 16.0),
-                    child: Card(
-                      margin: EdgeInsets.zero,
-                      elevation: 0,
-                      color: theme.colorScheme.primaryContainer
-                          .withValues(alpha: 0.3),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(
-                          color:
-                              theme.colorScheme.primary.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.info_outline,
-                                  color: theme.colorScheme.primary,
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Этап 2 из 2: Укажите суммы для каждого сотрудника',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.primary,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                                'Дата: ${DateFormat('dd.MM.yyyy').format(widget.payoutDate)}'),
-                            Text(
-                                'Способ: ${_getMethodDisplayName(widget.method)}'),
-                            Text('Тип: ${_getTypeDisplayName(widget.type)}'),
-                            if (widget.comment.isNotEmpty)
-                              Text('Комментарий: ${widget.comment}'),
-                            Text('Сотрудников: ${_currentEmployees.length}'),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // Список сотрудников с суммами
-                  Card(
+                // Информационная панель
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16.0),
+                  child: Card(
                     margin: EdgeInsets.zero,
                     elevation: 0,
+                    color: theme.colorScheme.primaryContainer
+                        .withValues(alpha: 0.3),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                       side: BorderSide(
-                        color: theme.colorScheme.outline.withValues(alpha: 51),
+                        color: theme.colorScheme.primary.withValues(alpha: 0.3),
                       ),
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.all(16.0),
+                      padding: const EdgeInsets.all(12.0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Суммы выплат',
-                            style: theme.textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.bold),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.info_outline,
+                                color: theme.colorScheme.primary,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Этап 2 из 2: Укажите суммы для каждого сотрудника',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.primary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 16),
-
-                          // Список сотрудников
-                          for (int i = 0;
-                              i < _currentEmployees.length;
-                              i++) ...[
-                            if (i > 0) const SizedBox(height: 12),
-                            _buildEmployeeAmountRow(
-                                _currentEmployees[i], theme, balanceMap),
-                          ],
-
-                          const SizedBox(height: 16),
-                          const Divider(),
                           const SizedBox(height: 8),
-
-                          // Итоговая сумма
-                          ValueListenableBuilder<double>(
-                            valueListenable: _totalAmount,
-                            builder: (context, total, child) {
-                              return Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'ИТОГО:',
-                                    style:
-                                        theme.textTheme.titleMedium?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Text(
-                                    numberFormat.format(total),
-                                    style:
-                                        theme.textTheme.titleMedium?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: theme.colorScheme.primary,
-                                    ),
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
+                          Text(
+                              'Дата: ${DateFormat('dd.MM.yyyy').format(widget.payoutDate)}'),
+                          Text(
+                              'Способ: ${_getMethodDisplayName(widget.method)}'),
+                          Text('Тип: ${_getTypeDisplayName(widget.type)}'),
+                          if (widget.comment.isNotEmpty)
+                            Text('Комментарий: ${widget.comment}'),
+                          Text('Сотрудников: ${_currentEmployees.length}'),
                         ],
                       ),
                     ),
                   ),
+                ),
 
-                  const SizedBox(height: 24),
-                  Row(
+                // Список сотрудников с суммами
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.pop(context),
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: const Size.fromHeight(44),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            textStyle: const TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.bold),
-                          ),
-                          child: const Text('Назад'),
-                        ),
+                      Text(
+                        'Суммы выплат',
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.bold),
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: ValueListenableBuilder<bool>(
-                          valueListenable: _isSaving,
-                          builder: (context, isSaving, child) {
-                            return ElevatedButton(
-                              onPressed: isSaving ? null : _savePayouts,
-                              style: ElevatedButton.styleFrom(
-                                minimumSize: const Size.fromHeight(44),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                      const SizedBox(height: 16),
+
+                      // Список сотрудников
+                      for (int i = 0; i < _currentEmployees.length; i++) ...[
+                        if (i > 0) const SizedBox(height: 12),
+                        _buildEmployeeAmountRow(_currentEmployees[i], theme,
+                            balanceMap, amountNumberFormat),
+                      ],
+
+                      const SizedBox(height: 16),
+                      const Divider(),
+                      const SizedBox(height: 8),
+
+                      // Итоговая сумма
+                      ValueListenableBuilder<double>(
+                        valueListenable: _totalAmount,
+                        builder: (context, total, child) {
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'ИТОГО:',
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
                                 ),
-                                textStyle: const TextStyle(
-                                    fontSize: 16, fontWeight: FontWeight.bold),
                               ),
-                              child: isSaving
-                                  ? const SizedBox(
-                                      height: 20,
-                                      width: 20,
-                                      child: CupertinoActivityIndicator())
-                                  : const Text('Создать выплаты'),
-                            );
-                          },
-                        ),
+                              Text(
+                                numberFormat.format(total),
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: theme.colorScheme.primary,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ],
                   ),
-                  const SizedBox(height: 32),
-                ],
-              ),
+                ),
+
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(44),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          textStyle: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                        child: const Text('Назад'),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: ValueListenableBuilder<bool>(
+                        valueListenable: _isSaving,
+                        builder: (context, isSaving, child) {
+                          return ElevatedButton(
+                            onPressed: isSaving ? null : _savePayouts,
+                            style: ElevatedButton.styleFrom(
+                              minimumSize: const Size.fromHeight(44),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              textStyle: const TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                            child: isSaving
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CupertinoActivityIndicator())
+                                : const Text('Создать выплаты'),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 32),
+              ],
             ),
           ),
         ),
@@ -411,10 +380,6 @@ class _PayrollPayoutAmountModalState
   Widget _buildLoadingModal(BuildContext context, ThemeData theme,
       bool isDesktop, double screenWidth) {
     final modalContent = Container(
-      margin: isDesktop
-          ? const EdgeInsets.only(top: 48)
-          : EdgeInsets.only(
-              top: kToolbarHeight + MediaQuery.of(context).padding.top),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
@@ -437,11 +402,9 @@ class _PayrollPayoutAmountModalState
 
     if (isDesktop) {
       return Align(
-        alignment: Alignment.topCenter,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: screenWidth * 0.5,
-          ),
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          constraints: BoxConstraints(maxWidth: screenWidth * 0.5),
           child: modalContent,
         ),
       );
@@ -453,10 +416,6 @@ class _PayrollPayoutAmountModalState
   Widget _buildErrorModal(BuildContext context, ThemeData theme, bool isDesktop,
       double screenWidth, Object error) {
     final modalContent = Container(
-      margin: isDesktop
-          ? const EdgeInsets.only(top: 48)
-          : EdgeInsets.only(
-              top: kToolbarHeight + MediaQuery.of(context).padding.top),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
@@ -488,11 +447,9 @@ class _PayrollPayoutAmountModalState
 
     if (isDesktop) {
       return Align(
-        alignment: Alignment.topCenter,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: screenWidth * 0.5,
-          ),
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          constraints: BoxConstraints(maxWidth: screenWidth * 0.5),
           child: modalContent,
         ),
       );
@@ -501,8 +458,8 @@ class _PayrollPayoutAmountModalState
     }
   }
 
-  Widget _buildEmployeeAmountRow(
-      dynamic employee, ThemeData theme, Map<String, double> balanceMap) {
+  Widget _buildEmployeeAmountRow(dynamic employee, ThemeData theme,
+      Map<String, double> balanceMap, NumberFormat numberFormat) {
     final fio = [
       employee.lastName,
       employee.firstName,
@@ -511,8 +468,6 @@ class _PayrollPayoutAmountModalState
     ].join(' ');
 
     final balance = balanceMap[employee.id] ?? 0.0;
-    final numberFormat =
-        NumberFormat.currency(locale: 'ru_RU', symbol: '₽', decimalDigits: 2);
 
     return Container(
       padding: const EdgeInsets.all(12.0),
@@ -524,25 +479,13 @@ class _PayrollPayoutAmountModalState
       ),
       child: Row(
         children: [
-          // ФИО и должность
+          // ФИО
           Expanded(
             flex: 3,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  fio,
-                  style: theme.textTheme.bodyLarge
-                      ?.copyWith(fontWeight: FontWeight.w500),
-                ),
-                if (employee.position != null && employee.position.isNotEmpty)
-                  Text(
-                    employee.position,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-              ],
+            child: Text(
+              fio,
+              style: theme.textTheme.bodyLarge
+                  ?.copyWith(fontWeight: FontWeight.w500),
             ),
           ),
           const SizedBox(width: 8),

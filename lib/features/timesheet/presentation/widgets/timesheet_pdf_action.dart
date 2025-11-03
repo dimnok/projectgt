@@ -54,6 +54,7 @@ class TimesheetPdfAction extends ConsumerWidget {
         fileName: fileName,
         startDate: state.startDate,
         endDate: state.endDate,
+        selectedPositions: state.selectedPositions,
       );
 
       if (!context.mounted) return;

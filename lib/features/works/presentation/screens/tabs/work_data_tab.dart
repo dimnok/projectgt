@@ -12,14 +12,18 @@ import 'package:projectgt/features/works/domain/entities/work_item.dart';
 import 'package:projectgt/features/works/domain/entities/work_hour.dart';
 import 'package:projectgt/features/works/presentation/providers/work_items_provider.dart';
 import 'package:projectgt/features/works/presentation/providers/work_hours_provider.dart';
-import 'package:projectgt/features/works/presentation/screens/../providers/work_provider.dart';
+import 'package:projectgt/features/works/presentation/providers/work_provider.dart';
 import 'package:projectgt/features/works/presentation/widgets/work_photo_view.dart';
+import 'package:projectgt/features/works/presentation/widgets/photo_loading_dialog.dart';
+import 'package:projectgt/features/works/presentation/utils/photo_upload_helper.dart';
 import 'package:projectgt/core/notifications/notification_service.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
 import 'package:projectgt/features/works/presentation/widgets/work_distribution_card.dart';
 import 'package:projectgt/features/works/presentation/providers/month_groups_provider.dart';
+import 'package:projectgt/core/utils/telegram_helper.dart';
+import 'package:projectgt/features/works/presentation/providers/repositories_providers.dart';
 
 /// Вкладка "Данные" со сводной информацией по смене
 class WorkDataTab extends ConsumerStatefulWidget {
@@ -38,12 +42,6 @@ class WorkDataTab extends ConsumerStatefulWidget {
 }
 
 class _WorkDataTabState extends ConsumerState<WorkDataTab> {
-  /// Флаг загрузки вечернего фото
-  bool _isLoadingEveningPhoto = false;
-
-  /// Флаг успешной загрузки вечернего фото
-  bool _isEveningPhotoSuccessful = false;
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -686,8 +684,25 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
           }
         }
       } catch (_) {}
+
+      // Отправляем отчет в Telegram
       if (mounted) {
         SnackBarUtils.showSuccess(context, 'Смена успешно закрыта');
+        // Даём время на обновление UI
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (!mounted) return;
+        // Перезагружаем свежие данные смены из БД чтобы получить telegram_message_id
+        final workRepository = ref.read(workRepositoryProvider);
+        final freshWork = await workRepository.getWork(work.id!);
+        if (!mounted) return;
+        if (freshWork != null) {
+          // Обновляем смену в группе месяца без инвалидации провайдера
+          ref.read(monthGroupsProvider.notifier).updateWorkInGroup(freshWork);
+          await _sendTelegramReport(freshWork);
+        } else {
+          SnackBarUtils.showError(
+              context, 'Не удалось загрузить данные смены');
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -725,154 +740,106 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
 
             return Container(
               padding: const EdgeInsets.all(16),
-              child: _isLoadingEveningPhoto
-                  ? const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CupertinoActivityIndicator(radius: 16),
-                          SizedBox(height: 16),
-                          Text('Идёт загрузка...'),
-                        ],
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Вечернее фото',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleLarge
+                        ?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  if (work.eveningPhotoUrl != null &&
+                      work.eveningPhotoUrl!.isNotEmpty) ...[
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        work.eveningPhotoUrl!,
+                        height: 200,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
                       ),
-                    )
-                  : _isEveningPhotoSuccessful
-                      ? const Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.check_circle,
-                                color: Colors.green,
-                                size: 64,
-                              ),
-                              SizedBox(height: 16),
-                              Text(
-                                'Фото загружено',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                      : Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Вечернее фото',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleLarge
-                                  ?.copyWith(fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 16),
-                            if (work.eveningPhotoUrl != null &&
-                                work.eveningPhotoUrl!.isNotEmpty) ...[
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: Image.network(
-                                  work.eveningPhotoUrl!,
-                                  height: 200,
-                                  width: double.infinity,
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                children: [
-                                  TextButton.icon(
-                                    onPressed: () async {
-                                      setBottomSheetState(() {
-                                        _isLoadingEveningPhoto = true;
-                                      });
-                                      try {
-                                        final photoService =
-                                            ref.read(photoServiceProvider);
-                                        await photoService.deleteWorkPhotoByUrl(
-                                          work.eveningPhotoUrl!,
-                                        );
-                                        final updatedWork = work.copyWith(
-                                          eveningPhotoUrl: null,
-                                          updatedAt: DateTime.now(),
-                                        );
-                                        await ref
-                                            .read(worksProvider.notifier)
-                                            .updateWork(updatedWork);
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton.icon(
+                          onPressed: () async {
+                            try {
+                              final photoService =
+                                  ref.read(photoServiceProvider);
+                              await photoService.deleteWorkPhotoByUrl(
+                                work.eveningPhotoUrl!,
+                              );
+                              final updatedWork = work.copyWith(
+                                eveningPhotoUrl: null,
+                                updatedAt: DateTime.now(),
+                              );
+                              await ref
+                                  .read(worksProvider.notifier)
+                                  .updateWork(updatedWork);
 
-                                        if (mounted) {
-                                          setBottomSheetState(() {
-                                            _isLoadingEveningPhoto = false;
-                                          });
-                                          navigator.pop();
-                                          _updateWorkInMonthGroups(updatedWork);
-                                          Future.delayed(
-                                            const Duration(milliseconds: 300),
-                                            () => SnackBarUtils
-                                                .showSuccessByMessenger(
-                                              messenger,
-                                              'Вечернее фото удалено',
-                                            ),
-                                          );
-                                        }
-                                      } catch (e) {
-                                        if (mounted) {
-                                          setBottomSheetState(() {
-                                            _isLoadingEveningPhoto = false;
-                                          });
-                                          SnackBarUtils.showErrorByMessenger(
-                                            messenger,
-                                            'Ошибка при удалении фото: $e',
-                                          );
-                                        }
-                                      }
-                                    },
-                                    icon: const Icon(Icons.delete_outline),
-                                    label: const Text('Удалить'),
+                              if (mounted) {
+                                navigator.pop();
+                                _updateWorkInMonthGroups(updatedWork);
+                                Future.delayed(
+                                  const Duration(milliseconds: 300),
+                                  () => SnackBarUtils.showSuccessByMessenger(
+                                    messenger,
+                                    'Вечернее фото удалено',
                                   ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                            ],
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                _PhotoOptionButton(
-                                  icon: Icons.camera_alt,
-                                  label: 'Камера',
-                                  onTap: () => _pickEveningPhoto(
-                                    ImageSource.camera,
-                                    work,
-                                    onLoadingStateChanged: (callback) {
-                                      setBottomSheetState(callback);
-                                    },
-                                  ),
-                                ),
-                                _PhotoOptionButton(
-                                  icon: Icons.image,
-                                  label: 'Галерея',
-                                  onTap: () => _pickEveningPhoto(
-                                    ImageSource.gallery,
-                                    work,
-                                    onLoadingStateChanged: (callback) {
-                                      setBottomSheetState(callback);
-                                    },
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            SizedBox(
-                              width: double.infinity,
-                              child: TextButton(
-                                onPressed: () => navigator.pop(),
-                                child: const Text('Отмена'),
-                              ),
-                            ),
-                          ],
+                                );
+                              }
+                            } catch (e) {
+                              if (mounted) {
+                                SnackBarUtils.showErrorByMessenger(
+                                  messenger,
+                                  'Ошибка при удалении фото: $e',
+                                );
+                              }
+                            }
+                          },
+                          icon: const Icon(Icons.delete_outline),
+                          label: const Text('Удалить'),
                         ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _PhotoOptionButton(
+                        icon: Icons.camera_alt,
+                        label: 'Камера',
+                        onTap: () => _pickEveningPhoto(
+                          ImageSource.camera,
+                          work,
+                        ),
+                      ),
+                      _PhotoOptionButton(
+                        icon: Icons.image,
+                        label: 'Галерея',
+                        onTap: () => _pickEveningPhoto(
+                          ImageSource.gallery,
+                          work,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
+                      onPressed: () => navigator.pop(),
+                      child: const Text('Отмена'),
+                    ),
+                  ),
+                ],
+              ),
             );
           },
         );
@@ -882,11 +849,11 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
 
   Future<void> _pickEveningPhoto(
     ImageSource source,
-    Work work, {
-    Function? onLoadingStateChanged,
-  }) async {
+    Work work,
+  ) async {
     try {
-      final navigator = Navigator.of(context, rootNavigator: true);
+      // ✅ Закрываем Modal Bottom Sheet сразу
+      Navigator.pop(context);
 
       final photoService = ref.read(photoServiceProvider);
       final bytes = await photoService.pickImageBytes(source);
@@ -894,79 +861,43 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
       if (bytes == null) return;
       if (!mounted) return;
 
-      onLoadingStateChanged?.call(() {
-        _isLoadingEveningPhoto = true;
-      });
-
-      final url = await photoService.uploadPhotoBytes(
+      // ✅ Загружаем фото через helper
+      final uploadedUrl = await PhotoUploadHelper(
+        context: context,
+        ref: ref,
+      ).uploadPhoto(
+        photoType: PhotoType.evening,
         entity: 'work',
-        id: work.objectId,
-        bytes: bytes,
+        entityId: work.objectId,
         displayName: 'evening',
+        photoBytes: bytes,
         workDate: work.date,
+        // ✅ Обновляем Work ВО ВРЕМЯ диалога загрузки
+        onLoadingComplete: (String photoUrl) async {
+          try {
+            final updatedWork = work.copyWith(
+              eveningPhotoUrl: photoUrl,
+              updatedAt: DateTime.now(),
+            );
+            await ref.read(worksProvider.notifier).updateWork(updatedWork);
+            _updateWorkInMonthGroups(updatedWork);
+          } catch (e) {
+            if (mounted) {
+              SnackBarUtils.showError(
+                  context, 'Ошибка при сохранении фото: $e');
+            }
+          }
+        },
       );
 
+      if (uploadedUrl == null) return;
+
       if (!mounted) return;
 
-      if (url != null && url.isNotEmpty) {
-        final updatedWork = work.copyWith(
-          eveningPhotoUrl: url,
-          updatedAt: DateTime.now(),
-        );
-
-        try {
-          await ref.read(worksProvider.notifier).updateWork(updatedWork);
-
-          if (!mounted) return;
-
-          onLoadingStateChanged?.call(() {
-            _isLoadingEveningPhoto = false;
-          });
-
-          // ✅ ПОКАЗЫВАЕМ АНИМАЦИЮ УСПЕХА
-          onLoadingStateChanged?.call(() {
-            _isEveningPhotoSuccessful = true;
-          });
-
-          // ⏳ ЖДЁМ 1.5 СЕКУНДЫ ДЛЯ АНИМАЦИИ
-          await Future.delayed(const Duration(milliseconds: 1500));
-
-          if (!mounted) return;
-
-          navigator.pop();
-          _updateWorkInMonthGroups(updatedWork);
-        } catch (e) {
-          if (!mounted) return;
-
-          onLoadingStateChanged?.call(() {
-            _isLoadingEveningPhoto = false;
-            _isEveningPhotoSuccessful = false;
-          });
-
-          SnackBarUtils.showError(context, 'Ошибка при сохранении фото: $e');
-          rethrow;
-        }
-      } else {
-        if (!mounted) return;
-
-        onLoadingStateChanged?.call(() {
-          _isLoadingEveningPhoto = false;
-          _isEveningPhotoSuccessful = false;
-        });
-
-        SnackBarUtils.showWarning(
-          context,
-          'Не удалось загрузить фото. Пожалуйста, попробуйте снова.',
-        );
-      }
+      // ✅ После нажатия "Готово" просто закрываем галерею
+      Navigator.of(context, rootNavigator: true).pop();
     } catch (e) {
       if (!mounted) return;
-
-      onLoadingStateChanged?.call(() {
-        _isLoadingEveningPhoto = false;
-        _isEveningPhotoSuccessful = false;
-      });
-
       SnackBarUtils.showError(context, 'Ошибка при загрузке фото: $e');
     }
   }
@@ -980,6 +911,38 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
         // Ignore errors
       }
     });
+  }
+
+  Future<void> _sendTelegramReport(Work work) async {
+    if (work.id == null) {
+      if (!mounted) return;
+      SnackBarUtils.showError(context, 'ID смены не найден');
+      return;
+    }
+
+    // Обновляем утреннее сообщение с часами работы
+    if (work.telegramMessageId != null) {
+      final updateResult = await TelegramHelper.updateWorkOpeningReport(
+        work.id!,
+        work.telegramMessageId!,
+      );
+      if (!mounted) return;
+      if (updateResult != null && updateResult['success'] == true) {
+        SnackBarUtils.showSuccess(context, 'Утреннее сообщение обновлено');
+      }
+    }
+
+    // Отправляем вечерний отчет как ответ на утреннее сообщение
+    final eveningResult = await TelegramHelper.sendWorkReport(work.id!);
+    if (!mounted) return;
+
+    if (eveningResult != null && eveningResult['success'] == true) {
+      SnackBarUtils.showSuccess(context,
+          'Вечерний отчет отправлен!\nРабот: ${eveningResult['items_count']}');
+    } else {
+      final error = eveningResult?['error'] ?? 'Неизвестная ошибка';
+      SnackBarUtils.showError(context, 'Ошибка отправки: $error');
+    }
   }
 }
 

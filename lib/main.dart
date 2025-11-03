@@ -119,8 +119,6 @@ class MyApp extends ConsumerWidget {
   /// Создаёт экземпляр [MyApp].
   const MyApp({super.key});
 
-  // FCM отключён: удалены инициализация и апсерты токена
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Инициализация локальных уведомлений и обработка тапа

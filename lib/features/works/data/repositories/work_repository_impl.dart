@@ -73,6 +73,7 @@ class WorkRepositoryImpl implements WorkRepository {
       totalAmount: work.totalAmount,
       itemsCount: work.itemsCount,
       employeesCount: work.employeesCount,
+      telegramMessageId: work.telegramMessageId,
     );
     final result = await dataSource.updateWork(model);
     return _mapToEntity(result);
@@ -159,6 +160,7 @@ class WorkRepositoryImpl implements WorkRepository {
       totalAmount: model.totalAmount,
       itemsCount: model.itemsCount,
       employeesCount: model.employeesCount,
+      telegramMessageId: model.telegramMessageId,
     );
   }
 }

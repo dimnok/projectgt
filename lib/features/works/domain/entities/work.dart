@@ -66,5 +66,11 @@ abstract class Work with _$Work {
     /// Вычисляется автоматически через триггеры БД при изменении work_hours.
     /// Nullable для обратной совместимости.
     int? employeesCount,
+
+    /// ID сообщения Telegram с утренним отчетом.
+    ///
+    /// Сохраняется при открытии смены для связывания с вечерним отчетом.
+    /// Используется как reply_to_message_id при закрытии смены.
+    int? telegramMessageId,
   }) = _Work;
 }

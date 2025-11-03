@@ -1,22 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:collection/collection.dart';
+import '../../../../core/utils/formatters.dart';
 import '../providers/payroll_providers.dart';
-import '../providers/balance_providers.dart';
-import '../providers/payroll_filter_providers.dart';
-import '../utils/balance_utils.dart';
-import '../../../../core/utils/snackbar_utils.dart';
 import 'payroll_payout_form_modal.dart';
 import 'payroll_search_action.dart';
 import '../../../../presentation/state/employee_state.dart';
+import '../utils/payout_converters.dart';
+import '../../data/models/payroll_payout_model.dart';
 
-/// Таблица выплат по ФОТ за текущий месяц.
+/// Таблица всех выплат по ФОТ.
 class PayrollPayoutTableWidget extends ConsumerStatefulWidget {
   /// Конструктор [PayrollPayoutTableWidget].
   ///
-  /// Используется для отображения таблицы выплат по ФОТ за текущий месяц.
+  /// Используется для отображения таблицы всех выплат по ФОТ с фильтрацией по ФИО сотрудника.
   ///
   /// [key] — уникальный ключ виджета (опционально).
   const PayrollPayoutTableWidget({super.key});
@@ -34,51 +32,27 @@ class _PayrollPayoutTableWidgetState
   /// Контроллер для вертикального скролла.
   final ScrollController _verticalController = ScrollController();
 
-  /// Контроллер для горизонтального скролла.
-  final ScrollController _horizontalController = ScrollController();
-
   @override
   void dispose() {
     _verticalController.dispose();
-    _horizontalController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // Получаем сотрудников из основного провайдера
     final employeeState = ref.watch(employeeProvider);
     final employees = employeeState.employees;
-
-    // Используем новый провайдер отфильтрованных выплат
-    final payoutsAsync = ref.watch(filteredPayrollPayoutsProvider);
+    final payoutsAsync = ref.watch(allPayoutsProvider);
     final searchQuery = ref.watch(payrollSearchQueryProvider);
-    final balanceAsync = ref.watch(employeeAggregatedBalanceProvider);
-    final numberFormat =
-        NumberFormat.currency(locale: 'ru_RU', symbol: '₽', decimalDigits: 2);
 
     return payoutsAsync.when(
       data: (allPayouts) {
-        // Применяем фильтрацию по поисковому запросу
         final payouts = filterPayoutsByEmployeeName(
           allPayouts,
           searchQuery,
           ref,
         );
-
-        // Получаем период из фильтров
-        final filterState = ref.watch(payrollFilterProvider);
-        final now = DateTime.now();
-        final isPeriodFiltered = filterState.selectedYear != now.year ||
-            filterState.selectedMonth != now.month;
-
-        final monthDate =
-            DateTime(filterState.selectedYear, filterState.selectedMonth);
-        final tableTitle = isPeriodFiltered
-            ? 'Выплаты за ${DateFormat.yMMMM('ru').format(monthDate)}'
-            : 'Выплаты (все)';
-
         if (payouts.isEmpty) {
           return Center(
             child: Column(
@@ -91,342 +65,164 @@ class _PayrollPayoutTableWidgetState
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  isPeriodFiltered
-                      ? 'Нет выплат за ${DateFormat.yMMMM('ru').format(monthDate)}'
-                      : 'Нет выплат',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: theme.colorScheme.outline,
-                  ),
+                  'Нет выплат',
+                  style: theme.textTheme.titleMedium,
                 ),
               ],
             ),
           );
         }
 
-        return balanceAsync.when(
-          data: (balanceMap) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  tableTitle,
-                  style: theme.textTheme.headlineSmall,
-                ),
-                const SizedBox(height: 16),
-                Expanded(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final isDesktop = constraints.maxWidth >= 900;
-                      final isTablet = constraints.maxWidth >= 600 &&
-                          constraints.maxWidth < 900;
-                      final minTableWidth = isDesktop
-                          ? 800.0
-                          : isTablet
-                              ? 600.0
-                              : 0.0;
-                      final tableWidth = constraints.maxWidth > minTableWidth
-                          ? constraints.maxWidth
-                          : minTableWidth;
-                      final needsHorizontalScroll =
-                          tableWidth > constraints.maxWidth;
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final dividerColor =
+                theme.colorScheme.outline.withValues(alpha: 0.18);
+            final headerBackgroundColor = theme.brightness == Brightness.dark
+                ? Colors.white.withValues(alpha: 0.06)
+                : Colors.black.withValues(alpha: 0.06);
 
-                      return Scrollbar(
-                        controller: _verticalController,
-                        thumbVisibility: true,
-                        child: SingleChildScrollView(
-                          controller: _verticalController,
-                          child: Scrollbar(
-                            controller: _horizontalController,
-                            thumbVisibility: needsHorizontalScroll,
-                            scrollbarOrientation: ScrollbarOrientation.bottom,
-                            child: SingleChildScrollView(
-                              controller: _horizontalController,
-                              scrollDirection: Axis.horizontal,
-                              child: ConstrainedBox(
-                                constraints: BoxConstraints(
-                                  minWidth: tableWidth,
-                                  maxWidth: tableWidth,
-                                ),
-                                child: DataTable(
-                                  headingTextStyle: theme.textTheme.titleSmall
-                                      ?.copyWith(fontWeight: FontWeight.bold),
-                                  dataTextStyle: theme.textTheme.bodyMedium,
-                                  border: TableBorder.all(
-                                    color: theme.colorScheme.outline
-                                        .withValues(alpha: 0.2),
-                                    width: 1,
-                                  ),
-                                  columns: const [
-                                    DataColumn(label: Text('Сотрудник')),
-                                    DataColumn(
-                                        label: Text('Баланс до выплаты'),
-                                        numeric: true),
-                                    DataColumn(
-                                        label: Text('Сумма выплаты'),
-                                        numeric: true),
-                                    DataColumn(label: Text('Дата выплаты')),
-                                    DataColumn(label: Text('Тип')),
-                                    DataColumn(label: Text('Способ')),
-                                  ],
-                                  rows: [
-                                    for (int i = 0; i < payouts.length; i++)
-                                      () {
-                                        final payout = payouts[i];
-                                        final employee =
-                                            employees.firstWhereOrNull((e) =>
-                                                e.id == payout.employeeId);
-                                        final fio = employee != null
-                                            ? [
-                                                employee.lastName,
-                                                employee.firstName,
-                                                if (employee.middleName !=
-                                                        null &&
-                                                    employee
-                                                        .middleName!.isNotEmpty)
-                                                  employee.middleName!
-                                              ].join(' ')
-                                            : payout.employeeId;
-                                        final position =
-                                            employee?.position ?? '';
-                                        final balance =
-                                            balanceMap[payout.employeeId] ??
-                                                0.0;
-                                        final dateStr = DateFormat('dd.MM.yyyy')
-                                            .format(payout.payoutDate);
-                                        final methodStr =
-                                            _getPayoutMethodName(payout.method);
-                                        final typeStr =
-                                            _getPayoutTypeName(payout.type);
-
-                                        return DataRow(cells: [
-                                          DataCell(Row(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.center,
-                                            children: [
-                                              Text(
-                                                '${i + 1}. ',
-                                                style: theme
-                                                    .textTheme.bodyMedium
-                                                    ?.copyWith(
-                                                        fontWeight:
-                                                            FontWeight.bold),
-                                              ),
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  mainAxisAlignment:
-                                                      MainAxisAlignment.center,
-                                                  children: [
-                                                    Text(
-                                                      fio.trim(),
-                                                      style: theme
-                                                          .textTheme.bodyMedium
-                                                          ?.copyWith(
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w500),
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                    ),
-                                                    if (position.isNotEmpty)
-                                                      Text(
-                                                        position,
-                                                        style: theme
-                                                            .textTheme.bodySmall
-                                                            ?.copyWith(
-                                                          color: theme
-                                                              .colorScheme
-                                                              .onSurfaceVariant,
-                                                          height: 1.2,
-                                                        ),
-                                                        maxLines: 1,
-                                                        overflow: TextOverflow
-                                                            .ellipsis,
-                                                      ),
-                                                  ],
-                                                ),
-                                              ),
-                                              PopupMenuButton<String>(
-                                                icon:
-                                                    const Icon(Icons.more_vert),
-                                                tooltip: 'Действия',
-                                                itemBuilder: (context) => [
-                                                  PopupMenuItem(
-                                                    value: 'edit',
-                                                    child: Row(
-                                                      children: [
-                                                        Icon(
-                                                            Icons.edit_outlined,
-                                                            color: theme
-                                                                .colorScheme
-                                                                .primary,
-                                                            size: 20),
-                                                        const SizedBox(
-                                                            width: 8),
-                                                        const Text(
-                                                            'Редактировать'),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                  PopupMenuItem(
-                                                    value: 'delete',
-                                                    child: Row(
-                                                      children: [
-                                                        Icon(
-                                                            Icons
-                                                                .delete_outline,
-                                                            color: theme
-                                                                .colorScheme
-                                                                .error,
-                                                            size: 20),
-                                                        const SizedBox(
-                                                            width: 8),
-                                                        Text('Удалить',
-                                                            style: TextStyle(
-                                                                color: theme
-                                                                    .colorScheme
-                                                                    .error)),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ],
-                                                onSelected: (value) async {
-                                                  if (value == 'edit') {
-                                                    showModalBottomSheet(
-                                                      context: context,
-                                                      isScrollControlled: true,
-                                                      backgroundColor:
-                                                          Colors.transparent,
-                                                      constraints:
-                                                          BoxConstraints(
-                                                        maxHeight:
-                                                            MediaQuery.of(
-                                                                        context)
-                                                                    .size
-                                                                    .height -
-                                                                MediaQuery.of(
-                                                                        context)
-                                                                    .padding
-                                                                    .top -
-                                                                kToolbarHeight,
-                                                      ),
-                                                      builder: (ctx) =>
-                                                          PayrollPayoutFormModal(
-                                                              payout: payout),
-                                                    );
-                                                  } else if (value ==
-                                                      'delete') {
-                                                    final confirmed =
-                                                        await showCupertinoDialog<
-                                                            bool>(
-                                                      context: context,
-                                                      builder: (context) =>
-                                                          CupertinoAlertDialog(
-                                                        title: const Text(
-                                                            'Подтверждение'),
-                                                        content: const Text(
-                                                            'Вы уверены, что хотите удалить эту выплату?'),
-                                                        actions: [
-                                                          CupertinoDialogAction(
-                                                            child: const Text(
-                                                                'Отмена'),
-                                                            onPressed: () =>
-                                                                Navigator.pop(
-                                                                    context,
-                                                                    false),
-                                                          ),
-                                                          CupertinoDialogAction(
-                                                            isDestructiveAction:
-                                                                true,
-                                                            child: const Text(
-                                                                'Удалить'),
-                                                            onPressed: () =>
-                                                                Navigator.pop(
-                                                                    context,
-                                                                    true),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    );
-
-                                                    if (confirmed == true &&
-                                                        context.mounted) {
-                                                      try {
-                                                        final deleteUseCase =
-                                                            ref.read(
-                                                                deletePayoutUseCaseProvider);
-                                                        await deleteUseCase(
-                                                            payout.id);
-
-                                                        ref.invalidate(
-                                                            filteredPayrollPayoutsProvider);
-                                                        ref.invalidate(
-                                                            employeeAggregatedBalanceProvider);
-                                                        ref.invalidate(
-                                                            payrollPayoutsByMonthProvider);
-
-                                                        if (context.mounted) {
-                                                          SnackBarUtils.showSuccess(
-                                                              context,
-                                                              'Выплата удалена');
-                                                        }
-                                                      } catch (e) {
-                                                        if (context.mounted) {
-                                                          SnackBarUtils.showError(
-                                                              context,
-                                                              'Ошибка удаления: $e');
-                                                        }
-                                                      }
-                                                    }
-                                                  }
-                                                },
-                                              ),
-                                            ],
-                                          )),
-                                          DataCell(
-                                            BalanceUtils.buildBalanceWidget(
-                                              balance,
-                                              theme,
-                                              showIcon: true,
-                                              showDescription: false,
-                                              textStyle: theme
-                                                  .textTheme.bodyMedium
-                                                  ?.copyWith(
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ),
-                                          DataCell(Text(
-                                            numberFormat.format(payout.amount),
-                                            style: theme.textTheme.bodyMedium
-                                                ?.copyWith(
-                                              color: Colors.blue.shade600,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          )),
-                                          DataCell(Text(dateStr)),
-                                          DataCell(Text(typeStr)),
-                                          DataCell(Text(methodStr)),
-                                        ]);
-                                      }(),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
+            Widget headerCell(String text, {TextAlign align = TextAlign.left}) {
+              Alignment headerAlignment;
+              switch (align) {
+                case TextAlign.center:
+                  headerAlignment = Alignment.center;
+                  break;
+                case TextAlign.right:
+                  headerAlignment = Alignment.centerRight;
+                  break;
+                default:
+                  headerAlignment = Alignment.centerLeft;
+              }
+              return Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                alignment: headerAlignment,
+                child: Text(
+                  text,
+                  textAlign: align,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: theme.colorScheme.onSurface,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-              ],
+              );
+            }
+
+            Widget bodyCell(
+              Widget child, {
+              Alignment align = Alignment.centerLeft,
+              VoidCallback? onLongPress,
+            }) {
+              final content = Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                alignment: align,
+                child: DefaultTextStyle(
+                  style: theme.textTheme.bodyMedium!,
+                  child: child,
+                ),
+              );
+
+              if (onLongPress == null) {
+                return content;
+              }
+
+              return MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onLongPress: onLongPress,
+                  child: content,
+                ),
+              );
+            }
+
+            List<TableRow> buildRows() {
+              final list = <TableRow>[];
+
+              // Заголовок
+              list.add(
+                TableRow(
+                  decoration: BoxDecoration(color: headerBackgroundColor),
+                  children: [
+                    headerCell('Дата', align: TextAlign.center),
+                    headerCell('Сотрудник', align: TextAlign.center),
+                    headerCell('Сумма', align: TextAlign.center),
+                    headerCell('Способ', align: TextAlign.center),
+                    headerCell('Тип', align: TextAlign.center),
+                    headerCell('Комментарий', align: TextAlign.center),
+                  ],
+                ),
+              );
+
+              // Строки данных
+              for (final payout in payouts) {
+                list.add(
+                  TableRow(
+                    children: [
+                      bodyCell(
+                        Text(formatRuDate(payout.payoutDate)),
+                        align: Alignment.center,
+                      ),
+                      bodyCell(
+                        Text(_getEmployeeName(payout, employees)),
+                        onLongPress: () => _handlePayoutAction(payout, context),
+                      ),
+                      bodyCell(
+                        Text(formatCurrency(payout.amount)),
+                        align: Alignment.centerRight,
+                      ),
+                      bodyCell(
+                        Text(getPayoutMethodName(payout.method)),
+                        align: Alignment.center,
+                      ),
+                      bodyCell(
+                        Text(getPayoutTypeName(payout.type)),
+                        align: Alignment.center,
+                      ),
+                      bodyCell(
+                        Text(payout.comment ?? '—'),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return list;
+            }
+
+            return Scrollbar(
+              controller: _verticalController,
+              thumbVisibility: true,
+              child: SingleChildScrollView(
+                controller: _verticalController,
+                child: SizedBox(
+                  width: constraints.maxWidth,
+                  child: Table(
+                    border: TableBorder(
+                      top: BorderSide(color: dividerColor, width: 1),
+                      bottom: BorderSide(color: dividerColor, width: 1),
+                      left: BorderSide(color: dividerColor, width: 1),
+                      right: BorderSide(color: dividerColor, width: 1),
+                      horizontalInside:
+                          BorderSide(color: dividerColor, width: 1),
+                      verticalInside: BorderSide(color: dividerColor, width: 1),
+                    ),
+                    defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                    columnWidths: const <int, TableColumnWidth>{
+                      0: IntrinsicColumnWidth(),
+                      1: IntrinsicColumnWidth(),
+                      2: IntrinsicColumnWidth(),
+                      3: IntrinsicColumnWidth(),
+                      4: IntrinsicColumnWidth(),
+                      5: FlexColumnWidth(1),
+                    },
+                    children: buildRows(),
+                  ),
+                ),
+              ),
             );
           },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, st) => Center(
-            child: Text('Ошибка загрузки баланса: $e'),
-          ),
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -436,27 +232,85 @@ class _PayrollPayoutTableWidgetState
     );
   }
 
-  String _getPayoutMethodName(String method) {
-    switch (method) {
-      case 'cash':
-        return 'Наличные';
-      case 'bank_transfer':
-        return 'Банковский перевод';
-      case 'card':
-        return 'Карта';
-      default:
-        return method;
-    }
+  /// Получает ФИО сотрудника по ID выплаты.
+  String _getEmployeeName(PayrollPayoutModel payout, List<dynamic> employees) {
+    final employee =
+        employees.firstWhereOrNull((e) => e.id == payout.employeeId);
+    if (employee == null) return payout.employeeId;
+    return [
+      employee.lastName,
+      employee.firstName,
+      if (employee.middleName != null && employee.middleName!.isNotEmpty)
+        employee.middleName!
+    ].join(' ').trim();
   }
 
-  String _getPayoutTypeName(String type) {
-    switch (type) {
-      case 'salary':
-        return 'Зарплата';
-      case 'advance':
-        return 'Аванс';
-      default:
-        return type;
+  /// Обрабатывает действие с выплатой (долгое нажатие).
+  Future<void> _handlePayoutAction(
+    PayrollPayoutModel payout,
+    BuildContext context,
+  ) async {
+    final confirmed = await showCupertinoDialog<String?>(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Действия'),
+        content: const Text('Выберите действие'),
+        actions: [
+          CupertinoDialogAction(
+            child: const Text('Отмена'),
+            onPressed: () => Navigator.pop(context, null),
+          ),
+          CupertinoDialogAction(
+            child: const Text('Редактировать'),
+            onPressed: () => Navigator.pop(context, 'edit'),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            child: const Text('Удалить'),
+            onPressed: () => Navigator.pop(context, 'delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (!context.mounted) return;
+
+    if (confirmed == 'edit') {
+      final screenHeight = MediaQuery.of(context).size.height;
+      final topPadding = MediaQuery.of(context).padding.top;
+
+      if (!context.mounted) return;
+
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        constraints: BoxConstraints(
+          maxHeight: screenHeight - topPadding - kToolbarHeight,
+        ),
+        builder: (ctx) => PayrollPayoutFormModal(payout: payout),
+      );
+    } else if (confirmed == 'delete') {
+      try {
+        final deleteUseCase = ref.read(deletePayoutUseCaseProvider);
+        await deleteUseCase(payout.id);
+
+        ref.invalidate(allPayoutsProvider);
+        ref.invalidate(payoutsByEmployeeAndMonthFIFOProvider);
+
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Выплата удалена')),
+        );
+      } catch (e) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ошибка удаления: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 }

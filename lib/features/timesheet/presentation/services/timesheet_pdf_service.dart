@@ -38,10 +38,11 @@ class TimesheetPdfService {
 
   /// Экспортирует табель в PDF.
   ///
-  /// [entries] — список записей табеля
+  /// [entries] — список записей табеля (уже отфильтрованные)
   /// [fileName] — имя выходного файла
   /// [startDate] — дата начала периода
   /// [endDate] — дата окончания периода
+  /// [selectedPositions] — выбранные должности для фильтрации (опционально)
   ///
   /// Возвращает путь к созданному файлу или null при ошибке.
   Future<String?> exportToPdf({
@@ -49,6 +50,7 @@ class TimesheetPdfService {
     required String fileName,
     required DateTime startDate,
     required DateTime endDate,
+    List<String>? selectedPositions,
   }) async {
     try {
       _logger.i('Начинаем экспорт ${entries.length} записей табеля в PDF');
@@ -68,7 +70,17 @@ class TimesheetPdfService {
           entries.map((entry) => entry.employeeId).toSet();
 
       // Фильтруем: активные сотрудники + уволенные с часами
+      // С учетом фильтра по должностям (если установлен)
       final filteredEmployees = allEmployees.where((e) {
+        // Если установлен фильтр по должностям, применяем его
+        if (selectedPositions != null &&
+            selectedPositions.isNotEmpty &&
+            (e.position == null ||
+                e.position!.isEmpty ||
+                !selectedPositions.contains(e.position))) {
+          return false; // Пропускаем сотрудников, не соответствующих фильтру
+        }
+
         if (e.status != EmployeeStatus.fired) {
           return true; // Все активные
         }
@@ -125,6 +137,12 @@ class TimesheetPdfService {
       final periodText =
           '${_dateFormatter.format(startDate)} - ${_dateFormatter.format(endDate)}';
 
+      // Формируем информацию о примененных фильтрах
+      final filterInfo = <String>[];
+      if (selectedPositions != null && selectedPositions.isNotEmpty) {
+        filterInfo.add('Должности: ${selectedPositions.join(', ')}');
+      }
+
       // Добавляем страницу
       pdf.addPage(
         pw.MultiPage(
@@ -153,6 +171,19 @@ class TimesheetPdfService {
                         fontSize: 10,
                       ),
                     ),
+                    if (filterInfo.isNotEmpty) ...[
+                      pw.SizedBox(height: 2),
+                      pw.Text(
+                        filterInfo.join(' | '),
+                        style: pw.TextStyle(
+                          font: font,
+                          fontSize: 8,
+                          color: PdfColors.grey700,
+                          fontStyle: pw.FontStyle.italic,
+                        ),
+                      ),
+                    ],
+                    pw.SizedBox(height: 2),
                     pw.Text(
                       'Дата формирования: ${_timeFormatter.format(DateTime.now())}',
                       style: pw.TextStyle(

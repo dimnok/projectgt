@@ -17,6 +17,7 @@ _PayrollPayoutModel _$PayrollPayoutModelFromJson(Map<String, dynamic> json) =>
       createdAt: json['created_at'] == null
           ? null
           : DateTime.parse(json['created_at'] as String),
+      comment: json['comment'] as String?,
     );
 
 Map<String, dynamic> _$PayrollPayoutModelToJson(_PayrollPayoutModel instance) =>
@@ -28,4 +29,5 @@ Map<String, dynamic> _$PayrollPayoutModelToJson(_PayrollPayoutModel instance) =>
       'method': instance.method,
       'type': instance.type,
       'created_at': instance.createdAt?.toIso8601String(),
+      'comment': instance.comment,
     };

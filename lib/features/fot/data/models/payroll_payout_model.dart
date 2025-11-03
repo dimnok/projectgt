@@ -26,6 +26,7 @@ abstract class PayrollPayoutModel with _$PayrollPayoutModel {
     required String method,
     required String type,
     @JsonKey(name: 'created_at') DateTime? createdAt,
+    String? comment,
   }) = _PayrollPayoutModel;
 
   /// Создаёт экземпляр [PayrollPayoutModel] из JSON.

@@ -171,6 +171,25 @@ class PayrollTableCellBuilder {
     );
   }
 
+  /// Создаёт ячейку с остатком (остаток = К выплате - выплаты за месяц)
+  static DataCell buildRemainderCell(double remainder, ThemeData theme) {
+    final remainderColor = remainder > 0
+        ? Colors.green[700]
+        : remainder < 0
+            ? Colors.red[700]
+            : theme.colorScheme.outline;
+
+    return DataCell(
+      Text(
+        _numberFormat.format(remainder),
+        style: theme.textTheme.bodyMedium?.copyWith(
+          color: remainderColor,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
   /// Создаёт ячейку с балансом с улучшенной индикацией
   static DataCell buildBalanceCell(double balance, ThemeData theme) {
     return DataCell(

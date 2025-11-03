@@ -55,6 +55,222 @@ enum AppRoute {
   versionManagement,
 }
 
+/// Виджет для группировки пунктов меню (например, "Справочники" с подпунктами).
+class DrawerGroupWidget extends StatefulWidget {
+  /// Иконка группы.
+  final IconData icon;
+
+  /// Название группы.
+  final String title;
+
+  /// Дочерние элементы группы.
+  final List<DrawerGroupItem> items;
+
+  /// Текущий активный маршрут для выделения.
+  final AppRoute activeRoute;
+
+  /// Создаёт группу пунктов меню.
+  const DrawerGroupWidget({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.items,
+    required this.activeRoute,
+  });
+
+  @override
+  State<DrawerGroupWidget> createState() => _DrawerGroupWidgetState();
+}
+
+class _DrawerGroupWidgetState extends State<DrawerGroupWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _rotationAnimation;
+  bool _isExpanded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _rotationAnimation = Tween<double>(begin: 0, end: math.pi / 2).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      children: [
+        // Заголовок группы - точно как обычная кнопка
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              onTap: () {
+                setState(() {
+                  _isExpanded = !_isExpanded;
+                });
+                if (_isExpanded) {
+                  _animationController.forward();
+                } else {
+                  _animationController.reverse();
+                }
+              },
+              borderRadius: BorderRadius.circular(12),
+              splashColor: Colors.green.withValues(alpha: 0.1),
+              highlightColor: Colors.green.withValues(alpha: 0.05),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
+                child: Row(
+                  children: [
+                    const SizedBox(width: 8),
+                    Icon(
+                      widget.icon,
+                      size: 24,
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(
+                        widget.title,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: theme.colorScheme.onSurface,
+                          fontWeight: FontWeight.normal,
+                        ),
+                      ),
+                    ),
+                    RotationTransition(
+                      turns: _rotationAnimation,
+                      child: Icon(
+                        Icons.chevron_right,
+                        size: 20,
+                        color:
+                            theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        // Дочерние элементы (анимируемое раскрытие)
+        ClipRect(
+          child: AnimatedBuilder(
+            animation: _animationController,
+            builder: (context, child) {
+              return Align(
+                alignment: Alignment.topCenter,
+                heightFactor: _animationController.value,
+                child: child,
+              );
+            },
+            child: Column(
+              children: widget.items.map((item) {
+                final isSelected = item.isSelected(widget.activeRoute);
+                return Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8.0, vertical: 2.0),
+                  child: Material(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      onTap: item.onTap,
+                      borderRadius: BorderRadius.circular(12),
+                      splashColor: Colors.green.withValues(alpha: 0.1),
+                      highlightColor: Colors.green.withValues(alpha: 0.05),
+                      child: Ink(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          color: isSelected
+                              ? Colors.green.withValues(alpha: 0.1)
+                              : Colors.transparent,
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8.0, vertical: 12.0),
+                          child: Row(
+                            children: [
+                              const SizedBox(width: 8),
+                              Icon(
+                                Icons.circle,
+                                size: 6,
+                                color: isSelected
+                                    ? Colors.green
+                                    : Colors.transparent,
+                              ),
+                              const SizedBox(width: 18),
+                              Expanded(
+                                child: Text(
+                                  item.title,
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    color: isSelected
+                                        ? Colors.green
+                                        : theme.colorScheme.onSurface,
+                                    fontWeight: isSelected
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                  ),
+                                ),
+                              ),
+                              if (isSelected)
+                                Container(
+                                  width: 4,
+                                  height: 24,
+                                  decoration: BoxDecoration(
+                                    color: Colors.green,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Элемент группы меню с информацией для отображения и обработки.
+class DrawerGroupItem {
+  /// Название элемента.
+  final String title;
+
+  /// Функция для проверки, является ли этот элемент активным.
+  final bool Function(AppRoute) isSelected;
+
+  /// Колбэк при нажатии на элемент.
+  final VoidCallback onTap;
+
+  /// Создаёт элемент группы меню.
+  const DrawerGroupItem({
+    required this.title,
+    required this.isSelected,
+    required this.onTap,
+  });
+}
+
 /// Боковое меню (Drawer) для навигации по основным разделам приложения.
 ///
 /// Адаптивный, поддерживает выделение активного маршрута, отображает профиль пользователя и быстрый выход.
@@ -444,42 +660,39 @@ class AppDrawer extends ConsumerWidget {
                               },
                             ),
                           if (user?.role == 'admin')
-                            DrawerItemWidget(
-                              icon: Icons.location_city_rounded,
-                              title: 'Объекты',
-                              isSelected: activeRoute == AppRoute.objects,
-                              onTap: () {
-                                context.pop();
-                                context.goNamed('objects');
-                              },
-                            ),
-                          if (user?.role == 'admin')
-                            DrawerItemWidget(
-                              icon: Icons.business_rounded,
-                              title: 'Контрагенты',
-                              isSelected: activeRoute == AppRoute.contractors,
-                              onTap: () {
-                                if (activeRoute == AppRoute.contractors) {
-                                  context.pop();
-                                } else {
-                                  context.pop();
-                                  context.goNamed('contractors');
-                                }
-                              },
-                            ),
-                          if (user?.role == 'admin')
-                            DrawerItemWidget(
-                              icon: Icons.description_rounded,
-                              title: 'Договоры',
-                              isSelected: activeRoute == AppRoute.contracts,
-                              onTap: () {
-                                if (activeRoute == AppRoute.contracts) {
-                                  context.pop();
-                                } else {
-                                  context.pop();
-                                  context.goNamed('contracts');
-                                }
-                              },
+                            DrawerGroupWidget(
+                              icon: Icons.folder_special_rounded,
+                              title: 'Справочники',
+                              activeRoute: activeRoute,
+                              items: [
+                                DrawerGroupItem(
+                                  title: 'Объекты',
+                                  isSelected: (route) =>
+                                      route == AppRoute.objects,
+                                  onTap: () {
+                                    context.pop();
+                                    context.goNamed('objects');
+                                  },
+                                ),
+                                DrawerGroupItem(
+                                  title: 'Контрагенты',
+                                  isSelected: (route) =>
+                                      route == AppRoute.contractors,
+                                  onTap: () {
+                                    context.pop();
+                                    context.goNamed('contractors');
+                                  },
+                                ),
+                                DrawerGroupItem(
+                                  title: 'Договоры',
+                                  isSelected: (route) =>
+                                      route == AppRoute.contracts,
+                                  onTap: () {
+                                    context.pop();
+                                    context.goNamed('contracts');
+                                  },
+                                ),
+                              ],
                             ),
                           if (user?.role == 'admin')
                             DrawerItemWidget(

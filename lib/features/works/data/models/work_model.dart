@@ -62,6 +62,9 @@ abstract class WorkModel with _$WorkModel {
     ///
     /// Вычисляется автоматически через триггеры БД.
     @JsonKey(name: 'employees_count') int? employeesCount,
+
+    /// ID сообщения Telegram с утренним отчетом.
+    @JsonKey(name: 'telegram_message_id') int? telegramMessageId,
   }) = _WorkModel;
 
   /// Создаёт data-модель смены из JSON.

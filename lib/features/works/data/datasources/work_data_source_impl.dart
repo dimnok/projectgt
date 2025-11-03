@@ -181,6 +181,18 @@ class WorkDataSourceImpl implements WorkDataSource {
       workJson.remove('items_count');
       workJson.remove('employees_count');
 
+      // ЗАЩИТА: Если поля были NULL при загрузке, не перезаписываем их на NULL в БД.
+      // Это защитит существующие значения от случайного затирания (например telegram_message_id).
+      // Но ТОЛЬКО для полей которые могут быть NULL по легитимным причинам:
+      // - photoUrl, eveningPhotoUrl, telegramMessageId
+      final nullableFields = {
+        'photo_url',
+        'evening_photo_url',
+        'telegram_message_id'
+      };
+      workJson.removeWhere(
+          (key, value) => value == null && nullableFields.contains(key));
+
       final response = await client
           .from(table)
           .update(workJson)

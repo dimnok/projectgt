@@ -5,8 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/features/auth/presentation/screens/profile_completion_screen.dart';
 import 'package:projectgt/features/profile/presentation/screens/profile_screen.dart';
 import 'package:projectgt/features/profile/presentation/screens/notifications_settings_screen.dart';
-import 'package:projectgt/features/profile/presentation/screens/users_list_screen.dart';
 import 'package:projectgt/features/profile/presentation/screens/financial_info_screen.dart';
+import 'package:projectgt/features/profile/presentation/screens/property_screen.dart';
+import 'package:projectgt/features/profile/presentation/screens/users_list_screen.dart';
 import 'package:projectgt/features/employees/presentation/screens/employees_list_screen.dart';
 import 'package:projectgt/features/employees/presentation/screens/employee_details_screen.dart';
 import 'package:projectgt/features/employees/presentation/screens/employee_form_screen.dart';
@@ -148,6 +149,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '${AppRoutes.profile}/financial',
         name: 'profile_financial',
         builder: (context, state) => const FinancialInfoScreen(),
+      ),
+      GoRoute(
+        path: '${AppRoutes.profile}/property',
+        name: 'profile_property',
+        builder: (context, state) => const PropertyScreen(),
       ),
       GoRoute(
         path: '${AppRoutes.profile}/:userId',

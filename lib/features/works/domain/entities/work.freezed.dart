@@ -60,6 +60,12 @@ mixin _$Work {
   /// Nullable для обратной совместимости.
   int? get employeesCount;
 
+  /// ID сообщения Telegram с утренним отчетом.
+  ///
+  /// Сохраняется при открытии смены для связывания с вечерним отчетом.
+  /// Используется как reply_to_message_id при закрытии смены.
+  int? get telegramMessageId;
+
   /// Create a copy of Work
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -92,7 +98,9 @@ mixin _$Work {
             (identical(other.itemsCount, itemsCount) ||
                 other.itemsCount == itemsCount) &&
             (identical(other.employeesCount, employeesCount) ||
-                other.employeesCount == employeesCount));
+                other.employeesCount == employeesCount) &&
+            (identical(other.telegramMessageId, telegramMessageId) ||
+                other.telegramMessageId == telegramMessageId));
   }
 
   @override
@@ -109,11 +117,12 @@ mixin _$Work {
       updatedAt,
       totalAmount,
       itemsCount,
-      employeesCount);
+      employeesCount,
+      telegramMessageId);
 
   @override
   String toString() {
-    return 'Work(id: $id, date: $date, objectId: $objectId, openedBy: $openedBy, status: $status, photoUrl: $photoUrl, eveningPhotoUrl: $eveningPhotoUrl, createdAt: $createdAt, updatedAt: $updatedAt, totalAmount: $totalAmount, itemsCount: $itemsCount, employeesCount: $employeesCount)';
+    return 'Work(id: $id, date: $date, objectId: $objectId, openedBy: $openedBy, status: $status, photoUrl: $photoUrl, eveningPhotoUrl: $eveningPhotoUrl, createdAt: $createdAt, updatedAt: $updatedAt, totalAmount: $totalAmount, itemsCount: $itemsCount, employeesCount: $employeesCount, telegramMessageId: $telegramMessageId)';
   }
 }
 
@@ -134,7 +143,8 @@ abstract mixin class $WorkCopyWith<$Res> {
       DateTime? updatedAt,
       double? totalAmount,
       int? itemsCount,
-      int? employeesCount});
+      int? employeesCount,
+      int? telegramMessageId});
 }
 
 /// @nodoc
@@ -161,6 +171,7 @@ class _$WorkCopyWithImpl<$Res> implements $WorkCopyWith<$Res> {
     Object? totalAmount = freezed,
     Object? itemsCount = freezed,
     Object? employeesCount = freezed,
+    Object? telegramMessageId = freezed,
   }) {
     return _then(_self.copyWith(
       id: freezed == id
@@ -211,6 +222,10 @@ class _$WorkCopyWithImpl<$Res> implements $WorkCopyWith<$Res> {
           ? _self.employeesCount
           : employeesCount // ignore: cast_nullable_to_non_nullable
               as int?,
+      telegramMessageId: freezed == telegramMessageId
+          ? _self.telegramMessageId
+          : telegramMessageId // ignore: cast_nullable_to_non_nullable
+              as int?,
     ));
   }
 }
@@ -230,7 +245,8 @@ class _Work implements Work {
       this.updatedAt,
       this.totalAmount,
       this.itemsCount,
-      this.employeesCount});
+      this.employeesCount,
+      this.telegramMessageId});
 
   /// Идентификатор смены.
   @override
@@ -289,6 +305,13 @@ class _Work implements Work {
   @override
   final int? employeesCount;
 
+  /// ID сообщения Telegram с утренним отчетом.
+  ///
+  /// Сохраняется при открытии смены для связывания с вечерним отчетом.
+  /// Используется как reply_to_message_id при закрытии смены.
+  @override
+  final int? telegramMessageId;
+
   /// Create a copy of Work
   /// with the given fields replaced by the non-null parameter values.
   @override
@@ -322,7 +345,9 @@ class _Work implements Work {
             (identical(other.itemsCount, itemsCount) ||
                 other.itemsCount == itemsCount) &&
             (identical(other.employeesCount, employeesCount) ||
-                other.employeesCount == employeesCount));
+                other.employeesCount == employeesCount) &&
+            (identical(other.telegramMessageId, telegramMessageId) ||
+                other.telegramMessageId == telegramMessageId));
   }
 
   @override
@@ -339,11 +364,12 @@ class _Work implements Work {
       updatedAt,
       totalAmount,
       itemsCount,
-      employeesCount);
+      employeesCount,
+      telegramMessageId);
 
   @override
   String toString() {
-    return 'Work(id: $id, date: $date, objectId: $objectId, openedBy: $openedBy, status: $status, photoUrl: $photoUrl, eveningPhotoUrl: $eveningPhotoUrl, createdAt: $createdAt, updatedAt: $updatedAt, totalAmount: $totalAmount, itemsCount: $itemsCount, employeesCount: $employeesCount)';
+    return 'Work(id: $id, date: $date, objectId: $objectId, openedBy: $openedBy, status: $status, photoUrl: $photoUrl, eveningPhotoUrl: $eveningPhotoUrl, createdAt: $createdAt, updatedAt: $updatedAt, totalAmount: $totalAmount, itemsCount: $itemsCount, employeesCount: $employeesCount, telegramMessageId: $telegramMessageId)';
   }
 }
 
@@ -365,7 +391,8 @@ abstract mixin class _$WorkCopyWith<$Res> implements $WorkCopyWith<$Res> {
       DateTime? updatedAt,
       double? totalAmount,
       int? itemsCount,
-      int? employeesCount});
+      int? employeesCount,
+      int? telegramMessageId});
 }
 
 /// @nodoc
@@ -392,6 +419,7 @@ class __$WorkCopyWithImpl<$Res> implements _$WorkCopyWith<$Res> {
     Object? totalAmount = freezed,
     Object? itemsCount = freezed,
     Object? employeesCount = freezed,
+    Object? telegramMessageId = freezed,
   }) {
     return _then(_Work(
       id: freezed == id
@@ -441,6 +469,10 @@ class __$WorkCopyWithImpl<$Res> implements _$WorkCopyWith<$Res> {
       employeesCount: freezed == employeesCount
           ? _self.employeesCount
           : employeesCount // ignore: cast_nullable_to_non_nullable
+              as int?,
+      telegramMessageId: freezed == telegramMessageId
+          ? _self.telegramMessageId
+          : telegramMessageId // ignore: cast_nullable_to_non_nullable
               as int?,
     ));
   }

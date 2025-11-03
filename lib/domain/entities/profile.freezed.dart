@@ -33,6 +33,9 @@ mixin _$Profile {
   /// Телефон пользователя.
   String? get phone;
 
+  /// Должность пользователя.
+  String? get position;
+
   /// Роль пользователя (например, 'user', 'admin').
   String get role;
 
@@ -72,6 +75,8 @@ mixin _$Profile {
             (identical(other.photoUrl, photoUrl) ||
                 other.photoUrl == photoUrl) &&
             (identical(other.phone, phone) || other.phone == phone) &&
+            (identical(other.position, position) ||
+                other.position == position) &&
             (identical(other.role, role) || other.role == role) &&
             (identical(other.status, status) || other.status == status) &&
             const DeepCollectionEquality().equals(other.object, object) &&
@@ -91,6 +96,7 @@ mixin _$Profile {
       shortName,
       photoUrl,
       phone,
+      position,
       role,
       status,
       const DeepCollectionEquality().hash(object),
@@ -100,7 +106,7 @@ mixin _$Profile {
 
   @override
   String toString() {
-    return 'Profile(id: $id, email: $email, fullName: $fullName, shortName: $shortName, photoUrl: $photoUrl, phone: $phone, role: $role, status: $status, object: $object, objectIds: $objectIds, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'Profile(id: $id, email: $email, fullName: $fullName, shortName: $shortName, photoUrl: $photoUrl, phone: $phone, position: $position, role: $role, status: $status, object: $object, objectIds: $objectIds, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 }
 
@@ -116,6 +122,7 @@ abstract mixin class $ProfileCopyWith<$Res> {
       String? shortName,
       String? photoUrl,
       String? phone,
+      String? position,
       String role,
       bool status,
       Map<String, dynamic>? object,
@@ -142,6 +149,7 @@ class _$ProfileCopyWithImpl<$Res> implements $ProfileCopyWith<$Res> {
     Object? shortName = freezed,
     Object? photoUrl = freezed,
     Object? phone = freezed,
+    Object? position = freezed,
     Object? role = null,
     Object? status = null,
     Object? object = freezed,
@@ -173,6 +181,10 @@ class _$ProfileCopyWithImpl<$Res> implements $ProfileCopyWith<$Res> {
       phone: freezed == phone
           ? _self.phone
           : phone // ignore: cast_nullable_to_non_nullable
+              as String?,
+      position: freezed == position
+          ? _self.position
+          : position // ignore: cast_nullable_to_non_nullable
               as String?,
       role: null == role
           ? _self.role
@@ -212,6 +224,7 @@ class _Profile extends Profile {
       this.shortName,
       this.photoUrl,
       this.phone,
+      this.position,
       this.role = 'user',
       this.status = true,
       final Map<String, dynamic>? object,
@@ -245,6 +258,10 @@ class _Profile extends Profile {
   /// Телефон пользователя.
   @override
   final String? phone;
+
+  /// Должность пользователя.
+  @override
+  final String? position;
 
   /// Роль пользователя (например, 'user', 'admin').
   @override
@@ -312,6 +329,8 @@ class _Profile extends Profile {
             (identical(other.photoUrl, photoUrl) ||
                 other.photoUrl == photoUrl) &&
             (identical(other.phone, phone) || other.phone == phone) &&
+            (identical(other.position, position) ||
+                other.position == position) &&
             (identical(other.role, role) || other.role == role) &&
             (identical(other.status, status) || other.status == status) &&
             const DeepCollectionEquality().equals(other._object, _object) &&
@@ -332,6 +351,7 @@ class _Profile extends Profile {
       shortName,
       photoUrl,
       phone,
+      position,
       role,
       status,
       const DeepCollectionEquality().hash(_object),
@@ -341,7 +361,7 @@ class _Profile extends Profile {
 
   @override
   String toString() {
-    return 'Profile(id: $id, email: $email, fullName: $fullName, shortName: $shortName, photoUrl: $photoUrl, phone: $phone, role: $role, status: $status, object: $object, objectIds: $objectIds, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'Profile(id: $id, email: $email, fullName: $fullName, shortName: $shortName, photoUrl: $photoUrl, phone: $phone, position: $position, role: $role, status: $status, object: $object, objectIds: $objectIds, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 }
 
@@ -358,6 +378,7 @@ abstract mixin class _$ProfileCopyWith<$Res> implements $ProfileCopyWith<$Res> {
       String? shortName,
       String? photoUrl,
       String? phone,
+      String? position,
       String role,
       bool status,
       Map<String, dynamic>? object,
@@ -384,6 +405,7 @@ class __$ProfileCopyWithImpl<$Res> implements _$ProfileCopyWith<$Res> {
     Object? shortName = freezed,
     Object? photoUrl = freezed,
     Object? phone = freezed,
+    Object? position = freezed,
     Object? role = null,
     Object? status = null,
     Object? object = freezed,
@@ -415,6 +437,10 @@ class __$ProfileCopyWithImpl<$Res> implements _$ProfileCopyWith<$Res> {
       phone: freezed == phone
           ? _self.phone
           : phone // ignore: cast_nullable_to_non_nullable
+              as String?,
+      position: freezed == position
+          ? _self.position
+          : position // ignore: cast_nullable_to_non_nullable
               as String?,
       role: null == role
           ? _self.role

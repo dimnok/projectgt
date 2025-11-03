@@ -155,6 +155,8 @@ class PayrollTableRowBuilder {
     totals.amount += payroll.netSalary;
     totals.trip += payroll.businessTripTotal;
     totals.payout += payoutsByEmployee[payroll.employeeId] ?? 0;
+    totals.remainder +=
+        payroll.netSalary - (payoutsByEmployee[payroll.employeeId] ?? 0);
     totals.balance += (aggregatedBalance[payroll.employeeId ?? ''] ?? 0) +
         payroll.netSalary -
         (payoutsByEmployee[payroll.employeeId] ?? 0);
@@ -213,6 +215,9 @@ class PayrollTableRowBuilder {
       PayrollTableCellBuilder.buildNetSalaryCell(payroll.netSalary, theme),
       PayrollTableCellBuilder.buildPayoutCell(
           payoutsByEmployee[payroll.employeeId], theme),
+      PayrollTableCellBuilder.buildRemainderCell(
+          payroll.netSalary - (payoutsByEmployee[payroll.employeeId] ?? 0),
+          theme),
       PayrollTableCellBuilder.buildBalanceCell(
           aggregatedBalance[payroll.employeeId ?? ''] ?? 0, theme),
     ];
@@ -241,6 +246,9 @@ class PayrollTableRowBuilder {
       PayrollTableCellBuilder.buildNetSalaryCell(payroll.netSalary, theme),
       PayrollTableCellBuilder.buildPayoutCell(
           payoutsByEmployee[payroll.employeeId], theme),
+      PayrollTableCellBuilder.buildRemainderCell(
+          payroll.netSalary - (payoutsByEmployee[payroll.employeeId] ?? 0),
+          theme),
       PayrollTableCellBuilder.buildBalanceCell(
           aggregatedBalance[payroll.employeeId ?? ''] ?? 0, theme),
     ]);
@@ -261,6 +269,9 @@ class PayrollTableRowBuilder {
       PayrollTableCellBuilder.buildNetSalaryCell(payroll.netSalary, theme),
       PayrollTableCellBuilder.buildPayoutCell(
           payoutsByEmployee[payroll.employeeId], theme),
+      PayrollTableCellBuilder.buildRemainderCell(
+          payroll.netSalary - (payoutsByEmployee[payroll.employeeId] ?? 0),
+          theme),
       PayrollTableCellBuilder.buildBalanceCell(
           aggregatedBalance[payroll.employeeId ?? ''] ?? 0, theme),
     ];
@@ -328,6 +339,7 @@ class PayrollTableRowBuilder {
       PayrollTableCellBuilder.buildTotalCell(totals.amount, theme),
       PayrollTableCellBuilder.buildTotalCell(totals.payout, theme,
           backgroundColor: Colors.blue[50]),
+      PayrollTableCellBuilder.buildRemainderCell(totals.remainder, theme),
       PayrollTableCellBuilder.buildTotalBalanceCell(totalBalance, theme),
     ];
   }
@@ -361,6 +373,7 @@ class PayrollTableRowBuilder {
       PayrollTableCellBuilder.buildTotalCell(totals.amount, theme),
       PayrollTableCellBuilder.buildTotalCell(totals.payout, theme,
           backgroundColor: Colors.blue[50]),
+      PayrollTableCellBuilder.buildRemainderCell(totals.remainder, theme),
       PayrollTableCellBuilder.buildTotalBalanceCell(totalBalance, theme),
     ]);
 
@@ -386,6 +399,7 @@ class PayrollTableRowBuilder {
       PayrollTableCellBuilder.buildTotalCell(totals.amount, theme),
       PayrollTableCellBuilder.buildTotalCell(totals.payout, theme,
           backgroundColor: Colors.blue[50]),
+      PayrollTableCellBuilder.buildRemainderCell(totals.remainder, theme),
       PayrollTableCellBuilder.buildTotalBalanceCell(totalBalance, theme),
     ];
   }
@@ -442,6 +456,9 @@ class PayrollTotals {
 
   /// Суммарная сумма фактических выплат по всем сотрудникам.
   double payout = 0;
+
+  /// Суммарный остаток (к выплате минус выплачено за текущий месяц) по всем сотрудникам.
+  double remainder = 0;
 
   /// Суммарный баланс (начислено минус выплачено) по всем сотрудникам.
   double balance = 0;

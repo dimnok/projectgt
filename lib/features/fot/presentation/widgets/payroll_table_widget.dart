@@ -5,6 +5,7 @@ import '../../domain/entities/payroll_calculation.dart';
 import '../../../../presentation/state/employee_state.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import '../providers/payroll_providers.dart';
+import '../providers/payroll_filter_providers.dart';
 import '../providers/balance_providers.dart';
 import 'payroll_table_cells.dart';
 import 'payroll_table_row_builder.dart';
@@ -62,14 +63,16 @@ class _PayrollTableWidgetState extends ConsumerState<PayrollTableWidget> {
     final workHoursAsync = ref.watch(payrollWorkHoursProvider);
     final workHours = workHoursAsync.asData?.value ?? [];
 
-    // Получаем выплаты за месяц
-    final payrollPayoutsAsync = ref.watch(payrollPayoutsByMonthProvider);
-    final payrollPayouts = payrollPayoutsAsync.asData?.value ?? [];
+    // Получаем FIFO распределение выплат по месяцам
+    final payoutsMapAsync = ref.watch(payoutsByEmployeeAndMonthFIFOProvider);
+    final payoutsMap = payoutsMapAsync.asData?.value ?? {};
+    final filterState = ref.watch(payrollFilterProvider);
+    final currentMonth = filterState.selectedMonth;
+
     final payoutsByEmployee = <String, double>{};
-    for (final payout in payrollPayouts) {
-      payoutsByEmployee[payout.employeeId] =
-          (payoutsByEmployee[payout.employeeId] ?? 0) +
-              payout.amount.toDouble();
+    for (final empId in payoutsMap.keys) {
+      final payoutsForAllMonths = payoutsMap[empId] ?? {};
+      payoutsByEmployee[empId] = payoutsForAllMonths[currentMonth] ?? 0;
     }
 
     // Получаем оптимизированный агрегированный баланс
@@ -300,6 +303,7 @@ class _PayrollTableWidgetState extends ConsumerState<PayrollTableWidget> {
           numeric: true,
         ),
         const DataColumn(label: Text('Выплаты'), numeric: true),
+        const DataColumn(label: Text('Остаток'), numeric: true),
         const DataColumn(label: Text('Баланс'), numeric: true),
       ]);
     } else if (isTablet) {
@@ -323,6 +327,7 @@ class _PayrollTableWidgetState extends ConsumerState<PayrollTableWidget> {
           numeric: true,
         ),
         const DataColumn(label: Text('Выплаты'), numeric: true),
+        const DataColumn(label: Text('Остаток'), numeric: true),
         const DataColumn(label: Text('Баланс'), numeric: true),
       ]);
     } else {
@@ -344,6 +349,7 @@ class _PayrollTableWidgetState extends ConsumerState<PayrollTableWidget> {
           numeric: true,
         ),
         const DataColumn(label: Text('Выплаты'), numeric: true),
+        const DataColumn(label: Text('Остаток'), numeric: true),
         const DataColumn(label: Text('Баланс'), numeric: true),
       ]);
     }

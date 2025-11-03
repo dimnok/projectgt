@@ -55,6 +55,9 @@ class _EmployeeAttendanceDialogState
   /// Карта часов из смен (только для чтения): {дата: часы}
   final Map<DateTime, num> _shiftHoursMap = {};
 
+  /// Карта контроллеров текстовых полей по датам (для сохранения позиции курсора)
+  final Map<DateTime, TextEditingController> _controllers = {};
+
   /// Загружаемые данные
   bool _isLoading = true;
 
@@ -67,32 +70,44 @@ class _EmployeeAttendanceDialogState
     _loadExistingData();
   }
 
+  @override
+  void dispose() {
+    // Очищаем контроллеры при закрытии диалога
+    for (final controller in _controllers.values) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
   /// Загружает существующие данные посещаемости
   Future<void> _loadExistingData() async {
     try {
-      // Загружаем часы из ручного ввода (employee_attendance)
       final attendanceRepository =
           ref.read(employeeAttendanceRepositoryProvider);
-      final records = await attendanceRepository.getAttendanceRecords(
-        employeeId: widget.employee.id,
-        startDate: widget.startDate,
-        endDate: widget.endDate,
-      );
-
-      // Загружаем часы из смен (work_hours через timesheet)
       final timesheetRepository = ref.read(timesheetRepositoryProvider);
-      final shiftEntries = await timesheetRepository.getTimesheetEntries(
-        startDate: widget.startDate,
-        endDate: widget.endDate,
-        employeeId: widget.employee.id,
-      );
+
+      // Загружаем данные ПАРАЛЛЕЛЬНО (одновременно)
+      final results = await Future.wait([
+        attendanceRepository.getAttendanceRecords(
+          employeeId: widget.employee.id,
+          startDate: widget.startDate,
+          endDate: widget.endDate,
+        ),
+        timesheetRepository.getTimesheetEntries(
+          startDate: widget.startDate,
+          endDate: widget.endDate,
+          employeeId: widget.employee.id,
+        ),
+      ]);
+
+      final records = results[0] as List<EmployeeAttendanceEntry>;
+      final shiftEntries = results[1] as List<dynamic>;
 
       if (mounted) {
         setState(() {
           // Группируем записи ручного ввода по объектам
           for (final record in records) {
-            final date =
-                DateTime(record.date.year, record.date.month, record.date.day);
+            final date = _normalizeDate(record.date);
 
             if (!_allRecordsByObject.containsKey(record.objectId)) {
               _allRecordsByObject[record.objectId] = {};
@@ -107,8 +122,7 @@ class _EmployeeAttendanceDialogState
           // Фильтруем только записи из смен, исключая ручной ввод
           for (final entry in shiftEntries) {
             if (!entry.isManualEntry) {
-              final date =
-                  DateTime(entry.date.year, entry.date.month, entry.date.day);
+              final date = _normalizeDate(entry.date);
               _shiftHoursMap[date] = entry.hours;
             }
           }
@@ -128,9 +142,19 @@ class _EmployeeAttendanceDialogState
     }
   }
 
+  /// Нормализует дату (убирает время)
+  DateTime _normalizeDate(DateTime date) =>
+      DateTime(date.year, date.month, date.day);
+
   /// Загружает часы для выбранного объекта
   void _loadHoursForObject(String objectId) {
     _hoursMap.clear();
+    // Очищаем контроллеры при переключении объекта
+    for (final controller in _controllers.values) {
+      controller.dispose();
+    }
+    _controllers.clear();
+
     if (_allRecordsByObject.containsKey(objectId)) {
       _hoursMap.addAll(_allRecordsByObject[objectId]!);
     }
@@ -193,6 +217,18 @@ class _EmployeeAttendanceDialogState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
+
+    // На мобильном: максимальная ширина (98% = минимум отступов)
+    // На десктопе: фиксированная ширина 700px
+    final maxDialogWidth = isMobile ? screenWidth * 0.98 : 700.0;
+
+    // На мобильном и десктопе: размер по контенту (только ограничение по ширине)
+    final constraints = isMobile
+        ? BoxConstraints(maxWidth: maxDialogWidth)
+        : BoxConstraints(maxWidth: maxDialogWidth);
+
     final employeeName =
         '${widget.employee.lastName} ${widget.employee.firstName}${widget.employee.middleName != null && widget.employee.middleName!.isNotEmpty ? ' ${widget.employee.middleName}' : ''}';
 
@@ -201,14 +237,22 @@ class _EmployeeAttendanceDialogState
         .where((obj) => widget.employee.objectIds.contains(obj.id))
         .toList();
 
+    final padding =
+        isMobile ? const EdgeInsets.all(10.0) : const EdgeInsets.all(20.0);
+
     return Dialog(
       backgroundColor: theme.colorScheme.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 4.0 : 16.0,
+        vertical: 24.0,
+      ),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 700, maxHeight: 650),
-        padding: const EdgeInsets.all(20),
+        constraints: constraints,
+        padding: padding,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
           children: [
             // Заголовок
             Row(
@@ -221,6 +265,7 @@ class _EmployeeAttendanceDialogState
                         'Посещаемость сотрудника',
                         style: theme.textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
+                          fontSize: isMobile ? 16 : null,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -228,6 +273,7 @@ class _EmployeeAttendanceDialogState
                         employeeName,
                         style: theme.textTheme.titleMedium?.copyWith(
                           color: theme.colorScheme.primary,
+                          fontSize: isMobile ? 13 : null,
                         ),
                       ),
                       if (widget.employee.position != null)
@@ -236,6 +282,7 @@ class _EmployeeAttendanceDialogState
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurface
                                 .withValues(alpha: 0.6),
+                            fontSize: isMobile ? 11 : null,
                           ),
                         ),
                     ],
@@ -243,11 +290,12 @@ class _EmployeeAttendanceDialogState
                 ),
                 IconButton(
                   icon: const Icon(Icons.close),
+                  iconSize: isMobile ? 20 : 24,
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: isMobile ? 8 : 16),
 
             // Выбор объекта
             GTDropdown<project_object.ObjectEntity>(
@@ -270,16 +318,14 @@ class _EmployeeAttendanceDialogState
               },
               readOnly: _isLoading || _isSaving,
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: isMobile ? 8 : 16),
 
-            // Календарь с часами
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _buildCalendar(theme),
-            ),
+            // Календарь с часами (берёт оставшееся место)
+            _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _buildCalendar(theme, isMobile),
 
-            const SizedBox(height: 16),
+            SizedBox(height: isMobile ? 8 : 16),
 
             // Кнопки действий
             Row(
@@ -288,9 +334,10 @@ class _EmployeeAttendanceDialogState
                 TextButton(
                   onPressed:
                       _isSaving ? null : () => Navigator.of(context).pop(),
-                  child: const Text('Отмена'),
+                  child: Text('Отмена',
+                      style: TextStyle(fontSize: isMobile ? 12 : null)),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: isMobile ? 8 : 12),
                 FilledButton(
                   onPressed: _isSaving ? null : _saveData,
                   child: _isSaving
@@ -299,7 +346,8 @@ class _EmployeeAttendanceDialogState
                           width: 20,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Сохранить'),
+                      : Text('Сохранить',
+                          style: TextStyle(fontSize: isMobile ? 12 : null)),
                 ),
               ],
             ),
@@ -310,8 +358,9 @@ class _EmployeeAttendanceDialogState
   }
 
   /// Строит календарь с полями для ввода часов
-  Widget _buildCalendar(ThemeData theme) {
-    final calendarCells = _buildCalendarCells();
+  Widget _buildCalendar(ThemeData theme, bool isMobile) {
+    final calendarCells = _buildCalendarCells(isMobile);
+    final spacing = isMobile ? 6.0 : 12.0;
 
     return SingleChildScrollView(
       child: Column(
@@ -319,7 +368,7 @@ class _EmployeeAttendanceDialogState
         children: [
           // Заголовок: Период
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: EdgeInsets.all(isMobile ? 4.0 : 8.0),
             decoration: BoxDecoration(
               color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
               borderRadius:
@@ -329,7 +378,7 @@ class _EmployeeAttendanceDialogState
               'Период: ${DateFormat.yMMMM('ru').format(widget.startDate)}',
               style: theme.textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.bold,
-                fontSize: 13,
+                fontSize: isMobile ? 10.0 : 13.0,
               ),
               textAlign: TextAlign.center,
             ),
@@ -353,13 +402,13 @@ class _EmployeeAttendanceDialogState
                   crossAxisCount: 7,
                   childAspectRatio: 2.5,
                   children: [
-                    _buildWeekdayHeader('Пн', theme),
-                    _buildWeekdayHeader('Вт', theme),
-                    _buildWeekdayHeader('Ср', theme),
-                    _buildWeekdayHeader('Чт', theme),
-                    _buildWeekdayHeader('Пт', theme),
-                    _buildWeekdayHeader('Сб', theme),
-                    _buildWeekdayHeader('Вс', theme),
+                    _buildWeekdayHeader('Пн', theme, isMobile),
+                    _buildWeekdayHeader('Вт', theme, isMobile),
+                    _buildWeekdayHeader('Ср', theme, isMobile),
+                    _buildWeekdayHeader('Чт', theme, isMobile),
+                    _buildWeekdayHeader('Пт', theme, isMobile),
+                    _buildWeekdayHeader('Сб', theme, isMobile),
+                    _buildWeekdayHeader('Вс', theme, isMobile),
                   ],
                 ),
                 // Ячейки с днями
@@ -377,11 +426,11 @@ class _EmployeeAttendanceDialogState
             ),
           ),
 
-          const SizedBox(height: 12),
+          SizedBox(height: spacing),
 
           // Подсказка
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: EdgeInsets.all(isMobile ? 4.0 : 8.0),
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(8),
@@ -435,7 +484,7 @@ class _EmployeeAttendanceDialogState
   }
 
   /// Строит заголовок дня недели
-  Widget _buildWeekdayHeader(String day, ThemeData theme) {
+  Widget _buildWeekdayHeader(String day, ThemeData theme, bool isMobile) {
     return Container(
       alignment: Alignment.center,
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -449,24 +498,32 @@ class _EmployeeAttendanceDialogState
         day,
         style: theme.textTheme.bodySmall?.copyWith(
           fontWeight: FontWeight.bold,
-          fontSize: 11,
+          fontSize: isMobile ? 10 : 11,
         ),
       ),
     );
   }
 
   /// Строит все ячейки календаря с учётом пустых ячеек для выравнивания
-  List<Widget> _buildCalendarCells() {
+  List<Widget> _buildCalendarCells(bool isMobile) {
     final theme = Theme.of(context);
     final cells = <Widget>[];
 
-    // Находим первый понедельник (или день недели первого числа)
-    final firstDay = widget.startDate;
-    final firstWeekday = firstDay.weekday; // 1 = Monday, 7 = Sunday
+    // Находим день недели первого числа месяца
+    final firstWeekday = widget.startDate.weekday; // 1 = Monday, 7 = Sunday
 
     // Добавляем пустые ячейки в начале
     for (int i = 1; i < firstWeekday; i++) {
-      cells.add(_buildEmptyCell(theme));
+      cells.add(
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: theme.dividerColor.withValues(alpha: 0.1),
+            ),
+            color: theme.colorScheme.surface.withValues(alpha: 0.3),
+          ),
+        ),
+      );
     }
 
     // Добавляем ячейки с днями
@@ -475,27 +532,16 @@ class _EmployeeAttendanceDialogState
         currentDate.isAtSameMomentAs(widget.endDate)) {
       final isWeekend = currentDate.weekday == DateTime.saturday ||
           currentDate.weekday == DateTime.sunday;
-      cells.add(_buildDayCell(currentDate, isWeekend, theme));
+      cells.add(_buildDayCell(currentDate, isWeekend, theme, isMobile));
       currentDate = currentDate.add(const Duration(days: 1));
     }
 
     return cells;
   }
 
-  /// Строит пустую ячейку
-  Widget _buildEmptyCell(ThemeData theme) {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(
-          color: theme.dividerColor.withValues(alpha: 0.1),
-        ),
-        color: theme.colorScheme.surface.withValues(alpha: 0.3),
-      ),
-    );
-  }
-
   /// Строит ячейку дня с инлайн вводом часов
-  Widget _buildDayCell(DateTime day, bool isWeekend, ThemeData theme) {
+  Widget _buildDayCell(
+      DateTime day, bool isWeekend, ThemeData theme, bool isMobile) {
     // Проверяем, есть ли часы из смен (защищены от редактирования)
     final shiftHours = _shiftHoursMap[day];
     final hasShiftHours = shiftHours != null;
@@ -512,7 +558,11 @@ class _EmployeeAttendanceDialogState
     final textColor =
         isWeekend ? theme.colorScheme.error : theme.textTheme.bodyMedium?.color;
 
-    final controller = TextEditingController(text: hours?.toString() ?? '');
+    // Получаем или создаём контроллер для этого дня
+    final controller = _controllers.putIfAbsent(
+      day,
+      () => TextEditingController(text: hours?.toString() ?? ''),
+    );
 
     return Container(
       decoration: BoxDecoration(
@@ -525,124 +575,134 @@ class _EmployeeAttendanceDialogState
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(4),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Число (с иконкой замка если из смены)
-            Row(
+        padding: EdgeInsets.all(isMobile ? 2 : 4),
+        child: ClipRect(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.center,
+            child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                if (hasShiftHours)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 2),
-                    child: Icon(
-                      Icons.lock,
-                      size: 10,
-                      color: theme.colorScheme.tertiary,
+                // Число (с иконкой замка если из смены)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (hasShiftHours)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 1),
+                        child: Icon(
+                          Icons.lock,
+                          size: isMobile ? 8 : 10,
+                          color: theme.colorScheme.tertiary,
+                        ),
+                      ),
+                    Text(
+                      '${day.day}',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                        fontSize: isMobile ? 11 : 13,
+                      ),
                     ),
+                  ],
+                ),
+                SizedBox(height: isMobile ? 1 : 2),
+                // Поле ввода часов (заблокировано если из смены)
+                SizedBox(
+                  height: isMobile ? 22 : 28,
+                  width: isMobile ? 40 : 45,
+                  child: TextField(
+                    controller: controller,
+                    enabled: !_isSaving &&
+                        !hasShiftHours, // Блокируем если есть часы из смены
+                    textAlign: TextAlign.center,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(
+                          RegExp(r'^(2[0-4]|1[0-9]|[0-9])(\.[0-9])?$')),
+                    ],
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontSize: isMobile ? 9 : 11,
+                      fontWeight: FontWeight.bold,
+                      color: hasShiftHours ? theme.colorScheme.tertiary : null,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: '—',
+                      hintStyle: TextStyle(
+                        color:
+                            theme.colorScheme.onSurface.withValues(alpha: 0.3),
+                      ),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: isMobile ? 2 : 3,
+                        vertical: isMobile ? 2 : 4,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(2),
+                        borderSide: BorderSide(
+                          color: theme.dividerColor.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(2),
+                        borderSide: BorderSide(
+                          color: theme.dividerColor.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      disabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(2),
+                        borderSide: BorderSide(
+                          color:
+                              theme.colorScheme.tertiary.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(2),
+                        borderSide: BorderSide(
+                          color: theme.colorScheme.primary,
+                          width: 1,
+                        ),
+                      ),
+                      filled: true,
+                      fillColor: hasShiftHours
+                          ? theme.colorScheme.tertiary
+                              .withValues(alpha: 0.2) // Особый цвет для смен
+                          : hours != null && hours > 0
+                              ? theme.colorScheme.primaryContainer
+                                  .withValues(alpha: 0.3)
+                              : theme.colorScheme.surface,
+                    ),
+                    onChanged: hasShiftHours
+                        ? null // Не обрабатываем изменения если из смены
+                        : (value) {
+                            if (value.isEmpty) {
+                              setState(() => _hoursMap.remove(day));
+                            } else {
+                              final parsedHours = num.tryParse(value);
+                              if (parsedHours != null &&
+                                  parsedHours >= 0 &&
+                                  parsedHours <= 24) {
+                                setState(() => _hoursMap[day] = parsedHours);
+                              }
+                            }
+                          },
                   ),
+                ),
+                SizedBox(height: isMobile ? 0.5 : 1),
+                // Подпись "ч" или "смена"
                 Text(
-                  '${day.day}',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: textColor,
-                    fontSize: 13,
+                  hasShiftHours ? 'смена' : 'ч',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontSize:
+                        hasShiftHours ? (isMobile ? 6 : 7) : (isMobile ? 7 : 9),
+                    color: hasShiftHours
+                        ? theme.colorScheme.tertiary.withValues(alpha: 0.8)
+                        : textColor?.withValues(alpha: 0.6),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 2),
-            // Поле ввода часов (заблокировано если из смены)
-            SizedBox(
-              height: 30,
-              child: TextField(
-                controller: controller,
-                enabled: !_isSaving &&
-                    !hasShiftHours, // Блокируем если есть часы из смены
-                textAlign: TextAlign.center,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(
-                      RegExp(r'^\d{0,2}\.?\d{0,1}')),
-                ],
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: hasShiftHours ? theme.colorScheme.tertiary : null,
-                ),
-                decoration: InputDecoration(
-                  hintText: '—',
-                  hintStyle: TextStyle(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 6,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(4),
-                    borderSide: BorderSide(
-                      color: theme.dividerColor.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(4),
-                    borderSide: BorderSide(
-                      color: theme.dividerColor.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  disabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(4),
-                    borderSide: BorderSide(
-                      color: theme.colorScheme.tertiary.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(4),
-                    borderSide: BorderSide(
-                      color: theme.colorScheme.primary,
-                      width: 1.5,
-                    ),
-                  ),
-                  filled: true,
-                  fillColor: hasShiftHours
-                      ? theme.colorScheme.tertiary
-                          .withValues(alpha: 0.2) // Особый цвет для смен
-                      : hours != null && hours > 0
-                          ? theme.colorScheme.primaryContainer
-                              .withValues(alpha: 0.3)
-                          : theme.colorScheme.surface,
-                ),
-                onChanged: hasShiftHours
-                    ? null // Не обрабатываем изменения если из смены
-                    : (value) {
-                        if (value.isEmpty) {
-                          setState(() => _hoursMap.remove(day));
-                        } else {
-                          final parsedHours = num.tryParse(value);
-                          if (parsedHours != null &&
-                              parsedHours >= 0 &&
-                              parsedHours <= 24) {
-                            setState(() => _hoursMap[day] = parsedHours);
-                          }
-                        }
-                      },
-              ),
-            ),
-            const SizedBox(height: 2),
-            // Подпись "ч" или "смена"
-            Text(
-              hasShiftHours ? 'смена' : 'ч',
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontSize: hasShiftHours ? 8 : 10,
-                color: hasShiftHours
-                    ? theme.colorScheme.tertiary.withValues(alpha: 0.8)
-                    : textColor?.withValues(alpha: 0.6),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

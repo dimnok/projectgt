@@ -387,6 +387,122 @@ final payrollPayoutsByMonthProvider =
       .toList();
 });
 
+/// Провайдер получения ВСЕХ выплат (без фильтра по месяцам).
+/// Используется для FIFO распределения выплат по месяцам начисления.
+final allPayoutsProvider =
+    FutureProvider<List<PayrollPayoutModel>>((ref) async {
+  final client = ref.watch(supabaseClientProvider);
+
+  try {
+    final response = await client
+        .from('payroll_payout')
+        .select()
+        .order('payout_date', ascending: false);
+
+    return (response as List)
+        .map(
+            (json) => PayrollPayoutModel.fromJson(json as Map<String, dynamic>))
+        .toList();
+  } catch (e) {
+    return [];
+  }
+});
+
+/// Провайдер FIFO распределения выплат по месяцам.
+/// Возвращает Map<employeeId, Map<month, amountForMonth>>
+/// где month = 1-12 (январь-декабрь текущего года).
+final payoutsByEmployeeAndMonthFIFOProvider =
+    FutureProvider<Map<String, Map<int, double>>>((ref) async {
+  final client = ref.watch(supabaseClientProvider);
+  final allPayouts = ref.watch(allPayoutsProvider).asData?.value ?? [];
+
+  final result = <String, Map<int, double>>{};
+
+  // Группируем выплаты по сотрудникам
+  final payoutsByEmployee = <String, List<PayrollPayoutModel>>{};
+  for (final payout in allPayouts) {
+    payoutsByEmployee.putIfAbsent(payout.employeeId, () => []).add(payout);
+  }
+
+  // Получаем начисления за ВСЕ месяцы для FIFO распределения
+  final payrollsByEmployeeAndMonth =
+      <String, Map<int, List<PayrollCalculation>>>{};
+
+  // Проходим по всем месяцам года
+  for (int month = 1; month <= 12; month++) {
+    try {
+      final response = await client.rpc('calculate_payroll_for_month', params: {
+        'p_year': DateTime.now().year,
+        'p_month': month,
+      });
+
+      for (final row in response) {
+        final empId = row['employee_id'] as String;
+        final calculation = PayrollCalculation(
+          employeeId: empId,
+          periodMonth: DateTime(DateTime.now().year, month, 1),
+          hoursWorked: (row['total_hours'] as num).toDouble(),
+          hourlyRate: (row['current_hourly_rate'] as num).toDouble(),
+          baseSalary: (row['base_salary'] as num).toDouble(),
+          bonusesTotal: (row['bonuses_total'] as num).toDouble(),
+          penaltiesTotal: (row['penalties_total'] as num).toDouble(),
+          businessTripTotal: (row['business_trip_total'] as num).toDouble(),
+          netSalary: (row['net_salary'] as num).toDouble(),
+        );
+
+        payrollsByEmployeeAndMonth.putIfAbsent(empId, () => {});
+        payrollsByEmployeeAndMonth[empId]!
+            .putIfAbsent(month, () => [])
+            .add(calculation);
+      }
+    } catch (e) {
+      // Игнорируем ошибки для отдельных месяцев
+    }
+  }
+
+  // FIFO распределение выплат
+  for (final employeeId in payoutsByEmployee.keys) {
+    final employeePayouts = payoutsByEmployee[employeeId]!;
+    final employeePayrolls = payrollsByEmployeeAndMonth[employeeId] ?? {};
+
+    // Вычисляем сумму начисления за каждый месяц
+    final payrollSumByMonth = <int, double>{};
+    for (final month in employeePayrolls.keys) {
+      payrollSumByMonth[month] = employeePayrolls[month]!
+          .fold<double>(0, (sum, p) => sum + p.netSalary);
+    }
+
+    // Распределяем выплаты FIFO
+    final payoutsForMonth = <int, double>{};
+    var remainingAmount = 0.0;
+
+    for (final payout in employeePayouts) {
+      remainingAmount += payout.amount.toDouble();
+
+      // Ищем первый месяц с неоплаченным долгом и применяем выплату
+      for (int month = 1; month <= 12 && remainingAmount > 0; month++) {
+        final payrollForMonth = payrollSumByMonth[month] ?? 0;
+        if (payrollForMonth == 0) continue; // Пропускаем месяцы без начисления
+
+        final alreadyPaid = payoutsForMonth[month] ?? 0;
+        final remaining = payrollForMonth - alreadyPaid;
+
+        if (remaining > 0) {
+          final toApply =
+              remainingAmount > remaining ? remaining : remainingAmount;
+
+          payoutsForMonth[month] = (payoutsForMonth[month] ?? 0) + toApply;
+          remainingAmount -= toApply;
+        }
+      }
+    }
+
+    result[employeeId] = payoutsForMonth;
+  }
+
+  return result;
+});
+
 /// Провайдер репозитория выплат по ФОТ (Supabase).
 final payrollPayoutRepositoryProvider =
     Provider<PayrollPayoutRepository>((ref) {

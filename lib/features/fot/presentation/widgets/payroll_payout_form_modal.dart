@@ -10,6 +10,7 @@ import '../../data/models/payroll_payout_model.dart';
 import '../../../../core/utils/snackbar_utils.dart';
 import '../../../../core/widgets/modal_container_wrapper.dart';
 import '../../../../core/widgets/gt_dropdown.dart';
+import '../../../../core/utils/modal_utils.dart';
 import 'payroll_payout_amount_modal.dart';
 
 /// Класс, представляющий способ выплаты сотруднику в рамках модуля ФОТ.
@@ -113,6 +114,7 @@ class _PayrollPayoutFormModalState
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
   final _commentController = TextEditingController();
+  final _dateController = TextEditingController();
   final _isSaving = ValueNotifier<bool>(false);
 
   Employee? _selectedEmployee; // Для редактирования
@@ -135,6 +137,7 @@ class _PayrollPayoutFormModalState
     final payout = widget.payout!;
     _amountController.text = payout.amount.toString();
     _selectedDate = payout.payoutDate;
+    _updateDateController();
 
     // Находим соответствующий PaymentMethod
     _selectedMethod = PaymentMethod.values.firstWhere(
@@ -147,6 +150,12 @@ class _PayrollPayoutFormModalState
       (t) => t.value == payout.type,
       orElse: () => PaymentType.values.first,
     );
+  }
+
+  void _updateDateController() {
+    _dateController.text = _selectedDate != null
+        ? DateFormat('dd.MM.yyyy').format(_selectedDate!)
+        : '';
   }
 
   @override
@@ -174,6 +183,7 @@ class _PayrollPayoutFormModalState
   void dispose() {
     _commentController.dispose();
     _amountController.dispose();
+    _dateController.dispose();
     _isSaving.dispose();
     super.dispose();
   }
@@ -189,7 +199,10 @@ class _PayrollPayoutFormModalState
       locale: const Locale('ru'),
     );
     if (picked != null) {
-      setState(() => _selectedDate = picked);
+      setState(() {
+        _selectedDate = picked;
+        _updateDateController();
+      });
     }
   }
 
@@ -219,6 +232,9 @@ class _PayrollPayoutFormModalState
         method: _selectedMethod.value,
         type: _selectedType.value,
         createdAt: widget.payout!.createdAt,
+        comment: _commentController.text.trim().isEmpty
+            ? null
+            : _commentController.text.trim(),
       );
 
       final updateUseCase = ref.read(updatePayoutUseCaseProvider);
@@ -248,55 +264,9 @@ class _PayrollPayoutFormModalState
       return;
     }
 
-    final amount = double.tryParse(_amountController.text.replaceAll(',', '.'));
-
-    // Если сумма указана, создаём сразу
-    if (amount != null && amount > 0) {
-      await _createPayoutsWithAmount(amount);
-    } else {
-      // Открываем второе окно для указания индивидуальных сумм
-      if (!mounted) return;
-      await _openAmountModal();
-    }
-  }
-
-  /// Создание выплат с единой суммой
-  Future<void> _createPayoutsWithAmount(double amount) async {
-    _isSaving.value = true;
-
-    try {
-      final createUseCase = ref.read(createPayoutUseCaseProvider);
-
-      for (final employee in _selectedEmployees) {
-        final payout = PayrollPayoutModel(
-          id: '', // Будет сгенерировано в БД
-          employeeId: employee.id,
-          amount: amount,
-          payoutDate: _selectedDate ?? DateTime.now(),
-          method: _selectedMethod.value,
-          type: _selectedType.value,
-          createdAt: DateTime.now(),
-        );
-
-        await createUseCase(payout);
-      }
-
-      ref.invalidate(filteredPayrollPayoutsProvider);
-      ref.invalidate(employeeAggregatedBalanceProvider);
-      ref.invalidate(payrollPayoutsByMonthProvider);
-
-      if (mounted) {
-        Navigator.pop(context);
-        SnackBarUtils.showSuccess(
-            context, 'Создано выплат: ${_selectedEmployees.length}');
-      }
-    } catch (e) {
-      if (mounted) {
-        SnackBarUtils.showError(context, 'Ошибка: ${e.toString()}');
-      }
-    } finally {
-      _isSaving.value = false;
-    }
+    // Всегда открываем окно для указания индивидуальных сумм
+    if (!mounted) return;
+    await _openAmountModal();
   }
 
   /// Открытие модального окна для указания индивидуальных сумм
@@ -307,6 +277,12 @@ class _PayrollPayoutFormModalState
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useSafeArea: true,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height -
+            MediaQuery.of(context).padding.top -
+            kToolbarHeight,
+      ),
       builder: (context) => PayrollPayoutAmountModal(
         selectedEmployees: _selectedEmployees,
         payoutDate: _selectedDate ?? DateTime.now(),
@@ -328,48 +304,30 @@ class _PayrollPayoutFormModalState
 
     // Сортировка сотрудников по алфавиту
     final employees = List<Employee>.from(employeeState.employees)
-      ..sort((a, b) {
-        final fioA = [
-          a.lastName,
-          a.firstName,
-          if (a.middleName != null && a.middleName!.isNotEmpty) a.middleName
-        ].join(' ');
-        final fioB = [
-          b.lastName,
-          b.firstName,
-          if (b.middleName != null && b.middleName!.isNotEmpty) b.middleName
-        ].join(' ');
-        return fioA.compareTo(fioB);
-      });
+      ..sort((a, b) =>
+          _getEmployeeDisplayName(a).compareTo(_getEmployeeDisplayName(b)));
 
     return ModalContainerWrapper(
-      child: DraggableScrollableSheet(
-        initialChildSize: 1.0,
-        minChildSize: 0.5,
-        maxChildSize: 1.0,
-        expand: false,
-        builder: (context, scrollController) => SingleChildScrollView(
-          controller: scrollController,
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
           child: Padding(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(context).viewInsets.bottom,
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildHeader(theme),
-                    const Divider(),
-                    _buildForm(theme, employees),
-                    const SizedBox(height: 24),
-                    _buildButtons(),
-                    const SizedBox(height: 32),
-                  ],
-                ),
+            padding: const EdgeInsets.all(24.0),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildHeader(theme),
+                  const Divider(),
+                  _buildForm(theme, employees),
+                  const SizedBox(height: 24),
+                  _buildButtons(),
+                  const SizedBox(height: 32),
+                ],
               ),
             ),
           ),
@@ -380,58 +338,34 @@ class _PayrollPayoutFormModalState
 
   /// Строит заголовок модального окна
   Widget _buildHeader(ThemeData theme) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16.0),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              isEditing ? 'Редактировать выплату' : 'Создать выплаты',
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.close),
-            style: IconButton.styleFrom(foregroundColor: Colors.red),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
-      ),
+    return ModalUtils.buildModalHeader(
+      title: isEditing ? 'Редактировать выплату' : 'Создать выплаты',
+      onClose: () => Navigator.pop(context),
+      theme: theme,
     );
   }
 
   /// Строит форму
   Widget _buildForm(ThemeData theme, List<Employee> employees) {
-    return Card(
-      margin: EdgeInsets.zero,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: theme.colorScheme.outline.withValues(alpha: 0.2),
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildDateField(),
-            const SizedBox(height: 16),
-            _buildEmployeeField(employees),
-            const SizedBox(height: 16),
-            _buildMethodField(),
-            const SizedBox(height: 16),
-            _buildTypeField(),
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildDateField(),
+          const SizedBox(height: 16),
+          _buildEmployeeField(employees),
+          const SizedBox(height: 16),
+          _buildMethodField(),
+          const SizedBox(height: 16),
+          _buildTypeField(),
+          if (isEditing) ...[
             const SizedBox(height: 16),
             _buildAmountField(),
-            const SizedBox(height: 16),
-            _buildCommentField(),
           ],
-        ),
+          const SizedBox(height: 16),
+          _buildCommentField(),
+        ],
       ),
     );
   }
@@ -442,15 +376,11 @@ class _PayrollPayoutFormModalState
       onTap: _pickDate,
       child: AbsorbPointer(
         child: TextFormField(
+          controller: _dateController,
           decoration: const InputDecoration(
             labelText: 'Дата выплаты',
             border: OutlineInputBorder(),
             prefixIcon: Icon(Icons.event),
-          ),
-          controller: TextEditingController(
-            text: _selectedDate != null
-                ? DateFormat('dd.MM.yyyy').format(_selectedDate!)
-                : '',
           ),
           validator: (_) =>
               _selectedDate == null ? 'Выберите дату выплаты' : null,
@@ -459,17 +389,23 @@ class _PayrollPayoutFormModalState
     );
   }
 
+  /// Формирует ФИО сотрудника для отображения
+  String _getEmployeeDisplayName(Employee employee) {
+    return [
+      employee.lastName,
+      employee.firstName,
+      if (employee.middleName != null && employee.middleName!.isNotEmpty)
+        employee.middleName
+    ].join(' ');
+  }
+
   /// Поле выбора сотрудника/сотрудников (GTDropdown)
   Widget _buildEmployeeField(List<Employee> employees) {
     if (isEditing) {
       // Одиночный выбор для редактирования
       return GTDropdown<Employee>(
         items: employees,
-        itemDisplayBuilder: (e) => [
-          e.lastName,
-          e.firstName,
-          if (e.middleName != null && e.middleName!.isNotEmpty) e.middleName
-        ].join(' '),
+        itemDisplayBuilder: _getEmployeeDisplayName,
         selectedItem: _selectedEmployee,
         onSelectionChanged: (employee) {
           setState(() {
@@ -487,11 +423,7 @@ class _PayrollPayoutFormModalState
       // Множественный выбор для создания
       return GTDropdown<Employee>(
         items: employees,
-        itemDisplayBuilder: (e) => [
-          e.lastName,
-          e.firstName,
-          if (e.middleName != null && e.middleName!.isNotEmpty) e.middleName
-        ].join(' '),
+        itemDisplayBuilder: _getEmployeeDisplayName,
         selectedItems: _selectedEmployees,
         onMultiSelectionChanged: (selectedList) {
           setState(() {
@@ -548,18 +480,15 @@ class _PayrollPayoutFormModalState
     return TextFormField(
       controller: _amountController,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      decoration: InputDecoration(
-        labelText: isEditing ? 'Сумма' : 'Сумма (необязательно)',
-        border: const OutlineInputBorder(),
-        prefixIcon: const Icon(Icons.currency_ruble),
-        hintText: isEditing ? null : 'Оставьте пустым для индивидуальных сумм',
+      decoration: const InputDecoration(
+        labelText: 'Сумма',
+        border: OutlineInputBorder(),
+        prefixIcon: Icon(Icons.currency_ruble),
       ),
       validator: (value) {
-        if (isEditing) {
-          if (value == null || value.isEmpty) return 'Введите сумму';
-          final num? n = num.tryParse(value.replaceAll(',', '.'));
-          if (n == null || n <= 0) return 'Некорректная сумма';
-        }
+        if (value == null || value.isEmpty) return 'Введите сумму';
+        final num? n = num.tryParse(value.replaceAll(',', '.'));
+        if (n == null || n <= 0) return 'Некорректная сумма';
         return null;
       },
     );

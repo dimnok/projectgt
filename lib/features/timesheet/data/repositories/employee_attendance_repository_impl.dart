@@ -1,7 +1,5 @@
 import 'package:projectgt/domain/repositories/employee_repository.dart';
 import 'package:projectgt/domain/repositories/object_repository.dart';
-import 'package:projectgt/domain/entities/employee.dart';
-import 'package:projectgt/domain/entities/object.dart' as project_object;
 import '../../domain/entities/employee_attendance_entry.dart';
 import '../../domain/repositories/employee_attendance_repository.dart';
 import '../datasources/employee_attendance_data_source.dart';
@@ -42,37 +40,8 @@ class EmployeeAttendanceRepositoryImpl implements EmployeeAttendanceRepository {
       objectId: objectId,
     );
 
-    // Получаем данные для обогащения
-    final employees = await employeeRepository.getEmployees();
-    final objects = await objectRepository.getObjects();
-
-    // Преобразуем и обогащаем
-    return models.map((model) {
-      // Находим сотрудника
-      Employee? employee;
-      try {
-        employee = employees.firstWhere((e) => e.id == model.employeeId);
-      } catch (_) {
-        employee = null;
-      }
-
-      // Находим объект
-      project_object.ObjectEntity? object;
-      try {
-        object = objects.firstWhere((o) => o.id == model.objectId);
-      } catch (_) {
-        object = null;
-      }
-
-      // Создаём доменную сущность с обогащёнными данными
-      return model.toDomain().copyWith(
-            employeeName: employee != null
-                ? '${employee.lastName} ${employee.firstName}${employee.middleName != null && employee.middleName!.isNotEmpty ? ' ${employee.middleName}' : ''}'
-                : null,
-            employeePosition: employee?.position,
-            objectName: object?.name,
-          );
-    }).toList();
+    // Просто преобразуем в доменные сущности (без обогащения)
+    return models.map((model) => model.toDomain()).toList();
   }
 
   @override

@@ -75,7 +75,6 @@ class _OtpInputBottomSheetState extends ConsumerState<OtpInputBottomSheet> {
     for (final focusNode in _focusNodes) {
       focusNode.dispose();
     }
-    _timeLeft.dispose();
     super.dispose();
   }
 

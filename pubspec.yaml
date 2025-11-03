@@ -105,6 +105,7 @@ dependencies:
   pdf: ^3.11.3
   printing: ^5.14.2
   package_info_plus: ^9.0.0
+  universal_html: ^2.2.4
   # Firebase отключён
 
 dev_dependencies:
@@ -116,12 +117,13 @@ dev_dependencies:
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
   # activated in the `analysis_options.yaml` file located at the root of your
-  # package. See that file for information about deactivating specific lint
+  # package. See that file for information about deactivating linting
   # rules and activating additional ones.
   flutter_lints: ^3.0.1
   build_runner: ^2.4.8
   riverpod_generator: ^2.3.9
   flutter_launcher_icons: ^0.14.3
+  flutter_native_splash: ^2.4.1
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -185,3 +187,10 @@ flutter_launcher_icons:
 # Переопределение зависимостей для решения конфликта версий
 dependency_overrides:
   intl: ^0.19.0  # Принудительно используем версию, совместимую с pluto_grid
+
+flutter_native_splash:
+  color: "#FFFFFF"
+  image: "assets/images/logo.png"
+  android_12:
+    image: "assets/images/logo.png"
+  web: false

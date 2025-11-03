@@ -24,6 +24,7 @@ mixin _$ProfileModel {
   @JsonKey(name: 'photo_url')
   String? get photoUrl;
   String? get phone;
+  String? get position;
   String get role;
   bool get status;
   Map<String, dynamic>? get object;
@@ -59,6 +60,8 @@ mixin _$ProfileModel {
             (identical(other.photoUrl, photoUrl) ||
                 other.photoUrl == photoUrl) &&
             (identical(other.phone, phone) || other.phone == phone) &&
+            (identical(other.position, position) ||
+                other.position == position) &&
             (identical(other.role, role) || other.role == role) &&
             (identical(other.status, status) || other.status == status) &&
             const DeepCollectionEquality().equals(other.object, object) &&
@@ -79,6 +82,7 @@ mixin _$ProfileModel {
       shortName,
       photoUrl,
       phone,
+      position,
       role,
       status,
       const DeepCollectionEquality().hash(object),
@@ -88,7 +92,7 @@ mixin _$ProfileModel {
 
   @override
   String toString() {
-    return 'ProfileModel(id: $id, email: $email, fullName: $fullName, shortName: $shortName, photoUrl: $photoUrl, phone: $phone, role: $role, status: $status, object: $object, createdAt: $createdAt, updatedAt: $updatedAt, objectIds: $objectIds)';
+    return 'ProfileModel(id: $id, email: $email, fullName: $fullName, shortName: $shortName, photoUrl: $photoUrl, phone: $phone, position: $position, role: $role, status: $status, object: $object, createdAt: $createdAt, updatedAt: $updatedAt, objectIds: $objectIds)';
   }
 }
 
@@ -105,6 +109,7 @@ abstract mixin class $ProfileModelCopyWith<$Res> {
       @JsonKey(name: 'short_name') String? shortName,
       @JsonKey(name: 'photo_url') String? photoUrl,
       String? phone,
+      String? position,
       String role,
       bool status,
       Map<String, dynamic>? object,
@@ -131,6 +136,7 @@ class _$ProfileModelCopyWithImpl<$Res> implements $ProfileModelCopyWith<$Res> {
     Object? shortName = freezed,
     Object? photoUrl = freezed,
     Object? phone = freezed,
+    Object? position = freezed,
     Object? role = null,
     Object? status = null,
     Object? object = freezed,
@@ -162,6 +168,10 @@ class _$ProfileModelCopyWithImpl<$Res> implements $ProfileModelCopyWith<$Res> {
       phone: freezed == phone
           ? _self.phone
           : phone // ignore: cast_nullable_to_non_nullable
+              as String?,
+      position: freezed == position
+          ? _self.position
+          : position // ignore: cast_nullable_to_non_nullable
               as String?,
       role: null == role
           ? _self.role
@@ -202,6 +212,7 @@ class _ProfileModel extends ProfileModel {
       @JsonKey(name: 'short_name') this.shortName,
       @JsonKey(name: 'photo_url') this.photoUrl,
       this.phone,
+      this.position,
       this.role = 'user',
       this.status = true,
       final Map<String, dynamic>? object,
@@ -229,6 +240,8 @@ class _ProfileModel extends ProfileModel {
   final String? photoUrl;
   @override
   final String? phone;
+  @override
+  final String? position;
   @override
   @JsonKey()
   final String role;
@@ -291,6 +304,8 @@ class _ProfileModel extends ProfileModel {
             (identical(other.photoUrl, photoUrl) ||
                 other.photoUrl == photoUrl) &&
             (identical(other.phone, phone) || other.phone == phone) &&
+            (identical(other.position, position) ||
+                other.position == position) &&
             (identical(other.role, role) || other.role == role) &&
             (identical(other.status, status) || other.status == status) &&
             const DeepCollectionEquality().equals(other._object, _object) &&
@@ -312,6 +327,7 @@ class _ProfileModel extends ProfileModel {
       shortName,
       photoUrl,
       phone,
+      position,
       role,
       status,
       const DeepCollectionEquality().hash(_object),
@@ -321,7 +337,7 @@ class _ProfileModel extends ProfileModel {
 
   @override
   String toString() {
-    return 'ProfileModel(id: $id, email: $email, fullName: $fullName, shortName: $shortName, photoUrl: $photoUrl, phone: $phone, role: $role, status: $status, object: $object, createdAt: $createdAt, updatedAt: $updatedAt, objectIds: $objectIds)';
+    return 'ProfileModel(id: $id, email: $email, fullName: $fullName, shortName: $shortName, photoUrl: $photoUrl, phone: $phone, position: $position, role: $role, status: $status, object: $object, createdAt: $createdAt, updatedAt: $updatedAt, objectIds: $objectIds)';
   }
 }
 
@@ -340,6 +356,7 @@ abstract mixin class _$ProfileModelCopyWith<$Res>
       @JsonKey(name: 'short_name') String? shortName,
       @JsonKey(name: 'photo_url') String? photoUrl,
       String? phone,
+      String? position,
       String role,
       bool status,
       Map<String, dynamic>? object,
@@ -367,6 +384,7 @@ class __$ProfileModelCopyWithImpl<$Res>
     Object? shortName = freezed,
     Object? photoUrl = freezed,
     Object? phone = freezed,
+    Object? position = freezed,
     Object? role = null,
     Object? status = null,
     Object? object = freezed,
@@ -398,6 +416,10 @@ class __$ProfileModelCopyWithImpl<$Res>
       phone: freezed == phone
           ? _self.phone
           : phone // ignore: cast_nullable_to_non_nullable
+              as String?,
+      position: freezed == position
+          ? _self.position
+          : position // ignore: cast_nullable_to_non_nullable
               as String?,
       role: null == role
           ? _self.role

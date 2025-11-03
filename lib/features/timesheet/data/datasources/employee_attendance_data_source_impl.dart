@@ -74,7 +74,6 @@ class EmployeeAttendanceDataSourceImpl implements EmployeeAttendanceDataSource {
       final response =
           await client.from(tableName).insert(data).select().single();
 
-      _logger.i('Запись посещаемости создана: ${response['id']}');
       return EmployeeAttendanceModel.fromJson(response);
     } catch (e) {
       _logger.e('Ошибка при создании записи посещаемости: $e');
@@ -97,7 +96,6 @@ class EmployeeAttendanceDataSourceImpl implements EmployeeAttendanceDataSource {
           .select()
           .single();
 
-      _logger.i('Запись посещаемости обновлена: ${model.id}');
       return EmployeeAttendanceModel.fromJson(response);
     } catch (e) {
       _logger.e('Ошибка при обновлении записи посещаемости: $e');
@@ -109,7 +107,6 @@ class EmployeeAttendanceDataSourceImpl implements EmployeeAttendanceDataSource {
   Future<void> deleteAttendance(String id) async {
     try {
       await client.from(tableName).delete().eq('id', id);
-      _logger.i('Запись посещаемости удалена: $id');
     } catch (e) {
       _logger.e('Ошибка при удалении записи посещаемости: $e');
       rethrow;
@@ -172,8 +169,6 @@ class EmployeeAttendanceDataSourceImpl implements EmployeeAttendanceDataSource {
           await client.from(tableName).insert(data);
         }
       }
-
-      _logger.i('Массовое обновление: ${models.length} записей');
     } catch (e) {
       _logger.e('Ошибка при массовом обновлении записей посещаемости: $e');
       rethrow;

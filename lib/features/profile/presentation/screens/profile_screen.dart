@@ -510,6 +510,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               },
             ),
             _AppleMenuItem(
+              icon: Icons.inventory_2_outlined,
+              iconColor: Colors.brown,
+              title: 'Выданное имущество (ТМЦ)',
+              onTap: () => context.push('/profile/property'),
+            ),
+            _AppleMenuItem(
               icon: Icons.help_outline,
               iconColor: Colors.blue,
               title: 'Инструкции',

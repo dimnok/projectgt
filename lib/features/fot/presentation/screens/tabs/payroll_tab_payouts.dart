@@ -3,7 +3,7 @@ import '../../widgets/payroll_payout_table_widget.dart';
 import '../../widgets/payroll_payout_form_modal.dart';
 
 /// Таб "Выплаты" в модуле ФОТ.
-/// Отображает таблицу всех выплат за текущий месяц с возможностью добавления выплат.
+/// Отображает таблицу всех выплат с возможностью добавления выплат.
 class PayrollTabPayouts extends StatelessWidget {
   /// Конструктор [PayrollTabPayouts].
   ///
@@ -12,22 +12,21 @@ class PayrollTabPayouts extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Card(
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: BorderSide(
-            color: theme.colorScheme.outline.withValues(alpha: 51),
+          side: const BorderSide(
+            color:
+                Color(0xFF66BB6A), // Цвет таба "Выплаты" (Material Green 400)
           ),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(12.0),
           child: Column(
             children: [
-              // Таблица выплат с правильной структурой для вертикальной прокрутки
               Expanded(
                 child: Stack(
                   children: [
@@ -37,11 +36,13 @@ class PayrollTabPayouts extends StatelessWidget {
                       bottom: 8,
                       child: FloatingActionButton(
                         heroTag: 'addPayrollPayout',
+                        shape: const CircleBorder(),
                         onPressed: () {
                           showModalBottomSheet(
                             context: context,
                             isScrollControlled: true,
                             backgroundColor: Colors.transparent,
+                            useSafeArea: true,
                             constraints: BoxConstraints(
                               maxHeight: MediaQuery.of(context).size.height -
                                   MediaQuery.of(context).padding.top -

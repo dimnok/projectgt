@@ -11,6 +11,8 @@ import '../providers/work_provider.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
+import 'package:projectgt/features/works/presentation/widgets/photo_loading_dialog.dart';
+import 'package:projectgt/features/works/presentation/utils/photo_upload_helper.dart';
 
 /// Извлекает время (HH:mm) из имени файла в URL фото смены.
 /// Ожидаемый формат имени: YYYY-MM-DD_HH-mm-ss_morning.jpg / ..._evening.jpg
@@ -432,11 +434,10 @@ class _FullscreenPhotoViewState extends ConsumerState<_FullscreenPhotoView> {
       return;
     }
 
-    final theme = Theme.of(context);
     final ImageSource? source = await showModalBottomSheet<ImageSource>(
       context: context,
       useRootNavigator: true,
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -447,9 +448,9 @@ class _FullscreenPhotoViewState extends ConsumerState<_FullscreenPhotoView> {
           children: [
             Text(
               'Выбор источника фото',
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             const SizedBox(height: 20),
             Row(
@@ -488,54 +489,62 @@ class _FullscreenPhotoViewState extends ConsumerState<_FullscreenPhotoView> {
       final bytes = await photoService.pickImageBytes(source);
       if (bytes == null) return;
 
+      if (!mounted) return;
+
+      // ✅ Загружаем фото через helper
+      final photoType =
+          _currentIndex == 0 ? PhotoType.morning : PhotoType.evening;
       final displayName = _currentIndex == 0 ? 'morning' : 'evening';
-      final url = await photoService.uploadPhotoBytes(
+
+      final uploadedUrl = await PhotoUploadHelper(
+        context: context,
+        ref: ref,
+      ).uploadPhoto(
+        photoType: photoType,
         entity: 'work',
-        id: widget.work.objectId,
-        bytes: bytes,
+        entityId: widget.work.objectId,
         displayName: displayName,
+        photoBytes: bytes,
+        // ✅ Обновляем Work ВО ВРЕМЯ диалога загрузки
+        onLoadingComplete: (String photoUrl) async {
+          try {
+            final updated = _currentIndex == 0
+                ? widget.work
+                    .copyWith(photoUrl: photoUrl, updatedAt: DateTime.now())
+                : widget.work.copyWith(
+                    eveningPhotoUrl: photoUrl, updatedAt: DateTime.now());
+
+            await ref.read(worksProvider.notifier).updateWork(updated);
+
+            // Обновляем локальный список URLов
+            setState(() {
+              if (_currentIndex == 0) {
+                if (widget.photoUrls.isNotEmpty) {
+                  widget.photoUrls[0] = photoUrl;
+                }
+              } else {
+                if (widget.photoUrls.length > 1) {
+                  widget.photoUrls[1] = photoUrl;
+                } else {
+                  widget.photoUrls.add(photoUrl);
+                }
+              }
+            });
+          } catch (e) {
+            if (mounted) {
+              SnackBarUtils.showError(
+                  context, 'Ошибка при сохранении фото: $e');
+            }
+          }
+        },
       );
 
-      if (!mounted) return;
-
-      if (url == null || url.isEmpty) {
-        SnackBarUtils.showWarning(
-          context,
-          'Не удалось загрузить фото. Пожалуйста, попробуйте снова.',
-        );
-        return;
-      }
-
-      // Обновляем работу со ссылкой
-      final updated = _currentIndex == 0
-          ? widget.work.copyWith(photoUrl: url, updatedAt: DateTime.now())
-          : widget.work
-              .copyWith(eveningPhotoUrl: url, updatedAt: DateTime.now());
-
-      try {
-        await ref.read(worksProvider.notifier).updateWork(updated);
-      } catch (e) {
-        if (!mounted) return;
-        SnackBarUtils.showError(context, 'Ошибка при сохранении фото: $e');
-        rethrow;
-      }
-
-      // Обновляем локальный список URLов для мгновенного отражения
-      setState(() {
-        if (_currentIndex == 0) {
-          if (widget.photoUrls.isNotEmpty) {
-            widget.photoUrls[0] = url;
-          }
-        } else {
-          if (widget.photoUrls.length > 1) {
-            widget.photoUrls[1] = url;
-          } else {
-            widget.photoUrls.add(url);
-          }
-        }
-      });
+      if (uploadedUrl == null) return;
 
       if (!mounted) return;
+
+      // ✅ После нажатия "Готово" просто закрываем галерею
+      Navigator.of(context, rootNavigator: true).pop();
     } catch (e) {
       if (!mounted) return;
       SnackBarUtils.showError(context, 'Ошибка при загрузке фото: $e');

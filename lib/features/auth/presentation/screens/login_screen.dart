@@ -204,7 +204,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             onPressed: isLoading ? null : _handleRequestCode,
             child: const Text('Получить код на почту'),
           ),
-          // Регистрация отдельной кнопкой не требуется при OTP флоу
         ],
       ),
     );

@@ -59,19 +59,43 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
         oldWidget.endDate != widget.endDate) {
       _buildDateRange();
     }
+
+    // Если изменились записи, перезагружаем список сотрудников
+    // Используем сравнение по количеству и первым элементам для оптимизации
+    if (oldWidget.entries.length != widget.entries.length ||
+        (widget.entries.isNotEmpty &&
+            oldWidget.entries.isNotEmpty &&
+            oldWidget.entries.first.employeeId !=
+                widget.entries.first.employeeId)) {
+      _loadEmployees();
+    }
   }
 
   /// Загружает список всех активных сотрудников и уволенных с часами
+  /// с учетом фильтров по должностям
   Future<void> _loadEmployees() async {
     final employeeRepository = ref.read(employeeRepositoryProvider);
+    final timesheetState = ref.read(timesheetProvider);
     final allEmployees = await employeeRepository.getEmployees();
 
     // Находим ID сотрудников, у которых есть часы в текущих записях
     final employeeIdsWithHours =
         widget.entries.map((entry) => entry.employeeId).toSet();
 
+    // Применяем фильтр по должностям (если установлен)
+    final selectedPositions = timesheetState.selectedPositions;
+
     // Фильтруем: активные сотрудники + уволенные с часами
-    final filteredEmployees = allEmployees.where((e) {
+    var filteredEmployees = allEmployees.where((e) {
+      // Если установлен фильтр по должностям, применяем его
+      if (selectedPositions != null &&
+          selectedPositions.isNotEmpty &&
+          (e.position == null ||
+              e.position!.isEmpty ||
+              !selectedPositions.contains(e.position))) {
+        return false; // Пропускаем сотрудников, не соответствующих фильтру
+      }
+
       if (e.status != EmployeeStatus.fired) {
         return true; // Все активные
       }
@@ -137,6 +161,16 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
     final theme = Theme.of(context);
     final headerStyle =
         theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold);
+
+    // Перезагружаем список сотрудников при изменении фильтров по должностям
+    ref.listen<List<String>?>(
+      timesheetProvider.select((state) => state.selectedPositions),
+      (previous, next) {
+        if (previous != next) {
+          _loadEmployees();
+        }
+      },
+    );
 
     // Если нет данных, показываем сообщение
     if (widget.entries.isEmpty) {

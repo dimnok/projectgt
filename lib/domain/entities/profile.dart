@@ -29,6 +29,9 @@ abstract class Profile with _$Profile {
     /// Телефон пользователя.
     String? phone,
 
+    /// Должность пользователя.
+    String? position,
+
     /// Роль пользователя (например, 'user', 'admin').
     @Default('user') String role,
 

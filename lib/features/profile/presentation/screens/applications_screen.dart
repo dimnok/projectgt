@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
+import 'package:projectgt/presentation/state/profile_state.dart';
+import 'vacation_form_bottom_sheet.dart';
+import 'unpaid_leave_form_bottom_sheet.dart';
 
 /// Экран с заявлениями сотрудников.
 ///
@@ -11,13 +15,20 @@ import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 /// - Заявление на материальную помощь
 /// - Заявление на командировку
 /// - Заявление на изменение графика работы
-class ApplicationsScreen extends StatelessWidget {
+class ApplicationsScreen extends ConsumerStatefulWidget {
   /// Создаёт экран заявлений.
   const ApplicationsScreen({super.key});
 
   @override
+  ConsumerState<ApplicationsScreen> createState() => _ApplicationsScreenState();
+}
+
+class _ApplicationsScreenState extends ConsumerState<ApplicationsScreen> {
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final profileState = ref.watch(currentUserProfileProvider);
+    final profile = profileState.profile;
 
     return Scaffold(
       backgroundColor: theme.brightness == Brightness.light
@@ -27,230 +38,355 @@ class ApplicationsScreen extends StatelessWidget {
         title: 'Заявления',
         leading: BackButton(),
       ),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 600),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Заголовок секции
+            Padding(
+              padding: const EdgeInsets.only(left: 16, bottom: 12),
+              child: Text(
+                'ТИПЫ ЗАЯВЛЕНИЙ',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+
+            // Группа заявлений
+            _ApplicationMenuGroup(
               children: [
-                // Иконка
-                Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(60),
-                  ),
-                  child: const Icon(
-                    Icons.description_rounded,
-                    size: 64,
-                    color: Colors.orange,
-                  ),
+                _ApplicationMenuItem(
+                  icon: Icons.beach_access_outlined,
+                  iconColor: Colors.blue,
+                  title: 'Отпуск',
+                  subtitle: 'Заявление на ежегодный оплачиваемый отпуск',
+                  onTap: () => _showVacationForm(context, profile),
                 ),
-                const SizedBox(height: 32),
-
-                // Заголовок
-                Text(
-                  'В разработке',
-                  style: theme.textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
+                _ApplicationMenuItem(
+                  icon: Icons.event_busy_outlined,
+                  iconColor: Colors.purple,
+                  title: 'Отпуск без содержания',
+                  subtitle:
+                      'Заявление на отпуск без сохранения заработной платы',
+                  onTap: () => _showUnpaidLeaveForm(context, profile),
                 ),
-                const SizedBox(height: 16),
-
-                // Основное описание
-                Text(
-                  'Раздел с заявлениями находится в разработке',
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                  ),
-                  textAlign: TextAlign.center,
+                const _ApplicationMenuItem(
+                  icon: Icons.logout_outlined,
+                  iconColor: Colors.red,
+                  title: 'Увольнение',
+                  subtitle: 'Заявление на увольнение по собственному желанию',
                 ),
-                const SizedBox(height: 32),
-
-                // Карточка с описанием функционала
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surface,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Доступные типы заявлений:',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      const _ApplicationTypeItem(
-                        icon: Icons.beach_access_outlined,
-                        title: 'Отпуск',
-                        description:
-                            'Заявление на ежегодный оплачиваемый отпуск с указанием дат начала и окончания',
-                        color: Colors.blue,
-                      ),
-                      const SizedBox(height: 12),
-                      const _ApplicationTypeItem(
-                        icon: Icons.event_busy_outlined,
-                        title: 'Отпуск без содержания',
-                        description:
-                            'Заявление на отпуск без сохранения заработной платы на указанный период',
-                        color: Colors.purple,
-                      ),
-                      const SizedBox(height: 12),
-                      const _ApplicationTypeItem(
-                        icon: Icons.logout_outlined,
-                        title: 'Увольнение',
-                        description:
-                            'Заявление на увольнение по собственному желанию с указанием желаемой даты',
-                        color: Colors.red,
-                      ),
-                      const SizedBox(height: 12),
-                      const _ApplicationTypeItem(
-                        icon: Icons.swap_horiz_outlined,
-                        title: 'Перевод на другую должность',
-                        description:
-                            'Заявление на перевод на другую должность или в другое подразделение',
-                        color: Colors.green,
-                      ),
-                      const SizedBox(height: 12),
-                      const _ApplicationTypeItem(
-                        icon: Icons.attach_money_outlined,
-                        title: 'Материальная помощь',
-                        description:
-                            'Заявление на получение материальной помощи с указанием причины и суммы',
-                        color: Colors.orange,
-                      ),
-                      const SizedBox(height: 12),
-                      const _ApplicationTypeItem(
-                        icon: Icons.flight_takeoff_outlined,
-                        title: 'Командировка',
-                        description:
-                            'Заявление на служебную командировку с указанием места назначения и сроков',
-                        color: Colors.teal,
-                      ),
-                      const SizedBox(height: 12),
-                      const _ApplicationTypeItem(
-                        icon: Icons.schedule_outlined,
-                        title: 'Изменение графика работы',
-                        description:
-                            'Заявление на изменение графика работы или режима рабочего времени',
-                        color: Colors.indigo,
-                      ),
-                    ],
-                  ),
+                const _ApplicationMenuItem(
+                  icon: Icons.swap_horiz_outlined,
+                  iconColor: Colors.green,
+                  title: 'Перевод на другую должность',
+                  subtitle: 'Заявление на перевод на другую должность',
                 ),
-                const SizedBox(height: 24),
-
-                // Дополнительная информация
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer
-                        .withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.2),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.info_outline,
-                        color: theme.colorScheme.primary,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Все заявления будут автоматически направляться на согласование руководителю',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                const _ApplicationMenuItem(
+                  icon: Icons.attach_money_outlined,
+                  iconColor: Colors.orange,
+                  title: 'Материальная помощь',
+                  subtitle: 'Заявление на получение материальной помощи',
+                ),
+                const _ApplicationMenuItem(
+                  icon: Icons.flight_takeoff_outlined,
+                  iconColor: Colors.teal,
+                  title: 'Командировка',
+                  subtitle: 'Заявление на служебную командировку',
+                ),
+                const _ApplicationMenuItem(
+                  icon: Icons.schedule_outlined,
+                  iconColor: Colors.indigo,
+                  title: 'Изменение графика работы',
+                  subtitle: 'Заявление на изменение графика работы',
                 ),
               ],
             ),
-          ),
+
+            const SizedBox(height: 28),
+
+            // Информационная карточка
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.2),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          color: theme.colorScheme.primary,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Информация',
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Все заявления будут автоматически направляться на согласование руководителю. Заявления в разработке по одному будут добавляться функциональностью.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurface,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+          ],
         ),
+      ),
+    );
+  }
+
+  /// Показывает форму заявления об отпуске в bottom sheet
+  void _showVacationForm(BuildContext context, dynamic profile) {
+    final theme = Theme.of(context);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: theme.colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => VacationFormBottomSheet(
+        profile: profile,
+        position: profile?.position,
+      ),
+    );
+  }
+
+  /// Показывает форму заявления на отпуск без сохранения заработной платы в bottom sheet
+  void _showUnpaidLeaveForm(BuildContext context, dynamic profile) {
+    final theme = Theme.of(context);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: theme.colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => UnpaidLeaveFormBottomSheet(
+        profile: profile,
+        position: profile?.position,
       ),
     );
   }
 }
 
-/// Элемент типа заявления.
-class _ApplicationTypeItem extends StatelessWidget {
-  /// Иконка типа заявления.
-  final IconData icon;
+/// Объединяет несколько [_ApplicationMenuItem] в одну карточку с закругленными углами.
+class _ApplicationMenuGroup extends StatelessWidget {
+  /// Список элементов меню внутри группы.
+  final List<Widget> children;
 
-  /// Название типа заявления.
-  final String title;
-
-  /// Описание типа заявления.
-  final String description;
-
-  /// Цвет иконки.
-  final Color color;
-
-  /// Создаёт элемент типа заявления.
-  const _ApplicationTypeItem({
-    required this.icon,
-    required this.title,
-    required this.description,
-    required this.color,
+  /// Создаёт группу элементов меню.
+  const _ApplicationMenuGroup({
+    required this.children,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(
-            icon,
-            size: 20,
-            color: color,
-          ),
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Column(
+          children: _buildChildrenWithDividers(context),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                description,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                ),
-              ),
-            ],
+      ),
+    );
+  }
+
+  /// Добавляет разделители между элементами списка.
+  List<Widget> _buildChildrenWithDividers(BuildContext context) {
+    final theme = Theme.of(context);
+    final List<Widget> widgets = [];
+
+    for (int i = 0; i < children.length; i++) {
+      widgets.add(children[i]);
+      if (i < children.length - 1) {
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(left: 60, right: 16),
+            child: Divider(
+              height: 1,
+              thickness: 1,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.05),
+            ),
           ),
-        ),
-      ],
+        );
+      }
+    }
+
+    return widgets;
+  }
+}
+
+/// Элемент меню заявления в стиле Apple Settings.
+///
+/// Отображает иконку, заголовок, опциональный подзаголовок и стрелку вправо.
+class _ApplicationMenuItem extends StatelessWidget {
+  /// Иконка элемента.
+  final IconData icon;
+
+  /// Цвет иконки.
+  final Color iconColor;
+
+  /// Основной текст элемента.
+  final String title;
+
+  /// Дополнительный текст под заголовком (опционально).
+  final String? subtitle;
+
+  /// Коллбэк при нажатии.
+  final VoidCallback? onTap;
+
+  /// Создаёт элемент меню в стиле Apple.
+  const _ApplicationMenuItem({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    this.subtitle,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    final content = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: [
+          // Иконка в цветном квадратике
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              icon,
+              color: iconColor,
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Текст
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+                if (subtitle != null)
+                  Text(
+                    subtitle!,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          // Стрелка (только если есть onTap)
+          if (onTap != null)
+            Icon(
+              Icons.chevron_right,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
+              size: 20,
+            ),
+        ],
+      ),
+    );
+
+    if (onTap != null) {
+      return _ApplicationTapEffect(
+        onTap: onTap!,
+        child: content,
+      );
+    }
+
+    return content;
+  }
+}
+
+/// Виджет для создания iOS-подобного эффекта затемнения при нажатии.
+///
+/// При нажатии элемент затемняется серым фоном, как в iOS Settings.
+class _ApplicationTapEffect extends StatefulWidget {
+  /// Дочерний виджет.
+  final Widget child;
+
+  /// Коллбэк при нажатии.
+  final VoidCallback onTap;
+
+  /// Создаёт виджет с iOS-подобным эффектом нажатия.
+  const _ApplicationTapEffect({
+    required this.child,
+    required this.onTap,
+  });
+
+  @override
+  State<_ApplicationTapEffect> createState() => _ApplicationTapEffectState();
+}
+
+/// Состояние для [_ApplicationTapEffect].
+class _ApplicationTapEffectState extends State<_ApplicationTapEffect> {
+  /// Флаг нажатия.
+  bool _isPressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) => setState(() => _isPressed = false),
+      onTapCancel: () => setState(() => _isPressed = false),
+      onTap: widget.onTap,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 100),
+        color: _isPressed
+            ? theme.colorScheme.onSurface.withValues(alpha: 0.08)
+            : Colors.transparent,
+        child: widget.child,
+      ),
     );
   }
 }

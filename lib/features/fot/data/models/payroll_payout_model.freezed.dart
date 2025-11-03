@@ -25,6 +25,7 @@ mixin _$PayrollPayoutModel {
   String get type;
   @JsonKey(name: 'created_at')
   DateTime? get createdAt;
+  String? get comment;
 
   /// Create a copy of PayrollPayoutModel
   /// with the given fields replaced by the non-null parameter values.
@@ -51,17 +52,18 @@ mixin _$PayrollPayoutModel {
             (identical(other.method, method) || other.method == method) &&
             (identical(other.type, type) || other.type == type) &&
             (identical(other.createdAt, createdAt) ||
-                other.createdAt == createdAt));
+                other.createdAt == createdAt) &&
+            (identical(other.comment, comment) || other.comment == comment));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(
-      runtimeType, id, employeeId, amount, payoutDate, method, type, createdAt);
+  int get hashCode => Object.hash(runtimeType, id, employeeId, amount,
+      payoutDate, method, type, createdAt, comment);
 
   @override
   String toString() {
-    return 'PayrollPayoutModel(id: $id, employeeId: $employeeId, amount: $amount, payoutDate: $payoutDate, method: $method, type: $type, createdAt: $createdAt)';
+    return 'PayrollPayoutModel(id: $id, employeeId: $employeeId, amount: $amount, payoutDate: $payoutDate, method: $method, type: $type, createdAt: $createdAt, comment: $comment)';
   }
 }
 
@@ -78,7 +80,8 @@ abstract mixin class $PayrollPayoutModelCopyWith<$Res> {
       @JsonKey(name: 'payout_date') DateTime payoutDate,
       String method,
       String type,
-      @JsonKey(name: 'created_at') DateTime? createdAt});
+      @JsonKey(name: 'created_at') DateTime? createdAt,
+      String? comment});
 }
 
 /// @nodoc
@@ -101,6 +104,7 @@ class _$PayrollPayoutModelCopyWithImpl<$Res>
     Object? method = null,
     Object? type = null,
     Object? createdAt = freezed,
+    Object? comment = freezed,
   }) {
     return _then(_self.copyWith(
       id: null == id
@@ -131,6 +135,10 @@ class _$PayrollPayoutModelCopyWithImpl<$Res>
           ? _self.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
               as DateTime?,
+      comment: freezed == comment
+          ? _self.comment
+          : comment // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }
@@ -145,7 +153,8 @@ class _PayrollPayoutModel implements PayrollPayoutModel {
       @JsonKey(name: 'payout_date') required this.payoutDate,
       required this.method,
       required this.type,
-      @JsonKey(name: 'created_at') this.createdAt});
+      @JsonKey(name: 'created_at') this.createdAt,
+      this.comment});
   factory _PayrollPayoutModel.fromJson(Map<String, dynamic> json) =>
       _$PayrollPayoutModelFromJson(json);
 
@@ -166,6 +175,8 @@ class _PayrollPayoutModel implements PayrollPayoutModel {
   @override
   @JsonKey(name: 'created_at')
   final DateTime? createdAt;
+  @override
+  final String? comment;
 
   /// Create a copy of PayrollPayoutModel
   /// with the given fields replaced by the non-null parameter values.
@@ -196,17 +207,18 @@ class _PayrollPayoutModel implements PayrollPayoutModel {
             (identical(other.method, method) || other.method == method) &&
             (identical(other.type, type) || other.type == type) &&
             (identical(other.createdAt, createdAt) ||
-                other.createdAt == createdAt));
+                other.createdAt == createdAt) &&
+            (identical(other.comment, comment) || other.comment == comment));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(
-      runtimeType, id, employeeId, amount, payoutDate, method, type, createdAt);
+  int get hashCode => Object.hash(runtimeType, id, employeeId, amount,
+      payoutDate, method, type, createdAt, comment);
 
   @override
   String toString() {
-    return 'PayrollPayoutModel(id: $id, employeeId: $employeeId, amount: $amount, payoutDate: $payoutDate, method: $method, type: $type, createdAt: $createdAt)';
+    return 'PayrollPayoutModel(id: $id, employeeId: $employeeId, amount: $amount, payoutDate: $payoutDate, method: $method, type: $type, createdAt: $createdAt, comment: $comment)';
   }
 }
 
@@ -225,7 +237,8 @@ abstract mixin class _$PayrollPayoutModelCopyWith<$Res>
       @JsonKey(name: 'payout_date') DateTime payoutDate,
       String method,
       String type,
-      @JsonKey(name: 'created_at') DateTime? createdAt});
+      @JsonKey(name: 'created_at') DateTime? createdAt,
+      String? comment});
 }
 
 /// @nodoc
@@ -248,6 +261,7 @@ class __$PayrollPayoutModelCopyWithImpl<$Res>
     Object? method = null,
     Object? type = null,
     Object? createdAt = freezed,
+    Object? comment = freezed,
   }) {
     return _then(_PayrollPayoutModel(
       id: null == id
@@ -278,6 +292,10 @@ class __$PayrollPayoutModelCopyWithImpl<$Res>
           ? _self.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
               as DateTime?,
+      comment: freezed == comment
+          ? _self.comment
+          : comment // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }

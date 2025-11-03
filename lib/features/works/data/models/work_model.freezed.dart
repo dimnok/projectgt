@@ -68,6 +68,10 @@ mixin _$WorkModel {
   @JsonKey(name: 'employees_count')
   int? get employeesCount;
 
+  /// ID сообщения Telegram с утренним отчетом.
+  @JsonKey(name: 'telegram_message_id')
+  int? get telegramMessageId;
+
   /// Create a copy of WorkModel
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -103,7 +107,9 @@ mixin _$WorkModel {
             (identical(other.itemsCount, itemsCount) ||
                 other.itemsCount == itemsCount) &&
             (identical(other.employeesCount, employeesCount) ||
-                other.employeesCount == employeesCount));
+                other.employeesCount == employeesCount) &&
+            (identical(other.telegramMessageId, telegramMessageId) ||
+                other.telegramMessageId == telegramMessageId));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -121,11 +127,12 @@ mixin _$WorkModel {
       updatedAt,
       totalAmount,
       itemsCount,
-      employeesCount);
+      employeesCount,
+      telegramMessageId);
 
   @override
   String toString() {
-    return 'WorkModel(id: $id, date: $date, objectId: $objectId, openedBy: $openedBy, status: $status, photoUrl: $photoUrl, eveningPhotoUrl: $eveningPhotoUrl, createdAt: $createdAt, updatedAt: $updatedAt, totalAmount: $totalAmount, itemsCount: $itemsCount, employeesCount: $employeesCount)';
+    return 'WorkModel(id: $id, date: $date, objectId: $objectId, openedBy: $openedBy, status: $status, photoUrl: $photoUrl, eveningPhotoUrl: $eveningPhotoUrl, createdAt: $createdAt, updatedAt: $updatedAt, totalAmount: $totalAmount, itemsCount: $itemsCount, employeesCount: $employeesCount, telegramMessageId: $telegramMessageId)';
   }
 }
 
@@ -146,7 +153,8 @@ abstract mixin class $WorkModelCopyWith<$Res> {
       @JsonKey(name: 'updated_at') DateTime? updatedAt,
       @JsonKey(name: 'total_amount') double? totalAmount,
       @JsonKey(name: 'items_count') int? itemsCount,
-      @JsonKey(name: 'employees_count') int? employeesCount});
+      @JsonKey(name: 'employees_count') int? employeesCount,
+      @JsonKey(name: 'telegram_message_id') int? telegramMessageId});
 }
 
 /// @nodoc
@@ -173,6 +181,7 @@ class _$WorkModelCopyWithImpl<$Res> implements $WorkModelCopyWith<$Res> {
     Object? totalAmount = freezed,
     Object? itemsCount = freezed,
     Object? employeesCount = freezed,
+    Object? telegramMessageId = freezed,
   }) {
     return _then(_self.copyWith(
       id: freezed == id
@@ -223,6 +232,10 @@ class _$WorkModelCopyWithImpl<$Res> implements $WorkModelCopyWith<$Res> {
           ? _self.employeesCount
           : employeesCount // ignore: cast_nullable_to_non_nullable
               as int?,
+      telegramMessageId: freezed == telegramMessageId
+          ? _self.telegramMessageId
+          : telegramMessageId // ignore: cast_nullable_to_non_nullable
+              as int?,
     ));
   }
 }
@@ -242,7 +255,8 @@ class _WorkModel implements WorkModel {
       @JsonKey(name: 'updated_at') this.updatedAt,
       @JsonKey(name: 'total_amount') this.totalAmount,
       @JsonKey(name: 'items_count') this.itemsCount,
-      @JsonKey(name: 'employees_count') this.employeesCount});
+      @JsonKey(name: 'employees_count') this.employeesCount,
+      @JsonKey(name: 'telegram_message_id') this.telegramMessageId});
   factory _WorkModel.fromJson(Map<String, dynamic> json) =>
       _$WorkModelFromJson(json);
 
@@ -311,6 +325,11 @@ class _WorkModel implements WorkModel {
   @JsonKey(name: 'employees_count')
   final int? employeesCount;
 
+  /// ID сообщения Telegram с утренним отчетом.
+  @override
+  @JsonKey(name: 'telegram_message_id')
+  final int? telegramMessageId;
+
   /// Create a copy of WorkModel
   /// with the given fields replaced by the non-null parameter values.
   @override
@@ -351,7 +370,9 @@ class _WorkModel implements WorkModel {
             (identical(other.itemsCount, itemsCount) ||
                 other.itemsCount == itemsCount) &&
             (identical(other.employeesCount, employeesCount) ||
-                other.employeesCount == employeesCount));
+                other.employeesCount == employeesCount) &&
+            (identical(other.telegramMessageId, telegramMessageId) ||
+                other.telegramMessageId == telegramMessageId));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -369,11 +390,12 @@ class _WorkModel implements WorkModel {
       updatedAt,
       totalAmount,
       itemsCount,
-      employeesCount);
+      employeesCount,
+      telegramMessageId);
 
   @override
   String toString() {
-    return 'WorkModel(id: $id, date: $date, objectId: $objectId, openedBy: $openedBy, status: $status, photoUrl: $photoUrl, eveningPhotoUrl: $eveningPhotoUrl, createdAt: $createdAt, updatedAt: $updatedAt, totalAmount: $totalAmount, itemsCount: $itemsCount, employeesCount: $employeesCount)';
+    return 'WorkModel(id: $id, date: $date, objectId: $objectId, openedBy: $openedBy, status: $status, photoUrl: $photoUrl, eveningPhotoUrl: $eveningPhotoUrl, createdAt: $createdAt, updatedAt: $updatedAt, totalAmount: $totalAmount, itemsCount: $itemsCount, employeesCount: $employeesCount, telegramMessageId: $telegramMessageId)';
   }
 }
 
@@ -397,7 +419,8 @@ abstract mixin class _$WorkModelCopyWith<$Res>
       @JsonKey(name: 'updated_at') DateTime? updatedAt,
       @JsonKey(name: 'total_amount') double? totalAmount,
       @JsonKey(name: 'items_count') int? itemsCount,
-      @JsonKey(name: 'employees_count') int? employeesCount});
+      @JsonKey(name: 'employees_count') int? employeesCount,
+      @JsonKey(name: 'telegram_message_id') int? telegramMessageId});
 }
 
 /// @nodoc
@@ -424,6 +447,7 @@ class __$WorkModelCopyWithImpl<$Res> implements _$WorkModelCopyWith<$Res> {
     Object? totalAmount = freezed,
     Object? itemsCount = freezed,
     Object? employeesCount = freezed,
+    Object? telegramMessageId = freezed,
   }) {
     return _then(_WorkModel(
       id: freezed == id
@@ -473,6 +497,10 @@ class __$WorkModelCopyWithImpl<$Res> implements _$WorkModelCopyWith<$Res> {
       employeesCount: freezed == employeesCount
           ? _self.employeesCount
           : employeesCount // ignore: cast_nullable_to_non_nullable
+              as int?,
+      telegramMessageId: freezed == telegramMessageId
+          ? _self.telegramMessageId
+          : telegramMessageId // ignore: cast_nullable_to_non_nullable
               as int?,
     ));
   }
