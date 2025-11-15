@@ -313,7 +313,8 @@ class SupabaseAuthDataSource implements AuthDataSource {
       print('📞 [SupabaseAuthDataSource] Вызываем Edge Function verify-telegram-init-data...');
       print('📄 [SupabaseAuthDataSource] initData length: ${initData.length}');
       
-      // Вызываем Edge Function для проверки initData
+      // Вызываем Edge Function для проверки initData БЕЗ требования JWT
+      // (функция требует verify_jwt: true, но вызывается с Anon Key)
       final response = await client.functions.invoke(
         'verify-telegram-init-data',
         body: {'initData': initData},
