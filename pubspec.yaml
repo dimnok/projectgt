@@ -55,6 +55,7 @@ dependencies:
   # UI
   flutter_hooks: ^0.20.3
   hooks_riverpod: ^2.4.9
+  adaptive_platform_ui: ^0.1.100
   
   # Image handling
   image_picker: ^1.1.2

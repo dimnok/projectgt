@@ -149,10 +149,27 @@ class _GTDropdownState<T> extends State<GTDropdown<T>> {
   @override
   void didUpdateWidget(GTDropdown<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (_hasSelectionChanged(oldWidget)) {
+    final hasSelectionChanged = _hasSelectionChanged(oldWidget);
+    final hasItemsChanged = widget.items.length != oldWidget.items.length ||
+        !_areItemsEqual(widget.items, oldWidget.items);
+    
+    if (hasSelectionChanged) {
       _updateDisplayText();
       _updateOverlayIfNeeded();
     }
+    
+    // Если список элементов изменился, обновляем overlay
+    if (hasItemsChanged && _isDropdownOpen) {
+      _updateOverlayIfNeeded();
+    }
+  }
+  
+  bool _areItemsEqual(List<T> list1, List<T> list2) {
+    if (list1.length != list2.length) return false;
+    for (int i = 0; i < list1.length; i++) {
+      if (list1[i] != list2[i]) return false;
+    }
+    return true;
   }
 
   bool _hasSelectionChanged(GTDropdown<T> oldWidget) {
@@ -175,6 +192,16 @@ class _GTDropdownState<T> extends State<GTDropdown<T>> {
     _addNewController.dispose();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  bool _isItemSelected(T item) {
+    if (widget.selectedItem == null) return false;
+    // Для enum используем сравнение через name для надёжности
+    if (item is Enum && widget.selectedItem is Enum) {
+      return (item as Enum).name == (widget.selectedItem as Enum).name &&
+          item.runtimeType == widget.selectedItem.runtimeType;
+    }
+    return widget.selectedItem == item;
   }
 
   void _updateDisplayText() {
@@ -338,7 +365,7 @@ class _GTDropdownState<T> extends State<GTDropdown<T>> {
     final theme = Theme.of(context);
     final isSelected = widget.allowMultipleSelection
         ? widget.selectedItems.contains(item)
-        : widget.selectedItem == item;
+        : _isItemSelected(item);
 
     return InkWell(
       onTap: () => _onItemTap(item),
@@ -797,11 +824,16 @@ class GTEnumDropdown<T extends Enum> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Всегда передаём не-null callback, даже если readOnly
+    final effectiveOnChanged = readOnly 
+        ? (T? value) {} 
+        : onChanged;
+    
     return GTDropdown<T>(
       items: values,
       itemDisplayBuilder: enumToString,
       selectedItem: selectedValue,
-      onSelectionChanged: onChanged,
+      onSelectionChanged: effectiveOnChanged,
       labelText: labelText,
       hintText: hintText,
       allowMultipleSelection: false,

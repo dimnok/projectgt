@@ -19,6 +19,11 @@ abstract class WorkSearchResult with _$WorkSearchResult {
   /// [materialName] — наименование работы (дублирует workName для совместимости)
   /// [unit] — единица измерения
   /// [quantity] — количество
+  /// [workItemId] — идентификатор записи work_item для редактирования
+  /// [workId] — идентификатор смены
+  /// [objectId] — идентификатор объекта
+  /// [workStatus] — статус смены (open/closed)
+  /// [estimateId] — идентификатор сметы
   const factory WorkSearchResult({
     /// Дата смены.
     required DateTime workDate,
@@ -49,5 +54,32 @@ abstract class WorkSearchResult with _$WorkSearchResult {
 
     /// Количество.
     required num quantity,
+
+    /// Идентификатор записи work_item.
+    String? workItemId,
+
+    /// Идентификатор смены.
+    String? workId,
+
+    /// Идентификатор объекта.
+    String? objectId,
+
+    /// Статус смены (open/closed).
+    String? workStatus,
+
+    /// Идентификатор сметы.
+    String? estimateId,
+
+    /// Цена за единицу.
+    double? price,
+
+    /// Итоговая сумма.
+    double? total,
+
+    /// Номер позиции в смете.
+    String? positionNumber,
+
+    /// Номер договора.
+    String? contractNumber,
   }) = _WorkSearchResult;
 }

@@ -53,6 +53,9 @@ enum AppRoute {
 
   /// Экран управления версиями.
   versionManagement,
+
+  /// Экран складского учёта.
+  inventory,
 }
 
 /// Виджет для группировки пунктов меню (например, "Справочники" с подпунктами).
@@ -632,6 +635,19 @@ class AppDrawer extends ConsumerWidget {
                               } else {
                                 context.pop();
                                 context.goNamed('material');
+                              }
+                            },
+                          ),
+                          DrawerItemWidget(
+                            icon: Icons.warehouse_outlined,
+                            title: 'Склад',
+                            isSelected: activeRoute == AppRoute.inventory,
+                            onTap: () {
+                              if (activeRoute == AppRoute.inventory) {
+                                context.pop();
+                              } else {
+                                context.pop();
+                                context.goNamed('inventory');
                               }
                             },
                           ),

@@ -1,3 +1,4 @@
+import 'package:adaptive_platform_ui/adaptive_platform_ui.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
@@ -26,31 +27,35 @@ class ProfileStatusSwitch extends StatelessWidget {
   });
 
   Future<bool> _confirmDisable(BuildContext context) async {
-    final result = await showCupertinoDialog<bool>(
+    bool? result;
+    await AdaptiveAlertDialog.show(
       context: context,
-      builder: (ctx) => CupertinoAlertDialog(
-        title: const Text('Подтвердите действие'),
-        content: const Text('Сделать профиль неактивным?'),
-        actions: [
-          CupertinoDialogAction(
-            isDefaultAction: true,
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Отмена'),
-          ),
-          CupertinoDialogAction(
-            isDestructiveAction: true,
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Отключить'),
-          ),
-        ],
-      ),
+      title: 'Подтвердите действие',
+      message:
+          'Профиль будет отключён, и пользователь будет автоматически разлогинен на всех устройствах.',
+      actions: [
+        AlertAction(
+          title: 'Отмена',
+          style: AlertActionStyle.cancel,
+          onPressed: () {
+            result = false;
+          },
+        ),
+        AlertAction(
+          title: 'Отключить',
+          style: AlertActionStyle.primary,
+          onPressed: () {
+            result = true;
+          },
+        ),
+      ],
     );
     return result == true;
   }
 
   @override
   Widget build(BuildContext context) {
-    return Switch.adaptive(
+    return AdaptiveSwitch(
       value: value,
       onChanged: (!canToggle || isBusy)
           ? null

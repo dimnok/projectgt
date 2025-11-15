@@ -1,4 +1,3 @@
-import '../../domain/entities/work_search_result.dart';
 import '../../domain/repositories/work_search_repository.dart';
 import '../datasources/work_search_data_source.dart';
 
@@ -11,11 +10,16 @@ class WorkSearchRepositoryImpl implements WorkSearchRepository {
   WorkSearchRepositoryImpl(this.dataSource);
 
   @override
-  Future<List<WorkSearchResult>> searchMaterials({
-    required String searchQuery,
+  Future<WorkSearchPaginatedResult> searchMaterials({
+    String? searchQuery,
     DateTime? startDate,
     DateTime? endDate,
     String? objectId,
+    int page = 1,
+    int pageSize = 250,
+    List<String>? systemFilters,
+    List<String>? sectionFilters,
+    List<String>? floorFilters,
   }) async {
     try {
       return await dataSource.searchMaterials(
@@ -23,9 +27,31 @@ class WorkSearchRepositoryImpl implements WorkSearchRepository {
         startDate: startDate,
         endDate: endDate,
         objectId: objectId,
+        page: page,
+        pageSize: pageSize,
+        systemFilters: systemFilters,
+        sectionFilters: sectionFilters,
+        floorFilters: floorFilters,
       );
     } catch (e) {
       throw Exception('Ошибка поиска работ в репозитории: $e');
+    }
+  }
+
+  @override
+  Future<WorkSearchFilterValues> getFilterValues({
+    required String objectId,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    try {
+      return await dataSource.getFilterValues(
+        objectId: objectId,
+        startDate: startDate,
+        endDate: endDate,
+      );
+    } catch (e) {
+      throw Exception('Ошибка получения значений фильтров в репозитории: $e');
     }
   }
 }

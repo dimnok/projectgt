@@ -700,8 +700,7 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
           ref.read(monthGroupsProvider.notifier).updateWorkInGroup(freshWork);
           await _sendTelegramReport(freshWork);
         } else {
-          SnackBarUtils.showError(
-              context, 'Не удалось загрузить данные смены');
+          SnackBarUtils.showError(context, 'Не удалось загрузить данные смены');
         }
       }
     } catch (e) {

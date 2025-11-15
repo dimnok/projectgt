@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/domain/entities/user.dart';
+import 'package:projectgt/core/services/telegram_mini_app_service.dart';
 // Telegram сущности удалены
 import 'package:projectgt/core/web/web_adapter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supa;
@@ -402,6 +403,55 @@ class AuthNotifier extends StateNotifier<AuthState> {
         status: AuthStatus.unauthenticated,
         user: null,
       );
+    } catch (e) {
+      state = state.copyWith(
+        status: AuthStatus.error,
+        errorMessage: e.toString(),
+      );
+    }
+  }
+
+  /// Верифицирует Telegram Mini App и аутентифицирует пользователя.
+  Future<void> verifyTelegramMiniApp() async {
+    state = state.copyWith(status: AuthStatus.loading);
+    try {
+      final initData = TelegramMiniAppService.getInitData();
+      if (initData == null || initData.isEmpty) {
+        throw Exception('Telegram данные не доступны');
+      }
+
+      // Вызываем datasource напрямую
+      final authDataSource = _ref.read(authDataSourceProvider);
+      final userModel = await authDataSource.verifyTelegramInitData(initData);
+      
+      final user = User(
+        id: userModel.id,
+        email: userModel.email,
+        name: userModel.name,
+        photoUrl: userModel.photoUrl,
+        role: userModel.role,
+      );
+
+      // Проверяем статус профиля
+      try {
+        final profile = await supa.Supabase.instance.client
+            .from('profiles')
+            .select('status, approved_at')
+            .eq('id', user.id)
+            .single();
+        final bool statusFlag = (profile['status'] as bool?) ?? false;
+        final bool everApproved = profile['approved_at'] != null;
+        state = state.copyWith(
+          status: statusFlag
+              ? AuthStatus.authenticated
+              : (everApproved
+                  ? AuthStatus.disabled
+                  : AuthStatus.pendingApproval),
+          user: user,
+        );
+      } catch (_) {
+        state = state.copyWith(status: AuthStatus.pendingApproval, user: user);
+      }
     } catch (e) {
       state = state.copyWith(
         status: AuthStatus.error,

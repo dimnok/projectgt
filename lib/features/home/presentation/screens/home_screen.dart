@@ -11,8 +11,6 @@ import 'package:projectgt/presentation/state/contract_state.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
-import 'package:projectgt/features/export/presentation/providers/export_provider.dart';
-import 'package:projectgt/features/export/domain/entities/export_filter.dart';
 import 'package:projectgt/features/home/presentation/widgets/contract_progress_widget.dart';
 import 'package:projectgt/features/home/presentation/widgets/shifts_calendar_widgets.dart';
 import 'package:projectgt/features/home/presentation/widgets/work_plan_summary_widget.dart';
@@ -63,13 +61,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ref.read(employeeProvider.notifier).getEmployees();
         ref.read(estimateNotifierProvider.notifier).loadEstimates();
         ref.read(workPlanNotifierProvider.notifier).loadWorkPlans();
-        final now = DateTime.now();
-        final dateFrom = DateTime(now.year, now.month, now.day)
-            .subtract(const Duration(days: 30));
-        final dateTo = DateTime(now.year, now.month, now.day);
-        ref
-            .read(exportProvider.notifier)
-            .loadReportData(ExportFilter(dateFrom: dateFrom, dateTo: dateTo));
       });
     }
   }
@@ -91,32 +82,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final contractorsState = ref.watch(contractorProvider);
     final contractsState = ref.watch(contractProvider);
     final estimatesState = ref.watch(estimateNotifierProvider);
-    final exportState = ref.watch(exportProvider);
 
     final userDisplayName =
         profileState.profile?.shortName ?? authState.user?.name ?? 'USER';
 
-    // Подсчёт топовой смены по сумме из отчётов экспорта
+    // Метрика: топовая смена (недоступна без модуля выгрузки)
     String topShiftSubtitle = 'Нет данных';
     int shiftsCount = 0;
-    if (exportState.reports.isNotEmpty) {
-      final Map<DateTime, double> sumByDate = {};
-      for (final r in exportState.reports) {
-        final d = DateTime(r.workDate.year, r.workDate.month, r.workDate.day);
-        final total = (r.total ?? 0).toDouble();
-        sumByDate[d] = (sumByDate[d] ?? 0) + total;
-      }
-      shiftsCount = sumByDate.length;
-      if (sumByDate.isNotEmpty) {
-        final top =
-            sumByDate.entries.reduce((a, b) => a.value >= b.value ? a : b);
-        final dateStr = DateFormat('dd.MM.yyyy').format(top.key);
-        final amountStr = NumberFormat.currency(
-                locale: 'ru_RU', symbol: '₽', decimalDigits: 0)
-            .format(top.value);
-        topShiftSubtitle = 'Топ смена $dateStr: $amountStr';
-      }
-    }
 
     final isAdmin = authState.user?.role == 'admin';
 
@@ -126,7 +98,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         value: shiftsCount,
         icon: CupertinoIcons.hammer,
         subtitle: topShiftSubtitle,
-        isLoading: exportState.isLoading,
+        isLoading: false,
         accent: _telegramBlue, // Changed from _telegramBlue
         onTap: () => context.goNamed('works'),
       ),

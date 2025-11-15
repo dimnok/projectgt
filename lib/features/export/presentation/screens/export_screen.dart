@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
-import '../widgets/export_date_filter.dart';
-import '../widgets/export_filters_action.dart';
-import '../widgets/export_excel_action.dart';
+import '../widgets/export_search_action.dart';
+import '../widgets/export_search_filter_chips.dart';
+import '../widgets/work_search_date_filter.dart';
+import '../widgets/work_search_export_action.dart';
+import '../providers/work_search_provider.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
-import 'tabs/export_tab_reports.dart';
 import 'tabs/export_tab_search.dart';
 
-/// Основной экран модуля выгрузки.
+/// Экран поиска по работам.
 class ExportScreen extends ConsumerStatefulWidget {
-  /// Создаёт экран выгрузки.
+  /// Создаёт экран поиска.
   const ExportScreen({super.key});
 
   @override
@@ -18,83 +21,115 @@ class ExportScreen extends ConsumerStatefulWidget {
 }
 
 class _ExportScreenState extends ConsumerState<ExportScreen> {
-  /// Индекс выбранного таба.
-  int _selectedTabIndex = 0;
+  /// Слушатель на изменения маршрута.
+  VoidCallback? _routeListener;
 
-  /// Список табов.
-  final List<Tab> _tabs = const [
-    Tab(text: 'Выгрузка'),
-    Tab(text: 'Поиск'),
-  ];
+  /// Текущий маршрут для отслеживания уходов со скрина.
+  String? _currentRoute;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      try {
+        final router = GoRouter.of(context);
+        _currentRoute = router.routeInformationProvider.value.location;
+        _routeListener = () => _checkRouteChange();
+        router.routeInformationProvider.addListener(_routeListener!);
+      } catch (e) {
+        debugPrint('Error adding router listener: $e');
+      }
+    });
+  }
+
+  /// Проверяет, уходим ли со скрина в другой модуль.
+  void _checkRouteChange() {
+    if (!mounted) return;
+    try {
+      final router = GoRouter.of(context);
+      final newRoute = router.routeInformationProvider.value.location;
+      // Если текущий маршрут — поиск, а новый — нет, очищаем поиск
+      if (_currentRoute != null &&
+          _currentRoute!.startsWith('/export') &&
+          !newRoute.startsWith('/export')) {
+        _clearSearch();
+      }
+      _currentRoute = newRoute;
+    } catch (e) {
+      debugPrint('Error checking route: $e');
+    }
+  }
+
+  /// Очищает состояние поиска и все фильтры.
+  void _clearSearch() {
+    if (!mounted) return;
+    ref.read(exportSearchQueryProvider.notifier).state = '';
+    ref.read(exportSearchVisibleProvider.notifier).state = false;
+    ref.read(workSearchProvider.notifier).clearResults();
+    ref.read(exportSelectedObjectIdProvider.notifier).state = null;
+    ref.read(exportSearchFilterProvider.notifier).state = {
+      'system': <String>{},
+      'section': <String>{},
+      'floor': <String>{},
+    };
+  }
 
   @override
   void dispose() {
+    try {
+      if (_routeListener != null) {
+        final router = GoRouter.of(context);
+        router.routeInformationProvider.removeListener(_routeListener!);
+      }
+    } catch (e) {
+      debugPrint('Error removing router listener: $e');
+    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final isDesktop = ResponsiveUtils.isDesktop(context);
 
     return Scaffold(
-      appBar: const AppBarWidget(
-        title: 'Выгрузка данных',
+      appBar: AppBarWidget(
+        title: 'Поиск по работам',
         actions: [
-          ExportDateRangeAction(),
-          ExportFiltersAction(),
-          ExportExcelAction()
+          // Кнопка поиска показывается только на десктопе
+          if (isDesktop) const ExportSearchAction(),
+          // Календарь для выбора периода
+          const WorkSearchDateRangeAction(),
+          // Кнопка экспорта результатов
+          const WorkSearchExportAction(),
         ],
       ),
       drawer: const AppDrawer(activeRoute: AppRoute.export),
-      body: _selectedTabIndex == 1
-          ? // Таб "Поиск" - отображается полностью сам по себе с собственными табами
-          ExportTabSearch(
-              onSwitchToReports: () {
-                setState(() {
-                  _selectedTabIndex = 0;
-                });
-              },
-            )
-          : // Таб "Выгрузка"
-          Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Табы
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 24.0, vertical: 4.0),
-                  child: DefaultTabController(
-                    length: _tabs.length,
-                    initialIndex: _selectedTabIndex,
-                    child: Builder(
-                      builder: (context) {
-                        final TabController tabController =
-                            DefaultTabController.of(context);
-                        tabController.addListener(() {
-                          if (tabController.indexIsChanging) {
-                            setState(() {
-                              _selectedTabIndex = tabController.index;
-                            });
-                          }
-                        });
-                        return TabBar(
-                          tabs: _tabs,
-                          controller: tabController,
-                          labelColor: theme.colorScheme.primary,
-                          unselectedLabelColor: theme.colorScheme.outline,
-                          indicatorColor: theme.colorScheme.primary,
-                        );
-                      },
-                    ),
-                  ),
-                ),
-
-                // Контент таба "Выгрузка"
-                const Expanded(
-                  child: ExportTabReports(),
-                ),
-              ],
+      body: GestureDetector(
+        // Закрываем поле поиска при клике вне его, если запрос пуст
+        onTap: () {
+          final searchVisible = ref.read(exportSearchVisibleProvider);
+          final searchQuery = ref.read(exportSearchQueryProvider);
+          // Закрываем только если поле видимо и запрос пуст
+          if (searchVisible && searchQuery.trim().isEmpty) {
+            ref.read(exportSearchVisibleProvider.notifier).state = false;
+          }
+        },
+        // Позволяем кликам проходить через GestureDetector к дочерним элементам
+        behavior: HitTestBehavior.translucent,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Чипы фильтров (показываются только когда есть результаты поиска и это десктоп)
+            if (ResponsiveUtils.isDesktop(context))
+              const ExportSearchFilterChips(),
+            // Контент - таб поиска
+            const Expanded(
+              child: ExportTabSearch(),
             ),
+          ],
+        ),
+      ),
     );
   }
 }

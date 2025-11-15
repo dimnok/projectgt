@@ -1,3 +1,4 @@
+import 'package:adaptive_platform_ui/adaptive_platform_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
@@ -193,13 +194,15 @@ class _NotificationsSettingsScreenState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  SwitchListTile.adaptive(
-                    value: _enabled,
-                    onChanged: (v) => setState(() => _enabled = v),
+                  ListTile(
+                    leading: const Icon(Icons.notifications_active_outlined),
                     title: const Text('Включить напоминания о сменах'),
                     subtitle:
                         const Text('Если выключено — напоминания не приходят'),
-                    secondary: const Icon(Icons.notifications_active_outlined),
+                    trailing: AdaptiveSwitch(
+                      value: _enabled,
+                      onChanged: (v) => setState(() => _enabled = v),
+                    ),
                   ),
                   if (_enabled) ...[
                     const SizedBox(height: 16),
@@ -256,7 +259,10 @@ class _NotificationsSettingsScreenState
   }) {
     return Row(
       children: [
-        Switch.adaptive(value: enabled, onChanged: onToggle),
+        AdaptiveSwitch(
+          value: enabled,
+          onChanged: onToggle,
+        ),
         const SizedBox(width: 8),
         Expanded(
           child: Opacity(

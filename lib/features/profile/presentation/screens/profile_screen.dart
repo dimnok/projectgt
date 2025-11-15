@@ -1,3 +1,4 @@
+import 'package:adaptive_platform_ui/adaptive_platform_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/cupertino.dart';
@@ -228,24 +229,28 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _confirmLogout() async {
-    final confirmed = await showCupertinoDialog<bool>(
+    bool? confirmed;
+    await AdaptiveAlertDialog.show(
       context: context,
-      builder: (ctx) => CupertinoAlertDialog(
-        title: const Text('Подтвердить выход'),
-        content: const Text('Вы действительно хотите выйти из аккаунта?'),
-        actions: [
-          CupertinoDialogAction(
-            isDefaultAction: true,
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Отмена'),
-          ),
-          CupertinoDialogAction(
-            isDestructiveAction: true,
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Выйти'),
-          ),
-        ],
-      ),
+      title: 'Подтвердить выход',
+      message: 'Вы действительно хотите выйти из аккаунта?',
+      icon: 'arrow.right.square.fill',
+      actions: [
+        AlertAction(
+          title: 'Отмена',
+          style: AlertActionStyle.cancel,
+          onPressed: () {
+            confirmed = false;
+          },
+        ),
+        AlertAction(
+          title: 'Выйти',
+          style: AlertActionStyle.destructive,
+          onPressed: () {
+            confirmed = true;
+          },
+        ),
+      ],
     );
     if (confirmed == true) {
       await ref.read(authProvider.notifier).logout();

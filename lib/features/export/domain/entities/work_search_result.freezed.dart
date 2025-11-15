@@ -45,6 +45,33 @@ mixin _$WorkSearchResult {
   /// Количество.
   num get quantity;
 
+  /// Идентификатор записи work_item.
+  String? get workItemId;
+
+  /// Идентификатор смены.
+  String? get workId;
+
+  /// Идентификатор объекта.
+  String? get objectId;
+
+  /// Статус смены (open/closed).
+  String? get workStatus;
+
+  /// Идентификатор сметы.
+  String? get estimateId;
+
+  /// Цена за единицу.
+  double? get price;
+
+  /// Итоговая сумма.
+  double? get total;
+
+  /// Номер позиции в смете.
+  String? get positionNumber;
+
+  /// Номер договора.
+  String? get contractNumber;
+
   /// Create a copy of WorkSearchResult
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -73,16 +100,51 @@ mixin _$WorkSearchResult {
                 other.materialName == materialName) &&
             (identical(other.unit, unit) || other.unit == unit) &&
             (identical(other.quantity, quantity) ||
-                other.quantity == quantity));
+                other.quantity == quantity) &&
+            (identical(other.workItemId, workItemId) ||
+                other.workItemId == workItemId) &&
+            (identical(other.workId, workId) || other.workId == workId) &&
+            (identical(other.objectId, objectId) ||
+                other.objectId == objectId) &&
+            (identical(other.workStatus, workStatus) ||
+                other.workStatus == workStatus) &&
+            (identical(other.estimateId, estimateId) ||
+                other.estimateId == estimateId) &&
+            (identical(other.price, price) || other.price == price) &&
+            (identical(other.total, total) || other.total == total) &&
+            (identical(other.positionNumber, positionNumber) ||
+                other.positionNumber == positionNumber) &&
+            (identical(other.contractNumber, contractNumber) ||
+                other.contractNumber == contractNumber));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, workDate, objectName, system,
-      subsystem, section, floor, workName, materialName, unit, quantity);
+  int get hashCode => Object.hashAll([
+        runtimeType,
+        workDate,
+        objectName,
+        system,
+        subsystem,
+        section,
+        floor,
+        workName,
+        materialName,
+        unit,
+        quantity,
+        workItemId,
+        workId,
+        objectId,
+        workStatus,
+        estimateId,
+        price,
+        total,
+        positionNumber,
+        contractNumber
+      ]);
 
   @override
   String toString() {
-    return 'WorkSearchResult(workDate: $workDate, objectName: $objectName, system: $system, subsystem: $subsystem, section: $section, floor: $floor, workName: $workName, materialName: $materialName, unit: $unit, quantity: $quantity)';
+    return 'WorkSearchResult(workDate: $workDate, objectName: $objectName, system: $system, subsystem: $subsystem, section: $section, floor: $floor, workName: $workName, materialName: $materialName, unit: $unit, quantity: $quantity, workItemId: $workItemId, workId: $workId, objectId: $objectId, workStatus: $workStatus, estimateId: $estimateId, price: $price, total: $total, positionNumber: $positionNumber, contractNumber: $contractNumber)';
   }
 }
 
@@ -102,7 +164,16 @@ abstract mixin class $WorkSearchResultCopyWith<$Res> {
       String workName,
       String materialName,
       String unit,
-      num quantity});
+      num quantity,
+      String? workItemId,
+      String? workId,
+      String? objectId,
+      String? workStatus,
+      String? estimateId,
+      double? price,
+      double? total,
+      String? positionNumber,
+      String? contractNumber});
 }
 
 /// @nodoc
@@ -128,6 +199,15 @@ class _$WorkSearchResultCopyWithImpl<$Res>
     Object? materialName = null,
     Object? unit = null,
     Object? quantity = null,
+    Object? workItemId = freezed,
+    Object? workId = freezed,
+    Object? objectId = freezed,
+    Object? workStatus = freezed,
+    Object? estimateId = freezed,
+    Object? price = freezed,
+    Object? total = freezed,
+    Object? positionNumber = freezed,
+    Object? contractNumber = freezed,
   }) {
     return _then(_self.copyWith(
       workDate: null == workDate
@@ -170,6 +250,42 @@ class _$WorkSearchResultCopyWithImpl<$Res>
           ? _self.quantity
           : quantity // ignore: cast_nullable_to_non_nullable
               as num,
+      workItemId: freezed == workItemId
+          ? _self.workItemId
+          : workItemId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      workId: freezed == workId
+          ? _self.workId
+          : workId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      objectId: freezed == objectId
+          ? _self.objectId
+          : objectId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      workStatus: freezed == workStatus
+          ? _self.workStatus
+          : workStatus // ignore: cast_nullable_to_non_nullable
+              as String?,
+      estimateId: freezed == estimateId
+          ? _self.estimateId
+          : estimateId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      price: freezed == price
+          ? _self.price
+          : price // ignore: cast_nullable_to_non_nullable
+              as double?,
+      total: freezed == total
+          ? _self.total
+          : total // ignore: cast_nullable_to_non_nullable
+              as double?,
+      positionNumber: freezed == positionNumber
+          ? _self.positionNumber
+          : positionNumber // ignore: cast_nullable_to_non_nullable
+              as String?,
+      contractNumber: freezed == contractNumber
+          ? _self.contractNumber
+          : contractNumber // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }
@@ -187,7 +303,16 @@ class _WorkSearchResult implements WorkSearchResult {
       required this.workName,
       required this.materialName,
       required this.unit,
-      required this.quantity});
+      required this.quantity,
+      this.workItemId,
+      this.workId,
+      this.objectId,
+      this.workStatus,
+      this.estimateId,
+      this.price,
+      this.total,
+      this.positionNumber,
+      this.contractNumber});
 
   /// Дата смены.
   @override
@@ -229,6 +354,42 @@ class _WorkSearchResult implements WorkSearchResult {
   @override
   final num quantity;
 
+  /// Идентификатор записи work_item.
+  @override
+  final String? workItemId;
+
+  /// Идентификатор смены.
+  @override
+  final String? workId;
+
+  /// Идентификатор объекта.
+  @override
+  final String? objectId;
+
+  /// Статус смены (open/closed).
+  @override
+  final String? workStatus;
+
+  /// Идентификатор сметы.
+  @override
+  final String? estimateId;
+
+  /// Цена за единицу.
+  @override
+  final double? price;
+
+  /// Итоговая сумма.
+  @override
+  final double? total;
+
+  /// Номер позиции в смете.
+  @override
+  final String? positionNumber;
+
+  /// Номер договора.
+  @override
+  final String? contractNumber;
+
   /// Create a copy of WorkSearchResult
   /// with the given fields replaced by the non-null parameter values.
   @override
@@ -257,16 +418,51 @@ class _WorkSearchResult implements WorkSearchResult {
                 other.materialName == materialName) &&
             (identical(other.unit, unit) || other.unit == unit) &&
             (identical(other.quantity, quantity) ||
-                other.quantity == quantity));
+                other.quantity == quantity) &&
+            (identical(other.workItemId, workItemId) ||
+                other.workItemId == workItemId) &&
+            (identical(other.workId, workId) || other.workId == workId) &&
+            (identical(other.objectId, objectId) ||
+                other.objectId == objectId) &&
+            (identical(other.workStatus, workStatus) ||
+                other.workStatus == workStatus) &&
+            (identical(other.estimateId, estimateId) ||
+                other.estimateId == estimateId) &&
+            (identical(other.price, price) || other.price == price) &&
+            (identical(other.total, total) || other.total == total) &&
+            (identical(other.positionNumber, positionNumber) ||
+                other.positionNumber == positionNumber) &&
+            (identical(other.contractNumber, contractNumber) ||
+                other.contractNumber == contractNumber));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, workDate, objectName, system,
-      subsystem, section, floor, workName, materialName, unit, quantity);
+  int get hashCode => Object.hashAll([
+        runtimeType,
+        workDate,
+        objectName,
+        system,
+        subsystem,
+        section,
+        floor,
+        workName,
+        materialName,
+        unit,
+        quantity,
+        workItemId,
+        workId,
+        objectId,
+        workStatus,
+        estimateId,
+        price,
+        total,
+        positionNumber,
+        contractNumber
+      ]);
 
   @override
   String toString() {
-    return 'WorkSearchResult(workDate: $workDate, objectName: $objectName, system: $system, subsystem: $subsystem, section: $section, floor: $floor, workName: $workName, materialName: $materialName, unit: $unit, quantity: $quantity)';
+    return 'WorkSearchResult(workDate: $workDate, objectName: $objectName, system: $system, subsystem: $subsystem, section: $section, floor: $floor, workName: $workName, materialName: $materialName, unit: $unit, quantity: $quantity, workItemId: $workItemId, workId: $workId, objectId: $objectId, workStatus: $workStatus, estimateId: $estimateId, price: $price, total: $total, positionNumber: $positionNumber, contractNumber: $contractNumber)';
   }
 }
 
@@ -288,7 +484,16 @@ abstract mixin class _$WorkSearchResultCopyWith<$Res>
       String workName,
       String materialName,
       String unit,
-      num quantity});
+      num quantity,
+      String? workItemId,
+      String? workId,
+      String? objectId,
+      String? workStatus,
+      String? estimateId,
+      double? price,
+      double? total,
+      String? positionNumber,
+      String? contractNumber});
 }
 
 /// @nodoc
@@ -314,6 +519,15 @@ class __$WorkSearchResultCopyWithImpl<$Res>
     Object? materialName = null,
     Object? unit = null,
     Object? quantity = null,
+    Object? workItemId = freezed,
+    Object? workId = freezed,
+    Object? objectId = freezed,
+    Object? workStatus = freezed,
+    Object? estimateId = freezed,
+    Object? price = freezed,
+    Object? total = freezed,
+    Object? positionNumber = freezed,
+    Object? contractNumber = freezed,
   }) {
     return _then(_WorkSearchResult(
       workDate: null == workDate
@@ -356,6 +570,42 @@ class __$WorkSearchResultCopyWithImpl<$Res>
           ? _self.quantity
           : quantity // ignore: cast_nullable_to_non_nullable
               as num,
+      workItemId: freezed == workItemId
+          ? _self.workItemId
+          : workItemId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      workId: freezed == workId
+          ? _self.workId
+          : workId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      objectId: freezed == objectId
+          ? _self.objectId
+          : objectId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      workStatus: freezed == workStatus
+          ? _self.workStatus
+          : workStatus // ignore: cast_nullable_to_non_nullable
+              as String?,
+      estimateId: freezed == estimateId
+          ? _self.estimateId
+          : estimateId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      price: freezed == price
+          ? _self.price
+          : price // ignore: cast_nullable_to_non_nullable
+              as double?,
+      total: freezed == total
+          ? _self.total
+          : total // ignore: cast_nullable_to_non_nullable
+              as double?,
+      positionNumber: freezed == positionNumber
+          ? _self.positionNumber
+          : positionNumber // ignore: cast_nullable_to_non_nullable
+              as String?,
+      contractNumber: freezed == contractNumber
+          ? _self.contractNumber
+          : contractNumber // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }

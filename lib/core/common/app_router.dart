@@ -36,6 +36,13 @@ import 'package:projectgt/features/work_plans/presentation/screens/work_plan_det
 import 'package:projectgt/features/work_plans/presentation/screens/work_plan_edit_screen.dart';
 import 'package:projectgt/features/materials/presentation/screens/material_screen.dart';
 import 'package:projectgt/features/materials/presentation/screens/materials_mapping_screen.dart';
+import 'package:projectgt/features/inventory/presentation/screens/inventory_screen.dart';
+import 'package:projectgt/features/inventory/presentation/screens/inventory_receipt_screen.dart';
+import 'package:projectgt/features/inventory/presentation/screens/inventory_item_details_screen.dart';
+import 'package:projectgt/features/inventory/presentation/screens/inventory_transfer_screen.dart';
+import 'package:projectgt/features/inventory/presentation/screens/inventory_breakdowns_screen.dart';
+import 'package:projectgt/features/inventory/presentation/screens/inventory_inventory_screen.dart';
+import 'package:projectgt/features/inventory/presentation/screens/inventory_categories_reference_screen.dart';
 // Telegram moderation экраны удалены
 import 'package:projectgt/core/widgets/auth_gate.dart';
 import 'package:projectgt/features/version_control/presentation/force_update_screen.dart';
@@ -545,6 +552,61 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const MaterialsMappingScreen(),
       ),
 
+      // Маршрут для складского учёта
+      GoRoute(
+        path: AppRoutes.inventory,
+        name: 'inventory',
+        builder: (context, state) => const InventoryScreen(),
+        routes: [
+          // Маршрут для прихода ТМЦ
+          GoRoute(
+            path: 'receipt',
+            name: 'inventory_receipt',
+            builder: (context, state) => const InventoryReceiptScreen(),
+          ),
+          // Маршрут для добавления ТМЦ без накладной (редирект на receipt с переключателем)
+          GoRoute(
+            path: 'add',
+            name: 'inventory_item_add',
+            builder: (context, state) => const InventoryReceiptScreen(hasReceipt: false),
+          ),
+          // Маршрут для карточки ТМЦ
+          GoRoute(
+            path: 'item/:itemId',
+            name: 'inventory_item_details',
+            builder: (context, state) {
+              final itemId = state.pathParameters['itemId']!;
+              return InventoryItemDetailsScreen(itemId: itemId);
+            },
+          ),
+          // Маршрут для передачи/выдачи ТМЦ
+          GoRoute(
+            path: 'transfer',
+            name: 'inventory_transfer',
+            builder: (context, state) => const InventoryTransferScreen(),
+          ),
+          // Маршрут для поломок/утрат
+          GoRoute(
+            path: 'breakdowns',
+            name: 'inventory_breakdowns',
+            builder: (context, state) => const InventoryBreakdownsScreen(),
+          ),
+          // Маршрут для инвентаризации
+          GoRoute(
+            path: 'check',
+            name: 'inventory_inventory',
+            builder: (context, state) => const InventoryInventoryScreen(),
+          ),
+          // Маршрут для справочника категорий ТМЦ
+          GoRoute(
+            path: 'categories',
+            name: 'inventory_categories_reference',
+            builder: (context, state) =>
+                const InventoryCategoriesReferenceScreen(),
+          ),
+        ],
+      ),
+
       // Маршрут для экрана принудительного обновления
       GoRoute(
         path: AppRoutes.forceUpdate,
@@ -631,6 +693,9 @@ class AppRoutes {
 
   /// Маршрут для экрана сопоставления материалов
   static const String materialMapping = '/material/mapping';
+
+  /// Маршрут для складского учёта
+  static const String inventory = '/inventory';
 
   /// Маршрут для экрана принудительного обновления
   static const String forceUpdate = '/force-update';

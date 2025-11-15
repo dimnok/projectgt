@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:email_validator/email_validator.dart';
 
 import 'package:projectgt/presentation/state/auth_state.dart';
+import 'package:projectgt/core/services/telegram_mini_app_service.dart';
 import '../widgets/otp_input_bottom_sheet.dart';
+import '../widgets/telegram_mini_app_login.dart';
 
 /// Экран входа пользователя в систему.
 class LoginScreen extends ConsumerStatefulWidget {
@@ -65,6 +67,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final size = MediaQuery.of(context).size;
     final isDesktop = size.width > 600;
     final contentWidth = isDesktop ? 450.0 : double.infinity;
+    final isMobile = size.width < 600;
+    final isTelegram = TelegramMiniAppService.isTelegramMiniApp();
+
+    // Если это Telegram Mini App на мобильном — показываем другой экран
+    if (isTelegram && isMobile) {
+      return const TelegramMiniAppLogin();
+    }
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,

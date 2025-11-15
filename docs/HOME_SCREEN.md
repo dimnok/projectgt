@@ -11,15 +11,16 @@
 - Виджет прогресса по договору: `features/home/presentation/widgets/contract_progress_widget.dart`
 
 ## Источник данных
-- Данные берутся из провайдера `exportProvider` (`features/export/presentation/providers/export_provider.dart`).
-- Загрузка и обновление: в `HomeScreen.didChangeDependencies()` вызывается `loadReportData()` с периодом последних 30 дней.
+- ⚠️ **Функциональность обновлена:** модуль выгрузки был удален.
+- Текущая версия: данные берутся из провайдеров работ и объектов.
+- На момент последнего обновления: модуль выгрузки содержал `exportProvider`, но эта функциональность была упрощена.
 
 ## Логика агрегации
-- Используются отчёты `ExportReport` после группировки на уровне data source (`ExportDataSourceImpl`).
-- Для heatmap фильтруются записи текущего месяца, далее:
+- Для heatmap используются данные из модуля работ (work_items, works).
+- Фильтруются записи текущего месяца, далее:
   - Суммирование по дню: `sumByDate[date] += (report.total ?? 0)`.
   - Подсчитывается `maxValue` по всем датам месяца для цветового акцента.
-- Ключевая правка: группировка отчётных строк учитывает дату (по дню), что исключает «слипание» сумм разных дат и гарантирует корректные суммы.
+- Ключевая правка: группировка записей учитывает дату (по дню), что исключает «слипание» сумм разных дат и гарантирует корректные суммы.
 
 ## Отрисовка
 - Сетка месяца (Пн..Вс) формируется по текущему месяцу с префиксными пустыми ячейками.
@@ -60,13 +61,7 @@
 - Mobile/Tablet: календарь и прогресс по договору объединены в один контейнер со свайпом (`PageView`).
 
 ## Связанные файлы
-- `features/export/data/datasources/export_data_source_impl.dart` — группировка по дню
-- `features/export/domain/entities/export_report.dart` — сущность отчёта
 - `features/home/presentation/screens/home_screen.dart` — точка интеграции
 - `features/home/presentation/widgets/shifts_calendar_widgets.dart` — календарь и flip
 - `features/home/presentation/widgets/contract_progress_widget.dart` — прогресс договора
-
-## Связанные файлы
-- `features/export/data/datasources/export_data_source_impl.dart` — группировка по дню
-- `features/export/domain/entities/export_report.dart` — сущность отчёта
-- `features/home/presentation/screens/home_screen.dart` — реализация heatmap
+- `features/works/` — модуль с работами и материалами

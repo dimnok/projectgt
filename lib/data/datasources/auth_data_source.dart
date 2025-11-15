@@ -47,6 +47,9 @@ abstract class AuthDataSource {
     required String fullName,
     required String phone,
   });
+
+  /// Верифицирует Telegram Mini App initData и возвращает пользователя.
+  Future<UserModel> verifyTelegramInitData(String initData);
 }
 
 /// Реализация [AuthDataSource] через Supabase.
@@ -301,6 +304,55 @@ class SupabaseAuthDataSource implements AuthDataSource {
     } catch (e) {
       logger.e('Ошибка обновления профиля: $e');
       throw Exception('Не удалось обновить профиль: $e');
+    }
+  }
+
+  @override
+  Future<UserModel> verifyTelegramInitData(String initData) async {
+    try {
+      // Вызываем Edge Function для проверки initData
+      final response = await client.functions.invoke(
+        'verify-telegram-init-data',
+        body: {'initData': initData},
+      );
+
+      final data = response as Map<String, dynamic>;
+      final accessToken = data['access_token'] as String?;
+      
+      if (accessToken == null) {
+        throw Exception('Не удалось получить токен от Telegram');
+      }
+
+      // Устанавливаем сессию и получаем пользователя
+      await client.auth.setSession(accessToken);
+      final user = client.auth.currentUser;
+      
+      if (user == null) {
+        throw Exception('Пользователь не найден после авторизации');
+      }
+
+      String role = 'user';
+      try {
+        final profileData = await client
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+        if (profileData['role'] != null) {
+          role = profileData['role'];
+        }
+      } catch (_) {}
+
+      return UserModel(
+        id: user.id,
+        email: user.email ?? '',
+        name: user.userMetadata?['name'] as String?,
+        photoUrl: user.userMetadata?['photoUrl'] as String?,
+        role: role,
+      );
+    } catch (e) {
+      logger.e('Ошибка верификации Telegram: $e');
+      throw Exception('Ошибка авторизации через Telegram: $e');
     }
   }
 }

@@ -5,6 +5,8 @@ import 'package:projectgt/features/employees/presentation/screens/employee_form_
 import 'package:projectgt/features/works/presentation/screens/work_form_screen.dart';
 import 'package:projectgt/features/works/presentation/screens/work_hour_form_modal.dart';
 import 'package:projectgt/features/works/presentation/screens/new_material_modal.dart';
+import 'package:projectgt/features/export/presentation/widgets/export_work_item_edit_modal.dart';
+import 'package:projectgt/features/export/domain/entities/work_search_result.dart';
 import 'package:projectgt/features/works/domain/entities/work_hour.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 
@@ -235,6 +237,119 @@ class ModalUtils {
             MediaQuery.of(context).padding.top,
       ),
       builder: (context) => modalContent,
+    );
+  }
+
+  /// Показывает меню действий для работы из результатов поиска.
+  ///
+  /// [context] - контекст для отображения меню (должен быть контекстом ячейки).
+  /// [initialData] - данные работы.
+  /// [onEdit] - callback для редактирования.
+  /// [onNavigateToWork] - callback для перехода к смене.
+  static Future<void> showExportWorkItemActionDialog(
+    BuildContext context, {
+    required WorkSearchResult initialData,
+    required VoidCallback onEdit,
+    required VoidCallback onNavigateToWork,
+  }) {
+    final theme = Theme.of(context);
+
+    // Получаем RenderBox ячейки через контекст
+    final renderBox = context.findRenderObject() as RenderBox?;
+    if (renderBox == null || !renderBox.attached) {
+      return Future.value();
+    }
+
+    // Получаем Overlay для правильного позиционирования
+    final overlay = Overlay.of(context);
+    final overlayBox = overlay.context.findRenderObject() as RenderBox?;
+    if (overlayBox == null) {
+      return Future.value();
+    }
+
+    // Вычисляем глобальную позицию ячейки относительно overlay
+    final offset = renderBox.localToGlobal(Offset.zero, ancestor: overlayBox);
+
+    // Позиционируем меню под ячейкой
+    final position = RelativeRect.fromLTRB(
+      offset.dx,
+      offset.dy + renderBox.size.height + 4, // Небольшой отступ снизу
+      offset.dx + renderBox.size.width,
+      offset.dy + renderBox.size.height + 4,
+    );
+
+    return showMenu(
+      context: context,
+      position: position,
+      elevation: 8,
+      color: theme.colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: theme.colorScheme.outline.withValues(alpha: 0.2),
+          width: 1,
+        ),
+      ),
+      items: [
+        PopupMenuItem(
+          onTap: onEdit,
+          child: Row(
+            children: [
+              Icon(
+                Icons.edit_outlined,
+                size: 20,
+                color: theme.colorScheme.onSurface,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Редактировать',
+                style: theme.textTheme.bodyMedium,
+              ),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          onTap: onNavigateToWork,
+          child: Row(
+            children: [
+              Icon(
+                Icons.open_in_new_outlined,
+                size: 20,
+                color: theme.colorScheme.onSurface,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'К смене',
+                style: theme.textTheme.bodyMedium,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Показывает модальное окно для редактирования работы из результатов поиска.
+  ///
+  /// [context] - контекст для отображения модального окна.
+  /// [initialData] - начальные данные для редактирования.
+  static Future<void> showExportWorkItemEditModal(
+    BuildContext context, {
+    required WorkSearchResult initialData,
+  }) {
+    return showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      useSafeArea: true,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height -
+            MediaQuery.of(context).padding.top -
+            kToolbarHeight,
+      ),
+      builder: (ctx) => ExportWorkItemEditModal(
+        initialData: initialData,
+      ),
     );
   }
 
