@@ -415,14 +415,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> verifyTelegramMiniApp() async {
     state = state.copyWith(status: AuthStatus.loading);
     try {
+      print('🔄 [verifyTelegramMiniApp] Получаем initData...');
       final initData = TelegramMiniAppService.getInitData();
+      print('🔍 [verifyTelegramMiniApp] initData: ${initData?.substring(0, 50) ?? "null"}...');
+      
       if (initData == null || initData.isEmpty) {
         throw Exception('Telegram данные не доступны');
       }
 
       // Вызываем datasource напрямую
+      print('🔄 [verifyTelegramMiniApp] Вызываем Edge Function...');
       final authDataSource = _ref.read(authDataSourceProvider);
       final userModel = await authDataSource.verifyTelegramInitData(initData);
+      print('✅ [verifyTelegramMiniApp] Edge Function успешно вернула пользователя: ${userModel.id}');
       
       final user = User(
         id: userModel.id,

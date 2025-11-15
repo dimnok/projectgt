@@ -310,24 +310,33 @@ class SupabaseAuthDataSource implements AuthDataSource {
   @override
   Future<UserModel> verifyTelegramInitData(String initData) async {
     try {
+      print('📞 [SupabaseAuthDataSource] Вызываем Edge Function verify-telegram-init-data...');
+      print('📄 [SupabaseAuthDataSource] initData length: ${initData.length}');
+      
       // Вызываем Edge Function для проверки initData
       final response = await client.functions.invoke(
         'verify-telegram-init-data',
         body: {'initData': initData},
       );
+      print('✅ [SupabaseAuthDataSource] Edge Function ответила: $response');
 
       final data = response as Map<String, dynamic>;
       final accessToken = data['access_token'] as String?;
       
       if (accessToken == null) {
+        print('❌ [SupabaseAuthDataSource] accessToken is null!');
         throw Exception('Не удалось получить токен от Telegram');
       }
+      print('🔑 [SupabaseAuthDataSource] accessToken получен: ${accessToken.substring(0, 20)}...');
 
       // Устанавливаем сессию и получаем пользователя
+      print('🔐 [SupabaseAuthDataSource] Устанавливаем сессию...');
       await client.auth.setSession(accessToken);
       final user = client.auth.currentUser;
+      print('👤 [SupabaseAuthDataSource] currentUser: ${user?.id}');
       
       if (user == null) {
+        print('❌ [SupabaseAuthDataSource] user is null after setSession!');
         throw Exception('Пользователь не найден после авторизации');
       }
 
@@ -343,6 +352,7 @@ class SupabaseAuthDataSource implements AuthDataSource {
         }
       } catch (_) {}
 
+      print('✅ [SupabaseAuthDataSource] Возвращаем UserModel с id: ${user.id}');
       return UserModel(
         id: user.id,
         email: user.email ?? '',
@@ -351,6 +361,7 @@ class SupabaseAuthDataSource implements AuthDataSource {
         role: role,
       );
     } catch (e) {
+      print('❌ [SupabaseAuthDataSource] Ошибка: $e');
       logger.e('Ошибка верификации Telegram: $e');
       throw Exception('Ошибка авторизации через Telegram: $e');
     }
