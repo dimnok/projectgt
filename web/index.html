@@ -34,14 +34,23 @@
   <title>ProjectGT</title>
   
 
-  <!-- Telegram Debug Logging -->
+  <!-- Telegram Mini App URL cleanup (MUST be before flutter_bootstrap.js) -->
   <script>
+    // Если в hash есть tgWebAppData, сохраняем его и очищаем URL
+    if (window.location.hash && window.location.hash.includes('tgWebAppData')) {
+      // Сохраняем hash для дальнейшего использования
+      sessionStorage.setItem('tg_hash', window.location.hash);
+      
+      // Очищаем URL перед инициализацией Flutter
+      window.history.replaceState({}, '', window.location.pathname);
+      
+      console.log('Telegram hash cleaned');
+    }
+    
+    // Debug логирование
     console.log('Current URL:', window.location.href);
     console.log('URL search:', window.location.search);
     console.log('Telegram available:', !!window.Telegram);
-    if (window.Telegram && window.Telegram.WebApp) {
-      console.log('Telegram WebApp initData:', window.Telegram.WebApp.initData.substring(0, 50) + '...');
-    }
   </script>
   
   <!-- Status Bar Control -->

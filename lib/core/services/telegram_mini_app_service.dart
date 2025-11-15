@@ -15,7 +15,7 @@ class TelegramMiniAppService {
   }
 
   /// Получает initData от Telegram.
-  /// initData находится в hash-фрагменте URL (#tgWebAppData=...)
+  /// initData сохраняется в sessionStorage в index.html перед загрузкой Flutter
   static String? getInitData() {
     if (!kIsWeb) return null;
     try {
@@ -25,11 +25,12 @@ class TelegramMiniAppService {
         return telegramInitData;
       }
       
-      // Если нет, получаем из URL hash (#tgWebAppData=...)
-      final hashStr = js.context.callMethod('eval', ['window.location.hash']) as String?;
-      if (hashStr != null && hashStr.contains('tgWebAppData')) {
+      // Если нет, получаем из sessionStorage (сохранено в index.html)
+      final sessionStorage = js.context['sessionStorage'];
+      final hash = sessionStorage?.callMethod('getItem', ['tg_hash']) as String?;
+      if (hash != null && hash.contains('tgWebAppData')) {
         // Парсим hash: #tgWebAppData=...&tgWebAppVersion=...&...
-        final params = Uri.splitQueryString(hashStr.replaceFirst('#', ''));
+        final params = Uri.splitQueryString(hash.replaceFirst('#', ''));
         return params['tgWebAppData'];
       }
       
