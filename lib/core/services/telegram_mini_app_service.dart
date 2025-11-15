@@ -15,24 +15,10 @@ class TelegramMiniAppService {
   }
 
   /// Получает initData от Telegram.
-  /// Сначала пытается из localStorage (сохранено в index.html),
-  /// потом из window.Telegram.WebApp.initData
   static String? getInitData() {
     if (!kIsWeb) return null;
     try {
-      // Сначала пытаемся получить из localStorage (сохранено в index.html)
-      final storage = js.context['localStorage'];
-      final initDataFromStorage = storage?.callMethod('getItem', ['tg_init_data']) as String?;
-      if (initDataFromStorage != null && initDataFromStorage.isNotEmpty) {
-        return initDataFromStorage;
-      }
-      
-      // Если нет в localStorage, пытаемся прямо из Telegram WebApp
-      if (isTelegramMiniApp()) {
-        return js.context['Telegram']['WebApp']['initData'] as String?;
-      }
-      
-      return null;
+      return js.context['Telegram']?['WebApp']?['initData'] as String?;
     } catch (_) {
       return null;
     }

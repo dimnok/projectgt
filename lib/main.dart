@@ -19,7 +19,6 @@ import 'package:projectgt/data/services/fcm_token_service.dart';
 import 'package:projectgt/features/version_control/providers/version_providers.dart';
 import 'package:projectgt/core/utils/version_utils.dart';
 import 'package:projectgt/core/constants/app_constants.dart';
-import 'dart:js' as js;
 
 /// Обработчик фоновых сообщений Firebase Cloud Messaging.
 ///
@@ -33,31 +32,11 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
 }
 
-/// Очищает Telegram Mini App параметры из URL.
-/// 
-/// Telegram передает initData как query параметры, что ломает Go Router.
-/// Эта функция очищает URL при запуске в Telegram Mini App.
-void _cleanTelegramUrl() {
-  if (!kIsWeb) return;
-  try {
-    // Проверяем есть ли Telegram Mini App
-    if (js.context['Telegram'] != null) {
-      // Используем html-функцию для очистки URL
-      js.context.callMethod('eval', ['window.history.replaceState({}, "", window.location.pathname)']);
-    }
-  } catch (_) {
-    // Игнорируем ошибки
-  }
-}
-
 /// Точка входа в приложение ProjectGT.
 ///
 /// Выполняет инициализацию Supabase, конфигурации приложения и запуск приложения с поддержкой Riverpod.
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Очищаем Telegram URL параметры
-  _cleanTelegramUrl();
 
   // Инициализация Firebase с опциями для текущей платформы
   await Firebase.initializeApp(
