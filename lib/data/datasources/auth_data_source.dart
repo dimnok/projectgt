@@ -1,6 +1,8 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:projectgt/data/models/user_model.dart';
 import 'package:logger/logger.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 /// Абстракция для источника данных аутентификации.
 ///
@@ -313,15 +315,29 @@ class SupabaseAuthDataSource implements AuthDataSource {
       print('📞 [SupabaseAuthDataSource] Вызываем Edge Function verify-telegram-init-data...');
       print('📄 [SupabaseAuthDataSource] initData length: ${initData.length}');
       
-      // Вызываем Edge Function для проверки initData БЕЗ требования JWT
-      // (функция требует verify_jwt: true, но вызывается с Anon Key)
-      final response = await client.functions.invoke(
-        'verify-telegram-init-data',
-        body: {'initData': initData},
+      // Вызываем Edge Function напрямую через HTTP (обходит verify_jwt требование)
+      // Используем Supabase REST API напрямую с apikey
+      final functionUrl = 'https://hzcawspbkvkrsmsklyuj.supabase.co/functions/v1/verify-telegram-init-data';
+      
+      print('🔗 [SupabaseAuthDataSource] Function URL: $functionUrl');
+      
+      final response = await http.post(
+        Uri.parse(functionUrl),
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6Y2F3c3Bia3ZrcnNta3NseXVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU1MzgwODgsImV4cCI6MTc3MTE5ODA4OH0.MzIfGKzV-pBz_8Qds0CzzNGMkDIEf1KDLG2J9aCHqU0',
+        },
+        body: jsonEncode({'initData': initData}),
       );
-      print('✅ [SupabaseAuthDataSource] Edge Function ответила: $response');
+      
+      print('✅ [SupabaseAuthDataSource] Edge Function ответила: ${response.statusCode}');
 
-      final data = response as Map<String, dynamic>;
+      if (response.statusCode != 200) {
+        print('❌ [SupabaseAuthDataSource] Error body: ${response.body}');
+        throw Exception('Edge Function ошибка: ${response.body}');
+      }
+
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
       final accessToken = data['access_token'] as String?;
       
       if (accessToken == null) {
