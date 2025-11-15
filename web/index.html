@@ -105,6 +105,26 @@
       }
     };
     
+    // Обработка Telegram Mini App initData
+    // Сохраняем initData в localStorage и очищаем URL перед загрузкой Flutter
+    (function() {
+      try {
+        // Проверяем есть ли Telegram WebApp
+        if (window.Telegram && window.Telegram.WebApp) {
+          const initData = window.Telegram.WebApp.initData;
+          if (initData) {
+            // Сохраняем initData в localStorage
+            localStorage.setItem('tg_init_data', initData);
+            
+            // Очищаем URL от query параметров ДО инициализации Flutter
+            window.history.replaceState({}, "", window.location.pathname);
+          }
+        }
+      } catch (e) {
+        console.error('Telegram init error:', e);
+      }
+    })();
+    
     // Конфигурация для Flutter.js с автоматической регистрацией service worker
     window.addEventListener('load', function() {
       // Service Worker будет зарегистрирован автоматически через flutter.js
