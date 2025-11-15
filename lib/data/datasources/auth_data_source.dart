@@ -315,9 +315,9 @@ class SupabaseAuthDataSource implements AuthDataSource {
       print('📞 [SupabaseAuthDataSource] Вызываем Edge Function verify-telegram-init-data...');
       print('📄 [SupabaseAuthDataSource] initData length: ${initData.length}');
       
-      // Вызываем Edge Function напрямую через HTTP (обходит verify_jwt требование)
-      // Используем Supabase REST API напрямую с apikey
-      final functionUrl = 'https://hzcawspbkvkrsmsklyuj.supabase.co/functions/v1/verify-telegram-init-data';
+            // Вызываем Edge Function напрямую через HTTP с новым именем (без verify префикса)
+            // Используем Supabase REST API напрямую с apikey
+            final functionUrl = 'https://hzcawspbkvkrsmsklyuj.supabase.co/functions/v1/tg-init';
       
       print('🔗 [SupabaseAuthDataSource] Function URL: $functionUrl');
       
