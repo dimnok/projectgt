@@ -15,10 +15,25 @@ class TelegramMiniAppService {
   }
 
   /// Получает initData от Telegram.
+  /// initData находится в hash-фрагменте URL (#tgWebAppData=...)
   static String? getInitData() {
     if (!kIsWeb) return null;
     try {
-      return js.context['Telegram']?['WebApp']?['initData'] as String?;
+      // Сначала пробуем прямой доступ через Telegram WebApp
+      final telegramInitData = js.context['Telegram']?['WebApp']?['initData'] as String?;
+      if (telegramInitData != null && telegramInitData.isNotEmpty) {
+        return telegramInitData;
+      }
+      
+      // Если нет, получаем из URL hash (#tgWebAppData=...)
+      final hashStr = js.context.callMethod('eval', ['window.location.hash']) as String?;
+      if (hashStr != null && hashStr.contains('tgWebAppData')) {
+        // Парсим hash: #tgWebAppData=...&tgWebAppVersion=...&...
+        final params = Uri.splitQueryString(hashStr.replaceFirst('#', ''));
+        return params['tgWebAppData'];
+      }
+      
+      return null;
     } catch (_) {
       return null;
     }
