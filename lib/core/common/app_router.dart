@@ -123,6 +123,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         // fix bad path
         return AppRoutes.home;
       }
+
+      // Обработка Telegram Mini App параметров (tgWebAppData, и др.)
+      // Telegram добавляет параметры в URL, которые Go Router не может маршрутизировать
+      // Перенаправляем на главную страницу, если в URL есть Telegram параметры
+      if (state.uri.queryParameters.containsKey('tgWebAppData')) {
+        return AppRoutes.home;
+      }
+
       return null;
     },
     routes: [
@@ -568,7 +576,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'add',
             name: 'inventory_item_add',
-            builder: (context, state) => const InventoryReceiptScreen(hasReceipt: false),
+            builder: (context, state) =>
+                const InventoryReceiptScreen(hasReceipt: false),
           ),
           // Маршрут для карточки ТМЦ
           GoRoute(
