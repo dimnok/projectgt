@@ -5,11 +5,23 @@ import 'package:flutter/foundation.dart';
 class TelegramMiniAppService {
   /// Проверяет, запущено ли приложение в Telegram Mini App.
   static bool isTelegramMiniApp() {
-    if (!kIsWeb) return false;
+    if (!kIsWeb) {
+      print('❌ Not web');
+      return false;
+    }
     try {
-      final telegramWebApp = js.context['Telegram']?['WebApp'];
-      return telegramWebApp != null;
-    } catch (_) {
+      final telegram = js.context['Telegram'];
+      print('🔍 Telegram object: $telegram');
+      
+      final telegramWebApp = telegram?['WebApp'];
+      print('🔍 Telegram.WebApp: $telegramWebApp');
+      
+      final result = telegramWebApp != null;
+      print('✅ isTelegramMiniApp result: $result');
+      
+      return result;
+    } catch (e) {
+      print('❌ Error checking Telegram: $e');
       return false;
     }
   }

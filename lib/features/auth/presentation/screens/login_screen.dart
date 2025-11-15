@@ -70,6 +70,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final isMobile = size.width < 600;
     final isTelegram = TelegramMiniAppService.isTelegramMiniApp();
 
+    // Debug: логируем для отладки
+    print('🔍 LoginScreen Debug:');
+    print('   isMobile: $isMobile (width: ${size.width})');
+    print('   isTelegram: $isTelegram');
+    print('   Show Telegram? ${isTelegram && isMobile}');
+
     // Если это Telegram Mini App на мобильном — показываем другой экран
     if (isTelegram && isMobile) {
       return const TelegramMiniAppLogin();
