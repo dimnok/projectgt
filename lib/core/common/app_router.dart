@@ -124,6 +124,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         return AppRoutes.home;
       }
 
+      // Защита от Telegram Mini App URL параметров (?tgWebAppData=...)
+      // которые могут попасть в matchedLocation при неправильной обработке
+      if (loc.startsWith('tgWebAppData') || 
+          loc.startsWith('/tgWebAppData') ||
+          loc.contains('tgWebAppData=')) {
+        // Telegram data попал в path - перенаправляем на home
+        // Данные уже извлечены в AuthNotifier._tryAutoLoginWithTelegram()
+        return AppRoutes.home;
+      }
+
       return null;
     },
     routes: [

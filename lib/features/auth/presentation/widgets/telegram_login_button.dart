@@ -82,7 +82,8 @@ class TelegramLoginButton extends ConsumerWidget {
 
       return null;
     } catch (e) {
-      debugPrint('[TelegramLoginButton] Error extracting initData from URL: $e');
+      debugPrint(
+          '[TelegramLoginButton] Error extracting initData from URL: $e');
       return null;
     }
   }
