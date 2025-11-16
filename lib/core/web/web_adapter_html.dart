@@ -59,20 +59,47 @@ void localStorageRemove(String key) {
 /// ```
 Future<dynamic> evaluateJavaScript(String jsCode) async {
   try {
-    // Возвращаем результат как динамический тип
+    // Выполняем JavaScript код
+    // Для Telegram initData используем специальную функцию
+    if (jsCode.contains('initData')) {
+      return _getTelegramInitData();
+    }
+    
+    // Для остальных случаев - выполняем через Function конструктор
     return _executeJS(jsCode);
   } catch (e) {
     throw Exception('Failed to evaluate JavaScript: $e');
   }
 }
 
-/// Вспомогательная функция для выполнения JavaScript через глобальный контекст
+/// Специальная функция для получения Telegram initData
+dynamic _getTelegramInitData() {
+  try {
+    // Прямой доступ к объекту Telegram через window
+    final window = web.window;
+    
+    // Используем динамический доступ для получения Telegram
+    final telegrams = (window as dynamic)['Telegram'];
+    if (telegrams == null) return null;
+    
+    final webApp = telegrams['WebApp'];
+    if (webApp == null) return null;
+    
+    final initData = webApp['initData'];
+    if (initData == null || initData.toString().isEmpty) return null;
+    
+    return initData.toString();
+  } catch (e) {
+    return null;
+  }
+}
+
+/// Вспомогательная функция для выполнения JavaScript через Function конструктор
 dynamic _executeJS(String code) {
   try {
-    // Использует функцию-конструктор для выполнения кода в глобальном контексте
-    final result = web.window;
-    // Выполняем код через eval (опасно, но только на фронтенде)
-    return (result as dynamic)['eval'](code);
+    // Используем Function конструктор для выполнения кода в глобальном контексте
+    // Более безопасно чем eval
+    return (web.window as dynamic).Function(code).call();
   } catch (e) {
     return null;
   }
