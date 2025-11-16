@@ -8,9 +8,13 @@ import 'package:projectgt/features/inventory/presentation/providers/inventory_pr
 
 /// Данные накладной для отображения.
 class ReceiptInfo {
+  /// Номер накладной.
   final String receiptNumber;
+  
+  /// Дата накладной.
   final DateTime receiptDate;
 
+  /// Создаёт информацию о накладной.
   const ReceiptInfo({
     required this.receiptNumber,
     required this.receiptDate,
@@ -19,9 +23,13 @@ class ReceiptInfo {
 
 /// Запись истории движения ТМЦ.
 class MovementHistoryItem {
+  /// Дата движения.
   final DateTime date;
+  
+  /// Описание движения.
   final String description;
 
+  /// Создаёт запись истории движения ТМЦ.
   const MovementHistoryItem({
     required this.date,
     required this.description,
