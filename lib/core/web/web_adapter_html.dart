@@ -47,3 +47,33 @@ void localStorageSet(String key, String value) {
 void localStorageRemove(String key) {
   web.window.localStorage.removeItem(key);
 }
+
+/// Выполняет JavaScript код и возвращает результат.
+///
+/// [jsCode] — JavaScript код для выполнения (например, 'window.Telegram?.WebApp?.initData')
+/// 
+/// Примеры:
+/// ```dart
+/// final initData = await evaluateJavaScript('window.Telegram?.WebApp?.initData');
+/// final userId = await evaluateJavaScript('window.Telegram?.WebApp?.initData?.user?.id');
+/// ```
+Future<dynamic> evaluateJavaScript(String jsCode) async {
+  try {
+    // Возвращаем результат как динамический тип
+    return _executeJS(jsCode);
+  } catch (e) {
+    throw Exception('Failed to evaluate JavaScript: $e');
+  }
+}
+
+/// Вспомогательная функция для выполнения JavaScript через глобальный контекст
+dynamic _executeJS(String code) {
+  try {
+    // Использует функцию-конструктор для выполнения кода в глобальном контексте
+    final result = web.window;
+    // Выполняем код через eval (опасно, но только на фронтенде)
+    return (result as dynamic)['eval'](code);
+  } catch (e) {
+    return null;
+  }
+}

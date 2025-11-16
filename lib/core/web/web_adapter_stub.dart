@@ -47,3 +47,9 @@ void localStorageSet(String key, String value) {}
 
 /// Удаляет значение из LocalStorage (на не-Web — no-op).
 void localStorageRemove(String key) {}
+
+/// На не-Web платформах не может выполнять JavaScript (всегда возвращает null).
+Future<dynamic> evaluateJavaScript(String jsCode) async {
+  // JavaScript недоступен на нативных платформах
+  return null;
+}
