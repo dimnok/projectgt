@@ -18,6 +18,9 @@ class TelegramLoginButton extends ConsumerWidget {
   /// 1. Через window.Telegram?.WebApp?.initData (JS API)
   /// 2. Через URL query параметр ?tgWebAppData=... (при открытии Mini App)
   ///
+  /// На мобильных устройствах Telegram SDK загружается асинхронно,
+  /// поэтому делаем несколько попыток с задержкой.
+  ///
   /// Возвращает null если:
   /// - Приложение не веб версия
   /// - Приложение не открыто из Telegram
@@ -29,25 +32,37 @@ class TelegramLoginButton extends ConsumerWidget {
     }
 
     try {
-      // 1️⃣ Пытаемся получить initData от Telegram WebApp JS API
-      final initData =
-          await evaluateJavaScript('window.Telegram?.WebApp?.initData');
+      // Пытаемся несколько раз получить initData (для мобильных телефонов)
+      // где Telegram SDK может загружаться асинхронно
+      for (int attempt = 1; attempt <= 3; attempt++) {
+        // 1️⃣ Пытаемся получить initData от Telegram WebApp JS API
+        final initData =
+            await evaluateJavaScript('window.Telegram?.WebApp?.initData');
 
-      if (initData != null && initData.toString().isNotEmpty) {
-        debugPrint('[TelegramLoginButton] Got initData from JS API');
-        return initData.toString();
-      }
+        if (initData != null && initData.toString().isNotEmpty) {
+          debugPrint(
+              '[TelegramLoginButton] Got initData from JS API (attempt $attempt)');
+          return initData.toString();
+        }
 
-      // 2️⃣ Если не найдена в JS API - ищем в URL query параметрах
-      // Telegram передаёт: ?tgWebAppData=...
-      final initDataFromUrl = await _extractInitDataFromUrl();
-      if (initDataFromUrl != null && initDataFromUrl.isNotEmpty) {
-        debugPrint('[TelegramLoginButton] Got initData from URL query');
-        return initDataFromUrl;
+        // 2️⃣ Если не найдена в JS API - ищем в URL query параметрах
+        final initDataFromUrl = await _extractInitDataFromUrl();
+        if (initDataFromUrl != null && initDataFromUrl.isNotEmpty) {
+          debugPrint(
+              '[TelegramLoginButton] Got initData from URL query (attempt $attempt)');
+          return initDataFromUrl;
+        }
+
+        // Если это не последняя попытка - ждём и пробуем снова
+        if (attempt < 3) {
+          debugPrint(
+              '[TelegramLoginButton] initData not found on attempt $attempt, retrying...');
+          await Future.delayed(const Duration(milliseconds: 500));
+        }
       }
 
       debugPrint(
-          '[TelegramLoginButton] initData not found in JS API or URL - not in Telegram');
+          '[TelegramLoginButton] initData not found after 3 attempts - not in Telegram');
       return null;
     } catch (e) {
       debugPrint('[TelegramLoginButton] Error getting initData: $e');
@@ -108,20 +123,12 @@ class TelegramLoginButton extends ConsumerWidget {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: const Text(
-                        '⚠️ Откройте из Telegram Mini App через бота\n'
-                        'Для локального тестирования используйте ngrok',
+                        'Приложение должно быть открыто из Telegram',
                       ),
                       backgroundColor: Theme.of(context).colorScheme.error,
-                      duration: const Duration(seconds: 4),
-                      behavior: SnackBarBehavior.floating,
+                      duration: const Duration(seconds: 3),
                     ),
                   );
-                  debugPrint('[TelegramLoginButton] '
-                      'Для тестирования Telegram авторизации:\n'
-                      '1. Запустите: ngrok http [flutter-port]\n'
-                      '2. Добавьте ngrok URL в @BotFather Mini App settings\n'
-                      '3. Откройте приложение из Telegram бота\n'
-                      '4. Telegram передаст initData в URL параметре');
                   return;
                 }
 

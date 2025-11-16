@@ -94,27 +94,44 @@
       setStatusBarColor('#ffffff');
     }
     
-    // Инициализация Telegram WebApp
+    // Инициализация Telegram WebApp с повторными попытками
     function initializeTelegramWebApp() {
-      // Telegram WebApp SDK загружается с telegram.org/js/telegram-web-app.js
-      // После загрузки window.Telegram.WebApp будет доступен
-      if (window.Telegram && window.Telegram.WebApp) {
-        // Готовим WebApp для использования
-        window.Telegram.WebApp.ready();
-        
-        // Расширяем WebApp на весь экран
-        window.Telegram.WebApp.expand();
-        
-        console.log('[Telegram WebApp] Initialized successfully');
-        console.log('[Telegram WebApp] initData available:', !!window.Telegram.WebApp.initData);
-      } else {
-        console.log('[Telegram WebApp] Not running in Telegram environment');
+      // Telegram WebApp SDK может загружаться асинхронно на мобильных устройствах
+      // Пробуем инициализировать несколько раз с задержкой
+      
+      function tryInitialize(attempt = 1) {
+        if (window.Telegram && window.Telegram.WebApp) {
+          // Готовим WebApp для использования
+          window.Telegram.WebApp.ready();
+          
+          // Расширяем WebApp на весь экран
+          window.Telegram.WebApp.expand();
+          
+          console.log('[Telegram WebApp] Initialized successfully on attempt', attempt);
+          console.log('[Telegram WebApp] initData available:', !!window.Telegram.WebApp.initData);
+          console.log('[Telegram WebApp] initData:', window.Telegram.WebApp.initData);
+          
+          // Сохраняем флаг инициализации
+          window.__telegramWebAppReady = true;
+        } else if (attempt < 5) {
+          // Если SDK ещё не загружен - пробуем через 100ms
+          console.log('[Telegram WebApp] SDK not ready yet, retrying... (attempt', attempt, ')');
+          setTimeout(() => tryInitialize(attempt + 1), 100);
+        } else {
+          console.log('[Telegram WebApp] Not running in Telegram environment after 5 attempts');
+          window.__telegramWebAppReady = false;
+        }
       }
+      
+      tryInitialize();
     }
     
-    // Инициализация при загрузке
+    // Инициализация при загрузке и сразу же
     window.addEventListener('load', initializePWAStyles);
     window.addEventListener('load', initializeTelegramWebApp);
+    
+    // Попробуем инициализировать Telegram сразу (может быть готов уже)
+    initializeTelegramWebApp();
     
     // Функция для Flutter вызова
     window.flutterStatusBar = {
