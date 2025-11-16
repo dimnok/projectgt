@@ -32,20 +32,28 @@ class TelegramLoginButton extends ConsumerWidget {
     }
 
     try {
-      // Пытаемся несколько раз получить initData (для мобильных телефонов)
-      // где Telegram SDK может загружаться асинхронно
-      for (int attempt = 1; attempt <= 3; attempt++) {
-        // 1️⃣ Пытаемся получить initData от Telegram WebApp JS API
+      // На мобильных устройствах нужно больше времени для инициализации
+      // Пытаемся несколько раз с увеличивающимися задержками
+      for (int attempt = 1; attempt <= 5; attempt++) {
+        // 1️⃣ Сначала проверяем глобальную переменную (установлена в web/index.html)
+        final globalInitData =
+            await evaluateJavaScript('window.__flutterTelegramInitData');
+        if (globalInitData != null && globalInitData.toString().isNotEmpty) {
+          debugPrint(
+              '[TelegramLoginButton] Got initData from global variable (attempt $attempt)');
+          return globalInitData.toString();
+        }
+
+        // 2️⃣ Пытаемся получить initData от Telegram WebApp JS API
         final initData =
             await evaluateJavaScript('window.Telegram?.WebApp?.initData');
-
         if (initData != null && initData.toString().isNotEmpty) {
           debugPrint(
               '[TelegramLoginButton] Got initData from JS API (attempt $attempt)');
           return initData.toString();
         }
 
-        // 2️⃣ Если не найдена в JS API - ищем в URL query параметрах
+        // 3️⃣ Если не найдена в JS API - ищем в URL query параметрах
         final initDataFromUrl = await _extractInitDataFromUrl();
         if (initDataFromUrl != null && initDataFromUrl.isNotEmpty) {
           debugPrint(
@@ -54,15 +62,17 @@ class TelegramLoginButton extends ConsumerWidget {
         }
 
         // Если это не последняя попытка - ждём и пробуем снова
-        if (attempt < 3) {
+        // Увеличиваем задержку с каждой попыткой для мобильных устройств
+        if (attempt < 5) {
+          final delayMs = 300 + (attempt * 200); // 500ms, 700ms, 900ms, 1100ms
           debugPrint(
-              '[TelegramLoginButton] initData not found on attempt $attempt, retrying...');
-          await Future.delayed(const Duration(milliseconds: 500));
+              '[TelegramLoginButton] initData not found on attempt $attempt, retrying in ${delayMs}ms...');
+          await Future.delayed(Duration(milliseconds: delayMs));
         }
       }
 
       debugPrint(
-          '[TelegramLoginButton] initData not found after 3 attempts - not in Telegram');
+          '[TelegramLoginButton] initData not found after 5 attempts - not in Telegram');
       return null;
     } catch (e) {
       debugPrint('[TelegramLoginButton] Error getting initData: $e');
