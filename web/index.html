@@ -31,6 +31,9 @@
   <!-- PWA manifest -->
   <link rel="manifest" href="manifest.json">
   
+  <!-- Telegram WebApp SDK - необходимо для Telegram Mini App авторизации -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  
   <title>ProjectGT</title>
   
   <!-- Status Bar Control -->
@@ -91,8 +94,27 @@
       setStatusBarColor('#ffffff');
     }
     
+    // Инициализация Telegram WebApp
+    function initializeTelegramWebApp() {
+      // Telegram WebApp SDK загружается с telegram.org/js/telegram-web-app.js
+      // После загрузки window.Telegram.WebApp будет доступен
+      if (window.Telegram && window.Telegram.WebApp) {
+        // Готовим WebApp для использования
+        window.Telegram.WebApp.ready();
+        
+        // Расширяем WebApp на весь экран
+        window.Telegram.WebApp.expand();
+        
+        console.log('[Telegram WebApp] Initialized successfully');
+        console.log('[Telegram WebApp] initData available:', !!window.Telegram.WebApp.initData);
+      } else {
+        console.log('[Telegram WebApp] Not running in Telegram environment');
+      }
+    }
+    
     // Инициализация при загрузке
     window.addEventListener('load', initializePWAStyles);
+    window.addEventListener('load', initializeTelegramWebApp);
     
     // Функция для Flutter вызова
     window.flutterStatusBar = {
