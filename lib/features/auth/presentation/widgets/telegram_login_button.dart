@@ -108,12 +108,20 @@ class TelegramLoginButton extends ConsumerWidget {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: const Text(
-                        'Приложение должно быть открыто из Telegram',
+                        '⚠️ Откройте из Telegram Mini App через бота\n'
+                        'Для локального тестирования используйте ngrok',
                       ),
                       backgroundColor: Theme.of(context).colorScheme.error,
-                      duration: const Duration(seconds: 3),
+                      duration: const Duration(seconds: 4),
+                      behavior: SnackBarBehavior.floating,
                     ),
                   );
+                  debugPrint('[TelegramLoginButton] '
+                      'Для тестирования Telegram авторизации:\n'
+                      '1. Запустите: ngrok http [flutter-port]\n'
+                      '2. Добавьте ngrok URL в @BotFather Mini App settings\n'
+                      '3. Откройте приложение из Telegram бота\n'
+                      '4. Telegram передаст initData в URL параметре');
                   return;
                 }
 
