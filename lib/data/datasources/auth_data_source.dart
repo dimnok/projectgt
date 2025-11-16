@@ -312,12 +312,12 @@ class SupabaseAuthDataSource implements AuthDataSource {
   @override
   Future<UserModel> verifyTelegramInitData(String initData) async {
     try {
-      print('📞 [SupabaseAuthDataSource] Вызываем Edge Function tg-init...');
+      print('📞 [SupabaseAuthDataSource] Вызываем Edge Function telegram-login...');
       print('📄 [SupabaseAuthDataSource] initData length: ${initData.length}');
       
       // Вызываем Edge Function напрямую через HTTP
       // Используем Supabase REST API напрямую с apikey
-      final functionUrl = 'https://hzcawspbkvkrsmsklyuj.supabase.co/functions/v1/tg-init';
+      final functionUrl = 'https://hzcawspbkvkrsmsklyuj.supabase.co/functions/v1/telegram-login';
       
       print('🔗 [SupabaseAuthDataSource] Function URL: $functionUrl');
       
