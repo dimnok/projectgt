@@ -195,7 +195,7 @@ class ContractorFormContent extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<ContractorType>(
-                  value: type,
+                  initialValue: type,
                   decoration:
                       const InputDecoration(labelText: 'Тип контрагента'),
                   items: ContractorType.values.map((type) {

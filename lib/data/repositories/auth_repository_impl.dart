@@ -1,4 +1,5 @@
 import 'package:projectgt/data/datasources/auth_data_source.dart';
+import 'package:projectgt/data/datasources/telegram_auth_data_source.dart';
 // Telegram auth data source удалён
 import 'package:projectgt/domain/entities/user.dart';
 // Telegram доменные сущности удалены
@@ -14,13 +15,15 @@ class AuthRepositoryImpl implements AuthRepository {
   /// Data source для стандартной аутентификации.
   final AuthDataSource authDataSource;
 
-  // Telegram слои удалены
+  /// Data source для Telegram Mini App аутентификации.
+  final TelegramAuthDataSource telegramAuthDataSource;
 
   // logger removed
 
   /// Создаёт [AuthRepositoryImpl] с указанными data sources.
   AuthRepositoryImpl({
     required this.authDataSource,
+    required this.telegramAuthDataSource,
   });
 
   // === Стандартные методы авторизации ===
@@ -90,17 +93,22 @@ class AuthRepositoryImpl implements AuthRepository {
     );
   }
 
-  // Telegram OAuth методы удалены
+  // === Telegram Mini App auth ===
 
-  // Telegram методы удалены
+  @override
+  Future<User> authenticateWithTelegram({required String initData}) async {
+    // Вызываем Edge Function для проверки подписи и получения JWT
+    await telegramAuthDataSource.authenticateWithInitData(
+      initData: initData,
+    );
 
-  // Telegram методы удалены
+    // Теперь Supabase Auth имеет сессию с JWT
+    // Получаем пользователя
+    final userModel = await authDataSource.getCurrentUser();
+    if (userModel == null) {
+      throw Exception('Failed to retrieve user after Telegram authentication');
+    }
 
-  // Telegram методы удалены
-
-  // Telegram методы удалены
-
-  // === Приватные методы ===
-
-  // Приватные Telegram методы удалены
+    return userModel.toDomain();
+  }
 }

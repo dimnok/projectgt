@@ -60,5 +60,18 @@ abstract class AuthRepository {
     required String phone,
   });
 
-  // === Telegram OAuth методы удалены ===
+  // === Telegram Mini App auth ===
+
+  /// Аутентифицирует пользователя через Telegram Mini App.
+  ///
+  /// [initData] — подписанные данные от TelegramWebApp.init()
+  ///
+  /// Возвращает [User] при успешной аутентификации через Telegram.
+  /// Требует создания/получения профиля в таблице profiles.
+  /// Статус профиля по умолчанию=false (требует одобрения администратора).
+  ///
+  /// Бросает исключение если:
+  /// - initData невалидны или подпись не прошла проверку
+  /// - ошибка при создании пользователя/профиля
+  Future<User> authenticateWithTelegram({required String initData});
 }

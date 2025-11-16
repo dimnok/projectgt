@@ -99,7 +99,7 @@ class AppTheme {
       fontFamily: 'Inter',
       textTheme: _textTheme(_primaryColor),
       appBarTheme: AppBarTheme(
-        color: _accentColor,
+        backgroundColor: _accentColor,
         elevation: 2,
         shadowColor: Colors.black.withValues(alpha: 0.1),
         iconTheme: const IconThemeData(color: _primaryColor),
@@ -204,7 +204,7 @@ class AppTheme {
       fontFamily: 'Inter',
       textTheme: _textTheme(_accentColor),
       appBarTheme: AppBarTheme(
-        color: _primaryColor,
+        backgroundColor: _primaryColor,
         elevation: 2,
         shadowColor: Colors.black.withValues(alpha: 0.3),
         iconTheme: const IconThemeData(color: _accentColor),

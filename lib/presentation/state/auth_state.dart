@@ -410,6 +410,58 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  /// Выполняет вход пользователя через Telegram Mini App.
+  ///
+  /// [initData] — подписанные данные от TelegramWebApp.init() (веб версия)
+  ///
+  /// В случае успеха — обновляет состояние на authenticated или pendingApproval,
+  /// иначе — error.
+  ///
+  /// **Процесс:**
+  /// 1. Отправляет initData в Edge Function `telegram-auth`
+  /// 2. Edge Function проверяет подпись и создаёт/получает пользователя
+  /// 3. Проверяется статус профиля (status=false → pendingApproval)
+  /// 4. Состояние обновляется в зависимости от статуса профиля
+  Future<void> loginWithTelegram(String initData) async {
+    state = state.copyWith(status: AuthStatus.loading);
+    try {
+      final user = await _ref
+          .read(telegramAuthenticateUseCaseProvider)
+          .execute(initData: initData);
+
+      // Проверяем статус профиля (как в Email OTP)
+      try {
+        final profile = await supa.Supabase.instance.client
+            .from('profiles')
+            .select('status, approved_at')
+            .eq('id', user.id)
+            .single();
+
+        final bool statusFlag = (profile['status'] as bool?) ?? false;
+        final bool everApproved = profile['approved_at'] != null;
+
+        state = state.copyWith(
+          status: statusFlag
+              ? AuthStatus.authenticated
+              : (everApproved
+                  ? AuthStatus.disabled
+                  : AuthStatus.pendingApproval),
+          user: user,
+        );
+      } catch (_) {
+        // Если профиль недоступен — считаем ожидающим
+        state = state.copyWith(
+          status: AuthStatus.pendingApproval,
+          user: user,
+        );
+      }
+    } catch (e) {
+      state = state.copyWith(
+        status: AuthStatus.error,
+        errorMessage: e.toString(),
+      );
+    }
+  }
 
   // Telegram обработчики удалены
 }

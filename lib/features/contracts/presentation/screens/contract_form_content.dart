@@ -227,7 +227,7 @@ class ContractFormContent extends StatelessWidget {
                       const SizedBox(height: 16),
                       // Контрагент
                       DropdownButtonFormField<String>(
-                        value: selectedContractorId,
+                        initialValue: selectedContractorId,
                         items: contractorItems,
                         onChanged: isLoading ? null : onContractorChanged,
                         decoration: const InputDecoration(
@@ -241,7 +241,7 @@ class ContractFormContent extends StatelessWidget {
                       const SizedBox(height: 16),
                       // Объект
                       DropdownButtonFormField<String>(
-                        value: selectedObjectId,
+                        initialValue: selectedObjectId,
                         items: objectItems,
                         onChanged: isLoading ? null : onObjectChanged,
                         decoration: const InputDecoration(
@@ -276,7 +276,7 @@ class ContractFormContent extends StatelessWidget {
                       const SizedBox(height: 16),
                       // Статус
                       DropdownButtonFormField<ContractStatus>(
-                        value: status,
+                        initialValue: status,
                         items: const [
                           DropdownMenuItem(
                               value: ContractStatus.active,
