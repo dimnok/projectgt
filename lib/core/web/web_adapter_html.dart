@@ -56,18 +56,17 @@ void localStorageRemove(String key) {
 /// Примеры:
 /// ```dart
 /// final initData = await evaluateJavaScript('window.Telegram?.WebApp?.initData');
-/// final userId = await evaluateJavaScript('window.Telegram?.WebApp?.initData?.user?.id');
+/// final search = await evaluateJavaScript('window.location.search');
 /// ```
 Future<dynamic> evaluateJavaScript(String jsCode) async {
   try {
-    // Выполняем JavaScript код
-    // Для Telegram initData используем специальную функцию
-    if (jsCode.contains('initData')) {
+    // Специальная функция для Telegram initData - только для 'initData' ключевого слова в контексте Telegram
+    if (jsCode.contains('Telegram') && jsCode.contains('initData')) {
       return _getTelegramInitData();
     }
 
-    // Для остальных случаев - выполняем через Function конструктор
-    return _executeJS(jsCode);
+    // Для остальных случаев (например, window.location.search) - получаем напрямую
+    return _getJavaScriptValue(jsCode);
   } catch (e) {
     throw Exception('Failed to evaluate JavaScript: $e');
   }
@@ -116,13 +115,40 @@ dynamic _getTelegramInitData() {
   }
 }
 
-/// Вспомогательная функция для выполнения JavaScript через Function конструктор
-dynamic _executeJS(String code) {
+/// Получает значение JavaScript выражения (например, window.location.search)
+///
+/// Это прямой доступ через dart:web к объектам браузера.
+/// Работает для простых выражений типа:
+/// - window.location.search
+/// - window.location.href
+/// - Прямые обращения к объектам
+///
+/// Важно: не использует eval(), только прямые обращения к window
+dynamic _getJavaScriptValue(String accessor) {
   try {
-    // Используем Function конструктор для выполнения кода в глобальном контексте
-    // Более безопасно чем eval
-    return (web.window as dynamic).Function(code).call();
+    final window = web.window;
+
+    // Специальные случаи
+    if (accessor == 'window.location.search') {
+      return window.location.search;
+    }
+    if (accessor == 'window.location.href') {
+      return window.location.href;
+    }
+    if (accessor == 'window.location.hash') {
+      return window.location.hash;
+    }
+
+    // Для других обращений - пытаемся получить через динамический доступ
+    // Примеры: window.__flutterTelegramInitData, window.customValue и т.д.
+    if (accessor.startsWith('window.')) {
+      final key = accessor.substring(7); // удаляем 'window.'
+      return (window as dynamic)[key];
+    }
+
+    return null;
   } catch (e) {
+    debugPrint('[getJavaScriptValue] Error accessing "$accessor": $e');
     return null;
   }
 }
