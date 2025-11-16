@@ -1,11 +1,8 @@
+import 'dart:html' as html;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/domain/entities/user.dart';
-// Telegram Mini App удалён
-import 'package:projectgt/core/web/web_adapter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supa;
-// import removed
-// 'dart:convert' не используется после перевода на серверный callback
 
 /// Перечисление возможных статусов аутентификации пользователя.
 ///
@@ -114,9 +111,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier(Ref ref)
       : _ref = ref,
         super(AuthState.initial()) {
-    // Сначала пытаемся автоматически залогинить через Telegram если есть initData в URL
-    _tryAutoLoginWithTelegram();
-    
     checkAuthStatus();
     
     // Слушаем изменения сессии Supabase, чтобы гарантированно подхватывать вход без перезагрузки
@@ -125,45 +119,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
         checkAuthStatus();
       });
     } catch (_) {}
-  }
-
-  /// Пытается автоматически залогинить через Telegram если initData присутствует в URL.
-  ///
-  /// Telegram Mini App передаёт данные как query параметр: ?tgWebAppData=...
-  /// Эта функция извлекает их и выполняет автоматический вход.
-  void _tryAutoLoginWithTelegram() {
-    try {
-      // Извлекаем initData из URL (если открыто из Telegram Mini App)
-      final searchParams = currentHref().split('?').length > 1 
-        ? currentHref().split('?')[1]
-        : '';
-      
-      if (searchParams.isEmpty) return;
-
-      // Ищем параметр tgWebAppData
-      final regex = RegExp(r'[?&]tgWebAppData=([^&]*)');
-      final match = regex.firstMatch('?$searchParams');
-
-      if (match != null && match.group(1) != null) {
-        // URL decode параметр
-        final initData = Uri.decodeComponent(match.group(1)!);
-        
-        // Запускаем асинхронный вход в фоне
-        Future.delayed(const Duration(milliseconds: 500), () {
-          loginWithTelegram(initData);
-          
-          // Очищаем URL после входа (через 2 секунды, когда вход завершится)
-          Future.delayed(const Duration(seconds: 2), () {
-            try {
-              final base = currentHref().split('?')[0];
-              replaceUrlPreservingHash(base, '#/');
-            } catch (_) {}
-          });
-        });
-      }
-    } catch (e) {
-      // Silent fail - это опциональная функция
-    }
   }
 
   final Ref _ref;
@@ -202,12 +157,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
     // start
 
     try {
-      // 1) Если есть hash magic-link c access_token — немедленно поднимаем сессию, независимо от ?tg
-      final hash = currentHash(); // начинается с '#'
+      // 1) Если есть hash magic-link c access_token — немедленно поднимаем сессию
+      final hash = html.window.location.hash; // начинается с '#'
       if (hash.isNotEmpty && hash.contains('access_token')) {
         try {
           // Сохраняем исходный href с токеном
-          final hrefWithToken = currentHref();
+          final hrefWithToken = html.window.location.href;
           // Нормализуем кейс двойного hash: "#/#access_token" → "#access_token"
           final fixedHref = hrefWithToken.replaceFirst('#/#', '#');
           // Устанавливаем сессию из исходного (нормализованного) URL
@@ -221,9 +176,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
           }
           // ok
           // Очищаем URL после успешной установки сессии
-          // Убираем hash, но оставляем маркер, чтобы роутер не принял fragment как path
-          final base = currentHref().split('#').first;
-          replaceUrlPreservingHash(base, '#/');
+          final base = html.window.location.href.split('#').first;
+          html.window.history.replaceState(null, '', base + '#/');
         } catch (_) {}
       }
 
@@ -234,7 +188,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           hash.isNotEmpty &&
           hash.contains('access_token')) {
         try {
-          final hrefWithToken = currentHref();
+          final hrefWithToken = html.window.location.href;
           final fixedHref = hrefWithToken.replaceFirst('#/#', '#');
           await supa.Supabase.instance.client.auth
               .getSessionFromUrl(Uri.parse(fixedHref));
@@ -244,8 +198,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
             await Future.delayed(const Duration(milliseconds: 150));
           }
           // После второй попытки также очищаем URL от hash безопасно
-          final base2 = currentHref().split('#').first;
-          replaceUrlPreservingHash(base2, '#/');
+          final base2 = html.window.location.href.split('#').first;
+          html.window.history.replaceState(null, '', base2 + '#/');
         } catch (_) {}
 
         // 2.2) Фолбэк: вручную устанавливаем сессию из hash, если SDK не успел
@@ -262,8 +216,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
                 if (u != null) break;
                 await Future.delayed(const Duration(milliseconds: 150));
               }
-              final base3 = currentHref().split('#').first;
-              replaceUrlPreservingHash(base3, '#/');
+              final base3 = html.window.location.href.split('#').first;
+              html.window.history.replaceState(null, '', base3 + '#/');
               // fallback used
             }
           } catch (e) {
@@ -303,8 +257,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
           return;
         }
       }
-
-      // Telegram спец-статусов больше нет
 
       final user = await _ref.read(getCurrentUserUseCaseProvider).execute();
       if (user != null) {
@@ -453,60 +405,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  /// Выполняет вход пользователя через Telegram Mini App.
-  ///
-  /// [initData] — подписанные данные от TelegramWebApp.init() (веб версия)
-  ///
-  /// В случае успеха — обновляет состояние на authenticated или pendingApproval,
-  /// иначе — error.
-  ///
-  /// **Процесс:**
-  /// 1. Отправляет initData в Edge Function `telegram-auth`
-  /// 2. Edge Function проверяет подпись и создаёт/получает пользователя
-  /// 3. Проверяется статус профиля (status=false → pendingApproval)
-  /// 4. Состояние обновляется в зависимости от статуса профиля
-  Future<void> loginWithTelegram(String initData) async {
-    state = state.copyWith(status: AuthStatus.loading);
-    try {
-      final user = await _ref
-          .read(telegramAuthenticateUseCaseProvider)
-          .execute(initData: initData);
-
-      // Проверяем статус профиля (как в Email OTP)
-      try {
-        final profile = await supa.Supabase.instance.client
-            .from('profiles')
-            .select('status, approved_at')
-            .eq('id', user.id)
-            .single();
-
-        final bool statusFlag = (profile['status'] as bool?) ?? false;
-        final bool everApproved = profile['approved_at'] != null;
-
-        state = state.copyWith(
-          status: statusFlag
-              ? AuthStatus.authenticated
-              : (everApproved
-                  ? AuthStatus.disabled
-                  : AuthStatus.pendingApproval),
-          user: user,
-        );
-      } catch (_) {
-        // Если профиль недоступен — считаем ожидающим
-        state = state.copyWith(
-          status: AuthStatus.pendingApproval,
-          user: user,
-        );
-      }
-    } catch (e) {
-      state = state.copyWith(
-        status: AuthStatus.error,
-        errorMessage: e.toString(),
-      );
-    }
-  }
-
-  // Telegram обработчики удалены
 }
 
 /// Провайдер состояния аутентификации пользователя.

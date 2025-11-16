@@ -4,7 +4,6 @@ import 'package:email_validator/email_validator.dart';
 
 import 'package:projectgt/presentation/state/auth_state.dart';
 import '../widgets/otp_input_bottom_sheet.dart';
-import '../widgets/telegram_login_button.dart';
 
 /// Экран входа пользователя в систему.
 class LoginScreen extends ConsumerStatefulWidget {
@@ -205,43 +204,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             onPressed: isLoading ? null : _handleRequestCode,
             child: const Text('Получить код на почту'),
           ),
-          const SizedBox(height: 24),
-          // Разделитель
-          Row(
-            children: [
-              Expanded(
-                child: Divider(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: 0.2),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text(
-                  'или',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withValues(alpha: 0.5),
-                      ),
-                ),
-              ),
-              Expanded(
-                child: Divider(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: 0.2),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          // Кнопка входа через Telegram
-          const TelegramLoginButton(),
         ],
       ),
     );

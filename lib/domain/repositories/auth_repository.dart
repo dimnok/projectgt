@@ -1,16 +1,14 @@
 import 'package:projectgt/domain/entities/user.dart';
-// Telegram доменные сущности удалены
 
 /// Абстракция репозитория аутентификации пользователя.
 ///
 /// Определяет методы для входа, регистрации, выхода и получения текущего пользователя.
-/// Поддерживает как стандартную авторизацию, так и Telegram OAuth.
 /// Используется в слое домена для инкапсуляции логики работы с аутентификацией.
 ///
 /// Пример использования:
 /// ```dart
-/// final user = await authRepository.login('email', 'password');
-/// final telegramResult = await authRepository.loginWithTelegram(params);
+/// final user = await authRepository.requestEmailOtp('email@example.com');
+/// final user = await authRepository.verifyEmailOtp('email@example.com', '123456');
 /// ```
 abstract class AuthRepository {
   /// Выполняет вход пользователя по email и паролю.
@@ -33,8 +31,6 @@ abstract class AuthRepository {
   /// Выполняет выход пользователя из системы.
   ///
   /// Очищает токены и локальные данные сессии.
-  ///
-  /// Telegram авторизация удалена.
   Future<void> logout();
 
   /// Получает текущего авторизованного пользователя.
@@ -59,19 +55,4 @@ abstract class AuthRepository {
     required String fullName,
     required String phone,
   });
-
-  // === Telegram Mini App auth ===
-
-  /// Аутентифицирует пользователя через Telegram Mini App.
-  ///
-  /// [initData] — подписанные данные от TelegramWebApp.init()
-  ///
-  /// Возвращает [User] при успешной аутентификации через Telegram.
-  /// Требует создания/получения профиля в таблице profiles.
-  /// Статус профиля по умолчанию=false (требует одобрения администратора).
-  ///
-  /// Бросает исключение если:
-  /// - initData невалидны или подпись не прошла проверку
-  /// - ошибка при создании пользователя/профиля
-  Future<User> authenticateWithTelegram({required String initData});
 }

@@ -1,8 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:projectgt/data/datasources/auth_data_source.dart';
-import 'package:projectgt/data/datasources/telegram_auth_data_source.dart';
-// Telegram data source удалён
 import 'package:projectgt/data/datasources/profile_data_source.dart';
 import 'package:projectgt/data/datasources/employee_data_source.dart';
 import 'package:projectgt/data/models/estimate_completion_model.dart';
@@ -19,8 +17,6 @@ import 'package:projectgt/domain/usecases/auth/register_usecase.dart';
 import 'package:projectgt/domain/usecases/auth/request_email_otp_usecase.dart';
 import 'package:projectgt/domain/usecases/auth/verify_email_otp_usecase.dart';
 import 'package:projectgt/domain/usecases/auth/complete_user_profile_usecase.dart';
-import 'package:projectgt/domain/usecases/auth/telegram_authenticate_usecase.dart';
-// Telegram auth usecases удалены
 
 // Telegram moderation слои удалены
 import 'package:projectgt/domain/usecases/profile/get_profile_usecase.dart';
@@ -112,12 +108,7 @@ final authDataSourceProvider = Provider<AuthDataSource>((ref) {
   return SupabaseAuthDataSource(client);
 });
 
-/// Провайдер для TelegramAuthDataSource (Edge Function).
-final telegramAuthDataSourceProvider = Provider<TelegramAuthDataSource>((ref) {
-  return TelegramAuthDataSource();
-});
-
-// TelegramModerationDataSource удалён
+// TelegramAuthDataSource удалён
 
 /// Провайдер для ProfileDataSource (Supabase).
 final profileDataSourceProvider = Provider<ProfileDataSource>((ref) {
@@ -167,10 +158,8 @@ final workPlanDataSourceProvider = Provider<WorkPlanDataSource>((ref) {
 /// Провайдер репозитория аутентификации.
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   final authDataSource = ref.watch(authDataSourceProvider);
-  final telegramAuthDataSource = ref.watch(telegramAuthDataSourceProvider);
   return AuthRepositoryImpl(
     authDataSource: authDataSource,
-    telegramAuthDataSource: telegramAuthDataSource,
   );
 });
 
@@ -254,20 +243,11 @@ final logoutUseCaseProvider = Provider<LogoutUseCase>((ref) {
   return LogoutUseCase(repository);
 });
 
-/// Провайдер use-case для аутентификации через Telegram.
-final telegramAuthenticateUseCaseProvider =
-    Provider<TelegramAuthenticateUseCase>((ref) {
-  final repository = ref.watch(authRepositoryProvider);
-  return TelegramAuthenticateUseCase(repository);
-});
-
 /// Провайдер use-case для получения текущего пользователя.
 final getCurrentUserUseCaseProvider = Provider<GetCurrentUserUseCase>((ref) {
   final repository = ref.watch(authRepositoryProvider);
   return GetCurrentUserUseCase(repository);
 });
-
-// UseCases Telegram удалены
 
 // UseCases Telegram moderation удалены
 

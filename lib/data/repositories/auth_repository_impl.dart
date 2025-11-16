@@ -1,29 +1,17 @@
 import 'package:projectgt/data/datasources/auth_data_source.dart';
-import 'package:projectgt/data/datasources/telegram_auth_data_source.dart';
-// Telegram auth data source удалён
 import 'package:projectgt/domain/entities/user.dart';
-// Telegram доменные сущности удалены
 import 'package:projectgt/domain/repositories/auth_repository.dart';
-// Telegram moderation и модели удалены
-// logger removed
 
 /// Имплементация [AuthRepository] для работы с аутентификацией через data sources.
 ///
 /// Инкапсулирует преобразование моделей и делегирует вызовы data-слою.
-/// Поддерживает как стандартную авторизацию, так и Telegram OAuth.
 class AuthRepositoryImpl implements AuthRepository {
-  /// Data source для стандартной аутентификации.
+  /// Data source для аутентификации.
   final AuthDataSource authDataSource;
-
-  /// Data source для Telegram Mini App аутентификации.
-  final TelegramAuthDataSource telegramAuthDataSource;
-
-  // logger removed
 
   /// Создаёт [AuthRepositoryImpl] с указанными data sources.
   AuthRepositoryImpl({
     required this.authDataSource,
-    required this.telegramAuthDataSource,
   });
 
   // === Стандартные методы авторизации ===
@@ -49,24 +37,15 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<User?> getCurrentUser() async {
     try {
-      // Сначала проверяем стандартную авторизацию
       final userModel = await authDataSource.getCurrentUser();
       if (userModel != null) {
-        // user found
         return userModel.toDomain();
       }
-
-      // Telegram авторизация удалена
-
-      // no user
       return null;
     } catch (e) {
-      // error
       return null;
     }
   }
-
-  // Telegram методы удалены
 
   // === OTP (Email) methods ===
 
@@ -91,24 +70,5 @@ class AuthRepositoryImpl implements AuthRepository {
       fullName: fullName,
       phone: phone,
     );
-  }
-
-  // === Telegram Mini App auth ===
-
-  @override
-  Future<User> authenticateWithTelegram({required String initData}) async {
-    // Вызываем Edge Function для проверки подписи и получения JWT
-    await telegramAuthDataSource.authenticateWithInitData(
-      initData: initData,
-    );
-
-    // Теперь Supabase Auth имеет сессию с JWT
-    // Получаем пользователя
-    final userModel = await authDataSource.getCurrentUser();
-    if (userModel == null) {
-      throw Exception('Failed to retrieve user after Telegram authentication');
-    }
-
-    return userModel.toDomain();
   }
 }
