@@ -114,13 +114,56 @@ class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier(Ref ref)
       : _ref = ref,
         super(AuthState.initial()) {
+    // Сначала пытаемся автоматически залогинить через Telegram если есть initData в URL
+    _tryAutoLoginWithTelegram();
+    
     checkAuthStatus();
+    
     // Слушаем изменения сессии Supabase, чтобы гарантированно подхватывать вход без перезагрузки
     try {
       supa.Supabase.instance.client.auth.onAuthStateChange.listen((_) {
         checkAuthStatus();
       });
     } catch (_) {}
+  }
+
+  /// Пытается автоматически залогинить через Telegram если initData присутствует в URL.
+  ///
+  /// Telegram Mini App передаёт данные как query параметр: ?tgWebAppData=...
+  /// Эта функция извлекает их и выполняет автоматический вход.
+  void _tryAutoLoginWithTelegram() {
+    try {
+      // Извлекаем initData из URL (если открыто из Telegram Mini App)
+      final searchParams = currentHref().split('?').length > 1 
+        ? currentHref().split('?')[1]
+        : '';
+      
+      if (searchParams.isEmpty) return;
+
+      // Ищем параметр tgWebAppData
+      final regex = RegExp(r'[?&]tgWebAppData=([^&]*)');
+      final match = regex.firstMatch('?$searchParams');
+
+      if (match != null && match.group(1) != null) {
+        // URL decode параметр
+        final initData = Uri.decodeComponent(match.group(1)!);
+        
+        // Запускаем асинхронный вход в фоне
+        Future.delayed(const Duration(milliseconds: 500), () {
+          loginWithTelegram(initData);
+          
+          // Очищаем URL после входа (через 2 секунды, когда вход завершится)
+          Future.delayed(const Duration(seconds: 2), () {
+            try {
+              final base = currentHref().split('?')[0];
+              replaceUrlPreservingHash(base, '#/');
+            } catch (_) {}
+          });
+        });
+      }
+    } catch (e) {
+      // Silent fail - это опциональная функция
+    }
   }
 
   final Ref _ref;

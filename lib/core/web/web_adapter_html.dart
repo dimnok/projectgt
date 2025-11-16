@@ -51,7 +51,7 @@ void localStorageRemove(String key) {
 /// Выполняет JavaScript код и возвращает результат.
 ///
 /// [jsCode] — JavaScript код для выполнения (например, 'window.Telegram?.WebApp?.initData')
-/// 
+///
 /// Примеры:
 /// ```dart
 /// final initData = await evaluateJavaScript('window.Telegram?.WebApp?.initData');

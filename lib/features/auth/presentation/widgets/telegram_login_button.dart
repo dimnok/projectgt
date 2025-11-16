@@ -12,12 +12,16 @@ class TelegramLoginButton extends ConsumerWidget {
   /// Создаёт [TelegramLoginButton].
   const TelegramLoginButton({super.key});
 
-  /// Получает initData от Telegram WebApp.
+  /// Получает initData от Telegram WebApp или из URL query параметров.
+  ///
+  /// Telegram передаёт initData двумя способами:
+  /// 1. Через window.Telegram?.WebApp?.initData (JS API)
+  /// 2. Через URL query параметр ?tgWebAppData=... (при открытии Mini App)
   ///
   /// Возвращает null если:
   /// - Приложение не веб версия
   /// - Приложение не открыто из Telegram
-  /// - Telegram WebApp API недоступен
+  /// - initData не найдена ни в JS API, ни в URL
   Future<String?> _getTelegramInitData() async {
     if (!kIsWeb) {
       debugPrint('[TelegramLoginButton] Not a web app, skipping Telegram auth');
@@ -25,21 +29,60 @@ class TelegramLoginButton extends ConsumerWidget {
     }
 
     try {
-      // Получаем initData от Telegram WebApp JS API
+      // 1️⃣ Пытаемся получить initData от Telegram WebApp JS API
       final initData =
           await evaluateJavaScript('window.Telegram?.WebApp?.initData');
 
-      if (initData == null || initData.toString().isEmpty) {
-        debugPrint(
-            '[TelegramLoginButton] initData is null or empty - not in Telegram');
+      if (initData != null && initData.toString().isNotEmpty) {
+        debugPrint('[TelegramLoginButton] Got initData from JS API');
+        return initData.toString();
+      }
+
+      // 2️⃣ Если не найдена в JS API - ищем в URL query параметрах
+      // Telegram передаёт: ?tgWebAppData=...
+      final initDataFromUrl = await _extractInitDataFromUrl();
+      if (initDataFromUrl != null && initDataFromUrl.isNotEmpty) {
+        debugPrint('[TelegramLoginButton] Got initData from URL query');
+        return initDataFromUrl;
+      }
+
+      debugPrint(
+          '[TelegramLoginButton] initData not found in JS API or URL - not in Telegram');
+      return null;
+    } catch (e) {
+      debugPrint('[TelegramLoginButton] Error getting initData: $e');
+      return null;
+    }
+  }
+
+  /// Извлекает initData из URL query параметра `tgWebAppData`.
+  ///
+  /// Telegram Mini App передаёт данные как query параметр при открытии:
+  /// https://example.com?tgWebAppData=query_id%3D...&user%3D...
+  Future<String?> _extractInitDataFromUrl() async {
+    try {
+      // Получаем текущий URL
+      final url = await evaluateJavaScript('window.location.search');
+      if (url == null || url.toString().isEmpty) {
         return null;
       }
 
-      debugPrint('[TelegramLoginButton] Got initData: ${initData.toString()}');
-      return initData.toString();
+      final searchParams = url.toString();
+      // Ищем параметр tgWebAppData
+      final regex = RegExp(r'[?&]tgWebAppData=([^&]*)');
+      final match = regex.firstMatch(searchParams);
+
+      if (match != null && match.group(1) != null) {
+        // URL decode параметр
+        String initData = Uri.decodeComponent(match.group(1)!);
+        debugPrint(
+            '[TelegramLoginButton] Extracted initData from URL: ${initData.substring(0, 50)}...');
+        return initData;
+      }
+
+      return null;
     } catch (e) {
-      debugPrint(
-          '[TelegramLoginButton] Error getting initData: $e');
+      debugPrint('[TelegramLoginButton] Error extracting initData from URL: $e');
       return null;
     }
   }
@@ -66,8 +109,7 @@ class TelegramLoginButton extends ConsumerWidget {
                       content: const Text(
                         'Приложение должно быть открыто из Telegram',
                       ),
-                      backgroundColor:
-                          Theme.of(context).colorScheme.error,
+                      backgroundColor: Theme.of(context).colorScheme.error,
                       duration: const Duration(seconds: 3),
                     ),
                   );
@@ -87,7 +129,8 @@ class TelegramLoginButton extends ConsumerWidget {
 
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Ошибка входа через Telegram: ${e.toString()}'),
+                    content:
+                        Text('Ошибка входа через Telegram: ${e.toString()}'),
                     backgroundColor: Theme.of(context).colorScheme.error,
                     duration: const Duration(seconds: 4),
                   ),
@@ -105,4 +148,3 @@ class TelegramLoginButton extends ConsumerWidget {
     );
   }
 }
-
