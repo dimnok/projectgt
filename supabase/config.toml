@@ -1,8 +1,2 @@
-[functions.tg-init]
-verify_jwt = false
-
-[functions.telegram-auth]
-verify_jwt = false
-
-[functions.verify-telegram-init-data]
-verify_jwt = false
+# Supabase Edge Functions configuration
+# All Telegram Mini App functions removed
