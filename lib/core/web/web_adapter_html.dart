@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:web/web.dart' as web;
 import 'package:http/http.dart' as http;
 
@@ -73,13 +74,13 @@ Future<dynamic> evaluateJavaScript(String jsCode) async {
 }
 
 /// Специальная функция для получения Telegram initData
-/// 
+///
 /// Сначала пытается получить из сохраненной глобальной переменной (надежнее),
 /// затем - напрямую из объекта Telegram.WebApp (fallback)
 dynamic _getTelegramInitData() {
   try {
     final window = web.window;
-    
+
     // 1️⃣ Сначала проверяем сохраненную глобальную переменную
     // (установлена при инициализации в web/index.html)
     final flutterInitData = (window as dynamic)['__flutterTelegramInitData'];
@@ -87,37 +88,32 @@ dynamic _getTelegramInitData() {
       debugPrint('[TelegramInitData] Got from __flutterTelegramInitData');
       return flutterInitData.toString();
     }
-    
+
     // 2️⃣ Fallback: Прямой доступ к объекту Telegram через window
     final telegrams = (window as dynamic)['Telegram'];
     if (telegrams == null) {
       debugPrint('[TelegramInitData] No Telegram object found');
       return null;
     }
-    
+
     final webApp = telegrams['WebApp'];
     if (webApp == null) {
       debugPrint('[TelegramInitData] No Telegram.WebApp found');
       return null;
     }
-    
+
     final initData = webApp['initData'];
     if (initData == null || initData.toString().isEmpty) {
       debugPrint('[TelegramInitData] No initData in Telegram.WebApp');
       return null;
     }
-    
+
     debugPrint('[TelegramInitData] Got from Telegram.WebApp.initData');
     return initData.toString();
   } catch (e) {
     debugPrint('[TelegramInitData] Error: $e');
     return null;
   }
-}
-
-/// Функция для отладки - печатает информацию о Telegram из консоли
-void debugPrint(String message) {
-  print(message);
 }
 
 /// Вспомогательная функция для выполнения JavaScript через Function конструктор
