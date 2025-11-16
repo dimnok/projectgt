@@ -312,12 +312,12 @@ class SupabaseAuthDataSource implements AuthDataSource {
   @override
   Future<UserModel> verifyTelegramInitData(String initData) async {
     try {
-      print('📞 [SupabaseAuthDataSource] Вызываем Edge Function verify-telegram-init-data...');
+      print('📞 [SupabaseAuthDataSource] Вызываем Edge Function tg-init...');
       print('📄 [SupabaseAuthDataSource] initData length: ${initData.length}');
       
-            // Вызываем Edge Function напрямую через HTTP с новым именем (без verify префикса)
-            // Используем Supabase REST API напрямую с apikey
-            final functionUrl = 'https://hzcawspbkvkrsmsklyuj.supabase.co/functions/v1/tg-init';
+      // Вызываем Edge Function напрямую через HTTP
+      // Используем Supabase REST API напрямую с apikey
+      final functionUrl = 'https://hzcawspbkvkrsmsklyuj.supabase.co/functions/v1/tg-init';
       
       print('🔗 [SupabaseAuthDataSource] Function URL: $functionUrl');
       
@@ -339,16 +339,18 @@ class SupabaseAuthDataSource implements AuthDataSource {
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final accessToken = data['access_token'] as String?;
+      final refreshToken = data['refresh_token'] as String?;
       
-      if (accessToken == null) {
-        print('❌ [SupabaseAuthDataSource] accessToken is null!');
-        throw Exception('Не удалось получить токен от Telegram');
+      if (accessToken == null || refreshToken == null) {
+        print('❌ [SupabaseAuthDataSource] accessToken or refreshToken is null!');
+        throw Exception('Не удалось получить токены от Telegram');
       }
       print('🔑 [SupabaseAuthDataSource] accessToken получен: ${accessToken.substring(0, 20)}...');
+      print('🔑 [SupabaseAuthDataSource] refreshToken получен: ${refreshToken.substring(0, 20)}...');
 
       // Устанавливаем сессию и получаем пользователя
       print('🔐 [SupabaseAuthDataSource] Устанавливаем сессию...');
-      await client.auth.setSession(accessToken);
+      await client.auth.setSession(accessToken, refreshToken);
       final user = client.auth.currentUser;
       print('👤 [SupabaseAuthDataSource] currentUser: ${user?.id}');
       
