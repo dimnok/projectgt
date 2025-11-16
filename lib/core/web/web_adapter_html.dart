@@ -64,7 +64,7 @@ Future<dynamic> evaluateJavaScript(String jsCode) async {
     if (jsCode.contains('initData')) {
       return _getTelegramInitData();
     }
-    
+
     // Для остальных случаев - выполняем через Function конструктор
     return _executeJS(jsCode);
   } catch (e) {
@@ -73,25 +73,51 @@ Future<dynamic> evaluateJavaScript(String jsCode) async {
 }
 
 /// Специальная функция для получения Telegram initData
+/// 
+/// Сначала пытается получить из сохраненной глобальной переменной (надежнее),
+/// затем - напрямую из объекта Telegram.WebApp (fallback)
 dynamic _getTelegramInitData() {
   try {
-    // Прямой доступ к объекту Telegram через window
     final window = web.window;
     
-    // Используем динамический доступ для получения Telegram
+    // 1️⃣ Сначала проверяем сохраненную глобальную переменную
+    // (установлена при инициализации в web/index.html)
+    final flutterInitData = (window as dynamic)['__flutterTelegramInitData'];
+    if (flutterInitData != null && flutterInitData.toString().isNotEmpty) {
+      debugPrint('[TelegramInitData] Got from __flutterTelegramInitData');
+      return flutterInitData.toString();
+    }
+    
+    // 2️⃣ Fallback: Прямой доступ к объекту Telegram через window
     final telegrams = (window as dynamic)['Telegram'];
-    if (telegrams == null) return null;
+    if (telegrams == null) {
+      debugPrint('[TelegramInitData] No Telegram object found');
+      return null;
+    }
     
     final webApp = telegrams['WebApp'];
-    if (webApp == null) return null;
+    if (webApp == null) {
+      debugPrint('[TelegramInitData] No Telegram.WebApp found');
+      return null;
+    }
     
     final initData = webApp['initData'];
-    if (initData == null || initData.toString().isEmpty) return null;
+    if (initData == null || initData.toString().isEmpty) {
+      debugPrint('[TelegramInitData] No initData in Telegram.WebApp');
+      return null;
+    }
     
+    debugPrint('[TelegramInitData] Got from Telegram.WebApp.initData');
     return initData.toString();
   } catch (e) {
+    debugPrint('[TelegramInitData] Error: $e');
     return null;
   }
+}
+
+/// Функция для отладки - печатает информацию о Telegram из консоли
+void debugPrint(String message) {
+  print(message);
 }
 
 /// Вспомогательная функция для выполнения JavaScript через Function конструктор
