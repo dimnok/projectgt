@@ -124,14 +124,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         return AppRoutes.home;
       }
 
-      // Обработка Telegram Mini App параметров (в hash-фрагменте)
-      // Telegram добавляет параметры в URL hash (#tgWebAppData=...), которые Go Router не может маршрутизировать
-      // Перенаправляем на главную страницу, если в URL есть Telegram параметры
-      final fragment = state.uri.fragment;
-      if (fragment.contains('tgWebAppData')) {
-        return AppRoutes.home;
-      }
-
       return null;
     },
     routes: [

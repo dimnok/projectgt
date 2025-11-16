@@ -1,8 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:projectgt/data/models/user_model.dart';
 import 'package:logger/logger.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 
 /// Абстракция для источника данных аутентификации.
 ///
@@ -49,9 +47,6 @@ abstract class AuthDataSource {
     required String fullName,
     required String phone,
   });
-
-  /// Верифицирует Telegram Mini App initData и возвращает пользователя.
-  Future<UserModel> verifyTelegramInitData(String initData);
 }
 
 /// Реализация [AuthDataSource] через Supabase.
@@ -306,81 +301,6 @@ class SupabaseAuthDataSource implements AuthDataSource {
     } catch (e) {
       logger.e('Ошибка обновления профиля: $e');
       throw Exception('Не удалось обновить профиль: $e');
-    }
-  }
-
-  @override
-  Future<UserModel> verifyTelegramInitData(String initData) async {
-    try {
-      print('📞 [SupabaseAuthDataSource] Вызываем Edge Function telegram-login...');
-      print('📄 [SupabaseAuthDataSource] initData length: ${initData.length}');
-      
-      // Вызываем Edge Function напрямую через HTTP
-      // Используем Supabase REST API напрямую с apikey
-      final functionUrl = 'https://hzcawspbkvkrsmsklyuj.supabase.co/functions/v1/telegram-login';
-      
-      print('🔗 [SupabaseAuthDataSource] Function URL: $functionUrl');
-      
-      final response = await http.post(
-        Uri.parse(functionUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6Y2F3c3Bia3ZrcnNta3NseXVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU1MzgwODgsImV4cCI6MTc3MTE5ODA4OH0.MzIfGKzV-pBz_8Qds0CzzNGMkDIEf1KDLG2J9aCHqU0',
-        },
-        body: jsonEncode({'initData': initData}),
-      );
-      
-      print('✅ [SupabaseAuthDataSource] Edge Function ответила: ${response.statusCode}');
-
-      if (response.statusCode != 200) {
-        print('❌ [SupabaseAuthDataSource] Error body: ${response.body}');
-        throw Exception('Edge Function ошибка: ${response.body}');
-      }
-
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-      final accessToken = data['access_token'] as String?;
-      
-      if (accessToken == null) {
-        print('❌ [SupabaseAuthDataSource] accessToken is null!');
-        throw Exception('Не удалось получить токен от Telegram');
-      }
-      print('🔑 [SupabaseAuthDataSource] accessToken получен: ${accessToken.substring(0, 20)}...');
-
-      // Устанавливаем сессию и получаем пользователя
-      print('🔐 [SupabaseAuthDataSource] Устанавливаем сессию...');
-      await client.auth.setSession(accessToken);
-      final user = client.auth.currentUser;
-      print('👤 [SupabaseAuthDataSource] currentUser: ${user?.id}');
-      
-      if (user == null) {
-        print('❌ [SupabaseAuthDataSource] user is null after setSession!');
-        throw Exception('Пользователь не найден после авторизации');
-      }
-
-      String role = 'user';
-      try {
-        final profileData = await client
-            .from('profiles')
-            .select('role')
-            .eq('id', user.id)
-            .single();
-        if (profileData['role'] != null) {
-          role = profileData['role'];
-        }
-      } catch (_) {}
-
-      print('✅ [SupabaseAuthDataSource] Возвращаем UserModel с id: ${user.id}');
-      return UserModel(
-        id: user.id,
-        email: user.email ?? '',
-        name: user.userMetadata?['name'] as String?,
-        photoUrl: user.userMetadata?['photoUrl'] as String?,
-        role: role,
-      );
-    } catch (e) {
-      print('❌ [SupabaseAuthDataSource] Ошибка: $e');
-      logger.e('Ошибка верификации Telegram: $e');
-      throw Exception('Ошибка авторизации через Telegram: $e');
     }
   }
 }

@@ -33,28 +33,6 @@
   
   <title>ProjectGT</title>
   
-  <!-- Telegram Web App SDK -->
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
-
-  <!-- Telegram Mini App URL cleanup (MUST be before flutter_bootstrap.js) -->
-  <script>
-    // Если в hash есть tgWebAppData, сохраняем его и очищаем URL
-    if (window.location.hash && window.location.hash.includes('tgWebAppData')) {
-      // Сохраняем hash для дальнейшего использования
-      sessionStorage.setItem('tg_hash', window.location.hash);
-      
-      // Очищаем URL перед инициализацией Flutter
-      window.history.replaceState({}, '', window.location.pathname);
-      
-      console.log('Telegram hash cleaned');
-    }
-    
-    // Debug логирование
-    console.log('Current URL:', window.location.href);
-    console.log('URL search:', window.location.search);
-    console.log('Telegram available:', !!window.Telegram);
-  </script>
-  
   <!-- Status Bar Control -->
   <script>
     // Функция для установки цвета статус-бара
