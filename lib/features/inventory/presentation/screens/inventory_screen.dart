@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
+import 'package:projectgt/features/roles/application/permission_service.dart';
 import '../widgets/inventory_table_widget.dart';
 import '../providers/inventory_provider.dart';
 import '../../domain/entities/inventory_item.dart';
@@ -15,6 +16,7 @@ class InventoryScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final permissionService = ref.watch(permissionServiceProvider);
 
     return Scaffold(
       drawer: const AppDrawer(activeRoute: AppRoute.inventory),
@@ -38,6 +40,7 @@ class InventoryScreen extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
+                  if (permissionService.can('inventory', 'create')) ...[
                   Expanded(
                     child: _buildNavigationCard(
                       context: context,
@@ -48,6 +51,8 @@ class InventoryScreen extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
+                  ],
+                  if (permissionService.can('inventory', 'update')) ...[
                   Expanded(
                     child: _buildNavigationCard(
                       context: context,
@@ -58,6 +63,8 @@ class InventoryScreen extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
+                  ],
+                  if (permissionService.can('inventory', 'update')) ...[
                   Expanded(
                     child: _buildNavigationCard(
                       context: context,
@@ -68,6 +75,8 @@ class InventoryScreen extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
+                  ],
+                  if (permissionService.can('inventory', 'update')) ...[
                   Expanded(
                     child: _buildNavigationCard(
                       context: context,
@@ -78,6 +87,7 @@ class InventoryScreen extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
+                  ],
                   Expanded(
                     child: _buildNavigationCard(
                       context: context,

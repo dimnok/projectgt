@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../widgets/payroll_payout_table_widget.dart';
 import '../../widgets/payroll_payout_form_modal.dart';
+import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
 
 /// Таб "Выплаты" в модуле ФОТ.
 /// Отображает таблицу всех выплат с возможностью добавления выплат.
@@ -34,6 +35,9 @@ class PayrollTabPayouts extends StatelessWidget {
                     Positioned(
                       right: 8,
                       bottom: 8,
+                      child: PermissionGuard(
+                        module: 'payroll',
+                        permission: 'create',
                       child: FloatingActionButton(
                         heroTag: 'addPayrollPayout',
                         shape: const CircleBorder(),
@@ -53,6 +57,7 @@ class PayrollTabPayouts extends StatelessWidget {
                         },
                         tooltip: 'Добавить выплату',
                         child: const Icon(Icons.add),
+                        ),
                       ),
                     ),
                   ],

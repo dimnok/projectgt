@@ -11,7 +11,6 @@ import 'package:projectgt/features/profile/presentation/screens/users_list_scree
 import 'package:projectgt/features/employees/presentation/screens/employees_list_screen.dart';
 import 'package:projectgt/features/employees/presentation/screens/employee_details_screen.dart';
 import 'package:projectgt/features/employees/presentation/screens/employee_form_screen.dart';
-import 'package:projectgt/presentation/state/auth_state.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
 import 'package:projectgt/features/objects/presentation/screens/objects_list_screen.dart';
 import 'package:projectgt/features/objects/presentation/screens/object_form_screen.dart';
@@ -47,24 +46,19 @@ import 'package:projectgt/features/inventory/presentation/screens/inventory_cate
 import 'package:projectgt/core/widgets/auth_gate.dart';
 import 'package:projectgt/features/version_control/presentation/force_update_screen.dart';
 import 'package:projectgt/features/version_control/presentation/version_management_screen.dart';
+import 'package:projectgt/features/roles/presentation/screens/roles_list_screen.dart';
+import 'package:projectgt/features/roles/application/permission_service.dart';
 
-/// Проверяет, является ли текущий пользователь администратором.
-///
-/// Используется для защиты маршрутов, доступных только админам.
-bool _isAdmin(WidgetRef ref) {
-  final authState = ref.watch(authProvider);
-  return authState.user?.role == 'admin';
-}
 
 /// Проверяет, может ли пользователь просматривать информацию о конкретном сотруднике.
 ///
 /// Админы могут просматривать всех сотрудников.
 /// Обычные пользователи могут просматривать только своего привязанного сотрудника.
 bool _canViewEmployee(WidgetRef ref, String employeeId) {
-  final authState = ref.watch(authProvider);
+  final service = ref.watch(permissionServiceProvider);
 
-  // Админы могут просматривать всех
-  if (authState.user?.role == 'admin') {
+  // Админы (с правом чтения) могут просматривать всех
+  if (service.can('employees', 'read')) {
     return true;
   }
 
@@ -174,16 +168,27 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.users,
         name: 'users',
-        builder: (context, state) => const UsersListScreen(),
+        builder: (context, state) {
+          return Consumer(
+            builder: (context, ref, child) {
+              final service = ref.watch(permissionServiceProvider);
+              if (service.can('users', 'read')) {
+                return const UsersListScreen();
+              }
+              return _buildAccessDeniedScreen();
+            },
+          );
+        },
       ),
-      // Маршрут для списка сотрудников - только для админов
+      // Маршрут для списка сотрудников
       GoRoute(
         path: AppRoutes.employees,
         name: 'employees',
         builder: (context, state) {
           return Consumer(
             builder: (context, ref, child) {
-              if (_isAdmin(ref)) {
+              final service = ref.watch(permissionServiceProvider);
+              if (service.can('employees', 'read')) {
                 return const EmployeesListScreen();
               }
               return _buildAccessDeniedScreen();
@@ -191,14 +196,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      // Маршрут для создания нового сотрудника - только для админов
+      // Маршрут для создания нового сотрудника
       GoRoute(
         path: '${AppRoutes.employees}/create',
         name: 'employee_new',
         builder: (context, state) {
           return Consumer(
             builder: (context, ref, child) {
-              if (_isAdmin(ref)) {
+              final service = ref.watch(permissionServiceProvider);
+              if (service.can('employees', 'create')) {
                 return const EmployeeFormScreen();
               }
               return _buildAccessDeniedScreen();
@@ -206,14 +212,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      // Маршрут для редактирования существующего сотрудника - только для админов
+      // Маршрут для редактирования существующего сотрудника
       GoRoute(
         path: '${AppRoutes.employees}/:employeeId/edit',
         name: 'employee_edit',
         builder: (context, state) {
           return Consumer(
             builder: (context, ref, child) {
-              if (_isAdmin(ref)) {
+              final service = ref.watch(permissionServiceProvider);
+              if (service.can('employees', 'update')) {
                 final employeeId = state.pathParameters['employeeId']!;
                 return EmployeeFormScreen(employeeId: employeeId);
               }
@@ -222,7 +229,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      // Маршрут для просмотра конкретного сотрудника - админы или просмотр своей карточки
+      // Маршрут для просмотра конкретного сотрудника
       GoRoute(
         path: '${AppRoutes.employees}/:employeeId',
         name: 'employee_details',
@@ -230,8 +237,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           return Consumer(
             builder: (context, ref, child) {
               final employeeId = state.pathParameters['employeeId']!;
+              final service = ref.watch(permissionServiceProvider);
 
-              if (_canViewEmployee(ref, employeeId)) {
+              // Если есть право на чтение сотрудников ИЛИ это свой профиль
+              if (service.can('employees', 'read') ||
+                  _canViewEmployee(ref, employeeId)) {
                 return EmployeeDetailsScreen(employeeId: employeeId);
               }
               return _buildAccessDeniedScreen();
@@ -239,14 +249,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      // Маршрут для объектов - только для админов
+      // Маршрут для объектов - доступ по правам
       GoRoute(
         path: AppRoutes.objects,
         name: 'objects',
         builder: (context, state) {
           return Consumer(
             builder: (context, ref, child) {
-              if (_isAdmin(ref)) {
+              final service = ref.watch(permissionServiceProvider);
+              if (service.can('objects', 'read')) {
                 return const ObjectsListScreen();
               }
               return _buildAccessDeniedScreen();
@@ -254,14 +265,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      // Маршрут для создания нового объекта - только для админов
+      // Маршрут для создания нового объекта - доступ по правам
       GoRoute(
         path: '${AppRoutes.objects}/create',
         name: 'object_new',
         builder: (context, state) {
           return Consumer(
             builder: (context, ref, child) {
-              if (_isAdmin(ref)) {
+              final service = ref.watch(permissionServiceProvider);
+              if (service.can('objects', 'create')) {
                 return const ObjectFormScreen();
               }
               return _buildAccessDeniedScreen();
@@ -269,14 +281,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      // Маршрут для контрагентов - только для админов
+      // Маршрут для контрагентов
       GoRoute(
         path: AppRoutes.contractors,
         name: 'contractors',
         builder: (context, state) {
           return Consumer(
             builder: (context, ref, child) {
-              if (_isAdmin(ref)) {
+              final service = ref.watch(permissionServiceProvider);
+              if (service.can('contractors', 'read')) {
                 return const ContractorsListScreen();
               }
               return _buildAccessDeniedScreen();
@@ -284,14 +297,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      // Маршрут для создания нового контрагента - только для админов
+      // Маршрут для создания нового контрагента
       GoRoute(
         path: '${AppRoutes.contractors}/create',
         name: 'contractor_new',
         builder: (context, state) {
           return Consumer(
             builder: (context, ref, child) {
-              if (_isAdmin(ref)) {
+              final service = ref.watch(permissionServiceProvider);
+              if (service.can('contractors', 'create')) {
                 return const ContractorFormScreen();
               }
               return _buildAccessDeniedScreen();
@@ -299,14 +313,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      // Маршрут для редактирования контрагента - только для админов
+      // Маршрут для редактирования контрагента
       GoRoute(
         path: '${AppRoutes.contractors}/:contractorId/edit',
         name: 'contractor_edit',
         builder: (context, state) {
           return Consumer(
             builder: (context, ref, child) {
-              if (_isAdmin(ref)) {
+              final service = ref.watch(permissionServiceProvider);
+              if (service.can('contractors', 'update')) {
                 final contractorId = state.pathParameters['contractorId']!;
                 return ContractorFormScreen(contractorId: contractorId);
               }
@@ -315,14 +330,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      // Маршрут для просмотра контрагента - только для админов
+      // Маршрут для просмотра контрагента
       GoRoute(
         path: '${AppRoutes.contractors}/:contractorId',
         name: 'contractor_details',
         builder: (context, state) {
           return Consumer(
             builder: (context, ref, child) {
-              if (_isAdmin(ref)) {
+              final service = ref.watch(permissionServiceProvider);
+              if (service.can('contractors', 'read')) {
                 final contractorId = state.pathParameters['contractorId']!;
                 return ContractorDetailsScreen(contractorId: contractorId);
               }
@@ -331,14 +347,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      // Маршрут для договоров - только для админов
+      // Маршрут для договоров
       GoRoute(
         path: AppRoutes.contracts,
         name: 'contracts',
         builder: (context, state) {
           return Consumer(
             builder: (context, ref, child) {
-              if (_isAdmin(ref)) {
+              final service = ref.watch(permissionServiceProvider);
+              if (service.can('contracts', 'read')) {
                 return const ContractsListScreen();
               }
               return _buildAccessDeniedScreen();
@@ -346,14 +363,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      // Маршрут для создания нового договора - только для админов
+      // Маршрут для создания нового договора
       GoRoute(
         path: '${AppRoutes.contracts}/create',
         name: 'contract_new',
         builder: (context, state) {
           return Consumer(
             builder: (context, ref, child) {
-              if (_isAdmin(ref)) {
+              final service = ref.watch(permissionServiceProvider);
+              if (service.can('contracts', 'create')) {
                 return const ContractFormScreen();
               }
               return _buildAccessDeniedScreen();
@@ -361,14 +379,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      // Маршрут для редактирования договора - только для админов
+      // Маршрут для редактирования договора
       GoRoute(
         path: '${AppRoutes.contracts}/:contractId/edit',
         name: 'contract_edit',
         builder: (context, state) {
           return Consumer(
             builder: (context, ref, child) {
-              if (_isAdmin(ref)) {
+              final service = ref.watch(permissionServiceProvider);
+              if (service.can('contracts', 'update')) {
                 // Передаем contractId, ContractFormScreen сам найдет контракт по id
                 // (или можно доработать для передачи объекта)
                 return const ContractFormScreen();
@@ -378,14 +397,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      // Маршрут для просмотра договора - только для админов
+      // Маршрут для просмотра договора
       GoRoute(
         path: '${AppRoutes.contracts}/:contractId',
         name: 'contract_details',
         builder: (context, state) {
           return Consumer(
             builder: (context, ref, child) {
-              if (_isAdmin(ref)) {
+              final service = ref.watch(permissionServiceProvider);
+              if (service.can('contracts', 'read')) {
                 final contractId = state.pathParameters['contractId']!;
                 return ContractDetailsScreen(contractId: contractId);
               }
@@ -394,14 +414,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      // Маршрут для смет - только для админов
+      // Маршрут для смет
       GoRoute(
         path: AppRoutes.estimates,
         name: 'estimates',
         builder: (context, state) {
           return Consumer(
             builder: (context, ref, child) {
-              if (_isAdmin(ref)) {
+              final service = ref.watch(permissionServiceProvider);
+              if (service.can('estimates', 'read')) {
                 return const EstimatesListScreen();
               }
               return _buildAccessDeniedScreen();
@@ -409,14 +430,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      // Маршрут для создания сметы - только для админов
+      // Маршрут для создания сметы
       GoRoute(
         path: '${AppRoutes.estimates}/create',
         name: 'estimate_new',
         builder: (context, state) {
           return Consumer(
             builder: (context, ref, child) {
-              if (_isAdmin(ref)) {
+              final service = ref.watch(permissionServiceProvider);
+              if (service.can('estimates', 'create')) {
                 return const EstimateFormScreen();
               }
               return _buildAccessDeniedScreen();
@@ -424,14 +446,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      // Маршрут для редактирования сметы - только для админов
+      // Маршрут для редактирования сметы
       GoRoute(
         path: '${AppRoutes.estimates}/:estimateId/edit',
         name: 'estimate_edit',
         builder: (context, state) {
           return Consumer(
             builder: (context, ref, child) {
-              if (_isAdmin(ref)) {
+              final service = ref.watch(permissionServiceProvider);
+              if (service.can('estimates', 'update')) {
                 final estimateId = state.pathParameters['estimateId']!;
                 return EstimateFormScreen(estimateId: estimateId);
               }
@@ -440,14 +463,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      // Маршрут для просмотра сметы - только для админов
+      // Маршрут для просмотра сметы
       GoRoute(
         path: '${AppRoutes.estimates}/:estimateTitle',
         name: 'estimate_details',
         builder: (context, state) {
           return Consumer(
             builder: (context, ref, child) {
-              if (_isAdmin(ref)) {
+              final service = ref.watch(permissionServiceProvider);
+              if (service.can('estimates', 'read')) {
                 final estimateTitle = state.pathParameters['estimateTitle']!;
                 return EstimateDetailsScreen(estimateTitle: estimateTitle);
               }
@@ -460,7 +484,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.works,
         name: 'works',
-        builder: (context, state) => const WorksMasterDetailScreen(),
+        builder: (context, state) {
+          return Consumer(
+            builder: (context, ref, child) {
+              final service = ref.watch(permissionServiceProvider);
+              if (service.can('works', 'read')) {
+                return const WorksMasterDetailScreen();
+              }
+              return _buildAccessDeniedScreen();
+            },
+          );
+        },
         routes: [
           GoRoute(
             path: ':workId',
@@ -517,14 +551,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'timesheet',
         builder: (context, state) => const TimesheetScreen(),
       ),
-      // Маршрут для расчётов ФОТ - только для админов
+      // Маршрут для расчётов ФОТ
       GoRoute(
         path: AppRoutes.payrolls,
         name: 'payrolls',
         builder: (context, state) {
           return Consumer(
             builder: (context, ref, child) {
-              if (_isAdmin(ref)) {
+              final service = ref.watch(permissionServiceProvider);
+              if (service.can('payroll', 'read')) {
                 return const PayrollListScreen();
               }
               return _buildAccessDeniedScreen();
@@ -532,11 +567,21 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      // Маршрут для экспорта - доступен всем пользователям
+      // Маршрут для экспорта - доступ по правам
       GoRoute(
         path: AppRoutes.export,
         name: 'export',
-        builder: (context, state) => const ExportScreen(),
+        builder: (context, state) {
+          return Consumer(
+            builder: (context, ref, child) {
+              final service = ref.watch(permissionServiceProvider);
+              if (service.can('export', 'read')) {
+                return const ExportScreen();
+              }
+              return _buildAccessDeniedScreen();
+            },
+          );
+        },
       ),
 
       // Маршрут для материалов (чистая страница с AppBar)
@@ -616,15 +661,33 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const ForceUpdateScreen(),
       ),
 
-      // Маршрут для управления версиями - только для админов
+      // Маршрут для управления версиями
       GoRoute(
         path: AppRoutes.versionManagement,
         name: 'version_management',
         builder: (context, state) {
           return Consumer(
             builder: (context, ref, child) {
-              if (_isAdmin(ref)) {
+              final service = ref.watch(permissionServiceProvider);
+              if (service.can('system', 'read')) {
                 return const VersionManagementScreen();
+              }
+              return _buildAccessDeniedScreen();
+            },
+          );
+        },
+      ),
+
+      // Маршрут для управления ролями
+      GoRoute(
+        path: AppRoutes.roles,
+        name: 'roles',
+        builder: (context, state) {
+          return Consumer(
+            builder: (context, ref, child) {
+              final service = ref.watch(permissionServiceProvider);
+              if (service.can('roles', 'read')) {
+                return const RolesListScreen();
               }
               return _buildAccessDeniedScreen();
             },
@@ -704,6 +767,9 @@ class AppRoutes {
 
   /// Маршрут для управления версиями (админ)
   static const String versionManagement = '/version-management';
+
+  /// Маршрут для управления ролями (админ)
+  static const String roles = '/roles';
 
   // Telegram маршруты удалены
 

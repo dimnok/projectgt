@@ -13,6 +13,7 @@ import '../providers/payroll_export_providers.dart';
 import '../providers/balance_providers.dart';
 import '../../../../core/di/providers.dart';
 import '../../../../presentation/state/employee_state.dart';
+import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
 import 'tabs/payroll_tab_penalties.dart';
 import 'tabs/payroll_tab_bonuses.dart';
 import 'tabs/payroll_tab_payouts.dart';
@@ -202,10 +203,14 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
             const PayrollFiltersAction(),
             const SizedBox(width: 8),
             // Кнопка экспорта в Excel
-            IconButton(
+            PermissionGuard(
+              module: 'payroll',
+              permission: 'export',
+              child: IconButton(
               icon: const Icon(Icons.download_outlined),
               tooltip: 'Экспорт в Excel',
               onPressed: _exportToExcel,
+              ),
             ),
             const SizedBox(width: 8),
           ],

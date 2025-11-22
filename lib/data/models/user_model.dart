@@ -16,13 +16,14 @@ abstract class UserModel with _$UserModel {
   /// [name] — имя пользователя (опционально).
   /// [photoUrl] — URL фото пользователя (опционально).
   /// [role] — роль пользователя (по умолчанию 'user').
+    /// [roleId] — ID роли пользователя (связь с таблицей roles).
   @JsonSerializable(explicitToJson: true, fieldRename: FieldRename.snake)
   const factory UserModel({
     required String id,
     required String email,
     String? name,
     String? photoUrl,
-    @Default('user') String role,
+    String? roleId,
   }) = _UserModel;
 
   /// Приватный конструктор для расширения функциональности через методы.
@@ -38,7 +39,7 @@ abstract class UserModel with _$UserModel {
         email: user.email,
         name: user.name,
         photoUrl: user.photoUrl,
-        role: user.role,
+        roleId: user.roleId,
       );
 
   /// Преобразует [UserModel] в доменную сущность [User].
@@ -47,6 +48,6 @@ abstract class UserModel with _$UserModel {
         email: email,
         name: name,
         photoUrl: photoUrl,
-        role: role,
+        roleId: roleId,
       );
 }

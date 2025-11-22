@@ -277,35 +277,37 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Сортировка'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ...options.map((option) => RadioListTile<String>(
-                  title: Text(option['label'] as String),
-                  value: option['value'] as String,
-                  groupValue: _sortCriterion,
-                  onChanged: (value) {
-                    if (value == _sortCriterion) {
-                      // Если выбран тот же критерий, меняем порядок сортировки
-                      setState(() {
-                        _sortAscending = !_sortAscending;
-                      });
-                    } else {
-                      // Если выбран новый критерий, устанавливаем его и сортируем по возрастанию
-                      setState(() {
-                        _sortCriterion = value!;
-                        _sortAscending = true;
-                      });
-                    }
-                    Navigator.of(context).pop();
-                  },
-                  secondary: _sortCriterion == option['value']
-                      ? Icon(_sortAscending
-                          ? Icons.arrow_upward
-                          : Icons.arrow_downward)
-                      : null,
-                )),
-          ],
+        content: RadioGroup<String>(
+          groupValue: _sortCriterion,
+          onChanged: (value) {
+            if (value == _sortCriterion) {
+              // Если выбран тот же критерий, меняем порядок сортировки
+              setState(() {
+                _sortAscending = !_sortAscending;
+              });
+            } else {
+              // Если выбран новый критерий, устанавливаем его и сортируем по возрастанию
+              setState(() {
+                _sortCriterion = value!;
+                _sortAscending = true;
+              });
+            }
+            Navigator.of(context).pop();
+          },
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ...options.map((option) => RadioListTile<String>(
+                    title: Text(option['label'] as String),
+                    value: option['value'] as String,
+                    secondary: _sortCriterion == option['value']
+                        ? Icon(_sortAscending
+                            ? Icons.arrow_upward
+                            : Icons.arrow_downward)
+                        : null,
+                  )),
+            ],
+          ),
         ),
         actions: [
           TextButton(

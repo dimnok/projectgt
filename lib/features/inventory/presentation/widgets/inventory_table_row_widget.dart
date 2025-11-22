@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/utils/formatters.dart';
+import 'package:projectgt/features/roles/application/permission_service.dart';
 
 // Константы стилей меню
 const double _menuWidth = 200;
@@ -166,7 +168,7 @@ Widget _buildCell({
     },
     behavior: HitTestBehavior.opaque,
     child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       alignment: align,
       width: double.infinity,
       child: DefaultTextStyle(
@@ -178,7 +180,7 @@ Widget _buildCell({
 }
 
 /// Кастомное Material меню.
-class _MaterialContextMenu extends StatelessWidget {
+class _MaterialContextMenu extends ConsumerWidget {
   final Offset tapPosition;
   final String itemId;
   final void Function(String itemId, String action) onAction;
@@ -202,7 +204,7 @@ class _MaterialContextMenu extends StatelessWidget {
     final screenSize = MediaQuery.of(context).size;
 
     // Проверка на выход за экран и корректировка позиции
-    final menuHeight = 120.0; // Примерная высота меню
+    const menuHeight = 120.0; // Примерная высота меню
     final adjustedPosition = Offset(
       tapPosition.dx + _menuWidth > screenSize.width
           ? screenSize.width - _menuWidth - 8
@@ -225,11 +227,16 @@ class _MaterialContextMenu extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final menuColor = isDark ? _darkMenuColor : _lightMenuColor;
     final borderColor = isDark ? _darkBorderColor : _lightBorderColor;
+
+    // Проверяем права пользователя
+    final permissionService = ref.watch(permissionServiceProvider);
+    final canUpdate = permissionService.can('inventory', 'update');
+    final canDelete = permissionService.can('inventory', 'delete');
 
     return Stack(
       children: [
@@ -269,33 +276,36 @@ class _MaterialContextMenu extends StatelessWidget {
                       onAction(itemId, 'view');
                     },
                   ),
-                  Container(
-                    height: 0.5,
-                    margin: const EdgeInsets.symmetric(horizontal: 8),
-                    color: borderColor,
-                  ),
-                  _MenuItem(
-                    icon: Icons.edit_outlined,
-                    label: 'Редактировать',
-                    onTap: () {
-                      onDismiss();
-                      onAction(itemId, 'edit');
-                    },
-                  ),
-                  Container(
-                    height: 0.5,
-                    margin: const EdgeInsets.symmetric(horizontal: 8),
-                    color: borderColor,
-                  ),
-                  _MenuItem(
-                    icon: Icons.delete_outline,
-                    label: 'Удалить',
-                    isDestructive: true,
-                    onTap: () {
-                      onDismiss();
-                      onAction(itemId, 'delete');
-                    },
-                  ),
+                  if (canUpdate) ...[
+                    Container(
+                      height: 0.5,
+                      margin: const EdgeInsets.symmetric(horizontal: 8),
+                      color: borderColor,
+                    ),
+                    _MenuItem(
+                      icon: Icons.edit_outlined,
+                      label: 'Редактировать',
+                      onTap: () {
+                        onDismiss();
+                        onAction(itemId, 'edit');
+                      },
+                    ),
+                    Container(
+                      height: 0.5,
+                      margin: const EdgeInsets.symmetric(horizontal: 8),
+                      color: borderColor,
+                    ),
+                  ],
+                  if (canDelete)
+                    _MenuItem(
+                      icon: Icons.delete_outline,
+                      label: 'Удалить',
+                      isDestructive: true,
+                      onTap: () {
+                        onDismiss();
+                        onAction(itemId, 'delete');
+                      },
+                    ),
                 ],
               ),
             ),

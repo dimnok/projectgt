@@ -6,10 +6,10 @@ import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/utils/modal_utils.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
-import 'package:projectgt/presentation/state/auth_state.dart';
 import '../../providers/work_search_provider.dart';
 import '../../widgets/export_search_action.dart';
 import '../../../domain/entities/work_search_result.dart';
+import 'package:projectgt/features/roles/application/permission_service.dart';
 
 /// Таб "Поиск" для расширенного поиска и фильтрации данных.
 class ExportTabSearch extends ConsumerStatefulWidget {
@@ -989,13 +989,22 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch>
                         cellContext,
                         initialData: result,
                         onEdit: () {
-                          // Проверка роли админа
-                          final isAdmin =
-                              ref.read(authProvider).user?.role == 'admin';
+                          // Проверка прав пользователя
+                          final permissionService =
+                              ref.read(permissionServiceProvider);
+                          final canUpdate =
+                              permissionService.can('works', 'update');
 
-                          // Проверка статуса смены (только для не-админов)
-                          if (!isAdmin &&
-                              result.workStatus?.toLowerCase() != 'open') {
+                          if (!canUpdate) {
+                            SnackBarUtils.showError(
+                              cellContext,
+                              'Нет прав на редактирование',
+                            );
+                            return;
+                          }
+
+                          // Проверка статуса смены
+                          if (result.workStatus?.toLowerCase() != 'open') {
                             SnackBarUtils.showError(
                               cellContext,
                               'Нельзя редактировать закрытую смену',

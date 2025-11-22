@@ -8,6 +8,7 @@ import 'package:projectgt/presentation/widgets/cupertino_dialog_widget.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'employee_attendance_dialog.dart';
 import '../providers/timesheet_provider.dart';
+import 'package:projectgt/features/roles/application/permission_service.dart';
 
 /// Виджет для отображения табеля рабочего времени в календарном виде.
 ///
@@ -678,6 +679,17 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
 
   /// Показывает диалог для добавления/редактирования часов вне смен
   Future<void> _showAttendanceDialog(Employee employee) async {
+    final permissionService = ref.read(permissionServiceProvider);
+    if (!permissionService.can('timesheet', 'create') &&
+        !permissionService.can('timesheet', 'update')) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Недостаточно прав для редактирования табеля')),
+      );
+      return;
+    }
+
     // Проверяем статус сотрудника
     if (employee.status != EmployeeStatus.working) {
       if (!mounted) return;

@@ -36,6 +36,33 @@ mixin _$Contract {
   /// Сумма контракта.
   double get amount;
 
+  /// Ставка НДС (в процентах).
+  double get vatRate;
+
+  /// Включен ли НДС в стоимость (true - в том числе, false - сверху).
+  bool get isVatIncluded;
+
+  /// Сумма НДС.
+  double get vatAmount;
+
+  /// Сумма аванса.
+  double get advanceAmount;
+
+  /// Гарантийные удержания (сумма).
+  double get warrantyRetentionAmount;
+
+  /// Процент гарантийных удержаний.
+  double get warrantyRetentionRate;
+
+  /// Срок гарантийных обязательств (в месяцах).
+  int get warrantyPeriodMonths;
+
+  /// Генподрядные (сумма).
+  double get generalContractorFeeAmount;
+
+  /// Процент генподрядных.
+  double get generalContractorFeeRate;
+
   /// Идентификатор объекта.
   String get objectId;
 
@@ -72,6 +99,27 @@ mixin _$Contract {
             (identical(other.contractorName, contractorName) ||
                 other.contractorName == contractorName) &&
             (identical(other.amount, amount) || other.amount == amount) &&
+            (identical(other.vatRate, vatRate) || other.vatRate == vatRate) &&
+            (identical(other.isVatIncluded, isVatIncluded) ||
+                other.isVatIncluded == isVatIncluded) &&
+            (identical(other.vatAmount, vatAmount) ||
+                other.vatAmount == vatAmount) &&
+            (identical(other.advanceAmount, advanceAmount) ||
+                other.advanceAmount == advanceAmount) &&
+            (identical(
+                    other.warrantyRetentionAmount, warrantyRetentionAmount) ||
+                other.warrantyRetentionAmount == warrantyRetentionAmount) &&
+            (identical(other.warrantyRetentionRate, warrantyRetentionRate) ||
+                other.warrantyRetentionRate == warrantyRetentionRate) &&
+            (identical(other.warrantyPeriodMonths, warrantyPeriodMonths) ||
+                other.warrantyPeriodMonths == warrantyPeriodMonths) &&
+            (identical(other.generalContractorFeeAmount,
+                    generalContractorFeeAmount) ||
+                other.generalContractorFeeAmount ==
+                    generalContractorFeeAmount) &&
+            (identical(
+                    other.generalContractorFeeRate, generalContractorFeeRate) ||
+                other.generalContractorFeeRate == generalContractorFeeRate) &&
             (identical(other.objectId, objectId) ||
                 other.objectId == objectId) &&
             (identical(other.objectName, objectName) ||
@@ -84,24 +132,34 @@ mixin _$Contract {
   }
 
   @override
-  int get hashCode => Object.hash(
-      runtimeType,
-      id,
-      number,
-      date,
-      endDate,
-      contractorId,
-      contractorName,
-      amount,
-      objectId,
-      objectName,
-      status,
-      createdAt,
-      updatedAt);
+  int get hashCode => Object.hashAll([
+        runtimeType,
+        id,
+        number,
+        date,
+        endDate,
+        contractorId,
+        contractorName,
+        amount,
+        vatRate,
+        isVatIncluded,
+        vatAmount,
+        advanceAmount,
+        warrantyRetentionAmount,
+        warrantyRetentionRate,
+        warrantyPeriodMonths,
+        generalContractorFeeAmount,
+        generalContractorFeeRate,
+        objectId,
+        objectName,
+        status,
+        createdAt,
+        updatedAt
+      ]);
 
   @override
   String toString() {
-    return 'Contract(id: $id, number: $number, date: $date, endDate: $endDate, contractorId: $contractorId, contractorName: $contractorName, amount: $amount, objectId: $objectId, objectName: $objectName, status: $status, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'Contract(id: $id, number: $number, date: $date, endDate: $endDate, contractorId: $contractorId, contractorName: $contractorName, amount: $amount, vatRate: $vatRate, isVatIncluded: $isVatIncluded, vatAmount: $vatAmount, advanceAmount: $advanceAmount, warrantyRetentionAmount: $warrantyRetentionAmount, warrantyRetentionRate: $warrantyRetentionRate, warrantyPeriodMonths: $warrantyPeriodMonths, generalContractorFeeAmount: $generalContractorFeeAmount, generalContractorFeeRate: $generalContractorFeeRate, objectId: $objectId, objectName: $objectName, status: $status, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 }
 
@@ -118,6 +176,15 @@ abstract mixin class $ContractCopyWith<$Res> {
       String contractorId,
       String? contractorName,
       double amount,
+      double vatRate,
+      bool isVatIncluded,
+      double vatAmount,
+      double advanceAmount,
+      double warrantyRetentionAmount,
+      double warrantyRetentionRate,
+      int warrantyPeriodMonths,
+      double generalContractorFeeAmount,
+      double generalContractorFeeRate,
       String objectId,
       String? objectName,
       ContractStatus status,
@@ -144,6 +211,15 @@ class _$ContractCopyWithImpl<$Res> implements $ContractCopyWith<$Res> {
     Object? contractorId = null,
     Object? contractorName = freezed,
     Object? amount = null,
+    Object? vatRate = null,
+    Object? isVatIncluded = null,
+    Object? vatAmount = null,
+    Object? advanceAmount = null,
+    Object? warrantyRetentionAmount = null,
+    Object? warrantyRetentionRate = null,
+    Object? warrantyPeriodMonths = null,
+    Object? generalContractorFeeAmount = null,
+    Object? generalContractorFeeRate = null,
     Object? objectId = null,
     Object? objectName = freezed,
     Object? status = null,
@@ -178,6 +254,42 @@ class _$ContractCopyWithImpl<$Res> implements $ContractCopyWith<$Res> {
       amount: null == amount
           ? _self.amount
           : amount // ignore: cast_nullable_to_non_nullable
+              as double,
+      vatRate: null == vatRate
+          ? _self.vatRate
+          : vatRate // ignore: cast_nullable_to_non_nullable
+              as double,
+      isVatIncluded: null == isVatIncluded
+          ? _self.isVatIncluded
+          : isVatIncluded // ignore: cast_nullable_to_non_nullable
+              as bool,
+      vatAmount: null == vatAmount
+          ? _self.vatAmount
+          : vatAmount // ignore: cast_nullable_to_non_nullable
+              as double,
+      advanceAmount: null == advanceAmount
+          ? _self.advanceAmount
+          : advanceAmount // ignore: cast_nullable_to_non_nullable
+              as double,
+      warrantyRetentionAmount: null == warrantyRetentionAmount
+          ? _self.warrantyRetentionAmount
+          : warrantyRetentionAmount // ignore: cast_nullable_to_non_nullable
+              as double,
+      warrantyRetentionRate: null == warrantyRetentionRate
+          ? _self.warrantyRetentionRate
+          : warrantyRetentionRate // ignore: cast_nullable_to_non_nullable
+              as double,
+      warrantyPeriodMonths: null == warrantyPeriodMonths
+          ? _self.warrantyPeriodMonths
+          : warrantyPeriodMonths // ignore: cast_nullable_to_non_nullable
+              as int,
+      generalContractorFeeAmount: null == generalContractorFeeAmount
+          ? _self.generalContractorFeeAmount
+          : generalContractorFeeAmount // ignore: cast_nullable_to_non_nullable
+              as double,
+      generalContractorFeeRate: null == generalContractorFeeRate
+          ? _self.generalContractorFeeRate
+          : generalContractorFeeRate // ignore: cast_nullable_to_non_nullable
               as double,
       objectId: null == objectId
           ? _self.objectId
@@ -214,6 +326,15 @@ class _Contract extends Contract {
       required this.contractorId,
       this.contractorName,
       required this.amount,
+      this.vatRate = 0.0,
+      this.isVatIncluded = true,
+      this.vatAmount = 0.0,
+      this.advanceAmount = 0.0,
+      this.warrantyRetentionAmount = 0.0,
+      this.warrantyRetentionRate = 0.0,
+      this.warrantyPeriodMonths = 0,
+      this.generalContractorFeeAmount = 0.0,
+      this.generalContractorFeeRate = 0.0,
       required this.objectId,
       this.objectName,
       this.status = ContractStatus.active,
@@ -248,6 +369,51 @@ class _Contract extends Contract {
   /// Сумма контракта.
   @override
   final double amount;
+
+  /// Ставка НДС (в процентах).
+  @override
+  @JsonKey()
+  final double vatRate;
+
+  /// Включен ли НДС в стоимость (true - в том числе, false - сверху).
+  @override
+  @JsonKey()
+  final bool isVatIncluded;
+
+  /// Сумма НДС.
+  @override
+  @JsonKey()
+  final double vatAmount;
+
+  /// Сумма аванса.
+  @override
+  @JsonKey()
+  final double advanceAmount;
+
+  /// Гарантийные удержания (сумма).
+  @override
+  @JsonKey()
+  final double warrantyRetentionAmount;
+
+  /// Процент гарантийных удержаний.
+  @override
+  @JsonKey()
+  final double warrantyRetentionRate;
+
+  /// Срок гарантийных обязательств (в месяцах).
+  @override
+  @JsonKey()
+  final int warrantyPeriodMonths;
+
+  /// Генподрядные (сумма).
+  @override
+  @JsonKey()
+  final double generalContractorFeeAmount;
+
+  /// Процент генподрядных.
+  @override
+  @JsonKey()
+  final double generalContractorFeeRate;
 
   /// Идентификатор объекта.
   @override
@@ -292,6 +458,27 @@ class _Contract extends Contract {
             (identical(other.contractorName, contractorName) ||
                 other.contractorName == contractorName) &&
             (identical(other.amount, amount) || other.amount == amount) &&
+            (identical(other.vatRate, vatRate) || other.vatRate == vatRate) &&
+            (identical(other.isVatIncluded, isVatIncluded) ||
+                other.isVatIncluded == isVatIncluded) &&
+            (identical(other.vatAmount, vatAmount) ||
+                other.vatAmount == vatAmount) &&
+            (identical(other.advanceAmount, advanceAmount) ||
+                other.advanceAmount == advanceAmount) &&
+            (identical(
+                    other.warrantyRetentionAmount, warrantyRetentionAmount) ||
+                other.warrantyRetentionAmount == warrantyRetentionAmount) &&
+            (identical(other.warrantyRetentionRate, warrantyRetentionRate) ||
+                other.warrantyRetentionRate == warrantyRetentionRate) &&
+            (identical(other.warrantyPeriodMonths, warrantyPeriodMonths) ||
+                other.warrantyPeriodMonths == warrantyPeriodMonths) &&
+            (identical(other.generalContractorFeeAmount,
+                    generalContractorFeeAmount) ||
+                other.generalContractorFeeAmount ==
+                    generalContractorFeeAmount) &&
+            (identical(
+                    other.generalContractorFeeRate, generalContractorFeeRate) ||
+                other.generalContractorFeeRate == generalContractorFeeRate) &&
             (identical(other.objectId, objectId) ||
                 other.objectId == objectId) &&
             (identical(other.objectName, objectName) ||
@@ -304,24 +491,34 @@ class _Contract extends Contract {
   }
 
   @override
-  int get hashCode => Object.hash(
-      runtimeType,
-      id,
-      number,
-      date,
-      endDate,
-      contractorId,
-      contractorName,
-      amount,
-      objectId,
-      objectName,
-      status,
-      createdAt,
-      updatedAt);
+  int get hashCode => Object.hashAll([
+        runtimeType,
+        id,
+        number,
+        date,
+        endDate,
+        contractorId,
+        contractorName,
+        amount,
+        vatRate,
+        isVatIncluded,
+        vatAmount,
+        advanceAmount,
+        warrantyRetentionAmount,
+        warrantyRetentionRate,
+        warrantyPeriodMonths,
+        generalContractorFeeAmount,
+        generalContractorFeeRate,
+        objectId,
+        objectName,
+        status,
+        createdAt,
+        updatedAt
+      ]);
 
   @override
   String toString() {
-    return 'Contract(id: $id, number: $number, date: $date, endDate: $endDate, contractorId: $contractorId, contractorName: $contractorName, amount: $amount, objectId: $objectId, objectName: $objectName, status: $status, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'Contract(id: $id, number: $number, date: $date, endDate: $endDate, contractorId: $contractorId, contractorName: $contractorName, amount: $amount, vatRate: $vatRate, isVatIncluded: $isVatIncluded, vatAmount: $vatAmount, advanceAmount: $advanceAmount, warrantyRetentionAmount: $warrantyRetentionAmount, warrantyRetentionRate: $warrantyRetentionRate, warrantyPeriodMonths: $warrantyPeriodMonths, generalContractorFeeAmount: $generalContractorFeeAmount, generalContractorFeeRate: $generalContractorFeeRate, objectId: $objectId, objectName: $objectName, status: $status, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 }
 
@@ -340,6 +537,15 @@ abstract mixin class _$ContractCopyWith<$Res>
       String contractorId,
       String? contractorName,
       double amount,
+      double vatRate,
+      bool isVatIncluded,
+      double vatAmount,
+      double advanceAmount,
+      double warrantyRetentionAmount,
+      double warrantyRetentionRate,
+      int warrantyPeriodMonths,
+      double generalContractorFeeAmount,
+      double generalContractorFeeRate,
       String objectId,
       String? objectName,
       ContractStatus status,
@@ -366,6 +572,15 @@ class __$ContractCopyWithImpl<$Res> implements _$ContractCopyWith<$Res> {
     Object? contractorId = null,
     Object? contractorName = freezed,
     Object? amount = null,
+    Object? vatRate = null,
+    Object? isVatIncluded = null,
+    Object? vatAmount = null,
+    Object? advanceAmount = null,
+    Object? warrantyRetentionAmount = null,
+    Object? warrantyRetentionRate = null,
+    Object? warrantyPeriodMonths = null,
+    Object? generalContractorFeeAmount = null,
+    Object? generalContractorFeeRate = null,
     Object? objectId = null,
     Object? objectName = freezed,
     Object? status = null,
@@ -400,6 +615,42 @@ class __$ContractCopyWithImpl<$Res> implements _$ContractCopyWith<$Res> {
       amount: null == amount
           ? _self.amount
           : amount // ignore: cast_nullable_to_non_nullable
+              as double,
+      vatRate: null == vatRate
+          ? _self.vatRate
+          : vatRate // ignore: cast_nullable_to_non_nullable
+              as double,
+      isVatIncluded: null == isVatIncluded
+          ? _self.isVatIncluded
+          : isVatIncluded // ignore: cast_nullable_to_non_nullable
+              as bool,
+      vatAmount: null == vatAmount
+          ? _self.vatAmount
+          : vatAmount // ignore: cast_nullable_to_non_nullable
+              as double,
+      advanceAmount: null == advanceAmount
+          ? _self.advanceAmount
+          : advanceAmount // ignore: cast_nullable_to_non_nullable
+              as double,
+      warrantyRetentionAmount: null == warrantyRetentionAmount
+          ? _self.warrantyRetentionAmount
+          : warrantyRetentionAmount // ignore: cast_nullable_to_non_nullable
+              as double,
+      warrantyRetentionRate: null == warrantyRetentionRate
+          ? _self.warrantyRetentionRate
+          : warrantyRetentionRate // ignore: cast_nullable_to_non_nullable
+              as double,
+      warrantyPeriodMonths: null == warrantyPeriodMonths
+          ? _self.warrantyPeriodMonths
+          : warrantyPeriodMonths // ignore: cast_nullable_to_non_nullable
+              as int,
+      generalContractorFeeAmount: null == generalContractorFeeAmount
+          ? _self.generalContractorFeeAmount
+          : generalContractorFeeAmount // ignore: cast_nullable_to_non_nullable
+              as double,
+      generalContractorFeeRate: null == generalContractorFeeRate
+          ? _self.generalContractorFeeRate
+          : generalContractorFeeRate // ignore: cast_nullable_to_non_nullable
               as double,
       objectId: null == objectId
           ? _self.objectId

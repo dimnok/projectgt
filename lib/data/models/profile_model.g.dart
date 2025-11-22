@@ -15,7 +15,7 @@ _ProfileModel _$ProfileModelFromJson(Map<String, dynamic> json) =>
       photoUrl: json['photo_url'] as String?,
       phone: json['phone'] as String?,
       position: json['position'] as String?,
-      role: json['role'] as String? ?? 'user',
+      roleId: json['role_id'] as String?,
       status: json['status'] as bool? ?? true,
       object: json['object'] as Map<String, dynamic>?,
       createdAt: json['created_at'] == null
@@ -38,7 +38,7 @@ Map<String, dynamic> _$ProfileModelToJson(_ProfileModel instance) =>
       'photo_url': instance.photoUrl,
       'phone': instance.phone,
       'position': instance.position,
-      'role': instance.role,
+      'role_id': instance.roleId,
       'status': instance.status,
       'object': instance.object,
       'created_at': instance.createdAt?.toIso8601String(),

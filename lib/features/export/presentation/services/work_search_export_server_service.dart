@@ -1,6 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 
 // Импорты для мобильных платформ
@@ -42,7 +41,8 @@ class WorkSearchExportServerService {
           'floorFilters': floorFilters,
         },
         headers: {
-          'Authorization': 'Bearer ${client.auth.currentSession?.accessToken ?? ''}',
+          'Authorization':
+              'Bearer ${client.auth.currentSession?.accessToken ?? ''}',
           'Content-Type': 'application/json',
         },
       );
@@ -67,7 +67,8 @@ class WorkSearchExportServerService {
         } else if (responseData is Map) {
           data = Map<String, dynamic>.from(responseData);
         } else {
-          throw Exception('Неизвестный формат ответа: ${responseData.runtimeType}');
+          throw Exception(
+              'Неизвестный формат ответа: ${responseData.runtimeType}');
         }
       } catch (e) {
         throw Exception('Ошибка парсинга ответа: $e');
@@ -80,7 +81,8 @@ class WorkSearchExportServerService {
         throw Exception(errMsg);
       }
 
-      final results = (data['results'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      final results =
+          (data['results'] as List?)?.cast<Map<String, dynamic>>() ?? [];
       return results;
     } on FunctionException catch (e) {
       throw Exception('Ошибка вызова функции: $e');
@@ -105,14 +107,15 @@ class WorkSearchExportServerService {
           'contractName': contractName,
         },
         headers: {
-          'Authorization': 'Bearer ${client.auth.currentSession?.accessToken ?? ''}',
+          'Authorization':
+              'Bearer ${client.auth.currentSession?.accessToken ?? ''}',
           'Content-Type': 'application/json',
         },
       );
 
       // Парсим ответ
       late final Map<String, dynamic> data;
-      
+
       try {
         // FunctionResponse имеет свойство .data
         dynamic responseData;
@@ -126,21 +129,22 @@ class WorkSearchExportServerService {
             responseData = response.toString();
           }
         }
-        
+
         // Парсим данные
         if (responseData is String) {
           data = jsonDecode(responseData) as Map<String, dynamic>;
         } else if (responseData is Map) {
           data = Map<String, dynamic>.from(responseData);
         } else {
-          throw Exception('Неизвестный формат ответа: ${responseData.runtimeType}');
+          throw Exception(
+              'Неизвестный формат ответа: ${responseData.runtimeType}');
         }
       } catch (e) {
         throw Exception('Ошибка парсинга ответа: $e');
       }
 
       final success = data['success'] as bool?;
-      
+
       if (success != true) {
         final errMsg = data['message'] ?? 'Ошибка экспорта на сервере';
         throw Exception(errMsg);
@@ -177,7 +181,7 @@ class WorkSearchExportServerService {
     try {
       // Декодируем base64 в bytes
       final fileBytes = base64Decode(base64);
-      
+
       // Проверяем платформу
       if (kIsWeb) {
         // На Web - просто скачиваем
@@ -185,7 +189,8 @@ class WorkSearchExportServerService {
         return 'downloaded';
       } else {
         // На мобильных - сохраняем локально
-        final directory = await path_provider.getApplicationDocumentsDirectory();
+        final directory =
+            await path_provider.getApplicationDocumentsDirectory();
         final filePath = '${directory.path}/$filename';
 
         // Сохраняем файл
@@ -208,17 +213,16 @@ class WorkSearchExportServerService {
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       );
       final url = html.Url.createObjectUrlFromBlob(blob);
-      
+
       html.AnchorElement(href: url)
         ..setAttribute('download', filename)
         ..click();
-      
+
       html.Url.revokeObjectUrl(url);
     } catch (e) {
       throw Exception('Ошибка скачивания файла: $e');
     }
   }
-
 }
 
 /// Результат экспорта
@@ -247,4 +251,3 @@ class ExportResult {
     this.filePath,
   });
 }
-

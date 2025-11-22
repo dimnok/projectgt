@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 import 'package:projectgt/core/utils/formatters.dart';
+import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
 import '../../data/models/material_item.dart';
 import '../widgets/materials_search.dart';
 import '../widgets/materials_date_filter.dart';
@@ -32,11 +33,23 @@ class MaterialScreen extends ConsumerWidget {
         title: 'Материал по М-15',
         showSearchField: false,
         actions: [
-          MaterialsMappingAction(),
+          PermissionGuard(
+            module: 'materials',
+            permission: 'update',
+            child: MaterialsMappingAction(),
+          ),
           MaterialsSearchAction(scope: 'materials'),
           MaterialsDateRangeAction(),
-          MaterialsExportAction(),
-          MaterialsImportAction(),
+          PermissionGuard(
+            module: 'materials',
+            permission: 'export',
+            child: MaterialsExportAction(),
+          ),
+          PermissionGuard(
+            module: 'materials',
+            permission: 'import',
+            child: MaterialsImportAction(),
+          ),
           SizedBox(width: 8),
           ContractsFilterChips(),
           SizedBox(width: 8),

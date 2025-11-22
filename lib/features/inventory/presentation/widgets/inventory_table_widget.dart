@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:projectgt/features/inventory/presentation/providers/inventory_provider.dart';
 import 'package:projectgt/features/inventory/presentation/widgets/inventory_table_row_widget.dart';
 import 'package:projectgt/features/inventory/presentation/widgets/inventory_item_view_modal.dart';
 
@@ -6,7 +9,7 @@ import 'package:projectgt/features/inventory/presentation/widgets/inventory_item
 ///
 /// Отображает все записи из таблицы inventory_items независимо от местоположения.
 /// Поддерживает адаптивный дизайн для desktop/tablet/mobile.
-class InventoryTableWidget extends StatefulWidget {
+class InventoryTableWidget extends ConsumerStatefulWidget {
   /// Список ТМЦ для отображения (пока заглушка).
   final List<Map<String, dynamic>> items;
 
@@ -17,10 +20,11 @@ class InventoryTableWidget extends StatefulWidget {
   });
 
   @override
-  State<InventoryTableWidget> createState() => _InventoryTableWidgetState();
+  ConsumerState<InventoryTableWidget> createState() =>
+      _InventoryTableWidgetState();
 }
 
-class _InventoryTableWidgetState extends State<InventoryTableWidget> {
+class _InventoryTableWidgetState extends ConsumerState<InventoryTableWidget> {
   /// Контроллер для вертикального скролла таблицы.
   final ScrollController _verticalController = ScrollController();
 
@@ -364,24 +368,85 @@ class _InventoryTableWidgetState extends State<InventoryTableWidget> {
         );
         break;
       case 'edit':
-        // TODO: Переход на экран редактирования
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Редактирование ТМЦ: $itemId'),
-            duration: const Duration(seconds: 1),
-          ),
-        );
+        // Переход на экран редактирования
+        GoRouter.of(context).push('/inventory/item/$itemId');
         break;
       case 'delete':
-        // TODO: Подтверждение и удаление
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Удаление ТМЦ: $itemId'),
-            duration: const Duration(seconds: 1),
-          ),
-        );
+        _showDeleteConfirmation(context, itemId);
         break;
     }
+  }
+
+  Future<void> _showDeleteConfirmation(
+      BuildContext context, String itemId) async {
+    final theme = Theme.of(context);
+
+    // Находим название элемента для подтверждения
+    final item = widget.items.firstWhere(
+      (element) => element['id'] == itemId,
+      orElse: () => {'name': 'Элемент'},
+    );
+    final itemName = item['name'] as String? ?? 'Элемент';
+
+    return showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Удаление ТМЦ'),
+          content: Text(
+              'Вы действительно хотите удалить "$itemName"?\nЭто действие нельзя отменить.'),
+          actions: <Widget>[
+            TextButton(
+              child: Text(
+                'Отмена',
+                style: TextStyle(color: theme.colorScheme.onSurface),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text(
+                'Удалить',
+                style: TextStyle(color: Colors.red),
+              ),
+              onPressed: () async {
+                Navigator.of(context).pop(); // Закрываем диалог
+
+                try {
+                  // Выполняем удаление
+                  await ref
+                      .read(inventoryRepositoryProvider)
+                      .deleteInventoryItem(itemId);
+
+                  // Обновляем список
+                  // ignore: unused_result
+                  ref.refresh(inventoryItemsProvider);
+
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('ТМЦ "$itemName" удалено'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Ошибка удаления: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   /// Возвращает конфигурацию для статуса ТМЦ.

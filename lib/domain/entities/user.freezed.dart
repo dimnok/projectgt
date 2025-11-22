@@ -27,8 +27,8 @@ mixin _$User {
   /// URL фотографии пользователя.
   String? get photoUrl;
 
-  /// Роль пользователя (например, 'user', 'admin').
-  String get role;
+  /// ID роли пользователя (связь с таблицей roles).
+  String? get roleId;
 
   /// Create a copy of User
   /// with the given fields replaced by the non-null parameter values.
@@ -47,15 +47,16 @@ mixin _$User {
             (identical(other.name, name) || other.name == name) &&
             (identical(other.photoUrl, photoUrl) ||
                 other.photoUrl == photoUrl) &&
-            (identical(other.role, role) || other.role == role));
+            (identical(other.roleId, roleId) || other.roleId == roleId));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, id, email, name, photoUrl, role);
+  int get hashCode =>
+      Object.hash(runtimeType, id, email, name, photoUrl, roleId);
 
   @override
   String toString() {
-    return 'User(id: $id, email: $email, name: $name, photoUrl: $photoUrl, role: $role)';
+    return 'User(id: $id, email: $email, name: $name, photoUrl: $photoUrl, roleId: $roleId)';
   }
 }
 
@@ -65,7 +66,11 @@ abstract mixin class $UserCopyWith<$Res> {
       _$UserCopyWithImpl;
   @useResult
   $Res call(
-      {String id, String email, String? name, String? photoUrl, String role});
+      {String id,
+      String email,
+      String? name,
+      String? photoUrl,
+      String? roleId});
 }
 
 /// @nodoc
@@ -84,7 +89,7 @@ class _$UserCopyWithImpl<$Res> implements $UserCopyWith<$Res> {
     Object? email = null,
     Object? name = freezed,
     Object? photoUrl = freezed,
-    Object? role = null,
+    Object? roleId = freezed,
   }) {
     return _then(_self.copyWith(
       id: null == id
@@ -103,10 +108,10 @@ class _$UserCopyWithImpl<$Res> implements $UserCopyWith<$Res> {
           ? _self.photoUrl
           : photoUrl // ignore: cast_nullable_to_non_nullable
               as String?,
-      role: null == role
-          ? _self.role
-          : role // ignore: cast_nullable_to_non_nullable
-              as String,
+      roleId: freezed == roleId
+          ? _self.roleId
+          : roleId // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }
@@ -119,7 +124,7 @@ class _User extends User {
       required this.email,
       this.name,
       this.photoUrl,
-      this.role = 'user'})
+      this.roleId})
       : super._();
 
   /// Уникальный идентификатор пользователя.
@@ -138,10 +143,9 @@ class _User extends User {
   @override
   final String? photoUrl;
 
-  /// Роль пользователя (например, 'user', 'admin').
+  /// ID роли пользователя (связь с таблицей roles).
   @override
-  @JsonKey()
-  final String role;
+  final String? roleId;
 
   /// Create a copy of User
   /// with the given fields replaced by the non-null parameter values.
@@ -161,15 +165,16 @@ class _User extends User {
             (identical(other.name, name) || other.name == name) &&
             (identical(other.photoUrl, photoUrl) ||
                 other.photoUrl == photoUrl) &&
-            (identical(other.role, role) || other.role == role));
+            (identical(other.roleId, roleId) || other.roleId == roleId));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, id, email, name, photoUrl, role);
+  int get hashCode =>
+      Object.hash(runtimeType, id, email, name, photoUrl, roleId);
 
   @override
   String toString() {
-    return 'User(id: $id, email: $email, name: $name, photoUrl: $photoUrl, role: $role)';
+    return 'User(id: $id, email: $email, name: $name, photoUrl: $photoUrl, roleId: $roleId)';
   }
 }
 
@@ -180,7 +185,11 @@ abstract mixin class _$UserCopyWith<$Res> implements $UserCopyWith<$Res> {
   @override
   @useResult
   $Res call(
-      {String id, String email, String? name, String? photoUrl, String role});
+      {String id,
+      String email,
+      String? name,
+      String? photoUrl,
+      String? roleId});
 }
 
 /// @nodoc
@@ -199,7 +208,7 @@ class __$UserCopyWithImpl<$Res> implements _$UserCopyWith<$Res> {
     Object? email = null,
     Object? name = freezed,
     Object? photoUrl = freezed,
-    Object? role = null,
+    Object? roleId = freezed,
   }) {
     return _then(_User(
       id: null == id
@@ -218,10 +227,10 @@ class __$UserCopyWithImpl<$Res> implements _$UserCopyWith<$Res> {
           ? _self.photoUrl
           : photoUrl // ignore: cast_nullable_to_non_nullable
               as String?,
-      role: null == role
-          ? _self.role
-          : role // ignore: cast_nullable_to_non_nullable
-              as String,
+      roleId: freezed == roleId
+          ? _self.roleId
+          : roleId // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }

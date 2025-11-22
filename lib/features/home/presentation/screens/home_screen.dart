@@ -9,6 +9,7 @@ import 'package:projectgt/presentation/state/contractor_state.dart';
 import 'package:projectgt/presentation/state/contract_state.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
+import 'package:projectgt/features/roles/application/permission_service.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 import 'package:projectgt/features/home/presentation/widgets/contract_progress_widget.dart';
 import 'package:projectgt/features/home/presentation/widgets/shifts_calendar_widgets.dart';
@@ -84,12 +85,53 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     final userDisplayName =
         profileState.profile?.shortName ?? authState.user?.name ?? 'USER';
+    final permissionService = ref.watch(permissionServiceProvider);
+
+    // --- Логика приветствия и мотивации ---
+    final hour = DateTime.now().hour;
+    String greetingPrefix;
+    String timeBasedSubtitle;
+
+    if (hour >= 5 && hour < 12) {
+      greetingPrefix = 'Доброе утро';
+      timeBasedSubtitle =
+          'Желаю продуктивного и плодотворного дня. Не забывайте контролировать рабочие процессы и оптимизировать результаты.';
+    } else if (hour >= 12 && hour < 18) {
+      greetingPrefix = 'Добрый день';
+      timeBasedSubtitle =
+          'Рабочий день в разгаре. Самое время свериться с планами и зафиксировать промежуточные результаты.';
+    } else if (hour >= 18 && hour < 23) {
+      greetingPrefix = 'Добрый вечер';
+      timeBasedSubtitle =
+          'День подходит к концу. Отличное время для подведения итогов и планирования завтрашнего дня.';
+    } else {
+      greetingPrefix = 'Доброй ночи';
+      timeBasedSubtitle =
+          'Система работает стабильно. Не забывайте про отдых, чтобы завтра быть в ресурсе.';
+    }
+
+    // Пытаемся извлечь имя из полного ФИО (обычно 2-е слово: Фамилия Имя Отчество)
+    String firstName = '';
+    final fullName = profileState.profile?.fullName;
+    if (fullName != null && fullName.trim().isNotEmpty) {
+      final parts = fullName.trim().split(RegExp(r'\s+'));
+      if (parts.length >= 2) {
+        firstName = parts[1]; // Берём Имя
+      } else {
+        firstName = parts[0];
+      }
+    }
+    // Если не вышло, используем shortName или fallback, убирая инициалы если получится
+    if (firstName.isEmpty) {
+      firstName = userDisplayName.split(' ').first;
+    }
+
+    final fullGreeting = '$greetingPrefix, $firstName';
+    // ---------------------------------------
 
     // Метрика: топовая смена (недоступна без модуля выгрузки)
     String topShiftSubtitle = 'Нет данных';
     int shiftsCount = 0;
-
-    final isAdmin = authState.user?.role == 'admin';
 
     final metrics = [
       _Metric(
@@ -101,7 +143,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         accent: _telegramBlue, // Changed from _telegramBlue
         onTap: () => context.goNamed('works'),
       ),
-      if (isAdmin)
+      if (permissionService.can('employees', 'read'))
         _Metric(
           label: 'Сотрудники',
           value: employeesState.employees.length,
@@ -111,7 +153,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           accent: _telegramBlue, // Changed from _telegramBlue
           onTap: () => context.goNamed('employees'),
         ),
-      if (isAdmin)
+      if (permissionService.can('contractors', 'read'))
         _Metric(
           label: 'Контрагенты',
           value: contractorsState.contractors.length,
@@ -121,7 +163,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           accent: _whatsappGreen, // Changed from _whatsappGreen
           onTap: () => context.goNamed('contractors'),
         ),
-      if (isAdmin)
+      if (permissionService.can('contracts', 'read'))
         _Metric(
           label: 'Договоры',
           value: contractsState.contracts.length,
@@ -131,7 +173,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           accent: _telegramBlue, // Changed from _telegramBlue
           onTap: () => context.goNamed('contracts'),
         ),
-      if (isAdmin)
+      if (permissionService.can('estimates', 'read'))
         _Metric(
           label: 'Сметы',
           value: estimatesState.estimates.length,
@@ -156,8 +198,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             children: [
               // Приветствие
               _GreetingHeader(
-                userDisplayName: userDisplayName,
+                title: fullGreeting,
+                subtitle: timeBasedSubtitle,
                 parallaxProgress: _parallaxProgress,
+                hour: hour,
               ),
               const SizedBox(height: 24),
 
@@ -322,10 +366,17 @@ Widget _buildDot(ThemeData theme, bool active) {
 }
 
 class _GreetingHeader extends StatelessWidget {
-  final String userDisplayName;
+  final String title;
+  final String subtitle;
   final double parallaxProgress;
-  const _GreetingHeader(
-      {required this.userDisplayName, required this.parallaxProgress});
+  final int hour;
+
+  const _GreetingHeader({
+    required this.title,
+    required this.subtitle,
+    required this.parallaxProgress,
+    required this.hour,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -337,7 +388,8 @@ class _GreetingHeader extends StatelessWidget {
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeOut,
         builder: (context, value, child) {
-          final dy = value * 8; // лёгкий параллакс
+          // Усиливаем эффект параллакса (было 8)
+          final dy = value * 14;
           return Transform.translate(
             offset: Offset(0, dy),
             child: AnimatedContainer(
@@ -345,41 +397,29 @@ class _GreetingHeader extends StatelessWidget {
               curve: Curves.easeOutCubic,
               width: double.infinity,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(20),
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    _telegramBlue.withValues(
-                        alpha:
-                            0.10 + 0.05 * value), // Changed from _telegramBlue
-                    _whatsappGreen.withValues(
-                        alpha:
-                            0.10 + 0.05 * value), // Changed from _whatsappGreen
+                    // Усиливаем прозрачность градиента при скролле
+                    _telegramBlue.withValues(alpha: 0.12 + 0.15 * value),
+                    _whatsappGreen.withValues(alpha: 0.12 + 0.15 * value),
                   ],
                 ),
                 border: Border.all(
                   color: theme.colorScheme.outline.withValues(alpha: 0.08),
                 ),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
               child: Row(
                 children: [
                   AnimatedScale(
-                    scale: 1.0 + value * 0.02,
+                    // Усиливаем эффект масштабирования иконки (было 0.02)
+                    scale: 1.0 + value * 0.1,
                     duration: const Duration(milliseconds: 300),
                     curve: Curves.easeOut,
-                    child: Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: _telegramBlue.withValues(
-                            alpha: 0.12), // Changed from _telegramBlue
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(CupertinoIcons.sparkles,
-                          color: _telegramBlue), // Changed from _telegramBlue
-                    ),
+                    child: _TimeOfDayIcon(hour: hour),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -387,7 +427,7 @@ class _GreetingHeader extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Здравствуйте, $userDisplayName',
+                          title,
                           style: theme.textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.w700,
                             letterSpacing: 0.2,
@@ -395,7 +435,7 @@ class _GreetingHeader extends StatelessWidget {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Сводка по ключевым разделам ниже. Нажмите на карточку, чтобы открыть.',
+                          subtitle,
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: theme.colorScheme.onSurface
                                 .withValues(alpha: 0.7),
@@ -408,6 +448,134 @@ class _GreetingHeader extends StatelessWidget {
               ),
             ),
           );
+        },
+      ),
+    );
+  }
+}
+
+class _TimeOfDayIcon extends StatefulWidget {
+  final int hour;
+  const _TimeOfDayIcon({required this.hour});
+
+  @override
+  State<_TimeOfDayIcon> createState() => _TimeOfDayIconState();
+}
+
+class _TimeOfDayIconState extends State<_TimeOfDayIcon>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this);
+    _updateAnimationParams();
+  }
+
+  @override
+  void didUpdateWidget(_TimeOfDayIcon oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_getPeriod(oldWidget.hour) != _getPeriod(widget.hour)) {
+      _updateAnimationParams();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  String _getPeriod(int h) {
+    if (h >= 5 && h < 12) return 'morning';
+    if (h >= 12 && h < 18) return 'day';
+    if (h >= 18 && h < 23) return 'evening';
+    return 'night';
+  }
+
+  void _updateAnimationParams() {
+    _controller.stop();
+    final period = _getPeriod(widget.hour);
+
+    if (period == 'morning') {
+      _controller.duration = const Duration(milliseconds: 2500);
+      _controller.repeat(reverse: true);
+    } else if (period == 'day') {
+      _controller.duration = const Duration(seconds: 12);
+      _controller.repeat(); // 0 -> 1 continuous
+    } else if (period == 'evening') {
+      _controller.duration = const Duration(milliseconds: 3000);
+      _controller.repeat(reverse: true);
+    } else {
+      _controller.duration = const Duration(milliseconds: 3500);
+      _controller.repeat(reverse: true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final period = _getPeriod(widget.hour);
+
+    // Конфигурация статики (цвета, иконка)
+    IconData iconData;
+    Color iconColor;
+    Color bgColor;
+
+    if (period == 'morning') {
+      iconData = CupertinoIcons.sunrise_fill;
+      iconColor = Colors.orange;
+      bgColor = Colors.orange.withValues(alpha: 0.15);
+    } else if (period == 'day') {
+      iconData = CupertinoIcons.sun_max_fill;
+      iconColor = Colors.amber.shade700;
+      bgColor = Colors.amber.withValues(alpha: 0.15);
+    } else if (period == 'evening') {
+      iconData = CupertinoIcons.sunset_fill;
+      iconColor = Colors.deepOrange;
+      bgColor = Colors.deepOrange.withValues(alpha: 0.15);
+    } else {
+      iconData = CupertinoIcons.moon_stars_fill;
+      iconColor = const Color(0xFF5E35B1);
+      bgColor = const Color(0xFF5E35B1).withValues(alpha: 0.15);
+    }
+
+    final iconWidget = Icon(iconData, color: iconColor, size: 28);
+
+    return Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        color: bgColor,
+        shape: BoxShape.circle,
+      ),
+      // AnimatedBuilder перерисовывает только трансформацию, не пересоздавая иконку
+      child: AnimatedBuilder(
+        animation: _controller,
+        child: Center(child: iconWidget),
+        builder: (context, child) {
+          // Используем transform для вычисления кривой "на лету" без создания объекта Animation
+          final double t = Curves.easeInOut.transform(_controller.value);
+
+          if (period == 'morning') {
+            // Пульсация при восходе (масштаб)
+            final scale = 0.9 + (0.25 * t); // 0.9 -> 1.15
+            return Transform.scale(scale: scale, child: child);
+          } else if (period == 'day') {
+            // Вращение солнца (линейное или сглаженное)
+            // Для солнца лучше линейное вращение, поэтому берем raw value
+            return Transform.rotate(
+                angle: _controller.value * 2 * 3.14159, child: child);
+          } else if (period == 'evening') {
+            // Закат (пульсация вниз)
+            final scale = 1.1 - (0.2 * t); // 1.1 -> 0.9
+            return Transform.scale(scale: scale, child: child);
+          } else {
+            // Ночь (покачивание)
+            // -0.15 rad -> +0.15 rad
+            final angle = -0.15 + (0.3 * t);
+            return Transform.rotate(angle: angle, child: child);
+          }
         },
       ),
     );

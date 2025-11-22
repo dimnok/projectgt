@@ -11,8 +11,7 @@ import 'package:go_router/go_router.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'work_details_panel.dart';
-import 'package:projectgt/presentation/state/profile_state.dart';
-import 'package:projectgt/presentation/state/auth_state.dart';
+import 'package:projectgt/features/roles/application/permission_service.dart';
 
 /// Экран деталей смены с вкладками работ, материалов и часов.
 ///
@@ -29,8 +28,9 @@ class WorkDetailsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final work = ref.watch(workProvider(workId));
     final isMobile = ResponsiveUtils.isDesktop(context) == false;
-    final currentProfile = ref.watch(currentUserProfileProvider).profile;
-    final isAdmin = ref.watch(authProvider).user?.role == 'admin';
+    final permissionService = ref.watch(permissionServiceProvider);
+    final canUpdate = permissionService.can('works', 'update');
+    final canDelete = permissionService.can('works', 'delete');
 
     if (work == null) {
       return Scaffold(
@@ -42,28 +42,23 @@ class WorkDetailsScreen extends ConsumerWidget {
       );
     }
 
-    final bool canModify = work.status.toLowerCase() == 'open' &&
-        ((currentProfile != null && work.openedBy == currentProfile.id) ||
-            isAdmin);
-    final bool showAdminActions = isAdmin || canModify;
-
     return Scaffold(
       appBar: AppBarWidget(
         title: isMobile ? 'Смена' : 'Смена: ${_formatDate(work.date)}',
         leading: isMobile ? const BackButton() : null,
         actions: [
-          if (showAdminActions) ...[
+          if (canUpdate)
             IconButton(
               icon: const Icon(Icons.edit, color: Colors.amber),
               onPressed: () => _showEditWorkDialog(context, ref, work),
               tooltip: 'Редактировать',
             ),
+          if (canDelete)
             IconButton(
               icon: const Icon(Icons.delete, color: Colors.red),
               onPressed: () => _confirmDeleteWork(context, ref, work),
               tooltip: 'Удалить',
             ),
-          ],
         ],
         showThemeSwitch: !isMobile,
         centerTitle: isMobile,

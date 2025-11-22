@@ -8,6 +8,8 @@ import 'package:projectgt/presentation/state/auth_state.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
+import 'package:projectgt/features/roles/application/permission_service.dart';
+import 'package:projectgt/features/roles/presentation/widgets/role_badge.dart';
 
 /// Экран отображения пользователей системы.
 ///
@@ -95,13 +97,9 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
                               pathParameters: {'userId': profile.id});
                         },
                         onToggleStatus: (value) async {
-                          // Разрешить только админам
-                          final currentUser = ref.read(authProvider).user;
-                          final currentProfile =
-                              ref.read(currentUserProfileProvider).profile;
-                          final isAdmin = currentProfile?.role == 'admin' ||
-                              currentUser?.role == 'admin';
-                          if (!isAdmin) return;
+                          // Разрешить только тем, у кого есть право управления пользователями
+                          final service = ref.read(permissionServiceProvider);
+                          if (!service.can('users', 'update')) return;
 
                           // Оптимистичное обновление без перерисовки страницы
                           final notifier = ref.read(profileProvider.notifier);
@@ -197,24 +195,9 @@ class _UserListItem extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: profile.role == 'admin'
-                          ? Colors.purple.withValues(alpha: 0.1)
-                          : Colors.blue.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      profile.role == 'admin' ? 'ADMIN' : 'USER',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: profile.role == 'admin'
-                            ? Colors.purple
-                            : Colors.blue,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                  RoleBadge(
+                    roleId: profile.roleId,
+                    fallbackRole: null,
                   ),
                   const SizedBox(height: 8),
                   Row(

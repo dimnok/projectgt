@@ -8,6 +8,7 @@ import 'object_form_screen.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 import 'package:uuid/uuid.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
+import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
 
 /// Отображает сообщение об успешной операции через SnackBar.
 ///
@@ -224,12 +225,19 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
         title: 'Объекты',
         actions: [
           if (isDesktop && selectedObject != null) ...[
-            IconButton(
+            PermissionGuard(
+              module: 'objects',
+              permission: 'update',
+              child: IconButton(
               icon: const Icon(Icons.edit, color: Colors.amber),
               tooltip: 'Редактировать',
               onPressed: () => _openObjectForm(object: selectedObject),
             ),
-            IconButton(
+            ),
+            PermissionGuard(
+              module: 'objects',
+              permission: 'delete',
+              child: IconButton(
               icon: const Icon(Icons.delete, color: Colors.red),
               tooltip: 'Удалить',
               onPressed: () async {
@@ -271,15 +279,20 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
                   }
                 }
               },
+              ),
             ),
           ],
         ],
       ),
       drawer: const AppDrawer(activeRoute: AppRoute.objects),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: PermissionGuard(
+        module: 'objects',
+        permission: 'create',
+        child: FloatingActionButton(
         onPressed: () => _openObjectForm(),
         backgroundColor: Colors.green,
         child: const Icon(Icons.add, color: Colors.white),
+        ),
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -543,7 +556,10 @@ class _ObjectDetailsScreenState extends ConsumerState<ObjectDetailsScreen>
         elevation: 0,
         iconTheme: IconThemeData(color: theme.colorScheme.onSurface),
         actions: [
-          IconButton(
+          PermissionGuard(
+            module: 'objects',
+            permission: 'update',
+            child: IconButton(
             icon: const Icon(Icons.edit, color: Colors.amber),
             tooltip: 'Редактировать',
             onPressed: () {
@@ -601,7 +617,11 @@ class _ObjectDetailsScreenState extends ConsumerState<ObjectDetailsScreen>
               );
             },
           ),
-          IconButton(
+          ),
+          PermissionGuard(
+            module: 'objects',
+            permission: 'delete',
+            child: IconButton(
             icon: const Icon(Icons.delete, color: Colors.red),
             tooltip: 'Удалить',
             onPressed: () async {
@@ -610,8 +630,8 @@ class _ObjectDetailsScreenState extends ConsumerState<ObjectDetailsScreen>
                 context: ctx,
                 builder: (ctx2) => AlertDialog(
                   title: const Text('Удалить объект?'),
-                  content:
-                      const Text('Вы уверены, что хотите удалить этот объект?'),
+                    content: const Text(
+                        'Вы уверены, что хотите удалить этот объект?'),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.of(ctx2).pop(false),
@@ -640,6 +660,7 @@ class _ObjectDetailsScreenState extends ConsumerState<ObjectDetailsScreen>
                 }
               }
             },
+            ),
           ),
         ],
       ),

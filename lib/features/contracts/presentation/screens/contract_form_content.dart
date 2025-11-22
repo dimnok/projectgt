@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:projectgt/domain/entities/contract.dart';
+import 'package:projectgt/core/widgets/gt_dropdown.dart';
 
 /// Контент формы создания/редактирования договора.
 ///
@@ -28,6 +29,33 @@ class ContractFormContent extends StatelessWidget {
 
   /// Контроллер для поля "Сумма".
   final TextEditingController amountController;
+
+  /// Контроллер для поля "Ставка НДС (%)".
+  final TextEditingController vatRateController;
+
+  /// Включен ли НДС в стоимость.
+  final bool isVatIncluded;
+
+  /// Контроллер для поля "НДС (сумма)".
+  final TextEditingController vatAmountController;
+
+  /// Контроллер для поля "Аванс".
+  final TextEditingController advanceAmountController;
+
+  /// Контроллер для поля "Гарантийные удержания".
+  final TextEditingController warrantyRetentionAmountController;
+
+  /// Контроллер для поля "Процент гарантийных удержаний".
+  final TextEditingController warrantyRetentionRateController;
+
+  /// Контроллер для поля "Срок гарантийных обязательств".
+  final TextEditingController warrantyPeriodMonthsController;
+
+  /// Контроллер для поля "Генподрядные".
+  final TextEditingController generalContractorFeeAmountController;
+
+  /// Контроллер для поля "Процент генподрядных".
+  final TextEditingController generalContractorFeeRateController;
 
   /// Дата заключения договора.
   final DateTime? date;
@@ -68,11 +96,14 @@ class ContractFormContent extends StatelessWidget {
   /// Колбэк при изменении статуса договора.
   final ValueChanged<ContractStatus?> onStatusChanged;
 
+  /// Колбэк при изменении настройки включения НДС.
+  final ValueChanged<bool> onVatIncludedChanged;
+
   /// Список элементов для выпадающего списка контрагентов.
-  final List<DropdownMenuItem<String>> contractorItems;
+  final Map<String, String> contractorItems;
 
   /// Список элементов для выпадающего списка объектов.
-  final List<DropdownMenuItem<String>> objectItems;
+  final Map<String, String> objectItems;
 
   /// Конструктор [ContractFormContent]. Все параметры обязательны.
   const ContractFormContent({
@@ -81,6 +112,15 @@ class ContractFormContent extends StatelessWidget {
     required this.isLoading,
     required this.numberController,
     required this.amountController,
+    required this.vatRateController,
+    required this.isVatIncluded,
+    required this.vatAmountController,
+    required this.advanceAmountController,
+    required this.warrantyRetentionAmountController,
+    required this.warrantyRetentionRateController,
+    required this.warrantyPeriodMonthsController,
+    required this.generalContractorFeeAmountController,
+    required this.generalContractorFeeRateController,
     required this.date,
     required this.endDate,
     required this.selectedContractorId,
@@ -94,6 +134,7 @@ class ContractFormContent extends StatelessWidget {
     required this.onContractorChanged,
     required this.onObjectChanged,
     required this.onStatusChanged,
+    required this.onVatIncludedChanged,
     required this.contractorItems,
     required this.objectItems,
   });
@@ -103,9 +144,7 @@ class ContractFormContent extends StatelessWidget {
     final theme = Theme.of(context);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24.0),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 700),
-        child: Form(
+      child: Form(
           key: formKey,
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -132,24 +171,10 @@ class ContractFormContent extends StatelessWidget {
                 ),
               ),
               const Divider(),
-              Card(
-                margin: EdgeInsets.zero,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(
-                    color: theme.colorScheme.outline.withAlpha(50),
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Данные договора',
-                          style: theme.textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 16),
+              Text('Данные договора',
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
                       // Номер договора
                       TextFormField(
                         controller: numberController,
@@ -226,30 +251,37 @@ class ContractFormContent extends StatelessWidget {
                       ),
                       const SizedBox(height: 16),
                       // Контрагент
-                      DropdownButtonFormField<String>(
-                        initialValue: selectedContractorId,
-                        items: contractorItems,
-                        onChanged: isLoading ? null : onContractorChanged,
-                        decoration: const InputDecoration(
-                          labelText: 'Контрагент *',
-                        ),
-                        validator: (v) => v == null || v.isEmpty
+                      GTDropdown<MapEntry<String, String>>(
+                        items: contractorItems.entries.toList(),
+                        itemDisplayBuilder: (entry) => entry.value,
+                        selectedItem: selectedContractorId != null && contractorItems.containsKey(selectedContractorId)
+                            ? MapEntry(selectedContractorId!, contractorItems[selectedContractorId]!)
+                            : null,
+                        onSelectionChanged: (entry) => onContractorChanged(entry?.key),
+                        labelText: 'Контрагент *',
+                        hintText: 'Выберите контрагента',
+                        allowClear: false,
+                        readOnly: isLoading,
+                        validator: (v) => selectedContractorId == null || selectedContractorId!.isEmpty
                             ? 'Выберите контрагента'
                             : null,
-                        isExpanded: true,
                       ),
                       const SizedBox(height: 16),
                       // Объект
-                      DropdownButtonFormField<String>(
-                        initialValue: selectedObjectId,
-                        items: objectItems,
-                        onChanged: isLoading ? null : onObjectChanged,
-                        decoration: const InputDecoration(
-                          labelText: 'Объект *',
-                        ),
-                        validator: (v) =>
-                            v == null || v.isEmpty ? 'Выберите объект' : null,
-                        isExpanded: true,
+                      GTDropdown<MapEntry<String, String>>(
+                        items: objectItems.entries.toList(),
+                        itemDisplayBuilder: (entry) => entry.value,
+                        selectedItem: selectedObjectId != null && objectItems.containsKey(selectedObjectId)
+                            ? MapEntry(selectedObjectId!, objectItems[selectedObjectId]!)
+                            : null,
+                        onSelectionChanged: (entry) => onObjectChanged(entry?.key),
+                        labelText: 'Объект *',
+                        hintText: 'Выберите объект',
+                        allowClear: false,
+                        readOnly: isLoading,
+                        validator: (v) => selectedObjectId == null || selectedObjectId!.isEmpty
+                            ? 'Выберите объект'
+                            : null,
                       ),
                       const SizedBox(height: 16),
                       // Сумма
@@ -274,29 +306,158 @@ class ContractFormContent extends StatelessWidget {
                         enabled: !isLoading,
                       ),
                       const SizedBox(height: 16),
-                      // Статус
-                      DropdownButtonFormField<ContractStatus>(
-                        initialValue: status,
-                        items: const [
-                          DropdownMenuItem(
-                              value: ContractStatus.active,
-                              child: Text('В работе')),
-                          DropdownMenuItem(
-                              value: ContractStatus.suspended,
-                              child: Text('Приостановлен')),
-                          DropdownMenuItem(
-                              value: ContractStatus.completed,
-                              child: Text('Завершен')),
+                      // НДС
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: vatRateController,
+                              decoration: const InputDecoration(
+                                labelText: 'Ставка НДС (%)',
+                                hintText: '20',
+                              ),
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                      decimal: true),
+                              enabled: !isLoading,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: TextFormField(
+                              controller: vatAmountController,
+                              decoration: const InputDecoration(
+                                labelText: 'Сумма НДС',
+                                hintText: '0.00',
+                              ),
+                              readOnly: true, // Рассчитывается автоматически
+                              enabled: !isLoading,
+                            ),
+                          ),
                         ],
-                        onChanged: isLoading ? null : onStatusChanged,
-                        decoration: const InputDecoration(
-                          labelText: 'Статус *',
-                        ),
                       ),
-                    ],
-                  ),
-                ),
-              ),
+                      const SizedBox(height: 8),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('НДС включен в стоимость'),
+                        value: isVatIncluded,
+                        onChanged: isLoading ? null : onVatIncludedChanged,
+                      ),
+                      const SizedBox(height: 16),
+                      // Аванс
+                      TextFormField(
+                        controller: advanceAmountController,
+                        decoration: const InputDecoration(
+                          labelText: 'Сумма аванса',
+                          hintText: '0.00',
+                        ),
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                        enabled: !isLoading,
+                      ),
+                      const SizedBox(height: 16),
+                      // Гарантийные удержания
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: warrantyRetentionRateController,
+                              decoration: const InputDecoration(
+                                labelText: 'Гарантийные удержания (%)',
+                                hintText: '5',
+                              ),
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                      decimal: true),
+                              enabled: !isLoading,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: TextFormField(
+                              controller: warrantyPeriodMonthsController,
+                              decoration: const InputDecoration(
+                                labelText: 'Срок гарантии (мес.)',
+                                hintText: '12',
+                              ),
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(),
+                              enabled: !isLoading,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: TextFormField(
+                              controller: warrantyRetentionAmountController,
+                              decoration: const InputDecoration(
+                                labelText: 'Сумма удержания',
+                                hintText: '0.00',
+                              ),
+                              readOnly: true, // Только для отображения
+                              enabled: !isLoading,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      // Генподрядные
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: generalContractorFeeRateController,
+                              decoration: const InputDecoration(
+                                labelText: 'Генподрядные (%)',
+                                hintText: '3',
+                              ),
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                      decimal: true),
+                              enabled: !isLoading,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: TextFormField(
+                              controller: generalContractorFeeAmountController,
+                              decoration: const InputDecoration(
+                                labelText: 'Сумма генподрядных',
+                                hintText: '0.00',
+                              ),
+                              readOnly: true, // Только для отображения
+                              enabled: !isLoading,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      // Статус
+                      GTDropdown<ContractStatus>(
+                        items: const [
+                          ContractStatus.active,
+                          ContractStatus.suspended,
+                          ContractStatus.completed,
+                        ],
+                        itemDisplayBuilder: (status) {
+                          switch (status) {
+                            case ContractStatus.active:
+                              return 'В работе';
+                            case ContractStatus.suspended:
+                              return 'Приостановлен';
+                            case ContractStatus.completed:
+                              return 'Завершен';
+                          }
+                        },
+                        selectedItem: status,
+                        onSelectionChanged: onStatusChanged,
+                        labelText: 'Статус *',
+                        hintText: 'Выберите статус',
+                        allowClear: false,
+                        readOnly: isLoading,
+                      ),
               const SizedBox(height: 24),
               Row(
                 children: [
@@ -306,7 +467,7 @@ class ContractFormContent extends StatelessWidget {
                       style: OutlinedButton.styleFrom(
                         minimumSize: const Size.fromHeight(44),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(22),
                         ),
                         textStyle: const TextStyle(
                             fontSize: 16, fontWeight: FontWeight.bold),
@@ -321,7 +482,7 @@ class ContractFormContent extends StatelessWidget {
                       style: ElevatedButton.styleFrom(
                         minimumSize: const Size.fromHeight(44),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(22),
                         ),
                         textStyle: const TextStyle(
                             fontSize: 16, fontWeight: FontWeight.bold),
@@ -341,8 +502,7 @@ class ContractFormContent extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
+      );
   }
 
   /// Форматирует дату в строку вида ДД.ММ.ГГГГ для отображения в UI.

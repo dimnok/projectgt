@@ -1,8 +1,9 @@
-import 'dart:html' as html;
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/domain/entities/user.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supa;
+import 'package:universal_html/html.dart' as web;
 
 /// Перечисление возможных статусов аутентификации пользователя.
 ///
@@ -112,7 +113,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       : _ref = ref,
         super(AuthState.initial()) {
     checkAuthStatus();
-    
+
     // Слушаем изменения сессии Supabase, чтобы гарантированно подхватывать вход без перезагрузки
     try {
       supa.Supabase.instance.client.auth.onAuthStateChange.listen((_) {
@@ -158,38 +159,44 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
     try {
       // 1) Если есть hash magic-link c access_token — немедленно поднимаем сессию
-      final hash = html.window.location.hash; // начинается с '#'
-      if (hash.isNotEmpty && hash.contains('access_token')) {
-        try {
-          // Сохраняем исходный href с токеном
-          final hrefWithToken = html.window.location.href;
-          // Нормализуем кейс двойного hash: "#/#access_token" → "#access_token"
-          final fixedHref = hrefWithToken.replaceFirst('#/#', '#');
-          // Устанавливаем сессию из исходного (нормализованного) URL
-          await supa.Supabase.instance.client.auth
-              .getSessionFromUrl(Uri.parse(fixedHref));
-          // Ждём коротко, пока SDK проставит currentUser
-          for (var i = 0; i < 10; i++) {
-            final u = supa.Supabase.instance.client.auth.currentUser;
-            if (u != null) break;
-            await Future.delayed(const Duration(milliseconds: 150));
-          }
-          // ok
-          // Очищаем URL после успешной установки сессии
-          final base = html.window.location.href.split('#').first;
-          html.window.history.replaceState(null, '', base + '#/');
-        } catch (_) {}
+      String hash = '';
+      String hrefWithToken = '';
+
+      if (kIsWeb) {
+        hash = web.window.location.hash; // начинается с '#'
+        if (hash.isNotEmpty && hash.contains('access_token')) {
+          try {
+            // Сохраняем исходный href с токеном
+            hrefWithToken = web.window.location.href;
+            // Нормализуем кейс двойного hash: "#/#access_token" → "#access_token"
+            final fixedHref = hrefWithToken.replaceFirst('#/#', '#');
+            // Устанавливаем сессию из исходного (нормализованного) URL
+            await supa.Supabase.instance.client.auth
+                .getSessionFromUrl(Uri.parse(fixedHref));
+            // Ждём коротко, пока SDK проставит currentUser
+            for (var i = 0; i < 10; i++) {
+              final u = supa.Supabase.instance.client.auth.currentUser;
+              if (u != null) break;
+              await Future.delayed(const Duration(milliseconds: 150));
+            }
+            // ok
+            // Очищаем URL после успешной установки сессии
+            final base = web.window.location.href.split('#').first;
+            web.window.history.replaceState(null, '', '$base#/');
+          } catch (_) {}
+        }
       }
 
       // Telegram callback удалён
 
       // 2.1) Дополнительная попытка: если hash есть, но currentUser ещё null — повторно поднимем сессию
-      if (supa.Supabase.instance.client.auth.currentUser == null &&
+      if (kIsWeb &&
+          supa.Supabase.instance.client.auth.currentUser == null &&
           hash.isNotEmpty &&
           hash.contains('access_token')) {
         try {
-          final hrefWithToken = html.window.location.href;
-          final fixedHref = hrefWithToken.replaceFirst('#/#', '#');
+          final hrefWithTokenRetry = web.window.location.href;
+          final fixedHref = hrefWithTokenRetry.replaceFirst('#/#', '#');
           await supa.Supabase.instance.client.auth
               .getSessionFromUrl(Uri.parse(fixedHref));
           for (var i = 0; i < 10; i++) {
@@ -198,8 +205,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
             await Future.delayed(const Duration(milliseconds: 150));
           }
           // После второй попытки также очищаем URL от hash безопасно
-          final base2 = html.window.location.href.split('#').first;
-          html.window.history.replaceState(null, '', base2 + '#/');
+          final base2 = web.window.location.href.split('#').first;
+          web.window.history.replaceState(null, '', '$base2#/');
         } catch (_) {}
 
         // 2.2) Фолбэк: вручную устанавливаем сессию из hash, если SDK не успел
@@ -216,8 +223,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
                 if (u != null) break;
                 await Future.delayed(const Duration(milliseconds: 150));
               }
-              final base3 = html.window.location.href.split('#').first;
-              html.window.history.replaceState(null, '', base3 + '#/');
+              final base3 = web.window.location.href.split('#').first;
+              web.window.history.replaceState(null, '', '$base3#/');
               // fallback used
             }
           } catch (e) {
@@ -404,7 +411,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
     }
   }
-
 }
 
 /// Провайдер состояния аутентификации пользователя.

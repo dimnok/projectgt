@@ -564,12 +564,14 @@ class _WorkPlanFormModalState extends ConsumerState<WorkPlanFormModal> {
 
         // Фильтруем объекты по правам пользователя
         final profileState = ref.watch(currentUserProfileProvider);
-        final isAdmin = profileState.profile?.role == 'admin';
         final allowedObjectIds =
             profileState.profile?.objectIds ?? const <String>[];
-        final availableObjects = isAdmin
-            ? allObjects
-            : allObjects.where((o) => allowedObjectIds.contains(o.id)).toList();
+        
+        // Если пользователю назначены конкретные объекты, ограничиваем выбор ими.
+        // Иначе показываем все доступные (прошедшие через RLS).
+        final availableObjects = allowedObjectIds.isNotEmpty
+            ? allObjects.where((o) => allowedObjectIds.contains(o.id)).toList()
+            : allObjects;
 
         // Получаем список доступных сотрудников
         final employeeState = ref.watch(employeeProvider);

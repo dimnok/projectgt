@@ -25,7 +25,7 @@ mixin _$ProfileModel {
   String? get photoUrl;
   String? get phone;
   String? get position;
-  String get role;
+  String? get roleId;
   bool get status;
   Map<String, dynamic>? get object;
   @JsonKey(name: 'created_at')
@@ -62,7 +62,7 @@ mixin _$ProfileModel {
             (identical(other.phone, phone) || other.phone == phone) &&
             (identical(other.position, position) ||
                 other.position == position) &&
-            (identical(other.role, role) || other.role == role) &&
+            (identical(other.roleId, roleId) || other.roleId == roleId) &&
             (identical(other.status, status) || other.status == status) &&
             const DeepCollectionEquality().equals(other.object, object) &&
             (identical(other.createdAt, createdAt) ||
@@ -83,7 +83,7 @@ mixin _$ProfileModel {
       photoUrl,
       phone,
       position,
-      role,
+      roleId,
       status,
       const DeepCollectionEquality().hash(object),
       createdAt,
@@ -92,7 +92,7 @@ mixin _$ProfileModel {
 
   @override
   String toString() {
-    return 'ProfileModel(id: $id, email: $email, fullName: $fullName, shortName: $shortName, photoUrl: $photoUrl, phone: $phone, position: $position, role: $role, status: $status, object: $object, createdAt: $createdAt, updatedAt: $updatedAt, objectIds: $objectIds)';
+    return 'ProfileModel(id: $id, email: $email, fullName: $fullName, shortName: $shortName, photoUrl: $photoUrl, phone: $phone, position: $position, roleId: $roleId, status: $status, object: $object, createdAt: $createdAt, updatedAt: $updatedAt, objectIds: $objectIds)';
   }
 }
 
@@ -110,7 +110,7 @@ abstract mixin class $ProfileModelCopyWith<$Res> {
       @JsonKey(name: 'photo_url') String? photoUrl,
       String? phone,
       String? position,
-      String role,
+      String? roleId,
       bool status,
       Map<String, dynamic>? object,
       @JsonKey(name: 'created_at') DateTime? createdAt,
@@ -137,7 +137,7 @@ class _$ProfileModelCopyWithImpl<$Res> implements $ProfileModelCopyWith<$Res> {
     Object? photoUrl = freezed,
     Object? phone = freezed,
     Object? position = freezed,
-    Object? role = null,
+    Object? roleId = freezed,
     Object? status = null,
     Object? object = freezed,
     Object? createdAt = freezed,
@@ -173,10 +173,10 @@ class _$ProfileModelCopyWithImpl<$Res> implements $ProfileModelCopyWith<$Res> {
           ? _self.position
           : position // ignore: cast_nullable_to_non_nullable
               as String?,
-      role: null == role
-          ? _self.role
-          : role // ignore: cast_nullable_to_non_nullable
-              as String,
+      roleId: freezed == roleId
+          ? _self.roleId
+          : roleId // ignore: cast_nullable_to_non_nullable
+              as String?,
       status: null == status
           ? _self.status
           : status // ignore: cast_nullable_to_non_nullable
@@ -213,7 +213,7 @@ class _ProfileModel extends ProfileModel {
       @JsonKey(name: 'photo_url') this.photoUrl,
       this.phone,
       this.position,
-      this.role = 'user',
+      this.roleId,
       this.status = true,
       final Map<String, dynamic>? object,
       @JsonKey(name: 'created_at') this.createdAt,
@@ -243,8 +243,7 @@ class _ProfileModel extends ProfileModel {
   @override
   final String? position;
   @override
-  @JsonKey()
-  final String role;
+  final String? roleId;
   @override
   @JsonKey()
   final bool status;
@@ -306,7 +305,7 @@ class _ProfileModel extends ProfileModel {
             (identical(other.phone, phone) || other.phone == phone) &&
             (identical(other.position, position) ||
                 other.position == position) &&
-            (identical(other.role, role) || other.role == role) &&
+            (identical(other.roleId, roleId) || other.roleId == roleId) &&
             (identical(other.status, status) || other.status == status) &&
             const DeepCollectionEquality().equals(other._object, _object) &&
             (identical(other.createdAt, createdAt) ||
@@ -328,7 +327,7 @@ class _ProfileModel extends ProfileModel {
       photoUrl,
       phone,
       position,
-      role,
+      roleId,
       status,
       const DeepCollectionEquality().hash(_object),
       createdAt,
@@ -337,7 +336,7 @@ class _ProfileModel extends ProfileModel {
 
   @override
   String toString() {
-    return 'ProfileModel(id: $id, email: $email, fullName: $fullName, shortName: $shortName, photoUrl: $photoUrl, phone: $phone, position: $position, role: $role, status: $status, object: $object, createdAt: $createdAt, updatedAt: $updatedAt, objectIds: $objectIds)';
+    return 'ProfileModel(id: $id, email: $email, fullName: $fullName, shortName: $shortName, photoUrl: $photoUrl, phone: $phone, position: $position, roleId: $roleId, status: $status, object: $object, createdAt: $createdAt, updatedAt: $updatedAt, objectIds: $objectIds)';
   }
 }
 
@@ -357,7 +356,7 @@ abstract mixin class _$ProfileModelCopyWith<$Res>
       @JsonKey(name: 'photo_url') String? photoUrl,
       String? phone,
       String? position,
-      String role,
+      String? roleId,
       bool status,
       Map<String, dynamic>? object,
       @JsonKey(name: 'created_at') DateTime? createdAt,
@@ -385,7 +384,7 @@ class __$ProfileModelCopyWithImpl<$Res>
     Object? photoUrl = freezed,
     Object? phone = freezed,
     Object? position = freezed,
-    Object? role = null,
+    Object? roleId = freezed,
     Object? status = null,
     Object? object = freezed,
     Object? createdAt = freezed,
@@ -421,10 +420,10 @@ class __$ProfileModelCopyWithImpl<$Res>
           ? _self.position
           : position // ignore: cast_nullable_to_non_nullable
               as String?,
-      role: null == role
-          ? _self.role
-          : role // ignore: cast_nullable_to_non_nullable
-              as String,
+      roleId: freezed == roleId
+          ? _self.roleId
+          : roleId // ignore: cast_nullable_to_non_nullable
+              as String?,
       status: null == status
           ? _self.status
           : status // ignore: cast_nullable_to_non_nullable

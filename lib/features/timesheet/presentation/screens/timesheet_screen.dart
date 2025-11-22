@@ -6,6 +6,7 @@ import '../providers/timesheet_provider.dart';
 import '../widgets/timesheet_filter_widget.dart';
 import '../widgets/timesheet_calendar_view.dart';
 import '../widgets/timesheet_pdf_action.dart';
+import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
 
 /// Основной экран модуля "Табель" для отображения рабочих часов сотрудников.
 class TimesheetScreen extends ConsumerWidget {
@@ -31,7 +32,11 @@ class TimesheetScreen extends ConsumerWidget {
           SizedBox(width: 8),
           TimesheetFiltersAction(),
           SizedBox(width: 8),
-          TimesheetPdfAction(),
+          PermissionGuard(
+            module: 'timesheet',
+            permission: 'export',
+            child: TimesheetPdfAction(),
+          ),
           SizedBox(width: 8),
         ],
       ),

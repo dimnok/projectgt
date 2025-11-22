@@ -77,17 +77,15 @@ class SupabaseAuthDataSource implements AuthDataSource {
       }
 
       // Получаем роль пользователя из профиля
-      String role = 'user';
+      String? roleId;
       try {
         final profileData = await client
             .from('profiles')
-            .select('role')
+            .select('role_id')
             .eq('id', response.user!.id)
             .single();
 
-        if (profileData['role'] != null) {
-          role = profileData['role'];
-        }
+        roleId = profileData['role_id'];
       } catch (e) {
         Logger().e('Ошибка при получении роли: $e');
       }
@@ -97,7 +95,7 @@ class SupabaseAuthDataSource implements AuthDataSource {
         email: response.user!.email!,
         name: response.user!.userMetadata?['name'] as String?,
         photoUrl: response.user!.userMetadata?['photoUrl'] as String?,
-        role: role,
+        roleId: roleId,
       );
     } catch (e) {
       // Обрабатываем конкретные ошибки Supabase
@@ -134,7 +132,7 @@ class SupabaseAuthDataSource implements AuthDataSource {
         email: email,
         name: name,
         photoUrl: null,
-        role: 'user',
+        roleId: null,
       );
     } catch (e) {
       // Обрабатываем конкретные ошибки Supabase
@@ -173,17 +171,15 @@ class SupabaseAuthDataSource implements AuthDataSource {
     }
 
     // Получаем роль пользователя из профиля
-    String role = 'user';
+    String? roleId;
     try {
       final profileData = await client
           .from('profiles')
-          .select('role')
+          .select('role_id')
           .eq('id', user.id)
           .single();
 
-      if (profileData['role'] != null) {
-        role = profileData['role'];
-      }
+      roleId = profileData['role_id'];
     } catch (e) {
       Logger().e('Ошибка при получении роли: $e');
     }
@@ -193,7 +189,7 @@ class SupabaseAuthDataSource implements AuthDataSource {
       email: user.email ?? '',
       name: user.userMetadata?['name'] as String?,
       photoUrl: user.userMetadata?['photoUrl'] as String?,
-      role: role,
+      roleId: roleId,
     );
   }
 
@@ -246,16 +242,14 @@ class SupabaseAuthDataSource implements AuthDataSource {
         throw Exception('Не удалось подтвердить код');
       }
 
-      String role = 'user';
+      String? roleId;
       try {
         final profileData = await client
             .from('profiles')
-            .select('role')
+            .select('role_id')
             .eq('id', user.id)
             .single();
-        if (profileData['role'] != null) {
-          role = profileData['role'];
-        }
+        roleId = profileData['role_id'];
       } catch (_) {}
 
       return UserModel(
@@ -263,7 +257,7 @@ class SupabaseAuthDataSource implements AuthDataSource {
         email: user.email ?? email,
         name: user.userMetadata?['name'] as String?,
         photoUrl: user.userMetadata?['photoUrl'] as String?,
-        role: role,
+        roleId: roleId,
       );
     } catch (e) {
       final message = e.toString();

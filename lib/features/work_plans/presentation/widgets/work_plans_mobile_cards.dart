@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:projectgt/core/utils/formatters.dart';
+import 'package:projectgt/features/roles/application/permission_service.dart';
 
 import '../../../../domain/entities/object.dart';
 import '../../../../domain/entities/work_plan.dart';
@@ -78,6 +79,20 @@ class WorkPlansMobileCards extends ConsumerWidget {
   ) {
     final dateFormat = DateFormat('dd.MM.yyyy');
 
+    // Проверяем права
+    final permissionService = ref.watch(permissionServiceProvider);
+    final canUpdate = permissionService.can('work_plans', 'update');
+    final canDelete = permissionService.can('work_plans', 'delete');
+
+    DismissDirection direction = DismissDirection.none;
+    if (canUpdate && canDelete) {
+      direction = DismissDirection.horizontal;
+    } else if (canUpdate) {
+      direction = DismissDirection.startToEnd;
+    } else if (canDelete) {
+      direction = DismissDirection.endToStart;
+    }
+
     // Подсчитываем статистику
     final totalWorkers =
         workPlan.workBlocks.expand((block) => block.workerIds).toSet().length;
@@ -90,9 +105,10 @@ class WorkPlansMobileCards extends ConsumerWidget {
     return Dismissible(
       key: ValueKey(workPlan.id ??
           '${workPlan.objectId}_${workPlan.date.millisecondsSinceEpoch}'),
-      direction: DismissDirection.horizontal,
+      direction: direction,
       // Свайп вправо — редактировать
-      background: Container(
+      background: canUpdate
+          ? Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: Colors.amber.withValues(alpha: 0.1),
@@ -114,8 +130,10 @@ class WorkPlansMobileCards extends ConsumerWidget {
             ),
           ],
         ),
-      ),
-      secondaryBackground: Container(
+            )
+          : Container(color: Colors.transparent), // Пустой фон если нельзя
+      secondaryBackground: canDelete
+          ? Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: Colors.red.withValues(alpha: 0.1),
@@ -130,19 +148,23 @@ class WorkPlansMobileCards extends ConsumerWidget {
             const SizedBox(width: 8),
             Text(
               'Удалить',
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: Colors.red, fontWeight: FontWeight.w600),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                        color: Colors.red, fontWeight: FontWeight.w600),
             ),
           ],
         ),
-      ),
+            )
+          : Container(color: Colors.transparent),
       confirmDismiss: (direction) async {
         // Свайп вправо: открыть модал редактирования и не удалять
         if (direction == DismissDirection.startToEnd) {
+          if (canUpdate) {
           onEditWorkPlan(workPlan);
+          }
           return false;
         }
 
+        if (direction == DismissDirection.endToStart && canDelete) {
         final result = await showCupertinoDialog<bool>(
           context: context,
           builder: (ctx) => CupertinoAlertDialog(
@@ -167,6 +189,7 @@ class WorkPlansMobileCards extends ConsumerWidget {
               .read(workPlanNotifierProvider.notifier)
               .deleteWorkPlan(workPlan.id!);
           return true;
+          }
         }
         return false;
       },

@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:web/web.dart' as web;
+import 'package:universal_html/html.dart' as web;
 import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
 
@@ -71,7 +71,7 @@ class WebStatusBar {
 
   static void _setCSSVariable(String name, String value) {
     try {
-      (web.document.documentElement as web.HTMLElement?)
+      (web.document.documentElement as web.HtmlElement?)
           ?.style
           .setProperty(name, value);
     } catch (_) {}
@@ -86,8 +86,8 @@ class WebStatusBar {
   }
 
   static void _addEdgeToEdgeStyles() {
-    final style = web.HTMLStyleElement();
-    style.textContent = '''
+    final style = web.StyleElement();
+    style.text = '''
       html, body {
         margin: 0;
         padding: 0;

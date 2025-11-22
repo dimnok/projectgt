@@ -23,8 +23,8 @@ abstract class User with _$User {
     /// URL фотографии пользователя.
     String? photoUrl,
 
-    /// Роль пользователя (например, 'user', 'admin').
-    @Default('user') String role,
+    /// ID роли пользователя (связь с таблицей roles).
+    String? roleId,
   }) = _User;
 
   /// Приватный конструктор для расширения функциональности через методы.

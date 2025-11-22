@@ -20,6 +20,7 @@ import 'package:projectgt/features/employees/presentation/widgets/master_detail_
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/presentation/widgets/cupertino_dialog_widget.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
+import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
 
 /// Экран со списком сотрудников.
 ///
@@ -176,7 +177,10 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
           ],
           if (isDesktop && selectedEmployee != null) ...[
             // Тоггл can_be_responsible для выделенного сотрудника (desktop)
-            CupertinoButton(
+            PermissionGuard(
+              module: 'employees',
+              permission: 'update',
+              child: CupertinoButton(
               padding: EdgeInsets.zero,
               child: Icon(
                 Icons.verified_user,
@@ -210,7 +214,11 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
                 }
               },
             ),
-            CupertinoButton(
+            ),
+            PermissionGuard(
+              module: 'employees',
+              permission: 'update',
+              child: CupertinoButton(
               padding: EdgeInsets.zero,
               child: const Icon(Icons.edit, color: Colors.amber),
               onPressed: () {
@@ -218,16 +226,24 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
                     employeeId: selectedEmployee!.id);
               },
             ),
-            CupertinoButton(
+            ),
+            PermissionGuard(
+              module: 'employees',
+              permission: 'delete',
+              child: CupertinoButton(
               padding: EdgeInsets.zero,
               child: const Icon(Icons.delete, color: Colors.red),
               onPressed: () => _showDeleteDialog(selectedEmployee!),
+              ),
             ),
           ],
         ],
       ),
       drawer: const AppDrawer(activeRoute: AppRoute.employees),
-      floatingActionButton: AnimatedScale(
+      floatingActionButton: PermissionGuard(
+        module: 'employees',
+        permission: 'create',
+        child: AnimatedScale(
         scale: _showFab ? 1.0 : 0.0,
         duration: const Duration(milliseconds: 300),
         child: FloatingActionButton(
@@ -238,6 +254,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
           mini: ResponsiveUtils.isMobile(context),
           shape: const CircleBorder(),
           child: const Icon(Icons.add, color: Colors.white),
+          ),
         ),
       ),
       body: LayoutBuilder(

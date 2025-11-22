@@ -10,6 +10,7 @@ import '../widgets/work_search_export_action.dart';
 import '../providers/work_search_provider.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 import 'tabs/export_tab_search.dart';
+import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
 
 /// Экран поиска по работам.
 class ExportScreen extends ConsumerStatefulWidget {
@@ -34,7 +35,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
       if (!mounted) return;
       try {
         final router = GoRouter.of(context);
-        _currentRoute = router.routeInformationProvider.value.location;
+        _currentRoute = router.routeInformationProvider.value.uri.toString();
         _routeListener = () => _checkRouteChange();
         router.routeInformationProvider.addListener(_routeListener!);
       } catch (e) {
@@ -48,7 +49,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
     if (!mounted) return;
     try {
       final router = GoRouter.of(context);
-      final newRoute = router.routeInformationProvider.value.location;
+      final newRoute = router.routeInformationProvider.value.uri.toString();
       // Если текущий маршрут — поиск, а новый — нет, очищаем поиск
       if (_currentRoute != null &&
           _currentRoute!.startsWith('/export') &&
@@ -101,7 +102,11 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
           // Календарь для выбора периода
           const WorkSearchDateRangeAction(),
           // Кнопка экспорта результатов
-          const WorkSearchExportAction(),
+          const PermissionGuard(
+            module: 'export',
+            permission: 'export',
+            child: WorkSearchExportAction(),
+          ),
         ],
       ),
       drawer: const AppDrawer(activeRoute: AppRoute.export),

@@ -22,8 +22,7 @@ import 'dart:math' as math;
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
 
-import 'package:projectgt/presentation/state/profile_state.dart';
-import 'package:projectgt/presentation/state/auth_state.dart';
+import 'package:projectgt/features/roles/application/permission_service.dart';
 
 import 'tabs/work_data_tab.dart';
 import 'tabs/work_hours_tab.dart';
@@ -601,12 +600,14 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
     // Получаем смену для проверки статуса
     final workAsync = ref.watch(workProvider(widget.workId));
     final isWorkClosed = workAsync?.status.toLowerCase() == 'closed';
-    final currentProfile = ref.watch(currentUserProfileProvider).profile;
-    final isAdmin = ref.watch(authProvider).user?.role == 'admin';
-    final bool isOwner = currentProfile != null &&
-        workAsync != null &&
-        workAsync.openedBy == currentProfile.id;
-    final bool canModify = (isOwner && !isWorkClosed) || isAdmin;
+
+    // Проверка прав
+    final permissionService = ref.watch(permissionServiceProvider);
+    final canUpdate = permissionService.can('works', 'update');
+    final canDelete = permissionService.can('works', 'delete');
+
+    // Разрешаем редактировать, если смена открыта И есть право update
+    final bool canModify = !isWorkClosed && canUpdate;
 
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
@@ -996,7 +997,7 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                               if (_areEstimatesLoading) {
                                 // Если сметы загружаются или еще не загружены, показываем индикатор
                                 numberWidget = Container(
-                                  width: 30,
+                                  width: 45,
                                   alignment: Alignment.center,
                                   child: const SizedBox(
                                     width: 18,
@@ -1017,14 +1018,18 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                                 final number = estimate?.number ?? '-';
 
                                 numberWidget = Container(
-                                  width: 30,
+                                  width: 45,
                                   alignment: Alignment.center,
                                   child: Text(
                                     number,
+                                    textAlign: TextAlign.center,
+                                    maxLines: 1,
+                                    softWrap: false,
                                     style: Theme.of(context)
                                         .textTheme
                                         .bodySmall
                                         ?.copyWith(
+                                            fontSize: 10,
                                             fontWeight: FontWeight.bold,
                                             color: Theme.of(context)
                                                         .brightness ==
@@ -1048,7 +1053,7 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
 
                               // Обертываем карточку в Dismissible для мобильного свайпа
                               Widget cardWidget = InkWell(
-                                onLongPress: isAdmin
+                                onLongPress: canDelete
                                     ? () {
                                         WorkItemContextMenu.show(
                                           context: context,

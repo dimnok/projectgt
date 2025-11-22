@@ -17,6 +17,11 @@ import 'package:projectgt/domain/entities/object.dart';
 import 'package:projectgt/domain/entities/profile.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/features/profile/presentation/widgets/profile_employee_link_edit_field.dart';
+import 'package:projectgt/features/roles/application/permission_service.dart';
+import 'package:projectgt/features/roles/presentation/providers/roles_provider.dart';
+import 'package:projectgt/features/roles/domain/entities/role.dart'
+    as role_entity;
+import 'package:projectgt/features/roles/presentation/widgets/role_badge.dart';
 
 /// Экран профиля пользователя.
 ///
@@ -123,8 +128,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       return true; // Если userId не передан, значит это экран текущего пользователя
     }
 
-    // Администратор может редактировать любой профиль
-    if (authUser?.role == 'admin') {
+    // Администратор (с правом users.update) может редактировать любой профиль
+    if (ref.read(permissionServiceProvider).can('users', 'update')) {
       return true;
     }
 
@@ -165,8 +170,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final profile = isOwn
         ? ref.read(currentUserProfileProvider).profile
         : ref.read(profileProvider).profile;
-    final currentProfile = ref.read(currentUserProfileProvider).profile;
-    final bool isAdmin = currentProfile?.role == 'admin';
+    final bool isAdmin =
+        ref.read(permissionServiceProvider).can('users', 'update');
     if (profile != null) {
       showModalBottomSheet(
         context: context,
@@ -187,7 +192,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             allObjects: _allObjects,
             isAdmin: isAdmin,
             initialEmployeeId: profile.object?['employee_id'] as String?,
-            onSave: (fullName, phone, selectedObjectIds, employeeId) {
+            initialRoleId: profile.roleId,
+            onSave: (fullName, phone, selectedObjectIds, employeeId, roleId) {
               // Генерируем сокращенное имя
               final shortName = _generateShortName(fullName);
 
@@ -202,9 +208,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 newObject.remove('employee_id');
               }
 
-              // ⚠️ ВАЖНО: Если пользователь НЕ админ - НЕ меняем object_ids!
+              // ⚠️ ВАЖНО: Если пользователь НЕ админ - НЕ меняем object_ids и roleId!
               final objectIdsToSave =
                   isAdmin ? selectedObjectIds : profile.objectIds ?? [];
+              final roleIdToSave = isAdmin ? roleId : profile.roleId;
 
               final updatedProfile = profile.copyWith(
                 fullName: fullName,
@@ -212,6 +219,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 phone: phone,
                 objectIds:
                     objectIdsToSave, // ← Используем оригинальные если не админ
+                roleId: roleIdToSave,
                 object: newObject,
                 updatedAt: DateTime.now(),
               );
@@ -423,13 +431,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           children: [
             _AppleMenuItem(
               icon: Icons.verified_user_outlined,
-              iconColor: profile?.role == 'admin' ? Colors.purple : Colors.grey,
+              iconColor: profile?.roleId != null ? Colors.purple : Colors.grey,
               title: 'Роль',
-              trailing: Text(
-                profile?.role == 'admin' ? 'ADMIN' : 'USER',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                ),
+              trailing: RoleBadge(
+                roleId: profile?.roleId,
+                fallbackRole: null,
               ),
             ),
             _AppleMenuItem(
@@ -439,7 +445,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               subtitle: profile?.status == true ? 'Активен' : 'Не активен',
               trailing: ProfileStatusSwitch(
                 value: profile?.status == true,
-                canToggle: ref.read(authProvider).user?.role == 'admin',
+                canToggle:
+                    ref.read(permissionServiceProvider).can('users', 'update'),
                 isBusy: profileState.status == ProfileStatus.loading,
                 onChanged: (v) async {
                   if (profile != null) {
@@ -891,7 +898,7 @@ class _IOSTapEffectState extends State<_IOSTapEffect> {
 /// Форма редактирования профиля пользователя.
 ///
 /// Позволяет изменить ФИО, телефон и список объектов пользователя.
-class ProfileEditForm extends StatefulWidget {
+class ProfileEditForm extends ConsumerStatefulWidget {
   /// Профиль для редактирования.
   final Profile profile;
 
@@ -904,9 +911,16 @@ class ProfileEditForm extends StatefulWidget {
   /// Изначально привязанный employee_id (если есть).
   final String? initialEmployeeId;
 
-  /// Коллбэк сохранения изменений: (ФИО, телефон, список id объектов, employeeId).
-  final void Function(String fullName, String phone,
-      List<String> selectedObjectIds, String? employeeId) onSave;
+  /// Изначально привязанная роль (если есть).
+  final String? initialRoleId;
+
+  /// Коллбэк сохранения изменений: (ФИО, телефон, список id объектов, employeeId, roleId).
+  final void Function(
+      String fullName,
+      String phone,
+      List<String> selectedObjectIds,
+      String? employeeId,
+      String? roleId) onSave;
 
   /// Создаёт форму редактирования профиля.
   const ProfileEditForm({
@@ -914,23 +928,26 @@ class ProfileEditForm extends StatefulWidget {
     required this.allObjects,
     required this.isAdmin,
     this.initialEmployeeId,
+    this.initialRoleId,
     required this.onSave,
     super.key,
   });
 
   @override
-  State<ProfileEditForm> createState() => _ProfileEditFormState();
+  ConsumerState<ProfileEditForm> createState() => _ProfileEditFormState();
 }
 
 /// Состояние для [ProfileEditForm].
 ///
 /// Управляет контроллерами, обработкой выбора объектов и валидацией формы.
-class _ProfileEditFormState extends State<ProfileEditForm> {
+class _ProfileEditFormState extends ConsumerState<ProfileEditForm> {
   late TextEditingController _fullNameController;
   late TextEditingController _phoneController;
   late List<String> _selectedObjectIds;
   final _formKey = GlobalKey<FormState>();
   late String _selectedEmployeeId;
+  String? _selectedRoleId;
+  List<role_entity.Role> _roles = [];
 
   /// Капитализирует каждое слово в строке (делает первую букву заглавной).
   String _capitalizeWords(String text) {
@@ -961,6 +978,25 @@ class _ProfileEditFormState extends State<ProfileEditForm> {
     _phoneController = TextEditingController(text: widget.profile.phone ?? '');
     _selectedObjectIds = List<String>.from(widget.profile.objectIds ?? []);
     _selectedEmployeeId = (widget.initialEmployeeId ?? '').trim();
+    _selectedRoleId = widget.initialRoleId;
+
+    if (widget.isAdmin) {
+      _loadRoles();
+    }
+  }
+
+  Future<void> _loadRoles() async {
+    try {
+      final repo = ref.read(rolesRepositoryProvider);
+      final roles = await repo.getAllRoles();
+      if (mounted) {
+        setState(() {
+          _roles = roles;
+        });
+      }
+    } catch (_) {
+      // ignore
+    }
   }
 
   @override
@@ -1024,6 +1060,28 @@ class _ProfileEditFormState extends State<ProfileEditForm> {
               },
             ),
             const SizedBox(height: 16),
+            InputDecorator(
+              decoration: const InputDecoration(
+                labelText: 'Роль',
+                prefixIcon: Icon(Icons.security),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _selectedRoleId,
+                  isDense: true,
+                  items: [
+                    const DropdownMenuItem(
+                        value: null, child: Text('Без роли (User)')),
+                    ..._roles.map((role) => DropdownMenuItem(
+                          value: role.id,
+                          child: Text(role.name),
+                        )),
+                  ],
+                  onChanged: (val) => setState(() => _selectedRoleId = val),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
           ],
           if (widget.isAdmin) ...[
             Text('Объекты', style: theme.textTheme.bodyLarge),
@@ -1059,6 +1117,7 @@ class _ProfileEditFormState extends State<ProfileEditForm> {
                   _phoneController.text.trim(),
                   _selectedObjectIds,
                   _selectedEmployeeId.isEmpty ? null : _selectedEmployeeId,
+                  _selectedRoleId,
                 );
               }
             },

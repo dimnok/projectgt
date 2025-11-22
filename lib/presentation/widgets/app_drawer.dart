@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,6 +7,9 @@ import 'package:projectgt/presentation/state/auth_state.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
 import 'package:projectgt/presentation/widgets/drawer_item_widget.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
+import 'package:projectgt/features/roles/application/permission_service.dart';
+import 'package:projectgt/features/roles/presentation/widgets/role_badge.dart';
 
 /// Перечисление маршрутов приложения для навигации в AppDrawer.
 enum AppRoute {
@@ -56,6 +60,9 @@ enum AppRoute {
 
   /// Экран складского учёта.
   inventory,
+
+  /// Экран управления ролями.
+  roles,
 }
 
 /// Виджет для группировки пунктов меню (например, "Справочники" с подпунктами).
@@ -294,6 +301,7 @@ class AppDrawer extends ConsumerWidget {
     final theme = Theme.of(context);
     final authState = ref.watch(authProvider);
     final currentUserProfileState = ref.watch(currentUserProfileProvider);
+    final permissionService = ref.watch(permissionServiceProvider);
     final user = authState.user;
     final currentUserProfile = currentUserProfileState.profile;
     final screenWidth = MediaQuery.of(context).size.width;
@@ -480,93 +488,29 @@ class AppDrawer extends ConsumerWidget {
                                               CrossAxisAlignment.start,
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            Row(
-                                              children: [
-                                                Flexible(
-                                                  child: Text(
-                                                    currentUserProfile
-                                                            ?.shortName ??
-                                                        user?.name ??
-                                                        'USER',
-                                                    style: theme
-                                                        .textTheme.titleLarge
-                                                        ?.copyWith(
-                                                      color: theme.colorScheme
-                                                          .onSurface,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      letterSpacing: 0.5,
-                                                    ),
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 4),
-                                                Container(
-                                                  padding: const EdgeInsets
-                                                      .symmetric(
-                                                      horizontal: 6,
-                                                      vertical: 2),
-                                                  decoration: BoxDecoration(
-                                                    color: theme
-                                                        .colorScheme.primary
-                                                        .withValues(alpha: 0.1),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            12),
-                                                  ),
-                                                  child: Text(
-                                                    currentUserProfile?.role ==
-                                                            'admin'
-                                                        ? 'ADMIN'
-                                                        : 'USER',
-                                                    style: theme
-                                                        .textTheme.labelSmall
-                                                        ?.copyWith(
-                                                      color: currentUserProfile
-                                                                  ?.role ==
-                                                              'admin'
-                                                          ? Colors.purple
-                                                          : theme.colorScheme
-                                                              .primary,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      letterSpacing: 0.5,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            const SizedBox(height: 8),
-                                            Row(
-                                              children: [
-                                                Icon(
-                                                  Icons.email_outlined,
-                                                  size: 14,
+                                            Flexible(
+                                              child: Text(
+                                                currentUserProfile?.shortName ??
+                                                    user?.name ??
+                                                    'USER',
+                                                style: theme
+                                                    .textTheme.titleLarge
+                                                    ?.copyWith(
                                                   color: theme
-                                                      .colorScheme.onSurface
-                                                      .withValues(alpha: 0.7),
+                                                      .colorScheme.onSurface,
+                                                  fontWeight: FontWeight.bold,
+                                                  letterSpacing: 0.5,
                                                 ),
-                                                const SizedBox(width: 6),
-                                                Flexible(
-                                                  child: Text(
-                                                    user?.email ??
-                                                        'email@example.com',
-                                                    style: theme
-                                                        .textTheme.bodyMedium
-                                                        ?.copyWith(
-                                                      color: theme
-                                                          .colorScheme.onSurface
-                                                          .withValues(
-                                                              alpha: 0.7),
-                                                      fontWeight:
-                                                          FontWeight.w500,
-                                                    ),
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                ),
-                                              ],
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Align(
+                                              alignment: Alignment.centerLeft,
+                                              child: RoleBadge(
+                                                roleId: user?.roleId,
+                                                fallbackRole: null,
+                                              ),
                                             ),
                                           ],
                                         ),
@@ -590,7 +534,7 @@ class AppDrawer extends ConsumerWidget {
                           const SizedBox(height: 8),
                           // Пункты меню
                           DrawerItemWidget(
-                            icon: Icons.home_rounded,
+                            icon: CupertinoIcons.home,
                             title: 'Главная',
                             isSelected: activeRoute == AppRoute.home,
                             onTap: () {
@@ -602,68 +546,90 @@ class AppDrawer extends ConsumerWidget {
                               }
                             },
                           ),
-                          DrawerItemWidget(
-                            icon: Icons.work_outline,
-                            title: 'Работы',
-                            isSelected:
-                                activeRoute.toString() == 'AppRoute.works',
-                            onTap: () {
-                              context.pop();
-                              context.goNamed('works');
-                            },
+                          PermissionGuard(
+                            module: 'works',
+                            permission: 'read',
+                            child: DrawerItemWidget(
+                              icon: CupertinoIcons.wrench,
+                              title: 'Работы',
+                              isSelected:
+                                  activeRoute.toString() == 'AppRoute.works',
+                              onTap: () {
+                                context.pop();
+                                context.goNamed('works');
+                              },
+                            ),
                           ),
-                          DrawerItemWidget(
-                            icon: Icons.calendar_view_week_rounded,
-                            title: 'План работ',
-                            isSelected: activeRoute == AppRoute.workPlans,
-                            onTap: () {
-                              if (activeRoute == AppRoute.workPlans) {
-                                context.pop();
-                              } else {
-                                context.pop();
-                                context.goNamed('work_plans');
-                              }
-                            },
+                          PermissionGuard(
+                            module: 'work_plans',
+                            permission: 'read',
+                            child: DrawerItemWidget(
+                              icon: CupertinoIcons.calendar_today,
+                              title: 'План работ',
+                              isSelected: activeRoute == AppRoute.workPlans,
+                              onTap: () {
+                                if (activeRoute == AppRoute.workPlans) {
+                                  context.pop();
+                                } else {
+                                  context.pop();
+                                  context.goNamed('work_plans');
+                                }
+                              },
+                            ),
                           ),
-                          DrawerItemWidget(
-                            icon: Icons.inventory_2_outlined,
-                            title: 'Материал',
-                            isSelected: activeRoute == AppRoute.material,
-                            onTap: () {
-                              if (activeRoute == AppRoute.material) {
-                                context.pop();
-                              } else {
-                                context.pop();
-                                context.goNamed('material');
-                              }
-                            },
+                          PermissionGuard(
+                            module: 'materials',
+                            permission: 'read',
+                            child: DrawerItemWidget(
+                              icon: CupertinoIcons.cube_box,
+                              title: 'Материал',
+                              isSelected: activeRoute == AppRoute.material,
+                              onTap: () {
+                                if (activeRoute == AppRoute.material) {
+                                  context.pop();
+                                } else {
+                                  context.pop();
+                                  context.goNamed('material');
+                                }
+                              },
+                            ),
                           ),
-                          DrawerItemWidget(
-                            icon: Icons.warehouse_outlined,
-                            title: 'Склад',
-                            isSelected: activeRoute == AppRoute.inventory,
-                            onTap: () {
-                              if (activeRoute == AppRoute.inventory) {
-                                context.pop();
-                              } else {
-                                context.pop();
-                                context.goNamed('inventory');
-                              }
-                            },
+                          PermissionGuard(
+                            module: 'inventory',
+                            permission: 'read',
+                            child: DrawerItemWidget(
+                              icon: CupertinoIcons.archivebox, // Склад
+                              title: 'Склад',
+                              isSelected: activeRoute == AppRoute.inventory,
+                              onTap: () {
+                                if (activeRoute == AppRoute.inventory) {
+                                  context.pop();
+                                } else {
+                                  context.pop();
+                                  context.goNamed('inventory');
+                                }
+                              },
+                            ),
                           ),
-                          DrawerItemWidget(
-                            icon: Icons.assignment_outlined,
-                            title: 'Табель',
-                            isSelected: activeRoute == AppRoute.timesheet,
-                            onTap: () {
-                              context.pop();
-                              context.goNamed('timesheet');
-                            },
+                          PermissionGuard(
+                            module: 'timesheet',
+                            permission: 'read',
+                            child: DrawerItemWidget(
+                              icon: CupertinoIcons.clock,
+                              title: 'Табель',
+                              isSelected: activeRoute == AppRoute.timesheet,
+                              onTap: () {
+                                context.pop();
+                                context.goNamed('timesheet');
+                              },
+                            ),
                           ),
                           // Админские разделы
-                          if (user?.role == 'admin')
-                            DrawerItemWidget(
-                              icon: Icons.people_alt_rounded,
+                          PermissionGuard(
+                            module: 'employees',
+                            permission: 'read',
+                            child: DrawerItemWidget(
+                              icon: CupertinoIcons.person_3,
                               title: 'Сотрудники',
                               isSelected: activeRoute == AppRoute.employees,
                               onTap: () {
@@ -675,44 +641,58 @@ class AppDrawer extends ConsumerWidget {
                                 }
                               },
                             ),
-                          if (user?.role == 'admin')
-                            DrawerGroupWidget(
-                              icon: Icons.folder_special_rounded,
-                              title: 'Справочники',
-                              activeRoute: activeRoute,
-                              items: [
-                                DrawerGroupItem(
-                                  title: 'Объекты',
-                                  isSelected: (route) =>
-                                      route == AppRoute.objects,
-                                  onTap: () {
-                                    context.pop();
-                                    context.goNamed('objects');
-                                  },
-                                ),
-                                DrawerGroupItem(
-                                  title: 'Контрагенты',
-                                  isSelected: (route) =>
-                                      route == AppRoute.contractors,
-                                  onTap: () {
-                                    context.pop();
-                                    context.goNamed('contractors');
-                                  },
-                                ),
-                                DrawerGroupItem(
-                                  title: 'Договоры',
-                                  isSelected: (route) =>
-                                      route == AppRoute.contracts,
-                                  onTap: () {
-                                    context.pop();
-                                    context.goNamed('contracts');
-                                  },
-                                ),
-                              ],
-                            ),
-                          if (user?.role == 'admin')
-                            DrawerItemWidget(
-                              icon: Icons.table_chart_rounded,
+                          ),
+                          Builder(builder: (context) {
+                            final items = <DrawerGroupItem>[];
+                            if (permissionService.can('objects', 'read')) {
+                              items.add(DrawerGroupItem(
+                                title: 'Объекты',
+                                isSelected: (route) =>
+                                    route == AppRoute.objects,
+                                onTap: () {
+                                  context.pop();
+                                  context.goNamed('objects');
+                                },
+                              ));
+                            }
+                            if (permissionService.can('contractors', 'read')) {
+                              items.add(DrawerGroupItem(
+                                title: 'Контрагенты',
+                                isSelected: (route) =>
+                                    route == AppRoute.contractors,
+                                onTap: () {
+                                  context.pop();
+                                  context.goNamed('contractors');
+                                },
+                              ));
+                            }
+                            if (permissionService.can('contracts', 'read')) {
+                              items.add(DrawerGroupItem(
+                                title: 'Договоры',
+                                isSelected: (route) =>
+                                    route == AppRoute.contracts,
+                                onTap: () {
+                                  context.pop();
+                                  context.goNamed('contracts');
+                                },
+                              ));
+                            }
+
+                            if (items.isNotEmpty) {
+                              return DrawerGroupWidget(
+                                icon: CupertinoIcons.book,
+                                title: 'Справочники',
+                                activeRoute: activeRoute,
+                                items: items,
+                              );
+                            }
+                            return const SizedBox.shrink();
+                          }),
+                          PermissionGuard(
+                            module: 'estimates',
+                            permission: 'read',
+                            child: DrawerItemWidget(
+                              icon: CupertinoIcons.list_number,
                               title: 'Сметы',
                               isSelected: activeRoute == AppRoute.estimates,
                               onTap: () {
@@ -724,9 +704,12 @@ class AppDrawer extends ConsumerWidget {
                                 }
                               },
                             ),
-                          if (user?.role == 'admin')
-                            DrawerItemWidget(
-                              icon: Icons.payments,
+                          ),
+                          PermissionGuard(
+                            module: 'payroll',
+                            permission: 'read',
+                            child: DrawerItemWidget(
+                              icon: CupertinoIcons.creditcard,
                               title: 'ФОТ',
                               isSelected:
                                   activeRoute.toString() == 'AppRoute.payrolls',
@@ -735,23 +718,30 @@ class AppDrawer extends ConsumerWidget {
                                 context.goNamed('payrolls');
                               },
                             ),
-                          // Выгрузка доступна всем пользователям
-                          DrawerItemWidget(
-                            icon: Icons.file_download_outlined,
-                            title: 'Выгрузка',
-                            isSelected: activeRoute == AppRoute.export,
-                            onTap: () {
-                              if (activeRoute == AppRoute.export) {
-                                context.pop();
-                              } else {
-                                context.pop();
-                                context.goNamed('export');
-                              }
-                            },
                           ),
-                          if (user?.role == 'admin')
-                            DrawerItemWidget(
-                              icon: Icons.people_rounded,
+                          // Выгрузка доступна всем пользователям (с проверкой прав)
+                          PermissionGuard(
+                            module: 'export',
+                            permission: 'read',
+                            child: DrawerItemWidget(
+                              icon: CupertinoIcons.tray_arrow_down,
+                              title: 'Выгрузка',
+                              isSelected: activeRoute == AppRoute.export,
+                              onTap: () {
+                                if (activeRoute == AppRoute.export) {
+                                  context.pop();
+                                } else {
+                                  context.pop();
+                                  context.goNamed('export');
+                                }
+                              },
+                            ),
+                          ),
+                          PermissionGuard(
+                            module: 'users',
+                            permission: 'read',
+                            child: DrawerItemWidget(
+                              icon: CupertinoIcons.person_2,
                               title: 'Пользователи',
                               isSelected: activeRoute == AppRoute.users,
                               onTap: () {
@@ -763,9 +753,12 @@ class AppDrawer extends ConsumerWidget {
                                 }
                               },
                             ),
-                          if (user?.role == 'admin')
-                            DrawerItemWidget(
-                              icon: Icons.system_update_alt,
+                          ),
+                          PermissionGuard(
+                            module: 'system',
+                            permission: 'read',
+                            child: DrawerItemWidget(
+                              icon: CupertinoIcons.arrow_2_circlepath,
                               title: 'Управление версиями',
                               isSelected:
                                   activeRoute == AppRoute.versionManagement,
@@ -778,6 +771,24 @@ class AppDrawer extends ConsumerWidget {
                                 }
                               },
                             ),
+                          ),
+                          PermissionGuard(
+                            module: 'roles',
+                            permission: 'read',
+                            child: DrawerItemWidget(
+                              icon: CupertinoIcons.lock_shield,
+                              title: 'Управление ролями',
+                              isSelected: activeRoute == AppRoute.roles,
+                              onTap: () {
+                                if (activeRoute == AppRoute.roles) {
+                                  context.pop();
+                                } else {
+                                  context.pop();
+                                  context.goNamed('roles');
+                                }
+                              },
+                            ),
+                          ),
                           // Telegram модерация удалена
                         ],
                       ),
@@ -798,7 +809,7 @@ class AppDrawer extends ConsumerWidget {
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8.0),
                       child: DrawerItemWidget(
-                        icon: Icons.logout_rounded,
+                        icon: CupertinoIcons.square_arrow_left,
                         title: 'Выйти из аккаунта',
                         isSelected: false,
                         onTap: () {

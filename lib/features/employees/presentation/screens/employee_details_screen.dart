@@ -10,7 +10,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
 import 'package:projectgt/core/di/providers.dart';
-import 'package:projectgt/presentation/state/auth_state.dart';
 import 'package:projectgt/domain/entities/object.dart';
 import 'package:go_router/go_router.dart';
 import 'package:projectgt/core/utils/employee_ui_utils.dart';
@@ -25,6 +24,8 @@ import 'package:gal/gal.dart';
 import '../widgets/employee_trip_editor_form.dart';
 import '../widgets/employee_business_trip_summary_widget.dart';
 import '../widgets/employee_rate_summary_widget.dart';
+import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
+import 'package:projectgt/features/roles/application/permission_service.dart';
 
 /// Экран с подробной информацией о сотруднике.
 ///
@@ -90,6 +91,7 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
         employeeState.status == state.EmployeeStatus.loading;
     final objectState = ref.watch(objectProvider);
     final objects = objectState.objects;
+    final permissionService = ref.watch(permissionServiceProvider);
 
     if (isLoading) {
       return Scaffold(
@@ -176,10 +178,11 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
               leading: const BackButton(),
               showThemeSwitch: false,
               actions: [
-                // Показываем кнопки только для администраторов
-                if (ref.read(authProvider).user?.role == 'admin') ...[
-                  // Тоггл "Может быть ответственным"
-                  CupertinoButton(
+                // Тоггл "Может быть ответственным"
+                PermissionGuard(
+                  module: 'employees',
+                  permission: 'update',
+                  child: CupertinoButton(
                     padding: EdgeInsets.zero,
                     child: Icon(
                       Icons.verified_user,
@@ -214,7 +217,11 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
                       }
                     },
                   ),
-                  CupertinoButton(
+                ),
+                PermissionGuard(
+                  module: 'employees',
+                  permission: 'update',
+                  child: CupertinoButton(
                     padding: EdgeInsets.zero,
                     child: const Icon(Icons.edit, color: Colors.amber),
                     onPressed: () {
@@ -222,12 +229,16 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
                           employeeId: employee.id);
                     },
                   ),
-                  CupertinoButton(
+                ),
+                PermissionGuard(
+                  module: 'employees',
+                  permission: 'delete',
+                  child: CupertinoButton(
                     padding: EdgeInsets.zero,
                     child: const Icon(Icons.delete, color: Colors.red),
                     onPressed: () => _showDeleteDialog(employee),
                   ),
-                ],
+                ),
               ],
             )
           : null,
@@ -675,7 +686,7 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
                         valueStyle: valueStyle,
                         theme: theme,
                         onAddBusinessTrip:
-                            ref.read(authProvider).user?.role == 'admin'
+                            permissionService.can('employees', 'update')
                                 ? () => _showBusinessTripModal(employee)
                                 : null,
                       ),

@@ -162,7 +162,7 @@ class SupabaseProfileDataSource implements ProfileDataSource {
         'photo_url': profile.photoUrl,
         'phone': profile.phone,
         'status': profile.status,
-        'role': profile.role,
+        'role_id': profile.roleId,
         'object': cleanedObject,
         'object_ids': profile.objectIds,
         'updated_at': DateTime.now().toIso8601String(),

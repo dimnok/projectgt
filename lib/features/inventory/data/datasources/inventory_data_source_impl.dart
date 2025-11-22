@@ -53,6 +53,8 @@ class SupabaseInventoryDataSource implements InventoryDataSource {
       InventoryItemModel item) async {
     try {
       final itemJson = item.toJson();
+      // Удаляем id для новых записей - Supabase сгенерирует его автоматически
+      itemJson.remove('id');
 
       final response = await client
           .from('inventory_items')
@@ -71,7 +73,15 @@ class SupabaseInventoryDataSource implements InventoryDataSource {
   Future<InventoryItemModel> updateInventoryItem(
       InventoryItemModel item) async {
     try {
+      if (item.id.isEmpty) {
+        throw Exception('Cannot update item without ID');
+      }
+      
       final itemJson = item.toJson();
+      // Удаляем поля, которые не должны обновляться
+      itemJson.remove('id'); // ID не может быть изменён
+      itemJson.remove('created_at');
+      itemJson.remove('created_by');
 
       final response = await client
           .from('inventory_items')

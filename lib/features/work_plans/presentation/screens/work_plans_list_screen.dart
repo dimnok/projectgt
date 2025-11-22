@@ -16,6 +16,7 @@ import 'package:projectgt/presentation/state/object_state.dart';
 import 'package:projectgt/features/work_plans/presentation/widgets/work_plans_mobile_cards.dart';
 import 'package:intl/intl.dart';
 import 'package:projectgt/core/utils/formatters.dart';
+import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
 
 /// Экран списка планов работ.
 ///
@@ -107,26 +108,37 @@ class _WorkPlansListScreenState extends ConsumerState<WorkPlansListScreen> {
         title: 'Планы работ',
         actions: [
           if (isDesktop && selectedWorkPlan != null) ...[
-            CupertinoButton(
+            PermissionGuard(
+              module: 'work_plans',
+              permission: 'update',
+              child: CupertinoButton(
               padding: EdgeInsets.zero,
               child: const Icon(Icons.edit, color: Colors.amber),
               onPressed: () {
                 _showEditWorkPlanModal(context, selectedWorkPlan!);
               },
+              ),
             ),
             const SizedBox(width: 8),
-            CupertinoButton(
+            PermissionGuard(
+              module: 'work_plans',
+              permission: 'delete',
+              child: CupertinoButton(
               padding: EdgeInsets.zero,
               child: const Icon(Icons.delete_outline, color: Colors.red),
               onPressed: () {
                 _confirmAndDeleteSelectedWorkPlan();
               },
+              ),
             ),
           ],
         ],
       ),
       drawer: const AppDrawer(activeRoute: AppRoute.workPlans),
-      floatingActionButton: AnimatedScale(
+      floatingActionButton: PermissionGuard(
+        module: 'work_plans',
+        permission: 'create',
+        child: AnimatedScale(
         scale: _showFab ? 1.0 : 0.0,
         duration: const Duration(milliseconds: 300),
         child: FloatingActionButton(
@@ -137,6 +149,7 @@ class _WorkPlansListScreenState extends ConsumerState<WorkPlansListScreen> {
           mini: ResponsiveUtils.isMobile(context),
           shape: const CircleBorder(),
           child: const Icon(Icons.add, color: Colors.white),
+          ),
         ),
       ),
       body: LayoutBuilder(

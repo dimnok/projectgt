@@ -42,6 +42,33 @@ abstract class Contract with _$Contract {
     /// Сумма контракта.
     required double amount,
 
+    /// Ставка НДС (в процентах).
+    @Default(0.0) double vatRate,
+
+    /// Включен ли НДС в стоимость (true - в том числе, false - сверху).
+    @Default(true) bool isVatIncluded,
+
+    /// Сумма НДС.
+    @Default(0.0) double vatAmount,
+
+    /// Сумма аванса.
+    @Default(0.0) double advanceAmount,
+
+    /// Гарантийные удержания (сумма).
+    @Default(0.0) double warrantyRetentionAmount,
+
+    /// Процент гарантийных удержаний.
+    @Default(0.0) double warrantyRetentionRate,
+
+    /// Срок гарантийных обязательств (в месяцах).
+    @Default(0) int warrantyPeriodMonths,
+
+    /// Генподрядные (сумма).
+    @Default(0.0) double generalContractorFeeAmount,
+
+    /// Процент генподрядных.
+    @Default(0.0) double generalContractorFeeRate,
+
     /// Идентификатор объекта.
     required String objectId,
 

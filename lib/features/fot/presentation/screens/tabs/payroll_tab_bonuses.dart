@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../widgets/payroll_bonus_table_widget.dart';
 import '../../widgets/payroll_transaction_form_modal.dart';
 import '../../../domain/entities/payroll_transaction.dart';
+import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
 
 /// Таб "Премии" в модуле ФОТ.
 ///
@@ -34,6 +35,9 @@ class PayrollTabBonuses extends StatelessWidget {
               Positioned(
                 right: 8,
                 bottom: 8,
+                child: PermissionGuard(
+                  module: 'payroll',
+                  permission: 'create',
                 child: FloatingActionButton(
                   heroTag: 'addPayrollBonus',
                   onPressed: () {
@@ -52,6 +56,7 @@ class PayrollTabBonuses extends StatelessWidget {
                     );
                   },
                   child: const Icon(Icons.add),
+                  ),
                 ),
               ),
             ],

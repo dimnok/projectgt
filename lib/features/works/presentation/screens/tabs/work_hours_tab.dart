@@ -8,8 +8,7 @@ import '../../../presentation/providers/work_hours_provider.dart'
 import '../../screens/../providers/work_hours_provider.dart'
     as hours_provider; // fallback import path for monorepo structure
 import '../../screens/../providers/work_provider.dart';
-import 'package:projectgt/presentation/state/profile_state.dart';
-import 'package:projectgt/presentation/state/auth_state.dart';
+import 'package:projectgt/features/roles/application/permission_service.dart';
 import 'package:projectgt/presentation/state/employee_state.dart'
     as employee_state;
 import 'package:projectgt/features/works/domain/entities/work_hour.dart';
@@ -125,12 +124,10 @@ class _WorkHoursTabState extends ConsumerState<WorkHoursTab> {
     // Получаем смену для проверки статуса/прав
     final workAsync = ref.watch(workProvider(widget.workId));
     final isWorkClosed = workAsync?.status.toLowerCase() == 'closed';
-    final currentProfile = ref.watch(currentUserProfileProvider).profile;
-    final isAdmin = ref.watch(authProvider).user?.role == 'admin';
-    final bool isOwner = currentProfile != null &&
-        workAsync != null &&
-        workAsync.openedBy == currentProfile.id;
-    final bool canModify = !isWorkClosed && (isOwner || isAdmin);
+    
+    final permissionService = ref.watch(permissionServiceProvider);
+    final canUpdate = permissionService.can('works', 'update');
+    final bool canModify = !isWorkClosed && canUpdate;
 
     return Stack(
       children: [

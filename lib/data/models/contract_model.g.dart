@@ -17,6 +17,20 @@ _ContractModel _$ContractModelFromJson(Map<String, dynamic> json) =>
       contractorId: json['contractor_id'] as String,
       contractorName: json['contractor_name'] as String?,
       amount: (json['amount'] as num).toDouble(),
+      vatRate: (json['vat_rate'] as num?)?.toDouble() ?? 0.0,
+      isVatIncluded: json['is_vat_included'] as bool? ?? true,
+      vatAmount: (json['vat_amount'] as num?)?.toDouble() ?? 0.0,
+      advanceAmount: (json['advance_amount'] as num?)?.toDouble() ?? 0.0,
+      warrantyRetentionAmount:
+          (json['warranty_retention_amount'] as num?)?.toDouble() ?? 0.0,
+      warrantyRetentionRate:
+          (json['warranty_retention_rate'] as num?)?.toDouble() ?? 0.0,
+      warrantyPeriodMonths:
+          (json['warranty_period_months'] as num?)?.toInt() ?? 0,
+      generalContractorFeeAmount:
+          (json['general_contractor_fee_amount'] as num?)?.toDouble() ?? 0.0,
+      generalContractorFeeRate:
+          (json['general_contractor_fee_rate'] as num?)?.toDouble() ?? 0.0,
       objectId: json['object_id'] as String,
       objectName: json['object_name'] as String?,
       status: $enumDecodeNullable(_$ContractStatusEnumMap, json['status']) ??
@@ -38,6 +52,15 @@ Map<String, dynamic> _$ContractModelToJson(_ContractModel instance) =>
       'contractor_id': instance.contractorId,
       'contractor_name': instance.contractorName,
       'amount': instance.amount,
+      'vat_rate': instance.vatRate,
+      'is_vat_included': instance.isVatIncluded,
+      'vat_amount': instance.vatAmount,
+      'advance_amount': instance.advanceAmount,
+      'warranty_retention_amount': instance.warrantyRetentionAmount,
+      'warranty_retention_rate': instance.warrantyRetentionRate,
+      'warranty_period_months': instance.warrantyPeriodMonths,
+      'general_contractor_fee_amount': instance.generalContractorFeeAmount,
+      'general_contractor_fee_rate': instance.generalContractorFeeRate,
       'object_id': instance.objectId,
       'object_name': instance.objectName,
       'status': _$ContractStatusEnumMap[instance.status]!,

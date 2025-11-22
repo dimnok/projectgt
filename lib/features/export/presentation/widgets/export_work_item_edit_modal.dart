@@ -10,14 +10,12 @@ import '../../../../core/widgets/modal_container_wrapper.dart';
 import '../../../../domain/entities/estimate.dart';
 import '../../../../core/di/providers.dart';
 import '../../../works/presentation/providers/work_items_provider.dart';
-import '../../../works/presentation/providers/work_provider.dart';
-import '../../../../presentation/state/auth_state.dart';
-import '../../../../presentation/state/profile_state.dart';
 import '../../../../presentation/state/estimate_state.dart';
 import '../../domain/entities/work_search_result.dart';
 import '../providers/work_search_provider.dart';
 import '../providers/work_search_date_provider.dart';
 import 'export_search_action.dart';
+import 'package:projectgt/features/roles/application/permission_service.dart';
 
 /// Модальное окно для редактирования работы из результатов поиска.
 class ExportWorkItemEditModal extends ConsumerStatefulWidget {
@@ -266,28 +264,18 @@ class _ExportWorkItemEditModalState
     }
 
     // Проверка прав пользователя
-    final work = ref.read(workProvider(widget.initialData.workId!));
-    final currentProfile = ref.read(currentUserProfileProvider).profile;
-    final isAdmin = ref.read(authProvider).user?.role == 'admin';
+    final permissionService = ref.read(permissionServiceProvider);
+    final canUpdate = permissionService.can('works', 'update');
 
-    // Админ может редактировать все смены, включая закрытые
-    // Обычный пользователь может редактировать только открытые смены
-    if (!isAdmin) {
-      // Проверка статуса смены (только для не-админов)
-      if (widget.initialData.workStatus?.toLowerCase() != 'open') {
-        SnackBarUtils.showError(context, 'Нельзя редактировать закрытую смену');
-        return;
-      }
+    if (!canUpdate) {
+      SnackBarUtils.showError(context, 'Нет прав на редактирование');
+      return;
+    }
 
-      // Проверка прав на редактирование (только для не-админов)
-      final canModify = work != null &&
-          work.status.toLowerCase() == 'open' &&
-          (currentProfile != null && work.openedBy == currentProfile.id);
-
-      if (!canModify) {
-        SnackBarUtils.showError(context, 'Нет прав на редактирование');
-        return;
-      }
+    // Проверка статуса смены
+    if (widget.initialData.workStatus?.toLowerCase() != 'open') {
+      SnackBarUtils.showError(context, 'Нельзя редактировать закрытую смену');
+      return;
     }
 
     setState(() {

@@ -10,6 +10,7 @@ import 'contractor_details_screen.dart';
 import 'contractor_form_screen.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
 import 'package:projectgt/presentation/widgets/app_badge.dart';
+import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
 
 /// Экран списка контрагентов (заказчики, подрядчики, поставщики).
 ///
@@ -311,7 +312,10 @@ class _ContractorsListScreenState extends ConsumerState<ContractorsListScreen> {
         title: 'Контрагенты',
         actions: [
           if (isDesktop && selectedContractorId != null) ...[
-            IconButton(
+            PermissionGuard(
+              module: 'contractors',
+              permission: 'update',
+              child: IconButton(
               icon: const Icon(Icons.edit, color: Colors.amber),
               tooltip: 'Редактировать',
               onPressed: () {
@@ -350,7 +354,8 @@ class _ContractorsListScreenState extends ConsumerState<ContractorsListScreen> {
                           controller: scrollController,
                           child: Padding(
                             padding: EdgeInsets.only(
-                              bottom: MediaQuery.of(context).viewInsets.bottom,
+                                bottom:
+                                    MediaQuery.of(context).viewInsets.bottom,
                             ),
                             child: ContractorFormScreen(
                                 contractorId: selectedContractorId,
@@ -374,7 +379,11 @@ class _ContractorsListScreenState extends ConsumerState<ContractorsListScreen> {
                 );
               },
             ),
-            IconButton(
+            ),
+            PermissionGuard(
+              module: 'contractors',
+              permission: 'delete',
+              child: IconButton(
               icon: const Icon(Icons.delete, color: Colors.red),
               tooltip: 'Удалить',
               onPressed: () async {
@@ -414,12 +423,16 @@ class _ContractorsListScreenState extends ConsumerState<ContractorsListScreen> {
                   }
                 }
               },
+              ),
             ),
           ],
         ],
       ),
       drawer: const AppDrawer(activeRoute: AppRoute.contractors),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: PermissionGuard(
+        module: 'contractors',
+        permission: 'create',
+        child: FloatingActionButton(
         onPressed: () => showModalBottomSheet(
           context: context,
           isScrollControlled: true,
@@ -476,6 +489,7 @@ class _ContractorsListScreenState extends ConsumerState<ContractorsListScreen> {
         ),
         tooltip: 'Добавить контрагента',
         child: const Icon(Icons.add),
+        ),
       ),
       body: SafeArea(
         child: isDesktop

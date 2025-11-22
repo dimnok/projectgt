@@ -32,8 +32,8 @@ abstract class Profile with _$Profile {
     /// Должность пользователя.
     String? position,
 
-    /// Роль пользователя (например, 'user', 'admin').
-    @Default('user') String role,
+    /// ID роли пользователя (связь с таблицей roles).
+    String? roleId,
 
     /// Статус профиля (активен/неактивен).
     @Default(true) bool status,

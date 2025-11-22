@@ -21,6 +21,8 @@ import 'package:projectgt/presentation/widgets/app_badge.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
 import '../../../../domain/entities/estimate.dart';
 import 'dart:io';
+import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
+import 'package:projectgt/features/roles/application/permission_service.dart';
 
 /// Экран со списком всех смет.
 ///
@@ -289,6 +291,9 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
     final contracts = ref.watch(contractProvider).contracts;
     final objects = ref.watch(objectProvider).objects;
     final estimateFiles = groupEstimatesByFile(state.estimates);
+    final permissionService = ref.watch(permissionServiceProvider);
+    final canDelete = permissionService.can('estimates', 'delete');
+
     return Scaffold(
       appBar: AppBarWidget(
         title: 'Сметы',
@@ -306,10 +311,14 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
             },
           ),
           // Кнопка экспорта Excel
-          IconButton(
+          PermissionGuard(
+            module: 'estimates',
+            permission: 'export',
+            child: IconButton(
             icon: const Icon(Icons.file_download),
             tooltip: 'Экспортировать Excel',
             onPressed: () => _exportToExcel(context),
+            ),
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -374,7 +383,9 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
                               final objectName = object?.name ?? '—';
                               return Dismissible(
                                 key: Key(file.estimateTitle),
-                                direction: DismissDirection.endToStart,
+                                direction: canDelete
+                                    ? DismissDirection.endToStart
+                                    : DismissDirection.none,
                                 confirmDismiss: (direction) async {
                                   return await CupertinoDialogs
                                       .showDeleteConfirmDialog<bool>(
@@ -473,9 +484,13 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
                         ),
                       ],
                     ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: PermissionGuard(
+        module: 'estimates',
+        permission: 'import',
+        child: FloatingActionButton(
         onPressed: () => _showImportEstimateBottomSheet(context, ref),
         child: const Icon(Icons.add),
+        ),
       ),
     );
   }

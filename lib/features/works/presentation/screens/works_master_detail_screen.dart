@@ -16,6 +16,7 @@ import '../widgets/month_group_header.dart';
 import '../widgets/month_works_list.dart';
 import '../widgets/month_details_panel.dart';
 import '../../data/models/month_group.dart';
+import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
 
 /// Экран списка смен с адаптивным отображением и группировкой по месяцам.
 ///
@@ -119,7 +120,10 @@ class _WorksMasterDetailScreenState
         title: 'Смены',
       ),
       drawer: const AppDrawer(activeRoute: AppRoute.works),
-      floatingActionButton: AnimatedScale(
+      floatingActionButton: PermissionGuard(
+        module: 'works',
+        permission: 'create',
+        child: AnimatedScale(
         scale: _showFab &&
                 (ResponsiveUtils.isMobile(context) || _activeTabIndex == 0) &&
                 !hasOpenByUser
@@ -135,6 +139,7 @@ class _WorksMasterDetailScreenState
             mini: ResponsiveUtils.isMobile(context),
             shape: const CircleBorder(),
             child: const Icon(Icons.add, color: Colors.white),
+            ),
           ),
         ),
       ),
