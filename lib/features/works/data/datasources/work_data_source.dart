@@ -1,10 +1,9 @@
-import '../models/work_model.dart';
+import '../../domain/entities/work_summaries.dart';
 import '../models/month_group.dart';
-import 'work_data_source_impl.dart';
+import '../models/light_work_model.dart';
+import '../models/work_model.dart';
 
-/// Абстрактный источник данных для работы со сменами.
-///
-/// Определяет методы для получения, создания, обновления и удаления смен.
+/// Интерфейс источника данных для работы со сменами.
 abstract class WorkDataSource {
   /// Возвращает список всех смен.
   Future<List<WorkModel>> getWorks();
@@ -31,6 +30,9 @@ abstract class WorkDataSource {
     int limit = 30,
   });
 
+  /// Возвращает полные данные по выработке за месяц для графика.
+  Future<List<LightWorkModel>> getMonthWorksForChart(DateTime month);
+
   /// Возвращает полную статистику по объектам за месяц.
   Future<List<ObjectSummary>> getObjectsSummary(DateTime month);
 
@@ -40,6 +42,6 @@ abstract class WorkDataSource {
   /// Возвращает общее количество часов за месяц.
   Future<MonthHoursSummary> getTotalHours(DateTime month);
 
-  /// Возвращает общее количество специалистов за месяц.
+  /// Возвращает количество уникальных сотрудников за месяц.
   Future<MonthEmployeesSummary> getTotalEmployees(DateTime month);
 }

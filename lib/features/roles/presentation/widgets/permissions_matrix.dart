@@ -37,7 +37,7 @@ class PermissionsMatrix extends StatelessWidget {
     'contracts': ['export', 'import'],
     'contractors': ['export', 'import'],
     'export': ['create', 'update', 'delete', 'import'],
-    'estimates': ['create'],
+    // 'estimates': ['create'], // Разрешаем создание смет
     'employees': ['export', 'import'],
     'payroll': ['import'],
     'timesheet': ['import'],

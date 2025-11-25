@@ -24,6 +24,9 @@ import 'package:projectgt/features/works/presentation/widgets/work_distribution_
 import 'package:projectgt/features/works/presentation/providers/month_groups_provider.dart';
 import 'package:projectgt/core/utils/telegram_helper.dart';
 import 'package:projectgt/features/works/presentation/providers/repositories_providers.dart';
+import 'package:projectgt/features/roles/presentation/providers/roles_provider.dart';
+import 'package:projectgt/features/works/presentation/widgets/work_data_skeleton.dart';
+import 'package:flutter_animate/flutter_animate.dart'; // Added for internal skeleton
 
 /// Вкладка "Данные" со сводной информацией по смене
 class WorkDataTab extends ConsumerStatefulWidget {
@@ -53,462 +56,352 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
         final itemsAsync = ref.watch(workItemsProvider(work.id!));
         final hoursAsync = ref.watch(workHoursProvider(work.id!));
 
+        final items = itemsAsync.valueOrNull;
+        final hours = hoursAsync.valueOrNull;
+
+        // Проверяем, есть ли данные для отображения статистики
+        // Либо они есть в самом объекте Work, либо загрузились списки
+        final hasStatsData = (work.itemsCount != null &&
+                work.employeesCount != null &&
+                work.totalAmount != null) ||
+            (items != null && hours != null);
+
+        // Если данных нет совсем - показываем полный скелетон
+        if (!hasStatsData) {
+          return const WorkDataSkeleton();
+        }
+
+        // Рассчитываем статистику (приоритет у полей Work, если null - считаем из списков)
+        final worksCount = work.itemsCount ?? items?.length ?? 0;
+        final uniqueEmployees = work.employeesCount ??
+            hours?.map((h) => h.employeeId).toSet().length ??
+            0;
+        final totalAmount = work.totalAmount ??
+            items?.fold<double>(0, (sum, item) => sum + (item.total ?? 0)) ??
+            0.0;
+        final productivityPerEmployee =
+            uniqueEmployees > 0 ? totalAmount / uniqueEmployees : 0.0;
+        final formatter = NumberFormat('#,##0.00', 'ru_RU');
+
         final isWorkClosed = work.status.toLowerCase() == 'closed';
         final currentProfile = ref.watch(currentUserProfileProvider).profile;
+
+        // Проверка на супер-админа
+        final rolesState = ref.watch(rolesNotifierProvider);
+        final isSuperAdmin = rolesState.valueOrNull?.any((r) =>
+                r.id == currentProfile?.roleId &&
+                r.isSystem &&
+                r.name == 'Супер-админ') ??
+            false;
+
         final bool isOwner =
             currentProfile != null && work.openedBy == currentProfile.id;
-        final bool canModify = isOwner && !isWorkClosed;
+        final bool canModify = (isOwner && !isWorkClosed) || isSuperAdmin;
 
-        return itemsAsync.when(
-          data: (items) {
-            return hoursAsync.when(
-              data: (hours) {
-                final canCloseWorkFuture = _canCloseWork(work, items, hours);
-
-                // Используем агрегатные данные из БД (рассчитываются триггерами)
-                final worksCount = work.itemsCount ?? items.length;
-                final uniqueEmployees = work.employeesCount ??
-                    hours.map((h) => h.employeeId).toSet().length;
-                final totalAmount = work.totalAmount ??
-                    items.fold<double>(
-                        0, (sum, item) => sum + (item.total ?? 0));
-                final productivityPerEmployee =
-                    uniqueEmployees > 0 ? totalAmount / uniqueEmployees : 0.0;
-                final formatter = NumberFormat('#,##0.00', 'ru_RU');
-
-                if (!isMobile) {
-                  return SingleChildScrollView(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Сводная информация',
-                          style: theme.textTheme.headlineSmall
-                              ?.copyWith(fontWeight: FontWeight.bold),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 24),
-                        FutureBuilder<(bool, String?)>(
-                          future: canCloseWorkFuture,
-                          builder: (context, snapshot) {
-                            if (!snapshot.hasData) {
-                              return const Center(
-                                  child: CupertinoActivityIndicator());
-                            }
-                            final (canClose, message) = snapshot.data!;
-
-                            if (isWorkClosed) {
-                              return const SizedBox.shrink();
-                            }
-                            if (canClose) {
-                              return ElevatedButton.icon(
-                                onPressed: () =>
-                                    _showCloseWorkConfirmation(work),
-                                icon: const Icon(Icons.lock_outline),
-                                label: const Text('Закрыть смену'),
-                                style: ElevatedButton.styleFrom(
-                                  minimumSize: const Size.fromHeight(44),
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 12),
-                                  backgroundColor: theme.colorScheme.error,
-                                  foregroundColor: theme.colorScheme.onError,
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12)),
-                                ),
-                              );
-                            } else {
-                              return Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: theme.colorScheme.errorContainer
-                                      .withValues(alpha: 0.3),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                      color: theme.colorScheme.error
-                                          .withValues(alpha: 0.3)),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Icon(Icons.warning_amber_rounded,
-                                            color: theme.colorScheme.error,
-                                            size: 24),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Text(
-                                            'Невозможно закрыть смену',
-                                            style: theme.textTheme.titleMedium
-                                                ?.copyWith(
-                                              fontWeight: FontWeight.w600,
-                                              color: theme.colorScheme.error,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 12),
-                                    Text(
-                                        'Для закрытия смены требуется выполнить следующие условия:',
-                                        style: theme.textTheme.bodyMedium
-                                            ?.copyWith(
-                                                fontWeight: FontWeight.w500)),
-                                    const SizedBox(height: 8),
-                                    _buildCheckItem(
-                                        'Наличие хотя бы одной работы',
-                                        items.isNotEmpty),
-                                    _buildCheckItem(
-                                        'Наличие хотя бы одного сотрудника',
-                                        hours.isNotEmpty),
-                                    _buildCheckItem(
-                                        'У всех работ указано количество',
-                                        items.isNotEmpty &&
-                                            !items.any(
-                                                (item) => item.quantity <= 0)),
-                                    _buildCheckItem(
-                                        'У всех сотрудников проставлены часы',
-                                        hours.isNotEmpty &&
-                                            !hours.any(
-                                                (hour) => hour.hours <= 0)),
-                                    _buildCheckItem(
-                                        'Добавлено вечернее фото',
-                                        work.eveningPhotoUrl != null &&
-                                            work.eveningPhotoUrl!.isNotEmpty),
-                                    if (work.eveningPhotoUrl == null ||
-                                        work.eveningPhotoUrl!.isEmpty) ...[
-                                      const SizedBox(height: 16),
-                                      ElevatedButton.icon(
-                                        onPressed: canModify
-                                            ? () =>
-                                                _showEveningPhotoOptions(work)
-                                            : null,
-                                        icon: const Icon(Icons.photo_camera),
-                                        label: const Text(
-                                            'Добавить вечернее фото'),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor:
-                                              theme.colorScheme.primary,
-                                          foregroundColor:
-                                              theme.colorScheme.onPrimary,
-                                        ),
-                                      ),
-                                    ],
-                                    if (message != null) ...[
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        message,
-                                        style:
-                                            theme.textTheme.bodySmall?.copyWith(
-                                          color: theme.colorScheme.error,
-                                          fontStyle: FontStyle.italic,
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              );
-                            }
-                          },
-                        ),
-                        const SizedBox(height: 32),
-                        Card(
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            side: BorderSide(
-                              color: theme.colorScheme.outline
-                                  .withValues(alpha: 0.2),
-                              width: 1,
-                            ),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Производственные показатели',
-                                    style:
-                                        theme.textTheme.titleMedium?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: theme.colorScheme.primary,
-                                    )),
-                                const SizedBox(height: 16),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: _buildMetricCard(
-                                          icon: Icons.work,
-                                          label: 'Работ',
-                                          value: worksCount.toString(),
-                                          iconColor:
-                                              theme.colorScheme.tertiary),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: _buildMetricCard(
-                                          icon: Icons.paid,
-                                          label: 'Общая сумма',
-                                          value:
-                                              '${formatter.format(totalAmount)} ₽',
-                                          iconColor: theme.colorScheme.primary,
-                                          isLarge: true),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 16),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: _buildMetricCard(
-                                          icon: Icons.groups,
-                                          label: 'Сотрудников',
-                                          value: uniqueEmployees.toString(),
-                                          iconColor:
-                                              theme.colorScheme.secondary),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: _buildMetricCard(
-                                          icon: Icons.trending_up,
-                                          label: 'Выработка на сотрудника',
-                                          value:
-                                              '${formatter.format(productivityPerEmployee)} ₽/чел.',
-                                          iconColor:
-                                              theme.colorScheme.tertiary),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        if (items.isNotEmpty)
-                          WorkDistributionCard(items: items),
-                        const SizedBox(height: 24),
-                        WorkPhotoView(work: work),
-                        const SizedBox(height: 24),
-                      ],
-                    ),
-                  );
-                }
-
-                return SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 600),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Сводная информация',
-                              style: theme.textTheme.headlineSmall
-                                  ?.copyWith(fontWeight: FontWeight.bold),
-                              textAlign: TextAlign.center),
-                          const SizedBox(height: 24),
-                          FutureBuilder<(bool, String?)>(
-                            future: canCloseWorkFuture,
-                            builder: (context, snapshot) {
-                              if (!snapshot.hasData) {
-                                return const Center(
-                                    child: CupertinoActivityIndicator());
-                              }
-                              final (canClose, message) = snapshot.data!;
-                              if (isWorkClosed) {
-                                return const SizedBox.shrink();
-                              }
-                              if (canClose && canModify) {
-                                return ElevatedButton.icon(
-                                  onPressed: () =>
-                                      _showCloseWorkConfirmation(work),
-                                  icon: const Icon(Icons.lock_outline),
-                                  label: const Text('Закрыть смену'),
-                                  style: ElevatedButton.styleFrom(
-                                    minimumSize: const Size.fromHeight(44),
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 12),
-                                    backgroundColor: theme.colorScheme.primary,
-                                    foregroundColor:
-                                        theme.colorScheme.onPrimary,
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(12)),
-                                  ),
-                                );
-                              } else {
-                                return Container(
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: theme.colorScheme.errorContainer
-                                        .withValues(alpha: 0.3),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                        color: theme.colorScheme.error
-                                            .withValues(alpha: 0.3)),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Icon(Icons.warning_amber_rounded,
-                                              color: theme.colorScheme.error,
-                                              size: 24),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: Text(
-                                                'Невозможно закрыть смену',
-                                                style: theme
-                                                    .textTheme.titleMedium
-                                                    ?.copyWith(
-                                                  fontWeight: FontWeight.w600,
-                                                  color:
-                                                      theme.colorScheme.error,
-                                                )),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 12),
-                                      Text(
-                                          'Для закрытия смены требуется выполнить следующие условия:',
-                                          style: theme.textTheme.bodyMedium
-                                              ?.copyWith(
-                                                  fontWeight: FontWeight.w500)),
-                                      const SizedBox(height: 8),
-                                      _buildCheckItem(
-                                          'Наличие хотя бы одной работы',
-                                          items.isNotEmpty),
-                                      _buildCheckItem(
-                                          'Наличие хотя бы одного сотрудника',
-                                          hours.isNotEmpty),
-                                      _buildCheckItem(
-                                          'У всех работ указано количество',
-                                          items.isNotEmpty &&
-                                              !items.any((item) =>
-                                                  item.quantity <= 0)),
-                                      _buildCheckItem(
-                                          'У всех сотрудников проставлены часы',
-                                          hours.isNotEmpty &&
-                                              !hours.any(
-                                                  (hour) => hour.hours <= 0)),
-                                      _buildCheckItem(
-                                          'Добавлено вечернее фото',
-                                          work.eveningPhotoUrl != null &&
-                                              work.eveningPhotoUrl!.isNotEmpty),
-                                      if (work.eveningPhotoUrl == null ||
-                                          work.eveningPhotoUrl!.isEmpty) ...[
-                                        const SizedBox(height: 16),
-                                        ElevatedButton.icon(
-                                          onPressed: () =>
-                                              _showEveningPhotoOptions(work),
-                                          icon: const Icon(Icons.photo_camera),
-                                          label: const Text(
-                                              'Добавить вечернее фото'),
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor:
-                                                theme.colorScheme.primary,
-                                            foregroundColor:
-                                                theme.colorScheme.onPrimary,
-                                          ),
-                                        ),
-                                      ],
-                                      if (message != null) ...[
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          message,
-                                          style: theme.textTheme.bodySmall
-                                              ?.copyWith(
-                                            color: theme.colorScheme.error,
-                                            fontStyle: FontStyle.italic,
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                );
-                              }
-                            },
-                          ),
-                          const SizedBox(height: 32),
-                          Card(
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              side: BorderSide(
-                                  color: theme.colorScheme.outline
-                                      .withValues(alpha: 0.2),
-                                  width: 1),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(24),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('Производственные показатели',
-                                      style:
-                                          theme.textTheme.titleMedium?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                        color: theme.colorScheme.primary,
-                                      )),
-                                  const SizedBox(height: 16),
-                                  _buildDataRow(
-                                      icon: Icons.groups,
-                                      label: 'Сотрудников:',
-                                      value: '$uniqueEmployees чел.',
-                                      iconColor: theme.colorScheme.primary),
-                                  const Divider(height: 32),
-                                  _buildDataRow(
-                                      icon: Icons.work,
-                                      label: 'Работ:',
-                                      value: '$worksCount шт.',
-                                      iconColor: theme.colorScheme.primary),
-                                  const Divider(height: 32),
-                                  _buildDataRow(
-                                    icon: Icons.paid,
-                                    label: 'Общая сумма:',
-                                    value: '${formatter.format(totalAmount)} ₽',
-                                    textColor: theme.colorScheme.primary,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 20,
-                                  ),
-                                  const Divider(height: 32),
-                                  _buildDataRow(
-                                    icon: Icons.trending_up,
-                                    label: 'Выработка на сотрудника:',
-                                    value:
-                                        '${formatter.format(productivityPerEmployee)} ₽/чел.',
-                                    iconColor: theme.colorScheme.tertiary,
-                                    textColor: theme.colorScheme.tertiary,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          if (items.isNotEmpty) ...[
-                            const SizedBox(height: 32),
-                            WorkDistributionCard(items: items),
-                          ],
-                          const SizedBox(height: 32),
-                          WorkPhotoView(work: work),
-                        ],
-                      ),
-                    ),
+        if (!isMobile) {
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Блок закрытия смены / валидации
+                if (!isWorkClosed)
+                  _buildValidationOrLoading(
+                    context,
+                    theme,
+                    work,
+                    items,
+                    hours,
+                    canModify,
                   ),
-                );
-              },
-              loading: () => const Center(child: CupertinoActivityIndicator()),
-              error: (e, st) =>
-                  Center(child: Text('Ошибка загрузки сотрудников: $e')),
-            );
-          },
-          loading: () => const Center(child: CupertinoActivityIndicator()),
-          error: (e, st) => Center(child: Text('Ошибка загрузки работ: $e')),
+
+                // Карточка показателей
+                _buildStatsCard(
+                  context,
+                  theme,
+                  worksCount,
+                  uniqueEmployees,
+                  totalAmount,
+                  productivityPerEmployee,
+                  formatter,
+                ),
+
+                if (items != null && items.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  WorkDistributionCard(items: items),
+                ] else if (items == null) ...[
+                  const SizedBox(height: 16),
+                  _buildDistributionSkeleton(context),
+                ],
+                const SizedBox(height: 16),
+                WorkPhotoView(work: work),
+                const SizedBox(height: 32),
+              ],
+            ),
+          );
+        }
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 600),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Блок закрытия смены / валидации
+                  if (!isWorkClosed)
+                    _buildValidationOrLoading(
+                      context,
+                      theme,
+                      work,
+                      items,
+                      hours,
+                      canModify,
+                    ),
+
+                  // Карточка показателей
+                  _buildStatsCard(
+                    context,
+                    theme,
+                    worksCount,
+                    uniqueEmployees,
+                    totalAmount,
+                    productivityPerEmployee,
+                    formatter,
+                  ),
+
+                  if (items != null && items.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    WorkDistributionCard(items: items),
+                  ] else if (items == null) ...[
+                    const SizedBox(height: 16),
+                    _buildDistributionSkeleton(context),
+                  ],
+                  const SizedBox(height: 16),
+                  WorkPhotoView(work: work),
+                  const SizedBox(height: 32),
+                ],
+              ),
+            ),
+          ),
         );
       },
     );
+  }
+
+  Widget _buildValidationOrLoading(
+    BuildContext context,
+    ThemeData theme,
+    Work work,
+    List<WorkItem>? items,
+    List<WorkHour>? hours,
+    bool canModify,
+  ) {
+    // Если списки еще грузятся, мы не можем проверить валидацию
+    if (items == null || hours == null) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 24),
+        child: Container(
+          height: 50,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest
+                .withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Center(child: CupertinoActivityIndicator()),
+        ),
+      );
+    }
+
+    final (canClose, message) = _canCloseWork(work, items, hours);
+
+    if (canClose) {
+      if (canModify) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 24),
+          child: ElevatedButton.icon(
+            onPressed: () => _showCloseWorkConfirmation(work),
+            icon: const Icon(Icons.lock_outline),
+            label: const Text('Закрыть смену'),
+            style: ElevatedButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+              backgroundColor: theme.colorScheme.primary,
+              foregroundColor: theme.colorScheme.onPrimary,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        );
+      }
+      return const SizedBox.shrink();
+    } else {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 24),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.error.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(12),
+          border:
+              Border.all(color: theme.colorScheme.error.withValues(alpha: 0.2)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.info_outline,
+                    color: theme.colorScheme.error, size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Для закрытия смены:',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.error,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _buildCheckItem('Добавить работы', items.isNotEmpty),
+            _buildCheckItem('Добавить сотрудников', hours.isNotEmpty),
+            _buildCheckItem('Заполнить кол-во у работ',
+                items.isNotEmpty && !items.any((item) => item.quantity <= 0)),
+            _buildCheckItem('Заполнить часы сотрудников',
+                hours.isNotEmpty && !hours.any((hour) => hour.hours <= 0)),
+            _buildCheckItem(
+                'Загрузить вечернее фото',
+                work.eveningPhotoUrl != null &&
+                    work.eveningPhotoUrl!.isNotEmpty),
+            if (work.eveningPhotoUrl == null ||
+                work.eveningPhotoUrl!.isEmpty) ...[
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed:
+                      canModify ? () => _showEveningPhotoOptions(work) : null,
+                  icon: const Icon(Icons.camera_alt, size: 18),
+                  label: const Text('Добавить фото'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: theme.colorScheme.primary,
+                    side: BorderSide(
+                        color:
+                            theme.colorScheme.primary.withValues(alpha: 0.5)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+            ],
+            if (message != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                message,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.error,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+  }
+
+  Widget _buildStatsCard(
+    BuildContext context,
+    ThemeData theme,
+    int worksCount,
+    int uniqueEmployees,
+    double totalAmount,
+    double productivityPerEmployee,
+    NumberFormat formatter,
+  ) {
+    return Card(
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: theme.colorScheme.outline.withValues(alpha: 0.1),
+          width: 1,
+        ),
+      ),
+      color: theme.cardColor,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: _buildStatItem(
+                    context,
+                    'Сотрудников',
+                    uniqueEmployees.toString(),
+                    Icons.people_outline,
+                  ),
+                ),
+                Container(
+                  width: 1,
+                  height: 40,
+                  color: theme.colorScheme.outline.withValues(alpha: 0.1),
+                ),
+                Expanded(
+                  child: _buildStatItem(
+                    context,
+                    'Работ',
+                    worksCount.toString(),
+                    Icons.handyman_outlined,
+                  ),
+                ),
+              ],
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Divider(height: 1),
+            ),
+            _buildStatRow(
+              context,
+              'Общая сумма',
+              '${formatter.format(totalAmount)} ₽',
+              isMain: true,
+            ),
+            const SizedBox(height: 12),
+            _buildStatRow(
+              context,
+              'Выработка на чел.',
+              '${formatter.format(productivityPerEmployee)} ₽',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDistributionSkeleton(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final baseColor = isDark ? Colors.grey[800]! : Colors.grey[300]!;
+    final highlightColor = isDark ? Colors.grey[700]! : Colors.grey[200]!;
+
+    return Container(
+      height: 150,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: baseColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+    ).animate(onPlay: (controller) => controller.repeat()).shimmer(
+          duration: 1000.ms,
+          color: highlightColor,
+          angle: -0.3,
+        );
   }
 
   Widget _buildCheckItem(String text, bool isCompleted) {
@@ -534,100 +427,78 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
     );
   }
 
-  Widget _buildDataRow({
-    required IconData icon,
-    required String label,
-    required dynamic value,
-    Color? iconColor,
-    Color? textColor,
-    FontWeight fontWeight = FontWeight.w500,
-    double fontSize = 16,
-  }) {
+  Widget _buildStatItem(
+    BuildContext context,
+    String label,
+    String value,
+    IconData icon,
+  ) {
     final theme = Theme.of(context);
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
+    return Column(
       children: [
-        Icon(icon,
-            color: iconColor ?? theme.colorScheme.onSurfaceVariant, size: 24),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label,
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-              const SizedBox(height: 4),
-              if (value is Widget)
-                value
-              else
-                Text(value.toString(),
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: fontWeight,
-                      fontSize: fontSize,
-                      color: textColor,
-                    )),
-            ],
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest
+                .withValues(alpha: 0.3),
+            shape: BoxShape.circle,
+          ),
+          child:
+              Icon(icon, color: theme.colorScheme.onSurfaceVariant, size: 20),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: theme.colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildMetricCard({
-    required IconData icon,
-    required String label,
-    required String value,
-    Color? iconColor,
-    bool isLarge = false,
+  Widget _buildStatRow(
+    BuildContext context,
+    String label,
+    String value, {
+    bool isMain = false,
   }) {
     final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(12),
-        border:
-            Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.1)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: (iconColor ?? theme.colorScheme.primary)
-                  .withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon,
-                color: iconColor ?? theme.colorScheme.primary,
-                size: isLarge ? 28 : 24),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label,
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-                const SizedBox(height: 4),
-                Text(value,
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      fontSize: isLarge ? 22 : 18,
-                      color: isLarge ? theme.colorScheme.primary : null,
-                    )),
-              ],
-            ),
-          ),
-        ],
-      ),
+        ),
+        Text(
+          value,
+          style: isMain
+              ? theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.primary,
+                )
+              : theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.onSurface,
+                ),
+        ),
+      ],
     );
   }
 
-  Future<(bool, String?)> _canCloseWork(
-      Work work, List<WorkItem> workItems, List<WorkHour> workHours) async {
+  (bool, String?) _canCloseWork(
+      Work work, List<WorkItem> workItems, List<WorkHour> workHours) {
     if (work.status.toLowerCase() == 'closed') {
       return (false, 'Смена уже закрыта');
     }

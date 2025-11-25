@@ -1,6 +1,7 @@
 import '../entities/work.dart';
+import '../entities/light_work.dart';
+import '../entities/work_summaries.dart';
 import '../../data/models/month_group.dart';
-import '../../data/datasources/work_data_source_impl.dart';
 
 /// Абстрактный репозиторий для работы со сменами.
 ///
@@ -36,6 +37,9 @@ abstract class WorkRepository {
     int offset = 0,
     int limit = 30,
   });
+
+  /// Возвращает полные данные по выработке за месяц для графика.
+  Future<List<LightWork>> getMonthWorksForChart(DateTime month);
 
   /// Возвращает полную статистику по объектам за месяц.
   ///

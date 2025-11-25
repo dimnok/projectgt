@@ -13,17 +13,18 @@ import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/presentation/state/employee_state.dart'
     as employee_state;
 import 'package:intl/intl.dart';
-import 'package:projectgt/domain/entities/profile.dart';
 import 'package:projectgt/domain/entities/estimate.dart';
 import 'package:collection/collection.dart';
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
 
 import 'package:projectgt/features/roles/application/permission_service.dart';
+import 'package:projectgt/features/roles/presentation/providers/roles_provider.dart';
+import 'package:projectgt/presentation/state/profile_state.dart';
 
+import 'package:projectgt/presentation/widgets/custom_sliding_segmented_control.dart';
 import 'tabs/work_data_tab.dart';
 import 'tabs/work_hours_tab.dart';
 import 'work_item_context_menu.dart';
@@ -42,7 +43,7 @@ class WorkDetailsPanel extends ConsumerStatefulWidget {
   /// Callback для уведомления об изменении активного таба.
   final Function(int tabIndex)? onTabChanged;
 
-  ///守望даёт панель деталей смены для [workId].
+  /// Создаёт панель деталей смены для [workId].
   const WorkDetailsPanel({
     super.key,
     required this.workId,
@@ -62,8 +63,6 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
   late TabController _tabController;
   int? _editingItemIndex;
   late ScrollController _workItemsScrollController;
-  double _workHeaderOffset = 0.0;
-  final double _mobileHeaderBaseHeight = 140.0;
   final Map<String, TextEditingController> _quantityControllers = {};
   final Map<String, FocusNode> _focusNodes = {};
 
@@ -88,7 +87,6 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
     });
 
     _workItemsScrollController = ScrollController();
-    _workItemsScrollController.addListener(_handleWorkItemsScroll);
 
     // Загружаем данные при инициализации
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -101,24 +99,9 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
     });
   }
 
-  void _handleWorkItemsScroll() {
-    if (!ResponsiveUtils.isMobile(context)) return;
-    if (_tabController.index != 1) return;
-    final offset = _workItemsScrollController.positions.isNotEmpty
-        ? _workItemsScrollController.offset
-        : 0.0;
-    final clamped = offset.clamp(0.0, _mobileHeaderBaseHeight);
-    if (clamped != _workHeaderOffset) {
-      setState(() {
-        _workHeaderOffset = clamped;
-      });
-    }
-  }
-
   @override
   void dispose() {
     _tabController.dispose();
-    _workItemsScrollController.removeListener(_handleWorkItemsScroll);
     _workItemsScrollController.dispose();
     _searchController.dispose();
     // Освобождаем ресурсы контроллеров и фокусов
@@ -280,10 +263,14 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // Используем watch только если данные еще не загружены
+    // Это предотвращает мерцание при переходе, если данные уже есть в кэше провайдера
     final workAsync = ref.watch(workProvider(widget.workId));
 
     if (workAsync == null) {
-      return const Center(child: Text('Смена не найдена'));
+      // Если данных нет совсем, показываем лоадер
+      // Но это редкий кейс, так как мы передаем ID, который должен быть валидным
+      return const Center(child: CupertinoActivityIndicator());
     }
 
     // Получаем информацию об объекте
@@ -293,291 +280,105 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
         : null;
     final objectDisplay = object != null ? object.name : workAsync.objectId;
 
-    // Статусный баннер удалён, вычисление статуса не требуется в хедере
-
-    // В мобильном и десктопном режиме используется одинаковая структура единого блока
     return Column(
       children: [
         // Отступ сверху как в списке смен
         SizedBox(
           height: ResponsiveUtils.isMobile(context) ? 8 : 6,
         ),
-        // Единый блок с информацией и табами
-        Container(
-          margin: EdgeInsets.symmetric(
-            horizontal: ResponsiveUtils.isMobile(context) ? 16 : 0,
-          ),
-          constraints: ResponsiveUtils.isMobile(context)
-              ? BoxConstraints(
-                  maxWidth: MediaQuery.of(context).size.width - 32,
-                )
-              : null,
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
+        // Блок с табами
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: CustomSlidingSegmentedControl<int>(
+            groupValue: _tabController.index,
+            onValueChanged: (int value) {
+              setState(() {
+                _tabController.animateTo(value);
+              });
+            },
+            backgroundColor: theme.brightness == Brightness.dark
+                ? const Color(0xFF3A3A3C)
+                : theme.colorScheme.surfaceContainerHighest,
+            thumbColor: theme.colorScheme.surface,
+            borderRadius: 20,
             border: Border.all(
-              color: theme.colorScheme.outline.withValues(alpha: 0.2),
-              width: 0.5,
+              color: theme.brightness == Brightness.dark
+                  ? Colors.white.withValues(alpha: 0.1)
+                  : theme.colorScheme.outline.withValues(alpha: 0.15),
+              width: 1,
             ),
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: theme.colorScheme.shadow.withValues(alpha: 0.05),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Transform.translate(
-            offset: Offset(
-                0, ResponsiveUtils.isMobile(context) ? -_workHeaderOffset : 0),
-            child: ClipRect(
-              child: Align(
-                alignment: Alignment.topCenter,
-                heightFactor: ResponsiveUtils.isMobile(context)
-                    ? math.max(
-                        0.0, 1 - (_workHeaderOffset / _mobileHeaderBaseHeight))
-                    : 1.0,
-                child: Column(
-                  children: [
-                    // Шапка с иконкой и основной информацией (коллапс для мобильного)
-                    ClipRect(
-                      child: Align(
-                        alignment: Alignment.topCenter,
-                        heightFactor: ResponsiveUtils.isMobile(context)
-                            ? math.max(
-                                0.0,
-                                1 -
-                                    (_workHeaderOffset /
-                                        _mobileHeaderBaseHeight))
-                            : 1.0,
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Stack(
-                            children: [
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // Иконка замка как в карточках списка смен
-                                  Container(
-                                    width: 48,
-                                    height: 48,
-                                    decoration: BoxDecoration(
-                                      color: theme.colorScheme.surface,
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Icon(
-                                      workAsync.status.toLowerCase() == 'closed'
-                                          ? Icons.lock
-                                          : Icons.lock_open,
-                                      color: workAsync.status.toLowerCase() ==
-                                              'closed'
-                                          ? Colors.red
-                                          : Colors.green,
-                                      size: 32,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  // Информация о смене
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Смена от ${_formatDate(workAsync.date)}',
-                                          style: theme.textTheme.titleLarge
-                                              ?.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          'Объект: $objectDisplay',
-                                          style: theme.textTheme.titleMedium
-                                              ?.copyWith(
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        FutureBuilder<Profile?>(
-                                          future: ref
-                                              .read(profileRepositoryProvider)
-                                              .getProfile(workAsync.openedBy),
-                                          builder: (context, snapshot) {
-                                            final String openedBy = snapshot
-                                                        .hasData &&
-                                                    snapshot.data?.shortName !=
-                                                        null
-                                                ? snapshot.data!.shortName!
-                                                : 'ID: ${workAsync.openedBy.length > 4 ? "${workAsync.openedBy.substring(0, 4)}..." : workAsync.openedBy}';
-                                            return Text(
-                                              'Открыл: $openedBy',
-                                              style: theme.textTheme.bodyMedium,
-                                            );
-                                          },
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // Разделитель
-                    Container(
-                      height: 0.5,
-                      margin: const EdgeInsets.symmetric(horizontal: 16),
-                      color: theme.colorScheme.outline.withValues(alpha: 0.2),
-                    ),
-
-                    // Табы для разделов информации
-                    Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: CupertinoSlidingSegmentedControl<int>(
-                        groupValue: _tabController.index,
-                        backgroundColor:
-                            theme.colorScheme.surface.withValues(alpha: 0.5),
-                        thumbColor:
-                            theme.colorScheme.primary.withValues(alpha: 0.8),
-                        padding: const EdgeInsets.all(4),
-                        onValueChanged: (int? value) {
-                          if (value != null) {
-                            setState(() {
-                              _tabController.animateTo(value);
-                            });
-                          }
-                        },
-                        children: {
-                          0: SizedBox(
-                            width: 110,
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 4, vertical: 8),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.info_outline,
-                                    size: 18,
-                                    color: _tabController.index == 0
-                                        ? theme.colorScheme.onPrimary
-                                        : theme.colorScheme.onSurface
-                                            .withValues(alpha: 0.7),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Flexible(
-                                    child: Text(
-                                      'Данные',
-                                      style: TextStyle(
-                                        color: _tabController.index == 0
-                                            ? theme.colorScheme.onPrimary
-                                            : theme.colorScheme.onSurface
-                                                .withValues(alpha: 0.7),
-                                        fontWeight: _tabController.index == 0
-                                            ? FontWeight.w600
-                                            : FontWeight.normal,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          1: SizedBox(
-                            width: 110,
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 4, vertical: 8),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.work_outline,
-                                    size: 18,
-                                    color: _tabController.index == 1
-                                        ? theme.colorScheme.onPrimary
-                                        : theme.colorScheme.onSurface
-                                            .withValues(alpha: 0.7),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Flexible(
-                                    child: Text(
-                                      'Работы',
-                                      style: TextStyle(
-                                        color: _tabController.index == 1
-                                            ? theme.colorScheme.onPrimary
-                                            : theme.colorScheme.onSurface
-                                                .withValues(alpha: 0.7),
-                                        fontWeight: _tabController.index == 1
-                                            ? FontWeight.w600
-                                            : FontWeight.normal,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          2: SizedBox(
-                            width: 110,
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 4, vertical: 8),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.people_outline,
-                                    size: 18,
-                                    color: _tabController.index == 2
-                                        ? theme.colorScheme.onPrimary
-                                        : theme.colorScheme.onSurface
-                                            .withValues(alpha: 0.7),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Flexible(
-                                    child: Text(
-                                      'Сотрудники',
-                                      style: TextStyle(
-                                        color: _tabController.index == 2
-                                            ? theme.colorScheme.onPrimary
-                                            : theme.colorScheme.onSurface
-                                                .withValues(alpha: 0.7),
-                                        fontWeight: _tabController.index == 2
-                                            ? FontWeight.w600
-                                            : FontWeight.normal,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            padding: const EdgeInsets.all(4),
+            children: {
+              0: _buildTabItem(theme, 0, CupertinoIcons.info, 'Данные', 0),
+              1: _buildTabItem(theme, 1, CupertinoIcons.wrench, 'Работы', 0),
+              2: _buildTabItem(theme, 2, CupertinoIcons.group, 'Сотрудники', 0),
+            },
           ),
         ),
+
+        // Фильтры (только для таба Работы)
+        if (_tabController.index == 1)
+          Consumer(builder: (context, ref, _) {
+            final itemsAsync = ref.watch(workItemsProvider(widget.workId));
+            return itemsAsync.when(
+              data: (items) {
+                if (items.isEmpty) return const SizedBox.shrink();
+                return Column(
+                  children: [
+                    const SizedBox(height: 8),
+                    _buildFiltersBlock(context, theme, items),
+                  ],
+                );
+              },
+              loading: () => const SizedBox.shrink(),
+              error: (_, __) => const SizedBox.shrink(),
+            );
+          }),
+
         // Контент табов
         Expanded(
           child: _getTabContent(_tabController.index, workAsync, objectDisplay),
         ),
       ],
+    );
+  }
+
+  Widget _buildTabItem(
+      ThemeData theme, int index, IconData icon, String label, double width) {
+    final isSelected = _tabController.index == index;
+    // Используем ConstrainedBox вместо фиксированного SizedBox, чтобы избежать переполнения
+    return ConstrainedBox(
+      constraints: BoxConstraints(minWidth: width),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 18,
+              color: isSelected
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13, // Немного уменьшаем шрифт для мобилок
+                  color: isSelected
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.onSurfaceVariant,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -606,8 +407,17 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
     final canUpdate = permissionService.can('works', 'update');
     final canDelete = permissionService.can('works', 'delete');
 
-    // Разрешаем редактировать, если смена открыта И есть право update
-    final bool canModify = !isWorkClosed && canUpdate;
+    // Проверка на супер-админа
+    final currentProfile = ref.watch(currentUserProfileProvider).profile;
+    final rolesState = ref.watch(rolesNotifierProvider);
+    final isSuperAdmin = rolesState.valueOrNull?.any((r) =>
+            r.id == currentProfile?.roleId &&
+            r.isSystem &&
+            r.name == 'Супер-админ') ??
+        false;
+
+    // Разрешаем редактировать, если (смена открыта ИЛИ супер-админ) И есть право update
+    final bool canModify = (!isWorkClosed || isSuperAdmin) && canUpdate;
 
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
@@ -631,490 +441,351 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                   }
 
                   // Обновляем состояние фильтров при каждом изменении данных
-                  // Это обеспечит валидность выбранных значений фильтров
                   _updateFiltersAfterDataChange(items);
-
-                  final uniqueModules = _getUniqueModules(items);
-                  final uniqueFloors = _getUniqueFloors(items);
-                  final uniqueSystems = _getUniqueSystems(items);
-                  final uniqueSubsystems = _selectedSystem != null
-                      ? _getUniqueSubsystems(items, system: _selectedSystem)
-                      : _getUniqueSubsystems(items);
 
                   final filteredItems = _filterItems(items);
 
-                  return Column(
-                    children: [
-                      // Строка фильтров
-                      Container(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surface,
-                          border: Border(
-                            bottom: BorderSide(
+                  // Если нет результатов фильтрации
+                  if (filteredItems.isEmpty &&
+                      (_searchQuery.isNotEmpty ||
+                          _selectedModule != null ||
+                          _selectedFloor != null ||
+                          _selectedSystem != null ||
+                          _selectedSubsystem != null)) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(CupertinoIcons.search,
+                              size: 48,
+                              color: Theme.of(context).colorScheme.outline),
+                          const SizedBox(height: 16),
+                          const Text('Нет работ, соответствующих фильтрам'),
+                          const SizedBox(height: 8),
+                          TextButton.icon(
+                            onPressed: _resetFilters,
+                            icon:
+                                const Icon(CupertinoIcons.slider_horizontal_3),
+                            label: const Text('Сбросить фильтры'),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return ListView.separated(
+                    controller: _workItemsScrollController,
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: const EdgeInsets.all(16),
+                    itemCount: filteredItems.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    itemBuilder: (context, i) {
+                      final item = filteredItems[i];
+
+                      // Отображаем номер позиции из сметы, если сметы загружены
+                      Widget numberWidget;
+                      if (_areEstimatesLoading) {
+                        // Если сметы загружаются или еще не загружены, показываем индикатор
+                        numberWidget = Container(
+                          width: 45,
+                          alignment: Alignment.center,
+                          child: const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CupertinoActivityIndicator(
+                              radius: 9,
+                            ),
+                          ),
+                        );
+                      } else {
+                        // Если сметы загружены, ищем номер позиции
+                        final Estimate? estimate = ref
+                            .watch(estimateNotifierProvider)
+                            .estimates
+                            .firstWhereOrNull(
+                              (e) => e.id == item.estimateId,
+                            );
+                        final number = estimate?.number ?? '-';
+
+                        numberWidget = Container(
+                          width: 45,
+                          alignment: Alignment.center,
+                          child: Text(
+                            number,
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            softWrap: false,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context).brightness ==
+                                            Brightness.light
+                                        ? Colors.lightBlue.shade700
+                                        : Colors.lightBlue.shade300),
+                          ),
+                        );
+                      }
+
+                      // Контроллер и фокус для поля ввода количества
+                      final controller =
+                          _getQuantityController(item.id, item.quantity);
+                      final focusNode = _getFocusNode(item.id);
+
+                      final isEditing = _editingItemIndex == i;
+
+                      // Проверяем, находимся ли мы в мобильном режиме
+                      final isMobile = !ResponsiveUtils.isDesktop(context);
+
+                      // Обертываем карточку в Dismissible для мобильного свайпа
+                      Widget cardWidget = InkWell(
+                        onLongPress: canDelete
+                            ? () {
+                                WorkItemContextMenu.show(
+                                  context: context,
+                                  item: item,
+                                  workId: widget.workId,
+                                  parentContext: widget.parentContext,
+                                  ref: ref,
+                                  onDeleteComplete: () {
+                                    if (mounted) {
+                                      final updatedItems = ref
+                                              .read(workItemsProvider(
+                                                  widget.workId))
+                                              .valueOrNull ??
+                                          [];
+                                      setState(() {
+                                        _updateFiltersAfterDataChange(
+                                            updatedItems);
+                                      });
+                                    }
+                                  },
+                                );
+                              }
+                            : null,
+                        child: Card(
+                          margin: EdgeInsets.zero,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            side: BorderSide(
                               color: Theme.of(context)
                                   .colorScheme
                                   .outline
-                                  .withValues(alpha: 0.1),
+                                  .withValues(alpha: 30),
                               width: 1,
                             ),
                           ),
-                        ),
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: [
-                              // Поиск
-                              SizedBox(
-                                width: 200,
-                                height: 36,
-                                child: TextField(
-                                  controller: _searchController,
-                                  decoration: InputDecoration(
-                                    hintText: 'Поиск',
-                                    filled: true,
-                                    fillColor: Theme.of(context)
-                                        .colorScheme
-                                        .surfaceContainerLowest,
-                                    prefixIcon:
-                                        const Icon(Icons.search, size: 18),
-                                    contentPadding: EdgeInsets.zero,
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(20),
-                                      borderSide: BorderSide.none,
-                                    ),
-                                    isDense: true,
-                                  ),
-                                  onChanged: (value) {
-                                    setState(() {
-                                      _searchQuery = value;
-                                    });
-                                  },
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              // Фильтр по модулю
-                              DropdownButtonHideUnderline(
-                                child: Container(
-                                  constraints:
-                                      const BoxConstraints(minWidth: 100),
-                                  decoration: BoxDecoration(
-                                    color: _selectedModule != null
-                                        ? Theme.of(context)
-                                            .colorScheme
-                                            .primary
-                                            .withValues(alpha: 0.1)
-                                        : Theme.of(context)
-                                            .colorScheme
-                                            .surfaceContainerLowest,
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10),
-                                  child: DropdownButton<String>(
-                                    hint: const Text('Модуль'),
-                                    value: _selectedModule,
-                                    icon: Icon(
-                                      Icons.expand_more,
-                                      color: _selectedModule != null
-                                          ? Theme.of(context)
-                                              .colorScheme
-                                              .primary
-                                          : Theme.of(context)
-                                              .colorScheme
-                                              .onSurface,
-                                      size: 18,
-                                    ),
-                                    isDense: true,
-                                    onChanged: (String? newValue) {
-                                      setState(() {
-                                        _selectedModule = newValue;
-                                      });
-                                    },
-                                    items: [
-                                      const DropdownMenuItem<String>(
-                                        value: null,
-                                        child: Text('Все модули'),
-                                      ),
-                                      ...uniqueModules
-                                          .toSet()
-                                          .map((String value) {
-                                        return DropdownMenuItem<String>(
-                                          value: value,
-                                          child: Text(value),
-                                        );
-                                      }),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              // Фильтр по этажу
-                              DropdownButtonHideUnderline(
-                                child: Container(
-                                  constraints:
-                                      const BoxConstraints(minWidth: 100),
-                                  decoration: BoxDecoration(
-                                    color: _selectedFloor != null
-                                        ? Theme.of(context)
-                                            .colorScheme
-                                            .primary
-                                            .withValues(alpha: 0.1)
-                                        : Theme.of(context)
-                                            .colorScheme
-                                            .surfaceContainerLowest,
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10),
-                                  child: DropdownButton<String>(
-                                    hint: const Text('Этаж'),
-                                    value: _selectedFloor,
-                                    icon: Icon(
-                                      Icons.expand_more,
-                                      color: _selectedFloor != null
-                                          ? Theme.of(context)
-                                              .colorScheme
-                                              .primary
-                                          : Theme.of(context)
-                                              .colorScheme
-                                              .onSurface,
-                                      size: 18,
-                                    ),
-                                    isDense: true,
-                                    onChanged: (String? newValue) {
-                                      setState(() {
-                                        _selectedFloor = newValue;
-                                      });
-                                    },
-                                    items: [
-                                      const DropdownMenuItem<String>(
-                                        value: null,
-                                        child: Text('Все этажи'),
-                                      ),
-                                      ...uniqueFloors
-                                          .toSet()
-                                          .map((String value) {
-                                        return DropdownMenuItem<String>(
-                                          value: value,
-                                          child: Text(value),
-                                        );
-                                      }),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              // Фильтр по системе
-                              DropdownButtonHideUnderline(
-                                child: Container(
-                                  constraints:
-                                      const BoxConstraints(minWidth: 100),
-                                  decoration: BoxDecoration(
-                                    color: _selectedSystem != null
-                                        ? Theme.of(context)
-                                            .colorScheme
-                                            .primary
-                                            .withValues(alpha: 0.1)
-                                        : Theme.of(context)
-                                            .colorScheme
-                                            .surfaceContainerLowest,
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10),
-                                  child: DropdownButton<String>(
-                                    hint: const Text('Система'),
-                                    value: _selectedSystem,
-                                    icon: Icon(
-                                      Icons.expand_more,
-                                      color: _selectedSystem != null
-                                          ? Theme.of(context)
-                                              .colorScheme
-                                              .primary
-                                          : Theme.of(context)
-                                              .colorScheme
-                                              .onSurface,
-                                      size: 18,
-                                    ),
-                                    isDense: true,
-                                    onChanged: (String? newValue) {
-                                      setState(() {
-                                        _selectedSystem = newValue;
-                                        // Сбрасываем подсистему при изменении системы
-                                        _selectedSubsystem = null;
-                                      });
-                                    },
-                                    items: [
-                                      const DropdownMenuItem<String>(
-                                        value: null,
-                                        child: Text('Все системы'),
-                                      ),
-                                      ...uniqueSystems
-                                          .toSet()
-                                          .map((String value) {
-                                        return DropdownMenuItem<String>(
-                                          value: value,
-                                          child: Text(value),
-                                        );
-                                      }),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              // Фильтр по подсистеме
-                              DropdownButtonHideUnderline(
-                                child: Container(
-                                  constraints:
-                                      const BoxConstraints(minWidth: 100),
-                                  decoration: BoxDecoration(
-                                    color: _selectedSubsystem != null
-                                        ? Theme.of(context)
-                                            .colorScheme
-                                            .primary
-                                            .withValues(alpha: 0.1)
-                                        : Theme.of(context)
-                                            .colorScheme
-                                            .surfaceContainerLowest,
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10),
-                                  child: DropdownButton<String>(
-                                    hint: const Text('Подсистема'),
-                                    value: _selectedSubsystem,
-                                    icon: Icon(
-                                      Icons.expand_more,
-                                      color: _selectedSubsystem != null
-                                          ? Theme.of(context)
-                                              .colorScheme
-                                              .primary
-                                          : Theme.of(context)
-                                              .colorScheme
-                                              .onSurface,
-                                      size: 18,
-                                    ),
-                                    isDense: true,
-                                    onChanged: (String? newValue) {
-                                      setState(() {
-                                        _selectedSubsystem = newValue;
-                                      });
-                                    },
-                                    items: [
-                                      const DropdownMenuItem<String>(
-                                        value: null,
-                                        child: Text('Все подсистемы'),
-                                      ),
-                                      ...uniqueSubsystems
-                                          .toSet()
-                                          .map((String value) {
-                                        return DropdownMenuItem<String>(
-                                          value: value,
-                                          child: Text(value),
-                                        );
-                                      }),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              // Кнопка сброса фильтров
-                              if (_searchQuery.isNotEmpty ||
-                                  _selectedModule != null ||
-                                  _selectedFloor != null ||
-                                  _selectedSystem != null ||
-                                  _selectedSubsystem != null)
-                                TextButton.icon(
-                                  onPressed: _resetFilters,
-                                  icon: const Icon(Icons.filter_alt_off,
-                                      size: 16),
-                                  label: const Text('Сбросить'),
-                                  style: TextButton.styleFrom(
-                                    minimumSize: const Size(50, 36),
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 10),
-                                    backgroundColor: Theme.of(context)
-                                        .colorScheme
-                                        .errorContainer
-                                        .withValues(alpha: 0.2),
-                                    foregroundColor:
-                                        Theme.of(context).colorScheme.error,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      // Информация о результатах фильтрации
-                      if (filteredItems.isEmpty &&
-                          (_searchQuery.isNotEmpty ||
-                              _selectedModule != null ||
-                              _selectedFloor != null ||
-                              _selectedSystem != null ||
-                              _selectedSubsystem != null))
-                        Expanded(
-                          child: Center(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 12, horizontal: 16),
                             child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Icon(Icons.search_off,
-                                    size: 48,
-                                    color:
-                                        Theme.of(context).colorScheme.outline),
-                                const SizedBox(height: 16),
-                                const Text(
-                                    'Нет работ, соответствующих фильтрам'),
-                                const SizedBox(height: 8),
-                                TextButton.icon(
-                                  onPressed: _resetFilters,
-                                  icon: const Icon(Icons.filter_alt_off),
-                                  label: const Text('Сбросить фильтры'),
-                                ),
-                              ],
-                            ),
-                          ),
-                        )
-                      else
-                        // Список отфильтрованных работ
-                        Expanded(
-                          child: ListView.separated(
-                            controller: _workItemsScrollController,
-                            keyboardDismissBehavior:
-                                ScrollViewKeyboardDismissBehavior.onDrag,
-                            padding: const EdgeInsets.all(16),
-                            itemCount: filteredItems.length,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(height: 10),
-                            itemBuilder: (context, i) {
-                              final item = filteredItems[i];
+                                Row(
+                                  children: [
+                                    numberWidget,
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      flex: 3,
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              item.name,
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodyMedium
+                                                  ?.copyWith(
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      color: Theme.of(context)
+                                                                  .brightness ==
+                                                              Brightness.light
+                                                          ? Colors.lightBlue
+                                                              .shade700
+                                                          : Colors.lightBlue
+                                                              .shade300),
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          // Область количества и единицы измерения
+                                          GestureDetector(
+                                            onTap: canModify
+                                                ? () {
+                                                    setState(() {
+                                                      // Переключаем режим редактирования
+                                                      _editingItemIndex =
+                                                          isEditing ? null : i;
 
-                              // Отображаем номер позиции из сметы, если сметы загружены
-                              Widget numberWidget;
-                              if (_areEstimatesLoading) {
-                                // Если сметы загружаются или еще не загружены, показываем индикатор
-                                numberWidget = Container(
-                                  width: 45,
-                                  alignment: Alignment.center,
-                                  child: const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CupertinoActivityIndicator(
-                                      radius: 9,
-                                    ),
-                                  ),
-                                );
-                              } else {
-                                // Если сметы загружены, ищем номер позиции
-                                final Estimate? estimate = ref
-                                    .watch(estimateNotifierProvider)
-                                    .estimates
-                                    .firstWhereOrNull(
-                                      (e) => e.id == item.estimateId,
-                                    );
-                                final number = estimate?.number ?? '-';
-
-                                numberWidget = Container(
-                                  width: 45,
-                                  alignment: Alignment.center,
-                                  child: Text(
-                                    number,
-                                    textAlign: TextAlign.center,
-                                    maxLines: 1,
-                                    softWrap: false,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall
-                                        ?.copyWith(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.bold,
-                                            color: Theme.of(context)
-                                                        .brightness ==
-                                                    Brightness.light
-                                                ? Colors.lightBlue.shade700
-                                                : Colors.lightBlue.shade300),
-                                  ),
-                                );
-                              }
-
-                              // Контроллер и фокус для поля ввода количества
-                              final controller = _getQuantityController(
-                                  item.id, item.quantity);
-                              final focusNode = _getFocusNode(item.id);
-
-                              final isEditing = _editingItemIndex == i;
-
-                              // Проверяем, находимся ли мы в мобильном режиме
-                              final isMobile =
-                                  !ResponsiveUtils.isDesktop(context);
-
-                              // Обертываем карточку в Dismissible для мобильного свайпа
-                              Widget cardWidget = InkWell(
-                                onLongPress: canDelete
-                                    ? () {
-                                        WorkItemContextMenu.show(
-                                          context: context,
-                                          item: item,
-                                          workId: widget.workId,
-                                          parentContext: widget.parentContext,
-                                          ref: ref,
-                                          onDeleteComplete: () {
-                                            if (mounted) {
-                                              final updatedItems = ref
-                                                      .read(workItemsProvider(
-                                                          widget.workId))
-                                                      .valueOrNull ??
-                                                  [];
-                                              setState(() {
-                                                _updateFiltersAfterDataChange(
-                                                    updatedItems);
-                                              });
-                                            }
-                                          },
-                                        );
-                                      }
-                                    : null,
-                                child: Card(
-                                  margin: EdgeInsets.zero,
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                    side: BorderSide(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .outline
-                                          .withValues(alpha: 30),
-                                      width: 1,
-                                    ),
-                                  ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 12, horizontal: 16),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            numberWidget,
-                                            const SizedBox(width: 4),
-                                            Expanded(
-                                              flex: 3,
-                                              child: Row(
-                                                children: [
-                                                  Expanded(
-                                                    child: Text(
-                                                      item.name,
-                                                      style: Theme.of(context)
-                                                          .textTheme
-                                                          .bodyMedium
-                                                          ?.copyWith(
+                                                      if (_editingItemIndex ==
+                                                          i) {
+                                                        // Фокусируемся на поле ввода с небольшой задержкой
+                                                        Timer(
+                                                            const Duration(
+                                                                milliseconds:
+                                                                    50), () {
+                                                          focusNode
+                                                              .requestFocus();
+                                                          WidgetsBinding
+                                                              .instance
+                                                              .addPostFrameCallback(
+                                                                  (_) {
+                                                            final ctx =
+                                                                focusNode
+                                                                    .context;
+                                                            if (ctx != null) {
+                                                              Scrollable
+                                                                  .ensureVisible(
+                                                                ctx,
+                                                                alignment: 0.3,
+                                                                duration:
+                                                                    const Duration(
+                                                                        milliseconds:
+                                                                            200),
+                                                              );
+                                                            }
+                                                          });
+                                                        });
+                                                      } else {
+                                                        // Сохраняем изменения при выходе из режима редактирования
+                                                        final raw = controller
+                                                            .text
+                                                            .replaceAll(
+                                                                ',', '.');
+                                                        final newValue =
+                                                            num.tryParse(raw);
+                                                        _updateWorkItemQuantity(
+                                                            item, newValue);
+                                                      }
+                                                    });
+                                                  }
+                                                : null,
+                                            child: isEditing
+                                                ? SizedBox(
+                                                    width: 60,
+                                                    height: 30,
+                                                    child: Focus(
+                                                      onFocusChange:
+                                                          (hasFocus) {
+                                                        if (!hasFocus) {
+                                                          final normalized =
+                                                              controller.text
+                                                                  .replaceAll(
+                                                                      ',', '.');
+                                                          final newValue =
+                                                              num.tryParse(
+                                                                  normalized);
+                                                          setState(() {
+                                                            _editingItemIndex =
+                                                                null;
+                                                          });
+                                                          _updateWorkItemQuantity(
+                                                              item, newValue);
+                                                        }
+                                                      },
+                                                      child: TextField(
+                                                        controller: controller,
+                                                        focusNode: focusNode,
+                                                        keyboardType:
+                                                            const TextInputType
+                                                                .numberWithOptions(
+                                                                decimal: true),
+                                                        inputFormatters: [
+                                                          FilteringTextInputFormatter
+                                                              .allow(RegExp(
+                                                                  r'[0-9.,]')),
+                                                        ],
+                                                        textAlign:
+                                                            TextAlign.center,
+                                                        style: Theme.of(context)
+                                                            .textTheme
+                                                            .bodyMedium
+                                                            ?.copyWith(
+                                                              color: Theme.of(
+                                                                      context)
+                                                                  .colorScheme
+                                                                  .primary,
                                                               fontWeight:
                                                                   FontWeight
                                                                       .w600,
+                                                            ),
+                                                        decoration:
+                                                            InputDecoration(
+                                                          isDense: true,
+                                                          contentPadding:
+                                                              const EdgeInsets
+                                                                  .symmetric(
+                                                                  horizontal: 4,
+                                                                  vertical: 8),
+                                                          enabledBorder:
+                                                              OutlineInputBorder(
+                                                            borderSide:
+                                                                BorderSide(
+                                                              color: Theme.of(
+                                                                      context)
+                                                                  .colorScheme
+                                                                  .primary
+                                                                  .withValues(
+                                                                      alpha:
+                                                                          0.5),
+                                                              width: 1,
+                                                            ),
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .circular(
+                                                                        4),
+                                                          ),
+                                                          focusedBorder:
+                                                              OutlineInputBorder(
+                                                            borderSide:
+                                                                BorderSide(
+                                                              color: Theme.of(
+                                                                      context)
+                                                                  .colorScheme
+                                                                  .primary,
+                                                              width: 1.5,
+                                                            ),
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .circular(
+                                                                        4),
+                                                          ),
+                                                        ),
+                                                        onSubmitted: (value) {
+                                                          setState(() {
+                                                            _editingItemIndex =
+                                                                null;
+                                                            final normalized =
+                                                                value
+                                                                    .replaceAll(
+                                                                        ',',
+                                                                        '.');
+                                                            final newValue =
+                                                                num.tryParse(
+                                                                    normalized);
+                                                            _updateWorkItemQuantity(
+                                                                item, newValue);
+                                                          });
+                                                        },
+                                                      ),
+                                                    ),
+                                                  )
+                                                : Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      Text(
+                                                        '× ${item.quantity % 1 == 0 ? item.quantity.toInt().toString() : item.quantity.toString()}',
+                                                        style: Theme.of(context)
+                                                            .textTheme
+                                                            .bodyMedium
+                                                            ?.copyWith(
                                                               color: Theme.of(context)
                                                                           .brightness ==
                                                                       Brightness
@@ -1124,515 +795,271 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                                                                       .shade700
                                                                   : Colors
                                                                       .lightBlue
-                                                                      .shade300),
-                                                      maxLines: 2,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(width: 12),
-                                                  // Область количества и единицы измерения
-                                                  GestureDetector(
-                                                    onTap: canModify
-                                                        ? () {
-                                                            setState(() {
-                                                              // Переключаем режим редактирования
-                                                              _editingItemIndex =
-                                                                  isEditing
-                                                                      ? null
-                                                                      : i;
-
-                                                              if (_editingItemIndex ==
-                                                                  i) {
-                                                                // Фокусируемся на поле ввода с небольшой задержкой
-                                                                Timer(
-                                                                    const Duration(
-                                                                        milliseconds:
-                                                                            50),
-                                                                    () {
-                                                                  focusNode
-                                                                      .requestFocus();
-                                                                  WidgetsBinding
-                                                                      .instance
-                                                                      .addPostFrameCallback(
-                                                                          (_) {
-                                                                    final ctx =
-                                                                        focusNode
-                                                                            .context;
-                                                                    if (ctx !=
-                                                                        null) {
-                                                                      Scrollable
-                                                                          .ensureVisible(
-                                                                        ctx,
-                                                                        alignment:
-                                                                            0.3,
-                                                                        duration:
-                                                                            const Duration(milliseconds: 200),
-                                                                      );
-                                                                    }
-                                                                  });
-                                                                });
-                                                              } else {
-                                                                // Сохраняем изменения при выходе из режима редактирования
-                                                                final raw =
-                                                                    controller
-                                                                        .text
-                                                                        .replaceAll(
-                                                                            ',',
-                                                                            '.');
-                                                                final newValue =
-                                                                    num.tryParse(
-                                                                        raw);
-                                                                _updateWorkItemQuantity(
-                                                                    item,
-                                                                    newValue);
-                                                              }
-                                                            });
-                                                          }
-                                                        : null,
-                                                    child: isEditing
-                                                        ? SizedBox(
-                                                            width: 60,
-                                                            height: 30,
-                                                            child: Focus(
-                                                              onFocusChange:
-                                                                  (hasFocus) {
-                                                                if (!hasFocus) {
-                                                                  final normalized =
-                                                                      controller
-                                                                          .text
-                                                                          .replaceAll(
-                                                                              ',',
-                                                                              '.');
-                                                                  final newValue =
-                                                                      num.tryParse(
-                                                                          normalized);
-                                                                  setState(() {
-                                                                    _editingItemIndex =
-                                                                        null;
-                                                                  });
-                                                                  _updateWorkItemQuantity(
-                                                                      item,
-                                                                      newValue);
-                                                                }
-                                                              },
-                                                              child: TextField(
-                                                                controller:
-                                                                    controller,
-                                                                focusNode:
-                                                                    focusNode,
-                                                                keyboardType:
-                                                                    const TextInputType
-                                                                        .numberWithOptions(
-                                                                        decimal:
-                                                                            true),
-                                                                inputFormatters: [
-                                                                  FilteringTextInputFormatter
-                                                                      .allow(RegExp(
-                                                                          r'[0-9.,]')),
-                                                                ],
-                                                                textAlign:
-                                                                    TextAlign
-                                                                        .center,
-                                                                style: Theme.of(
-                                                                        context)
-                                                                    .textTheme
-                                                                    .bodyMedium
-                                                                    ?.copyWith(
-                                                                      color: Theme.of(
-                                                                              context)
-                                                                          .colorScheme
-                                                                          .primary,
-                                                                      fontWeight:
-                                                                          FontWeight
-                                                                              .w600,
-                                                                    ),
-                                                                decoration:
-                                                                    InputDecoration(
-                                                                  isDense: true,
-                                                                  contentPadding: const EdgeInsets
-                                                                      .symmetric(
-                                                                      horizontal:
-                                                                          4,
-                                                                      vertical:
-                                                                          8),
-                                                                  enabledBorder:
-                                                                      OutlineInputBorder(
-                                                                    borderSide:
-                                                                        BorderSide(
-                                                                      color: Theme.of(
-                                                                              context)
-                                                                          .colorScheme
-                                                                          .primary
-                                                                          .withValues(
-                                                                              alpha: 0.5),
-                                                                      width: 1,
-                                                                    ),
-                                                                    borderRadius:
-                                                                        BorderRadius
-                                                                            .circular(4),
-                                                                  ),
-                                                                  focusedBorder:
-                                                                      OutlineInputBorder(
-                                                                    borderSide:
-                                                                        BorderSide(
-                                                                      color: Theme.of(
-                                                                              context)
-                                                                          .colorScheme
-                                                                          .primary,
-                                                                      width:
-                                                                          1.5,
-                                                                    ),
-                                                                    borderRadius:
-                                                                        BorderRadius
-                                                                            .circular(4),
-                                                                  ),
-                                                                ),
-                                                                onSubmitted:
-                                                                    (value) {
-                                                                  setState(() {
-                                                                    _editingItemIndex =
-                                                                        null;
-                                                                    final normalized =
-                                                                        value.replaceAll(
-                                                                            ',',
-                                                                            '.');
-                                                                    final newValue =
-                                                                        num.tryParse(
-                                                                            normalized);
-                                                                    _updateWorkItemQuantity(
-                                                                        item,
-                                                                        newValue);
-                                                                  });
-                                                                },
-                                                              ),
+                                                                      .shade300,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w600,
                                                             ),
-                                                          )
-                                                        : Row(
-                                                            mainAxisSize:
-                                                                MainAxisSize
-                                                                    .min,
-                                                            children: [
-                                                              Text(
-                                                                '× ${item.quantity % 1 == 0 ? item.quantity.toInt().toString() : item.quantity.toString()}',
-                                                                style: Theme.of(
-                                                                        context)
-                                                                    .textTheme
-                                                                    .bodyMedium
-                                                                    ?.copyWith(
-                                                                      color: Theme.of(context).brightness ==
-                                                                              Brightness
-                                                                                  .light
-                                                                          ? Colors
-                                                                              .lightBlue
-                                                                              .shade700
-                                                                          : Colors
-                                                                              .lightBlue
-                                                                              .shade300,
-                                                                      fontWeight:
-                                                                          FontWeight
-                                                                              .w600,
-                                                                    ),
-                                                              ),
-                                                              const SizedBox(
-                                                                  width: 2),
-                                                              Text(
-                                                                item.unit,
-                                                                style: Theme.of(
-                                                                        context)
-                                                                    .textTheme
-                                                                    .bodySmall
-                                                                    ?.copyWith(
-                                                                      color: Theme.of(
-                                                                              context)
-                                                                          .colorScheme
-                                                                          .outline,
-                                                                    ),
-                                                              ),
-                                                            ],
-                                                          ),
-                                                  ),
-                                                  // Кнопка удаления работы - показываем только на десктопе
-                                                  if (!isWorkClosed &&
-                                                      !isMobile) ...[
-                                                    const SizedBox(width: 8),
-                                                    Material(
-                                                      color: Colors.transparent,
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              20),
-                                                      child: InkWell(
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(20),
-                                                        onTap: () =>
-                                                            _confirmDeleteItem(
-                                                                context,
-                                                                ref,
-                                                                item),
-                                                        child: MouseRegion(
-                                                          cursor:
-                                                              SystemMouseCursors
-                                                                  .click,
-                                                          child: Container(
-                                                            padding:
-                                                                const EdgeInsets
-                                                                    .all(6),
-                                                            decoration:
-                                                                BoxDecoration(
-                                                              borderRadius:
-                                                                  BorderRadius
-                                                                      .circular(
-                                                                          20),
-                                                            ),
-                                                            child: Icon(
-                                                              Icons
-                                                                  .delete_outline,
-                                                              size: 20,
+                                                      ),
+                                                      const SizedBox(width: 2),
+                                                      Text(
+                                                        item.unit,
+                                                        style: Theme.of(context)
+                                                            .textTheme
+                                                            .bodySmall
+                                                            ?.copyWith(
                                                               color: Theme.of(
                                                                       context)
                                                                   .colorScheme
-                                                                  .error,
+                                                                  .outline,
                                                             ),
-                                                          ),
-                                                        ),
                                                       ),
-                                                    ),
-                                                  ],
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 6),
-                                        // Разные отображения для мобильной и десктопной версии
-                                        if (isMobile)
-                                          Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              // Компактное отображение: модуль/этаж и система/подсистема
-                                              Row(
-                                                children: [
-                                                  Expanded(
-                                                    child: Text(
-                                                      '${item.section.isNotEmpty ? item.section : '-'}/${item.floor.isNotEmpty ? item.floor : '-'}',
-                                                      style: TextStyle(
-                                                        fontSize: 12,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                        color: Theme.of(context)
-                                                            .colorScheme
-                                                            .onSurface,
-                                                      ),
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                    ),
+                                                    ],
                                                   ),
-                                                  Expanded(
-                                                    child: Text(
-                                                      '${item.system.isNotEmpty ? item.system : '-'}/${item.subsystem.isNotEmpty ? item.subsystem : '-'}',
-                                                      style: TextStyle(
-                                                        fontSize: 12,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                        color: Theme.of(context)
-                                                            .colorScheme
-                                                            .onSurface,
-                                                      ),
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                      textAlign: TextAlign.end,
+                                          ),
+                                          // Кнопка удаления работы - показываем только на десктопе
+                                          if (!isWorkClosed && !isMobile) ...[
+                                            const SizedBox(width: 8),
+                                            Material(
+                                              color: Colors.transparent,
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                              child: InkWell(
+                                                borderRadius:
+                                                    BorderRadius.circular(20),
+                                                onTap: () => _confirmDeleteItem(
+                                                    context, ref, item),
+                                                child: MouseRegion(
+                                                  cursor:
+                                                      SystemMouseCursors.click,
+                                                  child: Container(
+                                                    padding:
+                                                        const EdgeInsets.all(6),
+                                                    decoration: BoxDecoration(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              20),
                                                     ),
-                                                  ),
-                                                ],
-                                              ),
-                                              const SizedBox(height: 8),
-                                              // Цена и сумма
-                                              Row(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment
-                                                        .spaceBetween,
-                                                children: [
-                                                  Flexible(
-                                                    child: Text.rich(
-                                                      TextSpan(
-                                                        children: [
-                                                          const TextSpan(
-                                                              text: 'Цена: ',
-                                                              style: TextStyle(
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .w500)),
-                                                          TextSpan(
-                                                            text:
-                                                                '${_formatAmount(item.price ?? 0)} ₽',
-                                                            style: TextStyle(
-                                                                color: Theme.of(
-                                                                        context)
-                                                                    .colorScheme
-                                                                    .primary),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                      style: Theme.of(context)
-                                                          .textTheme
-                                                          .bodySmall,
+                                                    child: Icon(
+                                                      CupertinoIcons.delete,
+                                                      size: 20,
+                                                      color: Theme.of(context)
+                                                          .colorScheme
+                                                          .error,
                                                     ),
-                                                  ),
-                                                  Flexible(
-                                                    child: Text.rich(
-                                                      TextSpan(
-                                                        children: [
-                                                          const TextSpan(
-                                                              text: 'Сумма: ',
-                                                              style: TextStyle(
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .w500)),
-                                                          TextSpan(
-                                                            text:
-                                                                '${_formatAmount(item.total ?? 0)} ₽',
-                                                            style: TextStyle(
-                                                                color: Theme.of(
-                                                                        context)
-                                                                    .colorScheme
-                                                                    .primary,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .bold),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                      style: Theme.of(context)
-                                                          .textTheme
-                                                          .bodySmall,
-                                                      textAlign: TextAlign.end,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ],
-                                          )
-                                        else
-                                          Row(
-                                            children: [
-                                              _miniInfo('Модуль', item.section),
-                                              _miniInfo('Этаж', item.floor),
-                                              _miniInfo('Система', item.system),
-                                              _miniInfo(
-                                                  'Подсистема', item.subsystem),
-                                              Expanded(
-                                                child: Align(
-                                                  alignment:
-                                                      Alignment.centerRight,
-                                                  child: Text.rich(
-                                                    TextSpan(
-                                                      children: [
-                                                        const TextSpan(
-                                                            text: 'Цена: ',
-                                                            style: TextStyle(
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .w500)),
-                                                        TextSpan(
-                                                            text: _formatAmount(
-                                                                item.price ??
-                                                                    0),
-                                                            style: TextStyle(
-                                                                color: Theme.of(
-                                                                        context)
-                                                                    .colorScheme
-                                                                    .primary)),
-                                                        const TextSpan(
-                                                            text: ' ₽  |  '),
-                                                        const TextSpan(
-                                                            text: 'Сумма: ',
-                                                            style: TextStyle(
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .w500)),
-                                                        TextSpan(
-                                                            text: _formatAmount(
-                                                                item.total ??
-                                                                    0),
-                                                            style: TextStyle(
-                                                                color: Theme.of(
-                                                                        context)
-                                                                    .colorScheme
-                                                                    .primary)),
-                                                        const TextSpan(
-                                                            text: ' ₽'),
-                                                      ],
-                                                    ),
-                                                    style: Theme.of(context)
-                                                        .textTheme
-                                                        .bodySmall,
                                                   ),
                                                 ),
                                               ),
-                                            ],
-                                          ),
-                                      ],
+                                            ),
+                                          ],
+                                        ],
+                                      ),
                                     ),
-                                  ),
+                                  ],
                                 ),
-                              );
-                              // Возвращаем Dismissible для мобильных или обычную карточку для десктопа
-                              if (isMobile && canModify) {
-                                return Dismissible(
-                                  key: Key(item.id),
-                                  direction: DismissDirection.endToStart,
-                                  background: Container(
-                                    alignment: Alignment.centerRight,
-                                    padding: const EdgeInsets.only(right: 20),
-                                    decoration: BoxDecoration(
-                                      color:
-                                          Theme.of(context).colorScheme.error,
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.end,
-                                      children: [
-                                        Icon(
-                                          Icons.delete_outline,
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onError,
-                                          size: 24,
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          'Удалить',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodyMedium
-                                              ?.copyWith(
+                                const SizedBox(height: 6),
+                                // Разные отображения для мобильной и десктопной версии
+                                if (isMobile)
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      // Компактное отображение: модуль/этаж и система/подсистема
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              '${item.section.isNotEmpty ? item.section : '-'}/${item.floor.isNotEmpty ? item.floor : '-'}',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
                                                 color: Theme.of(context)
                                                     .colorScheme
-                                                    .onError,
-                                                fontWeight: FontWeight.w600,
+                                                    .onSurface,
                                               ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          Expanded(
+                                            child: Text(
+                                              '${item.system.isNotEmpty ? item.system : '-'}/${item.subsystem.isNotEmpty ? item.subsystem : '-'}',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .onSurface,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                              textAlign: TextAlign.end,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      // Цена и сумма
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Flexible(
+                                            child: Text.rich(
+                                              TextSpan(
+                                                children: [
+                                                  const TextSpan(
+                                                      text: 'Цена: ',
+                                                      style: TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.w500)),
+                                                  TextSpan(
+                                                    text:
+                                                        '${_formatAmount(item.price ?? 0)} ₽',
+                                                    style: TextStyle(
+                                                        color: Theme.of(context)
+                                                            .colorScheme
+                                                            .primary),
+                                                  ),
+                                                ],
+                                              ),
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodySmall,
+                                            ),
+                                          ),
+                                          Flexible(
+                                            child: Text.rich(
+                                              TextSpan(
+                                                children: [
+                                                  const TextSpan(
+                                                      text: 'Сумма: ',
+                                                      style: TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.w500)),
+                                                  TextSpan(
+                                                    text:
+                                                        '${_formatAmount(item.total ?? 0)} ₽',
+                                                    style: TextStyle(
+                                                        color: Theme.of(context)
+                                                            .colorScheme
+                                                            .primary,
+                                                        fontWeight:
+                                                            FontWeight.bold),
+                                                  ),
+                                                ],
+                                              ),
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodySmall,
+                                              textAlign: TextAlign.end,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  )
+                                else
+                                  Row(
+                                    children: [
+                                      _miniInfo('Модуль', item.section),
+                                      _miniInfo('Этаж', item.floor),
+                                      _miniInfo('Система', item.system),
+                                      _miniInfo('Подсистема', item.subsystem),
+                                      Expanded(
+                                        child: Align(
+                                          alignment: Alignment.centerRight,
+                                          child: Text.rich(
+                                            TextSpan(
+                                              children: [
+                                                const TextSpan(
+                                                    text: 'Цена: ',
+                                                    style: TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.w500)),
+                                                TextSpan(
+                                                    text: _formatAmount(
+                                                        item.price ?? 0),
+                                                    style: TextStyle(
+                                                        color: Theme.of(context)
+                                                            .colorScheme
+                                                            .primary)),
+                                                const TextSpan(text: ' ₽  |  '),
+                                                const TextSpan(
+                                                    text: 'Сумма: ',
+                                                    style: TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.w500)),
+                                                TextSpan(
+                                                    text: _formatAmount(
+                                                        item.total ?? 0),
+                                                    style: TextStyle(
+                                                        color: Theme.of(context)
+                                                            .colorScheme
+                                                            .primary)),
+                                                const TextSpan(text: ' ₽'),
+                                              ],
+                                            ),
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodySmall,
+                                          ),
                                         ),
-                                      ],
-                                    ),
+                                      ),
+                                    ],
                                   ),
-                                  confirmDismiss: (direction) async {
-                                    return await _showDeleteConfirmationDialog(
-                                        context, item);
-                                  },
-                                  onDismissed: (direction) {
-                                    _deleteWorkItem(ref, item);
-                                  },
-                                  child: cardWidget,
-                                );
-                              } else {
-                                return cardWidget;
-                              }
-                            },
+                              ],
+                            ),
                           ),
                         ),
-                    ],
+                      );
+                      // Возвращаем Dismissible для мобильных или обычную карточку для десктопа
+                      if (isMobile && canModify) {
+                        return Dismissible(
+                          key: Key(item.id),
+                          direction: DismissDirection.endToStart,
+                          background: Container(
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.only(right: 20),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.error,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                Icon(
+                                  CupertinoIcons.delete,
+                                  color: Theme.of(context).colorScheme.onError,
+                                  size: 24,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Удалить',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.copyWith(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onError,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          confirmDismiss: (direction) async {
+                            return await _showDeleteConfirmationDialog(
+                                context, item);
+                          },
+                          onDismissed: (direction) {
+                            _deleteWorkItem(ref, item);
+                          },
+                          child: cardWidget,
+                        );
+                      } else {
+                        return cardWidget;
+                      }
+                    },
                   );
                 },
                 loading: () =>
@@ -1667,7 +1094,7 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                     ),
                   );
                 },
-                child: const Icon(Icons.add),
+                child: const Icon(CupertinoIcons.add),
               ),
             ),
         ],
@@ -1678,12 +1105,6 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
   // Удалено: реализация вкладки "Сотрудники" перенесена в WorkHoursTab
 
   // Удалено: кэш и метод получения имени сотрудника перенесены в WorkHoursTab
-
-  /// Форматирует дату в формате ДД.ММ.ГГГГ.
-  String _formatDate(DateTime date) {
-    final formatter = DateFormat('dd.MM.yyyy');
-    return formatter.format(date);
-  }
 
   /// Форматирует числовое значение для отображения денежной суммы.
   String _formatAmount(num amount) {
@@ -1786,6 +1207,87 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
     );
   }
 
+  Widget _buildFilterDropdown(
+    BuildContext context,
+    String label,
+    String? value,
+    List<String> items,
+    ValueChanged<String?> onChanged,
+  ) {
+    final theme = Theme.of(context);
+    final isSelected = value != null;
+
+    return SizedBox(
+      width: 150,
+      height: 36,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? theme.colorScheme.primary.withValues(alpha: 0.1)
+              : theme.colorScheme.surfaceContainerHighest
+                  .withValues(alpha: 0.4),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected
+                ? theme.colorScheme.primary.withValues(alpha: 0.2)
+                : Colors.transparent,
+            width: 1,
+          ),
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            value: value,
+            isDense: true,
+            hint: Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
+                fontSize: 13,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+            icon: Icon(
+              CupertinoIcons.chevron_down,
+              size: 14,
+              color: isSelected
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.onSurfaceVariant,
+            ),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurface,
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+            ),
+            borderRadius: BorderRadius.circular(20),
+            onChanged: onChanged,
+            items: [
+              DropdownMenuItem<String>(
+                value: null,
+                child: Text(
+                  'Все ${label.toLowerCase()}',
+                  style: theme.textTheme.bodySmall?.copyWith(fontSize: 13),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              ...items.toSet().map((String val) {
+                return DropdownMenuItem<String>(
+                  value: val,
+                  child: Text(
+                    val,
+                    style: theme.textTheme.bodySmall?.copyWith(fontSize: 13),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   // Функция, возвращающая шаблон модального окна
   Widget _buildStylizedModalSheet(BuildContext context, Widget content) {
     final theme = Theme.of(context);
@@ -1839,6 +1341,146 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
       // определяются в вызове showModalBottomSheet
       return modalContent;
     }
+  }
+
+  Widget _buildFiltersBlock(
+      BuildContext context, ThemeData theme, List<WorkItem> items) {
+    final uniqueModules = _getUniqueModules(items);
+    final uniqueFloors = _getUniqueFloors(items);
+    final uniqueSystems = _getUniqueSystems(items);
+    final uniqueSubsystems = _selectedSystem != null
+        ? _getUniqueSubsystems(items, system: _selectedSystem)
+        : _getUniqueSubsystems(items);
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: theme.brightness == Brightness.dark
+            ? const Color(0xFF3A3A3C)
+            : theme.colorScheme.surfaceContainerHighest,
+        border: Border.all(
+          color: theme.brightness == Brightness.dark
+              ? Colors.white.withValues(alpha: 0.1)
+              : theme.colorScheme.outline.withValues(alpha: 0.15),
+          width: 1,
+        ),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Padding(
+          padding: const EdgeInsets.all(4),
+          child: Row(
+            children: [
+              // Поиск
+              SizedBox(
+                width: 450,
+                height: 36,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: theme.brightness == Brightness.dark
+                        ? Colors.black.withValues(alpha: 0.2)
+                        : Colors.black.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: TextField(
+                    controller: _searchController,
+                    style: theme.textTheme.bodyMedium,
+                    decoration: InputDecoration(
+                      hintText: 'Поиск',
+                      hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      filled: false,
+                      prefixIcon: Icon(
+                        CupertinoIcons.search,
+                        size: 18,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: BorderSide.none,
+                      ),
+                      disabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: BorderSide.none,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: BorderSide.none,
+                      ),
+                      isDense: true,
+                    ),
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value;
+                      });
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Фильтры
+              _buildFilterDropdown(
+                  context,
+                  'Модуль',
+                  _selectedModule,
+                  uniqueModules,
+                  (val) => setState(() => _selectedModule = val)),
+              const SizedBox(width: 8),
+              _buildFilterDropdown(context, 'Этаж', _selectedFloor,
+                  uniqueFloors, (val) => setState(() => _selectedFloor = val)),
+              const SizedBox(width: 8),
+              _buildFilterDropdown(
+                  context,
+                  'Система',
+                  _selectedSystem,
+                  uniqueSystems,
+                  (val) => setState(() {
+                        _selectedSystem = val;
+                        _selectedSubsystem = null;
+                      })),
+              const SizedBox(width: 8),
+              _buildFilterDropdown(
+                  context,
+                  'Подсистема',
+                  _selectedSubsystem,
+                  uniqueSubsystems,
+                  (val) => setState(() => _selectedSubsystem = val)),
+
+              const SizedBox(width: 8),
+              // Кнопка сброса
+              if (_searchQuery.isNotEmpty ||
+                  _selectedModule != null ||
+                  _selectedFloor != null ||
+                  _selectedSystem != null ||
+                  _selectedSubsystem != null)
+                IconButton.filledTonal(
+                  onPressed: _resetFilters,
+                  icon:
+                      const Icon(CupertinoIcons.slider_horizontal_3, size: 18),
+                  style: IconButton.styleFrom(
+                    backgroundColor:
+                        theme.colorScheme.errorContainer.withValues(alpha: 0.5),
+                    foregroundColor: theme.colorScheme.error,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  tooltip: 'Сбросить',
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _miniInfo(String label, String value) {

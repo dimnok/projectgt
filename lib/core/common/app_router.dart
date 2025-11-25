@@ -499,9 +499,19 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: ':workId',
             name: 'work_details',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final workId = state.pathParameters['workId']!;
-              return WorkDetailsScreen(workId: workId);
+              return CustomTransitionPage(
+                key: state.pageKey,
+                child: WorkDetailsScreen(workId: workId),
+                transitionsBuilder:
+                    (context, animation, secondaryAnimation, child) {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: child,
+                  );
+                },
+              );
             },
           ),
           GoRoute(

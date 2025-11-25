@@ -64,7 +64,7 @@ class ModalUtils {
     double? maxWidthMobile,
     bool useFullWidthDesktop = true,
   }) {
-    final isDesktop = MediaQuery.of(context).size.width > 800;
+    final isDesktop = ResponsiveUtils.isDesktop(context);
 
     if (isDesktop && useFullWidthDesktop) {
       // На десктопе используем всю доступную ширину
@@ -86,7 +86,6 @@ class ModalUtils {
   /// [isLoading] - флаг загрузки.
   /// [saveText] - текст на кнопке сохранения.
   /// [cancelText] - текст на кнопке отмены.
-  /// [scrollController] - контроллер прокрутки для отслеживания скрытия/показа.
   /// [leftOffset] - отступ слева (по умолчанию 24).
   /// [rightOffset] - отступ справа (по умолчанию 24).
   /// [bottomOffset] - отступ снизу (по умолчанию 24).
@@ -96,7 +95,6 @@ class ModalUtils {
     required bool isLoading,
     required String saveText,
     String cancelText = 'Отмена',
-    ScrollController? scrollController,
     double leftOffset = 24,
     double rightOffset = 24,
     double bottomOffset = 24,
@@ -118,7 +116,6 @@ class ModalUtils {
             isLoading: isLoading,
             saveText: saveText,
             cancelText: cancelText,
-            scrollController: scrollController,
           ),
         ),
       ),
@@ -146,6 +143,7 @@ class ModalUtils {
   static Future<void> showWorkFormModal(BuildContext context) {
     return _showFormModal(
       context: context,
+      useDraggable: false,
       formBuilder: (scrollController) => WorkFormScreen(
         scrollController: scrollController,
         parentContext: context,
@@ -182,9 +180,7 @@ class ModalUtils {
     required String subsystem,
   }) {
     final theme = Theme.of(context);
-    final isDesktop = MediaQuery.of(context).size.width > 800;
-
-    final scrollController = ScrollController();
+    final isDesktop = ResponsiveUtils.isDesktop(context);
 
     Widget modalContent = Container(
       clipBehavior: Clip.antiAlias,
@@ -209,7 +205,6 @@ class ModalUtils {
               objectId: objectId,
               system: system,
               subsystem: subsystem,
-              scrollController: scrollController,
             ),
           ],
         ),
@@ -232,6 +227,8 @@ class ModalUtils {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       useSafeArea: true,
+      isDismissible: false, // Запрет закрытия по тапу вне
+      enableDrag: false, // Запрет закрытия свайпом вниз
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height -
             MediaQuery.of(context).padding.top,
@@ -357,39 +354,52 @@ class ModalUtils {
   ///
   /// [context] - контекст для отображения модального окна.
   /// [formBuilder] - функция для создания виджета формы с контроллером прокрутки.
+  /// [useDraggable] - использовать DraggableScrollableSheet (true) или обычный BottomSheet (false).
   static Future<void> _showFormModal({
     required BuildContext context,
     required Widget Function(ScrollController scrollController) formBuilder,
+    bool useDraggable = true,
   }) {
     final theme = Theme.of(context);
-    final isDesktop = MediaQuery.of(context).size.width > 800;
+    final isDesktop = ResponsiveUtils.isDesktop(context);
 
-    Widget modalContent = Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 10,
-            offset: const Offset(0, -5),
+    Widget buildContent(BuildContext context, ScrollController? controller) {
+      return Container(
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 10,
+              offset: const Offset(0, -5),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
           ),
-        ],
-      ),
-      child: DraggableScrollableSheet(
+          child: formBuilder(controller ?? ScrollController()),
+        ),
+      );
+    }
+
+    Widget modalContent;
+
+    if (useDraggable) {
+      modalContent = DraggableScrollableSheet(
         initialChildSize: 0.9,
         minChildSize: 0.5,
         maxChildSize: 0.9,
         expand: false,
-        builder: (context, scrollController) => Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-          ),
-          child: formBuilder(scrollController),
-        ),
-      ),
-    );
+        builder: (context, scrollController) =>
+            buildContent(context, scrollController),
+      );
+    } else {
+      modalContent = buildContent(context, null);
+    }
 
     // Для десктопов ограничиваем ширину, но сохраняем привязку к низу
     if (isDesktop) {
@@ -408,6 +418,8 @@ class ModalUtils {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       useSafeArea: true,
+      isDismissible: false, // Запрет закрытия по тапу вне
+      enableDrag: false, // Запрет закрытия свайпом вниз
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height -
             MediaQuery.of(context).padding.top,
@@ -418,7 +430,7 @@ class ModalUtils {
 }
 
 /// Внутренний виджет плавающих кнопок для модальных окон.
-class _FloatingFormButtons extends StatefulWidget {
+class _FloatingFormButtons extends StatelessWidget {
   /// Обработчик нажатия на кнопку сохранения.
   final VoidCallback onSave;
 
@@ -434,9 +446,6 @@ class _FloatingFormButtons extends StatefulWidget {
   /// Текст на кнопке отмены.
   final String cancelText;
 
-  /// Контроллер прокрутки для отслеживания.
-  final ScrollController? scrollController;
-
   /// Создает плавающие кнопки формы.
   const _FloatingFormButtons({
     required this.onSave,
@@ -444,146 +453,53 @@ class _FloatingFormButtons extends StatefulWidget {
     required this.isLoading,
     required this.saveText,
     required this.cancelText,
-    this.scrollController,
   });
 
   @override
-  State<_FloatingFormButtons> createState() => _FloatingFormButtonsState();
-}
-
-class _FloatingFormButtonsState extends State<_FloatingFormButtons> {
-  bool _showButtons = true;
-  Timer? _hideTimer;
-  double _lastScrollPosition = 0.0;
-  bool _keyboardVisible = false;
-
-  @override
-  void initState() {
-    super.initState();
-    widget.scrollController?.addListener(_onScroll);
-  }
-
-  @override
-  void dispose() {
-    widget.scrollController?.removeListener(_onScroll);
-    _hideTimer?.cancel();
-    super.dispose();
-  }
-
-  void _onScroll() {
-    if (widget.scrollController != null) {
-      final currentPosition = widget.scrollController!.position.pixels;
-
-      // Если позиция изменилась, значит идет прокрутка
-      if (currentPosition != _lastScrollPosition) {
-        _lastScrollPosition = currentPosition;
-
-        // Скрываем кнопки при прокрутке
-        if (_showButtons) {
-          setState(() {
-            _showButtons = false;
-          });
-        }
-
-        // Отменяем предыдущий таймер
-        _hideTimer?.cancel();
-
-        // Запускаем новый таймер на показ кнопок (только если клавиатура скрыта)
-        _hideTimer = Timer(const Duration(milliseconds: 800), () {
-          if (mounted && !_keyboardVisible) {
-            setState(() {
-              _showButtons = true;
-            });
-          }
-        });
-      }
-    }
-  }
-
-  void _updateKeyboardVisibility() {
-    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
-    final isKeyboardVisible = keyboardHeight > 0;
-
-    if (_keyboardVisible != isKeyboardVisible) {
-      setState(() {
-        _keyboardVisible = isKeyboardVisible;
-        if (_keyboardVisible) {
-          // Скрываем кнопки когда появляется клавиатура
-          _showButtons = false;
-          _hideTimer?.cancel();
-        } else {
-          // Показываем кнопки когда клавиатура скрывается
-          _hideTimer?.cancel();
-          _hideTimer = Timer(const Duration(milliseconds: 300), () {
-            if (mounted) {
-              setState(() {
-                _showButtons = true;
-              });
-            }
-          });
-        }
-      });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    // Отслеживаем состояние клавиатуры
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _updateKeyboardVisibility();
-    });
-
     final isMobile = ResponsiveUtils.isMobile(context);
-    final buttonHeight = isMobile ? 26.0 : 44.0;
+    const buttonHeight = 44.0; // Стандартный размер для touch targets
 
-    return AnimatedScale(
-      scale: _showButtons ? 1.0 : 0.0,
-      duration: const Duration(milliseconds: 300),
-      child: AnimatedOpacity(
-        opacity: _showButtons ? 1.0 : 0.0,
-        duration: const Duration(milliseconds: 300),
-        child: Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: widget.onCancel,
-                style: OutlinedButton.styleFrom(
-                  minimumSize: Size.fromHeight(buttonHeight),
-                  shape: const StadiumBorder(),
-                  elevation: isMobile ? 2 : 0,
-                  shadowColor:
-                      isMobile ? Colors.black.withValues(alpha: 0.2) : null,
-                  textStyle: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                child: Text(widget.cancelText),
-              ),
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton(
+            onPressed: onCancel,
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(buttonHeight),
+              shape: const StadiumBorder(),
+              elevation: isMobile ? 2 : 0,
+              shadowColor:
+                  isMobile ? Colors.black.withValues(alpha: 0.2) : null,
+              textStyle:
+                  const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: ElevatedButton(
-                onPressed: widget.isLoading ? null : widget.onSave,
-                style: ElevatedButton.styleFrom(
-                  minimumSize: Size.fromHeight(buttonHeight),
-                  shape: const StadiumBorder(),
-                  elevation: isMobile ? 4 : 1,
-                  shadowColor:
-                      isMobile ? Colors.black.withValues(alpha: 0.3) : null,
-                  textStyle: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                child: widget.isLoading
-                    ? const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CupertinoActivityIndicator(),
-                      )
-                    : Text(widget.saveText),
-              ),
-            ),
-          ],
+            child: Text(cancelText),
+          ),
         ),
-      ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: ElevatedButton(
+            onPressed: isLoading ? null : onSave,
+            style: ElevatedButton.styleFrom(
+              minimumSize: const Size.fromHeight(buttonHeight),
+              shape: const StadiumBorder(),
+              elevation: isMobile ? 4 : 1,
+              shadowColor:
+                  isMobile ? Colors.black.withValues(alpha: 0.3) : null,
+              textStyle:
+                  const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            child: isLoading
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CupertinoActivityIndicator(),
+                  )
+                : Text(saveText),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 
+import 'package:projectgt/features/roles/presentation/providers/roles_provider.dart'
+    as local_roles_provider;
+import 'package:projectgt/presentation/state/profile_state.dart';
 import '../../../presentation/providers/work_hours_provider.dart'
     as local_hours_provider;
 import '../../screens/../providers/work_hours_provider.dart'
@@ -127,7 +130,17 @@ class _WorkHoursTabState extends ConsumerState<WorkHoursTab> {
     
     final permissionService = ref.watch(permissionServiceProvider);
     final canUpdate = permissionService.can('works', 'update');
-    final bool canModify = !isWorkClosed && canUpdate;
+
+    // Проверка на супер-админа
+    final rolesState = ref.watch(local_roles_provider.rolesNotifierProvider);
+    final userProfile = ref.watch(currentUserProfileProvider).profile;
+    final isSuperAdmin = rolesState.valueOrNull?.any((r) =>
+            r.id == userProfile?.roleId &&
+            r.isSystem &&
+            r.name == 'Супер-админ') ??
+        false;
+
+    final bool canModify = (!isWorkClosed || isSuperAdmin) && canUpdate;
 
     return Stack(
       children: [
@@ -412,17 +425,19 @@ class _WorkHoursTabState extends ConsumerState<WorkHoursTab> {
       BuildContext context, WorkHour hour) async {
     return await showCupertinoModalPopup<bool>(
       context: context,
-      builder: (BuildContext context) => const CupertinoAlertDialog(
-        title: Text('Подтверждение'),
-        content: Text('Вы действительно хотите удалить сотрудника из смены?'),
+      builder: (BuildContext context) => CupertinoAlertDialog(
+        title: const Text('Подтверждение'),
+        content: const Text('Вы действительно хотите удалить сотрудника из смены?'),
         actions: <CupertinoDialogAction>[
           CupertinoDialogAction(
             isDefaultAction: true,
-            child: Text('Отмена'),
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Отмена'),
           ),
           CupertinoDialogAction(
             isDestructiveAction: true,
-            child: Text('Удалить'),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Удалить'),
           ),
         ],
       ),

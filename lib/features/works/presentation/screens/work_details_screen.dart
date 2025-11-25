@@ -12,6 +12,8 @@ import 'package:projectgt/core/utils/snackbar_utils.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'work_details_panel.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
+import 'package:projectgt/features/roles/presentation/providers/roles_provider.dart';
+import 'package:projectgt/presentation/state/profile_state.dart';
 
 /// Экран деталей смены с вкладками работ, материалов и часов.
 ///
@@ -27,10 +29,10 @@ class WorkDetailsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final work = ref.watch(workProvider(workId));
+
     final isMobile = ResponsiveUtils.isDesktop(context) == false;
     final permissionService = ref.watch(permissionServiceProvider);
-    final canUpdate = permissionService.can('works', 'update');
-    final canDelete = permissionService.can('works', 'delete');
+    final hasDeletePermission = permissionService.can('works', 'delete');
 
     if (work == null) {
       return Scaffold(
@@ -42,17 +44,30 @@ class WorkDetailsScreen extends ConsumerWidget {
       );
     }
 
+    // Проверка прав на удаление (аналогично другим экранам)
+    final rolesState = ref.watch(rolesNotifierProvider);
+    final currentProfile = ref.watch(currentUserProfileProvider).profile;
+    final isSuperAdmin = rolesState.valueOrNull?.any((r) =>
+            r.id == currentProfile?.roleId &&
+            r.isSystem &&
+            r.name == 'Супер-админ') ??
+        false;
+
+    final isOwner =
+        currentProfile != null && work.openedBy == currentProfile.id;
+    final isWorkClosed = work.status.toLowerCase() == 'closed';
+
+    // Удалять можно, если есть право delete И ((автор и открыто) ИЛИ супер-админ)
+    final canDelete =
+        hasDeletePermission && ((isOwner && !isWorkClosed) || isSuperAdmin);
+
+    // Удаляем Hero, так как он вызывает конфликты с вложенными Hero виджетами (например, в табе сотрудников)
+    // и проблемы с layout (overflow) при анимации Scaffold
     return Scaffold(
       appBar: AppBarWidget(
         title: isMobile ? 'Смена' : 'Смена: ${_formatDate(work.date)}',
         leading: isMobile ? const BackButton() : null,
         actions: [
-          if (canUpdate)
-            IconButton(
-              icon: const Icon(Icons.edit, color: Colors.amber),
-              onPressed: () => _showEditWorkDialog(context, ref, work),
-              tooltip: 'Редактировать',
-            ),
           if (canDelete)
             IconButton(
               icon: const Icon(Icons.delete, color: Colors.red),
@@ -74,74 +89,6 @@ class WorkDetailsScreen extends ConsumerWidget {
   /// Форматирует дату [date] в строку "дд.мм.гггг".
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
-  }
-
-  /// Показывает диалог редактирования статуса смены.
-  void _showEditWorkDialog(BuildContext context, WidgetRef ref, Work? work) {
-    if (work == null) return;
-    final statusController = TextEditingController(text: work.status);
-    showDialog(
-      context: context,
-      useRootNavigator: true,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Редактировать смену'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: statusController,
-              decoration: const InputDecoration(
-                labelText: 'Статус',
-                hintText: 'Введите статус (open/closed)',
-              ),
-              autofocus: true,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Отмена'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (statusController.text.trim().isEmpty) {
-                SnackBarUtils.showWarning(
-                    dialogContext, 'Введите статус смены');
-                return;
-              }
-
-              final newStatus = statusController.text.trim();
-              final updatedWork = Work(
-                id: work.id,
-                date: work.date,
-                objectId: work.objectId,
-                openedBy: work.openedBy,
-                status: newStatus,
-                photoUrl: work.photoUrl,
-                eveningPhotoUrl: work.eveningPhotoUrl,
-                createdAt: work.createdAt,
-                updatedAt: DateTime.now(),
-                telegramMessageId: work.telegramMessageId,
-              );
-
-              await ref.read(worksProvider.notifier).updateWork(updatedWork);
-
-              if (dialogContext.mounted) {
-                // Закрываем диалог
-                Navigator.of(dialogContext).pop();
-              }
-
-              // Используем основной контекст экрана для Snackbar
-              if (context.mounted) {
-                SnackBarUtils.showInfo(context, 'Смена обновлена');
-              }
-            },
-            child: const Text('Сохранить'),
-          ),
-        ],
-      ),
-    );
   }
 
   /// Показывает диалог подтверждения удаления смены.

@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:projectgt/features/works/data/models/month_group.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 
 /// Виджет заголовка группы смен, сгруппированных по месяцу.
 ///
-/// Минималистичный строгий дизайн:
-/// - Чёткая типографическая иерархия
-/// - Монохромная цветовая схема
-/// - Отсутствие градиентов и теней
-/// - Акцент на функциональности и читаемости
+/// Минималистичный современный дизайн:
+/// - Без тяжелых рамок и фонов
+/// - Чёткая типографика
+/// - Плавная анимация шеврона
 class MonthGroupHeader extends StatelessWidget {
   /// Группа месяца для отображения.
   final MonthGroup group;
@@ -20,12 +20,16 @@ class MonthGroupHeader extends StatelessWidget {
   /// Колбэк при долгом нажатии на заголовок (используется только на мобильных).
   final VoidCallback? onMobileLongPress;
 
+  /// Степень "прилипания" заголовка (0.0 - в списке, 1.0 - прилип).
+  final double stuckAmount;
+
   /// Создаёт виджет заголовка группы месяца.
   const MonthGroupHeader({
     super.key,
     required this.group,
     required this.onTap,
     this.onMobileLongPress,
+    this.stuckAmount = 0.0,
   });
 
   @override
@@ -33,98 +37,87 @@ class MonthGroupHeader extends StatelessWidget {
     final theme = Theme.of(context);
     final isDesktop = ResponsiveUtils.isDesktop(context);
     final isMobile = ResponsiveUtils.isMobile(context);
-    final isCurrentMonth = group.isCurrentMonth;
 
-    // Формируем название месяца с точкой-разделителем
+    // Формируем название месяца
     const months = [
-      'ЯНВАРЬ',
-      'ФЕВРАЛЬ',
-      'МАРТ',
-      'АПРЕЛЬ',
-      'МАЙ',
-      'ИЮНЬ',
-      'ИЮЛЬ',
-      'АВГУСТ',
-      'СЕНТЯБРЬ',
-      'ОКТЯБРЬ',
-      'НОЯБРЬ',
-      'ДЕКАБРЬ'
+      'Январь',
+      'Февраль',
+      'Март',
+      'Апрель',
+      'Май',
+      'Июнь',
+      'Июль',
+      'Август',
+      'Сентябрь',
+      'Октябрь',
+      'Ноябрь',
+      'Декабрь'
     ];
-    final monthName = '${months[group.month.month - 1]} • ${group.month.year}';
+    final monthName = '${months[group.month.month - 1]} ${group.month.year}';
+
+    // Анимация текста
+    // Увеличение размера: 1.0 -> 1.15
+    final textScale = 1.0 + (stuckAmount * 0.15);
+
+    // Цвет: от стандартного к синему
+    final targetColor = Colors.blue.shade600;
+    final titleColor = Color.lerp(
+      theme.colorScheme.onSurface,
+      targetColor,
+      stuckAmount,
+    );
+
+    // Цвет подзаголовка тоже можно немного подкрасить или оставить серым
+    final subtitleColor = Color.lerp(
+      theme.colorScheme.onSurfaceVariant,
+      targetColor.withValues(alpha: 0.7),
+      stuckAmount * 0.5, // Менее интенсивно
+    );
 
     return Container(
       margin: EdgeInsets.symmetric(
-        horizontal: isDesktop ? 0 : 16,
-        vertical: isDesktop ? 4 : 6,
-      ),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        border: Border.all(
-          color: isCurrentMonth
-              ? theme.colorScheme.onSurface
-              : theme.colorScheme.outlineVariant,
-          width: isCurrentMonth ? 1.5 : 1,
-        ),
-        borderRadius: BorderRadius.circular(16),
+        horizontal: isDesktop ? 4 : 16,
+        vertical: 4,
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
           onLongPress: isMobile ? onMobileLongPress : null,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
+          hoverColor: theme.colorScheme.onSurface.withValues(alpha: 0.05),
           child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: isDesktop ? 20 : 16,
-              vertical: isDesktop ? 16 : 14,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 12,
             ),
             child: Row(
               children: [
-                // Минималистичная иконка календаря
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: theme.colorScheme.onSurface,
-                      width: 1.5,
-                    ),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    Icons.calendar_today,
-                    color: theme.colorScheme.onSurface,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 16),
-
                 // Информация о месяце
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Название месяца
-                      Text(
-                        monthName,
-                        style: (isDesktop
-                                ? theme.textTheme.titleMedium
-                                : theme.textTheme.titleSmall)
-                            ?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.2,
-                          color: theme.colorScheme.onSurface,
+                      // Месяц и год
+                      Transform.scale(
+                        scale: textScale,
+                        alignment:
+                            Alignment.centerLeft, // Увеличиваем от левого края
+                        child: Text(
+                          monthName,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: titleColor,
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 6),
-
-                      // Статистика (текст без декора)
+                      const SizedBox(height: 4),
+                      // Статистика (мелким шрифтом)
                       Text(
                         '${group.worksCount} ${_pluralizeWorks(group.worksCount)} • ${formatCurrency(group.totalAmount)}',
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: 0.3,
+                          color: subtitleColor,
                         ),
                       ),
                     ],
@@ -133,12 +126,17 @@ class MonthGroupHeader extends StatelessWidget {
 
                 // Индикатор раскрытия
                 AnimatedRotation(
-                  turns: group.isExpanded ? 0.5 : 0,
+                  turns: group.isExpanded
+                      ? 0.25
+                      : 0, // Поворот на 90 градусов (0.25 оборота) для шеврона вправо -> вниз
                   duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeInOut,
                   child: Icon(
-                    Icons.expand_more,
-                    color: theme.colorScheme.onSurface,
-                    size: 24,
+                    // Используем Cupertino шеврон
+                    // По умолчанию chevron_right смотрит вправо. При повороте будет смотреть вниз.
+                    CupertinoIcons.chevron_right,
+                    color: subtitleColor,
+                    size: 16,
                   ),
                 ),
               ],

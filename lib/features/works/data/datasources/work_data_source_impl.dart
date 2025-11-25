@@ -2,106 +2,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:logger/logger.dart';
 import '../models/work_model.dart';
 import '../models/month_group.dart';
+import '../models/light_work_model.dart';
+import '../../domain/entities/work_summaries.dart';
 import 'work_data_source.dart';
 
-/// Сводка по объектам за месяц.
-class ObjectSummary {
-  /// ID объекта
-  final String objectId;
-
-  /// Название объекта
-  final String objectName;
-
-  /// Количество смен
-  final int worksCount;
-
-  /// Общая сумма
-  final double totalAmount;
-
-  /// Создаёт сводку по объекту с агрегированными данными.
-  ObjectSummary({
-    required this.objectId,
-    required this.objectName,
-    required this.worksCount,
-    required this.totalAmount,
-  });
-
-  /// Создаёт объект из JSON (результат RPC функции).
-  factory ObjectSummary.fromJson(Map<String, dynamic> json) {
-    return ObjectSummary(
-      objectId: json['object_id'] as String? ?? '',
-      objectName: json['object_name'] as String? ?? 'Неизвестный объект',
-      worksCount: (json['works_count'] as num?)?.toInt() ?? 0,
-      totalAmount: (json['total_amount'] as num?)?.toDouble() ?? 0,
-    );
-  }
-}
-
-/// Сводка по системам за месяц.
-class SystemSummary {
-  /// Название системы
-  final String system;
-
-  /// Количество смен
-  final int worksCount;
-
-  /// Количество работ (items)
-  final int itemsCount;
-
-  /// Общая сумма
-  final double totalAmount;
-
-  /// Создаёт сводку по системе с агрегированными данными.
-  SystemSummary({
-    required this.system,
-    required this.worksCount,
-    required this.itemsCount,
-    required this.totalAmount,
-  });
-
-  /// Создаёт объект из JSON (результат RPC функции).
-  factory SystemSummary.fromJson(Map<String, dynamic> json) {
-    return SystemSummary(
-      system: json['system'] as String? ?? 'Неизвестная система',
-      worksCount: (json['works_count'] as num?)?.toInt() ?? 0,
-      itemsCount: (json['items_count'] as num?)?.toInt() ?? 0,
-      totalAmount: (json['total_amount'] as num?)?.toDouble() ?? 0,
-    );
-  }
-}
-
-/// Сводка по часам за месяц.
-class MonthHoursSummary {
-  /// Общее количество часов
-  final double totalHours;
-
-  /// Создаёт сводку с общим количеством часов.
-  MonthHoursSummary({required this.totalHours});
-
-  /// Создаёт объект из JSON (результат RPC функции).
-  factory MonthHoursSummary.fromJson(Map<String, dynamic> json) {
-    return MonthHoursSummary(
-      totalHours: (json['total_hours'] as num?)?.toDouble() ?? 0,
-    );
-  }
-}
-
-/// Сводка по сотрудникам за месяц.
-class MonthEmployeesSummary {
-  /// Общее количество специалистов
-  final int totalEmployees;
-
-  /// Создаёт сводку с общим количеством специалистов.
-  MonthEmployeesSummary({required this.totalEmployees});
-
-  /// Создаёт объект из JSON (результат RPC функции).
-  factory MonthEmployeesSummary.fromJson(Map<String, dynamic> json) {
-    return MonthEmployeesSummary(
-      totalEmployees: (json['total_employees'] as num?)?.toInt() ?? 0,
-    );
-  }
-}
-
+// ignore_for_file: override_on_non_overriding_member
 /// Реализация источника данных для работы со сменами через Supabase.
 class WorkDataSourceImpl implements WorkDataSource {
   /// Клиент Supabase для доступа к базе данных.
@@ -175,16 +80,11 @@ class WorkDataSourceImpl implements WorkDataSource {
       workJson['updated_at'] = now;
 
       // КРИТИЧНО: Удаляем агрегатные поля, которые управляются триггерами БД.
-      // Эти поля вычисляются автоматически при изменении work_items и work_hours.
-      // Если их оставить в JSON, они перезапишут рассчитанные триггерами значения!
       workJson.remove('total_amount');
       workJson.remove('items_count');
       workJson.remove('employees_count');
 
       // ЗАЩИТА: Если поля были NULL при загрузке, не перезаписываем их на NULL в БД.
-      // Это защитит существующие значения от случайного затирания (например telegram_message_id).
-      // Но ТОЛЬКО для полей которые могут быть NULL по легитимным причинам:
-      // - photoUrl, eveningPhotoUrl, telegramMessageId
       final nullableFields = {
         'photo_url',
         'evening_photo_url',
@@ -218,16 +118,11 @@ class WorkDataSourceImpl implements WorkDataSource {
   }
 
   /// Возвращает заголовки групп месяцев с агрегированными данными.
-  ///
-  /// Использует SQL-агрегацию через RPC-функцию для максимальной производительности.
   @override
   Future<List<MonthGroup>> getMonthsHeaders() async {
     try {
-      // Вызываем RPC-функцию PostgreSQL для группировки на стороне БД
-      // Это в 100x быстрее чем загружать все смены и группировать на клиенте!
       final response = await client.rpc('get_months_summary');
 
-      // Преобразуем результат в MonthGroup
       final groups = (response as List).map<MonthGroup>((json) {
         final month = DateTime.parse(json['month'] as String);
         final worksCount = (json['works_count'] as num).toInt();
@@ -237,8 +132,8 @@ class WorkDataSourceImpl implements WorkDataSource {
           month: month,
           worksCount: worksCount,
           totalAmount: totalAmount,
-          isExpanded: false, // ВСЕ месяцы свёрнуты - загрузка только по клику
-          works: null, // Будут загружены лениво при раскрытии
+          isExpanded: false,
+          works: null,
         );
       }).toList();
 
@@ -257,12 +152,9 @@ class WorkDataSourceImpl implements WorkDataSource {
     int limit = 30,
   }) async {
     try {
-      // Начало месяца
       final startDate = DateTime(month.year, month.month, 1);
-      // Начало следующего месяца
       final endDate = DateTime(month.year, month.month + 1, 1);
 
-      // Загружаем смены месяца с пагинацией
       final response = await client
           .from(table)
           .select('*')
@@ -280,10 +172,30 @@ class WorkDataSourceImpl implements WorkDataSource {
     }
   }
 
+  /// Возвращает полные данные по выработке за месяц для графика.
+  @override
+  Future<List<LightWorkModel>> getMonthWorksForChart(DateTime month) async {
+    try {
+      final startDate = DateTime(month.year, month.month, 1);
+      final endDate = DateTime(month.year, month.month + 1, 1);
+
+      final response = await client
+          .from(table)
+          .select('id, date, total_amount, employees_count')
+          .gte('date', startDate.toIso8601String())
+          .lt('date', endDate.toIso8601String())
+          .order('date', ascending: false);
+
+      return response
+          .map<LightWorkModel>((json) => LightWorkModel.fromJson(json))
+          .toList();
+    } catch (e) {
+      _logger.e('Ошибка получения смен месяца для графика: $e');
+      rethrow;
+    }
+  }
+
   /// Возвращает полную статистику по объектам за месяц.
-  ///
-  /// Вызывает RPC функцию get_month_objects_summary для получения
-  /// агрегированных данных ВСЕ смен месяца (не зависит от пагинации).
   @override
   Future<List<ObjectSummary>> getObjectsSummary(DateTime month) async {
     try {
@@ -294,9 +206,14 @@ class WorkDataSourceImpl implements WorkDataSource {
         'p_month': monthStr,
       });
 
-      return (response as List)
-          .map<ObjectSummary>((json) => ObjectSummary.fromJson(json))
-          .toList();
+      return (response as List).map((json) {
+        return ObjectSummary(
+          objectId: json['object_id'] as String? ?? '',
+          objectName: json['object_name'] as String? ?? 'Неизвестный объект',
+          worksCount: (json['works_count'] as num?)?.toInt() ?? 0,
+          totalAmount: (json['total_amount'] as num?)?.toDouble() ?? 0,
+        );
+      }).toList();
     } catch (e) {
       _logger.e('Ошибка получения статистики по объектам: $e');
       rethrow;
@@ -304,9 +221,6 @@ class WorkDataSourceImpl implements WorkDataSource {
   }
 
   /// Возвращает полную статистику по системам за месяц.
-  ///
-  /// Вызывает RPC функцию get_month_systems_summary для получения
-  /// агрегированных данных ВСЕ работ месяца (не зависит от пагинации).
   @override
   Future<List<SystemSummary>> getSystemsSummary(DateTime month) async {
     try {
@@ -317,9 +231,14 @@ class WorkDataSourceImpl implements WorkDataSource {
         'p_month': monthStr,
       });
 
-      return (response as List)
-          .map<SystemSummary>((json) => SystemSummary.fromJson(json))
-          .toList();
+      return (response as List).map((json) {
+        return SystemSummary(
+          system: json['system'] as String? ?? 'Неизвестная система',
+          worksCount: (json['works_count'] as num?)?.toInt() ?? 0,
+          itemsCount: (json['items_count'] as num?)?.toInt() ?? 0,
+          totalAmount: (json['total_amount'] as num?)?.toDouble() ?? 0,
+        );
+      }).toList();
     } catch (e) {
       _logger.e('Ошибка получения статистики по системам: $e');
       rethrow;
@@ -333,13 +252,19 @@ class WorkDataSourceImpl implements WorkDataSource {
       final monthStr =
           '${month.year}-${month.month.toString().padLeft(2, '0')}-01';
 
-      final response = await client.rpc('get_month_total_hours', params: {
+      final response = await client.rpc('get_month_hours_summary', params: {
         'p_month': monthStr,
       });
 
-      return MonthHoursSummary.fromJson(response.first as Map<String, dynamic>);
+      final json = (response is List)
+          ? (response.isEmpty ? {} : response.first)
+          : response;
+          
+      return MonthHoursSummary(
+        totalHours: (json['total_hours'] as num?)?.toDouble() ?? 0,
+      );
     } catch (e) {
-      _logger.e('Ошибка получения общего количества часов: $e');
+      _logger.e('Ошибка получения часов за месяц: $e');
       rethrow;
     }
   }
@@ -351,14 +276,19 @@ class WorkDataSourceImpl implements WorkDataSource {
       final monthStr =
           '${month.year}-${month.month.toString().padLeft(2, '0')}-01';
 
-      final response = await client.rpc('get_month_total_employees', params: {
+      final response = await client.rpc('get_month_employees_summary', params: {
         'p_month': monthStr,
       });
 
-      return MonthEmployeesSummary.fromJson(
-          response.first as Map<String, dynamic>);
+      final json = (response is List)
+          ? (response.isEmpty ? {} : response.first)
+          : response;
+
+      return MonthEmployeesSummary(
+        totalEmployees: (json['total_employees'] as num?)?.toInt() ?? 0,
+      );
     } catch (e) {
-      _logger.e('Ошибка получения количества сотрудников: $e');
+      _logger.e('Ошибка получения сотрудников за месяц: $e');
       rethrow;
     }
   }

@@ -820,7 +820,6 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                   onCancel: () => Navigator.pop(context),
                   isLoading: _isLoading,
                   saveText: _isNewEmployee ? 'Создать' : 'Сохранить',
-                  scrollController: widget.scrollController,
                 ),
               ],
             ),

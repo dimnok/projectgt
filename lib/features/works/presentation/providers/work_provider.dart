@@ -160,10 +160,13 @@ final worksProvider = StateNotifierProvider<WorksNotifier, WorksState>((ref) {
 final workProvider = Provider.family<Work?, String>((ref, id) {
   // Пытаемся найти смену в загруженных группах месяцев
   final monthGroupsState = ref.watch(monthGroupsProvider);
+  // debugPrint('[DEBUG_NAV] workProvider($id): monthGroupsState isLoading=${monthGroupsState.isLoading}, groupsCount=${monthGroupsState.groups.length}');
+  
   for (final group in monthGroupsState.groups) {
     if (group.works != null) {
       try {
         final found = group.works!.firstWhere((work) => work.id == id);
+        // debugPrint('[DEBUG_NAV] workProvider($id): FOUND in group ${group.month}');
         return found;
       } catch (e) {
         continue;
@@ -172,5 +175,6 @@ final workProvider = Provider.family<Work?, String>((ref, id) {
   }
   // Если не найдено в группах, возвращаем null
   // В реальности смена должна быть в одной из раскрытых групп
+  // debugPrint('[DEBUG_NAV] workProvider($id): NOT FOUND in ${monthGroupsState.groups.length} groups');
   return null;
 });

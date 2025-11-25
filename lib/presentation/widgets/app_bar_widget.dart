@@ -56,82 +56,88 @@ class AppBarWidget extends ConsumerWidget implements PreferredSizeWidget {
     return PreferredSize(
       preferredSize: preferredSize,
       child: SafeArea(
-        child: Container(
-          margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: themeState.isDarkMode
-                    ? Colors.white.withValues(alpha: 0.1)
-                    : Colors.black.withValues(alpha: 0.15),
-                offset: const Offset(0, 4),
-                blurRadius: 12,
-                spreadRadius: 0,
-              ),
-              BoxShadow(
-                color: themeState.isDarkMode
-                    ? Colors.white.withValues(alpha: 0.05)
-                    : Colors.black.withValues(alpha: 0.08),
-                offset: const Offset(0, 2),
-                blurRadius: 6,
-                spreadRadius: 0,
-              ),
-            ],
-          ),
-          child: AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            surfaceTintColor: Colors.transparent,
-            shadowColor: Colors.transparent,
-            scrolledUnderElevation: 0,
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.all(Radius.circular(12)),
+        bottom: false,
+        child: SizedBox(
+          height: preferredSize.height,
+          child: Container(
+            margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: themeState.isDarkMode
+                      ? Colors.white.withValues(alpha: 0.1)
+                      : Colors.black.withValues(alpha: 0.15),
+                  offset: const Offset(0, 4),
+                  blurRadius: 12,
+                  spreadRadius: 0,
+                ),
+                BoxShadow(
+                  color: themeState.isDarkMode
+                      ? Colors.white.withValues(alpha: 0.05)
+                      : Colors.black.withValues(alpha: 0.08),
+                  offset: const Offset(0, 2),
+                  blurRadius: 6,
+                  spreadRadius: 0,
+                ),
+              ],
             ),
-            bottom: showSearchField
-                ? PreferredSize(
-                    preferredSize: const Size.fromHeight(60),
-                    child: _buildSearchField(theme),
-                  )
-                : const PreferredSize(
-                    preferredSize: Size.zero,
-                    child: SizedBox.shrink(),
+            child: AppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              surfaceTintColor: Colors.transparent,
+              shadowColor: Colors.transparent,
+              scrolledUnderElevation: 0,
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.all(Radius.circular(12)),
+              ),
+              bottom: showSearchField
+                  ? PreferredSize(
+                      preferredSize: const Size.fromHeight(60),
+                      child: _buildSearchField(theme),
+                    )
+                  : const PreferredSize(
+                      preferredSize: Size.zero,
+                      child: SizedBox.shrink(),
+                    ),
+              title: Text(
+                title,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+              centerTitle: centerTitle,
+              leading: leading ??
+                  Builder(
+                    builder: (context) => CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      child: const Icon(
+                        Icons.menu,
+                        color: Colors.green,
+                      ),
+                      onPressed: () {
+                        Scaffold.of(context).openDrawer();
+                      },
+                    ),
                   ),
-            title: Text(
-              title,
-              style: theme.textTheme.titleLarge?.copyWith(
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
-            centerTitle: centerTitle,
-            leading: leading ??
-                Builder(
-                  builder: (context) => CupertinoButton(
+              actions: [
+                ...?actions,
+                if (showThemeSwitch)
+                  CupertinoButton(
                     padding: EdgeInsets.zero,
-                    child: const Icon(
-                      Icons.menu,
-                      color: Colors.green,
+                    child: Icon(
+                      themeState.isDarkMode
+                          ? Icons.light_mode
+                          : Icons.dark_mode,
                     ),
                     onPressed: () {
-                      Scaffold.of(context).openDrawer();
+                      ref.read(themeNotifierProvider.notifier).toggleTheme();
                     },
                   ),
-                ),
-            actions: [
-              ...?actions,
-              if (showThemeSwitch)
-                CupertinoButton(
-                  padding: EdgeInsets.zero,
-                  child: Icon(
-                    themeState.isDarkMode ? Icons.light_mode : Icons.dark_mode,
-                  ),
-                  onPressed: () {
-                    ref.read(themeNotifierProvider.notifier).toggleTheme();
-                  },
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

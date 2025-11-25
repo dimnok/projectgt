@@ -5,11 +5,19 @@ import 'package:projectgt/features/roles/presentation/providers/roles_provider.d
 /// Виджет для отображения названия роли пользователя.
 /// Загружает название роли по ID, либо использует fallback (старое поле role).
 class RoleBadge extends ConsumerWidget {
+  /// ID роли для загрузки из БД.
   final String? roleId;
+
+  /// Резервное название роли, если ID не указан или загрузка не удалась.
   final String? fallbackRole;
+
+  /// Стиль текста названия роли.
   final TextStyle? style;
+
+  /// Цвет бейджа. Если не указан, определяется автоматически.
   final Color? color;
 
+  /// Создает виджет [RoleBadge].
   const RoleBadge({
     super.key,
     this.roleId,

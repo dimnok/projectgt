@@ -1,9 +1,11 @@
 import '../../domain/entities/work.dart';
+import '../../domain/entities/light_work.dart';
+import '../../domain/entities/work_summaries.dart';
 import '../../domain/repositories/work_repository.dart';
 import '../datasources/work_data_source.dart';
-import '../datasources/work_data_source_impl.dart';
 import '../models/work_model.dart';
 import '../models/month_group.dart';
+import '../models/light_work_model.dart';
 import 'package:projectgt/core/services/photo_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -121,6 +123,13 @@ class WorkRepositoryImpl implements WorkRepository {
     return models.map(_mapToEntity).toList();
   }
 
+  /// Возвращает полные данные по выработке за месяц для графика.
+  @override
+  Future<List<LightWork>> getMonthWorksForChart(DateTime month) async {
+    final models = await dataSource.getMonthWorksForChart(month);
+    return models.map(_mapToLightEntity).toList();
+  }
+
   /// Возвращает полную статистику по объектам за месяц.
   @override
   Future<List<ObjectSummary>> getObjectsSummary(DateTime month) async {
@@ -161,6 +170,16 @@ class WorkRepositoryImpl implements WorkRepository {
       itemsCount: model.itemsCount,
       employeesCount: model.employeesCount,
       telegramMessageId: model.telegramMessageId,
+    );
+  }
+
+  /// Преобразует облегченную модель [LightWorkModel] в доменную сущность [LightWork].
+  LightWork _mapToLightEntity(LightWorkModel model) {
+    return LightWork(
+      id: model.id,
+      date: model.date,
+      totalAmount: model.totalAmount,
+      employeesCount: model.employeesCount,
     );
   }
 }

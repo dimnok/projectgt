@@ -81,8 +81,20 @@ class MonthGroupsNotifier extends StateNotifier<MonthGroupsState> {
     // Если уже развёрнута, ничего не делаем
     if (group.isExpanded) return;
 
-    // Обновляем состояние: группа развёрнута
+    // Создаем обновленный список групп
     final updatedGroups = List<MonthGroup>.from(state.groups);
+
+    // Сворачиваем все остальные группы
+    for (int i = 0; i < updatedGroups.length; i++) {
+      if (i != groupIndex && updatedGroups[i].isExpanded) {
+        updatedGroups[i] = updatedGroups[i].copyWith(
+          isExpanded: false,
+          works: null, // Освобождаем память свернутых групп
+        );
+      }
+    }
+
+    // Обновляем состояние: целевая группа развёрнута
     updatedGroups[groupIndex] = group.copyWith(isExpanded: true);
     state = state.copyWith(groups: updatedGroups);
 

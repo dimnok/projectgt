@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../data/datasources/work_data_source_impl.dart';
+import '../../domain/entities/work_summaries.dart';
 import 'repositories_providers.dart';
 
 /// Провайдер для получения полной статистики по объектам за месяц.

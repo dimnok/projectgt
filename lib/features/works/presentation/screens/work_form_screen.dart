@@ -22,6 +22,7 @@ import 'package:projectgt/core/notifications/notification_service.dart';
 import 'package:projectgt/features/works/presentation/utils/photo_upload_helper.dart';
 import 'package:projectgt/features/works/presentation/widgets/photo_loading_dialog.dart';
 import 'package:projectgt/core/utils/telegram_helper.dart';
+import 'package:projectgt/core/utils/responsive_utils.dart';
 
 /// Экран создания новой смены.
 class WorkFormScreen extends ConsumerStatefulWidget {
@@ -221,7 +222,10 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
             const SizedBox(height: 16),
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Отмена'),
+              child: Text(
+                'Отмена',
+                style: TextStyle(color: theme.colorScheme.onSurface),
+              ),
             ),
           ],
         ),
@@ -409,10 +413,8 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
       color: theme.colorScheme.surface,
       child: _isLoadingOccupiedEmployees
           ? const Center(child: CupertinoActivityIndicator())
-          : Stack(
-              children: [
-                // Основное содержимое
-                Column(
+          : Column(
+              mainAxisSize: MainAxisSize.min,
                   children: [
                     // Заголовок (закреплен сверху)
                     Container(
@@ -421,8 +423,7 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
                         color: theme.colorScheme.surface,
                         border: Border(
                           bottom: BorderSide(
-                            color: theme.colorScheme.outline
-                                .withValues(alpha: 0.2),
+                        color: theme.colorScheme.outline.withValues(alpha: 0.2),
                             width: 1,
                           ),
                         ),
@@ -435,15 +436,10 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
                     ),
 
                     // Прокручиваемое содержимое
-                    Expanded(
+                Flexible(
                       child: SingleChildScrollView(
                         controller: widget.scrollController,
-                        padding: EdgeInsets.fromLTRB(
-                          24.0,
-                          24.0,
-                          24.0,
-                          100.0 + MediaQuery.of(context).viewInsets.bottom,
-                        ),
+                    padding: const EdgeInsets.fromLTRB(24.0, 24.0, 24.0, 24.0),
                         child: ModalUtils.buildAdaptiveFormContainer(
                           context: context,
                           child: Form(
@@ -452,65 +448,173 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 // Дата
-                                TextFormField(
-                                  initialValue: dateStr,
-                                  readOnly: true,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Дата',
-                                    prefixIcon: Icon(Icons.calendar_today),
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
+                            _buildDateSection(theme, dateStr),
+                            const SizedBox(height: 24),
 
                                 // Объект и сотрудники
                                 FutureBuilder(
-                                  future:
-                                      Future.wait([allObjects, allEmployees]),
+                              future: Future.wait([allObjects, allEmployees]),
                                   builder: (context, snapshot) {
                                     if (!snapshot.hasData) {
                                       return const Center(
                                           child: CupertinoActivityIndicator());
                                     }
 
-                                    final objects = (snapshot.data![0]
-                                        as List<ObjectEntity>);
+                                final objects =
+                                    (snapshot.data![0] as List<ObjectEntity>);
                                     final employees =
                                         (snapshot.data![1] as List<Employee>);
                                     final profileObjectIds =
                                         profile?.objectIds ?? [];
                                     final availableObjects = objects
-                                        .where((o) =>
-                                            profileObjectIds.contains(o.id))
+                                    .where(
+                                        (o) => profileObjectIds.contains(o.id))
                                         .toList();
 
                                     return Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         // Выбор объекта
-                                        GTStringDropdown(
-                                          items: availableObjects
-                                              .map((obj) => obj.name)
-                                              .toList(),
-                                          selectedItem:
-                                              _selectedObjectId != null
+                                    _buildObjectSelector(
+                                      availableObjects,
+                                      theme,
+                                    ),
+                                    const SizedBox(height: 24),
+
+                                    // Сотрудники
+                                    Text(
+                                      'Сотрудники',
+                                      style: theme.textTheme.titleMedium
+                                          ?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Отображаются только активные сотрудники',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: theme.colorScheme.secondary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    _buildEmployeesList(employees, theme),
+                                    const SizedBox(height: 24),
+
+                                    // Фото смены
+                                    Text(
+                                      'Фото смены',
+                                      style: theme.textTheme.titleMedium
+                                          ?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    _buildPhotoSection(theme),
+                                    const SizedBox(height: 24),
+
+                                    // Кнопки управления (теперь внутри скролла, под фото)
+                                    _buildActionButtons(context),
+                                  ],
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildActionButtons(BuildContext context) {
+    final isMobile = ResponsiveUtils.isMobile(context);
+    final buttonHeight = isMobile ? 44.0 : 48.0;
+
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton(
+            onPressed: () => Navigator.pop(context),
+            style: OutlinedButton.styleFrom(
+              minimumSize: Size.fromHeight(buttonHeight),
+              shape: const StadiumBorder(),
+              textStyle:
+                  const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            child: const Text('Отмена'),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: ElevatedButton(
+            onPressed: _isLoadingOccupiedEmployees
+                ? null
+                : () {
+                    if (_selectedObjectId != null &&
+                        _selectedEmployeeIds.isNotEmpty &&
+                        !_isLoadingOccupiedEmployees) {
+                      _saveWork();
+                    }
+                  },
+            style: ElevatedButton.styleFrom(
+              minimumSize: Size.fromHeight(buttonHeight),
+              shape: const StadiumBorder(),
+              elevation: isMobile ? 4 : 1,
+              textStyle:
+                  const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            child: _isLoadingOccupiedEmployees
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CupertinoActivityIndicator(),
+                  )
+                : const Text('Открыть'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDateSection(ThemeData theme, String dateStr) {
+    return Row(
+      children: [
+        Icon(
+          Icons.calendar_today,
+          size: 20,
+          color: theme.colorScheme.secondary,
+        ),
+        const SizedBox(width: 10),
+        Text(
+          dateStr,
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildObjectSelector(
+      List<ObjectEntity> availableObjects, ThemeData theme) {
+    return GTStringDropdown(
+      items: availableObjects.map((obj) => obj.name).toList(),
+      selectedItem: _selectedObjectId != null
                                                   ? availableObjects
-                                                      .where((obj) =>
-                                                          obj.id ==
-                                                          _selectedObjectId)
+              .where((obj) => obj.id == _selectedObjectId)
                                                       .map((obj) => obj.name)
                                                       .firstOrNull
                                                   : null,
                                           onSelectionChanged: (selectedName) {
                                             if (selectedName != null) {
-                                              final selectedObject =
-                                                  availableObjects.firstWhere(
-                                                      (obj) =>
-                                                          obj.name ==
-                                                          selectedName);
+          final selectedObject = availableObjects
+              .firstWhere((obj) => obj.name == selectedName);
                                               setState(() {
-                                                _selectedObjectId =
-                                                    selectedObject.id;
+            _selectedObjectId = selectedObject.id;
                                                 _selectedEmployeeIds.clear();
                                               });
                                               _updateOccupiedEmployees();
@@ -518,8 +622,7 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
                                               setState(() {
                                                 _selectedObjectId = null;
                                                 _selectedEmployeeIds.clear();
-                                                _cachedOccupiedEmployeeIds =
-                                                    null;
+            _cachedOccupiedEmployeeIds = null;
                                               });
                                             }
                                           },
@@ -534,139 +637,108 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
                                             }
                                             return null;
                                           },
-                                        ),
-                                        const SizedBox(height: 16),
+    );
+  }
 
-                                        // Сотрудники
-                                        Text('Сотрудники',
-                                            style: theme.textTheme.bodyLarge),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          'Отображаются только сотрудники со статусом "Работает"',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: theme.colorScheme.secondary,
-                                            fontStyle: FontStyle.italic,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        _buildEmployeesList(employees, theme),
-                                        const SizedBox(height: 16),
+  Widget _buildPhotoSection(ThemeData theme) {
+    final hasPhoto =
+        _selectedPhotoFile != null || _selectedPhotoBytes != null;
+    final isDark = theme.brightness == Brightness.dark;
 
-                                        // Фото смены
-                                        if (_selectedPhotoFile != null ||
-                                            _selectedPhotoBytes != null)
-                                          // Превью локального фото
-                                          Container(
-                                            width: double.infinity,
+    return InkWell(
+      onTap: _selectedObjectId != null ? _showPhotoOptions : null,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
                                             height: 200,
+        width: double.infinity,
                                             decoration: BoxDecoration(
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
+          color: isDark ? Colors.grey[900] : Colors.grey[50],
                                               border: Border.all(
-                                                color: theme.colorScheme.outline
-                                                    .withValues(alpha: 0.2),
-                                              ),
-                                            ),
-                                            child: ClipRRect(
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
-                                              child: _selectedPhotoBytes != null
-                                                  ? Image.memory(
+            color: hasPhoto
+                ? Colors.transparent
+                : theme.colorScheme.outline.withValues(alpha: 0.3),
+            width: 1,
+          ),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: hasPhoto
+            ? Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (_selectedPhotoBytes != null)
+                    Image.memory(
                                                       _selectedPhotoBytes!,
                                                       fit: BoxFit.cover,
                                                     )
-                                                  : Image.file(
+                  else
+                    Image.file(
                                                       _selectedPhotoFile!,
                                                       fit: BoxFit.cover,
-                                                      errorBuilder: (context,
-                                                              error,
-                                                              stackTrace) =>
-                                                          Icon(
+                      errorBuilder: (context, error, stackTrace) => Icon(
                                                         Icons.broken_image,
-                                                        color: theme
-                                                            .colorScheme.error,
+                        color: theme.colorScheme.error,
                                                         size: 48,
                                                       ),
                                                     ),
-                                            ),
-                                          )
-                                        else
-                                          // Кнопка добавления фото (обязательное поле)
-                                          Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              OutlinedButton.icon(
-                                                onPressed:
-                                                    _selectedObjectId != null
-                                                        ? _showPhotoOptions
-                                                        : null,
-                                                icon: const Icon(
-                                                    Icons.add_a_photo),
-                                                label: Text(_selectedObjectId !=
-                                                        null
-                                                    ? 'Добавить фото смены *'
-                                                    : 'Сначала выберите объект'),
-                                                style: OutlinedButton.styleFrom(
-                                                  minimumSize:
-                                                      const Size.fromHeight(48),
-                                                  shape: RoundedRectangleBorder(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            8),
-                                                  ),
-                                                  side: BorderSide(
-                                                    color: theme
-                                                        .colorScheme.error
-                                                        .withValues(alpha: 0.8),
-                                                    width: 1,
+                  // Градиент для читаемости кнопки удаления
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.4),
+                        borderRadius: const BorderRadius.only(
+                          bottomLeft: Radius.circular(12),
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.delete_outline,
+                        color: Colors.white,
+                        size: 24,
                                                   ),
                                                 ),
                                               ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                'Фото смены обязательно',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color:
-                                                      theme.colorScheme.error,
-                                                  fontStyle: FontStyle.italic,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        const SizedBox(
-                                            height:
-                                                100), // Место для плавающих кнопок
-                                      ],
-                                    );
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
+                ],
+              )
+            : Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.add_a_photo_outlined,
+                      size: 48,
+                      color: _selectedObjectId != null
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.outline,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      _selectedObjectId != null
+                          ? 'Добавить фото'
+                          : 'Сначала выберите объект',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: _selectedObjectId != null
+                            ? theme.colorScheme.onSurface
+                            : theme.colorScheme.outline,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    if (_selectedObjectId != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          '* Обязательно',
+                          style: TextStyle(
+                            color: theme.colorScheme.error,
+                            fontSize: 12,
                         ),
                       ),
                     ),
                   ],
                 ),
-
-                // Плавающие кнопки (как в модуле сотрудников)
-                ModalUtils.buildFloatingButtons(
-                  onSave: () {
-                    if (_selectedObjectId != null &&
-                        _selectedEmployeeIds.isNotEmpty &&
-                        !_isLoadingOccupiedEmployees) {
-                      _saveWork();
-                    }
-                  },
-                  onCancel: () => Navigator.pop(context),
-                  isLoading: _isLoadingOccupiedEmployees,
-                  saveText: 'Открыть смену *',
-                  scrollController: widget.scrollController,
-                ),
-              ],
+              ),
             ),
     );
   }
@@ -676,11 +748,19 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
     if (_selectedObjectId == null) {
       return Container(
         padding: const EdgeInsets.all(16),
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest
+              .withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Center(
         child: Text(
           'Выберите объект для отображения сотрудников',
           style: TextStyle(
             color: theme.colorScheme.onSurfaceVariant,
-            fontStyle: FontStyle.italic,
+            ),
+            textAlign: TextAlign.center,
           ),
         ),
       );
@@ -708,35 +788,153 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
 
     if (availableEmployees.isEmpty) {
       return Container(
-        padding: const EdgeInsets.all(16),
-        child: Text(
-          'Нет доступных сотрудников для выбранного объекта',
-          style: TextStyle(
-            color: theme.colorScheme.onSurfaceVariant,
-            fontStyle: FontStyle.italic,
-          ),
+        padding: const EdgeInsets.all(24),
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest
+              .withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            Icon(
+              Icons.people_outline,
+              size: 48,
+              color: theme.colorScheme.outline,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Нет доступных сотрудников',
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Все сотрудники на этом объекте уже заняты или не найдены',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.secondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       );
     }
 
-    return Column(
-      children: availableEmployees.map((emp) {
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: availableEmployees.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 8),
+      itemBuilder: (context, index) {
+        final emp = availableEmployees[index];
         final isSelected = _selectedEmployeeIds.contains(emp.id);
-        return CheckboxListTile(
-          value: isSelected,
-          title: Text(
-              '${emp.lastName} ${emp.firstName}${emp.middleName != null && emp.middleName!.isNotEmpty ? ' ${emp.middleName}' : ''}'),
-          onChanged: (checked) {
+
+        return _EmployeeSelectionTile(
+          employee: emp,
+          isSelected: isSelected,
+          onTap: () {
             setState(() {
-              if (checked == true) {
-                _selectedEmployeeIds.add(emp.id);
-              } else {
+              if (isSelected) {
                 _selectedEmployeeIds.remove(emp.id);
+              } else {
+                _selectedEmployeeIds.add(emp.id);
               }
             });
           },
         );
-      }).toList(),
+      },
+    );
+  }
+}
+
+class _EmployeeSelectionTile extends StatelessWidget {
+  final Employee employee;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _EmployeeSelectionTile({
+    required this.employee,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? (isDark ? Colors.white : Colors.black)
+              : theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected
+                ? (isDark ? Colors.white : Colors.black)
+                : theme.colorScheme.outline.withValues(alpha: 0.3),
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          children: [
+            // Чекбокс (кастомный)
+            Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected ? Colors.green : theme.colorScheme.outline,
+                  width: 2,
+                ),
+                color: isSelected ? Colors.green : Colors.transparent,
+              ),
+              child: isSelected
+                  ? const Icon(
+                      Icons.check,
+                      size: 16,
+                      color: Colors.white,
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${employee.lastName} ${employee.firstName}',
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: isSelected
+                          ? (isDark ? Colors.black : Colors.white)
+                          : theme.colorScheme.onSurface,
+                    ),
+                  ),
+                  if (employee.middleName != null &&
+                      employee.middleName!.isNotEmpty)
+                    Text(
+                      employee.middleName!,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: isSelected
+                            ? (isDark ? Colors.black54 : Colors.white70)
+                            : theme.colorScheme.secondary,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -760,15 +958,22 @@ class _PhotoOptionButton extends StatelessWidget {
         InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(24),
-          child: CircleAvatar(
-            radius: 24,
-            backgroundColor: Theme.of(context).colorScheme.primary,
-            child: Icon(icon,
-                color: Theme.of(context).colorScheme.onPrimary, size: 24),
+          child: Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primaryContainer,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              icon,
+              color: Theme.of(context).colorScheme.onPrimaryContainer,
+              size: 32,
+            ),
           ),
         ),
         const SizedBox(height: 8),
-        Text(label, style: Theme.of(context).textTheme.bodySmall),
+        Text(label, style: Theme.of(context).textTheme.bodyMedium),
       ],
     );
   }

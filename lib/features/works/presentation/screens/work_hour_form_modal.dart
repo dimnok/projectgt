@@ -400,7 +400,6 @@ class _WorkHourFormModalState extends ConsumerState<WorkHourFormModal> {
                   onCancel: () => Navigator.pop(context),
                   isLoading: _isLoading,
                   saveText: 'Сохранить',
-                  scrollController: widget.scrollController,
                 ),
               ],
             ),

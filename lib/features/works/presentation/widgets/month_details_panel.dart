@@ -3,27 +3,27 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../data/models/month_group.dart';
+import '../../domain/entities/light_work.dart';
 import '../providers/month_groups_provider.dart';
 import '../providers/month_summary_provider.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
+import 'package:projectgt/features/works/presentation/providers/month_chart_data_provider.dart';
+import 'package:projectgt/features/works/presentation/widgets/daily_work_chart.dart';
 
-/// Виджет для отображения детальной информации о месяце.
-///
-/// Показывается в правой панели на десктопе при клике на заголовок месяца.
-/// Загружает детальные данные смен для расчёта статистики по объектам, системам и сотрудникам.
+/// Панель детальной информации за месяц (графики, KPI, статистика).
 class MonthDetailsPanel extends ConsumerStatefulWidget {
-  /// Группа месяца для отображения.
+  /// Группа смен за месяц.
   final MonthGroup group;
 
-  /// Флаг, указывающий, что панель используется как самостоятельный мобильный экран.
+  /// Флаг отображения AppBar для мобильных устройств.
   final bool showMobileAppBar;
 
-  /// Использовать ли grouped background (серый фон в стиле iOS секций).
+  /// Флаг использования фона с группировкой.
   final bool useGroupedBackground;
 
-  /// Создаёт панель с информацией о месяце.
+  /// Создаёт панель деталей месяца.
   const MonthDetailsPanel({
     super.key,
     required this.group,
@@ -37,19 +37,14 @@ class MonthDetailsPanel extends ConsumerStatefulWidget {
 
 class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
   @override
-  void initState() {
-    super.initState();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final monthName =
         DateFormat('LLLL yyyy', 'ru_RU').format(widget.group.month);
     final isMobileLayout =
         widget.showMobileAppBar || ResponsiveUtils.isMobile(context);
+    final isDesktop = !isMobileLayout;
 
-    // Получаем актуальное состояние группы из provider
     final monthGroupsState = ref.watch(monthGroupsProvider);
     final currentGroup = monthGroupsState.groups.firstWhere(
       (g) => g.month == widget.group.month,
@@ -59,12 +54,14 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
     final works = currentGroup.works;
     final isLoading = works == null;
 
-    // Загружаем детальные данные после загрузки смен
-    if (works != null && works.isNotEmpty) {}
-
-    // Рассчитываем дополнительную статистику
     final totalEmployees = _calculateTotalEmployees();
     final totalHours = _calculateTotalHours();
+
+    // Загружаем полные данные для графика и расчетов KPI
+    final chartDataAsync =
+        ref.watch(monthChartDataProvider(widget.group.month));
+    final fullWorks = chartDataAsync.valueOrNull;
+    final averagePerEmployee = _calculateAveragePerEmployee(fullWorks);
 
     final formattedMonthTitle = monthName
         .split(' ')
@@ -78,9 +75,8 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
     final groupedBackgroundColor = theme.brightness == Brightness.light
         ? const Color(0xFFF2F2F7)
         : const Color(0xFF1C1C1E);
-    final scaffoldBackgroundColor = isGroupedBackground
-        ? groupedBackgroundColor
-        : theme.colorScheme.surface;
+    final scaffoldBackgroundColor =
+        isGroupedBackground ? groupedBackgroundColor : Colors.transparent;
 
     return Scaffold(
       backgroundColor: scaffoldBackgroundColor,
@@ -96,440 +92,271 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
           ? const Center(child: CupertinoActivityIndicator())
           : SingleChildScrollView(
               padding: EdgeInsets.symmetric(
-                horizontal: isMobileLayout ? 16 : 24,
-                vertical: isMobileLayout ? 20 : 24,
+                horizontal: isMobileLayout ? 16 : 0,
+                vertical: isMobileLayout ? 20 : 0,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (!isMobileLayout) ...[
-                    Center(
-                      child: Column(
-                        children: [
-                          Container(
-                            width: 100,
-                            height: 100,
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.primaryContainer,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.calendar_month_rounded,
-                              size: 50,
-                              color: theme.colorScheme.onPrimaryContainer,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            monthName.split(' ').map((word) {
-                              return word[0].toUpperCase() + word.substring(1);
-                            }).join(' '),
-                            style: theme.textTheme.headlineMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          if (currentGroup.isCurrentMonth) ...[
-                            const SizedBox(height: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: theme.colorScheme.primaryContainer,
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Text(
-                                'Текущий месяц',
-                                style: theme.textTheme.labelMedium?.copyWith(
-                                  color: theme.colorScheme.onPrimaryContainer,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
+                  if (isDesktop) ...[
+                    _buildHeaderDesktop(
+                      context,
+                      formattedMonthTitle,
+                      currentGroup.isCurrentMonth,
                     ),
-                    const SizedBox(height: 32),
-                  ] else ...[
-                    const SizedBox(height: 12),
-                  ],
+                    const SizedBox(height: 24),
 
-                  // Основная статистика (в 2 столбца)
-                  _buildSectionTitle(context, 'Общая статистика'),
-                  const SizedBox(height: 12),
-                  if (isMobileLayout)
-                    _AppleMenuGroup(
+                    // --- График выработки ---
+                    _buildDailyChart(context, chartDataAsync),
+                    const SizedBox(height: 24),
+                  ] else
+                    const SizedBox(height: 12),
+
+                  // --- KPI Карточки ---
+                  if (isDesktop)
+                    _buildKpiGridDesktop(context, currentGroup,
+                        averagePerEmployee, totalEmployees, totalHours)
+                  else
+                    _buildKpiListMobile(context, currentGroup,
+                        averagePerEmployee, totalEmployees, totalHours),
+
+                  const SizedBox(height: 32),
+
+                  if (isDesktop)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _AppleMenuItem(
-                          icon: Icons.work_outline,
-                          iconColor: Colors.blue,
-                          title: 'Всего смен',
-                          trailing: Text(
-                            '${currentGroup.worksCount}',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildSectionTitle(context, 'По системам'),
+                              const SizedBox(height: 12),
+                              _buildSystemsStats(context, isDesktop: true),
+                            ],
                           ),
                         ),
-                        _AppleMenuItem(
-                          icon: Icons.payments_outlined,
-                          iconColor: Colors.green,
-                          title: 'Общая сумма',
-                          trailing: Text(
-                            formatCurrency(currentGroup.totalAmount),
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        _AppleMenuItem(
-                          icon: Icons.calculate_outlined,
-                          iconColor: Colors.orange,
-                          title: 'Средняя смена',
-                          trailing: Text(
-                            currentGroup.worksCount > 0
-                                ? formatCurrency(
-                                    currentGroup.totalAmount /
-                                        currentGroup.worksCount,
-                                  )
-                                : formatCurrency(0),
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        _AppleMenuItem(
-                          icon: Icons.person_outline,
-                          iconColor: Colors.purple,
-                          title: 'Средняя выработка',
-                          trailing: Text(
-                            _calculateAveragePerEmployee(works),
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        _AppleMenuItem(
-                          icon: Icons.people_outline,
-                          iconColor: Colors.teal,
-                          title: 'Всего специалистов',
-                          trailing: Text(
-                            '$totalEmployees',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        _AppleMenuItem(
-                          icon: Icons.schedule_outlined,
-                          iconColor: Colors.deepOrange,
-                          title: 'Всего часов',
-                          trailing: Text(
-                            totalHours > 0
-                                ? totalHours.toStringAsFixed(0)
-                                : '0',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
+                        const SizedBox(width: 24),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildSectionTitle(context, 'По объектам'),
+                              const SizedBox(height: 12),
+                              _buildObjectsStats(context, isDesktop: true),
+                            ],
                           ),
                         ),
                       ],
                     )
-                  else ...[
-                    Row(
+                  else
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Expanded(
-                          child: _buildStatCard(
-                            context: context,
-                            icon: Icons.work_rounded,
-                            label: 'Всего смен',
-                            value: '${currentGroup.worksCount}',
-                            color: Colors.blue,
-                            isCompact: true,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _buildStatCard(
-                            context: context,
-                            icon: Icons.payments_rounded,
-                            label: 'Общая сумма',
-                            value: formatCurrency(currentGroup.totalAmount),
-                            color: Colors.green,
-                            isCompact: true,
-                          ),
-                        ),
+                        _buildSectionTitle(context, 'По системам'),
+                        const SizedBox(height: 12),
+                        _buildSystemsStats(context, isDesktop: false),
+                        const SizedBox(height: 32),
+                        _buildSectionTitle(context, 'По объектам'),
+                        const SizedBox(height: 12),
+                        _buildObjectsStats(context, isDesktop: false),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildStatCard(
-                            context: context,
-                            icon: Icons.calculate_rounded,
-                            label: 'Средняя смена',
-                            value: currentGroup.worksCount > 0
-                                ? formatCurrency(
-                                    currentGroup.totalAmount /
-                                        currentGroup.worksCount,
-                                  )
-                                : formatCurrency(0),
-                            color: Colors.orange,
-                            isCompact: true,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _buildStatCard(
-                            context: context,
-                            icon: Icons.person_rounded,
-                            label: 'Средняя выработка',
-                            value: _calculateAveragePerEmployee(works),
-                            color: Colors.purple,
-                            isCompact: true,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildStatCard(
-                            context: context,
-                            icon: Icons.people_rounded,
-                            label: 'Всего специалистов',
-                            value: '$totalEmployees',
-                            color: Colors.teal,
-                            isCompact: true,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _buildStatCard(
-                            context: context,
-                            icon: Icons.schedule_rounded,
-                            label: 'Всего часов',
-                            value: totalHours > 0
-                                ? totalHours.toStringAsFixed(0)
-                                : '0',
-                            color: Colors.deepOrange,
-                            isCompact: true,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
 
                   const SizedBox(height: 32),
-
-                  // Статистика по системам (вертикально)
-                  _buildSectionTitle(context, 'По системам'),
-                  const SizedBox(height: 12),
-                  _buildSystemsStats(context, works),
-
-                  const SizedBox(height: 32),
-
-                  // Статистика по объектам (вертикально)
-                  _buildSectionTitle(context, 'По объектам'),
-                  const SizedBox(height: 12),
-                  _buildObjectsStats(context, works),
-
-                  const SizedBox(height: 32),
-
-                  // Hint
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: theme.colorScheme.outlineVariant,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.info_outline,
-                          size: 20,
-                          color: theme.colorScheme.primary,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Кликните на заголовок месяца, чтобы раскрыть/свернуть список смен',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                 ],
               ),
             ),
     );
   }
 
-  /// Заголовок секции.
-  Widget _buildSectionTitle(BuildContext context, String title) {
+  Widget _buildDailyChart(
+      BuildContext context, AsyncValue<List<LightWork>> chartDataAsync) {
+    return chartDataAsync.when(
+      data: (data) {
+        if (data.isEmpty) return const SizedBox.shrink();
+        return DailyWorkChart(
+          works: data,
+          month: widget.group.month,
+          isDesktop: true,
+        );
+      },
+      loading: () => const SizedBox(
+        height: 200,
+        child: Center(child: CupertinoActivityIndicator()),
+      ),
+      error: (e, s) => const SizedBox.shrink(),
+    );
+  }
+
+  Widget _buildHeaderDesktop(
+      BuildContext context, String title, bool isCurrentMonth) {
     final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(left: 4),
-      child: Text(
-        title,
-        style: theme.textTheme.titleMedium?.copyWith(
-          fontWeight: FontWeight.bold,
-          color: theme.colorScheme.onSurface,
-        ),
-      ),
-    );
-  }
-
-  /// Рассчитывает среднюю выработку на специалиста.
-  String _calculateAveragePerEmployee(List works) {
-    if (works.isEmpty) return '0 ₽';
-
-    final totalEmployees = works.fold<int>(
-      0,
-      (sum, work) => sum + ((work.employeesCount ?? 0) as int),
-    );
-
-    if (totalEmployees == 0) return '0 ₽';
-
-    final totalAmount = works.fold<double>(
-      0,
-      (sum, work) => sum + ((work.totalAmount ?? 0) as double),
-    );
-
-    return formatCurrency(totalAmount / totalEmployees);
-  }
-
-  /// Рассчитывает общее количество уникальных специалистов.
-  int _calculateTotalEmployees() {
-    final employeesAsync =
-        ref.watch(monthTotalEmployeesProvider(widget.group.month));
-    return employeesAsync.when(
-      data: (summary) => summary.totalEmployees,
-      loading: () => 0,
-      error: (_, __) => 0,
-    );
-  }
-
-  /// Рассчитывает общее количество часов.
-  double _calculateTotalHours() {
-    final hoursAsync = ref.watch(monthTotalHoursProvider(widget.group.month));
-    return hoursAsync.when(
-      data: (summary) => summary.totalHours,
-      loading: () => 0,
-      error: (_, __) => 0,
-    );
-  }
-
-  /// Строит статистику по системам.
-  Widget _buildSystemsStats(BuildContext context, List works) {
-    if (works.isEmpty) {
-      return _buildEmptyState(context, 'Нет данных по системам');
-    }
-
-    // Загружаем полную статистику по системам с сервера
-    final systemsSummaryAsync =
-        ref.watch(systemsSummaryProvider(widget.group.month));
-
-    return systemsSummaryAsync.when(
-      data: (summaries) {
-        if (summaries.isEmpty) {
-          return _buildEmptyState(context, 'Нет данных по системам');
-        }
-
-        return Column(
-          children: summaries.map((stat) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: _buildSystemCard(
-                context: context,
-                systemName: stat.system,
-                itemsCount: stat.itemsCount,
-                totalAmount: stat.totalAmount,
+    return Row(
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.5,
               ),
-            );
-          }).toList(),
-        );
-      },
-      loading: () => const Center(
-        child: Padding(
-          padding: EdgeInsets.all(16),
-          child: CircularProgressIndicator(),
-        ),
-      ),
-      error: (error, stackTrace) => _buildEmptyState(
-        context,
-        'Ошибка загрузки: $error',
-      ),
-    );
-  }
-
-  /// Строит статистику по объектам.
-  Widget _buildObjectsStats(BuildContext context, List works) {
-    if (works.isEmpty) {
-      return _buildEmptyState(context, 'Нет данных по объектам');
-    }
-
-    // Загружаем полную статистику по объектам с сервера
-    final objectsSummaryAsync =
-        ref.watch(objectsSummaryProvider(widget.group.month));
-
-    return objectsSummaryAsync.when(
-      data: (summaries) {
-        if (summaries.isEmpty) {
-          return _buildEmptyState(context, 'Нет данных по объектам');
-        }
-
-        return Column(
-          children: summaries.map((stat) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: _buildObjectCard(
-                context: context,
-                objectName: stat.objectName,
-                worksCount: stat.worksCount,
-                totalAmount: stat.totalAmount,
+            ),
+            if (isCurrentMonth)
+              Container(
+                margin: const EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.secondaryContainer
+                      .withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'Текущий месяц',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSecondaryContainer,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
-            );
-          }).toList(),
-        );
-      },
-      loading: () => const Center(
-        child: Padding(
-          padding: EdgeInsets.all(16),
-          child: CircularProgressIndicator(),
+          ],
         ),
-      ),
-      error: (error, stackTrace) => _buildEmptyState(
-        context,
-        'Ошибка загрузки: $error',
-      ),
+      ],
     );
   }
 
-  /// Карточка объекта.
-  Widget _buildObjectCard({
+  Widget _buildKpiGridDesktop(BuildContext context, MonthGroup group,
+      String averagePerEmployee, int totalEmployees, double totalHours) {
+    return LayoutBuilder(builder: (context, constraints) {
+      // Адаптивная сетка: 3 колонки, 2 ряда для десктопа
+      return Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: _buildKpiCard(
+                  context: context,
+                  title: 'Общая сумма',
+                  value: formatCurrency(group.totalAmount),
+                  icon: CupertinoIcons.money_dollar_circle_fill,
+                  color: Colors.green,
+                  isLarge: true,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildKpiCard(
+                  context: context,
+                  title: 'Всего смен',
+                  value: '${group.worksCount}',
+                  icon: CupertinoIcons.briefcase_fill,
+                  color: Colors.blue,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildKpiCard(
+                  context: context,
+                  title: 'Специалистов',
+                  value: '$totalEmployees',
+                  icon: CupertinoIcons.person_3_fill,
+                  color: Colors.teal,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildKpiCard(
+                  context: context,
+                  title: 'Часов',
+                  value: totalHours > 0 ? totalHours.toStringAsFixed(0) : '0',
+                  icon: CupertinoIcons.time_solid,
+                  color: Colors.deepOrange,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildKpiCard(
+                  context: context,
+                  title: 'Средняя смена',
+                  value: group.worksCount > 0
+                      ? formatCurrency(
+                          group.totalAmount / group.worksCount,
+                        )
+                      : formatCurrency(0),
+                  icon: CupertinoIcons.chart_bar_square_fill,
+                  color: Colors.orange,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildKpiCard(
+                  context: context,
+                  title: 'Выработка / чел.',
+                  value: averagePerEmployee,
+                  icon: CupertinoIcons.person_crop_circle_fill,
+                  color: Colors.purple,
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+    });
+  }
+
+  Widget _buildKpiListMobile(BuildContext context, MonthGroup group,
+      String averagePerEmployee, int totalEmployees, double totalHours) {
+    // Используем старый AppleMenuGroup для мобилки
+    return _AppleMenuGroup(
+      children: [
+        _AppleMenuItem(
+          icon: CupertinoIcons.money_dollar_circle,
+          iconColor: Colors.green,
+          title: 'Общая сумма',
+          trailing: Text(
+            formatCurrency(group.totalAmount),
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+        ),
+        _AppleMenuItem(
+          icon: CupertinoIcons.briefcase,
+          iconColor: Colors.blue,
+          title: 'Всего смен',
+          trailing: Text(
+            '${group.worksCount}',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildKpiCard({
     required BuildContext context,
-    required String objectName,
-    required int worksCount,
-    required double totalAmount,
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+    bool isLarge = false,
   }) {
     final theme = Theme.of(context);
-
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
+        color: theme.colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: theme.colorScheme.outlineVariant,
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Column(
@@ -537,39 +364,174 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
         children: [
           Row(
             children: [
-              Icon(
-                Icons.location_on_rounded,
-                size: 20,
-                color: theme.colorScheme.primary,
-              ),
-              const SizedBox(width: 8),
+              Icon(icon, size: 20, color: color),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  objectName,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
+                  title,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
                   ),
-                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Text(
+            value,
+            style: isLarge
+                ? theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
+                    letterSpacing: -0.5,
+                  )
+                : theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: theme.colorScheme.onSurface,
+                    letterSpacing: -0.5,
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSystemsStats(BuildContext context, {bool isDesktop = false}) {
+    final systemsSummaryAsync =
+        ref.watch(systemsSummaryProvider(widget.group.month));
+
+    return systemsSummaryAsync.when(
+      data: (summaries) {
+        if (summaries.isEmpty) {
+          return _buildEmptyState(context, 'Нет данных по системам', isDesktop);
+        }
+
+        if (isDesktop) {
+          return Column(
+            children: summaries
+                .map((stat) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: _buildListItemDesktop(
+                        context: context,
+                        icon: CupertinoIcons.hammer_fill,
+                        iconColor: Colors.indigo,
+                        title: stat.system,
+                        subtitle: '${stat.itemsCount} раб.',
+                        value: formatCurrency(stat.totalAmount),
+                      ),
+                    ))
+                .toList(),
+          );
+        }
+
+        return Column(
+          children: summaries
+              .map((stat) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: _buildListItemDesktop(
+                        context: context,
+                        icon: CupertinoIcons.hammer_fill,
+                        iconColor: Colors.indigo,
+                        title: stat.system,
+                        subtitle: '${stat.itemsCount} раб.',
+                        value: formatCurrency(stat.totalAmount)),
+                  ))
+              .toList(),
+        );
+      },
+      loading: () => const Center(child: CupertinoActivityIndicator()),
+      error: (e, s) => _buildEmptyState(context, 'Ошибка: $e', isDesktop),
+    );
+  }
+
+  Widget _buildObjectsStats(BuildContext context, {bool isDesktop = false}) {
+    final objectsSummaryAsync =
+        ref.watch(objectsSummaryProvider(widget.group.month));
+
+    return objectsSummaryAsync.when(
+      data: (summaries) {
+        if (summaries.isEmpty) {
+          return _buildEmptyState(context, 'Нет данных по объектам', isDesktop);
+        }
+
+        return Column(
+          children: summaries
+              .map((stat) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: _buildListItemDesktop(
+                      context: context,
+                      icon: CupertinoIcons.location_solid,
+                      iconColor: Colors.redAccent,
+                      title: stat.objectName,
+                      subtitle: '${stat.worksCount} смен',
+                      value: formatCurrency(stat.totalAmount),
+                    ),
+                  ))
+              .toList(),
+        );
+      },
+      loading: () => const Center(child: CupertinoActivityIndicator()),
+      error: (e, s) => _buildEmptyState(context, 'Ошибка: $e', isDesktop),
+    );
+  }
+
+  Widget _buildListItemDesktop({
+    required BuildContext context,
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required String value,
+  }) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: iconColor),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              _buildMiniStat(
-                context: context,
-                label: 'Смен',
-                value: '$worksCount',
-                color: Colors.blue,
+              Text(
+                value,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: theme.colorScheme.onSurface,
+                  letterSpacing: -0.3,
+                ),
               ),
-              _buildMiniStat(
-                context: context,
-                label: 'Сумма',
-                value: formatCurrency(totalAmount),
-                color: Colors.green,
+              Text(
+                subtitle,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ],
           ),
@@ -578,101 +540,30 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
     );
   }
 
-  /// Мини-статистика внутри карточки.
-  Widget _buildMiniStat({
-    required BuildContext context,
-    required String label,
-    required String value,
-    required Color color,
-  }) {
+  Widget _buildSectionTitle(BuildContext context, String title) {
     final theme = Theme.of(context);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Text(
+        title,
+        style: theme.textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w700,
+          color: theme.colorScheme.onSurface,
         ),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: theme.textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Карточка системы.
-  Widget _buildSystemCard({
-    required BuildContext context,
-    required String systemName,
-    required int itemsCount,
-    required double totalAmount,
-  }) {
-    final theme = Theme.of(context);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant,
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.construction_rounded,
-            size: 16,
-            color: theme.colorScheme.secondary,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              systemName,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            '$itemsCount раб.',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: Colors.indigo,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            formatCurrency(totalAmount),
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: Colors.green,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
       ),
     );
   }
 
-  /// Пустое состояние.
-  Widget _buildEmptyState(BuildContext context, String message) {
+  Widget _buildEmptyState(
+      BuildContext context, String message, bool isDesktop) {
     final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
+        color: theme.colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
       ),
       child: Center(
         child: Text(
@@ -685,128 +576,30 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
     );
   }
 
-  /// Создаёт карточку со статистикой.
-  Widget _buildStatCard({
-    required BuildContext context,
-    required IconData icon,
-    required String label,
-    required String value,
-    required Color color,
-    bool isCompact = false,
-  }) {
-    final theme = Theme.of(context);
+  String _calculateAveragePerEmployee(List<LightWork>? works) {
+    if (works == null || works.isEmpty) return '0 ₽';
+    final totalEmployees =
+        works.fold<int>(0, (sum, work) => sum + work.employeesCount);
+    if (totalEmployees == 0) return '0 ₽';
+    final totalAmount =
+        works.fold<double>(0, (sum, work) => sum + work.totalAmount);
+    return formatCurrency(totalAmount / totalEmployees);
+  }
 
-    if (isCompact) {
-      // Компактная версия для сетки 2x2
-      return Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: color.withValues(alpha: 0.3),
-            width: 1.5,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    icon,
-                    size: 20,
-                    color: color,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    label,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
+  int _calculateTotalEmployees() {
+    final employeesAsync =
+        ref.watch(monthTotalEmployeesProvider(widget.group.month));
+    return employeesAsync.when(
+        data: (s) => s.totalEmployees, loading: () => 0, error: (_, __) => 0);
+  }
 
-    // Полная версия
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: color.withValues(alpha: 0.3),
-          width: 1.5,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              icon,
-              size: 24,
-              color: color,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+  double _calculateTotalHours() {
+    final hoursAsync = ref.watch(monthTotalHoursProvider(widget.group.month));
+    return hoursAsync.when(
+        data: (s) => s.totalHours, loading: () => 0, error: (_, __) => 0);
   }
 }
 
-/// Группа элементов в стиле iOS для компактного отображения статистики.
 class _AppleMenuGroup extends StatelessWidget {
   const _AppleMenuGroup({
     required this.children,
@@ -819,7 +612,7 @@ class _AppleMenuGroup extends StatelessWidget {
     final theme = Theme.of(context);
     return Container(
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+        color: theme.colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(12),
       ),
       child: ClipRRect(
@@ -876,18 +669,10 @@ class _AppleMenuItem extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              icon,
-              color: iconColor,
-              size: 18,
-            ),
+          Icon(
+            icon,
+            color: iconColor,
+            size: 20,
           ),
           const SizedBox(width: 12),
           Expanded(
