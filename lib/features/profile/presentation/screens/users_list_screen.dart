@@ -1,228 +1,77 @@
-import 'package:adaptive_platform_ui/adaptive_platform_ui.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:projectgt/domain/entities/profile.dart';
-import 'package:projectgt/presentation/state/auth_state.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
-import 'package:projectgt/presentation/widgets/app_drawer.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
-import 'package:projectgt/features/roles/application/permission_service.dart';
-import 'package:projectgt/features/roles/presentation/widgets/role_badge.dart';
+import 'package:projectgt/domain/entities/object.dart';
+import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/core/utils/responsive_utils.dart';
+import 'package:projectgt/features/profile/presentation/screens/users_list_desktop_screen.dart';
+import 'package:projectgt/presentation/widgets/app_drawer.dart';
+import 'package:projectgt/features/profile/presentation/screens/users_list_mobile_screen.dart';
 
-/// Экран отображения пользователей системы.
+/// Экран управления списком пользователей.
 ///
-/// Позволяет просматривать и переходить к профилям пользователей. Адаптирован под desktop и mobile.
-///
-/// Пример использования:
-/// ```dart
-/// const UsersListScreen();
-/// ```
+/// Функции:
+/// - Просмотр всех зарегистрированных пользователей
+/// - Редактирование профиля
+/// - Блокировка/разблокировка пользователей
+/// - Привязка пользователя к сотруднику
 class UsersListScreen extends ConsumerStatefulWidget {
-  /// Создаёт экран списка пользователей.
+  /// Создаёт экран управления списком пользователей.
   const UsersListScreen({super.key});
 
   @override
   ConsumerState<UsersListScreen> createState() => _UsersListScreenState();
 }
 
-/// Состояние для [UsersListScreen].
-///
-/// Управляет загрузкой, обновлением и отображением пользователей.
 class _UsersListScreenState extends ConsumerState<UsersListScreen> {
-  final _scrollController = ScrollController();
-
-  // Флаг для отслеживания первичной загрузки
-  bool _initialLoadDone = false;
+  List<ObjectEntity> _allObjects = [];
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadProfilesIfNeeded();
+      ref.read(profileProvider.notifier).getProfiles();
+      _loadObjects();
+    });
+  }
+
+  Future<void> _loadObjects() async {
+    final objects = await ref.read(objectRepositoryProvider).getObjects();
+    if (!mounted) return;
+    setState(() {
+      _allObjects = objects;
     });
   }
 
   @override
   void dispose() {
-    _scrollController.dispose();
     super.dispose();
   }
 
-  void _loadProfilesIfNeeded() {
-    // Загружаем список профилей только один раз при первом открытии экрана
-    if (!_initialLoadDone) {
-      ref.read(profileProvider.notifier).getProfiles();
-      _initialLoadDone = true;
-    }
-  }
-
-  /// Обновляет список пользователей (Pull-to-Refresh).
-  Future<void> _handleRefresh() async {
-    await ref.read(profileProvider.notifier).refreshProfiles();
-  }
-
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final authState = ref.watch(authProvider);
     final profileState = ref.watch(profileProvider);
-
-    final isLoading = authState.status == AuthStatus.loading ||
-        profileState.status == ProfileStatus.loading;
-
-    List<Profile> profiles = profileState.profiles;
+    final isDesktop = ResponsiveUtils.isDesktop(context);
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
-      appBar: const AppBarWidget(title: 'Пользователи'),
       drawer: const AppDrawer(activeRoute: AppRoute.users),
-      body: RefreshIndicator(
-        onRefresh: _handleRefresh,
-        child: isLoading
-            ? const Center(child: CupertinoActivityIndicator())
-            : profiles.isEmpty
-                ? const Center(child: Text('Пользователи не найдены'))
-                : ListView.builder(
-                    controller: _scrollController,
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    itemCount: profiles.length,
-                    itemBuilder: (context, index) {
-                      final profile = profiles[index];
-                      return _UserListItem(
-                        profile: profile,
-                        onTap: () {
-                          context.pushNamed('user_profile',
-                              pathParameters: {'userId': profile.id});
-                        },
-                        onToggleStatus: (value) async {
-                          // Разрешить только тем, у кого есть право управления пользователями
-                          final service = ref.read(permissionServiceProvider);
-                          if (!service.can('users', 'update')) return;
-
-                          // Оптимистичное обновление без перерисовки страницы
-                          final notifier = ref.read(profileProvider.notifier);
-                          final updated = profile.copyWith(status: value);
-                          await notifier.updateProfileSilently(updated);
-                        },
-                      );
-                    },
-                  ),
+      appBar: const AppBarWidget(
+        title: 'Пользователи',
       ),
-    );
-  }
-}
-
-class _UserListItem extends StatelessWidget {
-  final Profile profile;
-  final VoidCallback? onTap;
-  final ValueChanged<bool>? onToggleStatus;
-
-  const _UserListItem({
-    required this.profile,
-    this.onTap,
-    this.onToggleStatus,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 24,
-                backgroundColor: theme.colorScheme.primary,
-                backgroundImage: profile.photoUrl != null
-                    ? NetworkImage(profile.photoUrl!)
-                    : null,
-                child: profile.photoUrl == null
-                    ? Text(
-                        profile.fullName?.isNotEmpty == true
-                            ? profile.fullName![0].toUpperCase()
-                            : profile.email[0].toUpperCase(),
-                        style: TextStyle(
-                          color: theme.colorScheme.onPrimary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      )
-                    : null,
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      profile.fullName ?? 'Без имени',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      profile.email,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color:
-                            theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                      ),
-                    ),
-                    if (profile.phone != null && profile.phone!.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4.0),
-                        child: Text(
-                          profile.phone!,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface
-                                .withValues(alpha: 0.5),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  RoleBadge(
-                    roleId: profile.roleId,
-                    fallbackRole: null,
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        profile.status ? 'Активен' : 'Неактивен',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: profile.status ? Colors.green : Colors.red,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      AdaptiveSwitch(
-                        value: profile.status,
-                        onChanged: onToggleStatus,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
+      body: isDesktop
+          ? UsersListDesktopScreen(
+              profiles: profileState.profiles,
+              allObjects: _allObjects,
+              isLoading: profileState.status == ProfileStatus.loading,
+            )
+          : UsersListMobileScreen(
+              profiles: profileState.profiles,
+              allObjects: _allObjects,
+              isLoading: profileState.status == ProfileStatus.loading,
+              isError: profileState.status == ProfileStatus.error,
+              errorMessage: profileState.errorMessage,
+            ),
     );
   }
 }

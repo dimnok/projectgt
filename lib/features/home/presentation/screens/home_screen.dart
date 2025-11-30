@@ -11,6 +11,9 @@ import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
+import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
+import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
+import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/features/home/presentation/widgets/contract_progress_widget.dart';
 import 'package:projectgt/features/home/presentation/widgets/shifts_calendar_widgets.dart';
 import 'package:projectgt/features/home/presentation/widgets/work_plan_summary_widget.dart';
@@ -340,6 +343,83 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               // Метрики
               _MetricsGrid(metrics: metrics),
               const SizedBox(height: 24),
+
+              Center(
+                child: GTPrimaryButton(
+                  text: 'Тест окна',
+                  onPressed: () {
+                    final width = MediaQuery.of(context).size.width;
+                    if (width >= 800) {
+                      // Desktop: Dialog
+                      showDialog(
+                        context: context,
+                        builder: (context) => Dialog(
+                          backgroundColor: Colors.transparent,
+                          insetPadding: const EdgeInsets.all(24),
+                          child: DesktopDialogContent(
+                            title: 'Тестовое окно',
+                            width: 500,
+                            footer: Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                GTSecondaryButton(
+                                  text: 'Отмена',
+                                  onPressed: () => Navigator.pop(context),
+                                ),
+                                const SizedBox(width: 16),
+                                GTPrimaryButton(
+                                  text: 'ОК',
+                                  onPressed: () => Navigator.pop(context),
+                                ),
+                              ],
+                            ),
+                            child: const Text(
+                              'Это контент тестового окна для десктопа (Dialog). '
+                              'Оно поддерживает фиксированную ширину, кнопку закрытия и адаптивный скролл.',
+                            ),
+                          ),
+                        ),
+                      );
+                    } else {
+                      // Mobile: BottomSheet
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        useSafeArea: true,
+                        constraints: const BoxConstraints(maxWidth: 640),
+                        shape: const RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.vertical(top: Radius.circular(20)),
+                        ),
+                        builder: (context) => MobileBottomSheetContent(
+                          title: 'Тестовое окно',
+                          footer: Row(
+                            children: [
+                              Expanded(
+                                child: GTSecondaryButton(
+                                  text: 'Отмена',
+                                  onPressed: () => Navigator.pop(context),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: GTPrimaryButton(
+                                  text: 'ОК',
+                                  onPressed: () => Navigator.pop(context),
+                                ),
+                              ),
+                            ],
+                          ),
+                          child: const Text(
+                            'Это контент тестового модального окна для мобильных (BottomSheet). '
+                            'Оно поддерживает скролл, безопасные зоны и адаптивность.',
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                ),
+              ),
 
               // Тестовые кнопки удалены
 

@@ -16,6 +16,8 @@ import '../providers/work_search_provider.dart';
 import '../providers/work_search_date_provider.dart';
 import 'export_search_action.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
+import '../../../../presentation/state/auth_state.dart';
+import '../../../../features/roles/presentation/providers/roles_provider.dart';
 
 /// Модальное окно для редактирования работы из результатов поиска.
 class ExportWorkItemEditModal extends ConsumerStatefulWidget {
@@ -263,26 +265,35 @@ class _ExportWorkItemEditModalState
       return;
     }
 
-    // Проверка прав пользователя
-    final permissionService = ref.read(permissionServiceProvider);
-    final canUpdate = permissionService.can('works', 'update');
-
-    if (!canUpdate) {
-      SnackBarUtils.showError(context, 'Нет прав на редактирование');
-      return;
-    }
-
-    // Проверка статуса смены
-    if (widget.initialData.workStatus?.toLowerCase() != 'open') {
-      SnackBarUtils.showError(context, 'Нельзя редактировать закрытую смену');
-      return;
-    }
-
     setState(() {
       _isLoading = true;
     });
 
     try {
+      // Проверяем роль пользователя
+      final user = ref.read(authProvider).user;
+      if (user?.roleId == null) {
+        throw Exception('Пользователь не авторизован или роль не определена');
+      }
+
+      final role = await ref.read(roleByIdProvider(user!.roleId!).future);
+      final isAdmin =
+          role?.name == 'Администратор' || role?.name == 'Супер-админ';
+
+      // Если не админ, проверяем стандартные ограничения
+      if (!isAdmin) {
+        // Проверка прав пользователя
+        final permissionService = ref.read(permissionServiceProvider);
+        if (!permissionService.can('works', 'update')) {
+          throw Exception('Нет прав на редактирование');
+        }
+
+        // Проверка статуса смены
+        if (widget.initialData.workStatus?.toLowerCase() != 'open') {
+          throw Exception('Нельзя редактировать закрытую смену');
+        }
+      }
+
       // Загружаем текущий WorkItem
       final workItemsAsync =
           ref.read(workItemsProvider(widget.initialData.workId!));
@@ -296,10 +307,12 @@ class _ExportWorkItemEditModalState
       final quantity = double.tryParse(quantityText) ?? 0;
 
       if (quantity <= 0) {
+        if (mounted) {
         SnackBarUtils.showError(context, 'Количество должно быть больше 0');
         setState(() {
           _isLoading = false;
         });
+        }
         return;
       }
 

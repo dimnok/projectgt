@@ -948,6 +948,18 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved>
         ...filteredBySearch.map((estimate) {
           final isSelected = _selectedEstimateItems.containsKey(estimate);
           final theme = Theme.of(context);
+          final isDark = theme.brightness == Brightness.dark;
+
+          // Цвета для выделенного состояния
+          final selectedBgColor = isDark
+              ? Colors.green.withValues(alpha: 0.2)
+              : Colors.green.shade50;
+          final selectedTextColor = isDark
+              ? Colors.greenAccent.shade100
+              : Colors.green.shade700;
+          final selectedSubColor = isDark
+              ? Colors.greenAccent.shade100.withValues(alpha: 0.7)
+              : Colors.green.shade600;
 
           return GestureDetector(
             onTap: () {
@@ -973,8 +985,7 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved>
               });
             },
             child: Card(
-              color:
-                  isSelected ? Colors.green.shade50 : theme.colorScheme.surface,
+              color: isSelected ? selectedBgColor : theme.colorScheme.surface,
               elevation: isSelected ? 2 : 0,
               margin: const EdgeInsets.symmetric(vertical: 4),
               child: ListTile(
@@ -982,7 +993,7 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved>
                   estimate.number,
                   style: TextStyle(
                     color: isSelected
-                        ? Colors.green.shade700
+                        ? selectedTextColor
                         : theme.colorScheme.onSurface,
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
@@ -992,7 +1003,7 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved>
                   estimate.name,
                   style: TextStyle(
                     color: isSelected
-                        ? Colors.green.shade700
+                        ? selectedTextColor
                         : theme.colorScheme.onSurface,
                     fontWeight:
                         isSelected ? FontWeight.w600 : FontWeight.normal,
@@ -1002,7 +1013,7 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved>
                   '${NumberFormat('#,##0.00', 'ru').format(estimate.price)} ₽ / ${estimate.unit}',
                   style: TextStyle(
                     color: isSelected
-                        ? Colors.green.shade600
+                        ? selectedSubColor
                         : theme.colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                 ),
@@ -1017,6 +1028,9 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved>
                             isDense: true,
                             contentPadding: EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 8),
+                          ),
+                          style: TextStyle(
+                            color: isDark ? Colors.white : Colors.black,
                           ),
                           keyboardType: const TextInputType.numberWithOptions(
                               decimal: true),

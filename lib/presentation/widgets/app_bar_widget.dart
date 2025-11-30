@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:projectgt/presentation/theme/theme_provider.dart';
+import 'package:projectgt/core/theme/theme_settings_provider.dart';
 
 /// Кастомный плавающий AppBar для приложения с поддержкой смены темы и адаптивными действиями.
 class AppBarWidget extends ConsumerWidget implements PreferredSizeWidget {
@@ -50,8 +50,8 @@ class AppBarWidget extends ConsumerWidget implements PreferredSizeWidget {
 
   /// Строит плавающий AppBar с заголовком, actions и переключателем темы.
   Widget build(BuildContext context, WidgetRef ref) {
-    final themeState = ref.watch(themeNotifierProvider);
     final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
 
     return PreferredSize(
       preferredSize: preferredSize,
@@ -67,7 +67,7 @@ class AppBarWidget extends ConsumerWidget implements PreferredSizeWidget {
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: themeState.isDarkMode
+                  color: isDarkMode
                       ? Colors.white.withValues(alpha: 0.1)
                       : Colors.black.withValues(alpha: 0.15),
                   offset: const Offset(0, 4),
@@ -75,7 +75,7 @@ class AppBarWidget extends ConsumerWidget implements PreferredSizeWidget {
                   spreadRadius: 0,
                 ),
                 BoxShadow(
-                  color: themeState.isDarkMode
+                  color: isDarkMode
                       ? Colors.white.withValues(alpha: 0.05)
                       : Colors.black.withValues(alpha: 0.08),
                   offset: const Offset(0, 2),
@@ -128,12 +128,14 @@ class AppBarWidget extends ConsumerWidget implements PreferredSizeWidget {
                   CupertinoButton(
                     padding: EdgeInsets.zero,
                     child: Icon(
-                      themeState.isDarkMode
-                          ? Icons.light_mode
-                          : Icons.dark_mode,
+                      isDarkMode ? Icons.light_mode : Icons.dark_mode,
                     ),
                     onPressed: () {
-                      ref.read(themeNotifierProvider.notifier).toggleTheme();
+                      final newMode =
+                          isDarkMode ? ThemeMode.light : ThemeMode.dark;
+                      ref
+                          .read(themeSettingsProvider.notifier)
+                          .setThemeMode(newMode);
                     },
                   ),
               ],

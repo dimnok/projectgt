@@ -1,15 +1,28 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
 import 'package:projectgt/features/works/domain/entities/work.dart';
 
+/// Карточка работы для мобильной версии.
+///
+/// Отображает краткую информацию о выполненной работе: дату, автора,
+/// объект и сумму. Имеет цветной индикатор статуса слева.
 class MobileWorkCard extends StatelessWidget {
+  /// Данные о работе.
   final Work work;
+
+  /// Название объекта, к которому относится работа.
   final String objectName;
+
+  /// Имя автора работы (кто выполнил или создал запись).
   final String createdBy;
+
+  /// Callback при нажатии на карточку.
   final VoidCallback onTap;
+
+  /// Цвет бокового индикатора статуса.
   final Color statusColor;
 
+  /// Создает экземпляр [MobileWorkCard].
   const MobileWorkCard({
     super.key,
     required this.work,

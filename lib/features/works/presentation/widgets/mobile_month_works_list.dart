@@ -10,10 +10,16 @@ import 'package:projectgt/features/works/presentation/widgets/mobile_work_card.d
 
 /// Виджет списка смен для мобильной версии (Box-версия для анимации).
 class MobileMonthWorksList extends ConsumerWidget {
+  /// Группа смен за месяц.
   final MonthGroup group;
+
+  /// Callback при выборе смены.
   final Function(Work work) onWorkSelected;
+
+  /// Callback для загрузки следующей порции данных.
   final VoidCallback onLoadMore;
 
+  /// Создает экземпляр [MobileMonthWorksList].
   const MobileMonthWorksList({
     super.key,
     required this.group,

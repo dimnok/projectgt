@@ -1,12 +1,14 @@
-import 'package:adaptive_platform_ui/adaptive_platform_ui.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
 import 'package:projectgt/core/widgets/gt_dropdown.dart';
+import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/notifications/notification_service.dart';
 import 'package:projectgt/features/works/presentation/providers/work_provider.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
+import 'package:projectgt/features/profile/presentation/widgets/content_constrained_box.dart';
 
 /// Экран настроек уведомлений.
 ///
@@ -84,6 +86,28 @@ class _NotificationsSettingsScreenState
   @override
   void dispose() {
     super.dispose();
+  }
+
+  Widget _buildSwitch(
+      {required bool value, required ValueChanged<bool> onChanged}) {
+    final theme = Theme.of(context);
+    final color =
+        value ? CupertinoColors.activeGreen : CupertinoColors.systemGrey;
+
+    return CupertinoButton(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      color: color,
+      borderRadius: BorderRadius.circular(16),
+      // minSize удален, т.к. он deprecated и его функционал заменяется внутренними отступами (padding)
+      onPressed: () => onChanged(!value),
+      child: Text(
+        value ? 'ВКЛ' : 'ВЫКЛ',
+        style: theme.textTheme.labelMedium?.copyWith(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
   }
 
   bool _hasAtLeastOneSlotEnabled() =>
@@ -184,64 +208,61 @@ class _NotificationsSettingsScreenState
           showThemeSwitch: false,
           centerTitle: true,
           leading: BackButton()),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 600),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  ListTile(
-                    leading: const Icon(Icons.notifications_active_outlined),
-                    title: const Text('Включить напоминания о сменах'),
-                    subtitle:
-                        const Text('Если выключено — напоминания не приходят'),
-                    trailing: AdaptiveSwitch(
-                      value: _enabled,
-                      onChanged: (v) => setState(() => _enabled = v),
-                    ),
+      body: ContentConstrainedBox(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ListTile(
+                  leading: const Icon(CupertinoIcons.bell_fill),
+                  title: const Text('Включить напоминания о сменах'),
+                  subtitle:
+                      const Text('Если выключено — напоминания не приходят'),
+                  trailing: _buildSwitch(
+                    value: _enabled,
+                    onChanged: (v) => setState(() => _enabled = v),
                   ),
-                  if (_enabled) ...[
-                    const SizedBox(height: 16),
-                    Text('Время напоминаний', style: theme.textTheme.bodyLarge),
-                    const SizedBox(height: 8),
-                    _buildSlotRow(
-                      context: context,
-                      label: 'Уведомление 1',
-                      value: _slot1,
-                      enabled: _slot1Enabled,
-                      onToggle: (v) => setState(() => _slot1Enabled = v),
-                      onChanged: (v) => setState(() => _slot1 = v ?? _slot1),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildSlotRow(
-                      context: context,
-                      label: 'Уведомление 2',
-                      value: _slot2,
-                      enabled: _slot2Enabled,
-                      onToggle: (v) => setState(() => _slot2Enabled = v),
-                      onChanged: (v) => setState(() => _slot2 = v ?? _slot2),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildSlotRow(
-                      context: context,
-                      label: 'Уведомление 3',
-                      value: _slot3,
-                      enabled: _slot3Enabled,
-                      onToggle: (v) => setState(() => _slot3Enabled = v),
-                      onChanged: (v) => setState(() => _slot3 = v ?? _slot3),
-                    ),
-                  ],
-                  const SizedBox(height: 24),
-                  FilledButton(
-                    onPressed: _save,
-                    child: const Text('Сохранить'),
+                ),
+                if (_enabled) ...[
+                  const SizedBox(height: 16),
+                  Text('Время напоминаний', style: theme.textTheme.bodyLarge),
+                  const SizedBox(height: 8),
+                  _buildSlotRow(
+                    context: context,
+                    label: 'Уведомление 1',
+                    value: _slot1,
+                    enabled: _slot1Enabled,
+                    onToggle: (v) => setState(() => _slot1Enabled = v),
+                    onChanged: (v) => setState(() => _slot1 = v ?? _slot1),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildSlotRow(
+                    context: context,
+                    label: 'Уведомление 2',
+                    value: _slot2,
+                    enabled: _slot2Enabled,
+                    onToggle: (v) => setState(() => _slot2Enabled = v),
+                    onChanged: (v) => setState(() => _slot2 = v ?? _slot2),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildSlotRow(
+                    context: context,
+                    label: 'Уведомление 3',
+                    value: _slot3,
+                    enabled: _slot3Enabled,
+                    onToggle: (v) => setState(() => _slot3Enabled = v),
+                    onChanged: (v) => setState(() => _slot3 = v ?? _slot3),
                   ),
                 ],
-              ),
+                const SizedBox(height: 24),
+                GTPrimaryButton(
+                  text: 'Сохранить',
+                  onPressed: _save,
+                ),
+              ],
             ),
           ),
         ),
@@ -259,7 +280,7 @@ class _NotificationsSettingsScreenState
   }) {
     return Row(
       children: [
-        AdaptiveSwitch(
+        _buildSwitch(
           value: enabled,
           onChanged: onToggle,
         ),

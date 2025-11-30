@@ -6,7 +6,7 @@ import 'package:projectgt/domain/entities/employee.dart';
 
 /// Поле выбора сотрудника для привязки в профиле пользователя.
 /// Использует кастомный GTDropdown (одинарный выбор).
-class ProfileEmployeeLinkEditField extends ConsumerWidget {
+class ProfileEmployeeLinkEditField extends ConsumerStatefulWidget {
   /// Идентификатор изначально выбранного сотрудника.
   final String? initialEmployeeId;
 
@@ -31,17 +31,32 @@ class ProfileEmployeeLinkEditField extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Тянем список сотрудников (id, ФИО)
+  ConsumerState<ProfileEmployeeLinkEditField> createState() =>
+      _ProfileEmployeeLinkEditFieldState();
+}
+
+class _ProfileEmployeeLinkEditFieldState
+    extends ConsumerState<ProfileEmployeeLinkEditField> {
+  @override
+  void initState() {
+    super.initState();
+    // Загружаем список сотрудников один раз при инициализации
+    WidgetsBinding.instance.addPostFrameCallback((_) {
     ref.read(emp_state.employeeProvider.notifier).getEmployees();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(emp_state.employeeProvider);
     final List<Employee> employees = state.employees;
 
     // Подбираем текущий выбранный сотрудник
     Employee? selected;
-    if (initialEmployeeId != null && initialEmployeeId!.isNotEmpty) {
+    if (widget.initialEmployeeId != null &&
+        widget.initialEmployeeId!.isNotEmpty) {
       for (final e in employees) {
-        if (e.id == initialEmployeeId) {
+        if (e.id == widget.initialEmployeeId) {
           selected = e;
           break;
         }
@@ -50,20 +65,15 @@ class ProfileEmployeeLinkEditField extends ConsumerWidget {
 
     return GTDropdown<Employee>(
       items: employees,
-      itemDisplayBuilder: (Employee e) {
-        final middle = (e.middleName != null && e.middleName!.isNotEmpty)
-            ? ' ${e.middleName}'
-            : '';
-        return '${e.lastName} ${e.firstName}$middle';
-      },
+      itemDisplayBuilder: (Employee e) => e.fullName,
       selectedItem: selected,
-      onSelectionChanged: (Employee? e) => onChanged(e?.id),
+      onSelectionChanged: (Employee? e) => widget.onChanged(e?.id),
       labelText: 'Сотрудник (только для администратора)',
       hintText: 'Выберите сотрудника или оставьте пустым',
       allowMultipleSelection: false,
       allowCustomInput: false,
       allowClear: true,
-      readOnly: readOnly,
+      readOnly: widget.readOnly,
       isLoading: state.status == emp_state.EmployeeStatus.loading,
       validator: (v) => null,
     );

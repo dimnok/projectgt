@@ -9,7 +9,8 @@ import 'package:projectgt/core/utils/responsive_utils.dart';
 import '../../providers/work_search_provider.dart';
 import '../../widgets/export_search_action.dart';
 import '../../../domain/entities/work_search_result.dart';
-import 'package:projectgt/features/roles/application/permission_service.dart';
+import 'package:projectgt/presentation/state/auth_state.dart';
+import 'package:projectgt/features/roles/presentation/providers/roles_provider.dart';
 
 /// Таб "Поиск" для расширенного поиска и фильтрации данных.
 class ExportTabSearch extends ConsumerStatefulWidget {
@@ -974,7 +975,7 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch>
               bodyCell(
                 Builder(
                   builder: (cellContext) => GestureDetector(
-                    onLongPress: () {
+                    onLongPress: () async {
                       // Проверка наличия необходимых данных
                       if (result.workId == null) {
                         SnackBarUtils.showError(
@@ -984,57 +985,51 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch>
                         return;
                       }
 
+                      // Проверяем роль пользователя для определения доступности редактирования
+                      final user = ref.read(authProvider).user;
+                      if (user?.roleId == null) return;
+
+                      final role = await ref
+                          .read(roleByIdProvider(user!.roleId!).future);
+                      final isAdmin = role?.name == 'Администратор' ||
+                          role?.name == 'Супер-админ';
+
+                      if (!cellContext.mounted) return;
+
                       // Показываем меню выбора действия
                       ModalUtils.showExportWorkItemActionDialog(
                         cellContext,
                         initialData: result,
-                        onEdit: () {
-                          // Проверка прав пользователя
-                          final permissionService =
-                              ref.read(permissionServiceProvider);
-                          final canUpdate =
-                              permissionService.can('works', 'update');
+                        // Редактирование доступно только администраторам
+                        onEdit: isAdmin
+                            ? () {
+                                // Проверка наличия необходимых данных для редактирования
+                                if (result.workItemId == null ||
+                                    result.workId == null ||
+                                    result.objectId == null) {
+                                  SnackBarUtils.showError(
+                                    cellContext,
+                                    'Недостаточно данных для редактирования',
+                                  );
+                                  return;
+                                }
 
-                          if (!canUpdate) {
-                            SnackBarUtils.showError(
-                              cellContext,
-                              'Нет прав на редактирование',
-                            );
-                            return;
-                          }
-
-                          // Проверка статуса смены
-                          if (result.workStatus?.toLowerCase() != 'open') {
-                            SnackBarUtils.showError(
-                              cellContext,
-                              'Нельзя редактировать закрытую смену',
-                            );
-                            return;
-                          }
-
-                          // Проверка наличия необходимых данных для редактирования
-                          if (result.workItemId == null ||
-                              result.workId == null ||
-                              result.objectId == null) {
-                            SnackBarUtils.showError(
-                              cellContext,
-                              'Недостаточно данных для редактирования',
-                            );
-                            return;
-                          }
-
-                          // Открываем модальное окно редактирования
-                          ModalUtils.showExportWorkItemEditModal(
-                            cellContext,
-                            initialData: result,
-                          );
-                        },
+                                // Открываем модальное окно редактирования
+                                // Админы могут редактировать закрытые смены
+                                ModalUtils.showExportWorkItemEditModal(
+                                  cellContext,
+                                  initialData: result,
+                                );
+                              }
+                            : null,
                         onNavigateToWork: () {
                           // Переходим к смене
                           if (result.workId != null) {
+                            // Переходим к смене и сразу открываем вкладку работ (индекс 1)
                             cellContext.goNamed(
                               'work_details',
                               pathParameters: {'workId': result.workId!},
+                              extra: {'initialTabIndex': 1},
                             );
                           }
                         },

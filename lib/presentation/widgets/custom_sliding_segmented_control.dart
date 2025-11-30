@@ -1,18 +1,42 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 
+/// Кастомный виджет переключения сегментов с анимацией скольжения.
+///
+/// Позволяет выбирать одно значение из набора опций.
+/// Аналог [CupertinoSlidingSegmentedControl], но с возможностью
+/// полной кастомизации стилей, цветов и анимаций.
 class CustomSlidingSegmentedControl<T> extends StatelessWidget {
+  /// Map, где ключ - значение сегмента, а значение - виджет для отображения внутри сегмента.
   final Map<T, Widget> children;
+
+  /// Текущее выбранное значение.
   final T groupValue;
+
+  /// Callback, вызываемый при выборе сегмента.
   final ValueChanged<T> onValueChanged;
+
+  /// Цвет фона всего контрола.
   final Color? backgroundColor;
+
+  /// Цвет "ползунка" (активного выбранного элемента).
   final Color thumbColor;
+
+  /// Радиус скругления углов (как для фона, так и для ползунка).
   final double borderRadius;
+
+  /// Граница (border) для контейнера.
   final BoxBorder? border;
+
+  /// Внутренние отступы контейнера.
   final EdgeInsets padding;
+
+  /// Длительность анимации перемещения ползунка.
   final Duration duration;
+
+  /// Кривая анимации перемещения ползунка.
   final Curve curve;
 
+  /// Создает экземпляр [CustomSlidingSegmentedControl].
   const CustomSlidingSegmentedControl({
     super.key,
     required this.children,

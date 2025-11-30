@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 
 // Константы для улучшения читаемости и переиспользования
@@ -152,18 +153,18 @@ class _GTDropdownState<T> extends State<GTDropdown<T>> {
     final hasSelectionChanged = _hasSelectionChanged(oldWidget);
     final hasItemsChanged = widget.items.length != oldWidget.items.length ||
         !_areItemsEqual(widget.items, oldWidget.items);
-    
+
     if (hasSelectionChanged) {
       _updateDisplayText();
       _updateOverlayIfNeeded();
     }
-    
+
     // Если список элементов изменился, обновляем overlay
     if (hasItemsChanged && _isDropdownOpen) {
       _updateOverlayIfNeeded();
     }
   }
-  
+
   bool _areItemsEqual(List<T> list1, List<T> list2) {
     if (list1.length != list2.length) return false;
     for (int i = 0; i < list1.length; i++) {
@@ -754,10 +755,7 @@ class _GTDropdownState<T> extends State<GTDropdown<T>> {
               ? const SizedBox(
                   width: 20,
                   height: 20,
-                  child: Padding(
-                    padding: EdgeInsets.all(12.0),
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
+                  child: CupertinoActivityIndicator(radius: 8),
                 )
               : _buildSuffixIcon(),
           border: const OutlineInputBorder(),
@@ -825,10 +823,8 @@ class GTEnumDropdown<T extends Enum> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Всегда передаём не-null callback, даже если readOnly
-    final effectiveOnChanged = readOnly 
-        ? (T? value) {} 
-        : onChanged;
-    
+    final effectiveOnChanged = readOnly ? (T? value) {} : onChanged;
+
     return GTDropdown<T>(
       items: values,
       itemDisplayBuilder: enumToString,

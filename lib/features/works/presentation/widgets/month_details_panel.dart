@@ -105,12 +105,12 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
                       currentGroup.isCurrentMonth,
                     ),
                     const SizedBox(height: 24),
-
-                    // --- График выработки ---
-                    _buildDailyChart(context, chartDataAsync),
-                    const SizedBox(height: 24),
                   ] else
                     const SizedBox(height: 12),
+
+                  // --- График выработки ---
+                  _buildDailyChart(context, chartDataAsync),
+                  const SizedBox(height: 24),
 
                   // --- KPI Карточки ---
                   if (isDesktop)
@@ -178,7 +178,7 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
         return DailyWorkChart(
           works: data,
           month: widget.group.month,
-          isDesktop: true,
+          isDesktop: !ResponsiveUtils.isMobile(context),
         );
       },
       loading: () => const SizedBox(
@@ -312,29 +312,70 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
 
   Widget _buildKpiListMobile(BuildContext context, MonthGroup group,
       String averagePerEmployee, int totalEmployees, double totalHours) {
+    final theme = Theme.of(context);
+    final valueStyle = theme.textTheme.titleMedium?.copyWith(
+      fontWeight: FontWeight.w600,
+    );
+
     // Используем старый AppleMenuGroup для мобилки
     return _AppleMenuGroup(
       children: [
         _AppleMenuItem(
-          icon: CupertinoIcons.money_dollar_circle,
+          icon: CupertinoIcons.money_dollar_circle_fill,
           iconColor: Colors.green,
           title: 'Общая сумма',
           trailing: Text(
             formatCurrency(group.totalAmount),
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+            style: valueStyle,
           ),
         ),
         _AppleMenuItem(
-          icon: CupertinoIcons.briefcase,
+          icon: CupertinoIcons.briefcase_fill,
           iconColor: Colors.blue,
           title: 'Всего смен',
           trailing: Text(
             '${group.worksCount}',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+            style: valueStyle,
+          ),
+        ),
+        _AppleMenuItem(
+          icon: CupertinoIcons.person_3_fill,
+          iconColor: Colors.teal,
+          title: 'Специалистов',
+          trailing: Text(
+            '$totalEmployees',
+            style: valueStyle,
+          ),
+        ),
+        _AppleMenuItem(
+          icon: CupertinoIcons.time_solid,
+          iconColor: Colors.deepOrange,
+          title: 'Часов',
+          trailing: Text(
+            totalHours > 0 ? totalHours.toStringAsFixed(0) : '0',
+            style: valueStyle,
+          ),
+        ),
+        _AppleMenuItem(
+          icon: CupertinoIcons.chart_bar_square_fill,
+          iconColor: Colors.orange,
+          title: 'Средняя смена',
+          trailing: Text(
+            group.worksCount > 0
+                ? formatCurrency(
+                    group.totalAmount / group.worksCount,
+                  )
+                : formatCurrency(0),
+            style: valueStyle,
+          ),
+        ),
+        _AppleMenuItem(
+          icon: CupertinoIcons.person_crop_circle_fill,
+          iconColor: Colors.purple,
+          title: 'Выработка / чел.',
+          trailing: Text(
+            averagePerEmployee,
+            style: valueStyle,
           ),
         ),
       ],

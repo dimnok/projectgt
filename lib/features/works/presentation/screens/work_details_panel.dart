@@ -7,7 +7,6 @@ import '../../domain/entities/work.dart';
 import '../providers/work_items_provider.dart';
 import '../providers/work_provider.dart';
 import 'work_item_form_improved.dart';
-// import 'package:projectgt/core/utils/modal_utils.dart';
 
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/presentation/state/employee_state.dart'
@@ -43,12 +42,21 @@ class WorkDetailsPanel extends ConsumerStatefulWidget {
   /// Callback для уведомления об изменении активного таба.
   final Function(int tabIndex)? onTabChanged;
 
+  /// Предварительно загруженная смена (опционально).
+  /// Если передана, используется вместо поиска в провайдере.
+  final Work? initialWork;
+
+  /// Начальный индекс таба (по умолчанию 0).
+  final int initialTabIndex;
+
   /// Создаёт панель деталей смены для [workId].
   const WorkDetailsPanel({
     super.key,
     required this.workId,
     required this.parentContext,
     this.onTabChanged,
+    this.initialWork,
+    this.initialTabIndex = 0,
   });
 
   @override
@@ -77,7 +85,11 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(
+      length: 3,
+      vsync: this,
+      initialIndex: widget.initialTabIndex,
+    );
 
     // Добавляем слушатель изменения таба
     _tabController.addListener(() {
@@ -114,6 +126,12 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
     super.dispose();
   }
 
+  Work? _getWork() {
+    // Сначала используем переданную смену (если есть),
+    // затем ищем в кэше провайдера (синхронно через watch)
+    return widget.initialWork ?? ref.watch(workProvider(widget.workId));
+  }
+
   // Получение или создание контроллера для поля ввода количества
   TextEditingController _getQuantityController(
       String itemId, num initialValue) {
@@ -137,7 +155,8 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
   // Обновление количества работы
   Future<void> _updateWorkItemQuantity(WorkItem item, num? newQuantity) async {
     // Получаем смену для проверки статуса
-    final workAsync = ref.read(workProvider(widget.workId));
+    final workAsync =
+        widget.initialWork ?? ref.read(workProvider(widget.workId));
     final isWorkClosed = workAsync?.status.toLowerCase() == 'closed';
 
     // Если смена закрыта, не разрешаем обновление
@@ -263,9 +282,9 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // Используем watch только если данные еще не загружены
-    // Это предотвращает мерцание при переходе, если данные уже есть в кэше провайдера
-    final workAsync = ref.watch(workProvider(widget.workId));
+    // Используем переданную смену или ищем в провайдере
+    final workAsync =
+        widget.initialWork ?? ref.watch(workProvider(widget.workId));
 
     if (workAsync == null) {
       // Если данных нет совсем, показываем лоадер
@@ -280,63 +299,80 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
         : null;
     final objectDisplay = object != null ? object.name : workAsync.objectId;
 
-    return Column(
-      children: [
+    // Используем SafeArea только если это мобильное устройство и панель используется как отдельный экран
+    // В десктопной версии и в модалках SafeArea может создавать лишние отступы
+    // final isMobile = !ResponsiveUtils.isDesktop(context);
+
+    // Используем CustomScrollView для решения проблемы RenderFlex overflow при анимации Hero.
+    // Если высота контейнера слишком мала (например, во время анимации расширения карточки),
+    // содержимое будет просто скроллиться или обрезаться, а не вызывать ошибку переполнения.
+    return CustomScrollView(
+      physics: const ClampingScrollPhysics(),
+      slivers: [
         // Отступ сверху как в списке смен
-        SizedBox(
-          height: ResponsiveUtils.isMobile(context) ? 8 : 6,
+        SliverToBoxAdapter(
+          child: SizedBox(
+            height: ResponsiveUtils.isMobile(context) ? 8 : 6,
+          ),
         ),
         // Блок с табами
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: CustomSlidingSegmentedControl<int>(
-            groupValue: _tabController.index,
-            onValueChanged: (int value) {
-              setState(() {
-                _tabController.animateTo(value);
-              });
-            },
-            backgroundColor: theme.brightness == Brightness.dark
-                ? const Color(0xFF3A3A3C)
-                : theme.colorScheme.surfaceContainerHighest,
-            thumbColor: theme.colorScheme.surface,
-            borderRadius: 20,
-            border: Border.all(
-              color: theme.brightness == Brightness.dark
-                  ? Colors.white.withValues(alpha: 0.1)
-                  : theme.colorScheme.outline.withValues(alpha: 0.15),
-              width: 1,
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: CustomSlidingSegmentedControl<int>(
+              groupValue: _tabController.index,
+              onValueChanged: (int value) {
+                setState(() {
+                  _tabController.animateTo(value);
+                });
+              },
+              backgroundColor: theme.brightness == Brightness.dark
+                  ? const Color(0xFF3A3A3C)
+                  : theme.colorScheme.surfaceContainerHighest,
+              thumbColor: theme.colorScheme.surface,
+              borderRadius: 20,
+              border: Border.all(
+                color: theme.brightness == Brightness.dark
+                    ? Colors.white.withValues(alpha: 0.1)
+                    : theme.colorScheme.outline.withValues(alpha: 0.15),
+                width: 1,
+              ),
+              padding: const EdgeInsets.all(4),
+              children: {
+                0: _buildTabItem(theme, 0, CupertinoIcons.info, 'Данные', 0),
+                1: _buildTabItem(theme, 1, CupertinoIcons.wrench, 'Работы', 0),
+                2: _buildTabItem(
+                    theme, 2, CupertinoIcons.group, 'Сотрудники', 0),
+              },
             ),
-            padding: const EdgeInsets.all(4),
-            children: {
-              0: _buildTabItem(theme, 0, CupertinoIcons.info, 'Данные', 0),
-              1: _buildTabItem(theme, 1, CupertinoIcons.wrench, 'Работы', 0),
-              2: _buildTabItem(theme, 2, CupertinoIcons.group, 'Сотрудники', 0),
-            },
           ),
         ),
 
         // Фильтры (только для таба Работы)
         if (_tabController.index == 1)
-          Consumer(builder: (context, ref, _) {
-            final itemsAsync = ref.watch(workItemsProvider(widget.workId));
-            return itemsAsync.when(
-              data: (items) {
-                if (items.isEmpty) return const SizedBox.shrink();
-                return Column(
-                  children: [
-                    const SizedBox(height: 8),
-                    _buildFiltersBlock(context, theme, items),
-                  ],
-                );
-              },
-              loading: () => const SizedBox.shrink(),
-              error: (_, __) => const SizedBox.shrink(),
-            );
-          }),
+          SliverToBoxAdapter(
+            child: Consumer(builder: (context, ref, _) {
+              final itemsAsync = ref.watch(workItemsProvider(widget.workId));
+              return itemsAsync.when(
+                data: (items) {
+                  if (items.isEmpty) return const SizedBox.shrink();
+                  return Column(
+                    children: [
+                      const SizedBox(height: 8),
+                      _buildFiltersBlock(context, theme, items),
+                    ],
+                  );
+                },
+                loading: () => const SizedBox.shrink(),
+                error: (_, __) => const SizedBox.shrink(),
+              );
+            }),
+          ),
 
         // Контент табов
-        Expanded(
+        SliverFillRemaining(
+          hasScrollBody:
+              true, // Важно: контент таба сам управляет скроллом (если это список)
           child: _getTabContent(_tabController.index, workAsync, objectDisplay),
         ),
       ],
@@ -391,7 +427,10 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
         return _buildWorkItemsTab();
       case 2:
         return WorkHoursTab(
-            workId: widget.workId, parentContext: widget.parentContext);
+          workId: widget.workId,
+          parentContext: widget.parentContext,
+          initialWork: workAsync,
+        );
       default:
         return WorkDataTab(work: workAsync, objectDisplay: objectDisplay);
     }
@@ -399,13 +438,12 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
 
   Widget _buildWorkItemsTab() {
     // Получаем смену для проверки статуса
-    final workAsync = ref.watch(workProvider(widget.workId));
+    final workAsync = _getWork();
     final isWorkClosed = workAsync?.status.toLowerCase() == 'closed';
 
     // Проверка прав
     final permissionService = ref.watch(permissionServiceProvider);
     final canUpdate = permissionService.can('works', 'update');
-    final canDelete = permissionService.can('works', 'delete');
 
     // Проверка на супер-админа
     final currentProfile = ref.watch(currentUserProfileProvider).profile;
@@ -416,8 +454,13 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
             r.name == 'Супер-админ') ??
         false;
 
-    // Разрешаем редактировать, если (смена открыта ИЛИ супер-админ) И есть право update
-    final bool canModify = (!isWorkClosed || isSuperAdmin) && canUpdate;
+    // Проверка на владельца смены
+    final isOwner =
+        currentProfile != null && workAsync?.openedBy == currentProfile.id;
+
+    // Разрешаем редактировать, если ((Я владелец И смена открыта) ИЛИ (Я Супер-админ)) И есть глобальное право update
+    final bool canModify =
+        ((isOwner && !isWorkClosed) || isSuperAdmin) && canUpdate;
 
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
@@ -542,7 +585,7 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
 
                       // Обертываем карточку в Dismissible для мобильного свайпа
                       Widget cardWidget = InkWell(
-                        onLongPress: canDelete
+                        onLongPress: isSuperAdmin
                             ? () {
                                 WorkItemContextMenu.show(
                                   context: context,
@@ -1074,7 +1117,7 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
               right: 16,
               bottom: 16 + MediaQuery.viewPaddingOf(context).bottom,
               child: FloatingActionButton(
-                heroTag: 'addWorkItem',
+                heroTag: null,
                 mini: true,
                 onPressed: () {
                   showModalBottomSheet(
@@ -1102,17 +1145,11 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
     );
   }
 
-  // Удалено: реализация вкладки "Сотрудники" перенесена в WorkHoursTab
-
-  // Удалено: кэш и метод получения имени сотрудника перенесены в WorkHoursTab
-
   /// Форматирует числовое значение для отображения денежной суммы.
   String _formatAmount(num amount) {
     final formatter = NumberFormat('#,##0.00', 'ru_RU');
     return formatter.format(amount);
   }
-
-  // Статусный баннер и вычисление статуса в хедере удалены по требованию
 
   /// Показывает диалог подтверждения удаления для свайпа (работы)
   Future<bool?> _showDeleteConfirmationDialog(
@@ -1138,8 +1175,6 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
     );
   }
 
-  // Удалено: диалог подтверждения удаления для вкладки сотрудников перенесен в WorkHoursTab
-
   /// Выполняет удаление работы после подтверждения свайпа
   void _deleteWorkItem(WidgetRef ref, WorkItem item) async {
     await ref
@@ -1158,7 +1193,8 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
 
   void _confirmDeleteItem(BuildContext context, WidgetRef ref, WorkItem item) {
     // Получаем смену для проверки статуса
-    final workAsync = ref.read(workProvider(widget.workId));
+    final workAsync =
+        widget.initialWork ?? ref.read(workProvider(widget.workId));
     final isWorkClosed = workAsync?.status.toLowerCase() == 'closed';
 
     // Если смена закрыта, не разрешаем удаление
@@ -1238,6 +1274,7 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
         child: DropdownButtonHideUnderline(
           child: DropdownButton<String>(
             value: value,
+            isExpanded: true,
             isDense: true,
             hint: Text(
               label,
@@ -1352,6 +1389,102 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
         ? _getUniqueSubsystems(items, system: _selectedSystem)
         : _getUniqueSubsystems(items);
 
+    final isMobile = ResponsiveUtils.isMobile(context);
+
+    final searchField = SizedBox(
+      width: isMobile ? double.infinity : 450,
+      height: 36,
+      child: Container(
+        decoration: BoxDecoration(
+          color: theme.brightness == Brightness.dark
+              ? Colors.black.withValues(alpha: 0.2)
+              : Colors.black.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: TextField(
+          controller: _searchController,
+          style: theme.textTheme.bodyMedium,
+          decoration: InputDecoration(
+            hintText: 'Поиск',
+            hintStyle: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            filled: false,
+            prefixIcon: Icon(
+              CupertinoIcons.search,
+              size: 18,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(20),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(20),
+              borderSide: BorderSide.none,
+            ),
+            disabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(20),
+              borderSide: BorderSide.none,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(20),
+              borderSide: BorderSide.none,
+            ),
+            isDense: true,
+          ),
+          onChanged: (value) {
+            setState(() {
+              _searchQuery = value;
+            });
+          },
+        ),
+      ),
+    );
+
+    final filters = [
+      _buildFilterDropdown(context, 'Модуль', _selectedModule, uniqueModules,
+          (val) => setState(() => _selectedModule = val)),
+      const SizedBox(width: 8),
+      _buildFilterDropdown(context, 'Этаж', _selectedFloor, uniqueFloors,
+          (val) => setState(() => _selectedFloor = val)),
+      const SizedBox(width: 8),
+      _buildFilterDropdown(
+          context,
+          'Система',
+          _selectedSystem,
+          uniqueSystems,
+          (val) => setState(() {
+                _selectedSystem = val;
+                _selectedSubsystem = null;
+              })),
+      const SizedBox(width: 8),
+      _buildFilterDropdown(context, 'Подсистема', _selectedSubsystem,
+          uniqueSubsystems, (val) => setState(() => _selectedSubsystem = val)),
+      const SizedBox(width: 8),
+      // Кнопка сброса
+      if (_searchQuery.isNotEmpty ||
+          _selectedModule != null ||
+          _selectedFloor != null ||
+          _selectedSystem != null ||
+          _selectedSubsystem != null)
+        IconButton.filledTonal(
+          onPressed: _resetFilters,
+          icon: const Icon(CupertinoIcons.slider_horizontal_3, size: 18),
+          style: IconButton.styleFrom(
+            backgroundColor:
+                theme.colorScheme.errorContainer.withValues(alpha: 0.5),
+            foregroundColor: theme.colorScheme.error,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+          ),
+          tooltip: 'Сбросить',
+        ),
+    ];
+
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -1367,119 +1500,36 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
         ),
         borderRadius: BorderRadius.circular(20),
       ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Padding(
-          padding: const EdgeInsets.all(4),
-          child: Row(
-            children: [
-              // Поиск
-              SizedBox(
-                width: 450,
-                height: 36,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: theme.brightness == Brightness.dark
-                        ? Colors.black.withValues(alpha: 0.2)
-                        : Colors.black.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: TextField(
-                    controller: _searchController,
-                    style: theme.textTheme.bodyMedium,
-                    decoration: InputDecoration(
-                      hintText: 'Поиск',
-                      hintStyle: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                      filled: false,
-                      prefixIcon: Icon(
-                        CupertinoIcons.search,
-                        size: 18,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 10),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        borderSide: BorderSide.none,
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        borderSide: BorderSide.none,
-                      ),
-                      disabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        borderSide: BorderSide.none,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        borderSide: BorderSide.none,
-                      ),
-                      isDense: true,
+      child: isMobile
+          ? Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  searchField,
+                  const SizedBox(height: 12),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: filters,
                     ),
-                    onChanged: (value) {
-                      setState(() {
-                        _searchQuery = value;
-                      });
-                    },
                   ),
+                ],
+              ),
+            )
+          : SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: Row(
+                  children: [
+                    searchField,
+                    const SizedBox(width: 12),
+                    ...filters,
+                  ],
                 ),
               ),
-              const SizedBox(width: 12),
-              // Фильтры
-              _buildFilterDropdown(
-                  context,
-                  'Модуль',
-                  _selectedModule,
-                  uniqueModules,
-                  (val) => setState(() => _selectedModule = val)),
-              const SizedBox(width: 8),
-              _buildFilterDropdown(context, 'Этаж', _selectedFloor,
-                  uniqueFloors, (val) => setState(() => _selectedFloor = val)),
-              const SizedBox(width: 8),
-              _buildFilterDropdown(
-                  context,
-                  'Система',
-                  _selectedSystem,
-                  uniqueSystems,
-                  (val) => setState(() {
-                        _selectedSystem = val;
-                        _selectedSubsystem = null;
-                      })),
-              const SizedBox(width: 8),
-              _buildFilterDropdown(
-                  context,
-                  'Подсистема',
-                  _selectedSubsystem,
-                  uniqueSubsystems,
-                  (val) => setState(() => _selectedSubsystem = val)),
-
-              const SizedBox(width: 8),
-              // Кнопка сброса
-              if (_searchQuery.isNotEmpty ||
-                  _selectedModule != null ||
-                  _selectedFloor != null ||
-                  _selectedSystem != null ||
-                  _selectedSubsystem != null)
-                IconButton.filledTonal(
-                  onPressed: _resetFilters,
-                  icon:
-                      const Icon(CupertinoIcons.slider_horizontal_3, size: 18),
-                  style: IconButton.styleFrom(
-                    backgroundColor:
-                        theme.colorScheme.errorContainer.withValues(alpha: 0.5),
-                    foregroundColor: theme.colorScheme.error,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  ),
-                  tooltip: 'Сбросить',
-                ),
-            ],
-          ),
-        ),
-      ),
+            ),
     );
   }
 

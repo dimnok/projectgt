@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/features/auth/presentation/screens/profile_completion_screen.dart';
 import 'package:projectgt/features/profile/presentation/screens/profile_screen.dart';
 import 'package:projectgt/features/profile/presentation/screens/notifications_settings_screen.dart';
+import 'package:projectgt/features/profile/presentation/screens/settings_screen.dart';
 import 'package:projectgt/features/profile/presentation/screens/financial_info_screen.dart';
 import 'package:projectgt/features/profile/presentation/screens/property_screen.dart';
 import 'package:projectgt/features/profile/presentation/screens/users_list_screen.dart';
@@ -48,6 +49,7 @@ import 'package:projectgt/features/version_control/presentation/force_update_scr
 import 'package:projectgt/features/version_control/presentation/version_management_screen.dart';
 import 'package:projectgt/features/roles/presentation/screens/roles_list_screen.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
+import 'package:projectgt/features/splash/presentation/screens/splash_screen.dart';
 
 
 /// Проверяет, может ли пользователь просматривать информацию о конкретном сотруднике.
@@ -108,11 +110,12 @@ Widget _buildAccessDeniedScreen() {
 /// Использует Riverpod для внедрения зависимостей и состояния авторизации.
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    initialLocation: AppRoutes.home,
+    initialLocation: AppRoutes.splash,
     redirect: (context, state) {
+      final loc = state.matchedLocation;
+
       // Защищаемся от случая, когда hash-токен попадает в path и роутер
       // пытается интерпретировать его как маршрут
-      final loc = state.matchedLocation;
       if (loc.startsWith('access_token') || loc.startsWith('/access_token')) {
         // fix bad path
         return AppRoutes.home;
@@ -121,6 +124,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
+      GoRoute(
+        path: AppRoutes.splash,
+        name: 'splash',
+        builder: (context, state) => const SplashScreen(),
+      ),
       GoRoute(
         path: AppRoutes.login,
         name: 'login',
@@ -146,6 +154,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '${AppRoutes.profile}/notifications',
         name: 'profile_notifications',
         builder: (context, state) => const NotificationsSettingsScreen(),
+      ),
+      GoRoute(
+        path: '${AppRoutes.profile}/settings',
+        name: 'profile_settings',
+        builder: (context, state) => const SettingsScreen(),
       ),
       GoRoute(
         path: '${AppRoutes.profile}/financial',
@@ -504,8 +517,13 @@ final routerProvider = Provider<GoRouter>((ref) {
               return CustomTransitionPage(
                 key: state.pageKey,
                 child: WorkDetailsScreen(workId: workId),
+                transitionDuration: const Duration(milliseconds: 600),
+                reverseTransitionDuration: const Duration(milliseconds: 600),
                 transitionsBuilder:
                     (context, animation, secondaryAnimation, child) {
+                  // Для Container Transform (через Hero) лучше всего подходит
+                  // простой Fade для входящей страницы, чтобы Hero-виджет
+                  // мог беспрепятственно "перелететь" и трансформироваться.
                   return FadeTransition(
                     opacity: animation,
                     child: child,
@@ -697,7 +715,8 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, ref, child) {
               final service = ref.watch(permissionServiceProvider);
               if (service.can('roles', 'read')) {
-                return const RolesListScreen();
+                final roleId = state.uri.queryParameters['roleId'];
+                return RolesListScreen(initialRoleId: roleId);
               }
               return _buildAccessDeniedScreen();
             },
@@ -719,13 +738,16 @@ final routerProvider = Provider<GoRouter>((ref) {
 ///
 /// Используется для унификации путей и предотвращения опечаток в строках маршрутов.
 class AppRoutes {
+  /// Маршрут сплэш-экрана
+  static const String splash = '/';
+
   /// Маршрут для экрана логина
   static const String login = '/login';
 
   // Маршрут для экрана регистрации удалён
 
   /// Главная страница
-  static const String home = '/';
+  static const String home = '/home';
 
   /// Профиль пользователя
   static const String profile = '/profile';

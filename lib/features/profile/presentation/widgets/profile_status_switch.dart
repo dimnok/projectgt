@@ -3,7 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 /// Переключатель статуса профиля с подтверждением при отключении.
-/// Лёгкий, без зависимостей от состояния — всю работу делает onChanged.
+/// Реализован в виде кнопки-статуса.
 class ProfileStatusSwitch extends StatelessWidget {
   /// Текущее значение статуса (true = активен).
   final bool value;
@@ -55,17 +55,38 @@ class ProfileStatusSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AdaptiveSwitch(
-      value: value,
-      onChanged: (!canToggle || isBusy)
-          ? null
-          : (next) async {
-              if (!next) {
-                final ok = await _confirmDisable(context);
-                if (!ok) return;
-              }
-              onChanged(next);
-            },
+    final onChangedCallback = (!canToggle || isBusy)
+        ? null
+        : () async {
+            final next = !value;
+            if (!next) {
+              final ok = await _confirmDisable(context);
+              if (!ok) return;
+            }
+            onChanged(next);
+          };
+
+    final theme = Theme.of(context);
+    final color =
+        value ? CupertinoColors.activeGreen : CupertinoColors.systemRed;
+
+    return SizedBox(
+      height: 36,
+      child: CupertinoButton(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        color: color,
+        disabledColor: color.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(8),
+        minimumSize: const Size.fromHeight(36),
+        onPressed: onChangedCallback,
+        child: Text(
+          value ? 'Активен' : 'Отключен',
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
     );
   }
 }

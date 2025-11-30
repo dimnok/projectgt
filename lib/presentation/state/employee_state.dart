@@ -378,3 +378,9 @@ final employeeProvider =
     StateNotifierProvider<EmployeeNotifier, EmployeeState>((ref) {
   return EmployeeNotifier(ref);
 });
+
+/// Провайдер для получения сотрудника по ID.
+final employeeByIdProvider = FutureProvider.family<Employee?, String>((ref, id) async {
+  final getEmployeeUseCase = ref.watch(getEmployeeUseCaseProvider);
+  return getEmployeeUseCase.execute(id);
+});

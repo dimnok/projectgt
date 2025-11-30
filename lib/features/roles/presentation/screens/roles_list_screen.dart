@@ -17,8 +17,14 @@ import 'package:projectgt/features/roles/presentation/widgets/unsaved_changes_pa
 /// Позволяет просматривать список ролей, создавать новые роли
 /// и настраивать матрицу прав доступа для каждой роли.
 class RolesListScreen extends ConsumerStatefulWidget {
+  /// Начальная выбранная роль
+  final String? initialRoleId;
+
   /// Конструктор экрана управления ролями.
-  const RolesListScreen({super.key});
+  const RolesListScreen({
+    super.key,
+    this.initialRoleId,
+  });
 
   @override
   ConsumerState<RolesListScreen> createState() => _RolesListScreenState();
@@ -42,6 +48,9 @@ class _RolesListScreenState extends ConsumerState<RolesListScreen>
   @override
   void initState() {
     super.initState();
+    // Устанавливаем начальную роль, если она передана
+    _selectedRoleId = widget.initialRoleId;
+
     // Инициализация анимаций
     _panelAnimationController = AnimationController(
       duration: const Duration(milliseconds: 400),
@@ -141,9 +150,10 @@ class _RolesListScreenState extends ConsumerState<RolesListScreen>
 
     return Scaffold(
       drawer: const AppDrawer(activeRoute: AppRoute.roles),
-      appBar: const AppBarWidget(
+      appBar: AppBarWidget(
         title: 'Управление ролями',
         showThemeSwitch: true,
+        leading: Navigator.of(context).canPop() ? const BackButton() : null,
       ),
       body: rolesState.when(
         data: (roles) {

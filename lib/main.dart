@@ -10,7 +10,7 @@ import 'package:projectgt/core/common/app_router.dart';
 import 'package:projectgt/core/config/app_config.dart';
 import 'package:projectgt/core/utils/web_status_bar.dart';
 import 'package:projectgt/presentation/theme/app_theme.dart';
-import 'package:projectgt/presentation/theme/theme_provider.dart';
+import 'package:projectgt/core/theme/theme_settings_provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:projectgt/core/notifications/notification_service.dart';
@@ -153,15 +153,30 @@ class MyApp extends ConsumerWidget {
     );
 
     final router = ref.watch(routerProvider);
-    final themeState = ref.watch(themeNotifierProvider);
-    final lightTheme = AppTheme.lightTheme();
-    final darkTheme = AppTheme.darkTheme();
+    final settings = ref.watch(themeSettingsProvider);
+
+    // Создаем темы с учетом выбранного шрифта
+    var lightTheme = AppTheme.lightTheme(scheme: settings.scheme);
+    lightTheme = lightTheme.copyWith(
+      textTheme: getGoogleFontTextTheme(
+        settings.fontFamily,
+        lightTheme.textTheme,
+      ),
+    );
+
+    var darkTheme = AppTheme.darkTheme(scheme: settings.scheme);
+    darkTheme = darkTheme.copyWith(
+      textTheme: getGoogleFontTextTheme(
+        settings.fontFamily,
+        darkTheme.textTheme,
+      ),
+    );
 
     // Синхронизируем статус бар с текущей темой на веб
     if (kIsWeb) {
-      final currentTheme = themeState.themeMode == ThemeMode.dark
+      final currentTheme = settings.themeMode == ThemeMode.dark
           ? darkTheme
-          : themeState.themeMode == ThemeMode.light
+          : settings.themeMode == ThemeMode.light
               ? lightTheme
               : (MediaQuery.platformBrightnessOf(context) == Brightness.dark
                   ? darkTheme
@@ -177,7 +192,7 @@ class MyApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: lightTheme,
       darkTheme: darkTheme,
-      themeMode: themeState.themeMode,
+      themeMode: settings.themeMode,
       routerConfig: router,
       locale: const Locale('ru', 'RU'),
       localizationsDelegates: const [
@@ -189,6 +204,16 @@ class MyApp extends ConsumerWidget {
         Locale('ru', 'RU'),
         Locale('en', 'US'),
       ],
+      builder: (context, child) {
+        // Применяем масштабирование текста
+        final mediaQuery = MediaQuery.of(context);
+        return MediaQuery(
+          data: mediaQuery.copyWith(
+            textScaler: TextScaler.linear(settings.textScale),
+          ),
+          child: child!,
+        );
+      },
     );
   }
 }

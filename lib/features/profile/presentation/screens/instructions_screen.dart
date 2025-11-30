@@ -1,5 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
+import 'package:projectgt/presentation/widgets/grouped_menu.dart';
+import 'package:projectgt/features/profile/presentation/widgets/content_constrained_box.dart';
+import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
+import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
+import 'package:projectgt/core/widgets/gt_buttons.dart';
 
 /// Экран с инструкциями по работе с приложением.
 ///
@@ -24,155 +31,157 @@ class InstructionsScreen extends StatelessWidget {
         title: 'Инструкции',
         leading: BackButton(),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Заголовок секции
-            Padding(
-              padding: const EdgeInsets.only(left: 16, bottom: 12),
-              child: Text(
-                'РУКОВОДСТВА ПО МОДУЛЯМ',
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-
-            // Группа инструкций
-            _AppleMenuGroup(
-              children: [
-                _AppleMenuItem(
-                  icon: Icons.inventory_2,
-                  iconColor: const Color(0xFF007AFF),
-                  title: 'Материалы',
-                  subtitle: 'Импорт накладных, привязка к смете',
-                  onTap: () => _openMaterialsGuide(context),
-                ),
-                _AppleMenuItem(
-                  icon: Icons.description,
-                  iconColor: const Color(0xFF34C759),
-                  title: 'Табель',
-                  subtitle: 'Заполнение табеля рабочего времени',
-                  onTap: () => _openTimesheetGuide(context),
-                ),
-                _AppleMenuItem(
-                  icon: Icons.construction,
-                  iconColor: const Color(0xFFFF9500),
-                  title: 'Работы',
-                  subtitle: 'Создание и отслеживание работ',
-                  onTap: () => _openWorksGuide(context),
-                ),
-                _AppleMenuItem(
-                  icon: Icons.list_alt,
-                  iconColor: const Color(0xFFFF3B30),
-                  title: 'Сметы',
-                  subtitle: 'Создание и управление сметами',
-                  onTap: () => _openEstimatesGuide(context),
-                ),
-                _AppleMenuItem(
-                  icon: Icons.people,
-                  iconColor: const Color(0xFFAF52DE),
-                  title: 'Контрагенты',
-                  subtitle: 'Управление подрядчиками и поставщиками',
-                  onTap: () => _openContractorsGuide(context),
-                ),
-                _AppleMenuItem(
-                  icon: Icons.attach_money,
-                  iconColor: const Color(0xFF5AC8FA),
-                  title: 'ФОТ',
-                  subtitle: 'Расчёт зарплаты и вычетов',
-                  onTap: () => _openFotGuide(context),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 28),
-
-            // Информационная секция
-            Padding(
-              padding: const EdgeInsets.only(left: 16, bottom: 12),
-              child: Text(
-                'ИНФОРМАЦИЯ',
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-
-            _AppleMenuGroup(
-              children: [
-                _AppleMenuItem(
-                  icon: Icons.help_outline,
-                  iconColor: theme.colorScheme.primary,
-                  title: 'О приложении',
-                  subtitle: 'Версия и информация о разработке',
-                  onTap: () => _openAboutGuide(context),
-                ),
-                _AppleMenuItem(
-                  icon: Icons.support_agent,
-                  iconColor: const Color(0xFF5AC8FA),
-                  title: 'Служба поддержки',
-                  subtitle: 'Контакты и способы связи',
-                  onTap: () => _openSupportGuide(context),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 28),
-
-            // Совет
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.2),
+      body: ContentConstrainedBox(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Заголовок секции
+              Padding(
+                padding: const EdgeInsets.only(left: 16, bottom: 12),
+                child: Text(
+                  'РУКОВОДСТВА ПО МОДУЛЯМ',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
                   ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.lightbulb_outline,
-                          color: theme.colorScheme.primary,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Совет',
-                          style: theme.textTheme.labelLarge?.copyWith(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Обновляйте инструкции и поделитесь опытом с коллегами. Если у вас есть вопросы, обратитесь к администратору.',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface,
-                        height: 1.4,
-                      ),
-                    ),
-                  ],
+              ),
+
+              // Группа инструкций
+              AppleMenuGroup(
+                children: [
+                  AppleMenuItem(
+                    icon: CupertinoIcons.cube_box,
+                    iconColor: const Color(0xFF007AFF),
+                    title: 'Материалы',
+                    subtitle: 'Импорт накладных, привязка к смете',
+                    onTap: () => _openMaterialsGuide(context),
+                  ),
+                  AppleMenuItem(
+                    icon: CupertinoIcons.doc_text,
+                    iconColor: const Color(0xFF34C759),
+                    title: 'Табель',
+                    subtitle: 'Заполнение табеля рабочего времени',
+                    onTap: () => _openTimesheetGuide(context),
+                  ),
+                  AppleMenuItem(
+                    icon: CupertinoIcons.hammer,
+                    iconColor: const Color(0xFFFF9500),
+                    title: 'Работы',
+                    subtitle: 'Создание и отслеживание работ',
+                    onTap: () => _openWorksGuide(context),
+                  ),
+                  AppleMenuItem(
+                    icon: CupertinoIcons.list_bullet,
+                    iconColor: const Color(0xFFFF3B30),
+                    title: 'Сметы',
+                    subtitle: 'Создание и управление сметами',
+                    onTap: () => _openEstimatesGuide(context),
+                  ),
+                  AppleMenuItem(
+                    icon: CupertinoIcons.person_2,
+                    iconColor: const Color(0xFFAF52DE),
+                    title: 'Контрагенты',
+                    subtitle: 'Управление подрядчиками и поставщиками',
+                    onTap: () => _openContractorsGuide(context),
+                  ),
+                  AppleMenuItem(
+                    icon: CupertinoIcons.money_dollar,
+                    iconColor: const Color(0xFF5AC8FA),
+                    title: 'ФОТ',
+                    subtitle: 'Расчёт зарплаты и вычетов',
+                    onTap: () => _openFotGuide(context),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 28),
+
+              // Информационная секция
+              Padding(
+                padding: const EdgeInsets.only(left: 16, bottom: 12),
+                child: Text(
+                  'ИНФОРМАЦИЯ',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ),
-            ),
 
-            const SizedBox(height: 16),
-          ],
+              AppleMenuGroup(
+                children: [
+                  AppleMenuItem(
+                    icon: CupertinoIcons.question_circle,
+                    iconColor: theme.colorScheme.primary,
+                    title: 'О приложении',
+                    subtitle: 'Версия и информация о разработке',
+                    onTap: () => _openAboutGuide(context),
+                  ),
+                  AppleMenuItem(
+                    icon: CupertinoIcons.headphones,
+                    iconColor: const Color(0xFF5AC8FA),
+                    title: 'Служба поддержки',
+                    subtitle: 'Контакты и способы связи',
+                    onTap: () => _openSupportGuide(context),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 28),
+
+              // Совет
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            CupertinoIcons.lightbulb,
+                            color: theme.colorScheme.primary,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Совет',
+                            style: theme.textTheme.labelLarge?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Обновляйте инструкции и поделитесь опытом с коллегами. Если у вас есть вопросы, обратитесь к администратору.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurface,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+            ],
+          ),
         ),
       ),
     );
@@ -242,105 +251,64 @@ class InstructionsScreen extends StatelessWidget {
     );
   }
 
-  /// Показывает инструкцию в bottom sheet в стиле iOS
+  /// Показывает инструкцию в bottom sheet в стиле окна редактирования профиля
   void _showInstructionBottomSheet({
     required BuildContext context,
     required String title,
     required String content,
   }) {
     final theme = Theme.of(context);
+    final isDesktop = kIsWeb ||
+        defaultTargetPlatform == TargetPlatform.macOS ||
+        defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.linux;
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: theme.colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.7,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        builder: (context, scrollController) => Column(
-          children: [
-            // Drag handle
-            Container(
-              margin: const EdgeInsets.only(top: 8, bottom: 16),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-
-            // Заголовок
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color:
-                            theme.colorScheme.onSurface.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(
-                        Icons.close,
-                        color:
-                            theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                        size: 18,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            Divider(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.05),
-              height: 1,
-            ),
-
-            // Содержимое
-            Expanded(
-              child: SingleChildScrollView(
-                controller: scrollController,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      content,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        height: 1.6,
-                        color: theme.colorScheme.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-                  ],
-                ),
-              ),
-            ),
-          ],
+    Widget buildContent(BuildContext ctx) {
+      return Text(
+        content,
+        style: theme.textTheme.bodyMedium?.copyWith(
+          height: 1.6,
+          color: theme.colorScheme.onSurface,
         ),
-      ),
-    );
+      );
+    }
+
+    if (isDesktop) {
+      showDialog(
+        context: context,
+        builder: (context) => Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(24),
+          child: DesktopDialogContent(
+            title: title,
+            footer: GTPrimaryButton(
+              text: 'Закрыть',
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            child: buildContent(context),
+          ),
+        ),
+      );
+    } else {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        constraints: const BoxConstraints(maxWidth: 640),
+        backgroundColor: theme.colorScheme.surface,
+        useSafeArea: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (context) => MobileBottomSheetContent(
+          title: title,
+          footer: GTPrimaryButton(
+            text: 'Закрыть',
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          child: buildContent(context),
+        ),
+      );
+    }
   }
 
   String _getMaterialsGuideContent() {
@@ -502,198 +470,5 @@ class InstructionsScreen extends StatelessWidget {
 • Экспортируйте отчёты в конце недели
 • При проблемах обратитесь к руководителю
     ''';
-  }
-}
-
-/// Объединяет несколько [_AppleMenuItem] в одну карточку с закругленными углами.
-class _AppleMenuGroup extends StatelessWidget {
-  /// Список элементов меню внутри группы.
-  final List<Widget> children;
-
-  /// Создаёт группу элементов меню.
-  const _AppleMenuGroup({
-    required this.children,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Column(
-          children: _buildChildrenWithDividers(context),
-        ),
-      ),
-    );
-  }
-
-  /// Добавляет разделители между элементами списка.
-  List<Widget> _buildChildrenWithDividers(BuildContext context) {
-    final theme = Theme.of(context);
-    final List<Widget> widgets = [];
-
-    for (int i = 0; i < children.length; i++) {
-      widgets.add(children[i]);
-      if (i < children.length - 1) {
-        widgets.add(
-          Padding(
-            padding: const EdgeInsets.only(left: 60, right: 16),
-            child: Divider(
-              height: 1,
-              thickness: 1,
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.05),
-            ),
-          ),
-        );
-      }
-    }
-
-    return widgets;
-  }
-}
-
-/// Элемент меню в стиле Apple Settings.
-///
-/// Отображает иконку, заголовок, опциональный подзаголовок и стрелку вправо.
-class _AppleMenuItem extends StatelessWidget {
-  /// Иконка элемента.
-  final IconData icon;
-
-  /// Цвет иконки.
-  final Color iconColor;
-
-  /// Основной текст элемента.
-  final String title;
-
-  /// Дополнительный текст под заголовком (опционально).
-  final String? subtitle;
-
-  /// Коллбэк при нажатии.
-  final VoidCallback? onTap;
-
-  /// Создаёт элемент меню в стиле Apple.
-  const _AppleMenuItem({
-    required this.icon,
-    required this.iconColor,
-    required this.title,
-    this.subtitle,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    final content = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: Row(
-        children: [
-          // Иконка в цветном квадратике
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              icon,
-              color: iconColor,
-              size: 18,
-            ),
-          ),
-          const SizedBox(width: 12),
-          // Текст
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-                if (subtitle != null)
-                  Text(
-                    subtitle!,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          // Trailing виджет или стрелка
-          if (onTap != null)
-            Icon(
-              Icons.chevron_right,
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
-              size: 20,
-            ),
-        ],
-      ),
-    );
-
-    if (onTap != null) {
-      return _IOSTapEffect(
-        onTap: onTap!,
-        child: content,
-      );
-    }
-
-    return content;
-  }
-}
-
-/// Виджет для создания iOS-подобного эффекта затемнения при нажатии.
-///
-/// При нажатии элемент затемняется серым фоном, как в iOS Settings.
-class _IOSTapEffect extends StatefulWidget {
-  /// Дочерний виджет.
-  final Widget child;
-
-  /// Коллбэк при нажатии.
-  final VoidCallback onTap;
-
-  /// Создаёт виджет с iOS-подобным эффектом нажатия.
-  const _IOSTapEffect({
-    required this.child,
-    required this.onTap,
-  });
-
-  @override
-  State<_IOSTapEffect> createState() => _IOSTapEffectState();
-}
-
-/// Состояние для [_IOSTapEffect].
-class _IOSTapEffectState extends State<_IOSTapEffect> {
-  /// Флаг нажатия.
-  bool _isPressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _isPressed = true),
-      onTapUp: (_) => setState(() => _isPressed = false),
-      onTapCancel: () => setState(() => _isPressed = false),
-      onTap: widget.onTap,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 100),
-        color: _isPressed
-            ? theme.colorScheme.onSurface.withValues(alpha: 0.08)
-            : Colors.transparent,
-        child: widget.child,
-      ),
-    );
   }
 }

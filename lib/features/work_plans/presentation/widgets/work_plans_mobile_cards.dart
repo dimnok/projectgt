@@ -319,17 +319,16 @@ class WorkPlansMobileCards extends ConsumerWidget {
                       // Стоимость - правый край
                       Expanded(
                         flex: 1,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            Text(
-                              _formatCurrency(totalCost),
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: theme.colorScheme.primary,
-                              ),
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            _formatCurrency(totalCost),
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: theme.colorScheme.primary,
                             ),
-                          ],
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ),
                     ],

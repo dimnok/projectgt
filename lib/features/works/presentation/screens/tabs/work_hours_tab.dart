@@ -15,6 +15,7 @@ import 'package:projectgt/features/roles/application/permission_service.dart';
 import 'package:projectgt/presentation/state/employee_state.dart'
     as employee_state;
 import 'package:projectgt/features/works/domain/entities/work_hour.dart';
+import 'package:projectgt/features/works/domain/entities/work.dart';
 import 'package:projectgt/core/utils/modal_utils.dart';
 
 /// Вкладка "Сотрудники" для панели деталей смены.
@@ -28,9 +29,16 @@ class WorkHoursTab extends ConsumerStatefulWidget {
   /// Контекст родительского экрана (для корректного отображения модалок)
   final BuildContext parentContext;
 
+  /// Предварительно загруженная смена (опционально).
+  final Work? initialWork;
+
   /// Конструктор вкладки «Сотрудники».
-  const WorkHoursTab(
-      {super.key, required this.workId, required this.parentContext});
+  const WorkHoursTab({
+    super.key,
+    required this.workId,
+    required this.parentContext,
+    this.initialWork,
+  });
 
   @override
   ConsumerState<WorkHoursTab> createState() => _WorkHoursTabState();
@@ -125,22 +133,28 @@ class _WorkHoursTabState extends ConsumerState<WorkHoursTab> {
   @override
   Widget build(BuildContext context) {
     // Получаем смену для проверки статуса/прав
-    final workAsync = ref.watch(workProvider(widget.workId));
+    // Сначала используем переданную смену, если нет - ищем в провайдере
+    final workAsync =
+        widget.initialWork ?? ref.watch(workProvider(widget.workId));
     final isWorkClosed = workAsync?.status.toLowerCase() == 'closed';
-    
+
     final permissionService = ref.watch(permissionServiceProvider);
     final canUpdate = permissionService.can('works', 'update');
 
-    // Проверка на супер-админа
+    // Проверка на админа
     final rolesState = ref.watch(local_roles_provider.rolesNotifierProvider);
     final userProfile = ref.watch(currentUserProfileProvider).profile;
-    final isSuperAdmin = rolesState.valueOrNull?.any((r) =>
+    final isAdmin = rolesState.valueOrNull?.any((r) =>
             r.id == userProfile?.roleId &&
             r.isSystem &&
-            r.name == 'Супер-админ') ??
+            (r.name == 'Супер-админ' || r.name == 'Админ')) ??
         false;
 
-    final bool canModify = (!isWorkClosed || isSuperAdmin) && canUpdate;
+    // Проверка на владельца смены
+    final isOwner =
+        userProfile != null && workAsync?.openedBy == userProfile.id;
+
+    final bool canModify = ((isOwner && !isWorkClosed) || isAdmin) && canUpdate;
 
     return Stack(
       children: [
@@ -335,7 +349,7 @@ class _WorkHoursTabState extends ConsumerState<WorkHoursTab> {
             right: 16,
             bottom: 16 + MediaQuery.viewPaddingOf(context).bottom + 56 + 12,
             child: FloatingActionButton(
-              heroTag: 'toggleEditHours',
+              heroTag: null,
               mini: true,
               onPressed: () async {
                 if (!_isMassEdit) {
@@ -392,7 +406,7 @@ class _WorkHoursTabState extends ConsumerState<WorkHoursTab> {
             right: 16,
             bottom: 16 + MediaQuery.viewPaddingOf(context).bottom,
             child: FloatingActionButton(
-              heroTag: 'addWorkHour',
+              heroTag: null,
               mini: true,
               onPressed: () {
                 ModalUtils.showWorkHourFormModal(
@@ -427,7 +441,8 @@ class _WorkHoursTabState extends ConsumerState<WorkHoursTab> {
       context: context,
       builder: (BuildContext context) => CupertinoAlertDialog(
         title: const Text('Подтверждение'),
-        content: const Text('Вы действительно хотите удалить сотрудника из смены?'),
+        content:
+            const Text('Вы действительно хотите удалить сотрудника из смены?'),
         actions: <CupertinoDialogAction>[
           CupertinoDialogAction(
             isDefaultAction: true,

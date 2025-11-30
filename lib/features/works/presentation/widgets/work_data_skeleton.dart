@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 
+/// Скелетон для экрана данных о работах.
+///
+/// Отображает заглушку загрузки с анимацией shimmer, имитирующую структуру
+/// карточек статистики, распределения и фотографий.
 class WorkDataSkeleton extends StatelessWidget {
+  /// Создает экземпляр скелетона.
   const WorkDataSkeleton({super.key});
 
   @override

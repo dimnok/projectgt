@@ -141,14 +141,30 @@ class ModalUtils {
   ///
   /// [context] - контекст для отображения модального окна.
   static Future<void> showWorkFormModal(BuildContext context) {
-    return _showFormModal(
-      context: context,
-      useDraggable: false,
-      formBuilder: (scrollController) => WorkFormScreen(
-        scrollController: scrollController,
-        parentContext: context,
-      ),
-    );
+    final isDesktop = ResponsiveUtils.isDesktop(context);
+
+    if (isDesktop) {
+      return showDialog(
+        context: context,
+        builder: (context) => const Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: EdgeInsets.all(24),
+          child: WorkFormScreen(),
+        ),
+      );
+    } else {
+      return showModalBottomSheet(
+        context: context,
+        useRootNavigator: true,
+        isScrollControlled: true,
+        useSafeArea: true,
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (context) => const WorkFormScreen(),
+      );
+    }
   }
 
   /// Показывает модальное окно с формой добавления сотрудника в смену.
@@ -241,12 +257,12 @@ class ModalUtils {
   ///
   /// [context] - контекст для отображения меню (должен быть контекстом ячейки).
   /// [initialData] - данные работы.
-  /// [onEdit] - callback для редактирования.
+  /// [onEdit] - callback для редактирования (если null, пункт скрыт).
   /// [onNavigateToWork] - callback для перехода к смене.
   static Future<void> showExportWorkItemActionDialog(
     BuildContext context, {
     required WorkSearchResult initialData,
-    required VoidCallback onEdit,
+    VoidCallback? onEdit,
     required VoidCallback onNavigateToWork,
   }) {
     final theme = Theme.of(context);
@@ -275,19 +291,10 @@ class ModalUtils {
       offset.dy + renderBox.size.height + 4,
     );
 
-    return showMenu(
-      context: context,
-      position: position,
-      elevation: 8,
-      color: theme.colorScheme.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: theme.colorScheme.outline.withValues(alpha: 0.2),
-          width: 1,
-        ),
-      ),
-      items: [
+    final items = <PopupMenuEntry>[];
+
+    if (onEdit != null) {
+      items.add(
         PopupMenuItem(
           onTap: onEdit,
           child: Row(
@@ -305,24 +312,42 @@ class ModalUtils {
             ],
           ),
         ),
-        PopupMenuItem(
-          onTap: onNavigateToWork,
-          child: Row(
-            children: [
-              Icon(
-                Icons.open_in_new_outlined,
-                size: 20,
-                color: theme.colorScheme.onSurface,
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'К смене',
-                style: theme.textTheme.bodyMedium,
-              ),
-            ],
-          ),
+      );
+    }
+
+    items.add(
+      PopupMenuItem(
+        onTap: onNavigateToWork,
+        child: Row(
+          children: [
+            Icon(
+              Icons.open_in_new_outlined,
+              size: 20,
+              color: theme.colorScheme.onSurface,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'К смене',
+              style: theme.textTheme.bodyMedium,
+            ),
+          ],
         ),
-      ],
+      ),
+    );
+
+    return showMenu(
+      context: context,
+      position: position,
+      elevation: 8,
+      color: theme.colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: theme.colorScheme.outline.withValues(alpha: 0.2),
+          width: 1,
+        ),
+      ),
+      items: items,
     );
   }
 

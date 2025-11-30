@@ -8,6 +8,7 @@ import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/presentation/providers/profiles_cache_provider.dart';
 import 'package:projectgt/presentation/widgets/app_badge.dart';
 import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/features/works/presentation/widgets/mobile_work_card.dart';
 
 /// Sliver-версия списка смен для использования внутри CustomScrollView.
 ///
@@ -119,19 +120,17 @@ class SliverMonthWorksList extends ConsumerWidget {
     );
 
     if (!isDesktop) {
-      return _buildMobileWorkCard(
-        context,
-        work,
-        objectName,
-        createdBy,
-        formatter,
-        statusText,
-        statusColor,
+      return MobileWorkCard(
+        work: work,
+        objectName: objectName,
+        createdBy: createdBy,
+        onTap: () => onWorkSelected(work),
+        statusColor: statusColor,
       );
     }
 
     return Card(
-      margin: EdgeInsets.symmetric(
+      margin: const EdgeInsets.symmetric(
         horizontal: 4,
         vertical: 2,
       ),
@@ -308,121 +307,6 @@ class SliverMonthWorksList extends ConsumerWidget {
                 ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMobileWorkCard(
-    BuildContext context,
-    Work work,
-    String objectName,
-    String createdBy,
-    NumberFormat formatter,
-    String statusText,
-    Color statusColor,
-  ) {
-    final theme = Theme.of(context);
-
-    // Профессиональный, компактный дизайн с акцентом на данные
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(16),
-        // Убрали тень для чистого flat-дизайна
-        border: Border.all(
-          color: theme.dividerColor.withValues(alpha: 0.1),
-          width: 1,
-        ),
-      ),
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Цветной индикатор статуса слева
-            Container(
-              width: 4,
-              color: statusColor,
-            ),
-            // Контент карточки
-            Expanded(
-              child: InkWell(
-                onTap: () => onWorkSelected(work),
-                // Убираем выделение при наведении (hover)
-                hoverColor: Colors.transparent,
-                // Убираем выделение при нажатии
-                splashColor: Colors.transparent,
-                highlightColor: Colors.transparent,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Левая колонка: Дата и Автор
-                      Expanded(
-                        flex: 4,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _formatDate(work.date),
-                              style: theme.textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              createdBy,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurface
-                                    .withValues(alpha: 0.5),
-                                fontSize: 12,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      // Правая колонка: Объект и Сумма
-                      Expanded(
-                        flex: 6,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              objectName,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w500,
-                                fontSize: 13,
-                                height: 1.2,
-                              ),
-                              textAlign: TextAlign.right,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              '${formatter.format(work.totalAmount ?? 0)} ₽',
-                              style: theme.textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: theme.colorScheme.primary,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
         ),
       ),
     );

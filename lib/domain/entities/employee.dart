@@ -136,4 +136,11 @@ abstract class Employee with _$Employee {
 
   /// Приватный конструктор для расширения функциональности через методы.
   const Employee._();
+
+  /// Возвращает полное имя (Фамилия Имя [Отчество]).
+  String get fullName {
+    return [lastName, firstName, middleName]
+        .where((e) => e != null && e.isNotEmpty)
+        .join(' ');
+  }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/work.dart';
 import '../providers/work_provider.dart';
@@ -14,26 +15,115 @@ import 'work_details_panel.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
 import 'package:projectgt/features/roles/presentation/providers/roles_provider.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
+import '../providers/repositories_providers.dart';
 
 /// Экран деталей смены с вкладками работ, материалов и часов.
 ///
 /// Используется для отображения детальной информации о смене,
 /// а также для управления списками работ, материалов и часов.
-class WorkDetailsScreen extends ConsumerWidget {
+class WorkDetailsScreen extends ConsumerStatefulWidget {
   /// Идентификатор смены для отображения деталей.
   final String workId;
 
+  /// Начальный индекс таба (опционально).
+  final int initialTabIndex;
+
   /// Создаёт экран деталей смены по [workId].
-  const WorkDetailsScreen({super.key, required this.workId});
+  const WorkDetailsScreen({
+    super.key,
+    required this.workId,
+    this.initialTabIndex = 0,
+  });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final work = ref.watch(workProvider(workId));
+  ConsumerState<WorkDetailsScreen> createState() => _WorkDetailsScreenState();
+}
+
+class _WorkDetailsScreenState extends ConsumerState<WorkDetailsScreen> {
+  /// Загруженная локально смена (если нет в глобальном стейте)
+  Work? _localWork;
+  bool _isLoading = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    // Отложенная проверка наличия смены в стейте
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAndLoadWork();
+    });
+  }
+
+  /// Проверяет наличие смены в глобальном стейте, если нет - загружает.
+  Future<void> _checkAndLoadWork() async {
+    // Сначала проверяем в глобальном стейте
+    final globalWork = ref.read(workProvider(widget.workId));
+
+    if (globalWork != null) {
+      return; // Уже есть, ничего не делаем
+    }
+
+    // Если нет, загружаем локально
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      debugPrint(
+          'WorkDetailsScreen: Loading work ${widget.workId} from repository...');
+      final repository = ref.read(workRepositoryProvider);
+      final work = await repository.getWork(widget.workId);
+      debugPrint('WorkDetailsScreen: Loaded work result: ${work?.id}');
+
+      if (mounted) {
+        setState(() {
+          _localWork = work;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('WorkDetailsScreen: Error loading work: $e');
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Пытаемся получить смену из глобального стейта или локального
+    final globalWork = ref.watch(workProvider(widget.workId));
+    final work = globalWork ?? _localWork;
 
     final isMobile = ResponsiveUtils.isDesktop(context) == false;
-    final permissionService = ref.watch(permissionServiceProvider);
-    final hasDeletePermission = permissionService.can('works', 'delete');
 
+    // Состояние загрузки
+    if (work == null && _isLoading) {
+      return Scaffold(
+        appBar: AppBarWidget(
+          title: 'Загрузка...',
+          leading: isMobile ? const BackButton() : null,
+        ),
+        body: const Center(child: CupertinoActivityIndicator()),
+      );
+    }
+
+    // Состояние ошибки
+    if (work == null && _error != null) {
+      return Scaffold(
+        appBar: AppBarWidget(
+          title: 'Ошибка',
+          leading: isMobile ? const BackButton() : null,
+        ),
+        body: Center(child: Text('Ошибка загрузки: $_error')),
+      );
+    }
+
+    // Состояние "не найдено"
     if (work == null) {
       return Scaffold(
         appBar: AppBarWidget(
@@ -44,7 +134,10 @@ class WorkDetailsScreen extends ConsumerWidget {
       );
     }
 
-    // Проверка прав на удаление (аналогично другим экранам)
+    // Отрисовка данных
+    final permissionService = ref.watch(permissionServiceProvider);
+    final hasDeletePermission = permissionService.can('works', 'delete');
+
     final rolesState = ref.watch(rolesNotifierProvider);
     final currentProfile = ref.watch(currentUserProfileProvider).profile;
     final isSuperAdmin = rolesState.valueOrNull?.any((r) =>
@@ -57,31 +150,39 @@ class WorkDetailsScreen extends ConsumerWidget {
         currentProfile != null && work.openedBy == currentProfile.id;
     final isWorkClosed = work.status.toLowerCase() == 'closed';
 
-    // Удалять можно, если есть право delete И ((автор и открыто) ИЛИ супер-админ)
     final canDelete =
         hasDeletePermission && ((isOwner && !isWorkClosed) || isSuperAdmin);
 
-    // Удаляем Hero, так как он вызывает конфликты с вложенными Hero виджетами (например, в табе сотрудников)
-    // и проблемы с layout (overflow) при анимации Scaffold
-    return Scaffold(
-      appBar: AppBarWidget(
-        title: isMobile ? 'Смена' : 'Смена: ${_formatDate(work.date)}',
-        leading: isMobile ? const BackButton() : null,
-        actions: [
-          if (canDelete)
-            IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
-              onPressed: () => _confirmDeleteWork(context, ref, work),
-              tooltip: 'Удалить',
+    return Hero(
+      tag: 'work_card_${widget.workId}',
+      child: Material(
+        type: MaterialType.transparency,
+        child: Scaffold(
+          appBar: AppBarWidget(
+            title: isMobile ? 'Смена' : 'Смена: ${_formatDate(work.date)}',
+            leading: isMobile ? const BackButton() : null,
+            actions: [
+              if (canDelete)
+                IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  onPressed: () => _confirmDeleteWork(context, ref, work),
+                  tooltip: 'Удалить',
+                ),
+            ],
+            showThemeSwitch: !isMobile,
+            centerTitle: isMobile,
+          ),
+          drawer:
+              isMobile ? null : const AppDrawer(activeRoute: AppRoute.works),
+          body: Builder(
+            builder: (scaffoldContext) => WorkDetailsPanel(
+              workId: widget.workId,
+              parentContext: scaffoldContext,
+              initialWork: work,
+              initialTabIndex: widget.initialTabIndex,
             ),
-        ],
-        showThemeSwitch: !isMobile,
-        centerTitle: isMobile,
-      ),
-      drawer: isMobile ? null : const AppDrawer(activeRoute: AppRoute.works),
-      body: Builder(
-        builder: (scaffoldContext) =>
-            WorkDetailsPanel(workId: workId, parentContext: scaffoldContext),
+          ),
+        ),
       ),
     );
   }

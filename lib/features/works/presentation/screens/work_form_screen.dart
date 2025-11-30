@@ -1,41 +1,42 @@
-import 'package:flutter/material.dart';
+import 'dart:io';
+
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/core/notifications/notification_service.dart';
+import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
+import 'package:projectgt/core/utils/telegram_helper.dart';
+import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
+import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/gt_dropdown.dart';
+import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
 import 'package:projectgt/domain/entities/employee.dart';
 import 'package:projectgt/domain/entities/object.dart';
-import 'package:projectgt/presentation/state/profile_state.dart';
-
-import 'package:image_picker/image_picker.dart';
-import 'dart:io';
-import 'package:flutter/foundation.dart';
-import 'package:uuid/uuid.dart';
-import 'package:intl/intl.dart';
-import '../providers/work_provider.dart';
-import '../providers/work_hours_provider.dart';
-import '../providers/month_groups_provider.dart';
-import '../../domain/entities/work_hour.dart';
-import 'package:projectgt/core/utils/modal_utils.dart';
-import 'package:projectgt/core/notifications/notification_service.dart';
+import 'package:projectgt/features/works/domain/entities/work_hour.dart';
+import 'package:projectgt/features/works/presentation/providers/month_groups_provider.dart';
+import 'package:projectgt/features/works/presentation/providers/work_hours_provider.dart';
+import 'package:projectgt/features/works/presentation/providers/work_provider.dart';
 import 'package:projectgt/features/works/presentation/utils/photo_upload_helper.dart';
 import 'package:projectgt/features/works/presentation/widgets/photo_loading_dialog.dart';
-import 'package:projectgt/core/utils/telegram_helper.dart';
-import 'package:projectgt/core/utils/responsive_utils.dart';
+import 'package:projectgt/presentation/state/profile_state.dart';
+import 'package:uuid/uuid.dart';
 
 /// Экран создания новой смены.
 class WorkFormScreen extends ConsumerStatefulWidget {
   /// Контроллер прокрутки для DraggableScrollableSheet.
+  /// В данной реализации [MobileBottomSheetContent] обрабатывает скролл самостоятельно,
+  /// поэтому этот параметр может быть проигнорирован или использован для специфичных случаев.
   final ScrollController? scrollController;
 
   /// Родительский контекст для отображения snackbar и диалогов поверх модального окна.
   final BuildContext? parentContext;
 
   /// Создаёт экран формы создания новой смены.
-  ///
-  /// [scrollController] используется для управления прокруткой в модальных окнах.
-  /// [parentContext] позволяет отображать сообщения поверх модального окна.
   const WorkFormScreen({
     super.key,
     this.scrollController,
@@ -168,65 +169,54 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
   /// Показать опции выбора фото
   void _showPhotoOptions() {
     final theme = Theme.of(context);
+    // Используем MobileBottomSheetContent для вложенного диалога выбора фото
     showModalBottomSheet(
       context: context,
       useRootNavigator: true,
+      isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: theme.colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+      builder: (context) => MobileBottomSheetContent(
+        title: 'Фото смены',
+        footer: GTTextButton(
+          text: 'Отмена',
+          onPressed: () => Navigator.pop(context),
+          color: theme.colorScheme.onSurface,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            Text(
-              'Фото смены',
-              style: theme.textTheme.titleLarge
-                  ?.copyWith(fontWeight: FontWeight.bold),
+            _PhotoOptionButton(
+              icon: Icons.photo_camera,
+              label: 'Камера',
+              onTap: () {
+                Navigator.pop(context);
+                _pickPhoto(ImageSource.camera);
+              },
             ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _PhotoOptionButton(
-                  icon: Icons.photo_camera,
-                  label: 'Камера',
-                  onTap: () {
-                    Navigator.pop(context);
-                    _pickPhoto(ImageSource.camera);
-                  },
-                ),
-                _PhotoOptionButton(
-                  icon: Icons.photo_library,
-                  label: 'Галерея',
-                  onTap: () {
-                    Navigator.pop(context);
-                    _pickPhoto(ImageSource.gallery);
-                  },
-                ),
-                if (_selectedPhotoFile != null || _selectedPhotoBytes != null)
-                  _PhotoOptionButton(
-                    icon: Icons.delete_outline,
-                    label: 'Удалить',
-                    onTap: () {
-                      Navigator.pop(context);
-                      setState(() {
-                        _selectedPhotoFile = null;
-                        _selectedPhotoBytes = null;
-                      });
-                    },
-                  ),
-              ],
+            _PhotoOptionButton(
+              icon: Icons.photo_library,
+              label: 'Галерея',
+              onTap: () {
+                Navigator.pop(context);
+                _pickPhoto(ImageSource.gallery);
+              },
             ),
-            const SizedBox(height: 16),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                'Отмена',
-                style: TextStyle(color: theme.colorScheme.onSurface),
+            if (_selectedPhotoFile != null || _selectedPhotoBytes != null)
+              _PhotoOptionButton(
+                icon: Icons.delete_outline,
+                label: 'Удалить',
+                onTap: () {
+                  Navigator.pop(context);
+                  setState(() {
+                    _selectedPhotoFile = null;
+                    _selectedPhotoBytes = null;
+                  });
+                },
               ),
-            ),
           ],
         ),
       ),
@@ -404,176 +394,133 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isMobile = ResponsiveUtils.isMobile(context);
+
+    // Основной контент (спиннер или форма)
+    final Widget content = _isLoadingOccupiedEmployees
+        ? const Center(
+            child: Padding(
+              padding: EdgeInsets.all(40.0),
+              child: CupertinoActivityIndicator(radius: 16),
+            ),
+          )
+        : _buildFormContent(context, theme);
+
+    // Кнопки действий (показываем только если не загружается)
+    final Widget? footer =
+        _isLoadingOccupiedEmployees ? null : _buildFooter(context);
+
+    if (isMobile) {
+      return MobileBottomSheetContent(
+        title: 'Открытие смены',
+        footer: footer,
+        child: content,
+      );
+    } else {
+      return DesktopDialogContent(
+        title: 'Открытие смены',
+        footer: footer,
+        child: content,
+      );
+    }
+  }
+
+  Widget _buildFormContent(BuildContext context, ThemeData theme) {
     final profile = ref.watch(currentUserProfileProvider).profile;
     final allObjects = ref.watch(objectRepositoryProvider).getObjects();
     final allEmployees = ref.watch(employeeRepositoryProvider).getEmployees();
     final dateStr = DateFormat('dd.MM.yyyy').format(DateTime.now());
 
-    return Material(
-      color: theme.colorScheme.surface,
-      child: _isLoadingOccupiedEmployees
-          ? const Center(child: CupertinoActivityIndicator())
-          : Column(
-              mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Заголовок (закреплен сверху)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surface,
-                        border: Border(
-                          bottom: BorderSide(
-                        color: theme.colorScheme.outline.withValues(alpha: 0.2),
-                            width: 1,
-                          ),
-                        ),
-                      ),
-                      child: ModalUtils.buildModalHeader(
-                        title: 'Открытие смены',
-                        onClose: () => Navigator.pop(context),
-                        theme: theme,
-                      ),
-                    ),
+    return Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Дата
+          _buildDateSection(theme, dateStr),
+          const SizedBox(height: 24),
 
-                    // Прокручиваемое содержимое
-                Flexible(
-                      child: SingleChildScrollView(
-                        controller: widget.scrollController,
-                    padding: const EdgeInsets.fromLTRB(24.0, 24.0, 24.0, 24.0),
-                        child: ModalUtils.buildAdaptiveFormContainer(
-                          context: context,
-                          child: Form(
-                            key: _formKey,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Дата
-                            _buildDateSection(theme, dateStr),
-                            const SizedBox(height: 24),
+          // Объект и сотрудники
+          FutureBuilder(
+            future: Future.wait([allObjects, allEmployees]),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return const Center(child: CupertinoActivityIndicator());
+              }
 
-                                // Объект и сотрудники
-                                FutureBuilder(
-                              future: Future.wait([allObjects, allEmployees]),
-                                  builder: (context, snapshot) {
-                                    if (!snapshot.hasData) {
-                                      return const Center(
-                                          child: CupertinoActivityIndicator());
-                                    }
+              final objects = (snapshot.data![0] as List<ObjectEntity>);
+              final employees = (snapshot.data![1] as List<Employee>);
+              final profileObjectIds = profile?.objectIds ?? [];
+              final availableObjects = objects
+                  .where((o) => profileObjectIds.contains(o.id))
+                  .toList();
 
-                                final objects =
-                                    (snapshot.data![0] as List<ObjectEntity>);
-                                    final employees =
-                                        (snapshot.data![1] as List<Employee>);
-                                    final profileObjectIds =
-                                        profile?.objectIds ?? [];
-                                    final availableObjects = objects
-                                    .where(
-                                        (o) => profileObjectIds.contains(o.id))
-                                        .toList();
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Выбор объекта
+                  _buildObjectSelector(availableObjects, theme),
+                  const SizedBox(height: 24),
 
-                                    return Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        // Выбор объекта
-                                    _buildObjectSelector(
-                                      availableObjects,
-                                      theme,
-                                    ),
-                                    const SizedBox(height: 24),
-
-                                    // Сотрудники
-                                    Text(
-                                      'Сотрудники',
-                                      style: theme.textTheme.titleMedium
-                                          ?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Отображаются только активные сотрудники',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: theme.colorScheme.secondary,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    _buildEmployeesList(employees, theme),
-                                    const SizedBox(height: 24),
-
-                                    // Фото смены
-                                    Text(
-                                      'Фото смены',
-                                      style: theme.textTheme.titleMedium
-                                          ?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    _buildPhotoSection(theme),
-                                    const SizedBox(height: 24),
-
-                                    // Кнопки управления (теперь внутри скролла, под фото)
-                                    _buildActionButtons(context),
-                                  ],
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
+                  // Сотрудники
+                  Text(
+                    'Сотрудники',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                ),
-              ],
-            ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Отображаются только активные сотрудники',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: theme.colorScheme.secondary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildEmployeesList(employees, theme),
+                  const SizedBox(height: 24),
+
+                  // Фото смены
+                  Text(
+                    'Фото смены',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildPhotoSection(theme),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildActionButtons(BuildContext context) {
-    final isMobile = ResponsiveUtils.isMobile(context);
-    final buttonHeight = isMobile ? 44.0 : 48.0;
-
+  Widget _buildFooter(BuildContext context) {
     return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
       children: [
         Expanded(
-          child: OutlinedButton(
+          child: GTSecondaryButton(
+            text: 'Отмена',
             onPressed: () => Navigator.pop(context),
-            style: OutlinedButton.styleFrom(
-              minimumSize: Size.fromHeight(buttonHeight),
-              shape: const StadiumBorder(),
-              textStyle:
-                  const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            child: const Text('Отмена'),
           ),
         ),
         const SizedBox(width: 16),
         Expanded(
-          child: ElevatedButton(
-            onPressed: _isLoadingOccupiedEmployees
-                ? null
-                : () {
-                    if (_selectedObjectId != null &&
-                        _selectedEmployeeIds.isNotEmpty &&
-                        !_isLoadingOccupiedEmployees) {
-                      _saveWork();
-                    }
-                  },
-            style: ElevatedButton.styleFrom(
-              minimumSize: Size.fromHeight(buttonHeight),
-              shape: const StadiumBorder(),
-              elevation: isMobile ? 4 : 1,
-              textStyle:
-                  const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            child: _isLoadingOccupiedEmployees
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CupertinoActivityIndicator(),
-                  )
-                : const Text('Открыть'),
+          child: GTPrimaryButton(
+            text: 'Открыть',
+            isLoading: _isLoadingOccupiedEmployees,
+            onPressed: () {
+              if (_selectedObjectId != null &&
+                  _selectedEmployeeIds.isNotEmpty &&
+                  !_isLoadingOccupiedEmployees) {
+                _saveWork();
+              }
+            },
           ),
         ),
       ],
@@ -604,56 +551,55 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
     return GTStringDropdown(
       items: availableObjects.map((obj) => obj.name).toList(),
       selectedItem: _selectedObjectId != null
-                                                  ? availableObjects
+          ? availableObjects
               .where((obj) => obj.id == _selectedObjectId)
-                                                      .map((obj) => obj.name)
-                                                      .firstOrNull
-                                                  : null,
-                                          onSelectionChanged: (selectedName) {
-                                            if (selectedName != null) {
-          final selectedObject = availableObjects
-              .firstWhere((obj) => obj.name == selectedName);
-                                              setState(() {
+              .map((obj) => obj.name)
+              .firstOrNull
+          : null,
+      onSelectionChanged: (selectedName) {
+        if (selectedName != null) {
+          final selectedObject =
+              availableObjects.firstWhere((obj) => obj.name == selectedName);
+          setState(() {
             _selectedObjectId = selectedObject.id;
-                                                _selectedEmployeeIds.clear();
-                                              });
-                                              _updateOccupiedEmployees();
-                                            } else {
-                                              setState(() {
-                                                _selectedObjectId = null;
-                                                _selectedEmployeeIds.clear();
+            _selectedEmployeeIds.clear();
+          });
+          _updateOccupiedEmployees();
+        } else {
+          setState(() {
+            _selectedObjectId = null;
+            _selectedEmployeeIds.clear();
             _cachedOccupiedEmployeeIds = null;
-                                              });
-                                            }
-                                          },
-                                          labelText: 'Объект',
-                                          hintText: availableObjects.length == 1
-                                              ? 'Объект выбран автоматически'
-                                              : 'Выберите объект',
-                                          allowCustomInput: false,
-                                          validator: (value) {
-                                            if (_selectedObjectId == null) {
-                                              return 'Выберите объект';
-                                            }
-                                            return null;
-                                          },
+          });
+        }
+      },
+      labelText: 'Объект',
+      hintText: availableObjects.length == 1
+          ? 'Объект выбран автоматически'
+          : 'Выберите объект',
+      allowCustomInput: false,
+      validator: (value) {
+        if (_selectedObjectId == null) {
+          return 'Выберите объект';
+        }
+        return null;
+      },
     );
   }
 
   Widget _buildPhotoSection(ThemeData theme) {
-    final hasPhoto =
-        _selectedPhotoFile != null || _selectedPhotoBytes != null;
+    final hasPhoto = _selectedPhotoFile != null || _selectedPhotoBytes != null;
     final isDark = theme.brightness == Brightness.dark;
 
     return InkWell(
       onTap: _selectedObjectId != null ? _showPhotoOptions : null,
       borderRadius: BorderRadius.circular(12),
       child: Container(
-                                            height: 200,
+        height: 200,
         width: double.infinity,
-                                            decoration: BoxDecoration(
+        decoration: BoxDecoration(
           color: isDark ? Colors.grey[900] : Colors.grey[50],
-                                              border: Border.all(
+          border: Border.all(
             color: hasPhoto
                 ? Colors.transparent
                 : theme.colorScheme.outline.withValues(alpha: 0.3),
@@ -668,28 +614,28 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
                 children: [
                   if (_selectedPhotoBytes != null)
                     Image.memory(
-                                                      _selectedPhotoBytes!,
-                                                      fit: BoxFit.cover,
-                                                    )
+                      _selectedPhotoBytes!,
+                      fit: BoxFit.cover,
+                    )
                   else
                     Image.file(
-                                                      _selectedPhotoFile!,
-                                                      fit: BoxFit.cover,
+                      _selectedPhotoFile!,
+                      fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) => Icon(
-                                                        Icons.broken_image,
+                        Icons.broken_image,
                         color: theme.colorScheme.error,
-                                                        size: 48,
-                                                      ),
-                                                    ),
+                        size: 48,
+                      ),
+                    ),
                   // Градиент для читаемости кнопки удаления
                   Positioned(
                     top: 0,
                     right: 0,
                     child: Container(
                       padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.4),
-                        borderRadius: const BorderRadius.only(
+                      decoration: const BoxDecoration(
+                        color: Color.fromRGBO(0, 0, 0, 0.4),
+                        borderRadius: BorderRadius.only(
                           bottomLeft: Radius.circular(12),
                         ),
                       ),
@@ -697,9 +643,9 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
                         Icons.delete_outline,
                         color: Colors.white,
                         size: 24,
-                                                  ),
-                                                ),
-                                              ),
+                      ),
+                    ),
+                  ),
                 ],
               )
             : Center(
@@ -733,13 +679,13 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
                           style: TextStyle(
                             color: theme.colorScheme.error,
                             fontSize: 12,
+                          ),
                         ),
                       ),
-                    ),
                   ],
                 ),
               ),
-            ),
+      ),
     );
   }
 
@@ -750,15 +696,15 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
         padding: const EdgeInsets.all(16),
         width: double.infinity,
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest
-              .withValues(alpha: 0.3),
+          color:
+              theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Center(
-        child: Text(
-          'Выберите объект для отображения сотрудников',
-          style: TextStyle(
-            color: theme.colorScheme.onSurfaceVariant,
+          child: Text(
+            'Выберите объект для отображения сотрудников',
+            style: TextStyle(
+              color: theme.colorScheme.onSurfaceVariant,
             ),
             textAlign: TextAlign.center,
           ),
@@ -791,8 +737,8 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
         padding: const EdgeInsets.all(24),
         width: double.infinity,
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest
-              .withValues(alpha: 0.3),
+          color:
+              theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
