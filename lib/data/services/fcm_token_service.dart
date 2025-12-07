@@ -37,6 +37,11 @@ class FcmTokenService {
   /// для текущего пользователя.
   Future<void> initialize() async {
     if (_initialized) return;
+    // На Windows/macOS/Linux сервис токенов не работает (нет поддержки FCM)
+    if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
+      return;
+    }
+
     _initialized = true;
 
     await _requestPushPermissionsIfNeeded();

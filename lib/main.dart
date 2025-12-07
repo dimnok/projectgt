@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
@@ -38,18 +39,30 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Инициализация Firebase с опциями для текущей платформы
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  // Регистрация фонового обработчика сообщений FCM
-  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-  // Показ уведомлений в форграунде на iOS/macOS
-  await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
-    alert: true,
-    badge: true,
-    sound: true,
-  );
+  // Инициализация Firebase только для поддерживаемых платформ (Android, iOS, Web)
+  // На Windows/macOS/Linux пропускаем этот шаг, чтобы избежать краша
+  if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+    try {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      // Регистрация фонового обработчика сообщений FCM
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+      // Показ уведомлений в форграунде на iOS/macOS
+      await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+    } catch (e) {
+      debugPrint('Firebase initialization failed: $e');
+    }
+  } else if (kIsWeb) {
+    // Для Web инициализация отдельная
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  }
 
   // Инициализация конфигурации приложения (загрузка .env файла)
   await AppConfig.initialize();
