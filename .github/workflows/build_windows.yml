@@ -1,0 +1,47 @@
+name: Build Windows App
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Enable Windows Support
+        run: flutter config --enable-windows-desktop
+
+      - name: Initialize Windows Configuration
+        # Генерируем файлы поддержки Windows, если их нет
+        run: |
+          if (-not (Test-Path -Path "windows")) {
+            flutter create --platforms=windows .
+          }
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Build Windows Release
+        # Передаем переменные, хотя текущая версия AppConfig может требовать доработки для их чтения через fromEnvironment
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: flutter build windows --release --dart-define=SUPABASE_URL=$Env:SUPABASE_URL --dart-define=SUPABASE_ANON_KEY=$Env:SUPABASE_ANON_KEY
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ProjectGT-Windows
+          path: build/windows/x64/runner/Release/
+
