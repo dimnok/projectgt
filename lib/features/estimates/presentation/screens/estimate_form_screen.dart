@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/di/providers.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../domain/entities/estimate.dart';
+import '../../../../core/widgets/gt_buttons.dart';
 
 /// Экран для создания и редактирования сметы.
 ///
@@ -185,9 +186,9 @@ class _EstimateFormScreenState extends ConsumerState<EstimateFormScreen> {
                       keyboardType: TextInputType.number,
                     ),
                     const SizedBox(height: 24),
-                    ElevatedButton(
+                    GTPrimaryButton(
+                      text: isEdit ? 'Сохранить' : 'Создать',
                       onPressed: state.isLoading ? null : _save,
-                      child: Text(isEdit ? 'Сохранить' : 'Создать'),
                     ),
                   ],
                 ),

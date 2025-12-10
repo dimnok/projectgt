@@ -103,7 +103,11 @@ class SupabaseInventoryReceiptDataSource
           .from('inventory_categories')
           .select('serial_number_required')
           .eq('id', receiptItem.categoryId)
-          .single();
+          .maybeSingle();
+
+      if (categoryInfoResponse == null) {
+        throw Exception('Категория товара не найдена (id: ${receiptItem.categoryId})');
+      }
 
       final serialNumberRequired =
           categoryInfoResponse['serial_number_required'] as bool? ?? false;

@@ -6,9 +6,14 @@ part of 'splash_controller.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$splashControllerHash() => r'b9eede194250c38e2ce655a8a65f74882218c0e3';
+String _$splashControllerHash() => r'49697c1d4ed56086bfd9f9a6cd8eb32c8e51630d';
 
-/// See also [SplashController].
+/// Контроллер экрана заставки (Splash Screen).
+///
+/// Отвечает за инициализацию приложения, проверку авторизации
+/// и предварительную загрузку необходимых данных.
+///
+/// Copied from [SplashController].
 @ProviderFor(SplashController)
 final splashControllerProvider =
     AutoDisposeNotifierProvider<SplashController, String>.internal(

@@ -1,27 +1,47 @@
+import 'package:collection/collection.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/di/providers.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../domain/entities/estimate.dart';
-import 'package:pluto_grid/pluto_grid.dart';
-import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
-import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
-import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import '../widgets/estimate_item_card.dart';
+
+import '../../../../core/di/providers.dart';
+import '../../../../core/utils/responsive_utils.dart';
+import '../../../../core/utils/formatters.dart';
+import '../../../../core/widgets/gt_buttons.dart';
+import '../../../../domain/entities/estimate.dart';
+import '../../../../domain/entities/object.dart';
+import '../../../../domain/entities/contract.dart';
+import '../../../../presentation/widgets/app_bar_widget.dart';
 import '../../../../presentation/widgets/cupertino_dialog_widget.dart';
+import '../../../../core/utils/snackbar_utils.dart';
+import '../../../../features/estimates/presentation/screens/import_estimate_form_modal.dart';
+import '../../../../features/roles/application/permission_service.dart';
+import '../../../../features/roles/presentation/widgets/permission_guard.dart';
+
+import '../widgets/estimate_item_card.dart';
+import '../widgets/estimate_edit_dialog.dart';
+import '../widgets/estimate_table_view.dart';
+import '../widgets/estimate_mobile_header.dart';
 
 /// Экран для отображения детальной информации о смете.
 ///
-/// Показывает таблицу позиций сметы с использованием PlutoGrid.
-/// Добавлена возможность редактирования, добавления и удаления позиций.
+/// Показывает таблицу позиций сметы с использованием PlutoGrid (на Desktop)
+/// или список карточек с хедером (на Mobile).
 class EstimateDetailsScreen extends ConsumerStatefulWidget {
   /// Название сметы для отображения.
   final String? estimateTitle;
 
+  /// Флаг отображения AppBar.
+  final bool showAppBar;
+
   /// Создаёт экран деталей сметы.
-  const EstimateDetailsScreen({super.key, this.estimateTitle});
+  const EstimateDetailsScreen({
+    super.key,
+    this.estimateTitle,
+    this.showAppBar = true,
+  });
 
   @override
   ConsumerState<EstimateDetailsScreen> createState() =>
@@ -30,15 +50,6 @@ class EstimateDetailsScreen extends ConsumerStatefulWidget {
 
 /// Состояние для [EstimateDetailsScreen].
 class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
-  /// Колонки таблицы PlutoGrid.
-  late List<PlutoColumn> columns;
-
-  /// Строки таблицы PlutoGrid.
-  late List<PlutoRow> rows;
-
-  /// Контроллер состояния таблицы
-  PlutoGridStateManager? stateManager;
-
   /// Контроллер для текста поиска
   final TextEditingController _searchController = TextEditingController();
 
@@ -50,24 +61,6 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
 
   /// Генерация идентификаторов для новых строк
   final Uuid _uuid = const Uuid();
-
-  /// Список уникальных систем из смет
-  List<String> _systems = [];
-
-  /// Список уникальных подсистем из смет
-  List<String> _subsystems = [];
-
-  /// Список уникальных единиц измерения из смет
-  List<String> _units = [];
-
-  /// Индикатор загрузки систем
-  bool _systemsLoading = false;
-
-  /// Индикатор загрузки подсистем
-  bool _subsystemsLoading = false;
-
-  /// Индикатор загрузки единиц измерения
-  bool _unitsLoading = false;
 
   /// Контроллер прокрутки для списка позиций
   final ScrollController _scrollController = ScrollController();
@@ -81,38 +74,71 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
   /// Минимальное смещение для срабатывания скрытия/показа
   final double _scrollThreshold = 20.0;
 
+  /// Выбранная смета (для Desktop режима)
+  EstimateFile? _selectedEstimateFile;
+
   @override
   void initState() {
     super.initState();
-    _loadLookupData();
-
     // Добавляем слушатель прокрутки
     _scrollController.addListener(_scrollListener);
+    // Слушаем изменения в поиске для обновления UI
+    _searchController.addListener(_onSearchChanged);
+
+    // Загружаем данные и инициализируем выбор
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final state = ref.read(estimateNotifierProvider);
+      // Если данные уже загружены или загружаются, просто инициализируем выбор.
+      // Если список пуст и нет загрузки, пробуем загрузить.
+      if (state.estimates.isNotEmpty) {
+        _initSelection();
+      } else if (!state.isLoading) {
+        ref.read(estimateNotifierProvider.notifier).loadEstimates().then((_) {
+          if (mounted) {
+            _initSelection();
+          }
+        });
+      }
+    });
+  }
+
+  void _initSelection() {
+    if (!mounted) return;
+    if (widget.estimateTitle != null) {
+      final state = ref.read(estimateNotifierProvider);
+      final files = _groupEstimatesByFile(state.estimates);
+      final found = files.firstWhereOrNull(
+        (f) => f.estimateTitle == widget.estimateTitle,
+      );
+      if (found != null && mounted) {
+        setState(() {
+          _selectedEstimateFile = found;
+        });
+      }
+    }
   }
 
   @override
   void dispose() {
-    _searchController.dispose();
-    // Удаляем слушатель и очищаем контроллер прокрутки
     _scrollController.removeListener(_scrollListener);
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
+  void _onSearchChanged() {
+    setState(() {});
+  }
+
   /// Слушатель прокрутки для управления видимостью верхнего блока
   void _scrollListener() {
-    // Проверяем, что у контроллера есть позиция
     if (!_scrollController.hasClients) return;
 
-    // Получаем текущую позицию прокрутки
     final currentPosition = _scrollController.position.pixels;
-
-    // Определяем направление прокрутки
     final isScrollingDown = currentPosition > _previousScrollPosition;
 
-    // Проверяем, превышает ли разница порог
     if ((currentPosition - _previousScrollPosition).abs() > _scrollThreshold) {
-      // Обновляем видимость верхнего блока в зависимости от направления
       if (isScrollingDown && _isHeaderVisible) {
         setState(() {
           _isHeaderVisible = false;
@@ -124,60 +150,12 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
           _isHeaderVisible = true;
         });
       }
-
-      // Обновляем предыдущую позицию
       _previousScrollPosition = currentPosition;
-    }
-  }
-
-  /// Загружает справочные данные (списки уникальных значений)
-  Future<void> _loadLookupData() async {
-    setState(() {
-      _systemsLoading = true;
-      _subsystemsLoading = true;
-      _unitsLoading = true;
-    });
-
-    try {
-      final estimateRepo = ref.read(estimateRepositoryProvider);
-      final systems =
-          await estimateRepo.getSystems(estimateTitle: widget.estimateTitle);
-      final subsystems =
-          await estimateRepo.getSubsystems(estimateTitle: widget.estimateTitle);
-      final units =
-          await estimateRepo.getUnits(estimateTitle: widget.estimateTitle);
-
-      if (!mounted) return;
-
-      setState(() {
-        _systems = systems;
-        _subsystems = subsystems;
-        _units = units;
-        _systemsLoading = false;
-        _subsystemsLoading = false;
-        _unitsLoading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-
-      setState(() {
-        _systemsLoading = false;
-        _subsystemsLoading = false;
-        _unitsLoading = false;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Ошибка при загрузке справочных данных: $e'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
     }
   }
 
   /// Фильтрует и сортирует список позиций сметы
   List<Estimate> _filterAndSortItems(List<Estimate> items) {
-    // Фильтрация по поисковому запросу
     final searchQuery = _searchController.text.toLowerCase().trim();
     var filteredItems = items;
 
@@ -192,34 +170,25 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
       }).toList();
     }
 
-    // Сортировка по выбранному критерию
     filteredItems.sort((a, b) {
       int result = 0;
-
       switch (_sortCriterion) {
         case 'number':
-          // Интеллектуальная сортировка номеров (с поддержкой смешанных типов)
-          // Если оба номера числовые, сравниваем их как числа
           final aIsNumeric = RegExp(r'^\d+(\.\d+)?$').hasMatch(a.number);
           final bIsNumeric = RegExp(r'^\d+(\.\d+)?$').hasMatch(b.number);
-
           if (aIsNumeric && bIsNumeric) {
             try {
               final numA = double.parse(a.number.replaceAll(',', '.'));
               final numB = double.parse(b.number.replaceAll(',', '.'));
               result = numA.compareTo(numB);
             } catch (e) {
-              // В случае ошибки используем строковое сравнение
               result = a.number.compareTo(b.number);
             }
           } else if (aIsNumeric) {
-            // Числовые номера идут перед нечисловыми
             result = -1;
           } else if (bIsNumeric) {
-            // Числовые номера идут перед нечисловыми
             result = 1;
           } else {
-            // Если оба нечисловые, используем обычное строковое сравнение
             result = a.number.compareTo(b.number);
           }
           break;
@@ -236,27 +205,8 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
           result = a.total.compareTo(b.total);
           break;
         default:
-          // Интеллектуальная сортировка по умолчанию
-          final aIsNumeric = RegExp(r'^\d+(\.\d+)?$').hasMatch(a.number);
-          final bIsNumeric = RegExp(r'^\d+(\.\d+)?$').hasMatch(b.number);
-
-          if (aIsNumeric && bIsNumeric) {
-            try {
-              final numA = double.parse(a.number.replaceAll(',', '.'));
-              final numB = double.parse(b.number.replaceAll(',', '.'));
-              result = numA.compareTo(numB);
-            } catch (e) {
-              result = a.number.compareTo(b.number);
-            }
-          } else if (aIsNumeric) {
-            result = -1;
-          } else if (bIsNumeric) {
-            result = 1;
-          } else {
-            result = a.number.compareTo(b.number);
-          }
+          result = a.number.compareTo(b.number);
       }
-
       return _sortAscending ? result : -result;
     });
 
@@ -281,12 +231,10 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
           groupValue: _sortCriterion,
           onChanged: (value) {
             if (value == _sortCriterion) {
-              // Если выбран тот же критерий, меняем порядок сортировки
               setState(() {
                 _sortAscending = !_sortAscending;
               });
             } else {
-              // Если выбран новый критерий, устанавливаем его и сортируем по возрастанию
               setState(() {
                 _sortCriterion = value!;
                 _sortAscending = true;
@@ -302,8 +250,8 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
                     value: option['value'] as String,
                     secondary: _sortCriterion == option['value']
                         ? Icon(_sortAscending
-                            ? Icons.arrow_upward
-                            : Icons.arrow_downward)
+                            ? CupertinoIcons.arrow_up
+                            : CupertinoIcons.arrow_down)
                         : null,
                   )),
             ],
@@ -319,618 +267,14 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
     );
   }
 
-  /// Отображает диалог добавления/редактирования позиции сметы
-  void _showItemDialog(BuildContext context, [Estimate? estimate]) {
-    final isEditing = estimate != null;
-    final itemTitle =
-        isEditing ? 'Редактирование позиции' : 'Добавление позиции';
-
-    final systemController =
-        TextEditingController(text: isEditing ? estimate.system : '');
-    final subsystemController =
-        TextEditingController(text: isEditing ? estimate.subsystem : '');
-    final numberController = TextEditingController(
-        text: isEditing ? estimate.number.toString() : '');
-    final nameController =
-        TextEditingController(text: isEditing ? estimate.name : '');
-    final articleController =
-        TextEditingController(text: isEditing ? estimate.article : '');
-    final manufacturerController =
-        TextEditingController(text: isEditing ? estimate.manufacturer : '');
-    final unitController =
-        TextEditingController(text: isEditing ? estimate.unit : '');
-    final quantityController = TextEditingController(
-        text: isEditing ? estimate.quantity.toString() : '');
-    final priceController =
-        TextEditingController(text: isEditing ? estimate.price.toString() : '');
-
-    final formKey = GlobalKey<FormState>();
-
-    // Получаем текущие элементы сметы
-    final state = ref.read(estimateNotifierProvider);
-    final currentItems = state.estimates
-        .where((e) => e.estimateTitle == widget.estimateTitle)
-        .toList();
-
-    // Определяем objectId и contractId от существующих записей или от переданной записи
-    final objectId = isEditing
-        ? estimate.objectId
-        : (currentItems.isNotEmpty ? currentItems.first.objectId : null);
-    final contractId = isEditing
-        ? estimate.contractId
-        : (currentItems.isNotEmpty ? currentItems.first.contractId : null);
-
-    final theme = Theme.of(context);
-    final isLargeScreen = MediaQuery.of(context).size.width > 900;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height -
-            MediaQuery.of(context).padding.top -
-            kToolbarHeight,
-      ),
-      builder: (context) {
-        Widget modalContent = Container(
-          margin: isLargeScreen ? const EdgeInsets.only(top: 48) : null,
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.18),
-                blurRadius: 24,
-                offset: const Offset(0, -8),
-              ),
-            ],
-            border: Border.all(
-              color: theme.colorScheme.outline.withValues(alpha: 0.12),
-              width: 1.5,
-            ),
-          ),
-          child: DraggableScrollableSheet(
-            initialChildSize: 1.0,
-            minChildSize: 0.5,
-            maxChildSize: 1.0,
-            expand: false,
-            builder: (context, scrollController) => SingleChildScrollView(
-              controller: scrollController,
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 700),
-                  child: Form(
-                    key: formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Заголовок и кнопка закрытия
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 16.0),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  itemTitle,
-                                  style: theme.textTheme.titleLarge
-                                      ?.copyWith(fontWeight: FontWeight.bold),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.close),
-                                style: IconButton.styleFrom(
-                                    foregroundColor: Colors.red),
-                                onPressed: () => context.pop(),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Divider(),
-
-                        // Основная информация
-                        Card(
-                          margin: EdgeInsets.zero,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            side: BorderSide(
-                              color: theme.colorScheme.outline
-                                  .withValues(alpha: 51),
-                            ),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Основная информация',
-                                  style: theme.textTheme.titleMedium
-                                      ?.copyWith(fontWeight: FontWeight.bold),
-                                ),
-                                const SizedBox(height: 16),
-                                // Система
-                                _systemsLoading
-                                    ? const Padding(
-                                        padding:
-                                            EdgeInsets.symmetric(vertical: 16),
-                                        child: Center(
-                                            child: CircularProgressIndicator()),
-                                      )
-                                    : TypeAheadField<String>(
-                                        controller: systemController,
-                                        suggestionsCallback: (pattern) {
-                                          return _systems
-                                              .where((s) => s
-                                                  .toLowerCase()
-                                                  .contains(
-                                                      pattern.toLowerCase()))
-                                              .toList();
-                                        },
-                                        builder:
-                                            (context, controller, focusNode) {
-                                          return TextFormField(
-                                            controller: controller,
-                                            focusNode: focusNode,
-                                            decoration: const InputDecoration(
-                                              labelText: 'Система *',
-                                              hintText:
-                                                  'Выберите или введите систему',
-                                              border: OutlineInputBorder(),
-                                            ),
-                                            validator: (v) =>
-                                                v == null || v.trim().isEmpty
-                                                    ? 'Обязательное поле'
-                                                    : null,
-                                          );
-                                        },
-                                        itemBuilder: (context, suggestion) {
-                                          return ListTile(
-                                            title: Text(suggestion),
-                                          );
-                                        },
-                                        onSelected: (suggestion) {
-                                          setState(() {
-                                            systemController.text = suggestion;
-                                          });
-                                        },
-                                        emptyBuilder: (context) {
-                                          final input =
-                                              systemController.text.trim();
-                                          if (input.isEmpty) {
-                                            return const SizedBox();
-                                          }
-                                          return ListTile(
-                                            title: Text(
-                                                'Добавить новую систему: "$input"'),
-                                            onTap: () {
-                                              setState(() {
-                                                systemController.text = input;
-                                              });
-                                              FocusScope.of(context).unfocus();
-                                            },
-                                          );
-                                        },
-                                      ),
-                                const SizedBox(height: 16),
-                                // Подсистема
-                                _subsystemsLoading
-                                    ? const Padding(
-                                        padding:
-                                            EdgeInsets.symmetric(vertical: 16),
-                                        child: Center(
-                                            child: CircularProgressIndicator()),
-                                      )
-                                    : TypeAheadField<String>(
-                                        controller: subsystemController,
-                                        suggestionsCallback: (pattern) {
-                                          return _subsystems
-                                              .where((s) => s
-                                                  .toLowerCase()
-                                                  .contains(
-                                                      pattern.toLowerCase()))
-                                              .toList();
-                                        },
-                                        builder:
-                                            (context, controller, focusNode) {
-                                          return TextFormField(
-                                            controller: controller,
-                                            focusNode: focusNode,
-                                            decoration: const InputDecoration(
-                                              labelText: 'Подсистема *',
-                                              hintText:
-                                                  'Выберите или введите подсистему',
-                                              border: OutlineInputBorder(),
-                                            ),
-                                            validator: (v) =>
-                                                v == null || v.trim().isEmpty
-                                                    ? 'Обязательное поле'
-                                                    : null,
-                                          );
-                                        },
-                                        itemBuilder: (context, suggestion) {
-                                          return ListTile(
-                                            title: Text(suggestion),
-                                          );
-                                        },
-                                        onSelected: (suggestion) {
-                                          setState(() {
-                                            subsystemController.text =
-                                                suggestion;
-                                          });
-                                        },
-                                        emptyBuilder: (context) {
-                                          final input =
-                                              subsystemController.text.trim();
-                                          if (input.isEmpty) {
-                                            return const SizedBox();
-                                          }
-                                          return ListTile(
-                                            title: Text(
-                                                'Добавить новую подсистему: "$input"'),
-                                            onTap: () {
-                                              setState(() {
-                                                subsystemController.text =
-                                                    input;
-                                              });
-                                              FocusScope.of(context).unfocus();
-                                            },
-                                          );
-                                        },
-                                      ),
-                                const SizedBox(height: 16),
-                                // Номер
-                                TextFormField(
-                                  controller: numberController,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Номер *',
-                                    hintText: 'Введите порядковый номер',
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  validator: (v) =>
-                                      v == null || v.trim().isEmpty
-                                          ? 'Обязательное поле'
-                                          : null,
-                                ),
-                                const SizedBox(height: 16),
-                                // Наименование
-                                TextFormField(
-                                  controller: nameController,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Наименование *',
-                                    hintText: 'Введите наименование позиции',
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  validator: (v) =>
-                                      v == null || v.trim().isEmpty
-                                          ? 'Обязательное поле'
-                                          : null,
-                                  maxLines: null,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Техническая информация
-                        Card(
-                          margin: EdgeInsets.zero,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            side: BorderSide(
-                              color: theme.colorScheme.outline
-                                  .withValues(alpha: 51),
-                            ),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Техническая информация',
-                                  style: theme.textTheme.titleMedium
-                                      ?.copyWith(fontWeight: FontWeight.bold),
-                                ),
-                                const SizedBox(height: 16),
-                                // Артикул
-                                TextFormField(
-                                  controller: articleController,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Артикул',
-                                    hintText: 'Введите артикул',
-                                    border: OutlineInputBorder(),
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                // Производитель
-                                TextFormField(
-                                  controller: manufacturerController,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Производитель',
-                                    hintText: 'Введите производителя',
-                                    border: OutlineInputBorder(),
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                // Единица измерения
-                                _unitsLoading
-                                    ? const Padding(
-                                        padding:
-                                            EdgeInsets.symmetric(vertical: 16),
-                                        child: Center(
-                                            child: CircularProgressIndicator()),
-                                      )
-                                    : TypeAheadField<String>(
-                                        controller: unitController,
-                                        suggestionsCallback: (pattern) {
-                                          return _units
-                                              .where((u) => u
-                                                  .toLowerCase()
-                                                  .contains(
-                                                      pattern.toLowerCase()))
-                                              .toList();
-                                        },
-                                        builder:
-                                            (context, controller, focusNode) {
-                                          return TextFormField(
-                                            controller: controller,
-                                            focusNode: focusNode,
-                                            decoration: const InputDecoration(
-                                              labelText: 'Единица измерения *',
-                                              hintText:
-                                                  'Выберите или введите единицу измерения',
-                                              border: OutlineInputBorder(),
-                                            ),
-                                            validator: (v) =>
-                                                v == null || v.trim().isEmpty
-                                                    ? 'Обязательное поле'
-                                                    : null,
-                                          );
-                                        },
-                                        itemBuilder: (context, suggestion) {
-                                          return ListTile(
-                                            title: Text(suggestion),
-                                          );
-                                        },
-                                        onSelected: (suggestion) {
-                                          setState(() {
-                                            unitController.text = suggestion;
-                                          });
-                                        },
-                                        emptyBuilder: (context) {
-                                          final input =
-                                              unitController.text.trim();
-                                          if (input.isEmpty) {
-                                            return const SizedBox();
-                                          }
-                                          return ListTile(
-                                            title: Text(
-                                                'Добавить новую единицу измерения: "$input"'),
-                                            onTap: () {
-                                              setState(() {
-                                                unitController.text = input;
-                                              });
-                                              FocusScope.of(context).unfocus();
-                                            },
-                                          );
-                                        },
-                                      ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Ценовая информация
-                        Card(
-                          margin: EdgeInsets.zero,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            side: BorderSide(
-                              color: theme.colorScheme.outline
-                                  .withValues(alpha: 51),
-                            ),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Ценовая информация',
-                                  style: theme.textTheme.titleMedium
-                                      ?.copyWith(fontWeight: FontWeight.bold),
-                                ),
-                                const SizedBox(height: 16),
-                                // Количество
-                                TextFormField(
-                                  controller: quantityController,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Количество',
-                                    hintText: 'Введите количество',
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  keyboardType:
-                                      const TextInputType.numberWithOptions(
-                                          decimal: true),
-                                  validator: (v) {
-                                    if (v == null || v.trim().isEmpty) {
-                                      // Возвращаем null вместо ошибки, поле необязательное
-                                      return null;
-                                    }
-                                    try {
-                                      double.parse(v.replaceAll(',', '.'));
-                                    } catch (e) {
-                                      return 'Введите число';
-                                    }
-                                    return null;
-                                  },
-                                ),
-                                const SizedBox(height: 16),
-                                // Цена
-                                TextFormField(
-                                  controller: priceController,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Цена за единицу',
-                                    hintText: 'Введите цену',
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  keyboardType:
-                                      const TextInputType.numberWithOptions(
-                                          decimal: true),
-                                  validator: (v) {
-                                    if (v == null || v.trim().isEmpty) {
-                                      // Возвращаем null вместо ошибки, поле необязательное
-                                      return null;
-                                    }
-                                    try {
-                                      double.parse(v.replaceAll(',', '.'));
-                                    } catch (e) {
-                                      return 'Введите число';
-                                    }
-                                    return null;
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-
-                        // Кнопки управления
-                        Row(
-                          children: [
-                            // Кнопка Отмена
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: () => context.pop(),
-                                style: OutlinedButton.styleFrom(
-                                  minimumSize: const Size.fromHeight(44),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  textStyle: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold),
-                                ),
-                                child: const Text('Отмена'),
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            // Кнопка Сохранить
-                            Expanded(
-                              child: ElevatedButton(
-                                onPressed: () async {
-                                  if (formKey.currentState!.validate()) {
-                                    final quantity = double.parse(
-                                        quantityController.text
-                                            .replaceAll(',', '.'));
-                                    final price = double.parse(priceController
-                                        .text
-                                        .replaceAll(',', '.'));
-
-                                    final updatedEstimate = Estimate(
-                                      id: isEditing ? estimate.id : _uuid.v4(),
-                                      system: systemController.text,
-                                      subsystem: subsystemController.text,
-                                      number: numberController.text,
-                                      name: nameController.text,
-                                      article: articleController.text.trim(),
-                                      manufacturer:
-                                          manufacturerController.text.trim(),
-                                      unit: unitController.text,
-                                      quantity: quantity,
-                                      price: price,
-                                      total: quantity * price,
-                                      estimateTitle: widget.estimateTitle,
-                                      objectId: objectId,
-                                      contractId: contractId,
-                                    );
-
-                                    if (isEditing) {
-                                      _updateEstimateItem(updatedEstimate);
-                                    } else {
-                                      _addEstimateItem(updatedEstimate);
-                                    }
-
-                                    if (!context.mounted) return;
-                                    context.pop();
-                                  }
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  minimumSize: const Size.fromHeight(44),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  textStyle: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold),
-                                ),
-                                child:
-                                    Text(isEditing ? 'Сохранить' : 'Добавить'),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-
-        if (isLargeScreen) {
-          return Center(
-            child: AnimatedScale(
-              scale: 1.0,
-              duration: const Duration(milliseconds: 220),
-              curve: Curves.easeOutBack,
-              child: AnimatedOpacity(
-                opacity: 1.0,
-                duration: const Duration(milliseconds: 220),
-                child: Align(
-                  alignment: Alignment.topCenter,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: MediaQuery.of(context).size.width * 0.5,
-                    ),
-                    child: modalContent,
-                  ),
-                ),
-              ),
-            ),
-          );
-        } else {
-          return modalContent;
-        }
-      },
+  void _openEditDialog(BuildContext context, [Estimate? estimate]) {
+    EstimateEditDialog.show(
+      context,
+      estimate: estimate,
+      estimateTitle: widget.estimateTitle,
     );
   }
 
-  /// Добавляет новую позицию в смету
-  void _addEstimateItem(Estimate estimate) async {
-    final notifier = ref.read(estimateNotifierProvider.notifier);
-    await notifier.addEstimate(estimate);
-  }
-
-  /// Обновляет существующую позицию сметы
-  void _updateEstimateItem(Estimate estimate) async {
-    final notifier = ref.read(estimateNotifierProvider.notifier);
-    await notifier.updateEstimate(estimate);
-  }
-
-  /// Удаляет позицию из сметы с подтверждением
   void _delete(String id) {
     CupertinoDialogs.showDeleteConfirmDialog<bool>(
       context: context,
@@ -942,9 +286,7 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
     );
   }
 
-  /// Дублирует позицию сметы с подтверждением
   void _duplicateItem(Estimate estimate) {
-    // Если мы в мобильном режиме со свайпом, не показываем диалог подтверждения
     final isSwipeAction = ModalRoute.of(context)?.isCurrent != true;
 
     if (isSwipeAction) {
@@ -963,12 +305,9 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
     );
   }
 
-  /// Создает дубликат записи с новым номером
   void _createDuplicate(Estimate estimate) {
-    // Создаем новый id и интеллектуально обрабатываем номер для дубликата
     String newNumber = estimate.number;
 
-    // Целое число - просто увеличиваем на 1
     if (RegExp(r'^\d+$').hasMatch(estimate.number)) {
       try {
         final numValue = int.parse(estimate.number);
@@ -976,27 +315,21 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
       } catch (e) {
         newNumber = "${estimate.number}-копия";
       }
-    }
-    // Десятичное число с точкой (например, 10.1)
-    else if (RegExp(r'^\d+\.\d+$').hasMatch(estimate.number)) {
+    } else if (RegExp(r'^\d+\.\d+$').hasMatch(estimate.number)) {
       try {
         final numValue = double.parse(estimate.number);
         newNumber = (numValue + 0.1).toStringAsFixed(1);
       } catch (e) {
         newNumber = "${estimate.number}-копия";
       }
-    }
-    // Десятичное число с запятой (например, 10,1)
-    else if (RegExp(r'^\d+,\d+$').hasMatch(estimate.number)) {
+    } else if (RegExp(r'^\d+,\d+$').hasMatch(estimate.number)) {
       try {
         final numValue = double.parse(estimate.number.replaceAll(',', '.'));
         newNumber = (numValue + 0.1).toStringAsFixed(1).replaceAll('.', ',');
       } catch (e) {
         newNumber = "${estimate.number}-копия";
       }
-    }
-    // Номер в формате [буква]-[число] (например, д-3)
-    else if (RegExp(r'^([a-zA-Zа-яА-Я]+)-(\d+)$').hasMatch(estimate.number)) {
+    } else if (RegExp(r'^([a-zA-Zа-яА-Я]+)-(\d+)$').hasMatch(estimate.number)) {
       final match =
           RegExp(r'^([a-zA-Zа-яА-Я]+)-(\d+)$').firstMatch(estimate.number);
       if (match != null) {
@@ -1006,9 +339,7 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
       } else {
         newNumber = "${estimate.number}-копия";
       }
-    }
-    // Для всех остальных форматов добавляем "-копия"
-    else {
+    } else {
       newNumber = "${estimate.number}-копия";
     }
 
@@ -1019,934 +350,635 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
     ref.read(estimateNotifierProvider.notifier).addEstimate(newItem);
   }
 
-  void _buildTable(List<Estimate> items, double containerWidth) {
-    final nameColumnWidth = containerWidth * 0.4;
-    const otherColumnCount = 9;
-    final otherColumnWidth = (containerWidth * 0.6) / otherColumnCount;
-    final moneyFormat = NumberFormat('###,##0.00', 'ru_RU');
-    columns = [
-      PlutoColumn(
-          title: 'Система',
-          field: 'system',
-          type: PlutoColumnType.text(),
-          width: otherColumnWidth,
-          titleTextAlign: PlutoColumnTextAlign.center),
-      PlutoColumn(
-          title: 'Подсистема',
-          field: 'subsystem',
-          type: PlutoColumnType.text(),
-          width: otherColumnWidth,
-          titleTextAlign: PlutoColumnTextAlign.center),
-      PlutoColumn(
-        title: '№',
-        field: 'number',
-        type: PlutoColumnType.text(),
-        width: otherColumnWidth,
-        titleTextAlign: PlutoColumnTextAlign.center,
-        renderer: (rendererContext) {
-          return Text(
-            rendererContext.cell.value?.toString() ?? '',
-            textAlign: TextAlign.center,
-            style:
-                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
-                    .textTheme
-                    .bodyMedium,
-          );
-        },
-      ),
-      PlutoColumn(
-        title: 'Наименование',
-        field: 'name',
-        type: PlutoColumnType.text(),
-        width: nameColumnWidth,
-        titleTextAlign: PlutoColumnTextAlign.center,
-        renderer: (rendererContext) {
-          return Text(
-            rendererContext.cell.value?.toString() ?? '',
-            softWrap: true,
-            overflow: TextOverflow.visible,
-            maxLines: null,
-            style:
-                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
-                    .textTheme
-                    .bodyMedium,
-          );
-        },
-      ),
-      PlutoColumn(
-        title: 'Артикул',
-        field: 'article',
-        type: PlutoColumnType.text(),
-        width: otherColumnWidth,
-        titleTextAlign: PlutoColumnTextAlign.center,
-        renderer: (rendererContext) {
-          return Text(
-            rendererContext.cell.value?.toString() ?? '',
-            textAlign: TextAlign.center,
-            style:
-                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
-                    .textTheme
-                    .bodyMedium,
-          );
-        },
-      ),
-      PlutoColumn(
-        title: 'Производитель',
-        field: 'manufacturer',
-        type: PlutoColumnType.text(),
-        width: otherColumnWidth,
-        titleTextAlign: PlutoColumnTextAlign.center,
-        renderer: (rendererContext) {
-          return Text(
-            rendererContext.cell.value?.toString() ?? '',
-            textAlign: TextAlign.center,
-            style:
-                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
-                    .textTheme
-                    .bodyMedium,
-          );
-        },
-      ),
-      PlutoColumn(
-        title: 'Ед. изм.',
-        field: 'unit',
-        type: PlutoColumnType.text(),
-        width: otherColumnWidth,
-        titleTextAlign: PlutoColumnTextAlign.center,
-        renderer: (rendererContext) {
-          return Text(
-            rendererContext.cell.value?.toString() ?? '',
-            textAlign: TextAlign.center,
-            style:
-                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
-                    .textTheme
-                    .bodyMedium,
-          );
-        },
-      ),
-      PlutoColumn(
-        title: 'Количество',
-        field: 'quantity',
-        type: PlutoColumnType.number(),
-        width: otherColumnWidth,
-        titleTextAlign: PlutoColumnTextAlign.center,
-        renderer: (rendererContext) {
-          return Text(
-            rendererContext.cell.value?.toString() ?? '',
-            textAlign: TextAlign.center,
-            style:
-                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
-                    .textTheme
-                    .bodyMedium,
-          );
-        },
-      ),
-      PlutoColumn(
-        title: 'Цена',
-        field: 'price',
-        type: PlutoColumnType.number(),
-        width: otherColumnWidth,
-        titleTextAlign: PlutoColumnTextAlign.center,
-        renderer: (rendererContext) {
-          final value = rendererContext.cell.value;
-          final formatted = value is num
-              ? moneyFormat.format(value)
-              : (value?.toString() ?? '');
-          return Text(
-            formatted,
-            textAlign: TextAlign.right,
-            style:
-                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(
-                      color: Colors.green,
-                    ),
-          );
-        },
-      ),
-      PlutoColumn(
-        title: 'Сумма',
-        field: 'total',
-        type: PlutoColumnType.number(),
-        width: otherColumnWidth,
-        titleTextAlign: PlutoColumnTextAlign.center,
-        renderer: (rendererContext) {
-          final value = rendererContext.cell.value;
-          final formatted = value is num
-              ? moneyFormat.format(value)
-              : (value?.toString() ?? '');
-          return Text(
-            formatted,
-            textAlign: TextAlign.right,
-            style:
-                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green,
-                    ),
-          );
-        },
-      ),
-      PlutoColumn(
-        title: 'Действия',
-        field: 'actions',
-        type: PlutoColumnType.text(),
-        width: otherColumnWidth,
-        titleTextAlign: PlutoColumnTextAlign.center,
-        enableFilterMenuItem: false,
-        enableSorting: false,
-        renderer: (rendererContext) {
-          final rowData = rendererContext.row;
-          final itemId = rowData.cells['id']!.value.toString();
-          final itemData = items.firstWhere((e) => e.id == itemId);
-          final theme = Theme.of(context);
-
-          return ActionButton(
-            onTap: (details) => _showActionMenu(
-                context, details.globalPosition, itemData, itemId),
-            theme: theme,
-          );
-        },
-      ),
-    ];
-    rows = items
-        .map((e) => PlutoRow(cells: {
-              'id': PlutoCell(value: e.id),
-              'number': PlutoCell(value: e.number),
-              'name': PlutoCell(value: e.name),
-              'system': PlutoCell(value: e.system),
-              'subsystem': PlutoCell(value: e.subsystem),
-              'article': PlutoCell(value: e.article),
-              'manufacturer': PlutoCell(value: e.manufacturer),
-              'unit': PlutoCell(value: e.unit),
-              'quantity': PlutoCell(value: e.quantity),
-              'price': PlutoCell(value: e.price),
-              'total': PlutoCell(value: e.total),
-              'actions': PlutoCell(value: ''),
-            }))
-        .toList();
-  }
-
-  /// Показывает контекстное меню для действий над строкой
-  void _showActionMenu(
-      BuildContext context, Offset position, Estimate item, String itemId) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    showMenu(
-      context: context,
-      position: RelativeRect.fromLTRB(
-          position.dx, position.dy, position.dx + 1, position.dy + 1),
-      elevation: 8,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      color: isDark ? theme.colorScheme.surface : theme.colorScheme.surface,
-      items: [
-        PopupMenuItem(
-          height: 40,
-          child: Row(
-            children: [
-              Icon(
-                Icons.edit_outlined,
-                color: theme.colorScheme.primary,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Редактировать',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-            ],
-          ),
-          onTap: () {
-            Future.delayed(
-              const Duration(milliseconds: 10),
-              () {
-                if (!context.mounted) return;
-                _showItemDialog(context, item);
-              },
-            );
-          },
-        ),
-        PopupMenuItem(
-          height: 40,
-          child: Row(
-            children: [
-              Icon(
-                Icons.copy_outlined,
-                color: theme.colorScheme.secondary,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Дублировать',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-            ],
-          ),
-          onTap: () {
-            Future.delayed(
-              const Duration(milliseconds: 10),
-              () {
-                if (!context.mounted) return;
-                _duplicateItem(item);
-              },
-            );
-          },
-        ),
-        PopupMenuItem(
-          height: 40,
-          child: Row(
-            children: [
-              Icon(
-                Icons.delete_outline,
-                color: theme.colorScheme.error,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Удалить',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.error,
-                ),
-              ),
-            ],
-          ),
-          onTap: () {
-            Future.delayed(
-              const Duration(milliseconds: 10),
-              () {
-                if (!context.mounted) return;
-                _delete(itemId);
-              },
-            );
-          },
-        ),
-      ],
+  void _showImportEstimateBottomSheet(BuildContext context) {
+    ImportEstimateFormModal.show(
+      context,
+      ref,
+      onSuccess: () async {
+        if (context.mounted) context.pop();
+        SnackBarUtils.showSuccess(context, 'Смета успешно импортирована');
+      },
     );
-  }
-
-  /// Возвращает список уникальных систем из списка позиций
-  List<String> _getUniqueSystems(List<Estimate> items) {
-    final systems = <String>{};
-    for (final item in items) {
-      if (item.system.isNotEmpty) {
-        systems.add(item.system);
-      }
-    }
-    return systems.toList()..sort();
   }
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(estimateNotifierProvider);
-    final items = state.estimates
-        .where((e) => e.estimateTitle == widget.estimateTitle)
-        .toList();
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
     final isLargeScreen = MediaQuery.of(context).size.width > 900;
-    final containerWidth =
-        MediaQuery.of(context).size.width - 32; // 32 — padding
-    const ruLocale = PlutoGridLocaleText(
-      unfreezeColumn: 'Открепить',
-      freezeColumnToStart: 'Закрепить в начале',
-      freezeColumnToEnd: 'Закрепить в конце',
-      autoFitColumn: 'Автоматический размер',
-      hideColumn: 'Скрыть колонку',
-      setColumns: 'Выбрать колонки',
-      setFilter: 'Установить фильтр',
-      resetFilter: 'Сбросить фильтр',
-      setColumnsTitle: 'Column title',
-      filterColumn: 'Колонка',
-      filterType: 'Тип',
-      filterValue: 'Значение',
-      filterAllColumns: 'Все колонки',
-      filterContains: 'Поиск',
-      filterEquals: 'Равно',
-      filterStartsWith: 'Начинается с',
-      filterEndsWith: 'Заканчивается на',
-      filterGreaterThan: 'Больше чем',
-      filterGreaterThanOrEqualTo: 'Больше или равно',
-      filterLessThan: 'Меньше чем',
-      filterLessThanOrEqualTo: 'Меньше или равно',
-      sunday: 'Вск',
-      monday: 'Пн',
-      tuesday: 'Вт',
-      wednesday: 'Ср',
-      thursday: 'Чт',
-      friday: 'Пт',
-      saturday: 'Сб',
-      hour: 'Часы',
-      minute: 'Минуты',
-      loadingText: 'Загрузка',
-    );
 
-    // Строим таблицу только если экран достаточно широкий
+    // Для Desktop используем новый макет "как в профиле"
     if (isLargeScreen) {
-      _buildTable(items, containerWidth);
+      return _buildDesktopLayout(context);
     }
 
-    // Фильтруем и сортируем элементы для мобильного представления
-    final filteredItems = isLargeScreen ? items : _filterAndSortItems(items);
+    // Для мобильных или встроенного режима (если showAppBar=false) оставляем старую логику
+    final state = ref.watch(estimateNotifierProvider);
 
-    final cellStyle = theme.textTheme.bodyMedium ?? const TextStyle();
-    final columnStyle =
-        theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold) ??
-            const TextStyle(fontWeight: FontWeight.bold);
-    final moneyFormat = NumberFormat('###,##0.00', 'ru_RU');
+    // Если передан estimateTitle, используем его (старое поведение)
+    // Если нет, пытаемся взять из выбранного файла
+    final targetTitle =
+        widget.estimateTitle ?? _selectedEstimateFile?.estimateTitle;
+
+    final items =
+        state.estimates.where((e) => e.estimateTitle == targetTitle).toList();
+
+    final theme = Theme.of(context);
+
+    final filteredItems = _filterAndSortItems(items);
+
+    final body = state.isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : items.isEmpty
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(targetTitle == null
+                        ? 'Выберите смету'
+                        : 'Нет позиций для этой сметы'),
+                    const SizedBox(height: 16),
+                    if (targetTitle != null)
+                      PermissionGuard(
+                        module: 'estimates',
+                        permission: 'create',
+                        child: GTPrimaryButton(
+                          icon: CupertinoIcons.add,
+                          text: 'Добавить позицию',
+                          onPressed: () => _openEditDialog(context),
+                        ),
+                      ),
+                  ],
+                ),
+              )
+            : Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    // Анимированный хедер
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      height: _isHeaderVisible ? null : 0,
+                      curve: Curves.easeInOut,
+                      child: AnimatedOpacity(
+                        duration: const Duration(milliseconds: 300),
+                        opacity: _isHeaderVisible ? 1.0 : 0.0,
+                        child: EstimateMobileHeader(
+                          searchController: _searchController,
+                          items: items,
+                          filteredCount: filteredItems.length,
+                          sortCriterion: _sortCriterion,
+                          sortAscending: _sortAscending,
+                          onSortPressed: () => _showSortDialog(context),
+                          onFilterSelected: (value) {
+                            _searchController.text = value;
+                          },
+                        ),
+                      ),
+                    ),
+
+                    // Список позиций
+                    Expanded(
+                      child: filteredItems.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    CupertinoIcons.search,
+                                    size: 48,
+                                    color: theme.colorScheme.onSurface
+                                        .withValues(alpha: 0.5),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'Нет результатов поиска',
+                                    style: theme.textTheme.titleMedium,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Попробуйте изменить критерии поиска',
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: theme.colorScheme.onSurface
+                                          .withValues(alpha: 0.7),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : NotificationListener<ScrollNotification>(
+                              onNotification: (notification) {
+                                if (notification is ScrollEndNotification) {
+                                  if (_scrollController.position.pixels == 0 &&
+                                      !_isHeaderVisible) {
+                                    setState(() {
+                                      _isHeaderVisible = true;
+                                    });
+                                  }
+                                }
+                                return false;
+                              },
+                              child: ListView.separated(
+                                controller: _scrollController,
+                                itemCount: filteredItems.length,
+                                separatorBuilder: (context, index) =>
+                                    const SizedBox(height: 4),
+                                padding: EdgeInsets.zero,
+                                itemBuilder: (context, index) {
+                                  final item = filteredItems[index];
+                                  final permissionService =
+                                      ref.watch(permissionServiceProvider);
+                                  return EstimateItemCard(
+                                    item: item,
+                                    canEdit: permissionService.can(
+                                        'estimates', 'update'),
+                                    canDelete: permissionService.can(
+                                        'estimates', 'delete'),
+                                    canDuplicate: permissionService.can(
+                                        'estimates', 'create'),
+                                    onEdit: (estimate) =>
+                                        _openEditDialog(context, estimate),
+                                    onDuplicate: (estimate) =>
+                                        _duplicateItem(estimate),
+                                    onDelete: (id) => _delete(id),
+                                  )
+                                      .animate()
+                                      .fadeIn(
+                                        duration: 300.ms,
+                                        delay:
+                                            Duration(milliseconds: 30 * index),
+                                      )
+                                      .slideX(begin: 0.05, end: 0);
+                                },
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
+              );
+
+    if (!widget.showAppBar) {
+      return Container(
+        margin: EdgeInsets.symmetric(
+          horizontal: ResponsiveUtils.isMobile(context) ? 16 : 0,
+        ),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          border: Border.all(
+            color: theme.colorScheme.outline.withValues(alpha: 0.2),
+            width: 0.5,
+          ),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: theme.colorScheme.shadow.withValues(alpha: 0.05),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (widget.estimateTitle != null)
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        widget.estimateTitle!,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            if (widget.estimateTitle != null) const Divider(height: 1),
+            Expanded(child: body),
+          ],
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBarWidget(
         title: widget.estimateTitle ?? 'Детали сметы',
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(CupertinoIcons.back),
           tooltip: 'Назад',
           onPressed: () => context.go('/estimates'),
         ),
-        actions: [
-          if (isLargeScreen)
-            IconButton(
-              icon: const Icon(Icons.add),
-              tooltip: 'Добавить позицию',
-              onPressed: () => _showItemDialog(context),
-            ),
-        ],
       ),
-      body: state.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : items.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text('Нет позиций для этой сметы'),
-                      const SizedBox(height: 16),
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.add),
-                        label: const Text('Добавить позицию'),
-                        onPressed: () => _showItemDialog(context),
+      body: body,
+      floatingActionButton: PermissionGuard(
+        module: 'estimates',
+        permission: 'create',
+        child: FloatingActionButton(
+          heroTag: 'addItem',
+          tooltip: 'Добавить позицию',
+          backgroundColor: theme.colorScheme.primary,
+          child: const Icon(CupertinoIcons.add),
+          onPressed: () => _openEditDialog(context),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDesktopLayout(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final state = ref.watch(estimateNotifierProvider);
+    final estimateFiles = _groupEstimatesByFile(state.estimates);
+    final contracts = ref.watch(contractProvider).contracts;
+    final objects = ref.watch(objectProvider).objects;
+    final permissionService = ref.watch(permissionServiceProvider);
+    final canDelete = permissionService.can('estimates', 'delete');
+
+    // Если выбранная смета исчезла (удалена), сбрасываем выбор
+    if (_selectedEstimateFile != null &&
+        !estimateFiles.any((f) =>
+            f.estimateTitle == _selectedEstimateFile!.estimateTitle &&
+            f.objectId == _selectedEstimateFile!.objectId &&
+            f.contractId == _selectedEstimateFile!.contractId)) {
+      // Используем микротаск, чтобы не вызвать setState во время build
+      Future.microtask(() {
+        if (mounted) {
+          setState(() {
+            _selectedEstimateFile = null;
+          });
+        }
+      });
+    }
+
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Container(
+          decoration: BoxDecoration(
+            color: isDark
+                ? const Color.fromRGBO(38, 40, 42, 1)
+                : const Color.fromRGBO(248, 249, 250, 1),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: isDark ? Colors.grey[700]! : Colors.grey[300]!,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Левая панель - список смет
+                Container(
+                  width: 350,
+                  margin: const EdgeInsets.only(right: 16),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.grey[900] : Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isDark ? Colors.grey[800]! : Colors.grey[300]!,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
                       ),
                     ],
                   ),
-                )
-              : Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: isLargeScreen
-                      ? PlutoGrid(
-                          columns: columns,
-                          rows: rows,
-                          mode: PlutoGridMode.normal,
-                          onLoaded: (PlutoGridOnLoadedEvent event) {
-                            stateManager = event.stateManager;
-                            event.stateManager.setShowColumnFilter(true);
-                          },
-                          configuration: isDark
-                              ? PlutoGridConfiguration.dark(
-                                  localeText: ruLocale,
-                                  style: PlutoGridStyleConfig.dark(
-                                    columnFilterHeight: 36,
-                                    cellTextStyle: cellStyle,
-                                    columnTextStyle: columnStyle,
-                                    gridBorderRadius: BorderRadius.circular(12),
-                                    gridBorderColor: theme.colorScheme.outline
-                                        .withValues(alpha: 0.12),
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: PermissionGuard(
+                          module: 'estimates',
+                          permission: 'import',
+                          child: SizedBox(
+                            width: double.infinity,
+                            child: GTPrimaryButton(
+                              text: 'Импорт сметы',
+                              icon: CupertinoIcons.arrow_up_doc,
+                              onPressed: () =>
+                                  _showImportEstimateBottomSheet(context),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: state.isLoading && estimateFiles.isEmpty
+                            ? const Center(child: CircularProgressIndicator())
+                            : estimateFiles.isEmpty
+                                ? const Center(child: Text('Сметы не найдены'))
+                                : ClipRRect(
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: ListView.separated(
+                                      itemCount: estimateFiles.length,
+                                      separatorBuilder: (context, index) =>
+                                          Divider(
+                                        height: 1,
+                                        indent: 16,
+                                        endIndent: 16,
+                                        color: theme.colorScheme.outlineVariant
+                                            .withValues(alpha: 0.5),
+                                      ),
+                                      itemBuilder: (context, index) {
+                                        final file = estimateFiles[index];
+                                        final isSelected = _selectedEstimateFile
+                                                    ?.estimateTitle ==
+                                                file.estimateTitle &&
+                                            _selectedEstimateFile?.objectId ==
+                                                file.objectId &&
+                                            _selectedEstimateFile?.contractId ==
+                                                file.contractId;
+
+                                        return _EstimateListTile(
+                                          file: file,
+                                          contracts: contracts,
+                                          objects: objects,
+                                          isSelected: isSelected,
+                                          canDelete: canDelete,
+                                          onTap: () {
+                                            setState(() {
+                                              _selectedEstimateFile = file;
+                                            });
+                                          },
+                                          onDelete: () =>
+                                              _deleteEstimateFile(file),
+                                        );
+                                      },
+                                    ),
                                   ),
-                                )
-                              : PlutoGridConfiguration(
-                                  localeText: ruLocale,
-                                  style: PlutoGridStyleConfig(
-                                    columnFilterHeight: 36,
-                                    cellTextStyle: cellStyle,
-                                    columnTextStyle: columnStyle,
-                                    gridBorderRadius: BorderRadius.circular(12),
-                                    gridBorderColor: theme.colorScheme.outline
-                                        .withValues(alpha: 0.12),
-                                  ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Правая панель - детали
+                Expanded(
+                  child: _selectedEstimateFile == null
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                CupertinoIcons.list_bullet,
+                                size: 64,
+                                color: theme.colorScheme.outline
+                                    .withValues(alpha: 0.5),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Выберите смету из списка',
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  color: theme.colorScheme.outline,
                                 ),
+                              ),
+                            ],
+                          ),
                         )
-                      : // Мобильный вид вместо таблицы
-                      Column(
-                          children: [
-                            // Верхний блок с поиском, статистикой и фильтрами в анимированном контейнере
-                            AnimatedContainer(
-                              duration: const Duration(milliseconds: 300),
-                              height: _isHeaderVisible ? null : 0,
-                              curve: Curves.easeInOut,
-                              child: AnimatedOpacity(
-                                duration: const Duration(milliseconds: 300),
-                                opacity: _isHeaderVisible ? 1.0 : 0.0,
-                                child: Column(
+                      : Container(
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surface,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // Хедер выбранной сметы
+                              Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Row(
                                   children: [
-                                    // Поисковая строка и кнопка сортировки
-                                    Container(
-                                      margin: const EdgeInsets.only(bottom: 12),
-                                      decoration: BoxDecoration(
-                                        color: theme.cardColor,
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(
-                                          color: theme.colorScheme.outline
-                                              .withValues(alpha: 30),
-                                          width: 1,
-                                        ),
-                                      ),
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 4),
-                                        child: Row(
-                                          children: [
-                                            Expanded(
-                                              child: TextField(
-                                                controller: _searchController,
-                                                decoration:
-                                                    const InputDecoration(
-                                                  hintText: 'Поиск по смете...',
-                                                  border: InputBorder.none,
-                                                  contentPadding:
-                                                      EdgeInsets.symmetric(
-                                                          horizontal: 8),
-                                                  prefixIcon: Icon(Icons.search,
-                                                      size: 20),
-                                                ),
-                                                onChanged: (_) =>
-                                                    setState(() {}),
-                                              ),
-                                            ),
-                                            IconButton(
-                                              icon: Icon(
-                                                _sortAscending
-                                                    ? Icons.arrow_upward
-                                                    : Icons.arrow_downward,
-                                                size: 18,
-                                              ),
-                                              visualDensity:
-                                                  VisualDensity.compact,
-                                              tooltip: 'Сортировка',
-                                              onPressed: () =>
-                                                  _showSortDialog(context),
-                                            ),
-                                            if (_searchController
-                                                .text.isNotEmpty)
-                                              IconButton(
-                                                icon: const Icon(Icons.clear,
-                                                    size: 18),
-                                                visualDensity:
-                                                    VisualDensity.compact,
-                                                tooltip: 'Очистить',
-                                                onPressed: () {
-                                                  setState(() {
-                                                    _searchController.clear();
-                                                  });
-                                                },
-                                              ),
-                                          ],
+                                    Expanded(
+                                      child: Text(
+                                        _selectedEstimateFile!.estimateTitle,
+                                        style: theme.textTheme.headlineSmall
+                                            ?.copyWith(
+                                          fontWeight: FontWeight.bold,
                                         ),
                                       ),
                                     ),
-
-                                    // Статистика по смете
-                                    Card(
-                                      margin: const EdgeInsets.only(bottom: 12),
-                                      elevation: 0,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                        side: BorderSide(
-                                          color: theme.colorScheme.outline
-                                              .withValues(alpha: 30),
-                                          width: 1,
+                                    if (MediaQuery.of(context).size.width > 900)
+                                      PermissionGuard(
+                                        module: 'estimates',
+                                        permission: 'create',
+                                        child: GTPrimaryButton(
+                                          icon: CupertinoIcons.add,
+                                          text: 'Добавить позицию',
+                                          onPressed: () =>
+                                              _openEditDialog(context),
                                         ),
                                       ),
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(12),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              'Статистика по смете',
-                                              style: theme.textTheme.titleSmall
-                                                  ?.copyWith(
-                                                      fontWeight:
-                                                          FontWeight.bold),
-                                            ),
-                                            const SizedBox(height: 8),
-                                            // Основные параметры
-                                            Row(
-                                              children: [
-                                                Expanded(
-                                                  child: Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    children: [
-                                                      Text(
-                                                        'Позиций:',
-                                                        style: theme
-                                                            .textTheme.bodySmall
-                                                            ?.copyWith(
-                                                          color: theme
-                                                              .colorScheme
-                                                              .onSurface
-                                                              .withValues(
-                                                                  alpha: 0.7),
-                                                        ),
-                                                      ),
-                                                      Text(
-                                                        '${items.length}',
-                                                        style: theme.textTheme
-                                                            .titleMedium
-                                                            ?.copyWith(
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                                Expanded(
-                                                  child: Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    children: [
-                                                      Text(
-                                                        'Итого:',
-                                                        style: theme
-                                                            .textTheme.bodySmall
-                                                            ?.copyWith(
-                                                          color: theme
-                                                              .colorScheme
-                                                              .onSurface
-                                                              .withValues(
-                                                                  alpha: 0.7),
-                                                        ),
-                                                      ),
-                                                      Text(
-                                                        '${moneyFormat.format(items.fold(0.0, (sum, item) => sum + item.total))} ₽',
-                                                        style: theme.textTheme
-                                                            .titleMedium
-                                                            ?.copyWith(
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                          color: theme
-                                                              .colorScheme
-                                                              .primary,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-
-                                    // Быстрые фильтры (системы)
-                                    if (!isLargeScreen)
-                                      Container(
-                                        margin:
-                                            const EdgeInsets.only(bottom: 12),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Padding(
-                                              padding: const EdgeInsets.only(
-                                                  left: 4, bottom: 4),
-                                              child: Text(
-                                                'Быстрые фильтры:',
-                                                style: theme.textTheme.bodySmall
-                                                    ?.copyWith(
-                                                  color: theme
-                                                      .colorScheme.onSurface
-                                                      .withValues(alpha: 0.7),
-                                                ),
-                                              ),
-                                            ),
-                                            SingleChildScrollView(
-                                              scrollDirection: Axis.horizontal,
-                                              child: Row(
-                                                children:
-                                                    _getUniqueSystems(items)
-                                                        .map((system) {
-                                                  final isSelected =
-                                                      _searchController.text
-                                                              .toLowerCase() ==
-                                                          system.toLowerCase();
-                                                  return Padding(
-                                                    padding:
-                                                        const EdgeInsets.only(
-                                                            right: 6),
-                                                    child: FilterChip(
-                                                      label: Text(system,
-                                                          style:
-                                                              const TextStyle(
-                                                                  fontSize:
-                                                                      12)),
-                                                      selected: isSelected,
-                                                      showCheckmark: false,
-                                                      materialTapTargetSize:
-                                                          MaterialTapTargetSize
-                                                              .shrinkWrap,
-                                                      visualDensity:
-                                                          VisualDensity.compact,
-                                                      padding: const EdgeInsets
-                                                          .symmetric(
-                                                          horizontal: 4),
-                                                      backgroundColor: theme
-                                                          .colorScheme.surface,
-                                                      selectedColor: theme
-                                                          .colorScheme.primary
-                                                          .withValues(
-                                                              alpha: 0.2),
-                                                      side: BorderSide(
-                                                        color: isSelected
-                                                            ? theme.colorScheme
-                                                                .primary
-                                                            : theme.colorScheme
-                                                                .outline
-                                                                .withValues(
-                                                                    alpha: 50),
-                                                        width: 1,
-                                                      ),
-                                                      labelStyle: TextStyle(
-                                                        color: isSelected
-                                                            ? theme.colorScheme
-                                                                .primary
-                                                            : theme.colorScheme
-                                                                .onSurface,
-                                                        fontWeight: isSelected
-                                                            ? FontWeight.bold
-                                                            : null,
-                                                      ),
-                                                      onSelected: (selected) {
-                                                        setState(() {
-                                                          if (selected &&
-                                                              !isSelected) {
-                                                            _searchController
-                                                                .text = system;
-                                                          } else {
-                                                            _searchController
-                                                                .clear();
-                                                          }
-                                                        });
-                                                      },
-                                                    ),
-                                                  );
-                                                }).toList(),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-
-                                    // Счетчик найденных позиций и информация о сортировке
-                                    Padding(
-                                      padding: const EdgeInsets.only(bottom: 6),
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text(
-                                            'Найдено: ${filteredItems.length} из ${items.length}',
-                                            style: theme.textTheme.bodySmall,
-                                          ),
-                                          Row(
-                                            children: [
-                                              Text(
-                                                'Сортировка: ',
-                                                style:
-                                                    theme.textTheme.bodySmall,
-                                              ),
-                                              Text(
-                                                {
-                                                      'number': 'По номеру',
-                                                      'name': 'По наименованию',
-                                                      'system': 'По системе',
-                                                      'price': 'По цене',
-                                                      'total': 'По сумме',
-                                                    }[_sortCriterion] ??
-                                                    'По номеру',
-                                                style: theme.textTheme.bodySmall
-                                                    ?.copyWith(
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                              Icon(
-                                                _sortAscending
-                                                    ? Icons.arrow_upward
-                                                    : Icons.arrow_downward,
-                                                size: 12,
-                                                color:
-                                                    theme.colorScheme.primary,
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    ),
                                   ],
                                 ),
                               ),
-                            ),
-
-                            // Список позиций
-                            Expanded(
-                              child: filteredItems.isEmpty
-                                  ? Center(
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.search_off,
-                                            size: 48,
-                                            color: theme.colorScheme.onSurface
-                                                .withValues(alpha: 0.5),
-                                          ),
-                                          const SizedBox(height: 16),
-                                          Text(
-                                            'Нет результатов поиска',
-                                            style: theme.textTheme.titleMedium,
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            'Попробуйте изменить критерии поиска',
-                                            style: theme.textTheme.bodyMedium
-                                                ?.copyWith(
-                                              color: theme.colorScheme.onSurface
-                                                  .withValues(alpha: 0.7),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    )
-                                  : NotificationListener<ScrollNotification>(
-                                      onNotification: (notification) {
-                                        // Дополнительная обработка событий прокрутки
-                                        // Показываем верхний блок при прокрутке до начала списка
-                                        if (notification
-                                            is ScrollEndNotification) {
-                                          if (_scrollController
-                                                      .position.pixels ==
-                                                  0 &&
-                                              !_isHeaderVisible) {
-                                            setState(() {
-                                              _isHeaderVisible = true;
-                                            });
-                                          }
-                                        }
-                                        return false;
-                                      },
-                                      child: ListView.separated(
-                                        controller: _scrollController,
-                                        itemCount: filteredItems.length,
-                                        separatorBuilder: (context, index) =>
-                                            const SizedBox(height: 4),
-                                        padding: EdgeInsets.zero,
-                                        itemBuilder: (context, index) {
-                                          final item = filteredItems[index];
-                                          return EstimateItemCard(
-                                            item: item,
-                                            onEdit: (estimate) =>
-                                                _showItemDialog(
-                                                    context, estimate),
-                                            onDuplicate: (estimate) =>
-                                                _duplicateItem(estimate),
-                                            onDelete: (id) => _delete(id),
-                                          )
-                                              .animate()
-                                              .fadeIn(
-                                                duration: 300.ms,
-                                                delay: Duration(
-                                                    milliseconds: 30 * index),
-                                              )
-                                              .slideX(begin: 0.05, end: 0);
-                                        },
-                                      ),
-                                    ),
-                            ),
-                          ],
+                              const Divider(height: 1),
+                              // Таблица
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: EstimateTableView(
+                                    items: state.estimates
+                                        .where((e) =>
+                                            e.estimateTitle ==
+                                            _selectedEstimateFile!
+                                                .estimateTitle)
+                                        .toList(),
+                                    onEdit: (estimate) =>
+                                        _openEditDialog(context, estimate),
+                                    onDuplicate: _duplicateItem,
+                                    onDelete: _delete,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                 ),
-      floatingActionButton: !isLargeScreen
-          ? FloatingActionButton(
-              heroTag: 'addItem',
-              tooltip: 'Добавить позицию',
-              backgroundColor: theme.colorScheme.primary,
-              child: const Icon(Icons.add),
-              onPressed: () => _showItemDialog(context),
-            )
-          : null,
+              ],
+            ),
+          ),
+        ),
+      ),
     );
+  }
+
+  void _deleteEstimateFile(EstimateFile file) async {
+    final confirmed = await CupertinoDialogs.showDeleteConfirmDialog<bool>(
+      context: context,
+      title: 'Удаление сметы',
+      message:
+          'Вы действительно хотите удалить смету "${file.estimateTitle}" и все её позиции?',
+      onConfirm: () {},
+    );
+
+    if (confirmed == true) {
+      final notifier = ref.read(estimateNotifierProvider.notifier);
+      for (final item in file.items) {
+        await notifier.deleteEstimate(item.id);
+      }
+      await notifier.loadEstimates();
+
+      if (_selectedEstimateFile?.estimateTitle == file.estimateTitle) {
+        setState(() {
+          _selectedEstimateFile = null;
+        });
+      }
+    }
   }
 }
 
-/// Стильная кнопка действий с анимацией при наведении курсора.
+/// Класс, представляющий сгруппированный файл сметы.
 ///
-/// Используется для отображения кнопки действий в таблице позиций сметы.
-/// При нажатии показывает контекстное меню с доступными действиями.
-class ActionButton extends StatefulWidget {
-  /// Обработчик нажатия на кнопку
-  final void Function(TapDownDetails) onTap;
+/// Содержит информацию о названии сметы, привязанном объекте, договоре
+/// и списке позиций, входящих в эту смету.
+class EstimateFile {
+  /// Название сметы.
+  final String estimateTitle;
 
-  /// Текущая тема приложения
-  final ThemeData theme;
+  /// Идентификатор объекта, к которому относится смета.
+  final String? objectId;
 
-  /// Создает кнопку действий.
-  ///
-  /// Требует [onTap] обработчик для реагирования на нажатия и [theme] для
-  /// стилизации кнопки в соответствии с текущей темой приложения.
-  const ActionButton({
-    super.key,
+  /// Идентификатор договора, к которому относится смета.
+  final String? contractId;
+
+  /// Список позиций сметы.
+  final List<Estimate> items;
+
+  /// Создаёт экземпляр файла сметы.
+  const EstimateFile({
+    required this.estimateTitle,
+    required this.objectId,
+    required this.contractId,
+    required this.items,
+  });
+
+  /// Общая сумма по всем позициям сметы.
+  double get total => items.fold(0, (sum, e) => sum + e.total);
+}
+
+List<EstimateFile> _groupEstimatesByFile(List<Estimate> estimates) {
+  final grouped = groupBy(
+    estimates,
+    (Estimate e) => '${e.estimateTitle}_${e.objectId}_${e.contractId}',
+  );
+  return grouped.entries.map((entry) {
+    final first = entry.value.first;
+    return EstimateFile(
+      estimateTitle: first.estimateTitle ?? 'Без названия',
+      objectId: first.objectId,
+      contractId: first.contractId,
+      items: entry.value,
+    );
+  }).toList();
+}
+
+class _EstimateListTile extends StatelessWidget {
+  final EstimateFile file;
+  final List<Contract> contracts;
+  final List<ObjectEntity> objects;
+  final bool isSelected;
+  final bool canDelete;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+
+  const _EstimateListTile({
+    required this.file,
+    required this.contracts,
+    required this.objects,
+    required this.isSelected,
+    required this.canDelete,
     required this.onTap,
-    required this.theme,
+    required this.onDelete,
   });
 
   @override
-  State<ActionButton> createState() => _ActionButtonState();
-}
-
-class _ActionButtonState extends State<ActionButton> {
-  bool _isHovered = false;
-
-  @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: GestureDetector(
-        onTapDown: widget.onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(6),
-            color: Colors.transparent,
-          ),
-          margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-          child: Center(
-            child: _isHovered
-                ? const Icon(
-                    Icons.more_vert,
-                    size: 18,
-                    color: Colors.green,
-                  )
-                : const Icon(
-                    Icons.more_horiz,
-                    size: 18,
-                    color: Colors.red,
+    final theme = Theme.of(context);
+    final contract = contracts.firstWhereOrNull((c) => c.id == file.contractId);
+    final object = objects.firstWhereOrNull((o) => o.id == file.objectId);
+    final contractNumber = contract?.number ?? '—';
+    final objectName = object?.name ?? '—';
+
+    return Material(
+      color: isSelected ? theme.colorScheme.primary : Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      file.estimateTitle,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: isSelected ? theme.colorScheme.onPrimary : null,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
+                  if (canDelete)
+                    IconButton(
+                      icon: Icon(
+                        CupertinoIcons.trash,
+                        size: 20,
+                        color: isSelected
+                            ? theme.colorScheme.onPrimary
+                            : theme.colorScheme.error,
+                      ),
+                      onPressed: onDelete,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Договор: $contractNumber',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: isSelected
+                      ? theme.colorScheme.onPrimary.withValues(alpha: 0.8)
+                      : theme.colorScheme.onSurfaceVariant,
+                  fontSize: 11,
+                ),
+              ),
+              Text(
+                'Объект: $objectName',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: isSelected
+                      ? theme.colorScheme.onPrimary.withValues(alpha: 0.8)
+                      : theme.colorScheme.onSurfaceVariant,
+                  fontSize: 11,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    formatCurrency(file.total),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: isSelected ? theme.colorScheme.onPrimary : null,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),

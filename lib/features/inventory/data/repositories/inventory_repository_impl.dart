@@ -48,5 +48,10 @@ class InventoryRepositoryImpl implements InventoryRepository {
   Future<List<String>> getUnits() async {
     return await dataSource.getUnits();
   }
+
+  @override
+  Future<List<Map<String, dynamic>>> getSuppliersForDropdown() async {
+    return await dataSource.getSuppliersForDropdown();
+  }
 }
 

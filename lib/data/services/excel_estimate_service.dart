@@ -39,12 +39,16 @@ class ExcelPreviewResult {
   /// Общая сумма.
   final double totalAmount;
 
+  /// Список уникальных систем.
+  final List<String> systems;
+
   /// Создаёт результат предпросмотра.
   const ExcelPreviewResult({
     required this.rows,
     required this.rowCount,
     required this.validRowCount,
     required this.totalAmount,
+    required this.systems,
   });
 }
 
@@ -275,6 +279,7 @@ class ExcelEstimateService {
           rowCount: rows.length - 1,
           validRowCount: 0,
           totalAmount: 0,
+          systems: [],
         );
       }
 
@@ -314,6 +319,7 @@ class ExcelEstimateService {
 
       int validRowCount = 0;
       double totalAmount = 0;
+      final systems = <String>{};
 
       for (int i = 1; i < rows.length; i++) {
         final row = rows[i];
@@ -337,6 +343,13 @@ class ExcelEstimateService {
 
         if (isValid) {
           validRowCount++;
+          
+          // Собираем системы
+          final system = row[0]?.value.toString().trim();
+          if (system != null && system.isNotEmpty) {
+            systems.add(system);
+          }
+
           // Суммируем общую стоимость
           final totalCell = row[9]?.value;
           if (totalCell != null) {
@@ -360,6 +373,7 @@ class ExcelEstimateService {
         rowCount: rows.length - 1,
         validRowCount: validRowCount,
         totalAmount: totalAmount,
+        systems: systems.toList()..sort(),
       );
     } catch (e) {
       debugPrint('Ошибка при подготовке предпросмотра Excel: $e');
@@ -368,6 +382,7 @@ class ExcelEstimateService {
         rowCount: 0,
         validRowCount: 0,
         totalAmount: 0,
+        systems: [],
       );
     }
   }

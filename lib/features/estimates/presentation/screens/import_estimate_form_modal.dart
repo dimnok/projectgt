@@ -17,34 +17,65 @@ import 'package:share_plus/share_plus.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
 import 'package:go_router/go_router.dart';
 
-/// Модальное окно для импорта сметы из Excel.
-///
-/// Позволяет выбрать объект, договор, название сметы и Excel-файл для импорта.
-/// Предоставляет возможность скачать шаблон Excel и просмотреть данные перед импортом.
-class ImportEstimateFormModal extends StatefulWidget {
-  /// Провайдер состояния Riverpod.
-  final WidgetRef ref;
+import '../../../../core/widgets/mobile_bottom_sheet_content.dart';
+import '../../../../core/widgets/desktop_dialog_content.dart';
+import '../../../../core/widgets/gt_buttons.dart';
 
-  /// Колбэк при успешном импорте.
+/// Модальное окно для импорта сметы из Excel файла.
+class ImportEstimateFormModal extends ConsumerStatefulWidget {
+  /// Коллбек, вызываемый при успешном импорте.
   final VoidCallback onSuccess;
 
-  /// Колбэк при отмене импорта.
+  /// Коллбек, вызываемый при отмене или закрытии окна.
   final VoidCallback onCancel;
 
   /// Создаёт модальное окно импорта сметы.
   const ImportEstimateFormModal({
-    required this.ref,
+    super.key,
     required this.onSuccess,
     required this.onCancel,
-    super.key,
   });
 
+  /// Показывает модальное окно импорта.
+  ///
+  /// Адаптируется под размер экрана (Dialog для Desktop, BottomSheet для Mobile).
+  static void show(BuildContext context, WidgetRef ref,
+      {required VoidCallback onSuccess}) {
+    final isLargeScreen = MediaQuery.of(context).size.width > 900;
+
+    if (isLargeScreen) {
+      showDialog(
+        context: context,
+        builder: (context) => Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(24),
+          child: ImportEstimateFormModal(
+            onSuccess: onSuccess,
+            onCancel: () => context.pop(),
+          ),
+        ),
+      );
+    } else {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) => ImportEstimateFormModal(
+          onSuccess: onSuccess,
+          onCancel: () => context.pop(),
+        ),
+      );
+    }
+  }
+
   @override
-  State<ImportEstimateFormModal> createState() =>
+  ConsumerState<ImportEstimateFormModal> createState() =>
       _ImportEstimateFormModalState();
 }
 
-class _ImportEstimateFormModalState extends State<ImportEstimateFormModal> {
+class _ImportEstimateFormModalState
+    extends ConsumerState<ImportEstimateFormModal> {
   String? selectedObjectId;
   String? selectedContractId;
   String? estimateName;
@@ -55,25 +86,20 @@ class _ImportEstimateFormModalState extends State<ImportEstimateFormModal> {
   late final TextEditingController _contractController;
   late final TextEditingController _estimateNameController;
 
-  // Список уникальных названий смет для выбора
   List<String> _existingEstimateTitles = [];
-  // Отфильтрованные названия смет на основе выбранного объекта и договора
   List<String> _filteredEstimateTitles = [];
-  // Флаг загрузки списка смет
   bool _loadingEstimateTitles = false;
 
-  // Состояние предпросмотра
   bool _showPreview = false;
   ExcelPreviewResult? _previewData;
   ExcelValidationResult? _validationResult;
-  int _currentStep = 0; // 0 - выбор файла, 1 - предпросмотр, 2 - импорт
+  int _currentStep = 0;
   bool _isImporting = false;
   int _importedRows = 0;
   int _totalRows = 0;
   String _importStatus = '';
   bool _validationPassed = false;
 
-  // Форматтер для денежных значений
   final NumberFormat moneyFormat = NumberFormat.currency(
     locale: 'ru_RU',
     symbol: '₽',
@@ -86,8 +112,6 @@ class _ImportEstimateFormModalState extends State<ImportEstimateFormModal> {
     _objectController = TextEditingController();
     _contractController = TextEditingController();
     _estimateNameController = TextEditingController();
-
-    // Загружаем список существующих смет при инициализации
     _loadExistingEstimateTitles();
   }
 
@@ -99,15 +123,10 @@ class _ImportEstimateFormModalState extends State<ImportEstimateFormModal> {
     super.dispose();
   }
 
-  /// Загружает список существующих имен смет из базы данных
   Future<void> _loadExistingEstimateTitles() async {
     setState(() => _loadingEstimateTitles = true);
-
     try {
-      // Получаем список смет из состояния приложения
-      final estimates = widget.ref.read(estimateNotifierProvider).estimates;
-
-      // Извлекаем уникальные названия смет
+      final estimates = ref.read(estimateNotifierProvider).estimates;
       final titles = <String>{};
       for (final estimate in estimates) {
         if (estimate.estimateTitle != null &&
@@ -115,7 +134,6 @@ class _ImportEstimateFormModalState extends State<ImportEstimateFormModal> {
           titles.add(estimate.estimateTitle!);
         }
       }
-
       setState(() {
         _existingEstimateTitles = titles.toList()..sort();
         _filteredEstimateTitles = _existingEstimateTitles;
@@ -126,17 +144,12 @@ class _ImportEstimateFormModalState extends State<ImportEstimateFormModal> {
     }
   }
 
-  /// Фильтрует сметы на основе выбранного объекта и договора
-  void _filterEstimates() {
-    final estimates = widget.ref.read(estimateNotifierProvider).estimates;
-
+  void _updateFilteredEstimates() {
+    final estimates = ref.read(estimateNotifierProvider).estimates;
     if (selectedObjectId == null) {
-      setState(() {
-        _filteredEstimateTitles = _existingEstimateTitles;
-      });
+      _filteredEstimateTitles = _existingEstimateTitles;
       return;
     }
-
     final filteredTitles = <String>{};
     for (final estimate in estimates) {
       if (estimate.estimateTitle != null &&
@@ -147,102 +160,81 @@ class _ImportEstimateFormModalState extends State<ImportEstimateFormModal> {
         filteredTitles.add(estimate.estimateTitle!);
       }
     }
-
-    setState(() {
-      _filteredEstimateTitles = filteredTitles.toList()..sort();
-    });
+    _filteredEstimateTitles = filteredTitles.toList()..sort();
   }
 
-  /// Возвращает список договоров, отфильтрованных по выбранному объекту
   List<String> _getFilteredContracts(String pattern) {
-    final contractState = widget.ref.read(contractProvider);
+    final contractState = ref.read(contractProvider);
+    final searchPattern = pattern.toLowerCase().trim();
 
-    if (selectedObjectId == null) {
-      return contractState.contracts
-          .where((c) => c.number.toLowerCase().contains(pattern.toLowerCase()))
-          .map((c) => c.number)
-          .toList();
-    }
-
-    // Фильтрация договоров по выбранному объекту
     return contractState.contracts
-        .where((c) =>
-            c.objectId == selectedObjectId &&
-            c.number.toLowerCase().contains(pattern.toLowerCase()))
+        .where((c) {
+          // Если выбран объект, показываем только его договоры
+          if (selectedObjectId != null && c.objectId != selectedObjectId) {
+            return false;
+          }
+          return c.number.toLowerCase().contains(searchPattern);
+        })
         .map((c) => c.number)
+        .toSet()
         .toList();
   }
 
-  /// Сбрасывает выбранный договор при изменении объекта
   void _resetContractSelection() {
-    setState(() {
-      selectedContractId = null;
-      _contractController.text = '';
-    });
+    selectedContractId = null;
+    _contractController.text = '';
   }
 
-  /// Обновляет информацию о смете на основе выбранного имени
   void _updateEstimateInfo(String title) {
-    final estimates = widget.ref.read(estimateNotifierProvider).estimates;
-
-    // Находим первую запись с указанным названием сметы
+    final estimates = ref.read(estimateNotifierProvider).estimates;
     final selectedEstimate = estimates.firstWhere(
       (e) => e.estimateTitle == title,
       orElse: () => estimates.first,
     );
-
-    // Находим информацию об объекте и договоре
     final objectId = selectedEstimate.objectId;
     final contractId = selectedEstimate.contractId;
 
-    // Если объект и договор найдены, обновляем форму
-    if (objectId != null) {
-      final objects = widget.ref.read(objectProvider).objects;
-      final selectedObject = objects.firstWhere(
-        (o) => o.id == objectId,
-        orElse: () => objects.first,
-      );
-
-      setState(() {
+    setState(() {
+      if (objectId != null) {
+        final objects = ref.read(objectProvider).objects;
+        final selectedObject = objects.firstWhere(
+          (o) => o.id == objectId,
+          orElse: () => objects.first,
+        );
         selectedObjectId = objectId;
         _objectController.text = selectedObject.name;
-      });
-    }
+      }
 
-    if (contractId != null) {
-      final contracts = widget.ref.read(contractProvider).contracts;
-      final selectedContract = contracts.firstWhere(
-        (c) => c.id == contractId,
-        orElse: () => contracts.first,
-      );
-
-      setState(() {
+      if (contractId != null) {
+        final contracts = ref.read(contractProvider).contracts;
+        final selectedContract = contracts.firstWhere(
+          (c) => c.id == contractId,
+          orElse: () => contracts.first,
+        );
         selectedContractId = contractId;
         _contractController.text = selectedContract.number;
-      });
-    }
+      }
+
+      _updateFilteredEstimates();
+    });
   }
 
-  /// Скачивает шаблон Excel для заполнения
   Future<void> _downloadTemplate() async {
     try {
       setState(() => isLoading = true);
       final bytes = await ExcelEstimateService.loadTemplateFromFileSystem();
 
       if (kIsWeb) {
-        // Веб-версия - используем file_saver
         await FileSaver.instance.saveFile(
           name: 'estimate_template.xlsx',
           bytes: bytes,
           mimeType: MimeType.microsoftExcel,
         );
       } else {
-        // Мобильная версия - используем path_provider и share_plus
         final directory = await path_provider.getTemporaryDirectory();
         final path = '${directory.path}/estimate_template.xlsx';
         final file = File(path);
         await file.writeAsBytes(bytes);
-
         await SharePlus.instance.share(
           ShareParams(
             files: [XFile(path)],
@@ -250,7 +242,6 @@ class _ImportEstimateFormModalState extends State<ImportEstimateFormModal> {
           ),
         );
       }
-
       if (!mounted) return;
       SnackBarUtils.showSuccess(context, 'Шаблон сметы успешно скачан');
     } catch (e) {
@@ -261,7 +252,6 @@ class _ImportEstimateFormModalState extends State<ImportEstimateFormModal> {
     }
   }
 
-  /// Выбирает Excel-файл для импорта
   Future<void> _pickExcelFile() async {
     try {
       final result = await FilePicker.platform.pickFiles(
@@ -278,8 +268,6 @@ class _ImportEstimateFormModalState extends State<ImportEstimateFormModal> {
           _validationResult = null;
           _validationPassed = false;
         });
-
-        // Валидация и предпросмотр
         await _validateFile();
       }
     } catch (e) {
@@ -288,21 +276,13 @@ class _ImportEstimateFormModalState extends State<ImportEstimateFormModal> {
     }
   }
 
-  /// Валидирует выбранный файл
   Future<void> _validateFile() async {
     if (pickedFile?.bytes == null) return;
-
     setState(() => isLoading = true);
-
     try {
       final bytes = Uint8List.fromList(pickedFile!.bytes!);
-
-      // Валидация содержимого
       final validationResult = ExcelEstimateService.validateExcelFile(bytes);
-
-      // Предпросмотр данных
       final previewData = ExcelEstimateService.preparePreview(bytes);
-
       setState(() {
         _validationResult = validationResult;
         _previewData = previewData;
@@ -318,7 +298,6 @@ class _ImportEstimateFormModalState extends State<ImportEstimateFormModal> {
     }
   }
 
-  /// Импортирует данные из Excel в таблицу смет
   Future<void> _importExcelData() async {
     if (!formKey.currentState!.validate() || pickedFile?.bytes == null) return;
     if (!_validationPassed &&
@@ -329,13 +308,12 @@ class _ImportEstimateFormModalState extends State<ImportEstimateFormModal> {
       return;
     }
 
-    final userId = widget.ref.read(supabaseClientProvider).auth.currentUser?.id;
+    final userId = ref.read(supabaseClientProvider).auth.currentUser?.id;
     if (userId == null) {
       SnackBarUtils.showError(context, 'Не удалось определить пользователя');
       return;
     }
 
-    // Определяем, импортируем ли мы в существующую смету
     final estimateTitle = _estimateNameController.text.trim();
     final isExistingEstimate = _filteredEstimateTitles.contains(estimateTitle);
 
@@ -351,15 +329,14 @@ class _ImportEstimateFormModalState extends State<ImportEstimateFormModal> {
       final bytes = Uint8List.fromList(pickedFile!.bytes!);
       final excelFile = excel.Excel.decodeBytes(bytes);
       final sheet = excelFile.tables[excelFile.tables.keys.first]!;
-      final rows = sheet.rows.skip(1).toList(); // пропускаем заголовки
-      final estimateRepo = widget.ref.read(estimateRepositoryProvider);
+      final rows = sheet.rows.skip(1).toList();
+      final estimateRepo = ref.read(estimateRepositoryProvider);
 
       _totalRows = rows.length;
       int successCount = 0;
 
       for (int i = 0; i < rows.length; i++) {
         if (!mounted) break;
-
         try {
           setState(() {
             _importedRows = i;
@@ -394,20 +371,14 @@ class _ImportEstimateFormModalState extends State<ImportEstimateFormModal> {
             await estimateRepo.createEstimate(model.toDomain());
             successCount++;
           }
-        } catch (rowError) {
-          // Логируем ошибку, но продолжаем импорт
-          // ignore row error
-        }
+        } catch (_) {}
       }
 
-      // Сохраняем файл в хранилище Supabase
       setState(() => _importStatus = 'Сохранение файла...');
-
-      final supabase = widget.ref.read(supabaseClientProvider);
+      final supabase = ref.read(supabaseClientProvider);
       final fileName = 'estimate_${DateTime.now().millisecondsSinceEpoch}.xlsx';
       await supabase.storage.from('estimates').uploadBinary(fileName, bytes);
 
-      // Финальное сообщение в зависимости от типа операции
       final completionMessage = isExistingEstimate
           ? 'Добавлено $successCount позиций в смету "$estimateTitle"'
           : 'Создана новая смета с $successCount позициями';
@@ -426,252 +397,225 @@ class _ImportEstimateFormModalState extends State<ImportEstimateFormModal> {
     }
   }
 
-  /// Строит шаги интерфейса импорта
-  Widget _buildStepper() {
-    return Stepper(
-      currentStep: _currentStep,
-      controlsBuilder: (context, details) {
-        // Определяем, можно ли продолжить для текущего шага
-        bool canContinue = true;
+  Widget _buildStepIndicator(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Row(
+        children: [
+          _buildStepItem(theme, 0, 'Файл'),
+          _buildStepDivider(theme, 0),
+          _buildStepItem(theme, 1, 'Параметры'),
+          _buildStepDivider(theme, 1),
+          _buildStepItem(theme, 2, 'Импорт'),
+        ],
+      ),
+    );
+  }
 
-        // Для первого шага проверяем валидность файла
-        if (_currentStep == 0) {
-          canContinue = pickedFile != null &&
-              _validationPassed &&
-              _validationResult != null &&
-              _validationResult!.isValid;
-        }
+  Widget _buildStepItem(ThemeData theme, int step, String label) {
+    final isActive = _currentStep == step;
+    final isCompleted = _currentStep > step;
+    final color = isActive || isCompleted
+        ? theme.colorScheme.primary
+        : theme.colorScheme.outline.withValues(alpha: 0.5);
 
-        return Padding(
-          padding: const EdgeInsets.only(top: 16.0),
-          child: Row(
-            children: [
-              if (_currentStep < 2)
-                ElevatedButton(
-                  onPressed: canContinue ? details.onStepContinue : null,
-                  child:
-                      Text(_currentStep == 1 ? 'Импортировать' : 'Продолжить'),
-                ),
-              if (_currentStep > 0)
-                Padding(
-                  padding: const EdgeInsets.only(left: 16.0),
-                  child: OutlinedButton(
-                    onPressed: details.onStepCancel,
-                    child: const Text('Назад'),
-                  ),
-                ),
-            ],
-          ),
-        );
-      },
-      onStepContinue: () {
-        if (_currentStep == 0) {
-          if (pickedFile == null) {
-            SnackBarUtils.showInfo(context, 'Выберите файл для импорта');
-            return;
-          }
-
-          // Проверяем, прошел ли файл валидацию
-          if (!_validationPassed ||
-              _validationResult == null ||
-              !_validationResult!.isValid) {
-            SnackBarUtils.showError(
-                context, 'Файл содержит ошибки и не может быть импортирован');
-            return;
-          }
-
-          // Если проверка пройдена, переходим к следующему шагу
-          setState(() => _currentStep = 1);
-        } else if (_currentStep == 1) {
-          if (!formKey.currentState!.validate()) {
-            return;
-          }
-          estimateName = _estimateNameController.text.trim();
-          setState(() => _currentStep = 2);
-          _importExcelData();
-        }
-      },
-      onStepCancel: () {
-        if (_currentStep > 0) {
-          setState(() => _currentStep--);
-        }
-      },
-      onStepTapped: (index) {
-        // Запрещаем тап на шаг 1, если файл не прошел валидацию
-        if (index == 1 &&
-            (!_validationPassed ||
-                _validationResult == null ||
-                !_validationResult!.isValid)) {
-          SnackBarUtils.showInfo(
-              context, 'Сначала загрузите корректный Excel-файл');
-          return;
-        }
-
-        // Разрешаем переходить назад или на доступные шаги
-        if (!_isImporting && index <= _currentStep) {
-          setState(() => _currentStep = index);
-        }
-      },
-      steps: [
-        Step(
-          title: const Text('Выберите файл'),
-          subtitle: pickedFile != null
-              ? Text('Файл: ${pickedFile!.name}')
-              : const Text('Выберите Excel-файл со сметой'),
-          content: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.upload_file),
-                      label: Text(pickedFile == null
-                          ? 'Выбрать файл Excel'
-                          : 'Изменить файл'),
-                      onPressed: isLoading ? null : _pickExcelFile,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  IconButton(
-                    tooltip: 'Скачать шаблон Excel',
-                    icon: const Icon(Icons.download),
-                    onPressed: isLoading ? null : _downloadTemplate,
-                  ),
-                ],
+    return Expanded(
+      child: Column(
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isActive ? theme.colorScheme.primary : Colors.transparent,
+              border: Border.all(
+                color: color,
+                width: 2,
               ),
-
-              // Добавляем сообщение-подсказку о статусе файла
-              if (_showPreview && _validationResult != null) ...[
-                const SizedBox(height: 8),
-                if (!_validationResult!.isValid)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(4),
-                      border:
-                          Border.all(color: Colors.red.withValues(alpha: 0.5)),
-                    ),
-                    child: const Text(
-                      'Для продолжения необходимо исправить ошибки в файле',
-                      style: TextStyle(color: Colors.red),
-                    ),
-                  )
-                else
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(
-                          color: Colors.green.withValues(alpha: 0.5)),
-                    ),
-                    child: const Text(
-                      'Файл прошел проверку. Нажмите "Продолжить" для перехода к следующему шагу.',
-                      style: TextStyle(color: Colors.green),
-                    ),
-                  ),
-                const SizedBox(height: 8),
-                if (_validationResult!.errors.isNotEmpty) ...[
-                  const Text(
-                    'Ошибки в файле:',
-                    style: TextStyle(
-                        color: Colors.red, fontWeight: FontWeight.bold),
-                  ),
-                  ...buildErrorsList(_validationResult!.errors),
-                ],
-                if (_validationResult!.warnings.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Предупреждения:',
-                    style: TextStyle(
-                        color: Colors.orange, fontWeight: FontWeight.bold),
-                  ),
-                  ...buildErrorsList(_validationResult!.warnings),
-                ],
-                if (_validationResult!.isValid) ...[
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Файл прошел проверку',
-                    style: TextStyle(
-                        color: Colors.green, fontWeight: FontWeight.bold),
-                  ),
-                  Text('Строк данных: ${_previewData?.rowCount ?? 0}'),
-                  Text('Валидных строк: ${_previewData?.validRowCount ?? 0}'),
-                  Text(
-                      'Общая сумма: ${moneyFormat.format(_previewData?.totalAmount ?? 0)}'),
-
-                  // Таблица предпросмотра
-                  if (_previewData != null &&
-                      _previewData!.rows.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    Text(
-                      'Предварительный просмотр данных (первые 5 строк из ${_previewData!.rowCount}):',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    _buildPreviewTable(),
-                  ],
-                ],
-              ],
-            ],
+            ),
+            child: isCompleted
+                ? Icon(CupertinoIcons.checkmark_alt,
+                    size: 16, color: theme.colorScheme.primary)
+                : isActive
+                    ? Center(
+                        child: Text(
+                          '${step + 1}',
+                          style: TextStyle(
+                            color: theme.colorScheme.onPrimary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      )
+                    : Center(
+                        child: Text(
+                          '${step + 1}',
+                          style: TextStyle(
+                            color: theme.colorScheme.onSurface
+                                .withValues(alpha: 0.5),
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
           ),
-          isActive: _currentStep == 0,
-          state: _showPreview && _validationResult != null
-              ? (_validationResult!.isValid
-                  ? StepState.complete
-                  : StepState.error)
-              : StepState.indexed,
-        ),
-        Step(
-          title: const Text('Выберите параметры'),
-          subtitle: Text(selectedObjectId != null &&
-                  selectedContractId != null &&
-                  _estimateNameController.text.isNotEmpty
-              ? 'Смета: ${_estimateNameController.text}'
-              : 'Укажите объект, договор и название сметы'),
-          content: _buildDataForm(),
-          isActive: _currentStep == 1,
-          state: _validationPassed &&
-                  _validationResult != null &&
-                  _validationResult!.isValid
-              ? (formKey.currentState?.validate() == true
-                  ? StepState.complete
-                  : StepState.indexed)
-              : StepState.disabled,
-        ),
-        Step(
-          title: const Text('Создание сметы'),
-          subtitle: _isImporting
-              ? Text('Прогресс: $_importedRows из $_totalRows')
-              : const Text('Выберите существующую смету или создайте новую'),
-          content: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (_isImporting) ...[
-                LinearProgressIndicator(
-                  value: _totalRows > 0 ? _importedRows / _totalRows : 0,
-                ),
-                const SizedBox(height: 16),
-                Text(_importStatus),
-              ] else ...[
-                Text(_importStatus.isEmpty
-                    ? 'Нажмите кнопку "Импортировать" для начала импорта'
-                    : _importStatus),
-              ],
-            ],
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: isActive
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.onSurface.withValues(alpha: 0.5),
+              fontWeight: isActive ? FontWeight.bold : null,
+            ),
+            textAlign: TextAlign.center,
           ),
-          isActive: _currentStep == 2,
-          state: _isImporting ? StepState.editing : StepState.indexed,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStepDivider(ThemeData theme, int step) {
+    final isCompleted = _currentStep > step;
+    return Container(
+      width: 20,
+      height: 2,
+      color: isCompleted
+          ? theme.colorScheme.primary
+          : theme.colorScheme.outline.withValues(alpha: 0.2),
+    );
+  }
+
+  Widget _buildStepContent(ThemeData theme) {
+    switch (_currentStep) {
+      case 0:
+        return _buildFileStep(theme);
+      case 1:
+        return _buildParamsStep(theme);
+      case 2:
+        return _buildImportStep(theme);
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _buildFileStep(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: GTPrimaryButton(
+                text: pickedFile == null ? 'Выбрать файл' : 'Изменить файл',
+                icon: CupertinoIcons.arrow_up_doc,
+                onPressed: isLoading ? null : _pickExcelFile,
+              ),
+            ),
+            const SizedBox(width: 16),
+            IconButton(
+              tooltip: 'Скачать шаблон Excel',
+              icon: const Icon(CupertinoIcons.arrow_down_doc),
+              onPressed: isLoading ? null : _downloadTemplate,
+            ),
+          ],
         ),
+        const SizedBox(height: 16),
+        if (pickedFile != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Text('Файл: ${pickedFile!.name}',
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(fontWeight: FontWeight.bold)),
+          ),
+        if (_showPreview && _validationResult != null) ...[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: _validationResult!.isValid
+                  ? theme.colorScheme.primaryContainer.withValues(alpha: 0.2)
+                  : theme.colorScheme.errorContainer.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: _validationResult!.isValid
+                    ? theme.colorScheme.primary.withValues(alpha: 0.5)
+                    : theme.colorScheme.error.withValues(alpha: 0.5),
+              ),
+            ),
+            child: Text(
+              _validationResult!.isValid
+                  ? 'Файл прошел проверку'
+                  : 'Исправьте ошибки в файле',
+              style: TextStyle(
+                color: _validationResult!.isValid
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.error,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (_validationResult!.errors.isNotEmpty) ...[
+            Text('Ошибки:',
+                style: TextStyle(
+                    color: theme.colorScheme.error,
+                    fontWeight: FontWeight.bold)),
+            ...buildErrorsList(_validationResult!.errors),
+            const SizedBox(height: 8),
+          ],
+          if (_validationResult!.isValid) ...[
+            Text('Строк: ${_previewData?.rowCount ?? 0}'),
+            Text(
+                'Сумма: ${moneyFormat.format(_previewData?.totalAmount ?? 0)}'),
+            const SizedBox(height: 16),
+            const Text('Системы в смете:',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            if (_previewData?.systems.isNotEmpty ?? false)
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _previewData!.systems
+                    .map((s) => Chip(
+                          label: Text(s, style: const TextStyle(fontSize: 12)),
+                          backgroundColor:
+                              theme.colorScheme.surfaceContainerHighest,
+                          side: BorderSide.none,
+                          padding: EdgeInsets.zero,
+                          visualDensity: VisualDensity.compact,
+                        ))
+                    .toList(),
+              )
+            else
+              Text('Системы не найдены',
+                  style: TextStyle(color: theme.colorScheme.outline)),
+          ],
+        ],
       ],
     );
   }
 
-  /// Строит список ошибок/предупреждений
+  Widget _buildParamsStep(ThemeData theme) {
+    return _buildDataForm();
+  }
+
+  Widget _buildImportStep(ThemeData theme) {
+    return Column(
+      children: [
+        if (_isImporting) ...[
+          LinearProgressIndicator(
+            value: _totalRows > 0 ? _importedRows / _totalRows : 0,
+          ),
+          const SizedBox(height: 16),
+          Text(_importStatus),
+        ] else ...[
+          Text(_importStatus.isEmpty ? 'Готово к импорту' : _importStatus),
+        ],
+      ],
+    );
+  }
+
   List<Widget> buildErrorsList(List<String> messages) {
     return messages
         .map((message) => Padding(
@@ -687,72 +631,60 @@ class _ImportEstimateFormModalState extends State<ImportEstimateFormModal> {
         .toList();
   }
 
-  /// Строит форму с полями выбора объекта, договора и названия сметы
   Widget _buildDataForm() {
-    final objectState = widget.ref.watch(objectProvider);
-    final contractState = widget.ref.watch(contractProvider);
+    final objectState = ref.watch(objectProvider);
+    final contractState = ref.watch(contractProvider);
 
     return Form(
       key: formKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // TypeAheadField для объекта
           TypeAheadField<String>(
             controller: _objectController,
-            suggestionsCallback: (pattern) {
-              return objectState.objects
-                  .where((o) =>
-                      o.name.toLowerCase().contains(pattern.toLowerCase()))
-                  .map((o) => o.name)
-                  .toList();
-            },
-            itemBuilder: (context, suggestion) {
-              return ListTile(title: Text(suggestion));
-            },
+            suggestionsCallback: (pattern) => objectState.objects
+                .where(
+                    (o) => o.name.toLowerCase().contains(pattern.toLowerCase()))
+                .map((o) => o.name)
+                .toList(),
+            itemBuilder: (context, suggestion) =>
+                ListTile(title: Text(suggestion)),
             onSelected: (suggestion) {
               final obj =
                   objectState.objects.firstWhere((o) => o.name == suggestion);
               setState(() {
-                // Если изменился объект, сбрасываем выбранный договор
-                if (selectedObjectId != obj.id) {
-                  _resetContractSelection();
-                }
+                if (selectedObjectId != obj.id) _resetContractSelection();
                 selectedObjectId = obj.id;
                 _objectController.text = obj.name;
+                _updateFilteredEstimates();
               });
-
-              // После выбора объекта обновляем списки договоров и смет
-              _filterEstimates();
             },
-            emptyBuilder: (context) =>
-                const ListTile(title: Text('Нет совпадений')),
-            builder: (context, controller, focusNode) {
-              return TextFormField(
-                controller: controller,
-                focusNode: focusNode,
-                decoration: const InputDecoration(
-                  labelText: 'Объект *',
-                  hintText: 'Выберите объект',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (v) =>
-                    selectedObjectId == null ? 'Выберите объект' : null,
-                readOnly: false,
-              );
-            },
+            builder: (context, controller, focusNode) => TextFormField(
+              controller: controller,
+              focusNode: focusNode,
+              decoration: const InputDecoration(
+                labelText: 'Объект *',
+                hintText: 'Выберите объект',
+                border: OutlineInputBorder(),
+              ),
+              validator: (v) =>
+                  selectedObjectId == null ? 'Выберите объект' : null,
+            ),
           ),
           const SizedBox(height: 16),
-          // TypeAheadField для договора
           TypeAheadField<String>(
+            key: ValueKey('contract_$selectedObjectId'),
             controller: _contractController,
-            suggestionsCallback: (pattern) {
-              return _getFilteredContracts(pattern);
-            },
+            suggestionsCallback: (pattern) => _getFilteredContracts(pattern),
             itemBuilder: (context, suggestion) {
+              // Ищем договор, соответствующий номеру и выбранному объекту
               final contract = contractState.contracts.firstWhere(
-                (c) => c.number == suggestion,
-                orElse: () => contractState.contracts.first,
+                (c) =>
+                    c.number == suggestion &&
+                    (selectedObjectId == null ||
+                        c.objectId == selectedObjectId),
+                orElse: () => contractState.contracts
+                    .firstWhere((c) => c.number == suggestion),
               );
               return ListTile(
                 title: Text(suggestion),
@@ -760,240 +692,149 @@ class _ImportEstimateFormModalState extends State<ImportEstimateFormModal> {
               );
             },
             onSelected: (suggestion) {
-              final contract = contractState.contracts
-                  .firstWhere((c) => c.number == suggestion);
+              final contract = contractState.contracts.firstWhere(
+                (c) =>
+                    c.number == suggestion &&
+                    (selectedObjectId == null ||
+                        c.objectId == selectedObjectId),
+                orElse: () => contractState.contracts
+                    .firstWhere((c) => c.number == suggestion),
+              );
               setState(() {
                 selectedContractId = contract.id;
                 _contractController.text = contract.number;
+                _updateFilteredEstimates();
               });
-
-              // После выбора договора обновляем список смет
-              _filterEstimates();
             },
-            emptyBuilder: (context) {
-              if (selectedObjectId == null) {
-                return const ListTile(
-                  title: Text('Сначала выберите объект'),
-                  leading: Icon(Icons.info_outline),
-                );
-              }
-              return const ListTile(
-                  title: Text('Нет договоров для выбранного объекта'));
-            },
-            builder: (context, controller, focusNode) {
-              return TextFormField(
-                controller: controller,
-                focusNode: focusNode,
-                decoration: InputDecoration(
-                  labelText: 'Договор *',
-                  hintText: selectedObjectId == null
-                      ? 'Сначала выберите объект'
-                      : 'Выберите договор',
-                  border: const OutlineInputBorder(),
-                  enabled: selectedObjectId != null,
-                ),
-                validator: (v) =>
-                    selectedContractId == null ? 'Выберите договор' : null,
-                readOnly: false,
-              );
-            },
+            builder: (context, controller, focusNode) => TextFormField(
+              controller: controller,
+              focusNode: focusNode,
+              decoration: InputDecoration(
+                labelText: 'Договор *',
+                hintText: selectedObjectId == null
+                    ? 'Сначала выберите объект'
+                    : 'Выберите договор',
+                border: const OutlineInputBorder(),
+                enabled: selectedObjectId != null,
+              ),
+              validator: (v) =>
+                  selectedContractId == null ? 'Выберите договор' : null,
+            ),
           ),
           const SizedBox(height: 16),
-          // TypeAheadField для названия сметы
           TypeAheadField<String>(
             controller: _estimateNameController,
-            suggestionsCallback: (pattern) {
-              if (_loadingEstimateTitles) return [];
-
-              return _filteredEstimateTitles
-                  .where((title) =>
-                      title.toLowerCase().contains(pattern.toLowerCase()))
-                  .toList();
-            },
-            itemBuilder: (context, suggestion) {
-              final estimates =
-                  widget.ref.read(estimateNotifierProvider).estimates;
-              final count = estimates
-                  .where((e) =>
-                      e.estimateTitle == suggestion &&
-                      (selectedObjectId == null ||
-                          e.objectId == selectedObjectId) &&
-                      (selectedContractId == null ||
-                          e.contractId == selectedContractId))
-                  .length;
-
-              return ListTile(
-                title: Text(suggestion),
-                subtitle: Text('$count позиций в смете'),
-                leading: const Icon(Icons.article_outlined),
-              );
-            },
+            suggestionsCallback: (pattern) => _filteredEstimateTitles
+                .where((t) => t.toLowerCase().contains(pattern.toLowerCase()))
+                .toList(),
+            itemBuilder: (context, suggestion) =>
+                ListTile(title: Text(suggestion)),
             onSelected: (suggestion) {
-              setState(() {
-                _estimateNameController.text = suggestion;
-              });
-
-              // Обновляем информацию об объекте и договоре на основе выбранной сметы
+              setState(() => _estimateNameController.text = suggestion);
               _updateEstimateInfo(suggestion);
             },
-            emptyBuilder: (context) {
-              final input = _estimateNameController.text.trim();
-              if (input.isEmpty) return const SizedBox();
-
-              if (selectedObjectId == null || selectedContractId == null) {
-                return const ListTile(
-                  title: Text('Сначала выберите объект и договор'),
-                  leading: Icon(Icons.info_outline),
-                );
-              }
-
-              return ListTile(
-                title: Text('Создать новую смету "$input"'),
-                leading: const Icon(Icons.add_circle_outline),
-                onTap: () {
-                  setState(() {
-                    _estimateNameController.text = input;
-                  });
-                  context.pop();
-                },
-              );
-            },
-            builder: (context, controller, focusNode) {
-              return TextFormField(
-                controller: controller,
-                focusNode: focusNode,
-                decoration: InputDecoration(
-                  labelText: 'Название сметы *',
-                  hintText:
-                      selectedObjectId == null || selectedContractId == null
-                          ? 'Сначала выберите объект и договор'
-                          : 'Выберите существующую смету или введите новую',
-                  border: const OutlineInputBorder(),
-                  helperText: _filteredEstimateTitles.isEmpty
-                      ? 'Нет смет для выбранной комбинации объект/договор'
-                      : '${_filteredEstimateTitles.length} смет для выбранных параметров',
-                  suffixIcon: _loadingEstimateTitles
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: Padding(
-                            padding: EdgeInsets.all(8.0),
-                            child: CupertinoActivityIndicator(),
-                          ),
-                        )
-                      : null,
-                ),
-                validator: (v) =>
-                    (v == null || v.isEmpty) ? 'Введите название' : null,
-                readOnly: false,
-              );
-            },
+            builder: (context, controller, focusNode) => TextFormField(
+              controller: controller,
+              focusNode: focusNode,
+              decoration: InputDecoration(
+                labelText: 'Название сметы *',
+                hintText: 'Выберите или введите новую',
+                border: const OutlineInputBorder(),
+                suffixIcon: _loadingEstimateTitles
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: Padding(
+                          padding: EdgeInsets.all(8.0),
+                          child: CupertinoActivityIndicator(),
+                        ),
+                      )
+                    : null,
+              ),
+              validator: (v) =>
+                  (v == null || v.isEmpty) ? 'Введите название' : null,
+            ),
           ),
         ],
       ),
     );
   }
 
-  /// Строит таблицу предпросмотра данных из Excel
-  Widget _buildPreviewTable() {
-    if (_previewData == null || _previewData!.rows.isEmpty) {
-      return const SizedBox();
-    }
-
-    // Функция для корректного форматирования значения ячейки
-    String formatCellValue(dynamic cell) {
-      if (cell == null) return '';
-
-      // Извлекаем значение из ячейки excel.Data
-      final value = cell is excel.Data ? cell.value : cell;
-
-      if (value == null) return '';
-
-      // Форматируем в зависимости от типа данных
-      if (value is num) {
-        // Форматируем числа с десятичной точкой, если нужно
-        if (value == value.truncate()) {
-          return value.toInt().toString();
-        } else {
-          return value.toString();
-        }
+  void _goNext() {
+    if (_currentStep == 0) {
+      if (pickedFile == null ||
+          !_validationPassed ||
+          _validationResult == null ||
+          !_validationResult!.isValid) {
+        SnackBarUtils.showError(context, 'Выберите корректный файл');
+        return;
       }
-
-      return value.toString();
+      setState(() => _currentStep = 1);
+    } else if (_currentStep == 1) {
+      if (!formKey.currentState!.validate()) return;
+      estimateName = _estimateNameController.text.trim();
+      setState(() => _currentStep = 2);
+      _importExcelData();
     }
+  }
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        columns: _previewData!.rows.first
-            .take(7) // Ограничиваем количество столбцов для упрощения вида
-            .map((cell) => DataColumn(
-                  label: Text(
-                    formatCellValue(cell),
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ))
-            .toList(),
-        rows: _previewData!.rows.length > 1
-            ? _previewData!.rows
-                .skip(1)
-                .take(5) // Берем только 5 строк для предпросмотра
-                .map((row) => DataRow(
-                      cells: row
-                          .take(7)
-                          .map((cell) => DataCell(Text(formatCellValue(cell))))
-                          .toList(),
-                    ))
-                .toList()
-            : [],
-      ),
-    );
+  void _goBack() {
+    if (_currentStep > 0) {
+      setState(() => _currentStep--);
+    } else {
+      widget.onCancel();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isLargeScreen = MediaQuery.of(context).size.width > 900;
     final theme = Theme.of(context);
 
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 700),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Заголовок и кнопка закрытия
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16.0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Импорт сметы из Excel',
-                        style: theme.textTheme.titleLarge
-                            ?.copyWith(fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      style: IconButton.styleFrom(foregroundColor: Colors.red),
-                      onPressed: widget.onCancel,
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(),
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildStepIndicator(theme),
+        _buildStepContent(theme),
+      ],
+    );
 
-              // Основное содержимое с шагами
-              isLoading && !_isImporting
-                  ? const Center(child: CupertinoActivityIndicator())
-                  : _buildStepper(),
-            ],
+    // Actions
+    final actions = Row(
+      children: [
+        if (_currentStep > 0)
+          Expanded(
+            child: GTSecondaryButton(
+              text: 'Назад',
+              onPressed: _isImporting ? null : _goBack,
+            ),
           ),
+        if (_currentStep > 0) const SizedBox(width: 16),
+        Expanded(
+          child: _currentStep < 2
+              ? GTPrimaryButton(
+                  text: _currentStep == 1 ? 'Импортировать' : 'Продолжить',
+                  onPressed: isLoading ? null : _goNext,
+                )
+              : const SizedBox.shrink(), // На шаге импорта кнопка не нужна
         ),
-      ),
+      ],
+    );
+
+    if (isLargeScreen) {
+      return DesktopDialogContent(
+        title: 'Импорт сметы',
+        width: 750,
+        footer: actions,
+        onClose: widget.onCancel,
+        child: content,
+      );
+    }
+
+    return MobileBottomSheetContent(
+      title: 'Импорт сметы',
+      footer: actions,
+      child: content,
     );
   }
 }

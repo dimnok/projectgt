@@ -6,7 +6,7 @@ part of 'month_chart_data_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$monthChartDataHash() => r'7a3008c8f6e9c7e5a41bcd0ba72416a0643a2c10';
+String _$monthChartDataHash() => r'5f20550ae75fcfb481499b9ffafa2f2dbf79abc3';
 
 /// Copied from Dart SDK
 class _SystemHash {

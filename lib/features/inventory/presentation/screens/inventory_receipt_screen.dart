@@ -3,9 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/widgets/gt_dropdown.dart';
-import 'package:projectgt/domain/entities/contractor.dart';
-import 'package:projectgt/presentation/state/contractor_state.dart';
-import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:projectgt/features/inventory/data/models/inventory_receipt_item_model.dart';
 import 'package:projectgt/features/inventory/data/models/inventory_receipt_model.dart';
@@ -43,9 +40,11 @@ class _InventoryReceiptScreenState
   final _commentController = TextEditingController();
 
   DateTime? _receiptDate;
-  Contractor? _selectedSupplier;
+  List<Map<String, dynamic>> _suppliers = [];
+  String? _selectedSupplierId;
   final List<ReceiptItemRow> _items = [];
   bool _isLoading = false;
+  bool _isSuppliersLoading = false;
   String? _errorMessage;
   late bool _hasReceipt;
   List<String> _units = [];
@@ -55,10 +54,23 @@ class _InventoryReceiptScreenState
   void initState() {
     super.initState();
     _hasReceipt = widget.hasReceipt;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(contractorProvider.notifier).loadContractors();
-    });
+    _loadSuppliers();
     _loadUnits();
+  }
+
+  Future<void> _loadSuppliers() async {
+    setState(() => _isSuppliersLoading = true);
+    try {
+      final suppliers =
+          await ref.read(inventoryRepositoryProvider).getSuppliersForDropdown();
+      setState(() {
+        _suppliers = suppliers;
+        _isSuppliersLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSuppliersLoading = false);
+    }
   }
 
   Future<void> _loadUnits() async {
@@ -165,7 +177,7 @@ class _InventoryReceiptScreenState
 
     if (_hasReceipt) {
       if (_receiptDate == null) return 'Выберите дату накладной';
-      if (_selectedSupplier == null) return 'Выберите поставщика';
+      if (_selectedSupplierId == null) return 'Выберите поставщика';
     } else {
       _receiptDate ??= DateTime.now();
     }
@@ -179,12 +191,12 @@ class _InventoryReceiptScreenState
       _errorMessage = null;
       if (!_hasReceipt) {
         _receiptNumberController.clear();
-        _selectedSupplier = null;
+        _selectedSupplierId = null;
       }
     });
   }
 
-  Future<({String receiptNumber, DateTime receiptDate, String supplierId})>
+  Future<({String receiptNumber, DateTime receiptDate, String? supplierId})>
       _prepareReceiptData() async {
     final client = Supabase.instance.client;
 
@@ -205,20 +217,13 @@ class _InventoryReceiptScreenState
       return (
         receiptNumber: receiptNumber,
         receiptDate: _receiptDate!,
-        supplierId: _selectedSupplier!.id,
+        supplierId: _selectedSupplierId,
       );
     } else {
-      final defaultSupplier = await client
-          .from('contractors')
-          .select('id')
-          .eq('type', 'supplier')
-          .limit(1)
-          .single();
-
       return (
         receiptNumber: 'БЕЗ-НАКЛАДНОЙ-${const Uuid().v4()}',
         receiptDate: _receiptDate ?? DateTime.now(),
-        supplierId: defaultSupplier['id'] as String,
+        supplierId: null,
       );
     }
   }
@@ -262,12 +267,8 @@ class _InventoryReceiptScreenState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final contractorsState = ref.watch(contractorProvider);
-    final suppliers = contractorsState.contractors
-        .where((c) => c.type == ContractorType.supplier)
-        .toList();
 
-    if (contractorsState.status == ContractorStatus.loading) {
+    if (_isLoading) {
       return const Scaffold(
         appBar: AppBarWidget(
           title: 'Приход ТМЦ',
@@ -424,7 +425,8 @@ class _InventoryReceiptScreenState
                                     ),
                                     const SizedBox(width: 16),
                                     Expanded(
-                                      child: suppliers.isEmpty
+                                      child: _suppliers.isEmpty &&
+                                              !_isSuppliersLoading
                                           ? Container(
                                               padding: const EdgeInsets.all(12),
                                               decoration: BoxDecoration(
@@ -457,29 +459,45 @@ class _InventoryReceiptScreenState
                                                 ],
                                               ),
                                             )
-                                          : GTDropdown<Contractor>(
-                                              items: suppliers,
-                                              selectedItem: _selectedSupplier,
-                                              itemDisplayBuilder: (c) =>
-                                                  c.shortName.isNotEmpty
-                                                      ? c.shortName
-                                                      : c.fullName,
-                                              onSelectionChanged: (supplier) {
+                                          : GTDropdown<String>(
+                                              items: _suppliers
+                                                  .map((s) => s['id'] as String)
+                                                  .toList(),
+                                              selectedItem: _selectedSupplierId,
+                                              itemDisplayBuilder: (id) {
+                                                final supplier =
+                                                    _suppliers.firstWhere(
+                                                  (s) => s['id'] == id,
+                                                  orElse: () => {},
+                                                );
+                                                if (supplier.isEmpty) return '';
+                                                final shortName =
+                                                    supplier['short_name']
+                                                        as String?;
+                                                final fullName =
+                                                    supplier['full_name']
+                                                        as String?;
+                                                return (shortName?.isNotEmpty ==
+                                                        true)
+                                                    ? shortName!
+                                                    : fullName ?? '';
+                                              },
+                                              onSelectionChanged: (supplierId) {
                                                 if (_isLoading) return;
                                                 setState(() {
-                                                  _selectedSupplier = supplier;
+                                                  _selectedSupplierId =
+                                                      supplierId;
                                                   _errorMessage =
                                                       null; // Очищаем ошибку при выборе
                                                 });
                                               },
                                               labelText: 'Поставщик *',
                                               hintText: 'Выберите поставщика',
-                                              isLoading:
-                                                  contractorsState.status ==
-                                                      ContractorStatus.loading,
+                                              isLoading: _isSuppliersLoading,
                                               readOnly: _isLoading,
                                               validator: (value) {
-                                                if (_selectedSupplier == null) {
+                                                if (_selectedSupplierId ==
+                                                    null) {
                                                   return 'Выберите поставщика';
                                                 }
                                                 return null;

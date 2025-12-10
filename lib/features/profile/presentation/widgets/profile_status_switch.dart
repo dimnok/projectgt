@@ -77,7 +77,7 @@ class ProfileStatusSwitch extends StatelessWidget {
         color: color,
         disabledColor: color.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(8),
-        minimumSize: const Size.fromHeight(36),
+        minimumSize: Size.zero,
         onPressed: onChangedCallback,
         child: Text(
           value ? 'Активен' : 'Отключен',

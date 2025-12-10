@@ -43,6 +43,8 @@ import 'package:projectgt/features/inventory/presentation/screens/inventory_tran
 import 'package:projectgt/features/inventory/presentation/screens/inventory_breakdowns_screen.dart';
 import 'package:projectgt/features/inventory/presentation/screens/inventory_inventory_screen.dart';
 import 'package:projectgt/features/inventory/presentation/screens/inventory_categories_reference_screen.dart';
+import 'package:projectgt/features/procurement/presentation/screens/procurement_list_screen.dart';
+import 'package:projectgt/features/procurement/presentation/screens/procurement_settings_screen.dart';
 // Telegram moderation экраны удалены
 import 'package:projectgt/core/widgets/auth_gate.dart';
 import 'package:projectgt/features/version_control/presentation/force_update_screen.dart';
@@ -724,6 +726,41 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
 
+      // Маршрут для заявок
+      GoRoute(
+        path: AppRoutes.procurement,
+        name: 'procurement',
+        builder: (context, state) {
+          return Consumer(
+            builder: (context, ref, child) {
+              final service = ref.watch(permissionServiceProvider);
+              if (service.can('procurement', 'read')) {
+                return const ProcurementListScreen();
+              }
+              return _buildAccessDeniedScreen();
+            },
+          );
+        },
+        routes: [
+          GoRoute(
+            path: 'settings',
+            name: 'procurement_settings',
+            builder: (context, state) {
+              return Consumer(
+                builder: (context, ref, child) {
+                  // Проверка прав на настройки (можно добавить отдельное право 'procurement.settings')
+                  final service = ref.watch(permissionServiceProvider);
+                  if (service.can('procurement', 'update')) { 
+                    return const ProcurementSettingsScreen();
+                  }
+                  return _buildAccessDeniedScreen();
+                },
+              );
+            },
+          ),
+        ],
+      ),
+
       // Страницы статусов доступа управляются через AuthGate
     ],
     errorBuilder: (context, state) => Scaffold(
@@ -802,6 +839,9 @@ class AppRoutes {
 
   /// Маршрут для управления ролями (админ)
   static const String roles = '/roles';
+
+  /// Маршрут для заявок
+  static const String procurement = '/procurement';
 
   // Telegram маршруты удалены
 

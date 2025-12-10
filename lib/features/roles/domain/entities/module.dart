@@ -45,6 +45,14 @@ abstract class Module with _$Module {
         return CupertinoIcons.tray_arrow_down;
       case 'calendar':
         return CupertinoIcons.calendar_today;
+      case 'cart':
+        return CupertinoIcons.cart;
+      case 'person_2':
+        return CupertinoIcons.person_2;
+      case 'gear_alt':
+        return CupertinoIcons.settings;
+      case 'lock_shield':
+        return CupertinoIcons.lock_shield;
       default:
         return CupertinoIcons.square;
     }

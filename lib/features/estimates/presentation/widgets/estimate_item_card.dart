@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../../domain/entities/estimate.dart';
@@ -23,21 +24,44 @@ class EstimateItemCard extends StatelessWidget {
   /// Форматтер для отображения денежных сумм
   final NumberFormat moneyFormat = NumberFormat('###,##0.00', 'ru_RU');
 
-  /// Создает карточку позиции сметы
+  /// Разрешено ли редактирование
+  final bool canEdit;
+
+  /// Разрешено ли удаление
+  final bool canDelete;
+
+  /// Разрешено ли дублирование
+  final bool canDuplicate;
+
+  /// Создает карточку позиции сметы.
   EstimateItemCard({
     super.key,
     required this.item,
     required this.onEdit,
     required this.onDelete,
     required this.onDuplicate,
+    this.canEdit = true,
+    this.canDelete = true,
+    this.canDuplicate = true,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    // Определяем доступные направления свайпа
+    DismissDirection dismissDirection = DismissDirection.none;
+    if (canDelete && canDuplicate) {
+      dismissDirection = DismissDirection.horizontal;
+    } else if (canDelete) {
+      dismissDirection = DismissDirection.endToStart;
+    } else if (canDuplicate) {
+      dismissDirection = DismissDirection.startToEnd;
+    }
+
     return Dismissible(
       key: Key(item.id),
+      direction: dismissDirection,
       background: Container(
         decoration: BoxDecoration(
           color: theme.colorScheme.primaryContainer,
@@ -46,8 +70,8 @@ class EstimateItemCard extends StatelessWidget {
         alignment: Alignment.centerLeft,
         padding: const EdgeInsets.only(left: 16),
         child: Icon(
-          Icons.copy,
-          color: theme.colorScheme.primary,
+          CupertinoIcons.doc_on_doc,
+          color: theme.colorScheme.onPrimaryContainer,
           size: 16,
         ),
       ),
@@ -59,13 +83,13 @@ class EstimateItemCard extends StatelessWidget {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 16),
         child: Icon(
-          Icons.delete_outline,
+          CupertinoIcons.trash,
           color: theme.colorScheme.error,
           size: 16,
         ),
       ),
       confirmDismiss: (direction) async {
-        if (direction == DismissDirection.endToStart) {
+        if (direction == DismissDirection.endToStart && canDelete) {
           // Удаление (свайп влево)
           return await CupertinoDialogs.showDeleteConfirmDialog<bool>(
             context: context,
@@ -73,7 +97,7 @@ class EstimateItemCard extends StatelessWidget {
             message: 'Вы действительно хотите удалить позицию №${item.number}?',
             onConfirm: () => onDelete(item.id),
           );
-        } else if (direction == DismissDirection.startToEnd) {
+        } else if (direction == DismissDirection.startToEnd && canDuplicate) {
           // Дублирование (свайп вправо)
           onDuplicate(item);
           // Возвращаем false, чтобы не удалять карточку из списка после дублирования
@@ -92,7 +116,7 @@ class EstimateItemCard extends StatelessWidget {
           ),
         ),
         child: InkWell(
-          onTap: () => onEdit(item),
+          onTap: canEdit ? () => onEdit(item) : null,
           borderRadius: BorderRadius.circular(8),
           child: Padding(
             padding: const EdgeInsets.all(10.0),
@@ -149,7 +173,7 @@ class EstimateItemCard extends StatelessWidget {
                         child: Row(
                           children: [
                             Icon(
-                              Icons.category_outlined,
+                              CupertinoIcons.square_grid_2x2,
                               size: 12,
                               color: theme.colorScheme.onSurface
                                   .withValues(alpha: 0.5),
@@ -176,7 +200,7 @@ class EstimateItemCard extends StatelessWidget {
                         child: Row(
                           children: [
                             Icon(
-                              Icons.qr_code,
+                              CupertinoIcons.qrcode,
                               size: 12,
                               color: theme.colorScheme.onSurface
                                   .withValues(alpha: 0.5),
@@ -206,7 +230,7 @@ class EstimateItemCard extends StatelessWidget {
                     child: Row(
                       children: [
                         Icon(
-                          Icons.business,
+                          CupertinoIcons.building_2_fill,
                           size: 12,
                           color: theme.colorScheme.onSurface
                               .withValues(alpha: 0.5),

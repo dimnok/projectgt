@@ -12,7 +12,7 @@ _InventoryReceiptModel _$InventoryReceiptModelFromJson(
       id: json['id'] as String,
       receiptNumber: json['receipt_number'] as String,
       receiptDate: DateTime.parse(json['receipt_date'] as String),
-      supplierId: json['supplier_id'] as String,
+      supplierId: json['supplier_id'] as String?,
       fileUrl: json['file_url'] as String?,
       comment: json['comment'] as String?,
       totalAmount: (json['total_amount'] as num?)?.toDouble(),

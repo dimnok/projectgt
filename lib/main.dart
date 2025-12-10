@@ -49,7 +49,8 @@ Future<void> main() async {
       // Регистрация фонового обработчика сообщений FCM
       FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
       // Показ уведомлений в форграунде на iOS/macOS
-      await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+      await FirebaseMessaging.instance
+          .setForegroundNotificationPresentationOptions(
         alert: true,
         badge: true,
         sound: true,

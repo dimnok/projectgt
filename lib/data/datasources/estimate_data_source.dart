@@ -38,15 +38,47 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
   /// Имя таблицы смет в базе данных.
   static const String table = 'estimates';
 
+  /// Регулярное выражение для удаления пробелов (скомпилировано для производительности).
+  static final RegExp _whitespaceRegex = RegExp(r'\s+');
+
   /// Создаёт экземпляр [SupabaseEstimateDataSource] с клиентом [client].
-  SupabaseEstimateDataSource(this.client);
+  const SupabaseEstimateDataSource(this.client);
 
   @override
   Future<List<EstimateModel>> getEstimates() async {
-    final response = await client.from(table).select('*').order('system');
-    return response
-        .map<EstimateModel>((json) => EstimateModel.fromJson(json))
-        .toList();
+    final allEstimates = <EstimateModel>[];
+    var offset = 0;
+    const limit = 1000;
+    var hasMore = true;
+
+    // Загружаем данные порциями (чанками) по 1000 записей,
+    // чтобы обойти ограничение Supabase на максимальное количество строк в одном ответе.
+    while (hasMore) {
+      final response = await client
+          .from(table)
+          .select('*')
+          .order('system')
+          .range(offset, offset + limit - 1);
+
+      if (response.isEmpty) {
+        hasMore = false;
+        break;
+      }
+
+      final chunk =
+          response.map((json) => EstimateModel.fromJson(json)).toList();
+
+      allEstimates.addAll(chunk);
+
+      // Если получено меньше лимита, значит это последняя порция данных
+      if (chunk.length < limit) {
+        hasMore = false;
+      } else {
+        offset += limit;
+      }
+    }
+
+    return allEstimates;
   }
 
   @override
@@ -77,117 +109,32 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
   Future<List<EstimateModel>> importFromExcel(String filePath) async {
     final bytes = await File(filePath).readAsBytes();
     final excel = Excel.decodeBytes(bytes);
-    final sheet = excel.tables[excel.tables.keys.first]!;
+
+    if (excel.tables.isEmpty) return [];
+
+    final sheet = excel.tables[excel.tables.keys.first];
+    if (sheet == null) return [];
+
     final rows = sheet.rows.skip(1); // пропускаем заголовки
 
     return rows.map((row) {
-      // Обработка номера: если числовой - преобразуем правильно
-      String number = '';
-      if (row.length > 2 && row[2]?.value != null) {
-        final cellValue = row[2]!.value;
-        if (cellValue != null) {
-          if (cellValue is DoubleCellValue) {
-            final numValue = cellValue.value;
-            // Если целое число - убираем десятичную часть
-            if (numValue == numValue.truncate()) {
-              number = numValue.toInt().toString();
-            } else {
-              // Если число с десятичной частью, сохраняем формат
-              number = numValue.toString();
-            }
-          } else if (cellValue is IntCellValue) {
-            number = cellValue.value.toString();
-          } else {
-            // Любое другое значение преобразуем в строку
-            number = cellValue.toString().trim();
-          }
-        }
-      }
+      final quantity = _parseDouble(_getCell(row, 7));
+      final price = _parseDouble(_getCell(row, 8));
 
-      // Обработка количества: если числовой - преобразуем правильно
-      double quantity = 0;
-      if (row.length > 7 && row[7]?.value != null) {
-        final cellValue = row[7]!.value;
-        if (cellValue != null) {
-          if (cellValue is DoubleCellValue) {
-            quantity = cellValue.value;
-          } else if (cellValue is IntCellValue) {
-            quantity = cellValue.value.toDouble();
-          } else {
-            final rawStr = cellValue
-                .toString()
-                .trim()
-                .replaceAll(RegExp(r'\s+'), '')
-                .replaceAll(',', '.');
-            quantity = double.tryParse(rawStr) ?? 0;
-          }
-        }
-      }
-
-      // Обработка цены: если числовой - преобразуем правильно
-      double price = 0;
-      if (row.length > 8 && row[8]?.value != null) {
-        final cellValue = row[8]!.value;
-        if (cellValue != null) {
-          if (cellValue is DoubleCellValue) {
-            price = cellValue.value;
-          } else if (cellValue is IntCellValue) {
-            price = cellValue.value.toDouble();
-          } else {
-            final rawStr = cellValue
-                .toString()
-                .trim()
-                .replaceAll(RegExp(r'\s+'), '')
-                .replaceAll(',', '.');
-            price = double.tryParse(rawStr) ?? 0;
-          }
-        }
-      }
-
-      // Обработка суммы: если числовой - преобразуем правильно
-      double total = 0;
-      if (row.length > 9 && row[9]?.value != null) {
-        final cellValue = row[9]!.value;
-        if (cellValue != null) {
-          if (cellValue is DoubleCellValue) {
-            total = cellValue.value;
-          } else if (cellValue is IntCellValue) {
-            total = cellValue.value.toDouble();
-          } else {
-            final rawStr = cellValue
-                .toString()
-                .trim()
-                .replaceAll(RegExp(r'\s+'), '')
-                .replaceAll(',', '.');
-            total = double.tryParse(rawStr) ?? 0;
-          }
-        }
-      } else {
-        // Если сумма не указана, рассчитываем её
-        total = quantity * price;
-      }
+      // Если сумма не указана, рассчитываем её
+      final totalCell = _getCell(row, 9);
+      final total =
+          totalCell?.value != null ? _parseDouble(totalCell) : quantity * price;
 
       return EstimateModel(
         id: '', // генерировать на сервере или локально
-        system: row.isNotEmpty && row[0]?.value != null
-            ? row[0]!.value.toString()
-            : '',
-        subsystem: row.length > 1 && row[1]?.value != null
-            ? row[1]!.value.toString()
-            : '',
-        number: number,
-        name: row.length > 3 && row[3]?.value != null
-            ? row[3]!.value.toString()
-            : '',
-        article: row.length > 4 && row[4]?.value != null
-            ? row[4]!.value.toString()
-            : '',
-        manufacturer: row.length > 5 && row[5]?.value != null
-            ? row[5]!.value.toString()
-            : '',
-        unit: row.length > 6 && row[6]?.value != null
-            ? row[6]!.value.toString()
-            : '',
+        system: _parseString(_getCell(row, 0)),
+        subsystem: _parseString(_getCell(row, 1)),
+        number: _parseString(_getCell(row, 2)),
+        name: _parseString(_getCell(row, 3)),
+        article: _parseString(_getCell(row, 4)),
+        manufacturer: _parseString(_getCell(row, 5)),
+        unit: _parseString(_getCell(row, 6)),
         quantity: quantity,
         price: price,
         total: total,
@@ -211,5 +158,49 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
     } catch (e) {
       rethrow;
     }
+  }
+
+  /// Получает ячейку безопасно по индексу
+  Data? _getCell(List<Data?> row, int index) {
+    if (index >= 0 && index < row.length) {
+      return row[index];
+    }
+    return null;
+  }
+
+  /// Вспомогательный метод для парсинга строки из ячейки.
+  String _parseString(Data? cell) {
+    if (cell == null || cell.value == null) return '';
+
+    final val = cell.value;
+    if (val is DoubleCellValue) {
+      final numValue = val.value;
+      if (numValue == numValue.truncate()) {
+        return numValue.toInt().toString();
+      }
+      return numValue.toString();
+    }
+    if (val is IntCellValue) {
+      return val.value.toString();
+    }
+
+    return val.toString().trim();
+  }
+
+  /// Вспомогательный метод для парсинга числа (double) из ячейки.
+  double _parseDouble(Data? cell) {
+    if (cell == null || cell.value == null) return 0.0;
+
+    final val = cell.value;
+    if (val is DoubleCellValue) return val.value;
+    if (val is IntCellValue) return val.value.toDouble();
+
+    final rawStr = val
+        .toString()
+        .trim()
+        .replaceAll(_whitespaceRegex, '')
+        .replaceAll(',', '.');
+
+    return double.tryParse(rawStr) ?? 0.0;
   }
 }

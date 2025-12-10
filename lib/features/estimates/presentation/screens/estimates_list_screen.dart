@@ -1,34 +1,37 @@
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:collection/collection.dart';
+import 'package:excel/excel.dart' as excel;
+import 'package:excel/excel.dart' show TextCellValue, DoubleCellValue;
+import 'package:file_saver/file_saver.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-// import 'package:pluto_grid/pluto_grid.dart'; // подключить при наличии
-import '../../../../core/di/providers.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart' as path_provider;
-import 'package:share_plus/share_plus.dart';
-import 'package:file_saver/file_saver.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/core/utils/responsive_utils.dart';
+import 'package:projectgt/core/utils/snackbar_utils.dart';
+import 'package:projectgt/domain/entities/estimate.dart';
+import 'package:projectgt/domain/entities/object.dart';
+import 'package:projectgt/domain/entities/contract.dart';
+import 'package:projectgt/features/estimates/presentation/screens/estimate_completion_report_screen.dart';
+import 'package:projectgt/features/estimates/presentation/screens/estimate_details_screen.dart';
+import 'package:projectgt/features/estimates/presentation/screens/import_estimate_form_modal.dart';
+import 'package:projectgt/features/roles/application/permission_service.dart';
+import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
+import 'package:projectgt/presentation/widgets/app_badge.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 import 'package:projectgt/presentation/widgets/cupertino_dialog_widget.dart';
-import 'package:excel/excel.dart' as excel;
-import 'package:excel/excel.dart' show TextCellValue, DoubleCellValue;
-import 'dart:typed_data';
-import 'import_estimate_form_modal.dart';
-import 'estimate_completion_report_screen.dart';
-import 'package:intl/intl.dart';
-import 'package:collection/collection.dart';
-import 'package:projectgt/presentation/widgets/app_badge.dart';
-import 'package:projectgt/core/utils/snackbar_utils.dart';
-import '../../../../domain/entities/estimate.dart';
-import 'dart:io';
-import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
-import 'package:projectgt/features/roles/application/permission_service.dart';
+import 'package:share_plus/share_plus.dart';
 
 /// Экран со списком всех смет.
-///
-/// Позволяет просматривать, фильтровать, импортировать и экспортировать сметы.
 class EstimatesListScreen extends ConsumerStatefulWidget {
-  /// Создаёт экран списка смет.
+  /// Создаёт экран со списком смет.
   const EstimatesListScreen({super.key});
 
   @override
@@ -36,41 +39,18 @@ class EstimatesListScreen extends ConsumerStatefulWidget {
       _EstimatesListScreenState();
 }
 
-/// Состояние для [EstimatesListScreen].
 class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
-  /// Список строк из Excel-файла для предпросмотра.
-  List<List<excel.Data?>>? _excelRows;
+  EstimateFile? selectedEstimateFile;
 
-  /// Имя импортированного Excel-файла.
-  String? _excelFileName;
-
-  /// Форматтер для отображения денежных значений.
   final NumberFormat moneyFormat = NumberFormat.currency(
     locale: 'ru_RU',
     symbol: '',
     decimalDigits: 2,
   );
 
-  /// Форматирует денежное значение [value] в строку.
   String formatMoney(double value) {
     return moneyFormat.format(value).trim();
   }
-
-  /// Название сметы для фильтрации или отображения.
-  final String estimateTitle = '';
-
-  /// Список всех смет, полученных из состояния.
-  List<Estimate> get estimates => ref.watch(estimateNotifierProvider).estimates;
-
-  /// Текущая выбранная смета.
-  Estimate? get selectedEstimate =>
-      ref.watch(estimateNotifierProvider).selectedEstimate;
-
-  /// Флаг загрузки данных.
-  bool get isLoading => ref.watch(estimateNotifierProvider).isLoading;
-
-  /// Сообщение об ошибке, если есть.
-  String? get error => ref.watch(estimateNotifierProvider).error;
 
   @override
   void initState() {
@@ -80,91 +60,17 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
     });
   }
 
-  void _showImportEstimateBottomSheet(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final isDesktop = MediaQuery.of(context).size.width >= 900;
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height -
-            MediaQuery.of(context).padding.top -
-            kToolbarHeight,
-      ),
-      builder: (context) {
-        Widget modalContent = Container(
-          margin: isDesktop ? const EdgeInsets.only(top: 48) : null,
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.18),
-                blurRadius: 24,
-                offset: const Offset(0, -8),
-              ),
-            ],
-            border: Border.all(
-              color: theme.colorScheme.outline.withValues(alpha: 0.1),
-              width: 1.5,
-            ),
-          ),
-          child: DraggableScrollableSheet(
-            initialChildSize: 1.0,
-            minChildSize: 0.5,
-            maxChildSize: 1.0,
-            expand: false,
-            builder: (context, scrollController) => SingleChildScrollView(
-              controller: scrollController,
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 700),
-                  child: ImportEstimateFormModal(
-                    ref: ref,
-                    onSuccess: () async {
-                      if (context.mounted) context.pop();
-                      SnackBarUtils.showSuccess(
-                          context, 'Смета успешно импортирована');
-                    },
-                    onCancel: () => context.pop(),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-        if (isDesktop) {
-          return Center(
-            child: AnimatedScale(
-              scale: 1.0,
-              duration: const Duration(milliseconds: 220),
-              curve: Curves.easeOutBack,
-              child: AnimatedOpacity(
-                opacity: 1.0,
-                duration: const Duration(milliseconds: 220),
-                child: Align(
-                  alignment: Alignment.topCenter,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: MediaQuery.of(context).size.width * 0.5,
-                    ),
-                    child: modalContent,
-                  ),
-                ),
-              ),
-            ),
-          );
-        } else {
-          return modalContent;
-        }
+  void _showImportEstimateBottomSheet(BuildContext context) {
+    ImportEstimateFormModal.show(
+      context,
+      ref,
+      onSuccess: () async {
+        if (context.mounted) context.pop();
+        SnackBarUtils.showSuccess(context, 'Смета успешно импортирована');
       },
     );
   }
 
-  /// Экспортирует список смет в Excel-файл
   Future<void> _exportToExcel(BuildContext context) async {
     try {
       final estimates = ref.read(estimateNotifierProvider).estimates;
@@ -176,7 +82,6 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
       final excelFile = excel.Excel.createExcel();
       final sheet = excelFile['Сметы'];
 
-      // Добавляем заголовки
       sheet.appendRow([
         TextCellValue('Система'),
         TextCellValue('Подсистема'),
@@ -193,13 +98,10 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
         TextCellValue('Название сметы'),
       ]);
 
-      // Получаем списки объектов и договоров
       final objects = ref.read(objectProvider).objects;
       final contracts = ref.read(contractProvider).contracts;
 
-      // Добавляем данные
       for (final estimate in estimates) {
-        // Находим имя объекта
         String objectName = '';
         if (estimate.objectId != null) {
           final objectEntity =
@@ -209,7 +111,6 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
           }
         }
 
-        // Находим номер договора
         String contractNumber = '';
         if (estimate.contractId != null) {
           final contractEntity =
@@ -268,19 +169,21 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
     }
   }
 
-  /// Удаляет всю смету и все её позиции
   void _deleteEstimateFile(EstimateFile file) async {
     final notifier = ref.read(estimateNotifierProvider.notifier);
 
-    // Удаляем все позиции сметы
     for (final item in file.items) {
       await notifier.deleteEstimate(item.id);
     }
 
-    // Обновляем список смет
     await notifier.loadEstimates();
+    
+    if (selectedEstimateFile?.estimateTitle == file.estimateTitle) {
+      setState(() {
+        selectedEstimateFile = null;
+      });
+    }
 
-    // Показываем уведомление
     if (!mounted) return;
     SnackBarUtils.showSuccess(context, 'Смета "${file.estimateTitle}" удалена');
   }
@@ -293,14 +196,23 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
     final estimateFiles = groupEstimatesByFile(state.estimates);
     final permissionService = ref.watch(permissionServiceProvider);
     final canDelete = permissionService.can('estimates', 'delete');
+    final isDesktop = ResponsiveUtils.isDesktop(context);
+
+    // Если выбранная смета исчезла (удалена), сбрасываем выбор
+    if (selectedEstimateFile != null &&
+        !estimateFiles.any((f) =>
+            f.estimateTitle == selectedEstimateFile!.estimateTitle &&
+            f.objectId == selectedEstimateFile!.objectId &&
+            f.contractId == selectedEstimateFile!.contractId)) {
+      selectedEstimateFile = null;
+    }
 
     return Scaffold(
       appBar: AppBarWidget(
         title: 'Сметы',
         actions: [
-          // Кнопка отчёта о выполнении
           IconButton(
-            icon: const Icon(Icons.assessment),
+            icon: const Icon(CupertinoIcons.chart_bar),
             tooltip: 'Отчёт о выполнении',
             onPressed: () {
               Navigator.of(context).push(
@@ -310,207 +222,218 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
               );
             },
           ),
-          // Кнопка экспорта Excel
           PermissionGuard(
             module: 'estimates',
             permission: 'export',
             child: IconButton(
-            icon: const Icon(Icons.file_download),
-            tooltip: 'Экспортировать Excel',
-            onPressed: () => _exportToExcel(context),
+              icon: const Icon(CupertinoIcons.arrow_down_doc),
+              tooltip: 'Экспортировать Excel',
+              onPressed: () => _exportToExcel(context),
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(CupertinoIcons.refresh),
             tooltip: 'Обновить данные',
             onPressed: () =>
                 ref.read(estimateNotifierProvider.notifier).loadEstimates(),
           ),
+          if (!ResponsiveUtils.isDesktop(context))
+            PermissionGuard(
+              module: 'estimates',
+              permission: 'import',
+              child: IconButton(
+                icon: const Icon(CupertinoIcons.add),
+                onPressed: () => _showImportEstimateBottomSheet(context),
+              ),
+            ),
         ],
       ),
       drawer: const AppDrawer(activeRoute: AppRoute.estimates),
-      body: _excelRows != null
-          ? Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (_excelFileName != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8.0),
-                      child: Text('Файл: $_excelFileName',
-                          style: Theme.of(context).textTheme.titleMedium),
-                    ),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: DataTable(
-                        columns: _excelRows!.first
-                            .map((cell) => DataColumn(
-                                label: Text((cell)?.value?.toString() ?? '')))
-                            .toList(),
-                        rows: _excelRows!
-                            .skip(1)
-                            .map((row) => DataRow(
-                                  cells: row
-                                      .map((cell) => DataCell(Text(
-                                          (cell)?.value?.toString() ?? '')))
-                                      .toList(),
-                                ))
-                            .toList(),
+      body: state.isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : state.error != null
+              ? Center(child: Text('Ошибка: ${state.error}'))
+              : LayoutBuilder(
+                  builder: (context, constraints) {
+                    if (isDesktop) {
+                      return const EstimateDetailsScreen(showAppBar: false);
+                    } else {
+                      return _buildMobileLayout(
+                        estimateFiles,
+                        contracts,
+                        objects,
+                        canDelete,
+                      );
+                    }
+                  },
+                ),
+    );
+  }
+
+  Widget _buildMobileLayout(
+    List<EstimateFile> estimateFiles,
+    List<Contract> contracts,
+    List<ObjectEntity> objects,
+    bool canDelete,
+  ) {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: estimateFiles.length,
+      itemBuilder: (context, index) {
+        final file = estimateFiles[index];
+        return _buildEstimateCard(
+          file: file,
+          contracts: contracts,
+          objects: objects,
+          canDelete: canDelete,
+          isSelected: false,
+          onTap: () => context.go(
+            '/estimates/${Uri.encodeComponent(file.estimateTitle)}',
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildEstimateCard({
+    required EstimateFile file,
+    required List<Contract> contracts,
+    required List<ObjectEntity> objects,
+    required bool canDelete,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    final contract =
+        contracts.firstWhereOrNull((c) => c.id == file.contractId);
+    final object = objects.firstWhereOrNull((o) => o.id == file.objectId);
+    final contractNumber = contract?.number ?? '—';
+    final objectName = object?.name ?? '—';
+    final theme = Theme.of(context);
+
+    return Dismissible(
+      key: Key('${file.estimateTitle}_${file.objectId}_${file.contractId}'),
+      direction: canDelete ? DismissDirection.endToStart : DismissDirection.none,
+      confirmDismiss: (direction) async {
+        return await CupertinoDialogs.showDeleteConfirmDialog<bool>(
+          context: context,
+          title: 'Удаление сметы',
+          message:
+              'Вы действительно хотите удалить смету "${file.estimateTitle}" и все её позиции?',
+          onConfirm: () {
+            _deleteEstimateFile(file);
+          },
+          onCancel: () {},
+        );
+      },
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20.0),
+        color: Colors.red,
+        child: const Icon(
+          CupertinoIcons.trash,
+          color: Colors.white,
+        ),
+      ),
+      child: Card(
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        elevation: isSelected ? 2 : 0,
+        color: isSelected ? theme.colorScheme.surfaceContainerHighest : null,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+            color: isSelected
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outline.withValues(alpha: 0.1),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        file.estimateTitle,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: isSelected ? theme.colorScheme.primary : null,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                  ),
-                ],
-              ),
-            )
-          : state.isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : state.error != null
-                  ? Center(child: Text('Ошибка: ${state.error}'))
-                  : Column(
-                      children: [
-                        Expanded(
-                          child: ListView.builder(
-                            itemCount: estimateFiles.length,
-                            itemBuilder: (context, index) {
-                              final file = estimateFiles[index];
-                              final contract = contracts.firstWhereOrNull(
-                                  (c) => c.id == file.contractId);
-                              final object = objects.firstWhereOrNull(
-                                  (o) => o.id == file.objectId);
-                              final contractNumber = contract?.number ?? '—';
-                              final objectName = object?.name ?? '—';
-                              return Dismissible(
-                                key: Key(file.estimateTitle),
-                                direction: canDelete
-                                    ? DismissDirection.endToStart
-                                    : DismissDirection.none,
-                                confirmDismiss: (direction) async {
-                                  return await CupertinoDialogs
-                                      .showDeleteConfirmDialog<bool>(
-                                    context: context,
-                                    title: 'Удаление сметы',
-                                    message:
-                                        'Вы действительно хотите удалить смету "${file.estimateTitle}" и все её позиции?',
-                                    onConfirm: () {
-                                      _deleteEstimateFile(file);
-                                    },
-                                    onCancel: () {},
-                                  );
-                                },
-                                background: Container(
-                                  alignment: Alignment.centerRight,
-                                  padding: const EdgeInsets.only(right: 20.0),
-                                  color: Colors.red,
-                                  child: const Icon(
-                                    Icons.delete,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                child: Card(
-                                  margin: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 6),
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    side: BorderSide(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .outline
-                                          .withValues(alpha: 0.1),
-                                      width: 1,
-                                    ),
-                                  ),
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.circular(12),
-                                    onTap: () => context.go(
-                                        '/estimates/${Uri.encodeComponent(file.estimateTitle)}'),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(16.0),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              Expanded(
-                                                child: Text(
-                                                  file.estimateTitle,
-                                                  style: Theme.of(context)
-                                                      .textTheme
-                                                      .titleMedium
-                                                      ?.copyWith(
-                                                          fontWeight:
-                                                              FontWeight.bold),
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              const AppBadge(
-                                                text: 'Загружена',
-                                                color: Colors.green,
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text('Договор: $contractNumber',
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodyMedium),
-                                          Text('Объект: $objectName',
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodyMedium),
-                                          Text('Позиций: ${file.items.length}',
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodyMedium),
-                                          Text(
-                                              'Сумма: ${formatMoney(file.total)}',
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodyMedium),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ],
+                    const SizedBox(width: 8),
+                    const AppBadge(
+                      text: 'Загружена',
+                      color: Colors.green,
                     ),
-      floatingActionButton: PermissionGuard(
-        module: 'estimates',
-        permission: 'import',
-        child: FloatingActionButton(
-        onPressed: () => _showImportEstimateBottomSheet(context, ref),
-        child: const Icon(Icons.add),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                _buildInfoRow(theme, 'Договор:', contractNumber),
+                const SizedBox(height: 4),
+                _buildInfoRow(theme, 'Объект:', objectName),
+                const SizedBox(height: 4),
+                _buildInfoRow(theme, 'Позиций:', '${file.items.length}'),
+                const SizedBox(height: 4),
+                _buildInfoRow(theme, 'Сумма:', formatMoney(file.total)),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
+
+  Widget _buildInfoRow(ThemeData theme, String label, String value) {
+    return Row(
+      children: [
+        Text(
+          label,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            value,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w500,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
-/// Группировка позиций сметы по файлу (названию, объекту, договору).
+/// Класс, представляющий сгруппированный файл сметы.
+///
+/// Содержит информацию о названии сметы, привязанном объекте, договоре
+/// и списке позиций, входящих в эту смету.
 class EstimateFile {
-  /// Название сметы (файла).
+  /// Название сметы.
   final String estimateTitle;
 
-  /// Идентификатор объекта.
+  /// Идентификатор объекта, к которому относится смета.
   final String? objectId;
 
-  /// Идентификатор договора.
+  /// Идентификатор договора, к которому относится смета.
   final String? contractId;
 
-  /// Список позиций сметы, входящих в файл.
+  /// Список позиций сметы.
   final List<Estimate> items;
 
-  /// Создаёт экземпляр [EstimateFile].
+  /// Создаёт экземпляр файла сметы.
   const EstimateFile({
     required this.estimateTitle,
     required this.objectId,
@@ -518,13 +441,14 @@ class EstimateFile {
     required this.items,
   });
 
-  /// Общая сумма по всем позициям файла.
+  /// Общая сумма по всем позициям сметы.
   double get total => items.fold(0, (sum, e) => sum + e.total);
 }
 
-/// Группирует список смет [estimates] по названию, объекту и договору.
+/// Группирует плоский список позиций смет по уникальным файлам смет.
 ///
-/// Возвращает список [EstimateFile] для отображения в UI.
+/// Группировка происходит по ключу, составленному из названия сметы,
+/// ID объекта и ID договора.
 List<EstimateFile> groupEstimatesByFile(List<Estimate> estimates) {
   final grouped = groupBy(
     estimates,

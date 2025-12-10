@@ -34,5 +34,10 @@ abstract class InventoryRepository {
 
   /// Получает список всех уникальных единиц измерения из БД.
   Future<List<String>> getUnits();
+
+  /// Получает список поставщиков для выпадающего списка.
+  ///
+  /// Использует RPC-функцию get_suppliers_for_dropdown с правами SECURITY DEFINER.
+  Future<List<Map<String, dynamic>>> getSuppliersForDropdown();
 }
 

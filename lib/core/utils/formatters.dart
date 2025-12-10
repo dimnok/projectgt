@@ -21,6 +21,12 @@ class GtFormatters {
   static String formatRuDate(DateTime date) {
     return DateFormat('dd.MM.yyyy', 'ru_RU').format(date);
   }
+
+  /// Форматирует дату и время в виде dd.MM.yyyy HH:mm в локали ru_RU.
+  /// Пример: 2025-09-14 14:30 -> "14.09.2025 14:30".
+  static String formatRuDateTime(DateTime date) {
+    return DateFormat('dd.MM.yyyy HH:mm', 'ru_RU').format(date);
+  }
 }
 
 /// Короткие топ-левел алиасы для форматирования валюты (ru_RU, ₽, 2 знака).
@@ -28,3 +34,6 @@ String formatCurrency(num value) => GtFormatters.formatCurrency(value);
 
 /// Короткие топ-левел алиасы для форматирования дат (dd.MM.yyyy, ru_RU).
 String formatRuDate(DateTime date) => GtFormatters.formatRuDate(date);
+
+/// Короткие топ-левел алиасы для форматирования даты и времени (dd.MM.yyyy HH:mm, ru_RU).
+String formatRuDateTime(DateTime date) => GtFormatters.formatRuDateTime(date);

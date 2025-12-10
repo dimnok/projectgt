@@ -21,7 +21,7 @@ mixin _$InventoryReceiptModel {
   @JsonKey(name: 'receipt_date')
   DateTime get receiptDate;
   @JsonKey(name: 'supplier_id')
-  String get supplierId;
+  String? get supplierId;
   @JsonKey(name: 'file_url')
   String? get fileUrl;
   String? get comment;
@@ -109,7 +109,7 @@ abstract mixin class $InventoryReceiptModelCopyWith<$Res> {
       {String id,
       @JsonKey(name: 'receipt_number') String receiptNumber,
       @JsonKey(name: 'receipt_date') DateTime receiptDate,
-      @JsonKey(name: 'supplier_id') String supplierId,
+      @JsonKey(name: 'supplier_id') String? supplierId,
       @JsonKey(name: 'file_url') String? fileUrl,
       String? comment,
       @JsonKey(name: 'total_amount') double? totalAmount,
@@ -137,7 +137,7 @@ class _$InventoryReceiptModelCopyWithImpl<$Res>
     Object? id = null,
     Object? receiptNumber = null,
     Object? receiptDate = null,
-    Object? supplierId = null,
+    Object? supplierId = freezed,
     Object? fileUrl = freezed,
     Object? comment = freezed,
     Object? totalAmount = freezed,
@@ -160,10 +160,10 @@ class _$InventoryReceiptModelCopyWithImpl<$Res>
           ? _self.receiptDate
           : receiptDate // ignore: cast_nullable_to_non_nullable
               as DateTime,
-      supplierId: null == supplierId
+      supplierId: freezed == supplierId
           ? _self.supplierId
           : supplierId // ignore: cast_nullable_to_non_nullable
-              as String,
+              as String?,
       fileUrl: freezed == fileUrl
           ? _self.fileUrl
           : fileUrl // ignore: cast_nullable_to_non_nullable
@@ -208,7 +208,7 @@ class _InventoryReceiptModel extends InventoryReceiptModel {
       {required this.id,
       @JsonKey(name: 'receipt_number') required this.receiptNumber,
       @JsonKey(name: 'receipt_date') required this.receiptDate,
-      @JsonKey(name: 'supplier_id') required this.supplierId,
+      @JsonKey(name: 'supplier_id') this.supplierId,
       @JsonKey(name: 'file_url') this.fileUrl,
       this.comment,
       @JsonKey(name: 'total_amount') this.totalAmount,
@@ -233,7 +233,7 @@ class _InventoryReceiptModel extends InventoryReceiptModel {
   final DateTime receiptDate;
   @override
   @JsonKey(name: 'supplier_id')
-  final String supplierId;
+  final String? supplierId;
   @override
   @JsonKey(name: 'file_url')
   final String? fileUrl;
@@ -343,7 +343,7 @@ abstract mixin class _$InventoryReceiptModelCopyWith<$Res>
       {String id,
       @JsonKey(name: 'receipt_number') String receiptNumber,
       @JsonKey(name: 'receipt_date') DateTime receiptDate,
-      @JsonKey(name: 'supplier_id') String supplierId,
+      @JsonKey(name: 'supplier_id') String? supplierId,
       @JsonKey(name: 'file_url') String? fileUrl,
       String? comment,
       @JsonKey(name: 'total_amount') double? totalAmount,
@@ -371,7 +371,7 @@ class __$InventoryReceiptModelCopyWithImpl<$Res>
     Object? id = null,
     Object? receiptNumber = null,
     Object? receiptDate = null,
-    Object? supplierId = null,
+    Object? supplierId = freezed,
     Object? fileUrl = freezed,
     Object? comment = freezed,
     Object? totalAmount = freezed,
@@ -394,10 +394,10 @@ class __$InventoryReceiptModelCopyWithImpl<$Res>
           ? _self.receiptDate
           : receiptDate // ignore: cast_nullable_to_non_nullable
               as DateTime,
-      supplierId: null == supplierId
+      supplierId: freezed == supplierId
           ? _self.supplierId
           : supplierId // ignore: cast_nullable_to_non_nullable
-              as String,
+              as String?,
       fileUrl: freezed == fileUrl
           ? _self.fileUrl
           : fileUrl // ignore: cast_nullable_to_non_nullable

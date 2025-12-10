@@ -21,5 +21,8 @@ abstract class InventoryDataSource {
 
   /// Получает список всех уникальных единиц измерения из БД.
   Future<List<String>> getUnits();
+
+  /// Получает список поставщиков для выпадающего списка.
+  Future<List<Map<String, dynamic>>> getSuppliersForDropdown();
 }
 

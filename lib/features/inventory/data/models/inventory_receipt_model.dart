@@ -13,7 +13,7 @@ abstract class InventoryReceiptModel with _$InventoryReceiptModel {
     required String id,
     @JsonKey(name: 'receipt_number') required String receiptNumber,
     @JsonKey(name: 'receipt_date') required DateTime receiptDate,
-    @JsonKey(name: 'supplier_id') required String supplierId,
+    @JsonKey(name: 'supplier_id') String? supplierId,
     @JsonKey(name: 'file_url') String? fileUrl,
     String? comment,
     @JsonKey(name: 'total_amount') double? totalAmount,

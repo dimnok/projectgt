@@ -16,8 +16,8 @@ final _moneyFormatter = NumberFormat.currency(
   decimalDigits: 0,
 );
 
-/// Формат даты (ДД.МММ.ГГГГ)
-const String _dateFormat = 'dd.MM.yyyy';
+/// Форматер для дат (ДД.ММ.ГГГГ)
+final _dateFormatter = DateFormat('dd.MM.yyyy');
 
 /// Размеры календаря
 const double _cellSize = 14.0;
@@ -275,8 +275,7 @@ class ShiftsHeatmap extends StatelessWidget {
       }
 
       final box = Tooltip(
-        message:
-            '${DateFormat(_dateFormat).format(d)} — ${_moneyFormatter.format(v)}',
+        message: '${_dateFormatter.format(d)} — ${_moneyFormatter.format(v)}',
         child: AnimatedContainer(
           duration: _cellAnimationDuration,
           curve: Curves.easeOut,
@@ -385,7 +384,7 @@ class _CalendarBackSide extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final dateStr = date != null ? DateFormat(_dateFormat).format(date!) : '—';
+    final dateStr = date != null ? _dateFormatter.format(date!) : '—';
 
     /// Строит список систем для объекта.
     List<Widget> buildSystemRows(Map<String, double> map) {
@@ -453,7 +452,7 @@ class _CalendarBackSide extends StatelessWidget {
                   IconButton(
                     tooltip: 'Назад к календарю',
                     onPressed: onClose,
-                    icon: const Icon(Icons.swap_horiz),
+                    icon: const Icon(CupertinoIcons.arrow_right_arrow_left),
                     visualDensity: VisualDensity.compact,
                   ),
                 ],

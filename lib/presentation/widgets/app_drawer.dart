@@ -63,6 +63,12 @@ enum AppRoute {
 
   /// Экран управления ролями.
   roles,
+
+  /// Экран заявок.
+  procurement,
+
+  /// Экран настроек заявок.
+  procurementSettings,
 }
 
 /// Виджет для группировки пунктов меню (например, "Справочники" с подпунктами).
@@ -716,6 +722,23 @@ class AppDrawer extends ConsumerWidget {
                               onTap: () {
                                 context.pop();
                                 context.goNamed('payrolls');
+                              },
+                            ),
+                          ),
+                          PermissionGuard(
+                            module: 'procurement',
+                            permission: 'read',
+                            child: DrawerItemWidget(
+                              icon: CupertinoIcons.cart,
+                              title: 'Заявки',
+                              isSelected: activeRoute == AppRoute.procurement,
+                              onTap: () {
+                                if (activeRoute == AppRoute.procurement) {
+                                  context.pop();
+                                } else {
+                                  context.pop();
+                                  context.goNamed('procurement');
+                                }
                               },
                             ),
                           ),

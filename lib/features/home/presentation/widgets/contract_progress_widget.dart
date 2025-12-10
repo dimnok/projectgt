@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -164,7 +165,7 @@ class _ContractProgressWidgetState
       children: [
         Row(
           children: [
-            Icon(Icons.pie_chart_outline,
+            Icon(CupertinoIcons.chart_pie,
                 size: 18,
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
             const SizedBox(width: 8),
@@ -188,7 +189,7 @@ class _ContractProgressWidgetState
                         setState(() => _selectedContractId = nextId);
                       }
                     },
-              icon: const Icon(Icons.chevron_left),
+              icon: const Icon(CupertinoIcons.chevron_left),
               visualDensity: VisualDensity.compact,
             ),
             IconButton(
@@ -203,7 +204,7 @@ class _ContractProgressWidgetState
                         setState(() => _selectedContractId = nextId);
                       }
                     },
-              icon: const Icon(Icons.chevron_right),
+              icon: const Icon(CupertinoIcons.chevron_right),
               visualDensity: VisualDensity.compact,
             ),
           ],
@@ -454,5 +455,3 @@ Color _colorAt(double t, List<Color> colors) {
   final Color b = colors[idx + 1];
   return Color.lerp(a, b, localT) ?? a;
 }
-
-// legend dot widget удалён за неиспользованием

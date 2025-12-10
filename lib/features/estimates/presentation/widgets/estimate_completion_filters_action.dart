@@ -1,7 +1,9 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/widgets/gt_dropdown.dart';
 import 'package:projectgt/core/di/providers.dart';
+import '../../../../core/widgets/gt_buttons.dart';
 import '../providers/estimate_completion_filter_provider.dart';
 
 class _Option {
@@ -64,7 +66,7 @@ class EstimateCompletionFiltersAction extends ConsumerWidget {
       key: iconKey,
       child: IconButton(
         tooltip: 'Фильтры',
-        icon: const Icon(Icons.tune),
+        icon: const Icon(CupertinoIcons.slider_horizontal_3),
         onPressed: openPopup,
       ),
     );
@@ -165,14 +167,15 @@ class _EstimateCompletionFiltersPanelState
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                TextButton(
+                GTTextButton(
+                  text: 'Сброс',
                   onPressed: () => ref
                       .read(estimateCompletionFilterProvider.notifier)
                       .resetFilters(),
-                  child: const Text('Сброс'),
                 ),
                 const SizedBox(width: 8),
-                FilledButton(
+                GTPrimaryButton(
+                  text: 'Применить',
                   onPressed: () {
                     // Применяем выбранные фильтры
                     ref
@@ -182,7 +185,6 @@ class _EstimateCompletionFiltersPanelState
                     ref.read(estimateCompletionProvider);
                     Navigator.pop(context);
                   },
-                  child: const Text('Применить'),
                 ),
               ],
             ),

@@ -129,4 +129,15 @@ class SupabaseInventoryDataSource implements InventoryDataSource {
       return [];
     }
   }
+
+  @override
+  Future<List<Map<String, dynamic>>> getSuppliersForDropdown() async {
+    try {
+      final response = await client.rpc('get_suppliers_for_dropdown');
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      Logger().e('Error fetching suppliers for dropdown: $e');
+      return [];
+    }
+  }
 }
