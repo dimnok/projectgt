@@ -78,6 +78,24 @@ abstract class Contract with _$Contract {
     /// Статус контракта ([ContractStatus]).
     @Default(ContractStatus.active) ContractStatus status,
 
+    /// Название организации подрядчика (для документов).
+    String? contractorOrgName,
+
+    /// Должность подписанта подрядчика.
+    String? contractorPosition,
+
+    /// ФИО подписанта подрядчика.
+    String? contractorSigner,
+
+    /// Название организации заказчика (для документов).
+    String? customerOrgName,
+
+    /// Должность подписанта заказчика.
+    String? customerPosition,
+
+    /// ФИО подписанта заказчика.
+    String? customerSigner,
+
     /// Дата создания записи.
     DateTime? createdAt,
 

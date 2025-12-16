@@ -25,7 +25,8 @@ final rolesNotifierProvider =
 });
 
 /// Провайдер для получения роли по ID
-final roleByIdProvider = FutureProvider.family<Role?, String>((ref, roleId) async {
+final roleByIdProvider =
+    FutureProvider.family<Role?, String>((ref, roleId) async {
   final repository = ref.watch(rolesRepositoryProvider);
   final roles = await repository.getAllRoles();
   try {
@@ -98,7 +99,7 @@ class RolesNotifier extends StateNotifier<AsyncValue<List<Role>>> {
         name: name,
         description: description,
       );
-      
+
       // Обновляем список ролей
       final currentRoles = state.value ?? [];
       state = AsyncValue.data([newRole, ...currentRoles]);
@@ -115,13 +116,13 @@ class RolesNotifier extends StateNotifier<AsyncValue<List<Role>>> {
   Future<void> updateRole(Role role) async {
     try {
       await _repository.updateRole(role);
-      
+
       // Обновляем роль в списке
       final currentRoles = state.value ?? [];
       final updatedRoles = currentRoles.map((r) {
         return r.id == role.id ? role : r;
       }).toList();
-      
+
       state = AsyncValue.data(updatedRoles);
     } catch (e, stack) {
       state = AsyncValue.error(e, stack);
@@ -134,11 +135,11 @@ class RolesNotifier extends StateNotifier<AsyncValue<List<Role>>> {
   Future<void> deleteRole(String id) async {
     try {
       await _repository.deleteRole(id);
-      
+
       // Удаляем роль из списка
       final currentRoles = state.value ?? [];
       final updatedRoles = currentRoles.where((r) => r.id != id).toList();
-      
+
       state = AsyncValue.data(updatedRoles);
     } catch (e, stack) {
       state = AsyncValue.error(e, stack);

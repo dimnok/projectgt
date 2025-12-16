@@ -96,50 +96,61 @@ class NotificationService {
     required DateTime date,
     List<String>? slotTimesHHmm,
   }) async {
-    final now = tz.TZDateTime.now(tz.local);
-    final day = tz.TZDateTime(tz.local, date.year, date.month, date.day);
+    // Гарантируем инициализацию перед использованием
+    if (!_initialized) {
+      await initialize();
+    }
 
-    final List<String> slots = (slotTimesHHmm == null || slotTimesHHmm.isEmpty)
-        ? const ['13:00', '15:00', '18:00']
-        : slotTimesHHmm;
+    try {
+      final now = tz.TZDateTime.now(tz.local);
+      final day = tz.TZDateTime(tz.local, date.year, date.month, date.day);
 
-    final List<tz.TZDateTime> targets = slots
-        .map((s) {
-          final parts = s.split(':');
-          final int hour = parts.isNotEmpty ? int.tryParse(parts[0]) ?? 0 : 0;
-          final int minute = parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0;
-          return tz.TZDateTime(
-              tz.local, day.year, day.month, day.day, hour, minute);
-        })
-        .where((t) => t.isAfter(now))
-        .toList();
+      final List<String> slots =
+          (slotTimesHHmm == null || slotTimesHHmm.isEmpty)
+              ? const ['13:00', '15:00', '18:00']
+              : slotTimesHHmm;
 
-    const androidDetails = AndroidNotificationDetails(
-      'shift_reminders',
-      'Напоминания о сменах',
-      channelDescription: 'Локальные напоминания о незакрытых сменах',
-      importance: Importance.max,
-      priority: Priority.high,
-    );
+      final List<tz.TZDateTime> targets = slots
+          .map((s) {
+            final parts = s.split(':');
+            final int hour = parts.isNotEmpty ? int.tryParse(parts[0]) ?? 0 : 0;
+            final int minute =
+                parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0;
+            return tz.TZDateTime(
+                tz.local, day.year, day.month, day.day, hour, minute);
+          })
+          .where((t) => t.isAfter(now))
+          .toList();
 
-    const darwinDetails = DarwinNotificationDetails();
-    const details = NotificationDetails(
-      android: androidDetails,
-      iOS: darwinDetails,
-    );
-
-    final baseId = shiftId.hashCode & 0x7fffffff;
-
-    for (int i = 0; i < targets.length; i++) {
-      await _plugin.zonedSchedule(
-        baseId + i,
-        'Смена не закрыта',
-        'Не забудьте добавить работы и закрыть смену',
-        targets[i],
-        details,
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        payload: shiftId,
+      const androidDetails = AndroidNotificationDetails(
+        'shift_reminders',
+        'Напоминания о сменах',
+        channelDescription: 'Локальные напоминания о незакрытых сменах',
+        importance: Importance.max,
+        priority: Priority.high,
       );
+
+      const darwinDetails = DarwinNotificationDetails();
+      const details = NotificationDetails(
+        android: androidDetails,
+        iOS: darwinDetails,
+      );
+
+      final baseId = shiftId.hashCode & 0x7fffffff;
+
+      for (int i = 0; i < targets.length; i++) {
+        await _plugin.zonedSchedule(
+          baseId + i,
+          'Смена не закрыта',
+          'Не забудьте добавить работы и закрыть смену',
+          targets[i],
+          details,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          payload: shiftId,
+        );
+      }
+    } catch (e) {
+      debugPrint('Error scheduling shift reminders: $e');
     }
   }
 
@@ -151,9 +162,23 @@ class NotificationService {
   ///
   /// [shiftId] - идентификатор смены, для которой отменяются напоминания.
   Future<void> cancelShiftReminders(String shiftId) async {
-    final baseId = shiftId.hashCode & 0x7fffffff;
-    for (int i = 0; i < 3; i++) {
-      await _plugin.cancel(baseId + i);
+    // Гарантируем инициализацию перед использованием
+    if (!_initialized) {
+      try {
+        await initialize();
+      } catch (e) {
+        debugPrint('Failed to initialize notifications during cancel: $e');
+        return;
+      }
+    }
+
+    try {
+      final baseId = shiftId.hashCode & 0x7fffffff;
+      for (int i = 0; i < 3; i++) {
+        await _plugin.cancel(baseId + i);
+      }
+    } catch (e) {
+      debugPrint('Error canceling shift reminders: $e');
     }
   }
 }

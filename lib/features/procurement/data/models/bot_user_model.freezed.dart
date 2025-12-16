@@ -15,11 +15,18 @@ T _$identity<T>(T value) => value;
 
 /// @nodoc
 mixin _$BotUserModel implements DiagnosticableTreeMixin {
+  /// Уникальный идентификатор пользователя (UUID из profiles).
   String get id;
+
+  /// Telegram ID пользователя.
   @JsonKey(name: 'telegram_chat_id')
   int get telegramChatId;
+
+  /// Полное имя пользователя.
   @JsonKey(name: 'full_name')
   String get fullName;
+
+  /// Идентификатор роли пользователя.
   @JsonKey(name: 'role_id')
   String? get roleId;
 
@@ -130,14 +137,21 @@ class _BotUserModel with DiagnosticableTreeMixin implements BotUserModel {
   factory _BotUserModel.fromJson(Map<String, dynamic> json) =>
       _$BotUserModelFromJson(json);
 
+  /// Уникальный идентификатор пользователя (UUID из profiles).
   @override
   final String id;
+
+  /// Telegram ID пользователя.
   @override
   @JsonKey(name: 'telegram_chat_id')
   final int telegramChatId;
+
+  /// Полное имя пользователя.
   @override
   @JsonKey(name: 'full_name')
   final String fullName;
+
+  /// Идентификатор роли пользователя.
   @override
   @JsonKey(name: 'role_id')
   final String? roleId;

@@ -61,4 +61,3 @@ class MonthEmployeesSummary {
   /// Создаёт сводку с общим количеством специалистов.
   const MonthEmployeesSummary({required this.totalEmployees});
 }
-

@@ -31,9 +31,8 @@ class ProcurementRepository {
   /// История сортируется по убыванию даты и обогащается данными пользователей из profiles.
   Future<List<ProcurementApplication>> getApplications() async {
     try {
-      final response = await _supabase
-          .from('procurement_applications')
-          .select('''
+      final response =
+          await _supabase.from('procurement_applications').select('''
             id,
             readable_id,
             created_at,
@@ -57,8 +56,7 @@ class ProcurementRepository {
               comment,
               actor_telegram_id
             )
-          ''')
-          .order('created_at', ascending: false);
+          ''').order('created_at', ascending: false);
 
       // Загружаем пользователей для обогащения истории (из profiles)
       // Используем telegram_user_id для связи с историей, так как там записан actor_telegram_id
@@ -86,21 +84,23 @@ class ProcurementRepository {
 
           // Маппинг requester из структуры profiles в структуру, ожидаемую BotUserModel
           if (appJson['requester'] != null) {
-            final requesterProfile = appJson['requester'] as Map<String, dynamic>;
+            final requesterProfile =
+                appJson['requester'] as Map<String, dynamic>;
             appJson['requester'] = {
               'id': requesterProfile['id'],
               'full_name': requesterProfile['full_name'],
               'telegram_chat_id': requesterProfile['telegram_user_id'],
             };
           }
-          
+
           // Обогащаем историю данными пользователей
           if (appJson['history'] != null) {
             final historyList = appJson['history'] as List;
             for (final historyItem in historyList) {
               final historyMap = historyItem as Map<String, dynamic>;
               final actorTelegramId = historyMap['actor_telegram_id'] as int?;
-              if (actorTelegramId != null && profilesMap.containsKey(actorTelegramId)) {
+              if (actorTelegramId != null &&
+                  profilesMap.containsKey(actorTelegramId)) {
                 final user = profilesMap[actorTelegramId]!;
                 historyMap['actor'] = {
                   'id': user.id,
@@ -191,10 +191,12 @@ class ProcurementRepository {
 
       // Добавляем новые записи
       if (userIds.isNotEmpty) {
-        final inserts = userIds.map((userId) => {
-          'stage': stage,
-          'user_id': userId,
-        }).toList();
+        final inserts = userIds
+            .map((userId) => {
+                  'stage': stage,
+                  'user_id': userId,
+                })
+            .toList();
 
         await _supabase.from('procurement_approval_config').insert(inserts);
       }

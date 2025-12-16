@@ -123,16 +123,27 @@ class WorkItemDataSourceImpl implements WorkItemDataSource {
   @override
   Stream<List<WorkItemModel>> watchWorkItems(String workId) async* {
     final controller = StreamController<List<WorkItemModel>>();
+    if (workId.isEmpty) {
+      controller.add(const []);
+      yield* controller.stream;
+      return;
+    }
+
+    List<WorkItemModel> current = [];
+
+    Future<void> syncInitial() async {
+      try {
+        current = await fetchWorkItems(workId);
+        if (!controller.isClosed) controller.add(current);
+      } catch (e, st) {
+        if (!controller.isClosed) controller.addError(e, st);
+      }
+    }
 
     // Отдаём начальные данные после подписки клиента на поток
     // (задержка позволяет подписчику успеть прикрепиться)
     () async {
-      try {
-        final initial = await fetchWorkItems(workId);
-        if (!controller.isClosed) controller.add(initial);
-      } catch (_) {
-        // Намеренно игнорируем: начальная загрузка не должна ронять поток
-      }
+      await syncInitial();
     }();
 
     // Топик канала без параметров фильтра — фильтр задаем в onPostgresChanges
@@ -149,10 +160,47 @@ class WorkItemDataSourceImpl implements WorkItemDataSource {
         ),
         callback: (payload) async {
           try {
-            final items = await fetchWorkItems(workId);
-            if (!controller.isClosed) controller.add(items);
+            final Map<String, dynamic>? newRecord =
+                payload.newRecord as Map<String, dynamic>?;
+            final Map<String, dynamic>? oldRecord =
+                payload.oldRecord as Map<String, dynamic>?;
+            final event = payload.eventType;
+            final dynamic idValue =
+                newRecord != null ? newRecord['id'] : oldRecord?['id'];
+            final String? id =
+                idValue is String ? idValue : idValue?.toString();
+
+            WorkItemModel? nextModel;
+            if (newRecord != null) {
+              nextModel = WorkItemModel.fromJson(newRecord);
+            }
+
+            switch (event) {
+              case PostgresChangeEvent.insert:
+                if (nextModel != null) {
+                  current = [...current, nextModel];
+                }
+                break;
+              case PostgresChangeEvent.update:
+                if (nextModel != null && id != null) {
+                  current = current
+                      .map((item) => item.id == id ? nextModel! : item)
+                      .toList();
+                }
+                break;
+              case PostgresChangeEvent.delete:
+                if (id != null) {
+                  current = current.where((item) => item.id != id).toList();
+                }
+                break;
+              default:
+                await syncInitial();
+            }
+
+            if (!controller.isClosed) controller.add(current);
           } catch (_) {
-            // Намеренно игнорируем: сбои обновления не прерывают подписку
+            // При ошибке парсинга делаем полную синхронизацию
+            await syncInitial();
           }
         },
       )

@@ -5,7 +5,8 @@ import 'package:projectgt/core/widgets/gt_dropdown.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/domain/entities/profile.dart';
 import 'package:projectgt/domain/entities/object.dart';
-import 'package:projectgt/features/roles/domain/entities/role.dart' as role_entity;
+import 'package:projectgt/features/roles/domain/entities/role.dart'
+    as role_entity;
 import 'package:projectgt/features/roles/presentation/providers/roles_provider.dart';
 import 'package:projectgt/features/profile/presentation/widgets/profile_employee_link_edit_field.dart';
 
@@ -54,7 +55,8 @@ class ProfileEditForm extends ConsumerStatefulWidget {
     this.isAdmin = false, // Дефолт false
     this.initialEmployeeId,
     this.initialRoleId,
-    this.onSave = _defaultOnSave, // Дефолтная заглушка, если не передано (для обратной совместимости)
+    this.onSave =
+        _defaultOnSave, // Дефолтная заглушка, если не передано (для обратной совместимости)
     this.onSuccess,
     this.onCancel,
     this.showButtons = true,
@@ -62,7 +64,8 @@ class ProfileEditForm extends ConsumerStatefulWidget {
   });
 
   // Статическая заглушка
-  static void _defaultOnSave(String f, String p, List<String> o, String? e, String? r) {}
+  static void _defaultOnSave(
+      String f, String p, List<String> o, String? e, String? r) {}
 
   @override
   ConsumerState<ProfileEditForm> createState() => ProfileEditFormState();
@@ -253,43 +256,43 @@ class ProfileEditFormState extends ConsumerState<ProfileEditForm> {
             const SizedBox(height: 24),
           ],
           if (widget.showButtons) ...[
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              Expanded(
-                child: GTSecondaryButton(
-                  text: 'Отмена',
-                  onPressed: () {
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: GTSecondaryButton(
+                    text: 'Отмена',
+                    onPressed: () {
                       if (widget.onCancel != null) {
                         widget.onCancel!();
                       } else if (context.mounted) {
-                      Navigator.pop(context);
-                    }
-                  },
+                        Navigator.pop(context);
+                      }
+                    },
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: GTPrimaryButton(
-                  text: 'Сохранить',
-                  onPressed: () {
-                    if (_formKey.currentState?.validate() ?? false) {
-                      widget.onSave(
-                        _fullNameController.text.trim(),
-                        _phoneController.text.trim(),
-                        _selectedObjectIds,
-                        _selectedEmployeeId.isEmpty
-                            ? null
-                            : _selectedEmployeeId,
-                        _selectedRoleId,
-                      );
-                      widget.onSuccess?.call();
-                    }
-                  },
+                const SizedBox(width: 12),
+                Expanded(
+                  child: GTPrimaryButton(
+                    text: 'Сохранить',
+                    onPressed: () {
+                      if (_formKey.currentState?.validate() ?? false) {
+                        widget.onSave(
+                          _fullNameController.text.trim(),
+                          _phoneController.text.trim(),
+                          _selectedObjectIds,
+                          _selectedEmployeeId.isEmpty
+                              ? null
+                              : _selectedEmployeeId,
+                          _selectedRoleId,
+                        );
+                        widget.onSuccess?.call();
+                      }
+                    },
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
           ],
           const SizedBox(height: 8),
         ],

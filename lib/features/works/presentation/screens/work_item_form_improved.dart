@@ -1,25 +1,24 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
+import 'package:projectgt/core/utils/responsive_utils.dart';
+import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
+import 'package:projectgt/core/widgets/gt_buttons.dart';
+import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
 import '../../domain/entities/work_item.dart';
 import '../providers/work_items_provider.dart';
 import '../../../../core/di/providers.dart';
 import '../../../../domain/entities/estimate.dart';
 import '../../../../core/widgets/gt_dropdown.dart';
 import '../providers/work_provider.dart';
-import 'package:intl/intl.dart';
 import 'package:projectgt/core/utils/modal_utils.dart';
+import 'package:projectgt/core/utils/formatters.dart';
 
 /// Улучшенная версия модального окна для создания или редактирования работы (WorkItem).
-///
-/// Оптимизирована для лучшего использования пространства:
-/// - Поля выбора можно прокрутить вверх и скрыть
-/// - Поле поиска остается видимым
-/// - Список материалов занимает максимально доступное место
 class WorkItemFormImproved extends ConsumerStatefulWidget {
   /// Идентификатор смены, к которой относится работа.
   final String workId;
@@ -27,7 +26,7 @@ class WorkItemFormImproved extends ConsumerStatefulWidget {
   /// Исходная работа для редактирования (null — создание новой).
   final WorkItem? initial;
 
-  /// Контроллер прокрутки для DraggableScrollableSheet.
+  /// Контроллер прокрутки для DraggableScrollableSheet (используется только на мобильных в bottom sheet).
   final ScrollController? scrollController;
 
   /// Создаёт улучшенное модальное окно для добавления или редактирования работы.
@@ -44,8 +43,7 @@ class WorkItemFormImproved extends ConsumerStatefulWidget {
 }
 
 /// Состояние для [WorkItemFormImproved].
-class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved>
-    with TickerProviderStateMixin {
+class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
   /// Ключ формы для валидации.
   final _formKey = GlobalKey<FormState>();
 
@@ -73,11 +71,9 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved>
   /// Идентификатор объекта (строительного).
   late String objectId;
 
-  /// Поиск в шапке
-  bool _headerSearchVisible = false;
-  final TextEditingController _headerSearchController = TextEditingController();
-  final FocusNode _headerSearchFocusNode = FocusNode();
-  String _headerSearchQuery = '';
+  /// Поиск
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
 
   /// Флаг загрузки для отображения индикатора.
   final bool _isLoading = false;
@@ -90,15 +86,6 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved>
   List<String> _availableFloors = [];
   List<String> _availableSystems = [];
   List<String> _availableSubsystems = [];
-
-  /// Переменные для анимаций
-  late AnimationController _buttonsAnimController;
-  late Animation<Offset> _leftOffset;
-  late Animation<Offset> _rightOffset;
-
-  // Управление видимостью кнопок по прокрутке
-  bool _scrolling = false;
-  Timer? _scrollEndTimer;
 
   /// Признак режима редактирования (true — редактирование, false — создание).
   bool get isModifying => widget.initial != null;
@@ -196,7 +183,8 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved>
     objectId = work?.objectId ?? '';
     if (objectId.isEmpty) {
       throw Exception('objectId не найден для данной смены');
-    }    if (isModifying) {
+    }
+    if (isModifying) {
       _selectedSection = widget.initial!.section;
       _selectedFloor = widget.initial!.floor;
       _selectedSystem = widget.initial!.system;
@@ -205,46 +193,21 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved>
 
     // Инициализируем выбранные элементы для редактирования
     // (это может быть пусто, если сметы не загружены, но будет обновлено после _loadDropdownData)
-    if (isModifying && ref.read(estimateNotifierProvider).estimates.isNotEmpty) {
-      final estimate = ref.read(estimateNotifierProvider).estimates
+    if (isModifying &&
+        ref.read(estimateNotifierProvider).estimates.isNotEmpty) {
+      final estimate = ref
+          .read(estimateNotifierProvider)
+          .estimates
           .where((e) => e.id == widget.initial!.estimateId)
           .firstOrNull;
       if (estimate != null) {
-        _selectedEstimateItems[estimate] = widget.initial!.quantity is int 
-        ? (widget.initial!.quantity as int).toDouble()
-        : widget.initial!.quantity as double?;
+        _selectedEstimateItems[estimate] = widget.initial!.quantity is int
+            ? (widget.initial!.quantity as int).toDouble()
+            : widget.initial!.quantity as double?;
         _quantityControllers[estimate] = TextEditingController(
           text: widget.initial!.quantity.toString(),
         );
       }
-    }
-
-    // Инициализация анимаций
-    _buttonsAnimController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-    );
-
-    _leftOffset = Tween<Offset>(
-      begin: const Offset(-2, 0),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _buttonsAnimController,
-      curve: Curves.easeOut,
-    ));
-
-    _rightOffset = Tween<Offset>(
-      begin: const Offset(2, 0),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _buttonsAnimController,
-      curve: Curves.easeOut,
-    ));
-
-    // Добавляем listener к scroll controller
-    if (widget.scrollController != null) {
-      widget.scrollController!
-          .addListener(() => _scrollListener(widget.scrollController!));
     }
 
     // Загружаем сметы и данные для dropdown'ов
@@ -255,16 +218,18 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved>
       _loadDropdownData();
       // Обновляем отфильтрованный список (важно! это должно быть ДО инициализации выбранных работ)
       _updateFilteredEstimates();
-      
+
       // Если редактируем, загружаем выбранные работы
       if (isModifying) {
-        final estimate = ref.read(estimateNotifierProvider).estimates
+        final estimate = ref
+            .read(estimateNotifierProvider)
+            .estimates
             .where((e) => e.id == widget.initial!.estimateId)
             .firstOrNull;
         if (estimate != null) {
-          _selectedEstimateItems[estimate] = widget.initial!.quantity is int 
-        ? (widget.initial!.quantity as int).toDouble()
-        : widget.initial!.quantity as double?;
+          _selectedEstimateItems[estimate] = widget.initial!.quantity is int
+              ? (widget.initial!.quantity as int).toDouble()
+              : widget.initial!.quantity as double?;
           _quantityControllers[estimate] = TextEditingController(
             text: widget.initial!.quantity.toString(),
           );
@@ -282,24 +247,20 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved>
     for (final controller in _quantityControllers.values) {
       controller.dispose();
     }
-    _headerSearchController.dispose();
-    _headerSearchFocusNode.dispose();
-    if (widget.scrollController != null) {
-      widget.scrollController!
-          .removeListener(() => _scrollListener(widget.scrollController!));
-    }
-    _buttonsAnimController.dispose();
-    _scrollEndTimer?.cancel();
+    _searchController.dispose();
     super.dispose();
   }
 
   /// Загружает данные для dropdown'ов
   Future<void> _loadDropdownData() async {
-    // Загружаем участки
-    _availableSections = await _getAvailableSections();
+    // Загружаем участки и этажи параллельно
+    final results = await Future.wait([
+      _getAvailableSections(),
+      _getAvailableFloors(),
+    ]);
 
-    // Загружаем все этажи сразу
-    _availableFloors = await _getAvailableFloors();
+    _availableSections = results[0];
+    _availableFloors = results[1];
 
     // Загружаем системы из смет
     final estimates = ref.read(estimateNotifierProvider).estimates;
@@ -309,7 +270,9 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved>
         .toSet()
         .toList();
 
-    setState(() {});
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   /// Обновляет список подсистем на основе выбранной системы
@@ -368,16 +331,14 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved>
 
       // Убираем из отображаемого списка только те материалы, которые уже есть в этой комбинации
       // НО при редактировании не исключаем выбранную работу
-      filteredList = filteredList
-          .where((estimate) {
-            // Если редактируем и это выбранная работа - не исключаем её
-            if (isModifying && estimate.id == widget.initial!.estimateId) {
-              return true;
-            }
-            // Иначе исключаем уже добавленные работы
-            return !existingEstimateIdsForCombo.contains(estimate.id);
-          })
-          .toList();
+      filteredList = filteredList.where((estimate) {
+        // Если редактируем и это выбранная работа - не исключаем её
+        if (isModifying && estimate.id == widget.initial!.estimateId) {
+          return true;
+        }
+        // Иначе исключаем уже добавленные работы
+        return !existingEstimateIdsForCombo.contains(estimate.id);
+      }).toList();
     }
 
     setState(() {
@@ -385,377 +346,325 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved>
     });
   }
 
-  /// Получает список доступных участков (модулей) из всех работ.
+  /// Получает список доступных участков (модулей) для текущего объекта.
   Future<List<String>> _getAvailableSections() async {
-    final workItemsNotifier = ref.read(workItemsNotifierProvider);
-    final items = await workItemsNotifier.getAllWorkItems();
-    return items
-        .map((e) => e.section)
-        .where((e) => e.isNotEmpty)
-        .toSet()
-        .toList();
-  }
+    try {
+      final response = await Supabase.instance.client
+          .rpc('get_object_sections', params: {'target_object_id': objectId});
 
-  /// Получает список всех доступных этажей без привязки к участку.
-  Future<List<String>> _getAvailableFloors() async {
-    final workItemsNotifier = ref.read(workItemsNotifierProvider);
-    final items = await workItemsNotifier.getAllWorkItems();
-
-    return items
-        .map((e) => e.floor)
-        .where((e) => e.isNotEmpty)
-        .toSet()
-        .toList();
-  }
-
-  /// Обработчик прокрутки для показа/скрытия поиска и кнопок.
-  void _scrollListener(ScrollController controller) {
-    if (!_scrolling) {
-      _scrolling = true;
-      _buttonsAnimController.reverse();
+      final List<dynamic> data = response as List<dynamic>;
+      return data.map((e) => e['section'] as String).toList();
+    } catch (e) {
+      debugPrint('Ошибка загрузки участков: $e');
+      return [];
     }
+  }
 
-    _scrollEndTimer?.cancel();
-    _scrollEndTimer = Timer(const Duration(milliseconds: 500), () {
-      _scrolling = false;
-      if (hasSelection) {
-        _buttonsAnimController.forward();
-      }
-    });
+  /// Получает список всех доступных этажей для текущего объекта.
+  Future<List<String>> _getAvailableFloors() async {
+    try {
+      final response = await Supabase.instance.client
+          .rpc('get_object_floors', params: {'target_object_id': objectId});
+
+      final List<dynamic> data = response as List<dynamic>;
+      return data.map((e) => e['floor'] as String).toList();
+    } catch (e) {
+      debugPrint('Ошибка загрузки этажей: $e');
+      return [];
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+    final isMobile = ResponsiveUtils.isMobile(context);
+    final title =
+        widget.initial == null ? 'Добавить работы' : 'Редактировать работу';
 
-    return Material(
-      color: theme.colorScheme.surface,
-      child: _isLoading
-          ? const Center(child: CupertinoActivityIndicator())
-          : GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onTap: () {
-                final scope = FocusScope.of(context);
-                if (!scope.hasPrimaryFocus) {
-                  scope.unfocus();
-                }
-              },
-              child: Stack(
-                children: [
-                  // Основное содержимое
-                  Column(
-                    children: [
-                      // Заголовок с кнопкой поиска
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surface,
-                          border: Border(
-                            bottom: BorderSide(
-                              color: theme.colorScheme.outline
-                                  .withValues(alpha: 0.2),
-                              width: 1,
-                            ),
-                          ),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 12.0),
-                          child: Row(
-                            children: [
-                              // Кнопка лупы
-                              CupertinoButton(
-                                padding: EdgeInsets.zero,
-                                onPressed: () {
-                                  if (_headerSearchVisible &&
-                                      _headerSearchQuery.isNotEmpty) {
-                                    setState(() {
-                                      _headerSearchController.clear();
-                                      _headerSearchQuery = '';
-                                    });
-                                    return;
-                                  }
+    final footer = Row(
+      children: [
+        Expanded(
+          child: GTSecondaryButton(
+            text: 'Отмена',
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: GTPrimaryButton(
+            text: widget.initial == null ? 'Добавить' : 'Сохранить',
+            isLoading: _isSaving,
+            onPressed: (hasSelection && !_isSaving) ? _saveWorkItems : null,
+          ),
+        ),
+      ],
+    );
 
-                                  setState(() {
-                                    _headerSearchVisible =
-                                        !_headerSearchVisible;
-                                  });
-                                  if (_headerSearchVisible) {
-                                    WidgetsBinding.instance
-                                        .addPostFrameCallback((_) {
-                                      if (mounted) {
-                                        _headerSearchFocusNode.requestFocus();
-                                      }
-                                    });
-                                  }
-                                },
-                                minimumSize: const Size(40, 40),
-                                child: Icon(
-                                  (_headerSearchVisible &&
-                                          _headerSearchQuery.isNotEmpty)
-                                      ? CupertinoIcons.xmark
-                                      : CupertinoIcons.search,
-                                  size: 24,
-                                  color: theme.colorScheme.onSurface,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              // Заголовок и строка поиска: поиск выезжает и сдвигает заголовок
-                              Expanded(
-                                child: LayoutBuilder(
-                                  builder: (context, constraints) {
-                                    final maxWidth = constraints.maxWidth;
-                                    final targetWidth =
-                                        _headerSearchVisible ? maxWidth : 0.0;
-                                    return Stack(
-                                      alignment: Alignment.centerLeft,
-                                      children: [
-                                        // Поле поиска, расширяется слева направо
-                                        Align(
-                                          alignment: Alignment.centerLeft,
-                                          child: AnimatedContainer(
-                                            duration: const Duration(
-                                                milliseconds: 300),
-                                            curve: Curves.easeOutCubic,
-                                            width: targetWidth,
-                                            decoration: BoxDecoration(
-                                              borderRadius:
-                                                  BorderRadius.circular(24),
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: theme
-                                                      .colorScheme.shadow
-                                                      .withValues(alpha: 0.15),
-                                                  blurRadius: 12,
-                                                  offset: const Offset(0, 4),
-                                                ),
-                                              ],
-                                            ),
-                                            child: targetWidth > 0
-                                                ? ClipRect(
-                                                    child: TextField(
-                                                      focusNode:
-                                                          _headerSearchFocusNode,
-                                                      controller:
-                                                          _headerSearchController,
-                                                      decoration:
-                                                          InputDecoration(
-                                                        hintText: 'Поиск...',
-                                                        isDense: true,
-                                                        filled: true,
-                                                        fillColor: theme
-                                                            .colorScheme
-                                                            .surface,
-                                                        border:
-                                                            OutlineInputBorder(
-                                                          borderRadius:
-                                                              BorderRadius
-                                                                  .circular(24),
-                                                        ),
-                                                        enabledBorder:
-                                                            OutlineInputBorder(
-                                                          borderRadius:
-                                                              BorderRadius
-                                                                  .circular(24),
-                                                          borderSide:
-                                                              BorderSide(
-                                                            color: theme
-                                                                .colorScheme
-                                                                .outline
-                                                                .withValues(
-                                                                    alpha:
-                                                                        0.25),
-                                                          ),
-                                                        ),
-                                                        focusedBorder:
-                                                            OutlineInputBorder(
-                                                          borderRadius:
-                                                              BorderRadius
-                                                                  .circular(24),
-                                                          borderSide:
-                                                              BorderSide(
-                                                            color: theme
-                                                                .colorScheme
-                                                                .primary
-                                                                .withValues(
-                                                                    alpha: 0.6),
-                                                          ),
-                                                        ),
-                                                        contentPadding:
-                                                            const EdgeInsets
-                                                                .symmetric(
-                                                          vertical: 10,
-                                                          horizontal: 14,
-                                                        ),
-                                                      ),
-                                                      onChanged: (v) =>
-                                                          setState(() {
-                                                        _headerSearchQuery = v;
-                                                      }),
-                                                    ),
-                                                  )
-                                                : const SizedBox.shrink(),
-                                          ),
-                                        ),
-                                        // Заголовок, уезжает вправо и исчезает
-                                        AnimatedSlide(
-                                          duration:
-                                              const Duration(milliseconds: 300),
-                                          curve: Curves.easeOutCubic,
-                                          offset: _headerSearchVisible
-                                              ? const Offset(0.5, 0)
-                                              : Offset.zero,
-                                          child: AnimatedOpacity(
-                                            duration: const Duration(
-                                                milliseconds: 200),
-                                            curve: Curves.easeOutCubic,
-                                            opacity: _headerSearchVisible
-                                                ? 0.0
-                                                : 1.0,
-                                            child: Center(
-                                              child: Text(
-                                                widget.initial == null
-                                                    ? 'Добавить работы'
-                                                    : 'Редактировать работу',
-                                                style: theme
-                                                    .textTheme.titleLarge
-                                                    ?.copyWith(
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                                textAlign: TextAlign.center,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    );
-                                  },
-                                ),
-                              ),
-                              // Кнопка закрытия
-                              CupertinoButton(
-                                padding: EdgeInsets.zero,
-                                onPressed: () => Navigator.pop(context),
-                                minimumSize: const Size(40, 40),
-                                child: const Icon(
-                                  CupertinoIcons.xmark_circle_fill,
-                                  size: 28,
-                                  color: Colors.red,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+    final content = _isLoading
+        ? const Center(child: CupertinoActivityIndicator())
+        : Form(
+            key: _formKey,
+            child: _buildFormContent(Theme.of(context)),
+          );
 
-                      // Прокручиваемое содержимое
-                      Expanded(
-                        child: Form(
-                          key: _formKey,
-                          child: _buildAnimatedContent(theme),
-                        ),
-                      ),
-                    ],
-                  ),
+    if (isMobile) {
+      return MobileBottomSheetContent(
+        title: title,
+        footer: footer,
+        scrollController: widget.scrollController,
+        scrollable: false,
+        child: content,
+      );
+    } else {
+      return DesktopDialogContent(
+        title: title,
+        footer: footer,
+        scrollable: false,
+        child: content,
+      );
+    }
+  }
 
-                  // Поиск отображается в заголовке по нажатию на кнопку
-
-                  // Анимированные кнопки (скрываем при открытой клавиатуре)
-                  if (hasSelection && !isKeyboardOpen)
-                    Positioned(
-                      bottom: 24 + MediaQuery.viewPaddingOf(context).bottom,
-                      left: 20,
-                      right: 20,
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: SlideTransition(
-                              position: _leftOffset,
-                              child: OutlinedButton(
-                                style: OutlinedButton.styleFrom(
-                                  padding: EdgeInsets.symmetric(
-                                    vertical: !kIsWeb &&
-                                            (defaultTargetPlatform ==
-                                                    TargetPlatform.android ||
-                                                defaultTargetPlatform ==
-                                                    TargetPlatform.iOS)
-                                        ? 12
-                                        : 16,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(25),
-                                  ),
-                                ),
-                                onPressed: _isSaving
-                                    ? null
-                                    : () => Navigator.pop(context),
-                                child: const Text('Отмена'),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: SlideTransition(
-                              position: _rightOffset,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  padding: EdgeInsets.symmetric(
-                                    vertical: !kIsWeb &&
-                                            (defaultTargetPlatform ==
-                                                    TargetPlatform.android ||
-                                                defaultTargetPlatform ==
-                                                    TargetPlatform.iOS)
-                                        ? 12
-                                        : 16,
-                                  ),
-                                  backgroundColor: theme.colorScheme.primary,
-                                  foregroundColor: theme.colorScheme.onPrimary,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(25),
-                                  ),
-                                ),
-                                onPressed:
-                                    _isSaving ? null : () => _saveWorkItems(),
-                                child: _isSaving
-                                    ? const SizedBox(
-                                        height: 20,
-                                        width: 20,
-                                        child: CupertinoActivityIndicator(
-                                          radius: 10,
-                                          color: Colors.white,
-                                        ),
-                                      )
-                                    : Text(widget.initial == null
-                                        ? 'Добавить'
-                                        : 'Сохранить'),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
-            ),
+  /// Строит содержимое формы
+  Widget _buildFormContent(ThemeData theme) {
+    return CustomScrollView(
+      controller: widget.scrollController,
+      shrinkWrap: true,
+      slivers: [
+        SliverToBoxAdapter(
+          child: Column(
+            children: [
+              _buildSelectionFields(),
+              const SizedBox(height: 12),
+            ],
+          ),
+        ),
+        if (allSelected) ..._buildMaterialsSlivers(theme),
+      ],
     );
   }
 
-  /// Строит анимированное содержимое с логикой из filterable modal.
-  Widget _buildAnimatedContent(ThemeData theme) {
-    return ListView(
-      controller: widget.scrollController,
-      padding: const EdgeInsets.fromLTRB(
-          20, 24, 20, 200), // Увеличил верхний отступ с 0 до 24
-      children: [
-        // Поля выбора
-        _buildSelectionFields(),
+  List<Widget> _buildMaterialsSlivers(ThemeData theme) {
+    final query = _searchQuery;
+    final filteredBySearch = query.isEmpty
+        ? _filteredEstimates
+        : _filteredEstimates
+            .where((e) => e.name.toLowerCase().contains(query.toLowerCase()))
+            .toList();
 
-        const SizedBox(height: 20),
+    return [
+      SliverAppBar(
+        primary: false,
+        pinned: true,
+        backgroundColor: theme.colorScheme.surface,
+        automaticallyImplyLeading: false,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        shadowColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        shape: const Border(
+          bottom: BorderSide(color: Colors.transparent, width: 0),
+        ),
+        toolbarHeight: 52,
+        titleSpacing: 0,
+        title: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 0),
+          child: CupertinoSearchTextField(
+            controller: _searchController,
+            placeholder: 'Поиск работ...',
+            onChanged: (value) {
+              setState(() {
+                _searchQuery = value;
+              });
+            },
+            style: TextStyle(
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+        ),
+      ),
+      if (filteredBySearch.isEmpty)
+        const SliverToBoxAdapter(
+          child: Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Text('Нет работ по вашему запросу'),
+            ),
+          ),
+        )
+      else
+        SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
+              final estimate = filteredBySearch[index];
+              final isSelected = _selectedEstimateItems.containsKey(estimate);
+              final isDark = theme.brightness == Brightness.dark;
 
-        // Список материалов (если все поля выбраны)
-        if (allSelected) _buildMaterialsList(),
-      ],
-    );
+              // Цвета для выделенного состояния
+              final selectedBgColor = isDark
+                  ? Colors.green.withValues(alpha: 0.2)
+                  : Colors.green.shade50;
+              final selectedTextColor =
+                  isDark ? Colors.greenAccent.shade100 : Colors.green.shade700;
+              final selectedSubColor = isDark
+                  ? Colors.greenAccent.shade100.withValues(alpha: 0.7)
+                  : Colors.green.shade600;
+
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    if (isSelected) {
+                      _selectedEstimateItems.remove(estimate);
+                      _quantityControllers[estimate]?.dispose();
+                      _quantityControllers.remove(estimate);
+                    } else {
+                      _selectedEstimateItems[estimate] = null;
+                      _quantityControllers.putIfAbsent(
+                        estimate,
+                        () => TextEditingController(text: ''),
+                      );
+                    }
+                  });
+                },
+                child: Card(
+                  color:
+                      isSelected ? selectedBgColor : theme.colorScheme.surface,
+                  elevation: isSelected ? 2 : 0,
+                  margin: const EdgeInsets.symmetric(vertical: 4),
+                  child: ListTile(
+                    leading: Text(
+                      estimate.number,
+                      style: TextStyle(
+                        color: isSelected
+                            ? selectedTextColor
+                            : theme.colorScheme.onSurface,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                    title: Text(
+                      estimate.name,
+                      style: TextStyle(
+                        color: isSelected
+                            ? selectedTextColor
+                            : theme.colorScheme.onSurface,
+                        fontWeight:
+                            isSelected ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                    ),
+                    subtitle: Text(
+                      '${formatCurrency(estimate.price)} / ${estimate.unit}',
+                      style: TextStyle(
+                        color: isSelected
+                            ? selectedSubColor
+                            : theme.colorScheme.onSurface
+                                .withValues(alpha: 0.6),
+                      ),
+                    ),
+                    trailing: isSelected
+                        ? SizedBox(
+                            width: 80,
+                            child: TextField(
+                              controller: _quantityControllers[estimate],
+                              decoration: const InputDecoration(
+                                hintText: 'Кол-во',
+                                border: OutlineInputBorder(),
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 8),
+                              ),
+                              style: TextStyle(
+                                color: isDark ? Colors.white : Colors.black,
+                              ),
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                      decimal: true),
+                              textAlign: TextAlign.center,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.allow(
+                                    RegExp(r'[0-9.,]')),
+                              ],
+                              onChanged: (value) {
+                                final normalized = value.replaceAll(',', '.');
+                                final qty = double.tryParse(normalized) ?? 0.0;
+                                setState(() {
+                                  if (qty > 0) {
+                                    _selectedEstimateItems[estimate] = qty;
+                                  } else {
+                                    _selectedEstimateItems[estimate] = null;
+                                  }
+                                });
+                              },
+                            ),
+                          )
+                        : null,
+                  ),
+                ),
+              );
+            },
+            childCount: filteredBySearch.length,
+          ),
+        ),
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              icon: const Icon(CupertinoIcons.add),
+              label: const Text('Новый материал'),
+              onPressed: () async {
+                if (_selectedSection == null ||
+                    _selectedFloor == null ||
+                    _selectedSystem == null ||
+                    _selectedSubsystem == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text(
+                          'Сначала заполните участок, этаж, систему и подсистему'),
+                      backgroundColor: Theme.of(context).colorScheme.error,
+                    ),
+                  );
+                  return;
+                }
+
+                final result = await ModalUtils.showNewMaterialModal(
+                  context,
+                  objectId: objectId,
+                  system: _selectedSystem!,
+                  subsystem: _selectedSubsystem!,
+                );
+
+                if (result is Map) {
+                  // Обновляем список смет и пересобираем фильтр сразу после добавления
+                  await ref
+                      .read(estimateNotifierProvider.notifier)
+                      .loadEstimates();
+                  _updateFilteredEstimates();
+
+                  final estimates =
+                      ref.read(estimateNotifierProvider).estimates;
+                  final created = estimates.firstWhere(
+                    (e) =>
+                        e.objectId == objectId &&
+                        e.system == _selectedSystem &&
+                        e.subsystem == _selectedSubsystem &&
+                        e.name == result['name'],
+                    orElse: () => estimates.first,
+                  );
+                  setState(() {
+                    _selectedEstimateItems[created] = null;
+                    _quantityControllers.putIfAbsent(
+                      created,
+                      () => TextEditingController(text: ''),
+                    );
+                  });
+                }
+              },
+            ),
+          ),
+        ),
+      ),
+    ];
   }
 
   /// Строит поля выбора участка, этажа, системы и подсистемы.
@@ -785,20 +694,10 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved>
               _selectedFloor = null;
               _selectedSystem = null;
               _selectedSubsystem = null;
+
               // Не очищаем выбранные элементы при редактировании
-
               if (!isModifying) {
-
-                // Не очищаем выбранные элементы при редактировании
-                if (!isModifying) {
-                  _selectedEstimateItems.clear();
-                }
-
-              }
-
-              // Управление анимацией кнопок
-              if (_selectedEstimateItems.isEmpty) {
-                _buttonsAnimController.reverse();
+                _selectedEstimateItems.clear();
               }
             });
             if (value != null && !_availableSections.contains(value)) {
@@ -825,20 +724,10 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved>
                 _selectedFloor = value;
                 _selectedSystem = null;
                 _selectedSubsystem = null;
+
                 // Не очищаем выбранные элементы при редактировании
-
                 if (!isModifying) {
-
-                  // Не очищаем выбранные элементы при редактировании
-                  if (!isModifying) {
-                    _selectedEstimateItems.clear();
-                  }
-
-                }
-
-                // Управление анимацией кнопок
-                if (_selectedEstimateItems.isEmpty) {
-                  _buttonsAnimController.reverse();
+                  _selectedEstimateItems.clear();
                 }
               });
               if (value != null && !_availableFloors.contains(value)) {
@@ -864,20 +753,10 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved>
               setState(() {
                 _selectedSystem = value;
                 _selectedSubsystem = null;
+
                 // Не очищаем выбранные элементы при редактировании
-
                 if (!isModifying) {
-
-                  // Не очищаем выбранные элементы при редактировании
-                  if (!isModifying) {
-                    _selectedEstimateItems.clear();
-                  }
-
-                }
-
-                // Управление анимацией кнопок
-                if (_selectedEstimateItems.isEmpty) {
-                  _buttonsAnimController.reverse();
+                  _selectedEstimateItems.clear();
                 }
               });
               _updateSubsystems();
@@ -901,217 +780,16 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved>
             onSelectionChanged: (value) {
               setState(() {
                 _selectedSubsystem = value;
+
                 // Не очищаем выбранные элементы при редактировании
-
                 if (!isModifying) {
-
-                  // Не очищаем выбранные элементы при редактировании
-                  if (!isModifying) {
-                    _selectedEstimateItems.clear();
-                  }
-
-                }
-
-                // Управление анимацией кнопок
-                if (_selectedEstimateItems.isEmpty) {
-                  _buttonsAnimController.reverse();
+                  _selectedEstimateItems.clear();
                 }
               });
               _updateFilteredEstimates();
             },
           ),
         ],
-      ],
-    );
-  }
-
-  /// Строит список материалов в стиле filterable modal.
-  Widget _buildMaterialsList() {
-    final query = _headerSearchQuery;
-    final filteredBySearch = query.isEmpty
-        ? _filteredEstimates
-        : _filteredEstimates
-            .where((e) => e.name.toLowerCase().contains(query.toLowerCase()))
-            .toList();
-
-    if (filteredBySearch.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Text('Нет работ по вашему запросу'),
-        ),
-      );
-    }
-
-    return Column(
-      children: [
-        ...filteredBySearch.map((estimate) {
-          final isSelected = _selectedEstimateItems.containsKey(estimate);
-          final theme = Theme.of(context);
-          final isDark = theme.brightness == Brightness.dark;
-
-          // Цвета для выделенного состояния
-          final selectedBgColor = isDark
-              ? Colors.green.withValues(alpha: 0.2)
-              : Colors.green.shade50;
-          final selectedTextColor = isDark
-              ? Colors.greenAccent.shade100
-              : Colors.green.shade700;
-          final selectedSubColor = isDark
-              ? Colors.greenAccent.shade100.withValues(alpha: 0.7)
-              : Colors.green.shade600;
-
-          return GestureDetector(
-            onTap: () {
-              setState(() {
-                if (isSelected) {
-                  _selectedEstimateItems.remove(estimate);
-                  _quantityControllers[estimate]?.dispose();
-                  _quantityControllers.remove(estimate);
-                } else {
-                  _selectedEstimateItems[estimate] = null;
-                  _quantityControllers.putIfAbsent(
-                    estimate,
-                    () => TextEditingController(text: ''),
-                  );
-                }
-
-                // Управление анимацией кнопок
-                if (hasSelection) {
-                  _buttonsAnimController.forward();
-                } else {
-                  _buttonsAnimController.reverse();
-                }
-              });
-            },
-            child: Card(
-              color: isSelected ? selectedBgColor : theme.colorScheme.surface,
-              elevation: isSelected ? 2 : 0,
-              margin: const EdgeInsets.symmetric(vertical: 4),
-              child: ListTile(
-                leading: Text(
-                  estimate.number,
-                  style: TextStyle(
-                    color: isSelected
-                        ? selectedTextColor
-                        : theme.colorScheme.onSurface,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-                title: Text(
-                  estimate.name,
-                  style: TextStyle(
-                    color: isSelected
-                        ? selectedTextColor
-                        : theme.colorScheme.onSurface,
-                    fontWeight:
-                        isSelected ? FontWeight.w600 : FontWeight.normal,
-                  ),
-                ),
-                subtitle: Text(
-                  '${NumberFormat('#,##0.00', 'ru').format(estimate.price)} ₽ / ${estimate.unit}',
-                  style: TextStyle(
-                    color: isSelected
-                        ? selectedSubColor
-                        : theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                  ),
-                ),
-                trailing: isSelected
-                    ? SizedBox(
-                        width: 80,
-                        child: TextField(
-                          controller: _quantityControllers[estimate],
-                          decoration: const InputDecoration(
-                            hintText: 'Кол-во',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                            contentPadding: EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 8),
-                          ),
-                          style: TextStyle(
-                            color: isDark ? Colors.white : Colors.black,
-                          ),
-                          keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true),
-                          textAlign: TextAlign.center,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.allow(
-                                RegExp(r'[0-9.,]')),
-                          ],
-                          onChanged: (value) {
-                            final normalized = value.replaceAll(',', '.');
-                            final qty = double.tryParse(normalized) ?? 0.0;
-                            setState(() {
-                              if (qty > 0) {
-                                _selectedEstimateItems[estimate] = qty;
-                              } else {
-                                _selectedEstimateItems[estimate] = null;
-                              }
-                            });
-                          },
-                        ),
-                      )
-                    : null,
-              ),
-            ),
-          );
-        }),
-        const SizedBox(height: 8),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            icon: const Icon(Icons.add),
-            label: const Text('Новый материал'),
-            onPressed: () async {
-              if (_selectedSection == null ||
-                  _selectedFloor == null ||
-                  _selectedSystem == null ||
-                  _selectedSubsystem == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text(
-                        'Сначала заполните участок, этаж, систему и подсистему'),
-                    backgroundColor: Theme.of(context).colorScheme.error,
-                  ),
-                );
-                return;
-              }
-
-              final result = await ModalUtils.showNewMaterialModal(
-                context,
-                objectId: objectId,
-                system: _selectedSystem!,
-                subsystem: _selectedSubsystem!,
-              );
-
-              if (result is Map) {
-                // Обновляем список смет и пересобираем фильтр сразу после добавления
-                await ref
-                    .read(estimateNotifierProvider.notifier)
-                    .loadEstimates();
-                _updateFilteredEstimates();
-
-                final estimates = ref.read(estimateNotifierProvider).estimates;
-                final created = estimates.firstWhere(
-                  (e) =>
-                      e.objectId == objectId &&
-                      e.system == _selectedSystem &&
-                      e.subsystem == _selectedSubsystem &&
-                      e.name == result['name'],
-                  orElse: () => estimates.first,
-                );
-                setState(() {
-                  _selectedEstimateItems[created] = null;
-                  _quantityControllers.putIfAbsent(
-                    created,
-                    () => TextEditingController(text: ''),
-                  );
-                });
-              }
-            },
-          ),
-        ),
       ],
     );
   }

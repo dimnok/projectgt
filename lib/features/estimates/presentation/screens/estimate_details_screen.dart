@@ -268,10 +268,22 @@ class _EstimateDetailsScreenState extends ConsumerState<EstimateDetailsScreen> {
   }
 
   void _openEditDialog(BuildContext context, [Estimate? estimate]) {
+    // Определяем название сметы: переданное в виджет или из выбранного файла
+    final title = widget.estimateTitle ?? _selectedEstimateFile?.estimateTitle;
+
+    // Определяем ID объекта и договора:
+    // 1. Если редактирование - берем из estimate
+    // 2. Если добавление - берем из выбранного файла
+    final objectId = estimate?.objectId ?? _selectedEstimateFile?.objectId;
+    final contractId =
+        estimate?.contractId ?? _selectedEstimateFile?.contractId;
+
     EstimateEditDialog.show(
       context,
       estimate: estimate,
-      estimateTitle: widget.estimateTitle,
+      estimateTitle: title,
+      objectId: objectId,
+      contractId: contractId,
     );
   }
 

@@ -66,6 +66,9 @@ abstract class WorkItem with _$WorkItem {
 
     /// Дата последнего обновления.
     DateTime? updatedAt,
+
+    /// Идентификатор акта КС-2 (если работа закрыта актом).
+    String? ks2Id,
   }) = _WorkItem;
 
   /// Создаёт сущность из JSON.

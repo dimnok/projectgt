@@ -5,17 +5,17 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:intl/intl.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/core/notifications/notification_service.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
-import 'package:projectgt/core/utils/snackbar_utils.dart';
+import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/core/utils/telegram_helper.dart';
 import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/gt_dropdown.dart';
 import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
-import 'package:projectgt/domain/entities/employee.dart';
+import 'package:projectgt/domain/entities/employee.dart' as emp_domain;
+import 'package:projectgt/domain/entities/employee.dart' show Employee;
 import 'package:projectgt/domain/entities/object.dart';
 import 'package:projectgt/features/works/domain/entities/work_hour.dart';
 import 'package:projectgt/features/works/presentation/providers/month_groups_provider.dart';
@@ -23,23 +23,21 @@ import 'package:projectgt/features/works/presentation/providers/work_hours_provi
 import 'package:projectgt/features/works/presentation/providers/work_provider.dart';
 import 'package:projectgt/features/works/presentation/utils/photo_upload_helper.dart';
 import 'package:projectgt/features/works/presentation/widgets/photo_loading_dialog.dart';
+import 'package:intl/intl.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
+import 'package:projectgt/presentation/state/employee_state.dart' as emp_state;
+import 'package:projectgt/presentation/state/object_state.dart';
 import 'package:uuid/uuid.dart';
+import 'package:projectgt/core/utils/formatters.dart';
 
 /// Экран создания новой смены.
 class WorkFormScreen extends ConsumerStatefulWidget {
-  /// Контроллер прокрутки для DraggableScrollableSheet.
-  /// В данной реализации [MobileBottomSheetContent] обрабатывает скролл самостоятельно,
-  /// поэтому этот параметр может быть проигнорирован или использован для специфичных случаев.
-  final ScrollController? scrollController;
-
   /// Родительский контекст для отображения snackbar и диалогов поверх модального окна.
   final BuildContext? parentContext;
 
   /// Создаёт экран формы создания новой смены.
   const WorkFormScreen({
     super.key,
-    this.scrollController,
     this.parentContext,
   });
 
@@ -74,16 +72,22 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
     final profile = ref.read(currentUserProfileProvider).profile;
     if (profile == null) return;
 
-    final objects = await ref.read(objectRepositoryProvider).getObjects();
+    // Используем уже загруженные данные из провайдера
+    final objectsState = ref.read(objectProvider);
+    final objects = objectsState.objects;
+
+    if (objects.isEmpty) return;
+
     final profileObjectIds = profile.objectIds ?? [];
     final availableObjects =
         objects.where((o) => profileObjectIds.contains(o.id)).toList();
 
     if (availableObjects.length == 1) {
-      setState(() {
-        _selectedObjectId = availableObjects.first.id;
-      });
-      _updateOccupiedEmployees();
+      if (mounted) {
+        setState(() {
+          _selectedObjectId = availableObjects.first.id;
+        });
+      }
     }
   }
 
@@ -115,33 +119,35 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
 
   /// Получает список ID сотрудников в открытых сменах на сегодня
   Future<Set<String>> _getEmployeesInOpenShifts() async {
-    final worksState = ref.read(worksProvider);
-    final today = DateTime.now();
-    final todayStart = DateTime(today.year, today.month, today.day);
+    try {
+      final supabase = ref.read(supabaseClientProvider);
+      final today = DateTime.now();
+      final dateStr = DateFormat('yyyy-MM-dd').format(today);
 
-    final openWorksToday = worksState.works.where((work) {
-      final workDate = DateTime(work.date.year, work.date.month, work.date.day);
-      return work.status.toLowerCase() == 'open' &&
-          workDate.isAtSameMomentAs(todayStart);
-    }).toList();
+      // Получаем открытые смены на сегодня и сразу джойним часы сотрудников
+      // Используем !inner для фильтрации только тех смен, которые подходят под условия
+      final response = await supabase
+          .from('works')
+          .select('work_hours(employee_id)')
+          .eq('date', dateStr)
+          .eq('status', 'open');
 
-    final occupiedEmployeeIds = <String>{};
+      final occupiedEmployeeIds = <String>{};
 
-    for (final work in openWorksToday) {
-      if (work.id != null) {
-        try {
-          final workHoursAsync = ref.read(workHoursProvider(work.id!));
-          final workHours = workHoursAsync.valueOrNull ?? [];
-          for (final hour in workHours) {
-            occupiedEmployeeIds.add(hour.employeeId);
+      for (final work in response) {
+        final hours = work['work_hours'] as List<dynamic>?;
+        if (hours != null) {
+          for (final hour in hours) {
+            occupiedEmployeeIds.add(hour['employee_id'] as String);
           }
-        } catch (e) {
-          continue;
         }
       }
-    }
 
-    return occupiedEmployeeIds;
+      return occupiedEmployeeIds;
+    } catch (e) {
+      debugPrint('Error getting occupied employees: $e');
+      return {};
+    }
   }
 
   /// Выбор фото
@@ -190,7 +196,7 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             _PhotoOptionButton(
-              icon: Icons.photo_camera,
+              icon: CupertinoIcons.camera,
               label: 'Камера',
               onTap: () {
                 Navigator.pop(context);
@@ -198,7 +204,7 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
               },
             ),
             _PhotoOptionButton(
-              icon: Icons.photo_library,
+              icon: CupertinoIcons.photo,
               label: 'Галерея',
               onTap: () {
                 Navigator.pop(context);
@@ -207,7 +213,7 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
             ),
             if (_selectedPhotoFile != null || _selectedPhotoBytes != null)
               _PhotoOptionButton(
-                icon: Icons.delete_outline,
+                icon: CupertinoIcons.delete,
                 label: 'Удалить',
                 onTap: () {
                   Navigator.pop(context);
@@ -225,27 +231,7 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
 
   /// Сохранить смену
   Future<void> _saveWork() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_selectedObjectId == null || _selectedEmployeeIds.isEmpty) {
-      ScaffoldMessenger.of(widget.parentContext ?? context).showSnackBar(
-        SnackBar(
-          content: const Text('Выберите объект и сотрудников'),
-          backgroundColor: Colors.orange[600],
-        ),
-      );
-      return;
-    }
-
-    // Проверка обязательного фото смены
-    if (_selectedPhotoFile == null && _selectedPhotoBytes == null) {
-      ScaffoldMessenger.of(widget.parentContext ?? context).showSnackBar(
-        SnackBar(
-          content: const Text('Добавьте фото смены'),
-          backgroundColor: Colors.orange[600],
-        ),
-      );
-      return;
-    }
+    if (!(_formKey.currentState?.validate() ?? false)) return;
 
     try {
       // ✅ Загружаем фото через helper
@@ -289,11 +275,11 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
                     slotTimesHHmm: slotTimes,
                   );
 
-              // Добавляем часы работников
+              // Добавляем часы работников параллельно
               final hoursNotifier =
                   ref.read(workHoursProvider(createdWork.id!).notifier);
 
-              for (final employeeId in _selectedEmployeeIds) {
+              await Future.wait(_selectedEmployeeIds.map((employeeId) {
                 final workHour = WorkHour(
                   id: const Uuid().v4(),
                   workId: createdWork.id!,
@@ -303,8 +289,8 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
                   createdAt: DateTime.now(),
                   updatedAt: DateTime.now(),
                 );
-                await hoursNotifier.add(workHour);
-              }
+                return hoursNotifier.add(workHour);
+              }));
 
               // Отправляем PUSH админам
               try {
@@ -372,7 +358,11 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
             }
           } catch (e) {
             if (mounted) {
-              SnackBarUtils.showError(context, 'Ошибка: $e');
+              AppSnackBar.show(
+                context: context,
+                message: 'Ошибка: $e',
+                kind: AppSnackBarKind.error,
+              );
             }
           }
         },
@@ -386,7 +376,11 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
       Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
-        SnackBarUtils.showError(context, 'Ошибка: $e');
+        AppSnackBar.show(
+          context: context,
+          message: 'Ошибка: $e',
+          kind: AppSnackBarKind.error,
+        );
       }
     }
   }
@@ -427,9 +421,25 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
 
   Widget _buildFormContent(BuildContext context, ThemeData theme) {
     final profile = ref.watch(currentUserProfileProvider).profile;
-    final allObjects = ref.watch(objectRepositoryProvider).getObjects();
-    final allEmployees = ref.watch(employeeRepositoryProvider).getEmployees();
-    final dateStr = DateFormat('dd.MM.yyyy').format(DateTime.now());
+
+    // Используем провайдеры вместо прямых вызовов репозиториев
+    final objectsState = ref.watch(objectProvider);
+    // Используем правильное имя провайдера, которое определено в employee_state.dart
+    final employeesState = ref.watch(emp_state.employeeProvider);
+
+    final dateStr = formatRuDate(DateTime.now());
+
+    // Показываем лоадер, если данные еще грузятся
+    if (objectsState.status == ObjectStatus.loading ||
+        employeesState.status == emp_state.EmployeeStatus.loading) {
+      return const Center(child: CupertinoActivityIndicator());
+    }
+
+    final objects = objectsState.objects;
+    final employees = employeesState.employees;
+    final profileObjectIds = profile?.objectIds ?? [];
+    final availableObjects =
+        objects.where((o) => profileObjectIds.contains(o.id)).toList();
 
     return Form(
       key: _formKey,
@@ -440,60 +450,38 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
           _buildDateSection(theme, dateStr),
           const SizedBox(height: 24),
 
-          // Объект и сотрудники
-          FutureBuilder(
-            future: Future.wait([allObjects, allEmployees]),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) {
-                return const Center(child: CupertinoActivityIndicator());
-              }
+          // Выбор объекта
+          _buildObjectSelector(availableObjects, theme),
+          const SizedBox(height: 24),
 
-              final objects = (snapshot.data![0] as List<ObjectEntity>);
-              final employees = (snapshot.data![1] as List<Employee>);
-              final profileObjectIds = profile?.objectIds ?? [];
-              final availableObjects = objects
-                  .where((o) => profileObjectIds.contains(o.id))
-                  .toList();
-
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Выбор объекта
-                  _buildObjectSelector(availableObjects, theme),
-                  const SizedBox(height: 24),
-
-                  // Сотрудники
-                  Text(
-                    'Сотрудники',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Отображаются только активные сотрудники',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: theme.colorScheme.secondary,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildEmployeesList(employees, theme),
-                  const SizedBox(height: 24),
-
-                  // Фото смены
-                  Text(
-                    'Фото смены',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildPhotoSection(theme),
-                ],
-              );
-            },
+          // Сотрудники
+          Text(
+            'Сотрудники',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
           ),
+          const SizedBox(height: 4),
+          Text(
+            'Отображаются только активные сотрудники',
+            style: TextStyle(
+              fontSize: 12,
+              color: theme.colorScheme.secondary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildEmployeesList(employees, theme),
+          const SizedBox(height: 24),
+
+          // Фото смены
+          Text(
+            'Фото смены',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildPhotoSection(theme),
         ],
       ),
     );
@@ -514,13 +502,7 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
           child: GTPrimaryButton(
             text: 'Открыть',
             isLoading: _isLoadingOccupiedEmployees,
-            onPressed: () {
-              if (_selectedObjectId != null &&
-                  _selectedEmployeeIds.isNotEmpty &&
-                  !_isLoadingOccupiedEmployees) {
-                _saveWork();
-              }
-            },
+            onPressed: _isLoadingOccupiedEmployees ? null : _saveWork,
           ),
         ),
       ],
@@ -531,7 +513,7 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
     return Row(
       children: [
         Icon(
-          Icons.calendar_today,
+          CupertinoIcons.calendar,
           size: 20,
           color: theme.colorScheme.secondary,
         ),
@@ -564,12 +546,10 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
             _selectedObjectId = selectedObject.id;
             _selectedEmployeeIds.clear();
           });
-          _updateOccupiedEmployees();
         } else {
           setState(() {
             _selectedObjectId = null;
             _selectedEmployeeIds.clear();
-            _cachedOccupiedEmployeeIds = null;
           });
         }
       },
@@ -591,204 +571,264 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
     final hasPhoto = _selectedPhotoFile != null || _selectedPhotoBytes != null;
     final isDark = theme.brightness == Brightness.dark;
 
-    return InkWell(
-      onTap: _selectedObjectId != null ? _showPhotoOptions : null,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        height: 200,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: isDark ? Colors.grey[900] : Colors.grey[50],
-          border: Border.all(
-            color: hasPhoto
-                ? Colors.transparent
-                : theme.colorScheme.outline.withValues(alpha: 0.3),
-            width: 1,
-          ),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: hasPhoto
-            ? Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (_selectedPhotoBytes != null)
-                    Image.memory(
-                      _selectedPhotoBytes!,
-                      fit: BoxFit.cover,
-                    )
-                  else
-                    Image.file(
-                      _selectedPhotoFile!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Icon(
-                        Icons.broken_image,
-                        color: theme.colorScheme.error,
-                        size: 48,
-                      ),
-                    ),
-                  // Градиент для читаемости кнопки удаления
-                  Positioned(
-                    top: 0,
-                    right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: const BoxDecoration(
-                        color: Color.fromRGBO(0, 0, 0, 0.4),
-                        borderRadius: BorderRadius.only(
-                          bottomLeft: Radius.circular(12),
-                        ),
-                      ),
-                      child: const Icon(
-                        Icons.delete_outline,
-                        color: Colors.white,
-                        size: 24,
-                      ),
-                    ),
+    return FormField<bool>(
+      key: ValueKey(
+          hasPhoto), // Сброс состояния ошибки при изменении наличия фото
+      initialValue: hasPhoto,
+      validator: (value) {
+        if (!hasPhoto) {
+          return 'Добавьте фото смены';
+        }
+        return null;
+      },
+      builder: (state) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            InkWell(
+              onTap: _selectedObjectId != null ? _showPhotoOptions : null,
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                height: 200,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.grey[900] : Colors.grey[50],
+                  border: Border.all(
+                    color: hasPhoto
+                        ? Colors.transparent
+                        : theme.colorScheme.outline.withValues(alpha: 0.3),
+                    width: 1,
                   ),
-                ],
-              )
-            : Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.add_a_photo_outlined,
-                      size: 48,
-                      color: _selectedObjectId != null
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.outline,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      _selectedObjectId != null
-                          ? 'Добавить фото'
-                          : 'Сначала выберите объект',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: _selectedObjectId != null
-                            ? theme.colorScheme.onSurface
-                            : theme.colorScheme.outline,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    if (_selectedObjectId != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(
-                          '* Обязательно',
-                          style: TextStyle(
-                            color: theme.colorScheme.error,
-                            fontSize: 12,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: hasPhoto
+                    ? Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          if (_selectedPhotoBytes != null)
+                            Image.memory(
+                              _selectedPhotoBytes!,
+                              fit: BoxFit.cover,
+                            )
+                          else
+                            Image.file(
+                              _selectedPhotoFile!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Icon(
+                                CupertinoIcons.exclamationmark_triangle,
+                                color: theme.colorScheme.error,
+                                size: 48,
+                              ),
+                            ),
+                          // Градиент для читаемости кнопки удаления
+                          Positioned(
+                            top: 0,
+                            right: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: const BoxDecoration(
+                                color: Color.fromRGBO(0, 0, 0, 0.4),
+                                borderRadius: BorderRadius.only(
+                                  bottomLeft: Radius.circular(12),
+                                ),
+                              ),
+                              child: const Icon(
+                                CupertinoIcons.delete,
+                                color: Colors.white,
+                                size: 24,
+                              ),
+                            ),
                           ),
+                        ],
+                      )
+                    : Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              CupertinoIcons.camera_on_rectangle,
+                              size: 48,
+                              color: _selectedObjectId != null
+                                  ? theme.colorScheme.primary
+                                  : theme.colorScheme.outline,
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              _selectedObjectId != null
+                                  ? 'Добавить фото'
+                                  : 'Сначала выберите объект',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: _selectedObjectId != null
+                                    ? theme.colorScheme.onSurface
+                                    : theme.colorScheme.outline,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            if (_selectedObjectId != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(
+                                  '* Обязательно',
+                                  style: TextStyle(
+                                    color: theme.colorScheme.error,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
-                  ],
+              ),
+            ),
+            if (state.hasError)
+              Padding(
+                padding: const EdgeInsets.only(top: 8, left: 12),
+                child: Text(
+                  state.errorText!,
+                  style: TextStyle(
+                    color: theme.colorScheme.error,
+                    fontSize: 12,
+                  ),
                 ),
               ),
-      ),
+          ],
+        );
+      },
     );
   }
 
   /// Строит список сотрудников
   Widget _buildEmployeesList(List<Employee> employees, ThemeData theme) {
-    if (_selectedObjectId == null) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color:
-              theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Center(
-          child: Text(
-            'Выберите объект для отображения сотрудников',
-            style: TextStyle(
-              color: theme.colorScheme.onSurfaceVariant,
+    return FormField<List<String>>(
+      initialValue: _selectedEmployeeIds,
+      validator: (value) {
+        if (_selectedObjectId != null && _selectedEmployeeIds.isEmpty) {
+          return 'Выберите хотя бы одного сотрудника';
+        }
+        return null;
+      },
+      builder: (state) {
+        Widget content;
+        if (_selectedObjectId == null) {
+          content = Container(
+            padding: const EdgeInsets.all(16),
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest
+                  .withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(12),
             ),
-            textAlign: TextAlign.center,
-          ),
-        ),
-      );
-    }
+            child: Center(
+              child: Text(
+                'Выберите объект для отображения сотрудников',
+                style: TextStyle(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          );
+        } else if (_isLoadingOccupiedEmployees) {
+          content = const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16.0),
+              child: CupertinoActivityIndicator(),
+            ),
+          );
+        } else {
+          final occupiedEmployeeIds = _cachedOccupiedEmployeeIds ?? <String>{};
 
-    if (_isLoadingOccupiedEmployees) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(16.0),
-          child: CupertinoActivityIndicator(),
-        ),
-      );
-    }
+          final baseFilteredEmployees = employees
+              .where((e) => e.objectIds.contains(_selectedObjectId))
+              .where((e) => e.status == emp_domain.EmployeeStatus.working)
+              .toList();
 
-    final occupiedEmployeeIds = _cachedOccupiedEmployeeIds ?? <String>{};
+          final availableEmployees = baseFilteredEmployees
+              .where((e) => !occupiedEmployeeIds.contains(e.id))
+              .toList();
 
-    final baseFilteredEmployees = employees
-        .where((e) => e.objectIds.contains(_selectedObjectId))
-        .where((e) => e.status == EmployeeStatus.working)
-        .toList();
+          if (availableEmployees.isEmpty) {
+            content = Container(
+              padding: const EdgeInsets.all(24),
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest
+                    .withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  Icon(
+                    CupertinoIcons.person_2,
+                    size: 48,
+                    color: theme.colorScheme.outline,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Нет доступных сотрудников',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Все сотрудники на этом объекте уже заняты или не найдены',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.secondary,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            );
+          } else {
+            content = ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: availableEmployees.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final emp = availableEmployees[index];
+                final isSelected = _selectedEmployeeIds.contains(emp.id);
 
-    final availableEmployees = baseFilteredEmployees
-        .where((e) => !occupiedEmployeeIds.contains(e.id))
-        .toList();
+                return _EmployeeSelectionTile(
+                  employee: emp,
+                  isSelected: isSelected,
+                  onTap: () {
+                    setState(() {
+                      if (isSelected) {
+                        _selectedEmployeeIds.remove(emp.id);
+                      } else {
+                        _selectedEmployeeIds.add(emp.id);
+                      }
+                      // Уведомляем форму об изменении для скрытия ошибки валидации
+                      state.didChange(_selectedEmployeeIds);
+                    });
+                  },
+                );
+              },
+            );
+          }
+        }
 
-    if (availableEmployees.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(24),
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color:
-              theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Icon(
-              Icons.people_outline,
-              size: 48,
-              color: theme.colorScheme.outline,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Нет доступных сотрудников',
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.bold,
+            content,
+            if (state.hasError)
+              Padding(
+                padding: const EdgeInsets.only(top: 8, left: 12),
+                child: Text(
+                  state.errorText!,
+                  style: TextStyle(
+                    color: theme.colorScheme.error,
+                    fontSize: 12,
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Все сотрудники на этом объекте уже заняты или не найдены',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.secondary,
-              ),
-              textAlign: TextAlign.center,
-            ),
           ],
-        ),
-      );
-    }
-
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: availableEmployees.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 8),
-      itemBuilder: (context, index) {
-        final emp = availableEmployees[index];
-        final isSelected = _selectedEmployeeIds.contains(emp.id);
-
-        return _EmployeeSelectionTile(
-          employee: emp,
-          isSelected: isSelected,
-          onTap: () {
-            setState(() {
-              if (isSelected) {
-                _selectedEmployeeIds.remove(emp.id);
-              } else {
-                _selectedEmployeeIds.add(emp.id);
-              }
-            });
-          },
         );
       },
     );
@@ -845,7 +885,7 @@ class _EmployeeSelectionTile extends StatelessWidget {
               ),
               child: isSelected
                   ? const Icon(
-                      Icons.check,
+                      CupertinoIcons.checkmark_alt,
                       size: 16,
                       color: Colors.white,
                     )

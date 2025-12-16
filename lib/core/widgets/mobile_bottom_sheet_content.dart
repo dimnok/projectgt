@@ -45,6 +45,14 @@ class MobileBottomSheetContent extends StatelessWidget {
   /// По умолчанию: горизонтальные и вертикальные 20.
   final EdgeInsetsGeometry padding;
 
+  /// Контроллер прокрутки.
+  /// Если используется внутри [DraggableScrollableSheet], передайте сюда контроллер.
+  final ScrollController? scrollController;
+
+  /// Определяет, должен ли контент быть обернут в скролл.
+  /// По умолчанию true. Если false, скролл должен быть реализован внутри child.
+  final bool scrollable;
+
   /// Создаёт содержимое модального окна.
   const MobileBottomSheetContent({
     super.key,
@@ -52,6 +60,8 @@ class MobileBottomSheetContent extends StatelessWidget {
     required this.child,
     this.footer,
     this.padding = const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+    this.scrollController,
+    this.scrollable = true,
   });
 
   @override
@@ -83,27 +93,47 @@ class MobileBottomSheetContent extends StatelessWidget {
 
               // Скроллящийся контент
               Flexible(
-                child: SingleChildScrollView(
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      bottom: bottomInset,
-                    ),
-                    child: Padding(
-                      padding: padding,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          child,
-                          if (footer != null) ...[
-                            const SizedBox(height: 24),
-                            footer!,
-                          ],
-                          const SizedBox(height: 8),
-                        ],
+                child: scrollable
+                    ? SingleChildScrollView(
+                        controller: scrollController,
+                        child: Padding(
+                          padding: EdgeInsets.only(
+                            bottom: bottomInset,
+                          ),
+                          child: Padding(
+                            padding: padding,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                child,
+                                if (footer != null) ...[
+                                  const SizedBox(height: 24),
+                                  footer!,
+                                ],
+                                const SizedBox(height: 8),
+                              ],
+                            ),
+                          ),
+                        ),
+                      )
+                    : Padding(
+                        padding: EdgeInsets.only(bottom: bottomInset),
+                        child: Padding(
+                          padding: padding,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(child: child),
+                              if (footer != null) ...[
+                                const SizedBox(height: 24),
+                                footer!,
+                              ],
+                              const SizedBox(height: 8),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                ),
               ),
             ],
           ),

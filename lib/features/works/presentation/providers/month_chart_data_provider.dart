@@ -10,7 +10,7 @@ part 'month_chart_data_provider.g.dart';
 /// но с минимальным набором полей (только дата и сумма).
 @riverpod
 Future<List<LightWork>> monthChartData(
-   ref,
+  ref,
   DateTime month,
 ) async {
   final repository = ref.watch(workRepositoryProvider);

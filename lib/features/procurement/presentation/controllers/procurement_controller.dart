@@ -27,4 +27,3 @@ class ProcurementController extends _$ProcurementController {
     state = await AsyncValue.guard(() => _fetchApplications());
   }
 }
-

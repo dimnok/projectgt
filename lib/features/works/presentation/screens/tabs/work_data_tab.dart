@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:projectgt/presentation/widgets/cupertino_dialog_widget.dart';
 
 import 'package:projectgt/core/utils/responsive_utils.dart';
+import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/features/works/domain/entities/work.dart';
 import 'package:projectgt/features/works/domain/entities/work_item.dart';
 import 'package:projectgt/features/works/domain/entities/work_hour.dart';
@@ -81,7 +81,6 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
             0.0;
         final productivityPerEmployee =
             uniqueEmployees > 0 ? totalAmount / uniqueEmployees : 0.0;
-        final formatter = NumberFormat('#,##0.00', 'ru_RU');
 
         final isWorkClosed = work.status.toLowerCase() == 'closed';
         final currentProfile = ref.watch(currentUserProfileProvider).profile;
@@ -123,7 +122,6 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
                   uniqueEmployees,
                   totalAmount,
                   productivityPerEmployee,
-                  formatter,
                 ),
 
                 if (items != null && items.isNotEmpty) ...[
@@ -168,7 +166,6 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
                     uniqueEmployees,
                     totalAmount,
                     productivityPerEmployee,
-                    formatter,
                   ),
 
                   if (items != null && items.isNotEmpty) ...[
@@ -320,7 +317,6 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
     int uniqueEmployees,
     double totalAmount,
     double productivityPerEmployee,
-    NumberFormat formatter,
   ) {
     return Card(
       elevation: 0,
@@ -369,14 +365,14 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
             _buildStatRow(
               context,
               'Общая сумма',
-              '${formatter.format(totalAmount)} ₽',
+              formatCurrency(totalAmount),
               isMain: true,
             ),
             const SizedBox(height: 12),
             _buildStatRow(
               context,
               'Выработка на чел.',
-              '${formatter.format(productivityPerEmployee)} ₽',
+              formatCurrency(productivityPerEmployee),
             ),
           ],
         ),

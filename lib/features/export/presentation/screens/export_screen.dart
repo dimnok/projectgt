@@ -6,6 +6,7 @@ import '../widgets/export_search_action.dart';
 import '../widgets/export_search_filter_chips.dart';
 import '../widgets/work_search_date_filter.dart';
 import '../widgets/work_search_export_action.dart';
+import '../widgets/vor_download_action.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 import 'tabs/export_tab_search.dart';
 import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
@@ -32,6 +33,12 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
           if (isDesktop) const ExportSearchAction(),
           // Календарь для выбора периода
           const WorkSearchDateRangeAction(),
+          // Кнопка скачивания ВОР
+          const PermissionGuard(
+            module: 'export',
+            permission: 'export',
+            child: VorDownloadAction(),
+          ),
           // Кнопка экспорта результатов
           const PermissionGuard(
             module: 'export',

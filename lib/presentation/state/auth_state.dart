@@ -233,48 +233,35 @@ class AuthNotifier extends StateNotifier<AuthState> {
         }
       }
 
-      // Если супабейс уже установил сессию (после magic link) — подхватываем сразу
-      final current = supa.Supabase.instance.client.auth.currentUser;
-      // current user
-      if (current != null) {
-        final user = await _ref.read(getCurrentUserUseCaseProvider).execute();
-        if (user != null) {
-          // Читаем статус профиля
-          try {
-            final profile = await supa.Supabase.instance.client
-                .from('profiles')
-                .select('status, approved_at')
-                .eq('id', user.id)
-                .single();
-            final bool statusFlag = (profile['status'] as bool?) ?? false;
-            final bool everApproved = profile['approved_at'] != null;
-            if (!statusFlag) {
-              state = state.copyWith(
-                status: everApproved
-                    ? AuthStatus.disabled
-                    : AuthStatus.pendingApproval,
-                user: user,
-              );
-              return;
-            }
-          } catch (_) {}
-
-          // user ok
-          state = state.copyWith(status: AuthStatus.authenticated, user: user);
-          return;
-        }
+      // 3) Единоразово читаем пользователя из use case
+      final user = await _ref.read(getCurrentUserUseCaseProvider).execute();
+      if (user == null) {
+        state = state.copyWith(status: AuthStatus.unauthenticated);
+        return;
       }
 
-      final user = await _ref.read(getCurrentUserUseCaseProvider).execute();
-      if (user != null) {
-        // resolved later
+      // 4) Проверяем статус профиля
+      try {
+        final profile = await supa.Supabase.instance.client
+            .from('profiles')
+            .select('status, approved_at')
+            .eq('id', user.id)
+            .single();
+        final bool statusFlag = (profile['status'] as bool?) ?? false;
+        final bool everApproved = profile['approved_at'] != null;
+        state = state.copyWith(
+          status: statusFlag
+              ? AuthStatus.authenticated
+              : (everApproved
+                  ? AuthStatus.disabled
+                  : AuthStatus.pendingApproval),
+          user: user,
+        );
+      } catch (_) {
         state = state.copyWith(
           status: AuthStatus.authenticated,
           user: user,
         );
-      } else {
-        // no user
-        state = state.copyWith(status: AuthStatus.unauthenticated);
       }
     } catch (e) {
       // error

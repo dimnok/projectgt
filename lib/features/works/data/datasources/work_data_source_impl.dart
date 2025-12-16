@@ -259,7 +259,7 @@ class WorkDataSourceImpl implements WorkDataSource {
       final json = (response is List)
           ? (response.isEmpty ? {} : response.first)
           : response;
-          
+
       return MonthHoursSummary(
         totalHours: (json['total_hours'] as num?)?.toDouble() ?? 0,
       );

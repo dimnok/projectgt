@@ -10,7 +10,7 @@ import 'package:projectgt/features/inventory/presentation/providers/inventory_pr
 class ReceiptInfo {
   /// Номер накладной.
   final String receiptNumber;
-  
+
   /// Дата накладной.
   final DateTime receiptDate;
 
@@ -25,7 +25,7 @@ class ReceiptInfo {
 class MovementHistoryItem {
   /// Дата движения.
   final DateTime date;
-  
+
   /// Описание движения.
   final String description;
 

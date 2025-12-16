@@ -77,4 +77,3 @@ class PdfUtils {
     return '${tens[ten]} ${units[unit]}'.trim();
   }
 }
-

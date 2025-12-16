@@ -7,9 +7,11 @@ part of 'procurement_repository.dart';
 // **************************************************************************
 
 String _$procurementRepositoryHash() =>
-    r'22aa33d098fdd50e9893f0a375e91e5d36e458e3';
+    r'cbda37882225cfe8325f3cb005e9fb6128bbcff0';
 
-/// See also [procurementRepository].
+/// Провайдер репозитория закупок.
+///
+/// Copied from [procurementRepository].
 @ProviderFor(procurementRepository)
 final procurementRepositoryProvider =
     AutoDisposeProvider<ProcurementRepository>.internal(

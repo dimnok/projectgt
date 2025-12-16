@@ -112,11 +112,11 @@ class _WorkPlansListScreenState extends ConsumerState<WorkPlansListScreen> {
               module: 'work_plans',
               permission: 'update',
               child: CupertinoButton(
-              padding: EdgeInsets.zero,
-              child: const Icon(Icons.edit, color: Colors.amber),
-              onPressed: () {
-                _showEditWorkPlanModal(context, selectedWorkPlan!);
-              },
+                padding: EdgeInsets.zero,
+                child: const Icon(Icons.edit, color: Colors.amber),
+                onPressed: () {
+                  _showEditWorkPlanModal(context, selectedWorkPlan!);
+                },
               ),
             ),
             const SizedBox(width: 8),
@@ -124,11 +124,11 @@ class _WorkPlansListScreenState extends ConsumerState<WorkPlansListScreen> {
               module: 'work_plans',
               permission: 'delete',
               child: CupertinoButton(
-              padding: EdgeInsets.zero,
-              child: const Icon(Icons.delete_outline, color: Colors.red),
-              onPressed: () {
-                _confirmAndDeleteSelectedWorkPlan();
-              },
+                padding: EdgeInsets.zero,
+                child: const Icon(Icons.delete_outline, color: Colors.red),
+                onPressed: () {
+                  _confirmAndDeleteSelectedWorkPlan();
+                },
               ),
             ),
           ],
@@ -139,16 +139,16 @@ class _WorkPlansListScreenState extends ConsumerState<WorkPlansListScreen> {
         module: 'work_plans',
         permission: 'create',
         child: AnimatedScale(
-        scale: _showFab ? 1.0 : 0.0,
-        duration: const Duration(milliseconds: 300),
-        child: FloatingActionButton(
-          onPressed: () {
-            _showCreateWorkPlanModal(context);
-          },
-          backgroundColor: Colors.green,
-          mini: ResponsiveUtils.isMobile(context),
-          shape: const CircleBorder(),
-          child: const Icon(Icons.add, color: Colors.white),
+          scale: _showFab ? 1.0 : 0.0,
+          duration: const Duration(milliseconds: 300),
+          child: FloatingActionButton(
+            onPressed: () {
+              _showCreateWorkPlanModal(context);
+            },
+            backgroundColor: Colors.green,
+            mini: ResponsiveUtils.isMobile(context),
+            shape: const CircleBorder(),
+            child: const Icon(Icons.add, color: Colors.white),
           ),
         ),
       ),

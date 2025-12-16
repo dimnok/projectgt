@@ -21,35 +21,18 @@ class ExportTabSearch extends ConsumerStatefulWidget {
   ConsumerState<ExportTabSearch> createState() => _ExportTabSearchState();
 }
 
-class _ExportTabSearchState extends ConsumerState<ExportTabSearch>
-    with SingleTickerProviderStateMixin {
+class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
   /// Контроллер для вертикального скролла таблицы.
   final ScrollController _verticalController = ScrollController();
-
-  /// Контроллер анимации стрелки.
-  late AnimationController _arrowAnimationController;
-  late Animation<double> _arrowAnimation;
 
   @override
   void initState() {
     super.initState();
-    _arrowAnimationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    );
-    _arrowAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _arrowAnimationController,
-        curve: Curves.easeInOut,
-      ),
-    );
-    _arrowAnimationController.repeat(reverse: true);
   }
 
   @override
   void dispose() {
     _verticalController.dispose();
-    _arrowAnimationController.dispose();
     super.dispose();
   }
 
@@ -426,38 +409,6 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch>
                 ),
               ],
             ),
-          ),
-        ),
-        // Анимированная стрелка, указывающая на чипы объектов сверху слева
-        Positioned(
-          top: 0,
-          left: 24, // Отступ слева, чтобы указать на чипы объектов
-          child: AnimatedBuilder(
-            animation: _arrowAnimation,
-            builder: (context, child) {
-              return Transform.translate(
-                offset: Offset(0, -15 * (1 - _arrowAnimation.value)),
-                child: Opacity(
-                  opacity: 0.4 + (_arrowAnimation.value * 0.6),
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: isLightTheme
-                          ? Colors.blue.withValues(alpha: 0.1)
-                          : Colors.blue.withValues(alpha: 0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.arrow_upward_rounded,
-                      size: 32,
-                      color: isLightTheme
-                          ? Colors.blue.shade700
-                          : Colors.blue.shade300,
-                    ),
-                  ),
-                ),
-              );
-            },
           ),
         ),
       ],

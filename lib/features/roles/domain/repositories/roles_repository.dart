@@ -26,7 +26,8 @@ abstract class RolesRepository {
   Future<Map<String, Map<String, bool>>> getRolePermissions(String roleId);
 
   /// Получить поток прав для роли (Realtime)
-  Stream<Map<String, Map<String, bool>>> getRolePermissionsStream(String roleId);
+  Stream<Map<String, Map<String, bool>>> getRolePermissionsStream(
+      String roleId);
 
   /// Обновить права роли
   /// Принимает Map: {moduleId: {permissionCode: isEnabled}}

@@ -181,59 +181,59 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
               module: 'employees',
               permission: 'update',
               child: CupertinoButton(
-              padding: EdgeInsets.zero,
-              child: Icon(
-                Icons.verified_user,
-                color: _toggleColor(ref, selectedEmployee!.id),
+                padding: EdgeInsets.zero,
+                child: Icon(
+                  Icons.verified_user,
+                  color: _toggleColor(ref, selectedEmployee!.id),
+                ),
+                onPressed: () async {
+                  final current = selectedEmployee;
+                  if (current == null) return;
+                  final messenger = ScaffoldMessenger.of(context);
+                  try {
+                    await ref
+                        .read(state.employeeProvider.notifier)
+                        .toggleCanBeResponsible(current.id, null);
+                    if (!mounted) return;
+                    final isOn = ref
+                            .read(state.employeeProvider)
+                            .canBeResponsibleMap[current.id] ==
+                        true;
+                    SnackBarUtils.showSuccessByMessenger(
+                      messenger,
+                      isOn
+                          ? 'Назначен статус ответственного'
+                          : 'Снят статус ответственного',
+                    );
+                  } catch (e) {
+                    if (!mounted) return;
+                    SnackBarUtils.showErrorByMessenger(
+                      messenger,
+                      'Ошибка: ${e.toString()}',
+                    );
+                  }
+                },
               ),
-              onPressed: () async {
-                final current = selectedEmployee;
-                if (current == null) return;
-                final messenger = ScaffoldMessenger.of(context);
-                try {
-                  await ref
-                      .read(state.employeeProvider.notifier)
-                      .toggleCanBeResponsible(current.id, null);
-                  if (!mounted) return;
-                  final isOn = ref
-                          .read(state.employeeProvider)
-                          .canBeResponsibleMap[current.id] ==
-                      true;
-                  SnackBarUtils.showSuccessByMessenger(
-                    messenger,
-                    isOn
-                        ? 'Назначен статус ответственного'
-                        : 'Снят статус ответственного',
-                  );
-                } catch (e) {
-                  if (!mounted) return;
-                  SnackBarUtils.showErrorByMessenger(
-                    messenger,
-                    'Ошибка: ${e.toString()}',
-                  );
-                }
-              },
-            ),
             ),
             PermissionGuard(
               module: 'employees',
               permission: 'update',
               child: CupertinoButton(
-              padding: EdgeInsets.zero,
-              child: const Icon(Icons.edit, color: Colors.amber),
-              onPressed: () {
-                ModalUtils.showEmployeeFormModal(context,
-                    employeeId: selectedEmployee!.id);
-              },
-            ),
+                padding: EdgeInsets.zero,
+                child: const Icon(Icons.edit, color: Colors.amber),
+                onPressed: () {
+                  ModalUtils.showEmployeeFormModal(context,
+                      employeeId: selectedEmployee!.id);
+                },
+              ),
             ),
             PermissionGuard(
               module: 'employees',
               permission: 'delete',
               child: CupertinoButton(
-              padding: EdgeInsets.zero,
-              child: const Icon(Icons.delete, color: Colors.red),
-              onPressed: () => _showDeleteDialog(selectedEmployee!),
+                padding: EdgeInsets.zero,
+                child: const Icon(Icons.delete, color: Colors.red),
+                onPressed: () => _showDeleteDialog(selectedEmployee!),
               ),
             ),
           ],
@@ -244,16 +244,16 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
         module: 'employees',
         permission: 'create',
         child: AnimatedScale(
-        scale: _showFab ? 1.0 : 0.0,
-        duration: const Duration(milliseconds: 300),
-        child: FloatingActionButton(
-          onPressed: () {
-            ModalUtils.showEmployeeFormModal(context);
-          },
-          backgroundColor: Colors.green,
-          mini: ResponsiveUtils.isMobile(context),
-          shape: const CircleBorder(),
-          child: const Icon(Icons.add, color: Colors.white),
+          scale: _showFab ? 1.0 : 0.0,
+          duration: const Duration(milliseconds: 300),
+          child: FloatingActionButton(
+            onPressed: () {
+              ModalUtils.showEmployeeFormModal(context);
+            },
+            backgroundColor: Colors.green,
+            mini: ResponsiveUtils.isMobile(context),
+            shape: const CircleBorder(),
+            child: const Icon(Icons.add, color: Colors.white),
           ),
         ),
       ),

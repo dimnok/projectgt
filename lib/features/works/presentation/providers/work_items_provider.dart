@@ -50,19 +50,21 @@ class WorkItemsNotifier extends StateNotifier<AsyncValue<List<WorkItem>>> {
   /// Создаёт [WorkItemsNotifier] и сразу инициирует загрузку работ для смены [workId].
   WorkItemsNotifier(this.repository, this.workId)
       : super(const AsyncValue.loading()) {
-    if (workId.isNotEmpty) {
-      // Инициализируем начальную загрузку и подписку на realtime
-      fetch();
-      _subscription = repository.watchWorkItems(workId).listen(
-        (items) {
-          state = AsyncValue.data(items);
-        },
-        onError: (e, st) {
-          state = AsyncValue.error(e, st);
-        },
-        cancelOnError: false,
-      );
+    if (workId.isEmpty) {
+      state = const AsyncValue.data([]);
+      return;
     }
+
+    // Подписка на realtime без дублирующего fetch() в notifier
+    _subscription = repository.watchWorkItems(workId).listen(
+      (items) {
+        state = AsyncValue.data(items);
+      },
+      onError: (e, st) {
+        state = AsyncValue.error(e, st);
+      },
+      cancelOnError: false,
+    );
   }
 
   /// Загружает список работ для текущей смены.
@@ -79,20 +81,17 @@ class WorkItemsNotifier extends StateNotifier<AsyncValue<List<WorkItem>>> {
   /// Добавляет новую работу [item] в смену и обновляет список.
   Future<void> add(WorkItem item) async {
     await repository.addWorkItem(item);
-    await fetch();
   }
 
   /// Пакетно добавляет несколько работ и делает один финальный fetch().
   Future<void> addMany(List<WorkItem> items) async {
     if (items.isEmpty) return;
     await repository.addWorkItems(items);
-    await fetch();
   }
 
   /// Обновляет существующую работу [item] в смене и обновляет список.
   Future<void> update(WorkItem item) async {
     await repository.updateWorkItem(item);
-    await fetch();
   }
 
   /// Обновляет работу [item] без полного обновления списка (оптимистично).
@@ -115,7 +114,6 @@ class WorkItemsNotifier extends StateNotifier<AsyncValue<List<WorkItem>>> {
   /// Удаляет работу по идентификатору [id] и обновляет список.
   Future<void> delete(String id) async {
     await repository.deleteWorkItem(id);
-    await fetch();
   }
 
   /// Удаляет работу оптимистично: без fetch(), сразу из локального списка.

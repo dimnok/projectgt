@@ -20,7 +20,6 @@ import 'package:projectgt/features/contractors/presentation/screens/contractor_f
 import 'package:projectgt/features/contractors/presentation/screens/contractor_details_screen.dart';
 import 'package:projectgt/features/contracts/presentation/screens/contracts_list_screen.dart';
 import 'package:projectgt/features/contracts/presentation/screens/contract_form_screen.dart';
-import 'package:projectgt/features/contracts/presentation/screens/contract_details_screen.dart';
 import 'package:projectgt/features/estimates/presentation/screens/estimates_list_screen.dart';
 import 'package:projectgt/features/estimates/presentation/screens/estimate_form_screen.dart';
 import 'package:projectgt/features/estimates/presentation/screens/estimate_details_screen.dart';
@@ -52,7 +51,6 @@ import 'package:projectgt/features/version_control/presentation/version_manageme
 import 'package:projectgt/features/roles/presentation/screens/roles_list_screen.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
 import 'package:projectgt/features/splash/presentation/screens/splash_screen.dart';
-
 
 /// Проверяет, может ли пользователь просматривать информацию о конкретном сотруднике.
 ///
@@ -412,23 +410,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      // Маршрут для просмотра договора
-      GoRoute(
-        path: '${AppRoutes.contracts}/:contractId',
-        name: 'contract_details',
-        builder: (context, state) {
-          return Consumer(
-            builder: (context, ref, child) {
-              final service = ref.watch(permissionServiceProvider);
-              if (service.can('contracts', 'read')) {
-                final contractId = state.pathParameters['contractId']!;
-                return ContractDetailsScreen(contractId: contractId);
-              }
-              return _buildAccessDeniedScreen();
-            },
-          );
-        },
-      ),
+      // Маршрут для просмотра договора удален
+
       // Маршрут для смет
       GoRoute(
         path: AppRoutes.estimates,
@@ -523,13 +506,10 @@ final routerProvider = Provider<GoRouter>((ref) {
                 reverseTransitionDuration: const Duration(milliseconds: 600),
                 transitionsBuilder:
                     (context, animation, secondaryAnimation, child) {
-                  // Для Container Transform (через Hero) лучше всего подходит
-                  // простой Fade для входящей страницы, чтобы Hero-виджет
-                  // мог беспрепятственно "перелететь" и трансформироваться.
-                  return FadeTransition(
-                    opacity: animation,
-                    child: child,
-                  );
+                  // Возвращаем child без FadeTransition, чтобы фон нового экрана
+                  // сразу перекрывал старый (по требованию пользователя).
+                  // Hero-анимация при этом продолжит работать благодаря длительности перехода.
+                  return child;
                 },
               );
             },
@@ -750,7 +730,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                 builder: (context, ref, child) {
                   // Проверка прав на настройки (можно добавить отдельное право 'procurement.settings')
                   final service = ref.watch(permissionServiceProvider);
-                  if (service.can('procurement', 'update')) { 
+                  if (service.can('procurement', 'update')) {
                     return const ProcurementSettingsScreen();
                   }
                   return _buildAccessDeniedScreen();

@@ -64,7 +64,7 @@ class AppBarWidget extends ConsumerWidget implements PreferredSizeWidget {
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
               color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(32),
               boxShadow: [
                 BoxShadow(
                   color: isDarkMode
@@ -91,7 +91,7 @@ class AppBarWidget extends ConsumerWidget implements PreferredSizeWidget {
               shadowColor: Colors.transparent,
               scrolledUnderElevation: 0,
               shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.all(Radius.circular(12)),
+                borderRadius: BorderRadius.all(Radius.circular(32)),
               ),
               bottom: showSearchField
                   ? PreferredSize(

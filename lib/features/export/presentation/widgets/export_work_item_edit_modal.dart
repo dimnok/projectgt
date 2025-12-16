@@ -308,10 +308,10 @@ class _ExportWorkItemEditModalState
 
       if (quantity <= 0) {
         if (mounted) {
-        SnackBarUtils.showError(context, 'Количество должно быть больше 0');
-        setState(() {
-          _isLoading = false;
-        });
+          SnackBarUtils.showError(context, 'Количество должно быть больше 0');
+          setState(() {
+            _isLoading = false;
+          });
         }
         return;
       }

@@ -35,6 +35,12 @@ _ContractModel _$ContractModelFromJson(Map<String, dynamic> json) =>
       objectName: json['object_name'] as String?,
       status: $enumDecodeNullable(_$ContractStatusEnumMap, json['status']) ??
           ContractStatus.active,
+      contractorLegalName: json['contractor_legal_name'] as String?,
+      contractorPosition: json['contractor_position'] as String?,
+      contractorSigner: json['contractor_signer'] as String?,
+      customerLegalName: json['customer_legal_name'] as String?,
+      customerPosition: json['customer_position'] as String?,
+      customerSigner: json['customer_signer'] as String?,
       createdAt: json['created_at'] == null
           ? null
           : DateTime.parse(json['created_at'] as String),
@@ -64,6 +70,12 @@ Map<String, dynamic> _$ContractModelToJson(_ContractModel instance) =>
       'object_id': instance.objectId,
       'object_name': instance.objectName,
       'status': _$ContractStatusEnumMap[instance.status]!,
+      'contractor_legal_name': instance.contractorLegalName,
+      'contractor_position': instance.contractorPosition,
+      'contractor_signer': instance.contractorSigner,
+      'customer_legal_name': instance.customerLegalName,
+      'customer_position': instance.customerPosition,
+      'customer_signer': instance.customerSigner,
       'created_at': instance.createdAt?.toIso8601String(),
       'updated_at': instance.updatedAt?.toIso8601String(),
     };

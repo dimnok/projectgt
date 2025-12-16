@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/presentation/state/auth_state.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
 import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 import 'package:projectgt/features/home/presentation/widgets/contract_progress_widget.dart';
@@ -117,6 +118,96 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 title: fullGreeting,
                 subtitle: timeBasedSubtitle,
                 hour: hour,
+              ),
+              const SizedBox(height: 24),
+              Wrap(
+                spacing: 12,
+                runSpacing: 8,
+                children: [
+                  FilledButton(
+                    onPressed: () {
+                      AppSnackBar.show(
+                        context: context,
+                        message: 'Снекбар снизу: минимализм',
+                        position: AppSnackBarPosition.bottom,
+                        borderRadius: 22,
+                      );
+                    },
+                    child: const Text('Тест: снизу'),
+                  ),
+                  OutlinedButton(
+                    onPressed: () {
+                      AppSnackBar.show(
+                        context: context,
+                        message: 'Снекбар сверху: минимализм',
+                        position: AppSnackBarPosition.top,
+                        borderRadius: 22,
+                      );
+                    },
+                    child: const Text('Тест: сверху'),
+                  ),
+                  FilledButton.tonal(
+                    onPressed: () {
+                      AppSnackBar.show(
+                        context: context,
+                        message: 'Успех: данные сохранены',
+                        kind: AppSnackBarKind.success,
+                        position: AppSnackBarPosition.bottom,
+                      );
+                    },
+                    child: const Text('Тест: success'),
+                  ),
+                  OutlinedButton(
+                    onPressed: () {
+                      AppSnackBar.show(
+                        context: context,
+                        message: 'Инфо: обновление завершено',
+                        kind: AppSnackBarKind.info,
+                        position: AppSnackBarPosition.bottom,
+                      );
+                    },
+                    child: const Text('Тест: info'),
+                  ),
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor:
+                          Theme.of(context).colorScheme.errorContainer,
+                      foregroundColor:
+                          Theme.of(context).colorScheme.onErrorContainer,
+                    ),
+                    onPressed: () {
+                      AppSnackBar.show(
+                        context: context,
+                        message: 'Ошибка: не удалось сохранить',
+                        kind: AppSnackBarKind.error,
+                        position: AppSnackBarPosition.bottom,
+                      );
+                    },
+                    child: const Text('Тест: error'),
+                  ),
+                  OutlinedButton(
+                    onPressed: () {
+                      AppSnackBar.show(
+                        context: context,
+                        message: 'Предупреждение: проверьте поля',
+                        kind: AppSnackBarKind.warning,
+                        position: AppSnackBarPosition.bottom,
+                      );
+                    },
+                    child: const Text('Тест: warning'),
+                  ),
+                  FilledButton(
+                    onPressed: () {
+                      AppSnackBar.show(
+                        context: context,
+                        message: 'Нейтрально: простой текст',
+                        kind: AppSnackBarKind.neutral,
+                        position: AppSnackBarPosition.bottom,
+                      );
+                    },
+                    child: const Text('Тест: neutral'),
+                  ),
+                ],
               ),
               const SizedBox(height: 24),
 

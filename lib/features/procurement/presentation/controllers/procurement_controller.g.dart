@@ -9,7 +9,11 @@ part of 'procurement_controller.dart';
 String _$procurementControllerHash() =>
     r'037da9f5f7406323fd3e83d2b8f2d9d21b8f9d5f';
 
-/// See also [ProcurementController].
+/// Контроллер для управления списком заявок на закупку.
+///
+/// Отвечает за загрузку и обновление списка заявок.
+///
+/// Copied from [ProcurementController].
 @ProviderFor(ProcurementController)
 final procurementControllerProvider = AutoDisposeAsyncNotifierProvider<
     ProcurementController, List<ProcurementApplication>>.internal(

@@ -7,9 +7,15 @@ part of 'procurement_settings_controller.dart';
 // **************************************************************************
 
 String _$procurementSettingsControllerHash() =>
-    r'a0d352683af72417338aba208a69e4ca15a2d555';
+    r'a257ebb7aefab5a2072420e38791624959016145';
 
-/// See also [ProcurementSettingsController].
+/// Контроллер для управления настройками закупок.
+///
+/// Отвечает за:
+/// - Загрузку списка пользователей и текущей конфигурации согласования.
+/// - Обновление ответственных за этапы согласования.
+///
+/// Copied from [ProcurementSettingsController].
 @ProviderFor(ProcurementSettingsController)
 final procurementSettingsControllerProvider = AutoDisposeAsyncNotifierProvider<
     ProcurementSettingsController, ProcurementSettingsState>.internal(

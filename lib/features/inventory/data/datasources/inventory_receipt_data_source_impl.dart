@@ -8,8 +8,7 @@ import 'package:projectgt/features/inventory/data/models/inventory_item_model.da
 import 'package:projectgt/features/inventory/domain/entities/inventory_item.dart';
 
 /// Реализация [InventoryReceiptDataSource] через Supabase.
-class SupabaseInventoryReceiptDataSource
-    implements InventoryReceiptDataSource {
+class SupabaseInventoryReceiptDataSource implements InventoryReceiptDataSource {
   /// Клиент Supabase для выполнения запросов к базе данных.
   final SupabaseClient client;
 
@@ -31,20 +30,22 @@ class SupabaseInventoryReceiptDataSource
       final itemsCount = items.length;
 
       // Создаём накладную
-      final receiptJson = receipt.copyWith(
-        totalAmount: totalAmount,
-        itemsCount: itemsCount,
-      ).toJson();
+      final receiptJson = receipt
+          .copyWith(
+            totalAmount: totalAmount,
+            itemsCount: itemsCount,
+          )
+          .toJson();
       receiptJson.remove('items'); // Убираем items из JSON
       // Убираем поля с датами, чтобы использовались значения по умолчанию из БД
       receiptJson.remove('created_at');
       receiptJson.remove('updated_at');
 
       final receiptResponse = await client
-        .from('inventory_receipts')
-        .insert(receiptJson)
-        .select('*')
-        .single();
+          .from('inventory_receipts')
+          .insert(receiptJson)
+          .select('*')
+          .single();
 
       final createdReceipt = InventoryReceiptModel.fromJson(receiptResponse);
       final receiptId = createdReceipt.id;
@@ -69,8 +70,10 @@ class SupabaseInventoryReceiptDataSource
       // Создаём ТМЦ из позиций накладной
       final allInventoryItems = <InventoryItemModel>[];
       for (final item in createdItems) {
-        final status = itemStatuses[item.id] ?? InventoryItemStatus.new_; // Получаем статус по id позиции
-        final serviceLifeMonths = itemServiceLives[item.id]; // Получаем срок службы по id позиции
+        final status = itemStatuses[item.id] ??
+            InventoryItemStatus.new_; // Получаем статус по id позиции
+        final serviceLifeMonths =
+            itemServiceLives[item.id]; // Получаем срок службы по id позиции
         final inventoryItems = await createInventoryItemsFromReceiptItem(
           item,
           receiptId,
@@ -87,7 +90,6 @@ class SupabaseInventoryReceiptDataSource
       rethrow;
     }
   }
-
 
   @override
   Future<List<InventoryItemModel>> createInventoryItemsFromReceiptItem(
@@ -106,7 +108,8 @@ class SupabaseInventoryReceiptDataSource
           .maybeSingle();
 
       if (categoryInfoResponse == null) {
-        throw Exception('Категория товара не найдена (id: ${receiptItem.categoryId})');
+        throw Exception(
+            'Категория товара не найдена (id: ${receiptItem.categoryId})');
       }
 
       final serialNumberRequired =
@@ -116,36 +119,36 @@ class SupabaseInventoryReceiptDataSource
 
       // Проверяем обязательность серийного номера
       if (serialNumberRequired && receiptItem.serialNumber == null) {
-          throw Exception(
-            'Серийный номер обязателен для категории "${receiptItem.name}"',
-          );
-        }
+        throw Exception(
+          'Серийный номер обязателен для категории "${receiptItem.name}"',
+        );
+      }
 
       // Создаём ОДНУ запись с указанным количеством
       final item = InventoryItemModel(
-            id: const Uuid().v4(),
-            name: receiptItem.name,
-            categoryId: receiptItem.categoryId,
+        id: const Uuid().v4(),
+        name: receiptItem.name,
+        categoryId: receiptItem.categoryId,
         serialNumber: receiptItem.serialNumber,
-            unit: receiptItem.unit,
+        unit: receiptItem.unit,
         quantity: quantity,
-            photoUrl: receiptItem.photoUrl,
-            status: InventoryItemModel.statusToString(status),
-            condition: 'new',
-            locationType: 'warehouse',
-            locationId: null,
-            responsibleId: null,
-            receiptId: receiptId,
-            receiptItemId: receiptItem.id,
-            price: receiptItem.price,
-            purchaseDate: receiptDate,
-            serviceLifeMonths: serviceLifeMonths,
-            notes: receiptItem.notes,
-        );
+        photoUrl: receiptItem.photoUrl,
+        status: InventoryItemModel.statusToString(status),
+        condition: 'new',
+        locationType: 'warehouse',
+        locationId: null,
+        responsibleId: null,
+        receiptId: receiptId,
+        receiptItemId: receiptItem.id,
+        price: receiptItem.price,
+        purchaseDate: receiptDate,
+        serviceLifeMonths: serviceLifeMonths,
+        notes: receiptItem.notes,
+      );
 
       // Вставляем ТМЦ в БД
       final itemJson = item.toJson();
-          // Убираем created_at и updated_at, чтобы использовались значения по умолчанию из БД
+      // Убираем created_at и updated_at, чтобы использовались значения по умолчанию из БД
       itemJson.remove('created_at');
       itemJson.remove('updated_at');
       await client.from('inventory_items').insert(itemJson);
@@ -157,4 +160,3 @@ class SupabaseInventoryReceiptDataSource
     }
   }
 }
-

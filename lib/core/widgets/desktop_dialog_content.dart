@@ -58,6 +58,10 @@ class DesktopDialogContent extends StatelessWidget {
   /// Если не передан, используется Navigator.of(context).pop().
   final VoidCallback? onClose;
 
+  /// Определяет, должен ли контент быть обернут в скролл.
+  /// По умолчанию true. Если false, скролл должен быть реализован внутри child.
+  final bool scrollable;
+
   /// Создаёт содержимое диалогового окна для десктопа.
   const DesktopDialogContent({
     super.key,
@@ -68,6 +72,7 @@ class DesktopDialogContent extends StatelessWidget {
     this.height,
     this.padding = const EdgeInsets.all(24),
     this.onClose,
+    this.scrollable = true,
   });
 
   @override
@@ -135,16 +140,21 @@ class DesktopDialogContent extends StatelessWidget {
                   const Divider(height: 1),
 
                   // Скроллящийся контент
-                  Flexible(
-                    child: SingleChildScrollView(
-                      padding: padding,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          child,
-                        ],
-                      ),
-                    ),
+                  Expanded(
+                    child: scrollable
+                        ? SingleChildScrollView(
+                            padding: padding,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                child,
+                              ],
+                            ),
+                          )
+                        : Padding(
+                            padding: padding,
+                            child: child,
+                          ),
                   ),
 
                   if (footer != null) ...[

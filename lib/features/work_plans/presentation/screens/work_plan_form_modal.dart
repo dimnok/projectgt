@@ -566,7 +566,7 @@ class _WorkPlanFormModalState extends ConsumerState<WorkPlanFormModal> {
         final profileState = ref.watch(currentUserProfileProvider);
         final allowedObjectIds =
             profileState.profile?.objectIds ?? const <String>[];
-        
+
         // Если пользователю назначены конкретные объекты, ограничиваем выбор ими.
         // Иначе показываем все доступные (прошедшие через RLS).
         final availableObjects = allowedObjectIds.isNotEmpty

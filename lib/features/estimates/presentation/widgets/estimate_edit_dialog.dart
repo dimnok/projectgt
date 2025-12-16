@@ -9,6 +9,7 @@ import '../../../../core/di/providers.dart';
 import '../../../../core/widgets/mobile_bottom_sheet_content.dart';
 import '../../../../core/widgets/desktop_dialog_content.dart';
 import '../../../../core/widgets/gt_buttons.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 
 /// Диалоговое окно для создания или редактирования позиции сметы.
 class EstimateEditDialog extends ConsumerStatefulWidget {
@@ -18,18 +19,29 @@ class EstimateEditDialog extends ConsumerStatefulWidget {
   /// Название сметы, к которой относится позиция.
   final String? estimateTitle;
 
+  /// Идентификатор объекта (для контекста новой позиции).
+  final String? objectId;
+
+  /// Идентификатор договора (для контекста новой позиции).
+  final String? contractId;
+
   /// Создаёт диалог редактирования позиции.
   const EstimateEditDialog({
     super.key,
     this.estimate,
     this.estimateTitle,
+    this.objectId,
+    this.contractId,
   });
 
   /// Показывает диалог редактирования/создания позиции.
   ///
   /// Адаптируется под размер экрана (Dialog для Desktop, BottomSheet для Mobile).
   static void show(BuildContext context,
-      {Estimate? estimate, String? estimateTitle}) {
+      {Estimate? estimate,
+      String? estimateTitle,
+      String? objectId,
+      String? contractId}) {
     final isLargeScreen = MediaQuery.of(context).size.width > 900;
 
     if (isLargeScreen) {
@@ -41,6 +53,8 @@ class EstimateEditDialog extends ConsumerStatefulWidget {
           child: EstimateEditDialog(
             estimate: estimate,
             estimateTitle: estimateTitle,
+            objectId: objectId,
+            contractId: contractId,
           ),
         ),
       );
@@ -53,6 +67,8 @@ class EstimateEditDialog extends ConsumerStatefulWidget {
         builder: (context) => EstimateEditDialog(
           estimate: estimate,
           estimateTitle: estimateTitle,
+          objectId: objectId,
+          contractId: contractId,
         ),
       );
     }
@@ -164,10 +180,10 @@ class _EstimateEditDialogState extends ConsumerState<EstimateEditDialog> {
       final price =
           double.tryParse(_priceController.text.replaceAll(',', '.')) ?? 0.0;
 
-      String? objectId = widget.estimate?.objectId;
-      String? contractId = widget.estimate?.contractId;
+      String? objectId = widget.estimate?.objectId ?? widget.objectId;
+      String? contractId = widget.estimate?.contractId ?? widget.contractId;
 
-      if (!isEditing) {
+      if (!isEditing && objectId == null) {
         final state = ref.read(estimateNotifierProvider);
         final currentItems = state.estimates
             .where((e) => e.estimateTitle == widget.estimateTitle)
@@ -196,14 +212,51 @@ class _EstimateEditDialogState extends ConsumerState<EstimateEditDialog> {
       );
 
       final notifier = ref.read(estimateNotifierProvider.notifier);
-      if (isEditing) {
-        await notifier.updateEstimate(updatedEstimate);
-      } else {
-        await notifier.addEstimate(updatedEstimate);
-      }
 
-      if (!mounted) return;
-      context.pop();
+      try {
+        if (isEditing) {
+          await notifier.updateEstimate(updatedEstimate);
+
+          if (!mounted) return;
+
+          // Проверяем ошибку, так как updateEstimate не пробрасывает её
+          final error = ref.read(estimateNotifierProvider).error;
+          if (error != null) {
+            AppSnackBar.show(
+              context: context,
+              message: 'Ошибка обновления: $error',
+              kind: AppSnackBarKind.error,
+            );
+            return;
+          }
+
+          AppSnackBar.show(
+            context: context,
+            message: 'Позиция успешно обновлена',
+            kind: AppSnackBarKind.success,
+          );
+        } else {
+          await notifier.addEstimate(updatedEstimate);
+
+          if (!mounted) return;
+
+          AppSnackBar.show(
+            context: context,
+            message: 'Позиция успешно добавлена',
+            kind: AppSnackBarKind.success,
+          );
+        }
+
+        if (!mounted) return;
+        context.pop();
+      } catch (e) {
+        if (!mounted) return;
+        AppSnackBar.show(
+          context: context,
+          message: 'Ошибка сохранения: $e',
+          kind: AppSnackBarKind.error,
+        );
+      }
     }
   }
 

@@ -29,4 +29,3 @@ abstract class InventoryReceiptItemModel with _$InventoryReceiptItemModel {
   factory InventoryReceiptItemModel.fromJson(Map<String, dynamic> json) =>
       _$InventoryReceiptItemModelFromJson(json);
 }
-

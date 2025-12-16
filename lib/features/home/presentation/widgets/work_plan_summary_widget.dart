@@ -118,6 +118,7 @@ final _actualWorkSumProvider = FutureProvider.autoDispose
 ///
 /// Отображает агрегированную информацию по ближайшему плану работ.
 class WorkPlanSummaryWidget extends ConsumerWidget {
+  /// Создает виджет карточки плана работ.
   const WorkPlanSummaryWidget({super.key});
 
   @override

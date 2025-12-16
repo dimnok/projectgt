@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:projectgt/core/utils/global_keys.dart';
 
 /// Утилиты для отображения единообразных SnackBar уведомлений в приложении.
 ///
@@ -231,6 +232,41 @@ class SnackBarUtils {
     });
   }
 
+  /// Показывает ошибку поверх всех модальных окон в верхней части экрана.
+  static void showErrorOverlayTop(BuildContext context, String message) {
+    final overlay = Overlay.of(context, rootOverlay: true);
+    final overlayEntry = _createOverlayEntryTop(
+      message: message,
+      backgroundColor: Colors.red[600],
+      icon: Icons.error_outline,
+      context: context,
+      duration: const Duration(milliseconds: 3000),
+    );
+
+    overlay.insert(overlayEntry);
+
+    Future.delayed(const Duration(milliseconds: 3000), () {
+      overlayEntry.remove();
+    });
+  }
+
+  /// Показывает успех поверх всех модальных окон в верхней части экрана.
+  static void showSuccessOverlayTop(BuildContext context, String message) {
+    final overlay = Overlay.of(context, rootOverlay: true);
+    final overlayEntry = _createOverlayEntryTop(
+      message: message,
+      backgroundColor: Colors.green[600],
+      icon: Icons.check_circle_outline,
+      context: context,
+    );
+
+    overlay.insert(overlayEntry);
+
+    Future.delayed(const Duration(milliseconds: 2000), () {
+      overlayEntry.remove();
+    });
+  }
+
   /// Преобразует техническое сообщение об ошибке аутентификации в человеко-читаемое.
   ///
   /// [error] — строка с ошибкой от backend/Supabase.
@@ -268,7 +304,11 @@ class SnackBarUtils {
     // Для больших экранов используем width, для мобильных - margin
     final isLargeScreen = screenWidth > 600;
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    // Если есть корневой messenger, используем его, чтобы избежать вложенных Hero/SnackBar.
+    final rootMessenger = rootScaffoldMessengerKey.currentState;
+    final messenger = rootMessenger ?? ScaffoldMessenger.maybeOf(context);
+
+    messenger?.showSnackBar(
       SnackBar(
         content: Row(
           mainAxisSize: MainAxisSize.min,
@@ -347,6 +387,74 @@ class SnackBarUtils {
             decoration: BoxDecoration(
               color: backgroundColor ?? theme.colorScheme.primary,
               borderRadius: BorderRadius.circular(12.0),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (icon != null) ...[
+                  Icon(
+                    icon,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 12),
+                ],
+                Expanded(
+                  child: Text(
+                    message,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Создает OverlayEntry, закрепленный сверху экрана.
+  static OverlayEntry _createOverlayEntryTop({
+    required String message,
+    required BuildContext context,
+    Color? backgroundColor,
+    IconData? icon,
+    Duration duration = const Duration(milliseconds: 2000),
+  }) {
+    final theme = Theme.of(context);
+    final screenWidth = MediaQuery.of(context).size.width;
+    // Берём padding из корневого view, чтобы не зависеть от контекста модалки.
+    final view = View.of(context);
+    final topInset = view.viewPadding.top / view.devicePixelRatio;
+    final isLargeScreen = screenWidth > 600;
+
+    return OverlayEntry(
+      builder: (context) => Positioned(
+        top: topInset + 12.0, // ниже статус-бара
+        left: isLargeScreen ? (screenWidth - 400) / 2 : 16.0,
+        right: isLargeScreen ? (screenWidth - 400) / 2 : 16.0,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            width: isLargeScreen ? 400.0 : null,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 12.0,
+            ),
+            decoration: BoxDecoration(
+              color: backgroundColor ?? theme.colorScheme.primary,
+              borderRadius: BorderRadius.circular(12.0),
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 10,
+                  offset: Offset(0, 4),
+                ),
+              ],
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,

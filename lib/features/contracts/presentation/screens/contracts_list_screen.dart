@@ -10,10 +10,11 @@ import 'package:projectgt/presentation/widgets/app_badge.dart';
 import 'contract_form_screen.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:projectgt/features/contracts/presentation/widgets/contract_costs_info.dart';
 import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
+
+import 'package:projectgt/features/ks2/presentation/widgets/ks2_acts_sheet.dart';
 
 /// Экран списка договоров с поддержкой поиска, фильтрации и адаптивного отображения.
 ///
@@ -288,7 +289,7 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                                             });
                                           }
                                         },
-                                        onTap: () {
+                                        onEdit: () {
                                           if (_isMobileDevice()) {
                                             context.pushNamed('contract-form',
                                                 extra: contract);
@@ -299,52 +300,6 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                                                         .size
                                                         .width >
                                                     800;
-
-                                            Widget modalContent = Container(
-                                              width: double.infinity,
-                                              clipBehavior: Clip.antiAlias,
-                                              decoration: BoxDecoration(
-                                                color:
-                                                    theme.colorScheme.surface,
-                                                borderRadius: const BorderRadius
-                                                    .vertical(
-                                                    top: Radius.circular(28)),
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: Colors.black
-                                                        .withValues(alpha: 0.1),
-                                                    blurRadius: 10,
-                                                    offset: const Offset(0, -5),
-                                                  ),
-                                                ],
-                                              ),
-                                              child: IntrinsicHeight(
-                                                child: Padding(
-                                                  padding: EdgeInsets.only(
-                                                    bottom:
-                                                        MediaQuery.of(context)
-                                                            .viewInsets
-                                                            .bottom,
-                                                  ),
-                                                  child: ContractFormModal(
-                                                      contract: contract),
-                                                ),
-                                              ),
-                                            );
-
-                                            if (isDesktop) {
-                                              modalContent = Align(
-                                                alignment:
-                                                    Alignment.bottomCenter,
-                                                child: SizedBox(
-                                                  width: MediaQuery.of(context)
-                                                          .size
-                                                          .width *
-                                                      0.5,
-                                                  child: modalContent,
-                                                ),
-                                              );
-                                            }
 
                                             showModalBottomSheet(
                                               context: context,
@@ -362,8 +317,60 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                                                             .padding
                                                             .top,
                                               ),
-                                              builder: (context) =>
-                                                  modalContent,
+                                              builder: (context) {
+                                                Widget modalContent = Container(
+                                                  width: double.infinity,
+                                                  clipBehavior: Clip.antiAlias,
+                                                  decoration: BoxDecoration(
+                                                    color: theme
+                                                        .colorScheme.surface,
+                                                    borderRadius:
+                                                        const BorderRadius
+                                                            .vertical(
+                                                            top:
+                                                                Radius.circular(
+                                                                    28)),
+                                                    boxShadow: [
+                                                      BoxShadow(
+                                                        color: Colors.black
+                                                            .withValues(
+                                                                alpha: 0.1),
+                                                        blurRadius: 10,
+                                                        offset:
+                                                            const Offset(0, -5),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  child: IntrinsicHeight(
+                                                    child: Padding(
+                                                      padding: EdgeInsets.only(
+                                                        bottom: MediaQuery.of(
+                                                                context)
+                                                            .viewInsets
+                                                            .bottom,
+                                                      ),
+                                                      child: ContractFormModal(
+                                                          contract: contract),
+                                                    ),
+                                                  ),
+                                                );
+
+                                                if (isDesktop) {
+                                                  modalContent = Align(
+                                                    alignment:
+                                                        Alignment.bottomCenter,
+                                                    child: SizedBox(
+                                                      width:
+                                                          MediaQuery.of(context)
+                                                                  .size
+                                                                  .width *
+                                                              0.5,
+                                                      child: modalContent,
+                                                    ),
+                                                  );
+                                                }
+                                                return modalContent;
+                                              },
                                             );
                                           }
                                         },
@@ -407,7 +414,7 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                                             });
                                           }
                                         },
-                                        onTap: () {
+                                        onEdit: () {
                                           if (_isMobileDevice()) {
                                             context.pushNamed('contract-form',
                                                 extra: contract);
@@ -418,52 +425,6 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                                                         .size
                                                         .width >
                                                     800;
-
-                                            Widget modalContent = Container(
-                                              width: double.infinity,
-                                              clipBehavior: Clip.antiAlias,
-                                              decoration: BoxDecoration(
-                                                color:
-                                                    theme.colorScheme.surface,
-                                                borderRadius: const BorderRadius
-                                                    .vertical(
-                                                    top: Radius.circular(28)),
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: Colors.black
-                                                        .withValues(alpha: 0.1),
-                                                    blurRadius: 10,
-                                                    offset: const Offset(0, -5),
-                                                  ),
-                                                ],
-                                              ),
-                                              child: IntrinsicHeight(
-                                                child: Padding(
-                                                  padding: EdgeInsets.only(
-                                                    bottom:
-                                                        MediaQuery.of(context)
-                                                            .viewInsets
-                                                            .bottom,
-                                                  ),
-                                                  child: ContractFormModal(
-                                                      contract: contract),
-                                                ),
-                                              ),
-                                            );
-
-                                            if (isDesktop) {
-                                              modalContent = Align(
-                                                alignment:
-                                                    Alignment.bottomCenter,
-                                                child: SizedBox(
-                                                  width: MediaQuery.of(context)
-                                                          .size
-                                                          .width *
-                                                      0.5,
-                                                  child: modalContent,
-                                                ),
-                                              );
-                                            }
 
                                             showModalBottomSheet(
                                               context: context,
@@ -481,8 +442,60 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                                                             .padding
                                                             .top,
                                               ),
-                                              builder: (context) =>
-                                                  modalContent,
+                                              builder: (context) {
+                                                Widget modalContent = Container(
+                                                  width: double.infinity,
+                                                  clipBehavior: Clip.antiAlias,
+                                                  decoration: BoxDecoration(
+                                                    color: theme
+                                                        .colorScheme.surface,
+                                                    borderRadius:
+                                                        const BorderRadius
+                                                            .vertical(
+                                                            top:
+                                                                Radius.circular(
+                                                                    28)),
+                                                    boxShadow: [
+                                                      BoxShadow(
+                                                        color: Colors.black
+                                                            .withValues(
+                                                                alpha: 0.1),
+                                                        blurRadius: 10,
+                                                        offset:
+                                                            const Offset(0, -5),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  child: IntrinsicHeight(
+                                                    child: Padding(
+                                                      padding: EdgeInsets.only(
+                                                        bottom: MediaQuery.of(
+                                                                context)
+                                                            .viewInsets
+                                                            .bottom,
+                                                      ),
+                                                      child: ContractFormModal(
+                                                          contract: contract),
+                                                    ),
+                                                  ),
+                                                );
+
+                                                if (isDesktop) {
+                                                  modalContent = Align(
+                                                    alignment:
+                                                        Alignment.bottomCenter,
+                                                    child: SizedBox(
+                                                      width:
+                                                          MediaQuery.of(context)
+                                                                  .size
+                                                                  .width *
+                                                              0.5,
+                                                      child: modalContent,
+                                                    ),
+                                                  );
+                                                }
+                                                return modalContent;
+                                              },
                                             );
                                           }
                                         },
@@ -499,14 +512,14 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
 
 class _ContractRowItem extends ConsumerStatefulWidget {
   final Contract contract;
-  final VoidCallback onTap;
+  final VoidCallback onEdit;
   final bool isExpanded;
   final Function(bool) onExpandedChanged;
 
   const _ContractRowItem({
     super.key,
     required this.contract,
-    required this.onTap,
+    required this.onEdit,
     required this.isExpanded,
     required this.onExpandedChanged,
   });
@@ -567,35 +580,23 @@ class _ContractRowItemState extends ConsumerState<_ContractRowItem> {
 
     if (difference < 0) {
       // Срок истёк: красный треугольник с восклицательным знаком
-      icon = Tooltip(
+      icon = const Tooltip(
         message: 'Срок действия истёк',
-        child: const Padding(
+        child: Padding(
           padding: EdgeInsets.only(right: 8.0),
           child:
               Icon(Icons.report_problem_rounded, color: Colors.red, size: 20),
-        )
-            .animate(onPlay: (controller) => controller.repeat(reverse: true))
-            .fade(duration: 600.ms, begin: 0.5, end: 1.0)
-            .scale(
-                duration: 600.ms,
-                begin: const Offset(1.0, 1.0),
-                end: const Offset(1.2, 1.2)),
+        ),
       );
     } else if (difference <= 30) {
       // Осталось 30 дней или меньше: жёлтый треугольник с восклицательным знаком
-      icon = Tooltip(
+      icon = const Tooltip(
         message: 'Срок действия истекает',
-        child: const Padding(
+        child: Padding(
           padding: EdgeInsets.only(right: 8.0),
           child:
               Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 20),
-        )
-            .animate(onPlay: (controller) => controller.repeat(reverse: true))
-            .fade(duration: 600.ms, begin: 0.5, end: 1.0)
-            .scale(
-                duration: 600.ms,
-                begin: const Offset(1.0, 1.0),
-                end: const Offset(1.2, 1.2)),
+        ),
       );
     }
     return icon;
@@ -651,7 +652,7 @@ class _ContractRowItemState extends ConsumerState<_ContractRowItem> {
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: widget.onTap,
+            onTap: widget.onEdit,
             borderRadius: BorderRadius.circular(16),
             child: Padding(
               padding: const EdgeInsets.all(16.0),
@@ -977,9 +978,27 @@ class _ContractRowItemState extends ConsumerState<_ContractRowItem> {
                           children: [
                             PermissionGuard(
                               module: 'contracts',
+                              permission: 'read',
+                              child: IconButton(
+                                onPressed: () {
+                                  showModalBottomSheet(
+                                    context: context,
+                                    isScrollControlled: true,
+                                    useSafeArea: true,
+                                    builder: (context) => Ks2ActsSheet(
+                                        contractId: widget.contract.id),
+                                  );
+                                },
+                                icon: const Icon(Icons.description_outlined),
+                                tooltip: 'Акты КС-2',
+                                color: theme.colorScheme.primary,
+                              ),
+                            ),
+                            PermissionGuard(
+                              module: 'contracts',
                               permission: 'update',
                               child: IconButton(
-                                onPressed: widget.onTap,
+                                onPressed: widget.onEdit,
                                 icon: const Icon(Icons.edit_outlined),
                                 tooltip: 'Редактировать',
                                 color: theme.colorScheme.primary,

@@ -109,86 +109,86 @@ class WorkPlansMobileCards extends ConsumerWidget {
       // Свайп вправо — редактировать
       background: canUpdate
           ? Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.amber.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            const Icon(Icons.edit_outlined, color: Colors.amber),
-            const SizedBox(width: 8),
-            Text(
-              'Редактировать',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: Colors.amber,
-                fontWeight: FontWeight.w600,
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
               ),
-            ),
-          ],
-        ),
+              alignment: Alignment.centerLeft,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  const Icon(Icons.edit_outlined, color: Colors.amber),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Редактировать',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: Colors.amber,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
             )
           : Container(color: Colors.transparent), // Пустой фон если нельзя
       secondaryBackground: canDelete
           ? Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.red.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            const Icon(Icons.delete_outline, color: Colors.red),
-            const SizedBox(width: 8),
-            Text(
-              'Удалить',
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  const Icon(Icons.delete_outline, color: Colors.red),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Удалить',
                     style: theme.textTheme.bodyMedium?.copyWith(
                         color: Colors.red, fontWeight: FontWeight.w600),
-            ),
-          ],
-        ),
+                  ),
+                ],
+              ),
             )
           : Container(color: Colors.transparent),
       confirmDismiss: (direction) async {
         // Свайп вправо: открыть модал редактирования и не удалять
         if (direction == DismissDirection.startToEnd) {
           if (canUpdate) {
-          onEditWorkPlan(workPlan);
+            onEditWorkPlan(workPlan);
           }
           return false;
         }
 
         if (direction == DismissDirection.endToStart && canDelete) {
-        final result = await showCupertinoDialog<bool>(
-          context: context,
-          builder: (ctx) => CupertinoAlertDialog(
-            title: const Text('Удалить план?'),
-            content: const Text('Действие нельзя отменить.'),
-            actions: [
-              CupertinoDialogAction(
-                onPressed: () => Navigator.of(ctx).pop(false),
-                child: const Text('Отмена'),
-              ),
-              CupertinoDialogAction(
-                isDestructiveAction: true,
-                onPressed: () => Navigator.of(ctx).pop(true),
-                child: const Text('Удалить'),
-              ),
-            ],
-          ),
-        );
+          final result = await showCupertinoDialog<bool>(
+            context: context,
+            builder: (ctx) => CupertinoAlertDialog(
+              title: const Text('Удалить план?'),
+              content: const Text('Действие нельзя отменить.'),
+              actions: [
+                CupertinoDialogAction(
+                  onPressed: () => Navigator.of(ctx).pop(false),
+                  child: const Text('Отмена'),
+                ),
+                CupertinoDialogAction(
+                  isDestructiveAction: true,
+                  onPressed: () => Navigator.of(ctx).pop(true),
+                  child: const Text('Удалить'),
+                ),
+              ],
+            ),
+          );
 
-        if (result == true && workPlan.id != null) {
-          await ref
-              .read(workPlanNotifierProvider.notifier)
-              .deleteWorkPlan(workPlan.id!);
-          return true;
+          if (result == true && workPlan.id != null) {
+            await ref
+                .read(workPlanNotifierProvider.notifier)
+                .deleteWorkPlan(workPlan.id!);
+            return true;
           }
         }
         return false;

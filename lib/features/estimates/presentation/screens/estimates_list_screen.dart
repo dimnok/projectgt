@@ -96,6 +96,7 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
         TextCellValue('Объект'),
         TextCellValue('Договор'),
         TextCellValue('Название сметы'),
+        TextCellValue('ID'),
       ]);
 
       final objects = ref.read(objectProvider).objects;
@@ -134,6 +135,7 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
           TextCellValue(objectName),
           TextCellValue(contractNumber),
           TextCellValue(estimate.estimateTitle ?? ''),
+          TextCellValue(estimate.id),
         ]);
       }
 
@@ -177,7 +179,7 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
     }
 
     await notifier.loadEstimates();
-    
+
     if (selectedEstimateFile?.estimateTitle == file.estimateTitle) {
       setState(() {
         selectedEstimateFile = null;
@@ -303,8 +305,7 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
     required bool isSelected,
     required VoidCallback onTap,
   }) {
-    final contract =
-        contracts.firstWhereOrNull((c) => c.id == file.contractId);
+    final contract = contracts.firstWhereOrNull((c) => c.id == file.contractId);
     final object = objects.firstWhereOrNull((o) => o.id == file.objectId);
     final contractNumber = contract?.number ?? '—';
     final objectName = object?.name ?? '—';
@@ -312,7 +313,8 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
 
     return Dismissible(
       key: Key('${file.estimateTitle}_${file.objectId}_${file.contractId}'),
-      direction: canDelete ? DismissDirection.endToStart : DismissDirection.none,
+      direction:
+          canDelete ? DismissDirection.endToStart : DismissDirection.none,
       confirmDismiss: (direction) async {
         return await CupertinoDialogs.showDeleteConfirmDialog<bool>(
           context: context,

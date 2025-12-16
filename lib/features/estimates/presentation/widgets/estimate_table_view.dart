@@ -44,7 +44,7 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
+
     // Используем LayoutBuilder для получения ширины контейнера
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -92,7 +92,8 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
         );
 
         return PlutoGrid(
-          key: ValueKey('estimate_table_${widget.items.length}_${isDark ? 'dark' : 'light'}'),
+          key: ValueKey(
+              'estimate_table_${widget.items.length}_${isDark ? 'dark' : 'light'}'),
           columns: _columns,
           rows: _rows,
           mode: PlutoGridMode.normal,
@@ -107,7 +108,8 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
                     cellTextStyle: cellStyle,
                     columnTextStyle: columnStyle,
                     gridBorderRadius: BorderRadius.circular(12),
-                    gridBorderColor: theme.colorScheme.outline.withValues(alpha: 0.12),
+                    gridBorderColor:
+                        theme.colorScheme.outline.withValues(alpha: 0.12),
                   ),
                 )
               : PlutoGridConfiguration(
@@ -117,7 +119,8 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
                     cellTextStyle: cellStyle,
                     columnTextStyle: columnStyle,
                     gridBorderRadius: BorderRadius.circular(12),
-                    gridBorderColor: theme.colorScheme.outline.withValues(alpha: 0.12),
+                    gridBorderColor:
+                        theme.colorScheme.outline.withValues(alpha: 0.12),
                   ),
                 ),
         );
@@ -126,12 +129,12 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
   }
 
   void _buildTableData(double containerWidth) {
-    final availableWidth = containerWidth; 
-    
+    final availableWidth = containerWidth;
+
     final nameColumnWidth = availableWidth * 0.4;
     const otherColumnCount = 9;
     final otherColumnWidth = (availableWidth * 0.6) / otherColumnCount;
-    
+
     final moneyFormat = NumberFormat('###,##0.00', 'ru_RU');
 
     _columns = [
@@ -159,9 +162,10 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
           return Text(
             rendererContext.cell.value?.toString() ?? '',
             textAlign: TextAlign.center,
-            style: Theme.of(rendererContext.stateManager.gridKey.currentContext!)
-                .textTheme
-                .bodyMedium,
+            style:
+                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
+                    .textTheme
+                    .bodyMedium,
           );
         },
       ),
@@ -177,9 +181,10 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
             softWrap: true,
             overflow: TextOverflow.visible,
             maxLines: null,
-            style: Theme.of(rendererContext.stateManager.gridKey.currentContext!)
-                .textTheme
-                .bodyMedium,
+            style:
+                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
+                    .textTheme
+                    .bodyMedium,
           );
         },
       ),
@@ -193,9 +198,10 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
           return Text(
             rendererContext.cell.value?.toString() ?? '',
             textAlign: TextAlign.center,
-            style: Theme.of(rendererContext.stateManager.gridKey.currentContext!)
-                .textTheme
-                .bodyMedium,
+            style:
+                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
+                    .textTheme
+                    .bodyMedium,
           );
         },
       ),
@@ -209,9 +215,10 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
           return Text(
             rendererContext.cell.value?.toString() ?? '',
             textAlign: TextAlign.center,
-            style: Theme.of(rendererContext.stateManager.gridKey.currentContext!)
-                .textTheme
-                .bodyMedium,
+            style:
+                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
+                    .textTheme
+                    .bodyMedium,
           );
         },
       ),
@@ -225,9 +232,10 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
           return Text(
             rendererContext.cell.value?.toString() ?? '',
             textAlign: TextAlign.center,
-            style: Theme.of(rendererContext.stateManager.gridKey.currentContext!)
-                .textTheme
-                .bodyMedium,
+            style:
+                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
+                    .textTheme
+                    .bodyMedium,
           );
         },
       ),
@@ -241,9 +249,10 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
           return Text(
             rendererContext.cell.value?.toString() ?? '',
             textAlign: TextAlign.center,
-            style: Theme.of(rendererContext.stateManager.gridKey.currentContext!)
-                .textTheme
-                .bodyMedium,
+            style:
+                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
+                    .textTheme
+                    .bodyMedium,
           );
         },
       ),
@@ -261,12 +270,13 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
           return Text(
             formatted,
             textAlign: TextAlign.right,
-            style: Theme.of(rendererContext.stateManager.gridKey.currentContext!)
-                .textTheme
-                .bodyMedium
-                ?.copyWith(
-                  color: Colors.green,
-                ),
+            style:
+                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(
+                      color: Colors.green,
+                    ),
           );
         },
       ),
@@ -284,13 +294,14 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
           return Text(
             formatted,
             textAlign: TextAlign.right,
-            style: Theme.of(rendererContext.stateManager.gridKey.currentContext!)
-                .textTheme
-                .bodyMedium
-                ?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green,
-                ),
+            style:
+                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green,
+                    ),
           );
         },
       ),
@@ -321,20 +332,22 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
       ),
     ];
 
-    _rows = widget.items.map((e) => PlutoRow(cells: {
-      'id': PlutoCell(value: e.id),
-      'number': PlutoCell(value: e.number),
-      'name': PlutoCell(value: e.name),
-      'system': PlutoCell(value: e.system),
-      'subsystem': PlutoCell(value: e.subsystem),
-      'article': PlutoCell(value: e.article),
-      'manufacturer': PlutoCell(value: e.manufacturer),
-      'unit': PlutoCell(value: e.unit),
-      'quantity': PlutoCell(value: e.quantity),
-      'price': PlutoCell(value: e.price),
-      'total': PlutoCell(value: e.total),
-      'actions': PlutoCell(value: ''),
-    })).toList();
+    _rows = widget.items
+        .map((e) => PlutoRow(cells: {
+              'id': PlutoCell(value: e.id),
+              'number': PlutoCell(value: e.number),
+              'name': PlutoCell(value: e.name),
+              'system': PlutoCell(value: e.system),
+              'subsystem': PlutoCell(value: e.subsystem),
+              'article': PlutoCell(value: e.article),
+              'manufacturer': PlutoCell(value: e.manufacturer),
+              'unit': PlutoCell(value: e.unit),
+              'quantity': PlutoCell(value: e.quantity),
+              'price': PlutoCell(value: e.price),
+              'total': PlutoCell(value: e.total),
+              'actions': PlutoCell(value: ''),
+            }))
+        .toList();
   }
 
   void _showActionMenu(

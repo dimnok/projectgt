@@ -89,6 +89,7 @@ class EstimateNotifier extends StateNotifier<EstimateState> {
       await loadEstimates();
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
+      rethrow;
     }
   }
 

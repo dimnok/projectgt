@@ -38,24 +38,24 @@ class PayrollTabBonuses extends StatelessWidget {
                 child: PermissionGuard(
                   module: 'payroll',
                   permission: 'create',
-                child: FloatingActionButton(
-                  heroTag: 'addPayrollBonus',
-                  onPressed: () {
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      constraints: BoxConstraints(
-                        maxHeight: MediaQuery.of(context).size.height -
-                            MediaQuery.of(context).padding.top -
-                            kToolbarHeight,
-                      ),
-                      builder: (ctx) => const PayrollTransactionFormModal(
-                        transactionType: PayrollTransactionType.bonus,
-                      ),
-                    );
-                  },
-                  child: const Icon(Icons.add),
+                  child: FloatingActionButton(
+                    heroTag: 'addPayrollBonus',
+                    onPressed: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        constraints: BoxConstraints(
+                          maxHeight: MediaQuery.of(context).size.height -
+                              MediaQuery.of(context).padding.top -
+                              kToolbarHeight,
+                        ),
+                        builder: (ctx) => const PayrollTransactionFormModal(
+                          transactionType: PayrollTransactionType.bonus,
+                        ),
+                      );
+                    },
+                    child: const Icon(Icons.add),
                   ),
                 ),
               ),

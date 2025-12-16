@@ -140,10 +140,13 @@ class _InventoryCategoriesReferenceScreenState
                             bottom: BorderSide(color: dividerColor, width: 1),
                             left: BorderSide.none,
                             right: BorderSide.none,
-                            horizontalInside: BorderSide(color: dividerColor, width: 1),
-                            verticalInside: BorderSide(color: dividerColor, width: 1),
+                            horizontalInside:
+                                BorderSide(color: dividerColor, width: 1),
+                            verticalInside:
+                                BorderSide(color: dividerColor, width: 1),
                           ),
-                          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                          defaultVerticalAlignment:
+                              TableCellVerticalAlignment.middle,
                           columnWidths: const <int, TableColumnWidth>{
                             0: FlexColumnWidth(2),
                             1: FlexColumnWidth(1.5),
@@ -152,90 +155,97 @@ class _InventoryCategoriesReferenceScreenState
                             4: FlexColumnWidth(1),
                             5: FlexColumnWidth(2.5),
                           },
-                        children: [
-                          // Заголовок
-                          TableRow(
-                            decoration: BoxDecoration(color: headerBackgroundColor),
-                            children: [
-                              _buildHeaderCell(
-                                theme,
-                                'Название',
-                                TextAlign.left,
-                              ),
-                              _buildHeaderCell(
-                                theme,
-                                'Префикс',
-                                TextAlign.center,
-                              ),
-                              _buildHeaderCell(
-                                theme,
-                                'Серийный\nномер',
-                                TextAlign.center,
-                              ),
-                              _buildHeaderCell(
-                                theme,
-                                'Срок службы\nобязателен',
-                                TextAlign.center,
-                              ),
-                              _buildHeaderCell(
-                                theme,
-                                'Срок службы\n(мес.)',
-                                TextAlign.center,
-                              ),
-                              _buildHeaderCell(
-                                theme,
-                                'Описание',
-                                TextAlign.left,
-                              ),
-                            ],
-                          ),
-                          // Строки данных
-                          for (int i = 0; i < categories.length; i++)
+                          children: [
+                            // Заголовок
                             TableRow(
-                              decoration: BoxDecoration(
-                                color: i % 2 == 0 ? rowBackgroundColor : alternateRowColor,
-                              ),
+                              decoration:
+                                  BoxDecoration(color: headerBackgroundColor),
                               children: [
-                                _buildDataCell(
+                                _buildHeaderCell(
                                   theme,
-                                  categories[i]['name'] as String? ?? 'Без названия',
+                                  'Название',
                                   TextAlign.left,
                                 ),
-                                _buildDataCell(
+                                _buildHeaderCell(
                                   theme,
-                                  categories[i]['prefix'] as String? ?? '—',
+                                  'Префикс',
                                   TextAlign.center,
                                 ),
-                                _buildDataCell(
+                                _buildHeaderCell(
                                   theme,
-                                  (categories[i]['serial_number_required'] == true)
-                                      ? 'Да'
-                                      : 'Нет',
+                                  'Серийный\nномер',
                                   TextAlign.center,
                                 ),
-                                _buildDataCell(
+                                _buildHeaderCell(
                                   theme,
-                                  (categories[i]['service_life_required'] == true)
-                                      ? 'Да'
-                                      : 'Нет',
+                                  'Срок службы\nобязателен',
                                   TextAlign.center,
                                 ),
-                                _buildDataCell(
+                                _buildHeaderCell(
                                   theme,
-                                  categories[i]['service_life_months'] != null
-                                      ? '${categories[i]['service_life_months']}'
-                                      : '—',
+                                  'Срок службы\n(мес.)',
                                   TextAlign.center,
                                 ),
-                                _buildDataCell(
+                                _buildHeaderCell(
                                   theme,
-                                  categories[i]['description'] as String? ?? '—',
+                                  'Описание',
                                   TextAlign.left,
                                 ),
                               ],
                             ),
-                        ],
-                      ),
+                            // Строки данных
+                            for (int i = 0; i < categories.length; i++)
+                              TableRow(
+                                decoration: BoxDecoration(
+                                  color: i % 2 == 0
+                                      ? rowBackgroundColor
+                                      : alternateRowColor,
+                                ),
+                                children: [
+                                  _buildDataCell(
+                                    theme,
+                                    categories[i]['name'] as String? ??
+                                        'Без названия',
+                                    TextAlign.left,
+                                  ),
+                                  _buildDataCell(
+                                    theme,
+                                    categories[i]['prefix'] as String? ?? '—',
+                                    TextAlign.center,
+                                  ),
+                                  _buildDataCell(
+                                    theme,
+                                    (categories[i]['serial_number_required'] ==
+                                            true)
+                                        ? 'Да'
+                                        : 'Нет',
+                                    TextAlign.center,
+                                  ),
+                                  _buildDataCell(
+                                    theme,
+                                    (categories[i]['service_life_required'] ==
+                                            true)
+                                        ? 'Да'
+                                        : 'Нет',
+                                    TextAlign.center,
+                                  ),
+                                  _buildDataCell(
+                                    theme,
+                                    categories[i]['service_life_months'] != null
+                                        ? '${categories[i]['service_life_months']}'
+                                        : '—',
+                                    TextAlign.center,
+                                  ),
+                                  _buildDataCell(
+                                    theme,
+                                    categories[i]['description'] as String? ??
+                                        '—',
+                                    TextAlign.left,
+                                  ),
+                                ],
+                              ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -298,4 +308,3 @@ class _InventoryCategoriesReferenceScreenState
     );
   }
 }
-

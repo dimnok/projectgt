@@ -146,9 +146,7 @@ class ModalUtils {
     if (isDesktop) {
       return showDialog(
         context: context,
-        builder: (context) => const Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: EdgeInsets.all(24),
+        builder: (context) => const Center(
           child: WorkFormScreen(),
         ),
       );
@@ -195,44 +193,18 @@ class ModalUtils {
     required String system,
     required String subsystem,
   }) {
-    final theme = Theme.of(context);
     final isDesktop = ResponsiveUtils.isDesktop(context);
 
-    Widget modalContent = Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 10,
-            offset: const Offset(0, -5),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: Wrap(
-          children: [
-            NewMaterialModal(
-              objectId: objectId,
-              system: system,
-              subsystem: subsystem,
-            ),
-          ],
-        ),
-      ),
-    );
-
     if (isDesktop) {
-      modalContent = Align(
-        alignment: Alignment.bottomCenter,
-        child: SizedBox(
-          width: MediaQuery.of(context).size.width * 0.5,
-          child: modalContent,
+      return showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => Center(
+          child: NewMaterialModal(
+            objectId: objectId,
+            system: system,
+            subsystem: subsystem,
+          ),
         ),
       );
     }
@@ -249,7 +221,11 @@ class ModalUtils {
         maxHeight: MediaQuery.of(context).size.height -
             MediaQuery.of(context).padding.top,
       ),
-      builder: (context) => modalContent,
+      builder: (sheetContext) => NewMaterialModal(
+        objectId: objectId,
+        system: system,
+        subsystem: subsystem,
+      ),
     );
   }
 

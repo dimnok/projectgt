@@ -229,56 +229,56 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
               module: 'objects',
               permission: 'update',
               child: IconButton(
-              icon: const Icon(Icons.edit, color: Colors.amber),
-              tooltip: 'Редактировать',
-              onPressed: () => _openObjectForm(object: selectedObject),
-            ),
+                icon: const Icon(Icons.edit, color: Colors.amber),
+                tooltip: 'Редактировать',
+                onPressed: () => _openObjectForm(object: selectedObject),
+              ),
             ),
             PermissionGuard(
               module: 'objects',
               permission: 'delete',
               child: IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
-              tooltip: 'Удалить',
-              onPressed: () async {
-                if (selectedObject == null) return;
-                final ctx = context;
-                final confirmed = await showDialog<bool>(
-                  context: ctx,
-                  builder: (ctx2) => AlertDialog(
-                    title: const Text('Удалить объект?'),
-                    content: const Text(
-                        'Вы уверены, что хотите удалить этот объект?'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(ctx2).pop(false),
-                        child: const Text('Отмена'),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.of(ctx2).pop(true),
-                        child: const Text('Удалить',
-                            style: TextStyle(color: Colors.red)),
-                      ),
-                    ],
-                  ),
-                );
-                if (!ctx.mounted) return;
-                if (confirmed == true) {
-                  try {
-                    await ref
-                        .read(objectProvider.notifier)
-                        .deleteObject(selectedObject!.id);
-                    if (!ctx.mounted) return;
-                    setState(() {
-                      selectedObject = null;
-                    });
-                    showErrorMessage(ctx, 'Объект удалён');
-                  } catch (e) {
-                    if (!ctx.mounted) return;
-                    showErrorMessage(ctx, 'Ошибка удаления: ${e.toString()}');
+                icon: const Icon(Icons.delete, color: Colors.red),
+                tooltip: 'Удалить',
+                onPressed: () async {
+                  if (selectedObject == null) return;
+                  final ctx = context;
+                  final confirmed = await showDialog<bool>(
+                    context: ctx,
+                    builder: (ctx2) => AlertDialog(
+                      title: const Text('Удалить объект?'),
+                      content: const Text(
+                          'Вы уверены, что хотите удалить этот объект?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(ctx2).pop(false),
+                          child: const Text('Отмена'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.of(ctx2).pop(true),
+                          child: const Text('Удалить',
+                              style: TextStyle(color: Colors.red)),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (!ctx.mounted) return;
+                  if (confirmed == true) {
+                    try {
+                      await ref
+                          .read(objectProvider.notifier)
+                          .deleteObject(selectedObject!.id);
+                      if (!ctx.mounted) return;
+                      setState(() {
+                        selectedObject = null;
+                      });
+                      showErrorMessage(ctx, 'Объект удалён');
+                    } catch (e) {
+                      if (!ctx.mounted) return;
+                      showErrorMessage(ctx, 'Ошибка удаления: ${e.toString()}');
+                    }
                   }
-                }
-              },
+                },
               ),
             ),
           ],
@@ -289,9 +289,9 @@ class _ObjectsListScreenState extends ConsumerState<ObjectsListScreen> {
         module: 'objects',
         permission: 'create',
         child: FloatingActionButton(
-        onPressed: () => _openObjectForm(),
-        backgroundColor: Colors.green,
-        child: const Icon(Icons.add, color: Colors.white),
+          onPressed: () => _openObjectForm(),
+          backgroundColor: Colors.green,
+          child: const Icon(Icons.add, color: Colors.white),
         ),
       ),
       body: LayoutBuilder(
@@ -560,106 +560,106 @@ class _ObjectDetailsScreenState extends ConsumerState<ObjectDetailsScreen>
             module: 'objects',
             permission: 'update',
             child: IconButton(
-            icon: const Icon(Icons.edit, color: Colors.amber),
-            tooltip: 'Редактировать',
-            onPressed: () {
-              final theme = Theme.of(context);
-              showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                backgroundColor: Colors.transparent,
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height -
-                      MediaQuery.of(context).padding.top -
-                      kToolbarHeight,
-                ),
-                builder: (context) => Container(
-                  clipBehavior: Clip.antiAlias,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surface,
-                    borderRadius:
-                        const BorderRadius.vertical(top: Radius.circular(28)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        blurRadius: 10,
-                        offset: const Offset(0, -5),
-                      ),
-                    ],
+              icon: const Icon(Icons.edit, color: Colors.amber),
+              tooltip: 'Редактировать',
+              onPressed: () {
+                final theme = Theme.of(context);
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height -
+                        MediaQuery.of(context).padding.top -
+                        kToolbarHeight,
                   ),
-                  child: DraggableScrollableSheet(
-                    initialChildSize: 1.0,
-                    minChildSize: 0.5,
-                    maxChildSize: 1.0,
-                    expand: false,
-                    builder: (context, scrollController) =>
-                        SingleChildScrollView(
-                      controller: scrollController,
-                      child: Padding(
-                        padding: EdgeInsets.only(
-                          bottom: MediaQuery.of(context).viewInsets.bottom,
+                  builder: (context) => Container(
+                    clipBehavior: Clip.antiAlias,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surface,
+                      borderRadius:
+                          const BorderRadius.vertical(top: Radius.circular(28)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, -5),
                         ),
-                        child: ObjectFormModal(
-                            object: object,
-                            onSuccess: (isNew) {
-                              if (isNew) {
-                                showSuccessMessage(
-                                    context, 'Объект успешно создан');
-                              } else {
-                                showInfoMessage(
-                                    context, 'Изменения успешно сохранены');
-                              }
-                            }),
+                      ],
+                    ),
+                    child: DraggableScrollableSheet(
+                      initialChildSize: 1.0,
+                      minChildSize: 0.5,
+                      maxChildSize: 1.0,
+                      expand: false,
+                      builder: (context, scrollController) =>
+                          SingleChildScrollView(
+                        controller: scrollController,
+                        child: Padding(
+                          padding: EdgeInsets.only(
+                            bottom: MediaQuery.of(context).viewInsets.bottom,
+                          ),
+                          child: ObjectFormModal(
+                              object: object,
+                              onSuccess: (isNew) {
+                                if (isNew) {
+                                  showSuccessMessage(
+                                      context, 'Объект успешно создан');
+                                } else {
+                                  showInfoMessage(
+                                      context, 'Изменения успешно сохранены');
+                                }
+                              }),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              );
-            },
-          ),
+                );
+              },
+            ),
           ),
           PermissionGuard(
             module: 'objects',
             permission: 'delete',
             child: IconButton(
-            icon: const Icon(Icons.delete, color: Colors.red),
-            tooltip: 'Удалить',
-            onPressed: () async {
-              final ctx = context;
-              final confirmed = await showDialog<bool>(
-                context: ctx,
-                builder: (ctx2) => AlertDialog(
-                  title: const Text('Удалить объект?'),
+              icon: const Icon(Icons.delete, color: Colors.red),
+              tooltip: 'Удалить',
+              onPressed: () async {
+                final ctx = context;
+                final confirmed = await showDialog<bool>(
+                  context: ctx,
+                  builder: (ctx2) => AlertDialog(
+                    title: const Text('Удалить объект?'),
                     content: const Text(
                         'Вы уверены, что хотите удалить этот объект?'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(ctx2).pop(false),
-                      child: const Text('Отмена'),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.of(ctx2).pop(true),
-                      child: const Text('Удалить',
-                          style: TextStyle(color: Colors.red)),
-                    ),
-                  ],
-                ),
-              );
-              if (!ctx.mounted) return;
-              if (confirmed == true) {
-                try {
-                  await ref
-                      .read(objectProvider.notifier)
-                      .deleteObject(widget.object.id);
-                  if (!ctx.mounted) return;
-                  Navigator.of(ctx).pop();
-                  showErrorMessage(ctx, 'Объект удалён');
-                } catch (e) {
-                  if (!ctx.mounted) return;
-                  showErrorMessage(ctx, 'Ошибка удаления: ${e.toString()}');
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(ctx2).pop(false),
+                        child: const Text('Отмена'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.of(ctx2).pop(true),
+                        child: const Text('Удалить',
+                            style: TextStyle(color: Colors.red)),
+                      ),
+                    ],
+                  ),
+                );
+                if (!ctx.mounted) return;
+                if (confirmed == true) {
+                  try {
+                    await ref
+                        .read(objectProvider.notifier)
+                        .deleteObject(widget.object.id);
+                    if (!ctx.mounted) return;
+                    Navigator.of(ctx).pop();
+                    showErrorMessage(ctx, 'Объект удалён');
+                  } catch (e) {
+                    if (!ctx.mounted) return;
+                    showErrorMessage(ctx, 'Ошибка удаления: ${e.toString()}');
+                  }
                 }
-              }
-            },
+              },
             ),
           ),
         ],

@@ -50,6 +50,14 @@ abstract class ContractModel with _$ContractModel {
     required String objectId,
     String? objectName,
     @Default(ContractStatus.active) ContractStatus status,
+
+    // Новые поля для подписантов (маппятся на _legal_name в БД через snake_case)
+    String? contractorLegalName,
+    String? contractorPosition,
+    String? contractorSigner,
+    String? customerLegalName,
+    String? customerPosition,
+    String? customerSigner,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) = _ContractModel;
@@ -117,6 +125,12 @@ abstract class ContractModel with _$ContractModel {
         objectId: contract.objectId,
         objectName: contract.objectName,
         status: contract.status,
+        contractorLegalName: contract.contractorOrgName,
+        contractorPosition: contract.contractorPosition,
+        contractorSigner: contract.contractorSigner,
+        customerLegalName: contract.customerOrgName,
+        customerPosition: contract.customerPosition,
+        customerSigner: contract.customerSigner,
         createdAt: contract.createdAt,
         updatedAt: contract.updatedAt,
       );
@@ -144,6 +158,12 @@ abstract class ContractModel with _$ContractModel {
         objectId: objectId,
         objectName: objectName,
         status: status,
+        contractorOrgName: contractorLegalName,
+        contractorPosition: contractorPosition,
+        contractorSigner: contractorSigner,
+        customerOrgName: customerLegalName,
+        customerPosition: customerPosition,
+        customerSigner: customerSigner,
         createdAt: createdAt,
         updatedAt: updatedAt,
       );

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:projectgt/features/works/domain/entities/work.dart';
+import 'package:projectgt/core/utils/formatters.dart';
 
 /// Карточка работы для мобильной версии.
 ///
@@ -35,7 +35,6 @@ class MobileWorkCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final formatter = NumberFormat('#,##0', 'ru_RU');
 
     // Профессиональный, компактный дизайн с акцентом на данные
     return Hero(
@@ -84,7 +83,7 @@ class MobileWorkCard extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  _formatDate(work.date),
+                                  formatRuDate(work.date),
                                   style: theme.textTheme.titleSmall?.copyWith(
                                     fontWeight: FontWeight.w600,
                                     fontSize: 14,
@@ -124,7 +123,7 @@ class MobileWorkCard extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 6),
                                 Text(
-                                  '${formatter.format(work.totalAmount ?? 0)} ₽',
+                                  formatCurrency(work.totalAmount ?? 0),
                                   style: theme.textTheme.titleSmall?.copyWith(
                                     fontWeight: FontWeight.w700,
                                     color: theme.colorScheme.primary,
@@ -145,9 +144,5 @@ class MobileWorkCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
   }
 }

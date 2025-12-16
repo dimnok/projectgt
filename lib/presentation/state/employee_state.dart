@@ -193,8 +193,12 @@ class EmployeeNotifier extends StateNotifier<EmployeeState> {
 
   /// Загружает список всех сотрудников.
   ///
+  /// [includeResponsibilityMap] — если true, дополнительно подтягивает карту
+  /// can_be_responsible из БД. На старте приложения можно пропустить для
+  /// ускорения загрузки и догрузить позднее по требованию.
+  ///
   /// В случае успеха — обновляет состояние на success, иначе — error с сообщением.
-  Future<void> getEmployees() async {
+  Future<void> getEmployees({bool includeResponsibilityMap = true}) async {
     if (_isLoadingEmployees ||
         (state.employees.isNotEmpty &&
             state.status == EmployeeStatus.success)) {
@@ -206,9 +210,12 @@ class EmployeeNotifier extends StateNotifier<EmployeeState> {
 
     try {
       final employees = await _ref.read(getEmployeesUseCaseProvider).execute();
-      // Подтягиваем фактические значения can_be_responsible из БД в мапу
-      final ds = _ref.read(employeeDataSourceProvider);
-      final canMap = await ds.getCanBeResponsibleMap();
+      Map<String, bool> canMap = state.canBeResponsibleMap;
+      if (includeResponsibilityMap) {
+        // Подтягиваем фактические значения can_be_responsible из БД в мапу
+        final ds = _ref.read(employeeDataSourceProvider);
+        canMap = await ds.getCanBeResponsibleMap();
+      }
       state = state.copyWith(
         status: EmployeeStatus.success,
         employees: employees,
@@ -380,7 +387,8 @@ final employeeProvider =
 });
 
 /// Провайдер для получения сотрудника по ID.
-final employeeByIdProvider = FutureProvider.family<Employee?, String>((ref, id) async {
+final employeeByIdProvider =
+    FutureProvider.family<Employee?, String>((ref, id) async {
   final getEmployeeUseCase = ref.watch(getEmployeeUseCaseProvider);
   return getEmployeeUseCase.execute(id);
 });

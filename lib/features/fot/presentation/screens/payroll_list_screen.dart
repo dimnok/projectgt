@@ -207,9 +207,9 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
               module: 'payroll',
               permission: 'export',
               child: IconButton(
-              icon: const Icon(Icons.download_outlined),
-              tooltip: 'Экспорт в Excel',
-              onPressed: _exportToExcel,
+                icon: const Icon(Icons.download_outlined),
+                tooltip: 'Экспорт в Excel',
+                onPressed: _exportToExcel,
               ),
             ),
             const SizedBox(width: 8),

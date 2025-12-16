@@ -25,4 +25,3 @@ abstract class InventoryDataSource {
   /// Получает список поставщиков для выпадающего списка.
   Future<List<Map<String, dynamic>>> getSuppliersForDropdown();
 }
-

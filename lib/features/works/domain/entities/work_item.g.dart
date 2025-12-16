@@ -25,6 +25,7 @@ _WorkItem _$WorkItemFromJson(Map<String, dynamic> json) => _WorkItem(
       updatedAt: json['updatedAt'] == null
           ? null
           : DateTime.parse(json['updatedAt'] as String),
+      ks2Id: json['ks2Id'] as String?,
     );
 
 Map<String, dynamic> _$WorkItemToJson(_WorkItem instance) => <String, dynamic>{
@@ -42,4 +43,5 @@ Map<String, dynamic> _$WorkItemToJson(_WorkItem instance) => <String, dynamic>{
       'total': instance.total,
       'createdAt': instance.createdAt?.toIso8601String(),
       'updatedAt': instance.updatedAt?.toIso8601String(),
+      'ks2Id': instance.ks2Id,
     };

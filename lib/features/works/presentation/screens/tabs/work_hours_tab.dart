@@ -71,6 +71,14 @@ class _WorkHoursTabState extends ConsumerState<WorkHoursTab> {
     bool changed = false;
     final employeesState = ref.read(employee_state.employeeProvider);
 
+    // 1) Заполняем кэш из уже загруженных данных
+    final existingById = {
+      for (final e in employeesState.employees)
+        e.id:
+            '${e.lastName} ${e.firstName}${e.middleName != null && e.middleName!.isNotEmpty ? ' ${e.middleName}' : ''}'
+    };
+
+    final List<String> missingIds = [];
     for (final h in hours) {
       final id = h.employeeId;
       if (_employeeNameCache.containsKey(id) ||
@@ -78,47 +86,58 @@ class _WorkHoursTabState extends ConsumerState<WorkHoursTab> {
         continue;
       }
 
-      // Пробуем взять из уже загруженного списка
-      final list = employeesState.employees;
-      final has = list.where((e) => e.id == id).toList();
-      if (has.isNotEmpty) {
-        final e = has.first;
-        final name =
-            '${e.lastName} ${e.firstName}${e.middleName != null && e.middleName!.isNotEmpty ? ' ${e.middleName}' : ''}';
-        _employeeNameCache[id] = name;
+      final existingName = existingById[id];
+      if (existingName != null) {
+        _employeeNameCache[id] = existingName;
         changed = true;
         continue;
       }
 
-      // Иначе асинхронно подтянем из репозитория
-      _prefetchingEmployeeIds.add(id);
-      try {
-        await ref
-            .read(employee_state.employeeProvider.notifier)
-            .getEmployee(id);
-        final updated = ref
-            .read(employee_state.employeeProvider)
-            .employees
-            .where((e) => e.id == id)
-            .toList();
-        if (updated.isNotEmpty) {
-          final e = updated.first;
-          final name =
-              '${e.lastName} ${e.firstName}${e.middleName != null && e.middleName!.isNotEmpty ? ' ${e.middleName}' : ''}';
-          _employeeNameCache[id] = name;
-          changed = true;
-        }
-      } catch (_) {
-      } finally {
-        _prefetchingEmployeeIds.remove(id);
-      }
+      missingIds.add(id);
     }
 
-    if (changed && mounted) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        setState(() {});
-      });
+    if (missingIds.isEmpty) {
+      if (changed && mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          setState(() {});
+        });
+      }
+      return;
+    }
+
+    // 2) Параллельная подгрузка отсутствующих сотрудников
+    _prefetchingEmployeeIds.addAll(missingIds);
+    try {
+      await Future.wait(missingIds.map((id) async {
+        try {
+          await ref
+              .read(employee_state.employeeProvider.notifier)
+              .getEmployee(id);
+          final fetched = ref
+              .read(employee_state.employeeProvider)
+              .employees
+              .where((e) => e.id == id)
+              .toList();
+          if (fetched.isNotEmpty) {
+            final e = fetched.first;
+            _employeeNameCache[id] =
+                '${e.lastName} ${e.firstName}${e.middleName != null && e.middleName!.isNotEmpty ? ' ${e.middleName}' : ''}';
+            changed = true;
+          }
+        } catch (_) {
+          // глушим ошибки загрузки конкретного id, продолжаем остальные
+        } finally {
+          _prefetchingEmployeeIds.remove(id);
+        }
+      }));
+    } finally {
+      if (changed && mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          setState(() {});
+        });
+      }
     }
   }
 

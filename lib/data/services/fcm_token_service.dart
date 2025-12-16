@@ -38,7 +38,8 @@ class FcmTokenService {
   Future<void> initialize() async {
     if (_initialized) return;
     // На Windows/macOS/Linux сервис токенов не работает (нет поддержки FCM)
-    if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
+    if (!kIsWeb &&
+        (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
       return;
     }
 

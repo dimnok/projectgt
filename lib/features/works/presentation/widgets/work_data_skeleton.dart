@@ -15,8 +15,9 @@ class WorkDataSkeleton extends StatelessWidget {
     final theme = Theme.of(context);
     final isMobile = !ResponsiveUtils.isDesktop(context);
     final isDark = theme.brightness == Brightness.dark;
-    
-    final baseColor = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA);
+
+    final baseColor =
+        isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -27,7 +28,7 @@ class WorkDataSkeleton extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (!isMobile) ...[
-                 Container(
+                Container(
                   height: 80,
                   margin: const EdgeInsets.only(bottom: 24),
                   decoration: BoxDecoration(
@@ -66,8 +67,9 @@ class WorkDataSkeleton extends StatelessWidget {
                 ),
               ),
             ],
-          ).animate(onPlay: (controller) => controller.repeat())
-           .shimmer(duration: 1200.ms, color: isDark ? Colors.white10 : Colors.white54),
+          ).animate(onPlay: (controller) => controller.repeat()).shimmer(
+              duration: 1200.ms,
+              color: isDark ? Colors.white10 : Colors.white54),
         ),
       ),
     );

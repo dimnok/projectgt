@@ -32,16 +32,17 @@ class DailyWorkChart extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final dailySums = _calculateDailySums();
-    
+
     // Определяем активные дни (где была выработка)
     final activeDays = dailySums.entries.where((e) => e.value > 0).toList()
-      ..sort((a, b) => a.value.compareTo(b.value)); // Сортировка по возрастанию суммы
+      ..sort((a, b) =>
+          a.value.compareTo(b.value)); // Сортировка по возрастанию суммы
 
     final maxAmount = activeDays.isEmpty ? 0.0 : activeDays.last.value;
-    
+
     // Определяем день с максимальной выработкой
     final maxDay = activeDays.isEmpty ? -1 : activeDays.last.key;
-    
+
     // Определяем 5 дней с самой низкой выработкой (исключая день с максимальной)
     final lowestDays = <int>{};
     for (var entry in activeDays) {
@@ -100,10 +101,11 @@ class DailyWorkChart extends StatelessWidget {
                   children: List.generate(daysInMonth, (index) {
                     final day = index + 1;
                     final amount = dailySums[day] ?? 0.0;
-                    
+
                     // Используем квадратный корень для нормализации, чтобы маленькие значения были видны
-                    final heightFactor = maxAmount > 0 ? math.sqrt(amount / maxAmount) : 0.0;
-                    
+                    final heightFactor =
+                        maxAmount > 0 ? math.sqrt(amount / maxAmount) : 0.0;
+
                     // Логика цвета
                     Color barColor;
                     if (amount == 0) {
@@ -115,16 +117,17 @@ class DailyWorkChart extends StatelessWidget {
                     } else {
                       barColor = CupertinoColors.activeBlue;
                     }
-                    
+
                     final isToday = _isToday(day);
-                    
+
                     return _ChartBar(
                       day: day,
                       amount: amount,
                       heightFactor: heightFactor,
                       width: effectiveBarWidth,
                       isToday: isToday,
-                      maxHeight: constraints.maxHeight - 20, // Место под подпись
+                      maxHeight:
+                          constraints.maxHeight - 20, // Место под подпись
                       theme: theme,
                       color: barColor,
                     );
@@ -146,7 +149,7 @@ class DailyWorkChart extends StatelessWidget {
     }
     return map;
   }
-  
+
   bool _isToday(int day) {
     final now = DateTime.now();
     return now.year == month.year && now.month == month.month && now.day == day;
@@ -203,7 +206,8 @@ class _ChartBar extends StatelessWidget {
                 height: value,
                 decoration: BoxDecoration(
                   color: color,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(width / 2)),
+                  borderRadius:
+                      BorderRadius.vertical(top: Radius.circular(width / 2)),
                 ),
               );
             },
@@ -235,7 +239,7 @@ class _ChartBar extends StatelessWidget {
       ),
     );
   }
-  
+
   String _getMonthName() {
     return '';
   }

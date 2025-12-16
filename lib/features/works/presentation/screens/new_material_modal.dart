@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/di/providers.dart';
-import 'package:projectgt/core/utils/modal_utils.dart';
+import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/domain/entities/estimate.dart';
+import 'package:projectgt/core/widgets/app_snackbar.dart';
+import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
+import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/gt_dropdown.dart';
+import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
 
 /// Модалка "Новый материал"
 ///
@@ -146,18 +149,40 @@ class _NewMaterialModalState extends ConsumerState<NewMaterialModal> {
 
       await ref.read(estimateNotifierProvider.notifier).addEstimate(estimate);
 
+      // Если провайдер вернул ошибку (например, нет прав на insert в сметы) — явно бросаем,
+      // чтобы модалка не закрывалась молча.
+      final error = ref.read(estimateNotifierProvider).error;
+      if (error != null) {
+        throw Exception(error);
+      }
+
       if (!mounted) return;
+      // Показываем поверх модалок, закрепляем сверху
+      AppSnackBar.show(
+        context: context,
+        message: 'Материал добавлен',
+        position: AppSnackBarPosition.top,
+        kind: AppSnackBarKind.success,
+      );
       Navigator.pop(context, {
         'name': estimate.name,
         'unit': estimate.unit,
       });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Не удалось сохранить материал: $e'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
+      final raw = e.toString();
+      final isPermissionError = raw.contains('permission') ||
+          raw.contains('row-level security') ||
+          raw.contains('42501');
+      final message = isPermissionError
+          ? 'Нет доступа к добавлению материалов в смету. Обратитесь к администратору.'
+          : 'Не удалось сохранить материал. Попробуйте ещё раз или обратитесь к администратору.';
+      // Показываем поверх модалок, закрепляем сверху
+      AppSnackBar.show(
+        context: context,
+        message: message,
+        position: AppSnackBarPosition.top,
+        kind: AppSnackBarKind.error,
       );
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -166,173 +191,113 @@ class _NewMaterialModalState extends ConsumerState<NewMaterialModal> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final isDesktop = ResponsiveUtils.isDesktop(context);
 
-    return AnimatedPadding(
-      padding:
-          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOut,
-      child: Material(
-        color: theme.colorScheme.surface,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Заголовок в едином стиле
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surface,
-                border: Border(
-                  bottom: BorderSide(
-                    color: theme.colorScheme.outline.withValues(alpha: 0.2),
-                    width: 1,
+    Widget buildFormContent() {
+      return Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 700),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_availableEstimateTitles.isNotEmpty) ...[
+                  GTStringDropdown(
+                    items: _availableEstimateTitles,
+                    selectedItem: _selectedEstimateTitle,
+                    labelText: 'Смета *',
+                    hintText: 'Выберите смету',
+                    allowCustomInput: false,
+                    allowClear: false,
+                    validator: (v) =>
+                        v == null || v.isEmpty ? 'Выберите смету' : null,
+                    onSelectionChanged: (v) {
+                      setState(() => _selectedEstimateTitle = v);
+                    },
                   ),
-                ),
-              ),
-              child: ModalUtils.buildModalHeader(
-                title: 'Новый материал',
-                onClose: () => Navigator.pop(context),
-                theme: theme,
-              ),
-            ),
-
-            // Контент (shrink-wrap)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24.0, 24.0, 24.0, 0.0),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 700),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (_availableEstimateTitles.isNotEmpty) ...[
-                          GTStringDropdown(
-                            items: _availableEstimateTitles,
-                            selectedItem: _selectedEstimateTitle,
-                            labelText: 'Смета *',
-                            hintText: 'Выберите смету',
-                            allowCustomInput: false,
-                            allowClear: false,
-                            validator: (v) => v == null || v.isEmpty
-                                ? 'Выберите смету'
-                                : null,
-                            onSelectionChanged: (v) {
-                              setState(() => _selectedEstimateTitle = v);
-                            },
-                          ),
-                          const SizedBox(height: 12),
-                        ],
-                        TextFormField(
-                          controller: _nameController,
-                          decoration: const InputDecoration(
-                            labelText: 'Наименование *',
-                          ),
-                          validator: (v) => v == null || v.trim().isEmpty
-                              ? 'Обязательное поле'
-                              : null,
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _articleController,
-                          decoration: const InputDecoration(
-                            labelText: 'Артикул',
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _manufacturerController,
-                          decoration: const InputDecoration(
-                            labelText: 'Производитель',
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        GTStringDropdown(
-                          items: _units,
-                          selectedItem: _unit,
-                          labelText: 'Единица измерения *',
-                          hintText: 'Выберите единицу измерения',
-                          allowCustomInput: false,
-                          allowClear: true,
-                          validator: (v) => v == null || v.isEmpty
-                              ? 'Обязательное поле'
-                              : null,
-                          onSelectionChanged: (value) {
-                            setState(() => _unit = value);
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-            // Кнопки действия внизу
-            Padding(
-              padding: EdgeInsets.fromLTRB(
-                24.0,
-                16.0,
-                24.0,
-                24.0 + MediaQuery.of(context).viewPadding.bottom,
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed:
-                          _isSaving ? null : () => Navigator.pop(context),
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(44),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(25),
-                        ),
-                        textStyle: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      child: const Text('Отмена'),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: _isSaving
-                          ? null
-                          : () {
-                              if (_formKey.currentState?.validate() ?? false) {
-                                _save();
-                              }
-                            },
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(44),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(25),
-                        ),
-                        textStyle: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      child: _isSaving
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CupertinoActivityIndicator(radius: 10),
-                            )
-                          : const Text('Сохранить'),
-                    ),
-                  ),
+                  const SizedBox(height: 12),
                 ],
-              ),
+                TextFormField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Наименование *',
+                  ),
+                  validator: (v) => v == null || v.trim().isEmpty
+                      ? 'Обязательное поле'
+                      : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _articleController,
+                  decoration: const InputDecoration(
+                    labelText: 'Артикул',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _manufacturerController,
+                  decoration: const InputDecoration(
+                    labelText: 'Производитель',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                GTStringDropdown(
+                  items: _units,
+                  selectedItem: _unit,
+                  labelText: 'Единица измерения *',
+                  hintText: 'Выберите единицу измерения',
+                  allowCustomInput: false,
+                  allowClear: true,
+                  validator: (v) =>
+                      v == null || v.isEmpty ? 'Обязательное поле' : null,
+                  onSelectionChanged: (value) {
+                    setState(() => _unit = value);
+                  },
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-      ),
+      );
+    }
+
+    Widget buildFooterButtons() {
+      return Row(
+        children: [
+          Expanded(
+            child: GTSecondaryButton(
+              text: 'Отмена',
+              onPressed: _isSaving ? null : () => Navigator.pop(context),
+              isLoading: false,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: GTPrimaryButton(
+              text: 'Сохранить',
+              onPressed: _isSaving ? null : _save,
+              isLoading: _isSaving,
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (isDesktop) {
+      return DesktopDialogContent(
+        title: 'Новый материал',
+        onClose: _isSaving ? null : () => Navigator.pop(context),
+        footer: buildFooterButtons(),
+        child: buildFormContent(),
+      );
+    }
+
+    return MobileBottomSheetContent(
+      title: 'Новый материал',
+      footer: buildFooterButtons(),
+      child: buildFormContent(),
     );
   }
 }

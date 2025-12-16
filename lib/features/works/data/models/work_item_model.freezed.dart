@@ -61,6 +61,10 @@ mixin _$WorkItemModel {
   @JsonKey(name: 'updated_at')
   DateTime? get updatedAt;
 
+  /// Идентификатор акта КС-2 (если работа закрыта актом).
+  @JsonKey(name: 'ks2_id')
+  String? get ks2Id;
+
   /// Create a copy of WorkItemModel
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -95,7 +99,8 @@ mixin _$WorkItemModel {
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
-                other.updatedAt == updatedAt));
+                other.updatedAt == updatedAt) &&
+            (identical(other.ks2Id, ks2Id) || other.ks2Id == ks2Id));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -115,11 +120,12 @@ mixin _$WorkItemModel {
       price,
       total,
       createdAt,
-      updatedAt);
+      updatedAt,
+      ks2Id);
 
   @override
   String toString() {
-    return 'WorkItemModel(id: $id, workId: $workId, section: $section, floor: $floor, estimateId: $estimateId, name: $name, system: $system, subsystem: $subsystem, unit: $unit, quantity: $quantity, price: $price, total: $total, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'WorkItemModel(id: $id, workId: $workId, section: $section, floor: $floor, estimateId: $estimateId, name: $name, system: $system, subsystem: $subsystem, unit: $unit, quantity: $quantity, price: $price, total: $total, createdAt: $createdAt, updatedAt: $updatedAt, ks2Id: $ks2Id)';
   }
 }
 
@@ -143,7 +149,8 @@ abstract mixin class $WorkItemModelCopyWith<$Res> {
       double? price,
       double? total,
       @JsonKey(name: 'created_at') DateTime? createdAt,
-      @JsonKey(name: 'updated_at') DateTime? updatedAt});
+      @JsonKey(name: 'updated_at') DateTime? updatedAt,
+      @JsonKey(name: 'ks2_id') String? ks2Id});
 }
 
 /// @nodoc
@@ -173,6 +180,7 @@ class _$WorkItemModelCopyWithImpl<$Res>
     Object? total = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
+    Object? ks2Id = freezed,
   }) {
     return _then(_self.copyWith(
       id: null == id
@@ -231,6 +239,10 @@ class _$WorkItemModelCopyWithImpl<$Res>
           ? _self.updatedAt
           : updatedAt // ignore: cast_nullable_to_non_nullable
               as DateTime?,
+      ks2Id: freezed == ks2Id
+          ? _self.ks2Id
+          : ks2Id // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }
@@ -252,7 +264,8 @@ class _WorkItemModel implements WorkItemModel {
       this.price,
       this.total,
       @JsonKey(name: 'created_at') this.createdAt,
-      @JsonKey(name: 'updated_at') this.updatedAt});
+      @JsonKey(name: 'updated_at') this.updatedAt,
+      @JsonKey(name: 'ks2_id') this.ks2Id});
   factory _WorkItemModel.fromJson(Map<String, dynamic> json) =>
       _$WorkItemModelFromJson(json);
 
@@ -316,6 +329,11 @@ class _WorkItemModel implements WorkItemModel {
   @JsonKey(name: 'updated_at')
   final DateTime? updatedAt;
 
+  /// Идентификатор акта КС-2 (если работа закрыта актом).
+  @override
+  @JsonKey(name: 'ks2_id')
+  final String? ks2Id;
+
   /// Create a copy of WorkItemModel
   /// with the given fields replaced by the non-null parameter values.
   @override
@@ -354,7 +372,8 @@ class _WorkItemModel implements WorkItemModel {
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
-                other.updatedAt == updatedAt));
+                other.updatedAt == updatedAt) &&
+            (identical(other.ks2Id, ks2Id) || other.ks2Id == ks2Id));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -374,11 +393,12 @@ class _WorkItemModel implements WorkItemModel {
       price,
       total,
       createdAt,
-      updatedAt);
+      updatedAt,
+      ks2Id);
 
   @override
   String toString() {
-    return 'WorkItemModel(id: $id, workId: $workId, section: $section, floor: $floor, estimateId: $estimateId, name: $name, system: $system, subsystem: $subsystem, unit: $unit, quantity: $quantity, price: $price, total: $total, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'WorkItemModel(id: $id, workId: $workId, section: $section, floor: $floor, estimateId: $estimateId, name: $name, system: $system, subsystem: $subsystem, unit: $unit, quantity: $quantity, price: $price, total: $total, createdAt: $createdAt, updatedAt: $updatedAt, ks2Id: $ks2Id)';
   }
 }
 
@@ -404,7 +424,8 @@ abstract mixin class _$WorkItemModelCopyWith<$Res>
       double? price,
       double? total,
       @JsonKey(name: 'created_at') DateTime? createdAt,
-      @JsonKey(name: 'updated_at') DateTime? updatedAt});
+      @JsonKey(name: 'updated_at') DateTime? updatedAt,
+      @JsonKey(name: 'ks2_id') String? ks2Id});
 }
 
 /// @nodoc
@@ -434,6 +455,7 @@ class __$WorkItemModelCopyWithImpl<$Res>
     Object? total = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
+    Object? ks2Id = freezed,
   }) {
     return _then(_WorkItemModel(
       id: null == id
@@ -492,6 +514,10 @@ class __$WorkItemModelCopyWithImpl<$Res>
           ? _self.updatedAt
           : updatedAt // ignore: cast_nullable_to_non_nullable
               as DateTime?,
+      ks2Id: freezed == ks2Id
+          ? _self.ks2Id
+          : ks2Id // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }

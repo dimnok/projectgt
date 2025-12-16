@@ -2,10 +2,10 @@
 class LightWork {
   /// Идентификатор смены.
   final String id;
-  
+
   /// Дата смены.
   final DateTime date;
-  
+
   /// Общая сумма выработки.
   final double totalAmount;
 

@@ -15,15 +15,28 @@ T _$identity<T>(T value) => value;
 
 /// @nodoc
 mixin _$ProcurementRequest {
+  /// Уникальный идентификатор позиции.
   String get id;
+
+  /// Наименование товара или услуги.
   @JsonKey(name: 'item_name')
   String get itemName;
+
+  /// Количество (с единицами измерения в строке).
   String get quantity;
+
+  /// Статус позиции.
   String get status;
+
+  /// Дата создания позиции.
   @JsonKey(name: 'created_at')
   DateTime get createdAt;
+
+  /// Описание или примечание.
   @JsonKey(name: 'description')
   String? get description;
+
+  /// Telegram ID заявителя (для обратной совместимости или быстрого доступа).
   @JsonKey(name: 'requester_telegram_id')
   int? get requesterTelegramId;
 
@@ -152,22 +165,35 @@ class _ProcurementRequest implements ProcurementRequest {
   factory _ProcurementRequest.fromJson(Map<String, dynamic> json) =>
       _$ProcurementRequestFromJson(json);
 
+  /// Уникальный идентификатор позиции.
   @override
   final String id;
+
+  /// Наименование товара или услуги.
   @override
   @JsonKey(name: 'item_name')
   final String itemName;
+
+  /// Количество (с единицами измерения в строке).
   @override
   final String quantity;
+
+  /// Статус позиции.
   @override
   @JsonKey()
   final String status;
+
+  /// Дата создания позиции.
   @override
   @JsonKey(name: 'created_at')
   final DateTime createdAt;
+
+  /// Описание или примечание.
   @override
   @JsonKey(name: 'description')
   final String? description;
+
+  /// Telegram ID заявителя (для обратной совместимости или быстрого доступа).
   @override
   @JsonKey(name: 'requester_telegram_id')
   final int? requesterTelegramId;

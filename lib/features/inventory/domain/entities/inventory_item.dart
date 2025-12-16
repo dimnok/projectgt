@@ -6,14 +6,19 @@ part 'inventory_item.freezed.dart';
 enum InventoryItemStatus {
   /// Новый.
   new_,
+
   /// Хорошее состояние.
   good,
+
   /// Сломан.
   broken,
+
   /// Списан.
   writtenOff,
+
   /// В ремонте.
   repair,
+
   /// Критическое состояние.
   critical,
 }
@@ -22,6 +27,7 @@ enum InventoryItemStatus {
 enum InventoryItemCondition {
   /// Новый.
   new_,
+
   /// Б/у.
   used,
 }
@@ -30,8 +36,10 @@ enum InventoryItemCondition {
 enum InventoryLocationType {
   /// На складе.
   warehouse,
+
   /// На объекте.
   object,
+
   /// У сотрудника.
   employee,
 }
@@ -74,7 +82,8 @@ abstract class InventoryItem with _$InventoryItem {
     @Default(InventoryItemCondition.new_) InventoryItemCondition condition,
 
     /// Тип местоположения.
-    @Default(InventoryLocationType.warehouse) InventoryLocationType locationType,
+    @Default(InventoryLocationType.warehouse)
+    InventoryLocationType locationType,
 
     /// ID местоположения (объект или сотрудник).
     String? locationId,
@@ -125,4 +134,3 @@ abstract class InventoryItem with _$InventoryItem {
     String? updatedBy,
   }) = _InventoryItem;
 }
-

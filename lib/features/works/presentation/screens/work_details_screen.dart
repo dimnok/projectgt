@@ -16,6 +16,7 @@ import 'package:projectgt/features/roles/application/permission_service.dart';
 import 'package:projectgt/features/roles/presentation/providers/roles_provider.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
 import '../providers/repositories_providers.dart';
+import 'package:projectgt/core/utils/formatters.dart';
 
 /// Экран деталей смены с вкладками работ, материалов и часов.
 ///
@@ -108,7 +109,10 @@ class _WorkDetailsScreenState extends ConsumerState<WorkDetailsScreen> {
           title: 'Загрузка...',
           leading: isMobile ? const BackButton() : null,
         ),
-        body: const Center(child: CupertinoActivityIndicator()),
+        body: Hero(
+          tag: 'work_card_${widget.workId}',
+          child: const Center(child: CupertinoActivityIndicator()),
+        ),
       );
     }
 
@@ -119,7 +123,10 @@ class _WorkDetailsScreenState extends ConsumerState<WorkDetailsScreen> {
           title: 'Ошибка',
           leading: isMobile ? const BackButton() : null,
         ),
-        body: Center(child: Text('Ошибка загрузки: $_error')),
+        body: Hero(
+          tag: 'work_card_${widget.workId}',
+          child: Center(child: Text('Ошибка загрузки: $_error')),
+        ),
       );
     }
 
@@ -153,28 +160,27 @@ class _WorkDetailsScreenState extends ConsumerState<WorkDetailsScreen> {
     final canDelete =
         hasDeletePermission && ((isOwner && !isWorkClosed) || isSuperAdmin);
 
-    return Hero(
-      tag: 'work_card_${widget.workId}',
-      child: Material(
-        type: MaterialType.transparency,
-        child: Scaffold(
-          appBar: AppBarWidget(
-            title: isMobile ? 'Смена' : 'Смена: ${_formatDate(work.date)}',
-            leading: isMobile ? const BackButton() : null,
-            actions: [
-              if (canDelete)
-                IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  onPressed: () => _confirmDeleteWork(context, ref, work),
-                  tooltip: 'Удалить',
-                ),
-            ],
-            showThemeSwitch: !isMobile,
-            centerTitle: isMobile,
-          ),
-          drawer:
-              isMobile ? null : const AppDrawer(activeRoute: AppRoute.works),
-          body: Builder(
+    return Scaffold(
+      appBar: AppBarWidget(
+        title: isMobile ? 'Смена' : 'Смена: ${formatRuDate(work.date)}',
+        leading: isMobile ? const BackButton() : null,
+        actions: [
+          if (canDelete)
+            IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red),
+              onPressed: () => _confirmDeleteWork(context, ref, work),
+              tooltip: 'Удалить',
+            ),
+        ],
+        showThemeSwitch: !isMobile,
+        centerTitle: isMobile,
+      ),
+      drawer: isMobile ? null : const AppDrawer(activeRoute: AppRoute.works),
+      body: Hero(
+        tag: 'work_card_${widget.workId}',
+        child: Material(
+          type: MaterialType.transparency,
+          child: Builder(
             builder: (scaffoldContext) => WorkDetailsPanel(
               workId: widget.workId,
               parentContext: scaffoldContext,
@@ -187,18 +193,13 @@ class _WorkDetailsScreenState extends ConsumerState<WorkDetailsScreen> {
     );
   }
 
-  /// Форматирует дату [date] в строку "дд.мм.гггг".
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
-  }
-
   /// Показывает диалог подтверждения удаления смены.
   void _confirmDeleteWork(BuildContext context, WidgetRef ref, Work work) {
     CupertinoDialogs.showDeleteConfirmDialog(
       context: context,
       title: 'Подтверждение удаления',
       message:
-          'Вы действительно хотите удалить смену от ${_formatDate(work.date)}?\n\nЭто действие удалит все связанные работы и часы сотрудников. Операция необратима.',
+          'Вы действительно хотите удалить смену от ${formatRuDate(work.date)}?\n\nЭто действие удалит все связанные работы и часы сотрудников. Операция необратима.',
       confirmButtonText: 'Удалить',
       onConfirm: () async {
         if (work.id == null) return;

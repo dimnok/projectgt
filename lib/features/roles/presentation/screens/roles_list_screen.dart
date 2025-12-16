@@ -7,7 +7,6 @@ import 'package:projectgt/features/roles/presentation/widgets/create_role_dialog
 import 'package:projectgt/features/roles/presentation/providers/roles_provider.dart';
 import 'package:projectgt/features/roles/domain/entities/role.dart' as domain;
 import 'package:projectgt/features/roles/domain/entities/module.dart' as domain;
-import 'package:projectgt/features/roles/presentation/models/permission_ui_model.dart';
 import 'package:projectgt/features/roles/presentation/widgets/role_list_item.dart';
 import 'package:projectgt/features/roles/presentation/widgets/permissions_matrix.dart';
 import 'package:projectgt/features/roles/presentation/widgets/unsaved_changes_panel.dart';
@@ -564,21 +563,6 @@ class _RolesListScreenState extends ConsumerState<RolesListScreen>
 
                             // 1. Обновляем текущее разрешение
                             updatePermission(permId, newValue);
-
-                            // 2. Если включаем любое разрешение кроме "Просмотр",
-                            // автоматически включаем "Просмотр" (id: 'read')
-                            if (newValue && permId != 'read') {
-                              updatePermission('read', true);
-                            }
-
-                            // 3. Если выключаем "Просмотр", автоматически выключаем все остальные разрешения
-                            if (!newValue && permId == 'read') {
-                              for (final p in permissionsList) {
-                                if (p.id != 'read') {
-                                  updatePermission(p.id, false);
-                                }
-                              }
-                            }
 
                             // Очищаем пустые контейнеры
                             if (_tempPermissions[selectedRole.id]![moduleId]

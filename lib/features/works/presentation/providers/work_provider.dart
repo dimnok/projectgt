@@ -161,7 +161,7 @@ final workProvider = Provider.family<Work?, String>((ref, id) {
   // Пытаемся найти смену в загруженных группах месяцев
   final monthGroupsState = ref.watch(monthGroupsProvider);
   // debugPrint('[DEBUG_NAV] workProvider($id): monthGroupsState isLoading=${monthGroupsState.isLoading}, groupsCount=${monthGroupsState.groups.length}');
-  
+
   for (final group in monthGroupsState.groups) {
     if (group.works != null) {
       try {

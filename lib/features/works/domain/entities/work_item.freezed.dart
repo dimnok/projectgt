@@ -57,6 +57,9 @@ mixin _$WorkItem {
   /// Дата последнего обновления.
   DateTime? get updatedAt;
 
+  /// Идентификатор акта КС-2 (если работа закрыта актом).
+  String? get ks2Id;
+
   /// Create a copy of WorkItem
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -90,7 +93,8 @@ mixin _$WorkItem {
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
-                other.updatedAt == updatedAt));
+                other.updatedAt == updatedAt) &&
+            (identical(other.ks2Id, ks2Id) || other.ks2Id == ks2Id));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -110,11 +114,12 @@ mixin _$WorkItem {
       price,
       total,
       createdAt,
-      updatedAt);
+      updatedAt,
+      ks2Id);
 
   @override
   String toString() {
-    return 'WorkItem(id: $id, workId: $workId, section: $section, floor: $floor, estimateId: $estimateId, name: $name, system: $system, subsystem: $subsystem, unit: $unit, quantity: $quantity, price: $price, total: $total, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'WorkItem(id: $id, workId: $workId, section: $section, floor: $floor, estimateId: $estimateId, name: $name, system: $system, subsystem: $subsystem, unit: $unit, quantity: $quantity, price: $price, total: $total, createdAt: $createdAt, updatedAt: $updatedAt, ks2Id: $ks2Id)';
   }
 }
 
@@ -137,7 +142,8 @@ abstract mixin class $WorkItemCopyWith<$Res> {
       double? price,
       double? total,
       DateTime? createdAt,
-      DateTime? updatedAt});
+      DateTime? updatedAt,
+      String? ks2Id});
 }
 
 /// @nodoc
@@ -166,6 +172,7 @@ class _$WorkItemCopyWithImpl<$Res> implements $WorkItemCopyWith<$Res> {
     Object? total = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
+    Object? ks2Id = freezed,
   }) {
     return _then(_self.copyWith(
       id: null == id
@@ -224,6 +231,10 @@ class _$WorkItemCopyWithImpl<$Res> implements $WorkItemCopyWith<$Res> {
           ? _self.updatedAt
           : updatedAt // ignore: cast_nullable_to_non_nullable
               as DateTime?,
+      ks2Id: freezed == ks2Id
+          ? _self.ks2Id
+          : ks2Id // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }
@@ -245,7 +256,8 @@ class _WorkItem implements WorkItem {
       this.price,
       this.total,
       this.createdAt,
-      this.updatedAt});
+      this.updatedAt,
+      this.ks2Id});
   factory _WorkItem.fromJson(Map<String, dynamic> json) =>
       _$WorkItemFromJson(json);
 
@@ -305,6 +317,10 @@ class _WorkItem implements WorkItem {
   @override
   final DateTime? updatedAt;
 
+  /// Идентификатор акта КС-2 (если работа закрыта актом).
+  @override
+  final String? ks2Id;
+
   /// Create a copy of WorkItem
   /// with the given fields replaced by the non-null parameter values.
   @override
@@ -343,7 +359,8 @@ class _WorkItem implements WorkItem {
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
-                other.updatedAt == updatedAt));
+                other.updatedAt == updatedAt) &&
+            (identical(other.ks2Id, ks2Id) || other.ks2Id == ks2Id));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -363,11 +380,12 @@ class _WorkItem implements WorkItem {
       price,
       total,
       createdAt,
-      updatedAt);
+      updatedAt,
+      ks2Id);
 
   @override
   String toString() {
-    return 'WorkItem(id: $id, workId: $workId, section: $section, floor: $floor, estimateId: $estimateId, name: $name, system: $system, subsystem: $subsystem, unit: $unit, quantity: $quantity, price: $price, total: $total, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'WorkItem(id: $id, workId: $workId, section: $section, floor: $floor, estimateId: $estimateId, name: $name, system: $system, subsystem: $subsystem, unit: $unit, quantity: $quantity, price: $price, total: $total, createdAt: $createdAt, updatedAt: $updatedAt, ks2Id: $ks2Id)';
   }
 }
 
@@ -392,7 +410,8 @@ abstract mixin class _$WorkItemCopyWith<$Res>
       double? price,
       double? total,
       DateTime? createdAt,
-      DateTime? updatedAt});
+      DateTime? updatedAt,
+      String? ks2Id});
 }
 
 /// @nodoc
@@ -421,6 +440,7 @@ class __$WorkItemCopyWithImpl<$Res> implements _$WorkItemCopyWith<$Res> {
     Object? total = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
+    Object? ks2Id = freezed,
   }) {
     return _then(_WorkItem(
       id: null == id
@@ -479,6 +499,10 @@ class __$WorkItemCopyWithImpl<$Res> implements _$WorkItemCopyWith<$Res> {
           ? _self.updatedAt
           : updatedAt // ignore: cast_nullable_to_non_nullable
               as DateTime?,
+      ks2Id: freezed == ks2Id
+          ? _self.ks2Id
+          : ks2Id // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }

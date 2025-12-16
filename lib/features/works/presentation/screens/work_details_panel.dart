@@ -6,18 +6,17 @@ import '../../domain/entities/work_item.dart';
 import '../../domain/entities/work.dart';
 import '../providers/work_items_provider.dart';
 import '../providers/work_provider.dart';
-import 'work_item_form_improved.dart';
 
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/presentation/state/employee_state.dart'
     as employee_state;
-import 'package:intl/intl.dart';
 import 'package:projectgt/domain/entities/estimate.dart';
 import 'package:collection/collection.dart';
 import 'dart:async';
 
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
+import 'package:projectgt/core/utils/formatters.dart';
 
 import 'package:projectgt/features/roles/application/permission_service.dart';
 import 'package:projectgt/features/roles/presentation/providers/roles_provider.dart';
@@ -955,8 +954,8 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                                                           fontWeight:
                                                               FontWeight.w500)),
                                                   TextSpan(
-                                                    text:
-                                                        '${_formatAmount(item.price ?? 0)} ₽',
+                                                    text: formatCurrency(
+                                                        item.price ?? 0),
                                                     style: TextStyle(
                                                         color: Theme.of(context)
                                                             .colorScheme
@@ -979,8 +978,8 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                                                           fontWeight:
                                                               FontWeight.w500)),
                                                   TextSpan(
-                                                    text:
-                                                        '${_formatAmount(item.total ?? 0)} ₽',
+                                                    text: formatCurrency(
+                                                        item.total ?? 0),
                                                     style: TextStyle(
                                                         color: Theme.of(context)
                                                             .colorScheme
@@ -1019,26 +1018,25 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                                                         fontWeight:
                                                             FontWeight.w500)),
                                                 TextSpan(
-                                                    text: _formatAmount(
+                                                    text: formatCurrency(
                                                         item.price ?? 0),
                                                     style: TextStyle(
                                                         color: Theme.of(context)
                                                             .colorScheme
                                                             .primary)),
-                                                const TextSpan(text: ' ₽  |  '),
+                                                const TextSpan(text: '  |  '),
                                                 const TextSpan(
                                                     text: 'Сумма: ',
                                                     style: TextStyle(
                                                         fontWeight:
                                                             FontWeight.w500)),
                                                 TextSpan(
-                                                    text: _formatAmount(
+                                                    text: formatCurrency(
                                                         item.total ?? 0),
                                                     style: TextStyle(
                                                         color: Theme.of(context)
                                                             .colorScheme
                                                             .primary)),
-                                                const TextSpan(text: ' ₽'),
                                               ],
                                             ),
                                             style: Theme.of(context)
@@ -1120,21 +1118,9 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                 heroTag: null,
                 mini: true,
                 onPressed: () {
-                  showModalBottomSheet(
+                  WorkItemContextMenu.openNewWorkItemForm(
                     context: widget.parentContext,
-                    isScrollControlled: true,
-                    useSafeArea: true,
-                    useRootNavigator: true,
-                    backgroundColor: Colors.transparent,
-                    constraints: BoxConstraints(
-                      maxHeight:
-                          MediaQuery.of(widget.parentContext).size.height -
-                              MediaQuery.of(widget.parentContext).padding.top,
-                    ),
-                    builder: (ctx) => _buildStylizedModalSheet(
-                      widget.parentContext,
-                      WorkItemFormImproved(workId: widget.workId),
-                    ),
+                    workId: widget.workId,
                   );
                 },
                 child: const Icon(CupertinoIcons.add),
@@ -1143,12 +1129,6 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
         ],
       ),
     );
-  }
-
-  /// Форматирует числовое значение для отображения денежной суммы.
-  String _formatAmount(num amount) {
-    final formatter = NumberFormat('#,##0.00', 'ru_RU');
-    return formatter.format(amount);
   }
 
   /// Показывает диалог подтверждения удаления для свайпа (работы)
@@ -1323,61 +1303,6 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
         ),
       ),
     );
-  }
-
-  // Функция, возвращающая шаблон модального окна
-  Widget _buildStylizedModalSheet(BuildContext context, Widget content) {
-    final theme = Theme.of(context);
-    final screenWidth = MediaQuery.of(widget.parentContext).size.width;
-    final isDesktop = ResponsiveUtils.isDesktop(widget.parentContext);
-
-    final modalContent = Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 10,
-            offset: const Offset(0, -5),
-          ),
-        ],
-      ),
-      child: DraggableScrollableSheet(
-        initialChildSize: 0.9,
-        minChildSize: 0.5,
-        maxChildSize: 0.9,
-        expand: false,
-        builder: (context, scrollController) => Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-          ),
-          child: content is WorkItemFormImproved
-              ? WorkItemFormImproved(
-                  workId: content.workId,
-                  initial: content.initial,
-                  scrollController: scrollController,
-                )
-              : content,
-        ),
-      ),
-    );
-
-    if (isDesktop) {
-      // Для десктопа - ограничиваем ширину и привязываем к низу (как у сотрудников)
-      return Align(
-        alignment: Alignment.bottomCenter,
-        child: SizedBox(
-          width: screenWidth * 0.5, // 50% от ширины экрана
-          child: modalContent,
-        ),
-      );
-    } else {
-      // Для мобильных - без дополнительных изменений, так как constraints
-      // определяются в вызове showModalBottomSheet
-      return modalContent;
-    }
   }
 
   Widget _buildFiltersBlock(

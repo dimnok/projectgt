@@ -36,6 +36,15 @@ class _ContractFormScreenState extends ConsumerState<ContractFormScreen> {
   final _warrantyPeriodMonthsController = TextEditingController();
   final _generalContractorFeeAmountController = TextEditingController();
   final _generalContractorFeeRateController = TextEditingController();
+
+  // Новые контроллеры для подписантов
+  final _contractorLegalNameController = TextEditingController();
+  final _contractorPositionController = TextEditingController();
+  final _contractorSignerController = TextEditingController();
+  final _customerLegalNameController = TextEditingController();
+  final _customerPositionController = TextEditingController();
+  final _customerSignerController = TextEditingController();
+
   DateTime? _date;
   DateTime? _endDate;
   String? _selectedContractorId;
@@ -63,6 +72,15 @@ class _ContractFormScreenState extends ConsumerState<ContractFormScreen> {
           c.generalContractorFeeAmount.toStringAsFixed(2);
       _generalContractorFeeRateController.text =
           c.generalContractorFeeRate.toStringAsFixed(2);
+
+      // Заполняем реквизиты
+      _contractorLegalNameController.text = c.contractorOrgName ?? '';
+      _contractorPositionController.text = c.contractorPosition ?? '';
+      _contractorSignerController.text = c.contractorSigner ?? '';
+      _customerLegalNameController.text = c.customerOrgName ?? '';
+      _customerPositionController.text = c.customerPosition ?? '';
+      _customerSignerController.text = c.customerSigner ?? '';
+
       _date = c.date;
       _endDate = c.endDate;
       _selectedContractorId = c.contractorId;
@@ -89,6 +107,14 @@ class _ContractFormScreenState extends ConsumerState<ContractFormScreen> {
     _warrantyPeriodMonthsController.dispose();
     _generalContractorFeeAmountController.dispose();
     _generalContractorFeeRateController.dispose();
+
+    _contractorLegalNameController.dispose();
+    _contractorPositionController.dispose();
+    _contractorSignerController.dispose();
+    _customerLegalNameController.dispose();
+    _customerPositionController.dispose();
+    _customerSignerController.dispose();
+
     super.dispose();
   }
 
@@ -105,28 +131,11 @@ class _ContractFormScreenState extends ConsumerState<ContractFormScreen> {
 
     double vat;
     if (_isVatIncluded) {
-      // Amount is Total. VAT = Amount * Rate / (100 + Rate)
       vat = amount * rate / (100 + rate);
     } else {
-      // Amount is Base. VAT = Amount * Rate / 100
-      // Wait, if user enters Base Amount here, then Total Amount will be higher.
-      // But Contract.amount is usually Total.
-      // If "On Top": User enters Base. We calculate VAT.
-      // Should we update Amount field? No, usually Amount field is the user input.
-      // Let's assume Amount field = Contract Amount (Total).
-      // If User says "On Top", it means the Base was X and VAT was Y.
-      // But if they enter the Total, then the calculation is always "Included".
-
-      // User requirement: "Cost 36... including VAT 5%".
-      // If user switches to "On Top", they probably want to enter Base Amount.
-      // Let's stick to:
-      // Included: VAT = Amount * Rate / (100 + Rate)
-      // On Top: VAT = Amount * Rate / 100.
-
       vat = amount * rate / 100;
     }
 
-    // Update VAT text without triggering loop if formatted same
     final newVatText = vat.toStringAsFixed(2);
     if (_vatAmountController.text != newVatText) {
       _vatAmountController.text = newVatText;
@@ -179,6 +188,27 @@ class _ContractFormScreenState extends ConsumerState<ContractFormScreen> {
       objectId: _selectedObjectId!,
       objectName: null, // будет подтянуто при отображении
       status: _status,
+
+      // Сохраняем подписантов
+      contractorOrgName: _contractorLegalNameController.text.trim().isEmpty
+          ? null
+          : _contractorLegalNameController.text.trim(),
+      contractorPosition: _contractorPositionController.text.trim().isEmpty
+          ? null
+          : _contractorPositionController.text.trim(),
+      contractorSigner: _contractorSignerController.text.trim().isEmpty
+          ? null
+          : _contractorSignerController.text.trim(),
+      customerOrgName: _customerLegalNameController.text.trim().isEmpty
+          ? null
+          : _customerLegalNameController.text.trim(),
+      customerPosition: _customerPositionController.text.trim().isEmpty
+          ? null
+          : _customerPositionController.text.trim(),
+      customerSigner: _customerSignerController.text.trim().isEmpty
+          ? null
+          : _customerSignerController.text.trim(),
+
       createdAt: widget.contract?.createdAt,
       updatedAt: DateTime.now(),
     );
@@ -245,6 +275,12 @@ class _ContractFormScreenState extends ConsumerState<ContractFormScreen> {
         generalContractorFeeAmountController:
             _generalContractorFeeAmountController,
         generalContractorFeeRateController: _generalContractorFeeRateController,
+        contractorLegalNameController: _contractorLegalNameController,
+        contractorPositionController: _contractorPositionController,
+        contractorSignerController: _contractorSignerController,
+        customerLegalNameController: _customerLegalNameController,
+        customerPositionController: _customerPositionController,
+        customerSignerController: _customerSignerController,
         date: _date,
         endDate: _endDate,
         selectedContractorId: _selectedContractorId,
@@ -272,22 +308,25 @@ class _ContractFormScreenState extends ConsumerState<ContractFormScreen> {
   }
 }
 
-/// Модальное окно для создания или редактирования договора.
+// ContractFormModal (если он используется) тоже нужно обновить, но я пока сосредоточился на главном экране.
+// Если нужно, я обновлю и модал.
+// В текущем файле есть ContractFormModal, который тоже нужно обновить, чтобы не было ошибок компиляции.
+
+/// Модальное окно с формой договора.
 ///
-/// Используется для отображения формы договора в модальном режиме (например, bottom sheet).
-/// Если передан [contract], форма работает в режиме редактирования, иначе — создания.
+/// Используется для создания или редактирования договора в диалоговом окне.
 class ContractFormModal extends ConsumerStatefulWidget {
   /// Договор для редактирования. Если null — создаётся новый договор.
   final Contract? contract;
 
-  /// Создаёт модальное окно формы договора.
+  /// Создаёт модальное окно с формой договора.
   const ContractFormModal({super.key, this.contract});
-
   @override
   ConsumerState<ContractFormModal> createState() => _ContractFormModalState();
 }
 
 class _ContractFormModalState extends ConsumerState<ContractFormModal> {
+  // ... (копирую логику из главного экрана для согласованности)
   final _formKey = GlobalKey<FormState>();
   final _numberController = TextEditingController();
   final _amountController = TextEditingController();
@@ -299,6 +338,14 @@ class _ContractFormModalState extends ConsumerState<ContractFormModal> {
   final _warrantyPeriodMonthsController = TextEditingController();
   final _generalContractorFeeAmountController = TextEditingController();
   final _generalContractorFeeRateController = TextEditingController();
+
+  final _contractorLegalNameController = TextEditingController();
+  final _contractorPositionController = TextEditingController();
+  final _contractorSignerController = TextEditingController();
+  final _customerLegalNameController = TextEditingController();
+  final _customerPositionController = TextEditingController();
+  final _customerSignerController = TextEditingController();
+
   DateTime? _date;
   DateTime? _endDate;
   String? _selectedContractorId;
@@ -326,6 +373,14 @@ class _ContractFormModalState extends ConsumerState<ContractFormModal> {
           c.generalContractorFeeAmount.toStringAsFixed(2);
       _generalContractorFeeRateController.text =
           c.generalContractorFeeRate.toStringAsFixed(2);
+
+      _contractorLegalNameController.text = c.contractorOrgName ?? '';
+      _contractorPositionController.text = c.contractorPosition ?? '';
+      _contractorSignerController.text = c.contractorSigner ?? '';
+      _customerLegalNameController.text = c.customerOrgName ?? '';
+      _customerPositionController.text = c.customerPosition ?? '';
+      _customerSignerController.text = c.customerSigner ?? '';
+
       _date = c.date;
       _endDate = c.endDate;
       _selectedContractorId = c.contractorId;
@@ -333,7 +388,6 @@ class _ContractFormModalState extends ConsumerState<ContractFormModal> {
       _status = c.status;
       _isVatIncluded = c.isVatIncluded;
     }
-
     _amountController.addListener(_calculateVat);
     _vatRateController.addListener(_calculateVat);
   }
@@ -352,44 +406,31 @@ class _ContractFormModalState extends ConsumerState<ContractFormModal> {
     _warrantyPeriodMonthsController.dispose();
     _generalContractorFeeAmountController.dispose();
     _generalContractorFeeRateController.dispose();
+    _contractorLegalNameController.dispose();
+    _contractorPositionController.dispose();
+    _contractorSignerController.dispose();
+    _customerLegalNameController.dispose();
+    _customerPositionController.dispose();
+    _customerSignerController.dispose();
     super.dispose();
   }
 
   void _calculateVat() {
+    // ... same logic
     final amount =
         double.tryParse(_amountController.text.replaceAll(',', '.')) ?? 0.0;
     final rate =
         double.tryParse(_vatRateController.text.replaceAll(',', '.')) ?? 0.0;
-
     if (rate == 0) {
       _vatAmountController.text = '0.00';
       return;
     }
-
     double vat;
     if (_isVatIncluded) {
-      // Amount is Total. VAT = Amount * Rate / (100 + Rate)
       vat = amount * rate / (100 + rate);
     } else {
-      // Amount is Base. VAT = Amount * Rate / 100
-      // Wait, if user enters Base Amount here, then Total Amount will be higher.
-      // But Contract.amount is usually Total.
-      // If "On Top": User enters Base. We calculate VAT.
-      // Should we update Amount field? No, usually Amount field is the user input.
-      // Let's assume Amount field = Contract Amount (Total).
-      // If User says "On Top", it means the Base was X and VAT was Y.
-      // But if they enter the Total, then the calculation is always "Included".
-
-      // User requirement: "Cost 36... including VAT 5%".
-      // If user switches to "On Top", they probably want to enter Base Amount.
-      // Let's stick to:
-      // Included: VAT = Amount * Rate / (100 + Rate)
-      // On Top: VAT = Amount * Rate / 100.
-
       vat = amount * rate / 100;
     }
-
-    // Update VAT text without triggering loop if formatted same
     final newVatText = vat.toStringAsFixed(2);
     if (_vatAmountController.text != newVatText) {
       _vatAmountController.text = newVatText;
@@ -442,11 +483,28 @@ class _ContractFormModalState extends ConsumerState<ContractFormModal> {
       objectId: _selectedObjectId!,
       objectName: null,
       status: _status,
+      contractorOrgName: _contractorLegalNameController.text.trim().isEmpty
+          ? null
+          : _contractorLegalNameController.text.trim(),
+      contractorPosition: _contractorPositionController.text.trim().isEmpty
+          ? null
+          : _contractorPositionController.text.trim(),
+      contractorSigner: _contractorSignerController.text.trim().isEmpty
+          ? null
+          : _contractorSignerController.text.trim(),
+      customerOrgName: _customerLegalNameController.text.trim().isEmpty
+          ? null
+          : _customerLegalNameController.text.trim(),
+      customerPosition: _customerPositionController.text.trim().isEmpty
+          ? null
+          : _customerPositionController.text.trim(),
+      customerSigner: _customerSignerController.text.trim().isEmpty
+          ? null
+          : _customerSignerController.text.trim(),
       createdAt: widget.contract?.createdAt,
       updatedAt: DateTime.now(),
     );
-    debugPrint(
-        '[CONTRACTS][FORM] contract: \\${ContractModel.fromDomain(contract).toJson()}');
+
     try {
       if (isNew) {
         await notifier.addContract(contract);
@@ -461,7 +519,6 @@ class _ContractFormModalState extends ConsumerState<ContractFormModal> {
       if (mounted) Navigator.pop(context);
     } catch (e) {
       setState(() => _isLoading = false);
-      debugPrint('[CONTRACTS][ERROR] $e');
       if (!mounted) return;
       SnackBarUtils.showError(context, 'Ошибка: $e');
     }
@@ -476,7 +533,6 @@ class _ContractFormModalState extends ConsumerState<ContractFormModal> {
     final contractorState = ref.watch(contractorProvider);
     final objectState = ref.watch(objectProvider);
     final isNew = widget.contract == null;
-
     final contractorItems = {
       for (final c in contractorState.contractors) c.id: c.fullName
     };
@@ -497,6 +553,12 @@ class _ContractFormModalState extends ConsumerState<ContractFormModal> {
       generalContractorFeeAmountController:
           _generalContractorFeeAmountController,
       generalContractorFeeRateController: _generalContractorFeeRateController,
+      contractorLegalNameController: _contractorLegalNameController,
+      contractorPositionController: _contractorPositionController,
+      contractorSignerController: _contractorSignerController,
+      customerLegalNameController: _customerLegalNameController,
+      customerPositionController: _customerPositionController,
+      customerSignerController: _customerSignerController,
       date: _date,
       endDate: _endDate,
       selectedContractorId: _selectedContractorId,

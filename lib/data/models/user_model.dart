@@ -16,7 +16,7 @@ abstract class UserModel with _$UserModel {
   /// [name] — имя пользователя (опционально).
   /// [photoUrl] — URL фото пользователя (опционально).
   /// [role] — роль пользователя (по умолчанию 'user').
-    /// [roleId] — ID роли пользователя (связь с таблицей roles).
+  /// [roleId] — ID роли пользователя (связь с таблицей roles).
   @JsonSerializable(explicitToJson: true, fieldRename: FieldRename.snake)
   const factory UserModel({
     required String id,

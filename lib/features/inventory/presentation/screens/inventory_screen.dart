@@ -41,52 +41,52 @@ class InventoryScreen extends ConsumerWidget {
                   ),
                   const SizedBox(width: 8),
                   if (permissionService.can('inventory', 'create')) ...[
-                  Expanded(
-                    child: _buildNavigationCard(
-                      context: context,
-                      theme: theme,
-                      icon: Icons.add_box_outlined,
-                      title: 'Приход ТМЦ',
-                      onTap: () => context.goNamed('inventory_receipt'),
+                    Expanded(
+                      child: _buildNavigationCard(
+                        context: context,
+                        theme: theme,
+                        icon: Icons.add_box_outlined,
+                        title: 'Приход ТМЦ',
+                        onTap: () => context.goNamed('inventory_receipt'),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
+                    const SizedBox(width: 8),
                   ],
                   if (permissionService.can('inventory', 'update')) ...[
-                  Expanded(
-                    child: _buildNavigationCard(
-                      context: context,
-                      theme: theme,
-                      icon: Icons.swap_horiz_outlined,
-                      title: 'Передача / Выдача',
-                      onTap: () => context.goNamed('inventory_transfer'),
+                    Expanded(
+                      child: _buildNavigationCard(
+                        context: context,
+                        theme: theme,
+                        icon: Icons.swap_horiz_outlined,
+                        title: 'Передача / Выдача',
+                        onTap: () => context.goNamed('inventory_transfer'),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
+                    const SizedBox(width: 8),
                   ],
                   if (permissionService.can('inventory', 'update')) ...[
-                  Expanded(
-                    child: _buildNavigationCard(
-                      context: context,
-                      theme: theme,
-                      icon: Icons.build_outlined,
-                      title: 'Поломки / Утраты',
-                      onTap: () => context.goNamed('inventory_breakdowns'),
+                    Expanded(
+                      child: _buildNavigationCard(
+                        context: context,
+                        theme: theme,
+                        icon: Icons.build_outlined,
+                        title: 'Поломки / Утраты',
+                        onTap: () => context.goNamed('inventory_breakdowns'),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
+                    const SizedBox(width: 8),
                   ],
                   if (permissionService.can('inventory', 'update')) ...[
-                  Expanded(
-                    child: _buildNavigationCard(
-                      context: context,
-                      theme: theme,
-                      icon: Icons.checklist_outlined,
-                      title: 'Инвентаризация',
-                      onTap: () => context.goNamed('inventory_inventory'),
+                    Expanded(
+                      child: _buildNavigationCard(
+                        context: context,
+                        theme: theme,
+                        icon: Icons.checklist_outlined,
+                        title: 'Инвентаризация',
+                        onTap: () => context.goNamed('inventory_inventory'),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
+                    const SizedBox(width: 8),
                   ],
                   Expanded(
                     child: _buildNavigationCard(

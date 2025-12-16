@@ -54,4 +54,3 @@ class InventoryRepositoryImpl implements InventoryRepository {
     return await dataSource.getSuppliersForDropdown();
   }
 }
-

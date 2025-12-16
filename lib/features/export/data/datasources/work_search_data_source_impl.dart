@@ -173,11 +173,12 @@ class WorkSearchDataSourceImpl implements WorkSearchDataSource {
           final estimateData = workItem['estimates'] as Map<String, dynamic>?;
           final price = estimateData?['price'] as num?;
           final positionNumber = estimateData?['number'] as String?;
-          
+
           // Получаем номер договора через estimate -> contracts
-          final contractData = estimateData?['contracts'] as Map<String, dynamic>?;
+          final contractData =
+              estimateData?['contracts'] as Map<String, dynamic>?;
           final contractNumber = contractData?['number'] as String?;
-          
+
           final quantity = workItem['quantity'] as num? ?? 0;
           final total = price != null ? (price * quantity).toDouble() : null;
 

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:projectgt/features/works/domain/entities/work_item.dart';
+import 'package:projectgt/core/utils/formatters.dart';
 
 /// Карточка «Распределение работ по системам».
 ///
@@ -17,7 +17,6 @@ class WorkDistributionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final numberFormat = NumberFormat('#,##0.00', 'ru_RU');
 
     // Агрегируем суммы по системам
     final Map<String, double> systemSums = <String, double>{};
@@ -95,7 +94,7 @@ class WorkDistributionCard extends StatelessWidget {
                                 ),
                               ),
                               Text(
-                                '${numberFormat.format(systemSum)} ₽ (${(sumPercent * 100).round()}%)',
+                                '${formatCurrency(systemSum)} (${(sumPercent * 100).round()}%)',
                                 style: theme.textTheme.bodyMedium?.copyWith(
                                   color: color,
                                   fontWeight: FontWeight.w600,
@@ -146,7 +145,7 @@ class WorkDistributionCard extends StatelessWidget {
                   ],
                 ),
                 Text(
-                  '${numberFormat.format(totalSum)} ₽',
+                  formatCurrency(totalSum),
                   style: theme.textTheme.titleMedium?.copyWith(
                     color: theme.colorScheme.primary,
                     fontWeight: FontWeight.bold,

@@ -38,24 +38,24 @@ class PayrollTabPenalties extends StatelessWidget {
                 child: PermissionGuard(
                   module: 'payroll',
                   permission: 'create',
-                child: FloatingActionButton(
-                  heroTag: 'addPayrollPenalty',
-                  onPressed: () {
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      constraints: BoxConstraints(
-                        maxHeight: MediaQuery.of(context).size.height -
-                            MediaQuery.of(context).padding.top -
-                            kToolbarHeight,
-                      ),
-                      builder: (ctx) => const PayrollTransactionFormModal(
-                        transactionType: PayrollTransactionType.penalty,
-                      ),
-                    );
-                  },
-                  child: const Icon(Icons.add),
+                  child: FloatingActionButton(
+                    heroTag: 'addPayrollPenalty',
+                    onPressed: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        constraints: BoxConstraints(
+                          maxHeight: MediaQuery.of(context).size.height -
+                              MediaQuery.of(context).padding.top -
+                              kToolbarHeight,
+                        ),
+                        builder: (ctx) => const PayrollTransactionFormModal(
+                          transactionType: PayrollTransactionType.penalty,
+                        ),
+                      );
+                    },
+                    child: const Icon(Icons.add),
                   ),
                 ),
               ),

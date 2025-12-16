@@ -64,6 +64,9 @@ abstract class WorkItemModel with _$WorkItemModel {
 
     /// Дата последнего обновления.
     @JsonKey(name: 'updated_at') DateTime? updatedAt,
+
+    /// Идентификатор акта КС-2 (если работа закрыта актом).
+    @JsonKey(name: 'ks2_id') String? ks2Id,
   }) = _WorkItemModel;
 
   /// Создаёт data-модель работы в смене из JSON.

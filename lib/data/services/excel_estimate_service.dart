@@ -343,7 +343,7 @@ class ExcelEstimateService {
 
         if (isValid) {
           validRowCount++;
-          
+
           // Собираем системы
           final system = row[0]?.value.toString().trim();
           if (system != null && system.isNotEmpty) {

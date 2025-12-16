@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:projectgt/presentation/state/auth_state.dart';
@@ -73,37 +75,36 @@ class SplashController extends _$SplashController {
             .getCurrentUserProfile(authState.user!.id);
       });
 
-      // 4. Сотрудники
-      await step("Загрузка сотрудников...", () async {
-        await ref.read(employeeProvider.notifier).getEmployees();
-      });
+      // 4. Фоновые загрузки справочников (без блокировки UI)
+      state = "Подготовка данных...";
+      unawaited(_prefetchData());
 
-      // 5. Планы и Сметы
-      await step("Загрузка планов и смет...", () async {
-        await Future.wait([
-          ref.read(estimateNotifierProvider.notifier).loadEstimates(),
-          ref.read(workPlanNotifierProvider.notifier).loadWorkPlans(),
-        ]);
-      });
-
-      // 6. Справочники
-      await step("Загрузка материалов...", () async {
-        await Future.wait([
-          ref.read(contractorProvider.notifier).loadContractors(),
-          ref.read(contractProvider.notifier).loadContracts(),
-        ]);
-      });
-
-      // 7. Финал
-      state = "Загрузка главной...";
-      await Future.delayed(const Duration(milliseconds: 500));
-
+      // 5. Финал
+      await Future.delayed(const Duration(milliseconds: 300));
       navigate('/home');
     } catch (e) {
       state = "Ошибка: $e";
       debugPrint("Splash Error: $e");
       // В случае критической ошибки безопаснее отправить на логин
       // navigate('/login');
+    }
+  }
+
+  // Фоновая предзагрузка справочников без блокировки основного потока навигации.
+  Future<void> _prefetchData() async {
+    try {
+      await Future.wait([
+        ref.read(employeeProvider.notifier).getEmployees(
+              includeResponsibilityMap: false,
+            ),
+        ref.read(estimateNotifierProvider.notifier).loadEstimates(),
+        ref.read(workPlanNotifierProvider.notifier).loadWorkPlans(),
+        ref.read(contractorProvider.notifier).loadContractors(),
+        ref.read(contractProvider.notifier).loadContracts(),
+      ]);
+    } catch (e) {
+      // Проглатываем, чтобы не мешать запуску; ошибки будут обработаны при явной загрузке экранов
+      debugPrint("Splash prefetch warning: $e");
     }
   }
 

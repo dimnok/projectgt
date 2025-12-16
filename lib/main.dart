@@ -15,6 +15,7 @@ import 'package:projectgt/core/theme/theme_settings_provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:projectgt/core/notifications/notification_service.dart';
+import 'package:projectgt/core/utils/global_keys.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:projectgt/data/services/fcm_token_service.dart';
 import 'package:projectgt/features/version_control/providers/version_providers.dart';
@@ -202,11 +203,12 @@ class MyApp extends ConsumerWidget {
     }
 
     return MaterialApp.router(
-      title: 'ProjectGT',
+      title: 'Стройка PRO',
       debugShowCheckedModeBanner: false,
       theme: lightTheme,
       darkTheme: darkTheme,
       themeMode: settings.themeMode,
+      scaffoldMessengerKey: rootScaffoldMessengerKey,
       routerConfig: router,
       locale: const Locale('ru', 'RU'),
       localizationsDelegates: const [

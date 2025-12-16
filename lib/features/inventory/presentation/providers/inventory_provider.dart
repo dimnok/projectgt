@@ -13,29 +13,26 @@ final inventoryDataSourceProvider = Provider<InventoryDataSource>((ref) {
 });
 
 /// Провайдер для [InventoryRepository].
-final inventoryRepositoryProvider =
-    Provider<InventoryRepository>((ref) {
+final inventoryRepositoryProvider = Provider<InventoryRepository>((ref) {
   final dataSource = ref.watch(inventoryDataSourceProvider);
   return InventoryRepositoryImpl(dataSource);
 });
 
 /// Провайдер для списка всех ТМЦ с обогащением данными категорий.
-final inventoryItemsProvider =
-    FutureProvider<List<InventoryItem>>((ref) async {
+final inventoryItemsProvider = FutureProvider<List<InventoryItem>>((ref) async {
   final repository = ref.watch(inventoryRepositoryProvider);
   final items = await repository.getInventoryItems();
-  
+
   // Загружаем категории для обогащения данных
   final client = Supabase.instance.client;
-  final categoriesResponse = await client
-      .from('inventory_categories')
-      .select('id, name');
-  
+  final categoriesResponse =
+      await client.from('inventory_categories').select('id, name');
+
   final categoriesMap = <String, String>{};
   for (final cat in categoriesResponse) {
     categoriesMap[cat['id'] as String] = cat['name'] as String;
   }
-  
+
   // Обогащаем ТМЦ названиями категорий
   return items.map((item) {
     return item.copyWith(
@@ -43,4 +40,3 @@ final inventoryItemsProvider =
     );
   }).toList();
 });
-

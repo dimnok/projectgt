@@ -316,113 +316,113 @@ class _ContractorsListScreenState extends ConsumerState<ContractorsListScreen> {
               module: 'contractors',
               permission: 'update',
               child: IconButton(
-              icon: const Icon(Icons.edit, color: Colors.amber),
-              tooltip: 'Редактировать',
-              onPressed: () {
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
-                  constraints: BoxConstraints(
-                    maxHeight: MediaQuery.of(context).size.height -
-                        MediaQuery.of(context).padding.top -
-                        kToolbarHeight,
-                  ),
-                  builder: (context) {
-                    final isDesktop = MediaQuery.of(context).size.width > 800;
-                    Widget modalContent = Container(
-                      clipBehavior: Clip.antiAlias,
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surface,
-                        borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(28)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.1),
-                            blurRadius: 10,
-                            offset: const Offset(0, -5),
-                          ),
-                        ],
-                      ),
-                      child: DraggableScrollableSheet(
-                        initialChildSize: 1.0,
-                        minChildSize: 0.5,
-                        maxChildSize: 1.0,
-                        expand: false,
-                        builder: (context, scrollController) =>
-                            SingleChildScrollView(
-                          controller: scrollController,
-                          child: Padding(
-                            padding: EdgeInsets.only(
+                icon: const Icon(Icons.edit, color: Colors.amber),
+                tooltip: 'Редактировать',
+                onPressed: () {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.of(context).size.height -
+                          MediaQuery.of(context).padding.top -
+                          kToolbarHeight,
+                    ),
+                    builder: (context) {
+                      final isDesktop = MediaQuery.of(context).size.width > 800;
+                      Widget modalContent = Container(
+                        clipBehavior: Clip.antiAlias,
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surface,
+                          borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(28)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 10,
+                              offset: const Offset(0, -5),
+                            ),
+                          ],
+                        ),
+                        child: DraggableScrollableSheet(
+                          initialChildSize: 1.0,
+                          minChildSize: 0.5,
+                          maxChildSize: 1.0,
+                          expand: false,
+                          builder: (context, scrollController) =>
+                              SingleChildScrollView(
+                            controller: scrollController,
+                            child: Padding(
+                              padding: EdgeInsets.only(
                                 bottom:
                                     MediaQuery.of(context).viewInsets.bottom,
+                              ),
+                              child: ContractorFormScreen(
+                                  contractorId: selectedContractorId,
+                                  showScaffold: false),
                             ),
-                            child: ContractorFormScreen(
-                                contractorId: selectedContractorId,
-                                showScaffold: false),
                           ),
                         ),
-                      ),
-                    );
-                    if (isDesktop) {
-                      return Center(
-                        child: SizedBox(
-                          width: (MediaQuery.of(context).size.width * 0.5)
-                              .clamp(400.0, 900.0),
-                          child: modalContent,
-                        ),
                       );
-                    } else {
-                      return modalContent;
-                    }
-                  },
-                );
-              },
-            ),
+                      if (isDesktop) {
+                        return Center(
+                          child: SizedBox(
+                            width: (MediaQuery.of(context).size.width * 0.5)
+                                .clamp(400.0, 900.0),
+                            child: modalContent,
+                          ),
+                        );
+                      } else {
+                        return modalContent;
+                      }
+                    },
+                  );
+                },
+              ),
             ),
             PermissionGuard(
               module: 'contractors',
               permission: 'delete',
               child: IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
-              tooltip: 'Удалить',
-              onPressed: () async {
-                final confirmed = await showDialog<bool>(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: const Text('Удалить контрагента?'),
-                    content: const Text(
-                        'Вы уверены, что хотите удалить этого контрагента?'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(ctx).pop(false),
-                        child: const Text('Отмена'),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.of(ctx).pop(true),
-                        child: const Text('Удалить',
-                            style: TextStyle(color: Colors.red)),
-                      ),
-                    ],
-                  ),
-                );
-                if (confirmed == true) {
-                  try {
-                    await ref
-                        .read(contractorProvider.notifier)
-                        .deleteContractor(selectedContractorId!);
-                    if (!context.mounted) return;
-                    setState(() {
-                      selectedContractorId = null;
-                    });
-                    SnackBarUtils.showSuccess(context, 'Контрагент удалён');
-                  } catch (e) {
-                    if (!context.mounted) return;
-                    SnackBarUtils.showError(
-                        context, 'Ошибка удаления: ${e.toString()}');
+                icon: const Icon(Icons.delete, color: Colors.red),
+                tooltip: 'Удалить',
+                onPressed: () async {
+                  final confirmed = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('Удалить контрагента?'),
+                      content: const Text(
+                          'Вы уверены, что хотите удалить этого контрагента?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(ctx).pop(false),
+                          child: const Text('Отмена'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.of(ctx).pop(true),
+                          child: const Text('Удалить',
+                              style: TextStyle(color: Colors.red)),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirmed == true) {
+                    try {
+                      await ref
+                          .read(contractorProvider.notifier)
+                          .deleteContractor(selectedContractorId!);
+                      if (!context.mounted) return;
+                      setState(() {
+                        selectedContractorId = null;
+                      });
+                      SnackBarUtils.showSuccess(context, 'Контрагент удалён');
+                    } catch (e) {
+                      if (!context.mounted) return;
+                      SnackBarUtils.showError(
+                          context, 'Ошибка удаления: ${e.toString()}');
+                    }
                   }
-                }
-              },
+                },
               ),
             ),
           ],
@@ -433,62 +433,62 @@ class _ContractorsListScreenState extends ConsumerState<ContractorsListScreen> {
         module: 'contractors',
         permission: 'create',
         child: FloatingActionButton(
-        onPressed: () => showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          backgroundColor: Colors.transparent,
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height -
-                MediaQuery.of(context).padding.top -
-                kToolbarHeight,
-          ),
-          builder: (context) {
-            final isDesktop = MediaQuery.of(context).size.width > 800;
-            Widget modalContent = Container(
-              clipBehavior: Clip.antiAlias,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surface,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(28)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, -5),
-                  ),
-                ],
-              ),
-              child: DraggableScrollableSheet(
-                initialChildSize: 1.0,
-                minChildSize: 0.5,
-                maxChildSize: 1.0,
-                expand: false,
-                builder: (context, scrollController) => SingleChildScrollView(
-                  controller: scrollController,
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      bottom: MediaQuery.of(context).viewInsets.bottom,
+          onPressed: () => showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height -
+                  MediaQuery.of(context).padding.top -
+                  kToolbarHeight,
+            ),
+            builder: (context) {
+              final isDesktop = MediaQuery.of(context).size.width > 800;
+              Widget modalContent = Container(
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surface,
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(28)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 10,
+                      offset: const Offset(0, -5),
                     ),
-                    child: const ContractorFormScreen(showScaffold: false),
-                  ),
+                  ],
                 ),
-              ),
-            );
-            if (isDesktop) {
-              return Center(
-                child: SizedBox(
-                  width: (MediaQuery.of(context).size.width * 0.5)
-                      .clamp(400.0, 900.0),
-                  child: modalContent,
+                child: DraggableScrollableSheet(
+                  initialChildSize: 1.0,
+                  minChildSize: 0.5,
+                  maxChildSize: 1.0,
+                  expand: false,
+                  builder: (context, scrollController) => SingleChildScrollView(
+                    controller: scrollController,
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        bottom: MediaQuery.of(context).viewInsets.bottom,
+                      ),
+                      child: const ContractorFormScreen(showScaffold: false),
+                    ),
+                  ),
                 ),
               );
-            } else {
-              return modalContent;
-            }
-          },
-        ),
-        tooltip: 'Добавить контрагента',
-        child: const Icon(Icons.add),
+              if (isDesktop) {
+                return Center(
+                  child: SizedBox(
+                    width: (MediaQuery.of(context).size.width * 0.5)
+                        .clamp(400.0, 900.0),
+                    child: modalContent,
+                  ),
+                );
+              } else {
+                return modalContent;
+              }
+            },
+          ),
+          tooltip: 'Добавить контрагента',
+          child: const Icon(Icons.add),
         ),
       ),
       body: SafeArea(

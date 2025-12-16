@@ -40,4 +40,3 @@ abstract class InventoryRepository {
   /// Использует RPC-функцию get_suppliers_for_dropdown с правами SECURITY DEFINER.
   Future<List<Map<String, dynamic>>> getSuppliersForDropdown();
 }
-

@@ -1,48 +1,49 @@
 {
-  "name": "ProjectGT",
-  "short_name": "ProjectGT",
-  "description": "Система управления проектами и сметами",
-  "start_url": "/",
-  "display": "standalone",
-  "orientation": "portrait-primary",
-  "theme_color": "#ffffff",
-  "background_color": "#ffffff",
-  "scope": "/",
-  "categories": ["business", "productivity"],
-  "lang": "ru-RU",
-  "dir": "ltr",
-  "icons": [
-    {
-      "src": "icons/Icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "icons/Icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "icons/Icon-maskable-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
-      "src": "icons/Icon-maskable-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    }
-  ],
-  "screenshots": [
-    {
-      "src": "icons/Icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "form_factor": "narrow"
-    }
-  ]
+    "name": "Стройка PRO",
+    "short_name": "Стройка PRO",
+    "description": "Система управления проектами и сметами",
+    "start_url": "/",
+    "display": "standalone",
+    "orientation": "portrait-primary",
+    "theme_color": "#000000",
+    "background_color": "#FFFFFF",
+    "scope": "/",
+    "categories": [
+        "business",
+        "productivity"
+    ],
+    "lang": "ru-RU",
+    "dir": "ltr",
+    "screenshots": [
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "form_factor": "narrow"
+        }
+    ],
+    "icons": [
+        {
+            "src": "icons/Icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/Icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
 }

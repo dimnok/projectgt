@@ -115,4 +115,3 @@ class ApplicationDateSelector extends StatelessWidget {
     );
   }
 }
-

@@ -40,7 +40,7 @@ class WorkItemContextMenu {
           CupertinoActionSheetAction(
             onPressed: () {
               Navigator.pop(context);
-              _editWorkItem(
+              openEditWorkItemForm(
                 context: parentContext,
                 item: item,
                 workId: workId,
@@ -70,7 +70,7 @@ class WorkItemContextMenu {
           CupertinoActionSheetAction(
             onPressed: () {
               Navigator.pop(context);
-              _addNewWorkItem(
+              openNewWorkItemForm(
                 context: parentContext,
                 workId: workId,
               );
@@ -92,31 +92,37 @@ class WorkItemContextMenu {
   /// Открывает форму редактирования работы.
   ///
   /// Использует существующий компонент [WorkItemFormImproved].
-  static void _editWorkItem({
+  static void openEditWorkItemForm({
     required BuildContext context,
     required WorkItem item,
     required String workId,
     required WidgetRef ref,
   }) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      useRootNavigator: true,
-      backgroundColor: Colors.transparent,
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height -
-            MediaQuery.of(context).padding.top,
-      ),
-      builder: (ctx) {        return _buildStylizedModalSheet(
-          context,
-          WorkItemFormImproved(
+    final isDesktop = ResponsiveUtils.isDesktop(context);
+
+    if (isDesktop) {
+      showDialog(
+        context: context,
+        builder: (context) => Center(
+          child: WorkItemFormImproved(
             workId: workId,
             initial: item,
           ),
-        );
-      },
-    );
+        ),
+      );
+    } else {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        useRootNavigator: true,
+        backgroundColor: Colors.transparent,
+        builder: (ctx) => WorkItemFormImproved(
+          workId: workId,
+          initial: item,
+        ),
+      );
+    }
   }
 
   /// Показывает диалог подтверждения удаления работы.
@@ -144,12 +150,12 @@ class WorkItemContextMenu {
             isDestructiveAction: true,
             onPressed: () async {
               Navigator.of(context).pop();
-              
+
               // Удаляем работу из провайдера
               await ref
                   .read(workItemsProvider(workId).notifier)
                   .deleteOptimistic(item.id);
-              
+
               // Вызываем callback для обновления фильтров в родительском компоненте
               onComplete?.call();
             },
@@ -163,94 +169,28 @@ class WorkItemContextMenu {
   /// Открывает форму добавления новой работы в смену.
   ///
   /// Использует существующий компонент [WorkItemFormImproved] без initial значения.
-  static void _addNewWorkItem({
+  static void openNewWorkItemForm({
     required BuildContext context,
     required String workId,
   }) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      useRootNavigator: true,
-      backgroundColor: Colors.transparent,
-      constraints: BoxConstraints(
-        maxHeight:
-            MediaQuery.of(context).size.height -
-                MediaQuery.of(context).padding.top,
-      ),
-      builder: (ctx) => _buildStylizedModalSheet(
-        context,
-        WorkItemFormImproved(workId: workId),
-      ),
-    );
-  }
+    final isDesktop = ResponsiveUtils.isDesktop(context);
 
-  /// Строит стилизованное модальное окно (bottom sheet).
-  ///
-  /// Используется общий стиль для всех модалок с работами.
-  static Widget _buildStylizedModalSheet(
-    BuildContext context,
-    Widget content,
-  ) {
-    final theme = Theme.of(context);
-
-    final modalContent = Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 10,
-            offset: const Offset(0, -5),
-          ),
-        ],
-      ),
-      child: DraggableScrollableSheet(
-        initialChildSize: 0.9,
-        minChildSize: 0.5,
-        maxChildSize: 0.9,
-        expand: false,
-        builder: (context, scrollController) {
-        // Если это WorkItemFormImproved без scrollController, добавляем его
-        Widget finalContent = content;
-        if (content is WorkItemFormImproved && content.scrollController == null) {
-          finalContent = WorkItemFormImproved(
-            workId: content.workId,
-            initial: content.initial,
-            scrollController: scrollController,
-          );
-        }
-        
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-          ),
-          child: finalContent,
-        );
-      },
-      ),
-    );
-
-    // Проверяем есть ли ResponsiveUtils
-    try {
-      final isDesktop = ResponsiveUtils.isDesktop(context);
-      if (isDesktop) {
-        final screenWidth = MediaQuery.of(context).size.width;
-        // Для десктопа - ограничиваем ширину 50%
-        return Align(
-          alignment: Alignment.bottomCenter,
-          child: SizedBox(
-            width: screenWidth * 0.5,
-            child: modalContent,
-          ),
-        );
-      }
-    } catch (_) {
-      // ResponsiveUtils может быть недоступен, используем fallback
+    if (isDesktop) {
+      showDialog(
+        context: context,
+        builder: (context) => Center(
+          child: WorkItemFormImproved(workId: workId),
+        ),
+      );
+    } else {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        useRootNavigator: true,
+        backgroundColor: Colors.transparent,
+        builder: (ctx) => WorkItemFormImproved(workId: workId),
+      );
     }
-    
-    return modalContent;
   }
 }

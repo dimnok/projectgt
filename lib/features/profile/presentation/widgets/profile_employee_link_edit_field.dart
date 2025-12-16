@@ -42,7 +42,7 @@ class _ProfileEmployeeLinkEditFieldState
     super.initState();
     // Загружаем список сотрудников один раз при инициализации
     WidgetsBinding.instance.addPostFrameCallback((_) {
-    ref.read(emp_state.employeeProvider.notifier).getEmployees();
+      ref.read(emp_state.employeeProvider.notifier).getEmployees();
     });
   }
 

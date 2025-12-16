@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:projectgt/features/works/data/models/month_group.dart';
 import 'package:projectgt/features/works/domain/entities/work.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
@@ -9,6 +8,7 @@ import 'package:projectgt/presentation/providers/profiles_cache_provider.dart';
 import 'package:projectgt/presentation/widgets/app_badge.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/features/works/presentation/widgets/mobile_work_card.dart';
+import 'package:projectgt/core/utils/formatters.dart';
 
 /// Sliver-версия списка смен для использования внутри CustomScrollView.
 ///
@@ -98,7 +98,6 @@ class SliverMonthWorksList extends ConsumerWidget {
     final theme = Theme.of(context);
     final isDesktop = ResponsiveUtils.isDesktop(context);
     final selected = isDesktop && work.id == selectedWork?.id;
-    final formatter = NumberFormat('#,##0', 'ru_RU');
 
     // Получаем название объекта
     final objectName = ref
@@ -177,9 +176,10 @@ class SliverMonthWorksList extends ConsumerWidget {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                _formatDate(work.date),
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
+                                formatRuDate(work.date),
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
                                   color: selected ? Colors.blue : null,
                                 ),
                               ),
@@ -188,6 +188,8 @@ class SliverMonthWorksList extends ConsumerWidget {
                                 child: Text(
                                   objectName,
                                   style: theme.textTheme.bodySmall?.copyWith(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
                                     color: selected ? Colors.blue : null,
                                   ),
                                   maxLines: 1,
@@ -206,9 +208,10 @@ class SliverMonthWorksList extends ConsumerWidget {
                                   createdBy,
                                   style: theme.textTheme.bodySmall?.copyWith(
                                     color: selected
-                                        ? Colors.blue.withValues(alpha: 0.7)
-                                        : theme.colorScheme.secondary,
-                                    fontSize: 11,
+                                        ? Colors.blue
+                                        : theme.colorScheme.onSurface
+                                            .withValues(alpha: 0.5),
+                                    fontSize: 12,
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -216,13 +219,13 @@ class SliverMonthWorksList extends ConsumerWidget {
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                '${formatter.format(work.totalAmount ?? 0)} ₽',
+                                formatCurrency(work.totalAmount ?? 0),
                                 style: theme.textTheme.bodySmall?.copyWith(
-                                  fontWeight: FontWeight.w600,
+                                  fontWeight: FontWeight.w700,
                                   color: selected
                                       ? Colors.blue
                                       : theme.colorScheme.primary,
-                                  fontSize: 11,
+                                  fontSize: 14,
                                 ),
                               ),
                             ],
@@ -235,16 +238,21 @@ class SliverMonthWorksList extends ConsumerWidget {
                           Row(
                             children: [
                               Text(
-                                _formatDate(work.date),
-                                style: theme.textTheme.titleSmall
-                                    ?.copyWith(fontWeight: FontWeight.bold),
+                                formatRuDate(work.date),
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
                               ),
                             ],
                           ),
                           const SizedBox(height: 4),
                           Text(
                             objectName,
-                            style: theme.textTheme.bodySmall,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -252,7 +260,10 @@ class SliverMonthWorksList extends ConsumerWidget {
                           Text(
                             'Открыл: $createdBy',
                             style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.secondary,
+                              color: selected
+                                  ? Colors.blue
+                                  : theme.colorScheme.onSurface
+                                      .withValues(alpha: 0.5),
                               fontSize: 12,
                             ),
                             maxLines: 1,
@@ -279,19 +290,20 @@ class SliverMonthWorksList extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            '${formatter.format(work.totalAmount ?? 0)} ₽',
+                            formatCurrency(work.totalAmount ?? 0),
                             style: (isDesktop
                                     ? theme.textTheme.bodySmall
                                     : theme.textTheme.titleSmall)
                                 ?.copyWith(
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w700,
                               color: theme.colorScheme.primary,
+                              fontSize: 14,
                             ),
                           ),
                           if ((work.employeesCount ?? 0) > 0) ...[
                             const SizedBox(height: 2),
                             Text(
-                              '${formatter.format(((work.totalAmount ?? 0) / (work.employeesCount ?? 1)).round())} ₽/чел',
+                              '${formatCurrency((work.totalAmount ?? 0) / (work.employeesCount ?? 1))}/чел',
                               style: (isDesktop
                                       ? theme.textTheme.bodySmall
                                       : theme.textTheme.bodyMedium)
@@ -310,10 +322,6 @@ class SliverMonthWorksList extends ConsumerWidget {
         ),
       ),
     );
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
   }
 
   (String, Color) _getWorkStatusInfo(String status) {

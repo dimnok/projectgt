@@ -76,7 +76,7 @@ class SupabaseInventoryDataSource implements InventoryDataSource {
       if (item.id.isEmpty) {
         throw Exception('Cannot update item without ID');
       }
-      
+
       final itemJson = item.toJson();
       // Удаляем поля, которые не должны обновляться
       itemJson.remove('id'); // ID не может быть изменён
@@ -106,7 +106,6 @@ class SupabaseInventoryDataSource implements InventoryDataSource {
       rethrow;
     }
   }
-
 
   @override
   Future<List<String>> getUnits() async {

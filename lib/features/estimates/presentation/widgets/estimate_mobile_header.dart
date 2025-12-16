@@ -99,8 +99,8 @@ class EstimateMobileHeader extends StatelessWidget {
                   builder: (context, value, child) {
                     if (value.text.isNotEmpty) {
                       return IconButton(
-                        icon: const Icon(CupertinoIcons.clear_circled,
-                            size: 18),
+                        icon:
+                            const Icon(CupertinoIcons.clear_circled, size: 18),
                         visualDensity: VisualDensity.compact,
                         tooltip: 'Очистить',
                         onPressed: () {
@@ -151,8 +151,8 @@ class EstimateMobileHeader extends StatelessWidget {
                           Text(
                             'Позиций:',
                             style: theme.textTheme.bodySmall?.copyWith(
-                              color:
-                                  theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                              color: theme.colorScheme.onSurface
+                                  .withValues(alpha: 0.7),
                             ),
                           ),
                           Text(
@@ -171,8 +171,8 @@ class EstimateMobileHeader extends StatelessWidget {
                           Text(
                             'Итого:',
                             style: theme.textTheme.bodySmall?.copyWith(
-                              color:
-                                  theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                              color: theme.colorScheme.onSurface
+                                  .withValues(alpha: 0.7),
                             ),
                           ),
                           Text(
@@ -220,19 +220,23 @@ class EstimateMobileHeader extends StatelessWidget {
                           return Padding(
                             padding: const EdgeInsets.only(right: 6),
                             child: FilterChip(
-                              label: Text(system, style: const TextStyle(fontSize: 12)),
+                              label: Text(system,
+                                  style: const TextStyle(fontSize: 12)),
                               selected: isSelected,
                               showCheckmark: false,
-                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
                               visualDensity: VisualDensity.compact,
-                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 4),
                               backgroundColor: theme.colorScheme.surface,
-                              selectedColor:
-                                  theme.colorScheme.primary.withValues(alpha: 0.2),
+                              selectedColor: theme.colorScheme.primary
+                                  .withValues(alpha: 0.2),
                               side: BorderSide(
                                 color: isSelected
                                     ? theme.colorScheme.primary
-                                    : theme.colorScheme.outline.withValues(alpha: 50),
+                                    : theme.colorScheme.outline
+                                        .withValues(alpha: 50),
                                 width: 1,
                               ),
                               labelStyle: TextStyle(
@@ -315,4 +319,3 @@ class EstimateMobileHeader extends StatelessWidget {
     return systems.toList()..sort();
   }
 }
-

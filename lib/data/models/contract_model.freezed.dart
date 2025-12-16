@@ -35,7 +35,14 @@ mixin _$ContractModel {
   double get generalContractorFeeRate;
   String get objectId;
   String? get objectName;
-  ContractStatus get status;
+  ContractStatus
+      get status; // Новые поля для подписантов (маппятся на _legal_name в БД через snake_case)
+  String? get contractorLegalName;
+  String? get contractorPosition;
+  String? get contractorSigner;
+  String? get customerLegalName;
+  String? get customerPosition;
+  String? get customerSigner;
   DateTime? get createdAt;
   DateTime? get updatedAt;
 
@@ -68,8 +75,7 @@ mixin _$ContractModel {
                 other.vatAmount == vatAmount) &&
             (identical(other.advanceAmount, advanceAmount) ||
                 other.advanceAmount == advanceAmount) &&
-            (identical(
-                    other.warrantyRetentionAmount, warrantyRetentionAmount) ||
+            (identical(other.warrantyRetentionAmount, warrantyRetentionAmount) ||
                 other.warrantyRetentionAmount == warrantyRetentionAmount) &&
             (identical(other.warrantyRetentionRate, warrantyRetentionRate) ||
                 other.warrantyRetentionRate == warrantyRetentionRate) &&
@@ -87,6 +93,18 @@ mixin _$ContractModel {
             (identical(other.objectName, objectName) ||
                 other.objectName == objectName) &&
             (identical(other.status, status) || other.status == status) &&
+            (identical(other.contractorLegalName, contractorLegalName) ||
+                other.contractorLegalName == contractorLegalName) &&
+            (identical(other.contractorPosition, contractorPosition) ||
+                other.contractorPosition == contractorPosition) &&
+            (identical(other.contractorSigner, contractorSigner) ||
+                other.contractorSigner == contractorSigner) &&
+            (identical(other.customerLegalName, customerLegalName) ||
+                other.customerLegalName == customerLegalName) &&
+            (identical(other.customerPosition, customerPosition) ||
+                other.customerPosition == customerPosition) &&
+            (identical(other.customerSigner, customerSigner) ||
+                other.customerSigner == customerSigner) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
@@ -115,13 +133,19 @@ mixin _$ContractModel {
         objectId,
         objectName,
         status,
+        contractorLegalName,
+        contractorPosition,
+        contractorSigner,
+        customerLegalName,
+        customerPosition,
+        customerSigner,
         createdAt,
         updatedAt
       ]);
 
   @override
   String toString() {
-    return 'ContractModel(id: $id, number: $number, date: $date, endDate: $endDate, contractorId: $contractorId, contractorName: $contractorName, amount: $amount, vatRate: $vatRate, isVatIncluded: $isVatIncluded, vatAmount: $vatAmount, advanceAmount: $advanceAmount, warrantyRetentionAmount: $warrantyRetentionAmount, warrantyRetentionRate: $warrantyRetentionRate, warrantyPeriodMonths: $warrantyPeriodMonths, generalContractorFeeAmount: $generalContractorFeeAmount, generalContractorFeeRate: $generalContractorFeeRate, objectId: $objectId, objectName: $objectName, status: $status, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'ContractModel(id: $id, number: $number, date: $date, endDate: $endDate, contractorId: $contractorId, contractorName: $contractorName, amount: $amount, vatRate: $vatRate, isVatIncluded: $isVatIncluded, vatAmount: $vatAmount, advanceAmount: $advanceAmount, warrantyRetentionAmount: $warrantyRetentionAmount, warrantyRetentionRate: $warrantyRetentionRate, warrantyPeriodMonths: $warrantyPeriodMonths, generalContractorFeeAmount: $generalContractorFeeAmount, generalContractorFeeRate: $generalContractorFeeRate, objectId: $objectId, objectName: $objectName, status: $status, contractorLegalName: $contractorLegalName, contractorPosition: $contractorPosition, contractorSigner: $contractorSigner, customerLegalName: $customerLegalName, customerPosition: $customerPosition, customerSigner: $customerSigner, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 }
 
@@ -151,6 +175,12 @@ abstract mixin class $ContractModelCopyWith<$Res> {
       String objectId,
       String? objectName,
       ContractStatus status,
+      String? contractorLegalName,
+      String? contractorPosition,
+      String? contractorSigner,
+      String? customerLegalName,
+      String? customerPosition,
+      String? customerSigner,
       DateTime? createdAt,
       DateTime? updatedAt});
 }
@@ -187,6 +217,12 @@ class _$ContractModelCopyWithImpl<$Res>
     Object? objectId = null,
     Object? objectName = freezed,
     Object? status = null,
+    Object? contractorLegalName = freezed,
+    Object? contractorPosition = freezed,
+    Object? contractorSigner = freezed,
+    Object? customerLegalName = freezed,
+    Object? customerPosition = freezed,
+    Object? customerSigner = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
   }) {
@@ -267,6 +303,30 @@ class _$ContractModelCopyWithImpl<$Res>
           ? _self.status
           : status // ignore: cast_nullable_to_non_nullable
               as ContractStatus,
+      contractorLegalName: freezed == contractorLegalName
+          ? _self.contractorLegalName
+          : contractorLegalName // ignore: cast_nullable_to_non_nullable
+              as String?,
+      contractorPosition: freezed == contractorPosition
+          ? _self.contractorPosition
+          : contractorPosition // ignore: cast_nullable_to_non_nullable
+              as String?,
+      contractorSigner: freezed == contractorSigner
+          ? _self.contractorSigner
+          : contractorSigner // ignore: cast_nullable_to_non_nullable
+              as String?,
+      customerLegalName: freezed == customerLegalName
+          ? _self.customerLegalName
+          : customerLegalName // ignore: cast_nullable_to_non_nullable
+              as String?,
+      customerPosition: freezed == customerPosition
+          ? _self.customerPosition
+          : customerPosition // ignore: cast_nullable_to_non_nullable
+              as String?,
+      customerSigner: freezed == customerSigner
+          ? _self.customerSigner
+          : customerSigner // ignore: cast_nullable_to_non_nullable
+              as String?,
       createdAt: freezed == createdAt
           ? _self.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -303,6 +363,12 @@ class _ContractModel extends ContractModel {
       required this.objectId,
       this.objectName,
       this.status = ContractStatus.active,
+      this.contractorLegalName,
+      this.contractorPosition,
+      this.contractorSigner,
+      this.customerLegalName,
+      this.customerPosition,
+      this.customerSigner,
       this.createdAt,
       this.updatedAt})
       : super._();
@@ -357,6 +423,19 @@ class _ContractModel extends ContractModel {
   @override
   @JsonKey()
   final ContractStatus status;
+// Новые поля для подписантов (маппятся на _legal_name в БД через snake_case)
+  @override
+  final String? contractorLegalName;
+  @override
+  final String? contractorPosition;
+  @override
+  final String? contractorSigner;
+  @override
+  final String? customerLegalName;
+  @override
+  final String? customerPosition;
+  @override
+  final String? customerSigner;
   @override
   final DateTime? createdAt;
   @override
@@ -391,8 +470,7 @@ class _ContractModel extends ContractModel {
                 other.vatAmount == vatAmount) &&
             (identical(other.advanceAmount, advanceAmount) ||
                 other.advanceAmount == advanceAmount) &&
-            (identical(
-                    other.warrantyRetentionAmount, warrantyRetentionAmount) ||
+            (identical(other.warrantyRetentionAmount, warrantyRetentionAmount) ||
                 other.warrantyRetentionAmount == warrantyRetentionAmount) &&
             (identical(other.warrantyRetentionRate, warrantyRetentionRate) ||
                 other.warrantyRetentionRate == warrantyRetentionRate) &&
@@ -410,6 +488,18 @@ class _ContractModel extends ContractModel {
             (identical(other.objectName, objectName) ||
                 other.objectName == objectName) &&
             (identical(other.status, status) || other.status == status) &&
+            (identical(other.contractorLegalName, contractorLegalName) ||
+                other.contractorLegalName == contractorLegalName) &&
+            (identical(other.contractorPosition, contractorPosition) ||
+                other.contractorPosition == contractorPosition) &&
+            (identical(other.contractorSigner, contractorSigner) ||
+                other.contractorSigner == contractorSigner) &&
+            (identical(other.customerLegalName, customerLegalName) ||
+                other.customerLegalName == customerLegalName) &&
+            (identical(other.customerPosition, customerPosition) ||
+                other.customerPosition == customerPosition) &&
+            (identical(other.customerSigner, customerSigner) ||
+                other.customerSigner == customerSigner) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
@@ -438,13 +528,19 @@ class _ContractModel extends ContractModel {
         objectId,
         objectName,
         status,
+        contractorLegalName,
+        contractorPosition,
+        contractorSigner,
+        customerLegalName,
+        customerPosition,
+        customerSigner,
         createdAt,
         updatedAt
       ]);
 
   @override
   String toString() {
-    return 'ContractModel(id: $id, number: $number, date: $date, endDate: $endDate, contractorId: $contractorId, contractorName: $contractorName, amount: $amount, vatRate: $vatRate, isVatIncluded: $isVatIncluded, vatAmount: $vatAmount, advanceAmount: $advanceAmount, warrantyRetentionAmount: $warrantyRetentionAmount, warrantyRetentionRate: $warrantyRetentionRate, warrantyPeriodMonths: $warrantyPeriodMonths, generalContractorFeeAmount: $generalContractorFeeAmount, generalContractorFeeRate: $generalContractorFeeRate, objectId: $objectId, objectName: $objectName, status: $status, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'ContractModel(id: $id, number: $number, date: $date, endDate: $endDate, contractorId: $contractorId, contractorName: $contractorName, amount: $amount, vatRate: $vatRate, isVatIncluded: $isVatIncluded, vatAmount: $vatAmount, advanceAmount: $advanceAmount, warrantyRetentionAmount: $warrantyRetentionAmount, warrantyRetentionRate: $warrantyRetentionRate, warrantyPeriodMonths: $warrantyPeriodMonths, generalContractorFeeAmount: $generalContractorFeeAmount, generalContractorFeeRate: $generalContractorFeeRate, objectId: $objectId, objectName: $objectName, status: $status, contractorLegalName: $contractorLegalName, contractorPosition: $contractorPosition, contractorSigner: $contractorSigner, customerLegalName: $customerLegalName, customerPosition: $customerPosition, customerSigner: $customerSigner, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 }
 
@@ -476,6 +572,12 @@ abstract mixin class _$ContractModelCopyWith<$Res>
       String objectId,
       String? objectName,
       ContractStatus status,
+      String? contractorLegalName,
+      String? contractorPosition,
+      String? contractorSigner,
+      String? customerLegalName,
+      String? customerPosition,
+      String? customerSigner,
       DateTime? createdAt,
       DateTime? updatedAt});
 }
@@ -512,6 +614,12 @@ class __$ContractModelCopyWithImpl<$Res>
     Object? objectId = null,
     Object? objectName = freezed,
     Object? status = null,
+    Object? contractorLegalName = freezed,
+    Object? contractorPosition = freezed,
+    Object? contractorSigner = freezed,
+    Object? customerLegalName = freezed,
+    Object? customerPosition = freezed,
+    Object? customerSigner = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
   }) {
@@ -592,6 +700,30 @@ class __$ContractModelCopyWithImpl<$Res>
           ? _self.status
           : status // ignore: cast_nullable_to_non_nullable
               as ContractStatus,
+      contractorLegalName: freezed == contractorLegalName
+          ? _self.contractorLegalName
+          : contractorLegalName // ignore: cast_nullable_to_non_nullable
+              as String?,
+      contractorPosition: freezed == contractorPosition
+          ? _self.contractorPosition
+          : contractorPosition // ignore: cast_nullable_to_non_nullable
+              as String?,
+      contractorSigner: freezed == contractorSigner
+          ? _self.contractorSigner
+          : contractorSigner // ignore: cast_nullable_to_non_nullable
+              as String?,
+      customerLegalName: freezed == customerLegalName
+          ? _self.customerLegalName
+          : customerLegalName // ignore: cast_nullable_to_non_nullable
+              as String?,
+      customerPosition: freezed == customerPosition
+          ? _self.customerPosition
+          : customerPosition // ignore: cast_nullable_to_non_nullable
+              as String?,
+      customerSigner: freezed == customerSigner
+          ? _self.customerSigner
+          : customerSigner // ignore: cast_nullable_to_non_nullable
+              as String?,
       createdAt: freezed == createdAt
           ? _self.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable

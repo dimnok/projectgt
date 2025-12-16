@@ -15,18 +15,32 @@ T _$identity<T>(T value) => value;
 
 /// @nodoc
 mixin _$ProcurementApplication {
+  /// Уникальный идентификатор заявки.
   String get id;
+
+  /// Читаемый ID заявки.
   @JsonKey(name: 'readable_id')
   String? get readableId;
+
+  /// Дата создания.
   @JsonKey(name: 'created_at')
   DateTime get createdAt;
+
+  /// Статус заявки.
   String get status; // Relations
+  /// Объект, к которому относится заявка.
   @JsonKey(name: 'object', fromJson: _objectFromJson, toJson: _objectToJson)
   ObjectEntity? get object;
+
+  /// Пользователь, создавший заявку.
   @JsonKey(name: 'requester')
   BotUserModel? get requester;
+
+  /// Список позиций в заявке.
   @JsonKey(name: 'items')
   List<ProcurementRequest> get items;
+
+  /// История изменений заявки.
   @JsonKey(name: 'history')
   List<ProcurementHistory> get history;
 
@@ -205,25 +219,39 @@ class _ProcurementApplication implements ProcurementApplication {
   factory _ProcurementApplication.fromJson(Map<String, dynamic> json) =>
       _$ProcurementApplicationFromJson(json);
 
+  /// Уникальный идентификатор заявки.
   @override
   final String id;
+
+  /// Читаемый ID заявки.
   @override
   @JsonKey(name: 'readable_id')
   final String? readableId;
+
+  /// Дата создания.
   @override
   @JsonKey(name: 'created_at')
   final DateTime createdAt;
+
+  /// Статус заявки.
   @override
   @JsonKey()
   final String status;
 // Relations
+  /// Объект, к которому относится заявка.
   @override
   @JsonKey(name: 'object', fromJson: _objectFromJson, toJson: _objectToJson)
   final ObjectEntity? object;
+
+  /// Пользователь, создавший заявку.
   @override
   @JsonKey(name: 'requester')
   final BotUserModel? requester;
+
+  /// Список позиций в заявке.
   final List<ProcurementRequest> _items;
+
+  /// Список позиций в заявке.
   @override
   @JsonKey(name: 'items')
   List<ProcurementRequest> get items {
@@ -232,7 +260,10 @@ class _ProcurementApplication implements ProcurementApplication {
     return EqualUnmodifiableListView(_items);
   }
 
+  /// История изменений заявки.
   final List<ProcurementHistory> _history;
+
+  /// История изменений заявки.
   @override
   @JsonKey(name: 'history')
   List<ProcurementHistory> get history {
@@ -408,12 +439,21 @@ class __$ProcurementApplicationCopyWithImpl<$Res>
 
 /// @nodoc
 mixin _$ProcurementHistory {
+  /// Уникальный идентификатор записи истории.
   String get id;
+
+  /// Новый статус заявки.
   @JsonKey(name: 'new_status')
   String get newStatus;
+
+  /// Дата изменения.
   @JsonKey(name: 'changed_at')
   DateTime get changedAt;
+
+  /// Комментарий к изменению.
   String? get comment;
+
+  /// Пользователь, внесший изменение.
   @JsonKey(name: 'actor')
   BotUserModel? get actor;
 
@@ -539,16 +579,25 @@ class _ProcurementHistory implements ProcurementHistory {
   factory _ProcurementHistory.fromJson(Map<String, dynamic> json) =>
       _$ProcurementHistoryFromJson(json);
 
+  /// Уникальный идентификатор записи истории.
   @override
   final String id;
+
+  /// Новый статус заявки.
   @override
   @JsonKey(name: 'new_status')
   final String newStatus;
+
+  /// Дата изменения.
   @override
   @JsonKey(name: 'changed_at')
   final DateTime changedAt;
+
+  /// Комментарий к изменению.
   @override
   final String? comment;
+
+  /// Пользователь, внесший изменение.
   @override
   @JsonKey(name: 'actor')
   final BotUserModel? actor;
