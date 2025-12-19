@@ -31,6 +31,8 @@ mixin _$EstimateModel {
   String? get objectId;
   @JsonKey(name: 'contract_id')
   String? get contractId;
+  @JsonKey(name: 'contract_number')
+  String? get contractNumber;
   @JsonKey(name: 'estimate_title')
   String? get estimateTitle;
 
@@ -68,6 +70,8 @@ mixin _$EstimateModel {
                 other.objectId == objectId) &&
             (identical(other.contractId, contractId) ||
                 other.contractId == contractId) &&
+            (identical(other.contractNumber, contractNumber) ||
+                other.contractNumber == contractNumber) &&
             (identical(other.estimateTitle, estimateTitle) ||
                 other.estimateTitle == estimateTitle));
   }
@@ -89,11 +93,12 @@ mixin _$EstimateModel {
       total,
       objectId,
       contractId,
+      contractNumber,
       estimateTitle);
 
   @override
   String toString() {
-    return 'EstimateModel(id: $id, system: $system, subsystem: $subsystem, number: $number, name: $name, article: $article, manufacturer: $manufacturer, unit: $unit, quantity: $quantity, price: $price, total: $total, objectId: $objectId, contractId: $contractId, estimateTitle: $estimateTitle)';
+    return 'EstimateModel(id: $id, system: $system, subsystem: $subsystem, number: $number, name: $name, article: $article, manufacturer: $manufacturer, unit: $unit, quantity: $quantity, price: $price, total: $total, objectId: $objectId, contractId: $contractId, contractNumber: $contractNumber, estimateTitle: $estimateTitle)';
   }
 }
 
@@ -117,6 +122,7 @@ abstract mixin class $EstimateModelCopyWith<$Res> {
       double total,
       @JsonKey(name: 'object_id') String? objectId,
       @JsonKey(name: 'contract_id') String? contractId,
+      @JsonKey(name: 'contract_number') String? contractNumber,
       @JsonKey(name: 'estimate_title') String? estimateTitle});
 }
 
@@ -146,6 +152,7 @@ class _$EstimateModelCopyWithImpl<$Res>
     Object? total = null,
     Object? objectId = freezed,
     Object? contractId = freezed,
+    Object? contractNumber = freezed,
     Object? estimateTitle = freezed,
   }) {
     return _then(_self.copyWith(
@@ -201,6 +208,10 @@ class _$EstimateModelCopyWithImpl<$Res>
           ? _self.contractId
           : contractId // ignore: cast_nullable_to_non_nullable
               as String?,
+      contractNumber: freezed == contractNumber
+          ? _self.contractNumber
+          : contractNumber // ignore: cast_nullable_to_non_nullable
+              as String?,
       estimateTitle: freezed == estimateTitle
           ? _self.estimateTitle
           : estimateTitle // ignore: cast_nullable_to_non_nullable
@@ -227,6 +238,7 @@ class _EstimateModel extends EstimateModel {
       required this.total,
       @JsonKey(name: 'object_id') this.objectId,
       @JsonKey(name: 'contract_id') this.contractId,
+      @JsonKey(name: 'contract_number') this.contractNumber,
       @JsonKey(name: 'estimate_title') this.estimateTitle})
       : super._();
   factory _EstimateModel.fromJson(Map<String, dynamic> json) =>
@@ -261,6 +273,9 @@ class _EstimateModel extends EstimateModel {
   @override
   @JsonKey(name: 'contract_id')
   final String? contractId;
+  @override
+  @JsonKey(name: 'contract_number')
+  final String? contractNumber;
   @override
   @JsonKey(name: 'estimate_title')
   final String? estimateTitle;
@@ -303,6 +318,8 @@ class _EstimateModel extends EstimateModel {
                 other.objectId == objectId) &&
             (identical(other.contractId, contractId) ||
                 other.contractId == contractId) &&
+            (identical(other.contractNumber, contractNumber) ||
+                other.contractNumber == contractNumber) &&
             (identical(other.estimateTitle, estimateTitle) ||
                 other.estimateTitle == estimateTitle));
   }
@@ -324,11 +341,12 @@ class _EstimateModel extends EstimateModel {
       total,
       objectId,
       contractId,
+      contractNumber,
       estimateTitle);
 
   @override
   String toString() {
-    return 'EstimateModel(id: $id, system: $system, subsystem: $subsystem, number: $number, name: $name, article: $article, manufacturer: $manufacturer, unit: $unit, quantity: $quantity, price: $price, total: $total, objectId: $objectId, contractId: $contractId, estimateTitle: $estimateTitle)';
+    return 'EstimateModel(id: $id, system: $system, subsystem: $subsystem, number: $number, name: $name, article: $article, manufacturer: $manufacturer, unit: $unit, quantity: $quantity, price: $price, total: $total, objectId: $objectId, contractId: $contractId, contractNumber: $contractNumber, estimateTitle: $estimateTitle)';
   }
 }
 
@@ -354,6 +372,7 @@ abstract mixin class _$EstimateModelCopyWith<$Res>
       double total,
       @JsonKey(name: 'object_id') String? objectId,
       @JsonKey(name: 'contract_id') String? contractId,
+      @JsonKey(name: 'contract_number') String? contractNumber,
       @JsonKey(name: 'estimate_title') String? estimateTitle});
 }
 
@@ -383,6 +402,7 @@ class __$EstimateModelCopyWithImpl<$Res>
     Object? total = null,
     Object? objectId = freezed,
     Object? contractId = freezed,
+    Object? contractNumber = freezed,
     Object? estimateTitle = freezed,
   }) {
     return _then(_EstimateModel(
@@ -437,6 +457,10 @@ class __$EstimateModelCopyWithImpl<$Res>
       contractId: freezed == contractId
           ? _self.contractId
           : contractId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      contractNumber: freezed == contractNumber
+          ? _self.contractNumber
+          : contractNumber // ignore: cast_nullable_to_non_nullable
               as String?,
       estimateTitle: freezed == estimateTitle
           ? _self.estimateTitle

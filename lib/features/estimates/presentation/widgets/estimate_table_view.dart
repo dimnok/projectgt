@@ -1,506 +1,758 @@
+import 'dart:math' as math;
+import 'dart:ui' as ui show TextDirection;
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pluto_grid/pluto_grid.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/utils/formatters.dart';
+import '../../../../data/models/estimate_completion_model.dart';
 import '../../../../domain/entities/estimate.dart';
 import '../../../../features/roles/application/permission_service.dart';
+import '../utils/estimate_sorter.dart';
 
-/// Виджет таблицы сметы для Desktop версии.
-///
-/// Использует [PlutoGrid] для отображения данных.
+/// Режимы отображения таблицы сметы.
+enum EstimateViewMode {
+  /// Режим "Смета" — базовая информация по позициям.
+  planning,
+
+  /// Режим "Выполнение" — фактические данные выполнения.
+  execution,
+}
+
+/// Облегчённая таблица сметы без зависимостей от PlutoGrid.
 class EstimateTableView extends ConsumerStatefulWidget {
-  /// Список позиций сметы для отображения.
-  final List<Estimate> items;
-
-  /// Коллбек редактирования позиции.
-  final Function(Estimate) onEdit;
-
-  /// Коллбек дублирования позиции.
-  final Function(Estimate) onDuplicate;
-
-  /// Коллбек удаления позиции.
-  final Function(String) onDelete;
-
-  /// Создаёт виджет таблицы сметы.
   const EstimateTableView({
     super.key,
     required this.items,
     required this.onEdit,
     required this.onDuplicate,
     required this.onDelete,
+    this.completionData,
+    this.viewMode = EstimateViewMode.planning,
   });
+
+  final List<Estimate> items;
+  final Map<String, EstimateCompletionModel>? completionData;
+  final EstimateViewMode viewMode;
+  final void Function(Estimate) onEdit;
+  final void Function(Estimate) onDuplicate;
+  final void Function(String id) onDelete;
 
   @override
   ConsumerState<EstimateTableView> createState() => _EstimateTableViewState();
 }
 
 class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
-  late List<PlutoColumn> _columns;
-  late List<PlutoRow> _rows;
+  static const double _kCellVerticalPadding = 1;
+  static const double _kCellHorizontalPadding = 8;
+  static const double _kDefaultMinColumnWidth = 32;
+
+  final ScrollController _verticalController = ScrollController();
+  final ScrollController _horizontalController = ScrollController();
+  final ScrollController _headerHorizontalController = ScrollController();
+  bool _isSyncingScroll = false;
+  final NumberFormat _quantityFormat = NumberFormat('###,##0.###', 'ru_RU');
+
+  bool get _isPlanning => widget.viewMode == EstimateViewMode.planning;
+  bool get _isExecution => widget.viewMode == EstimateViewMode.execution;
+
+  @override
+  void initState() {
+    super.initState();
+    _horizontalController.addListener(_syncHeaderScroll);
+  }
+
+  void _syncHeaderScroll() {
+    if (_isSyncingScroll) return;
+    if (!_headerHorizontalController.hasClients) return;
+    _isSyncingScroll = true;
+    _headerHorizontalController.jumpTo(_horizontalController.offset);
+    _isSyncingScroll = false;
+  }
+
+  @override
+  void dispose() {
+    _horizontalController.removeListener(_syncHeaderScroll);
+    _verticalController.dispose();
+    _horizontalController.dispose();
+    _headerHorizontalController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final permissionService = ref.watch(permissionServiceProvider);
+    // Используем специальное право 'manual_edit' для UI-элементов ручного управления (кнопки, меню действий).
+    // Стандартные права (update, create, delete) остаются для технического доступа к БД (RLS).
+    final canUpdate = permissionService.can('estimates', 'manual_edit');
+    final canCreate = permissionService.can('estimates', 'manual_edit');
+    final canDelete = permissionService.can('estimates', 'manual_edit');
 
-    // Используем LayoutBuilder для получения ширины контейнера
+    final configs = _buildColumnConfigs(
+      canUpdate: canUpdate,
+      canCreate: canCreate,
+      canDelete: canDelete,
+    );
+    final headerRow = _buildHeaderRow(theme, configs);
+    final bodyRows = _buildRows(theme, configs);
+
+    final dividerColor = theme.colorScheme.outline.withValues(alpha: 0.18);
+
     return LayoutBuilder(
       builder: (context, constraints) {
-        final containerWidth = constraints.maxWidth;
-        _buildTableData(containerWidth);
+        final availableWidth = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : MediaQuery.of(context).size.width;
+        final columnWidths = _buildColumnWidths(configs, theme, availableWidth);
 
-        final cellStyle = theme.textTheme.bodyMedium ?? const TextStyle();
-        final columnStyle = theme.textTheme.labelMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ) ??
-            const TextStyle(fontWeight: FontWeight.bold);
+        Widget buildTable(List<TableRow> rows) {
+          return ConstrainedBox(
+            constraints: BoxConstraints(minWidth: availableWidth),
+            child: Table(
+              defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+              border: TableBorder(
+                top: BorderSide(color: dividerColor, width: 1),
+                bottom: BorderSide(color: dividerColor, width: 1),
+                left: BorderSide(color: dividerColor, width: 1),
+                right: BorderSide(color: dividerColor, width: 1),
+                horizontalInside: BorderSide(color: dividerColor, width: 1),
+                verticalInside: BorderSide(color: dividerColor, width: 1),
+              ),
+              columnWidths: columnWidths,
+              children: rows,
+            ),
+          );
+        }
 
-        const ruLocale = PlutoGridLocaleText(
-          unfreezeColumn: 'Открепить',
-          freezeColumnToStart: 'Закрепить в начале',
-          freezeColumnToEnd: 'Закрепить в конце',
-          autoFitColumn: 'Автоматический размер',
-          hideColumn: 'Скрыть колонку',
-          setColumns: 'Выбрать колонки',
-          setFilter: 'Установить фильтр',
-          resetFilter: 'Сбросить фильтр',
-          setColumnsTitle: 'Настройка колонок',
-          filterColumn: 'Колонка',
-          filterType: 'Тип',
-          filterValue: 'Значение',
-          filterAllColumns: 'Все колонки',
-          filterContains: 'Поиск',
-          filterEquals: 'Равно',
-          filterStartsWith: 'Начинается с',
-          filterEndsWith: 'Заканчивается на',
-          filterGreaterThan: 'Больше чем',
-          filterGreaterThanOrEqualTo: 'Больше или равно',
-          filterLessThan: 'Меньше чем',
-          filterLessThanOrEqualTo: 'Меньше или равно',
-          sunday: 'Вск',
-          monday: 'Пн',
-          tuesday: 'Вт',
-          wednesday: 'Ср',
-          thursday: 'Чт',
-          friday: 'Пт',
-          saturday: 'Сб',
-          hour: 'Часы',
-          minute: 'Минуты',
-          loadingText: 'Загрузка',
+        final headerBackgroundColor = theme.brightness == Brightness.dark
+            ? Colors.grey[800]
+            : Colors.grey[200];
+        final header = Container(
+          color: headerBackgroundColor,
+          child: SingleChildScrollView(
+            controller: _headerHorizontalController,
+            physics: const NeverScrollableScrollPhysics(),
+            scrollDirection: Axis.horizontal,
+            child: buildTable([headerRow]),
+          ),
         );
 
-        return PlutoGrid(
-          key: ValueKey(
-              'estimate_table_${widget.items.length}_${isDark ? 'dark' : 'light'}'),
-          columns: _columns,
-          rows: _rows,
-          mode: PlutoGridMode.normal,
-          onLoaded: (PlutoGridOnLoadedEvent event) {
-            event.stateManager.setShowColumnFilter(true);
-          },
-          configuration: isDark
-              ? PlutoGridConfiguration.dark(
-                  localeText: ruLocale,
-                  style: PlutoGridStyleConfig.dark(
-                    columnFilterHeight: 36,
-                    cellTextStyle: cellStyle,
-                    columnTextStyle: columnStyle,
-                    gridBorderRadius: BorderRadius.circular(12),
-                    gridBorderColor:
-                        theme.colorScheme.outline.withValues(alpha: 0.12),
-                  ),
-                )
-              : PlutoGridConfiguration(
-                  localeText: ruLocale,
-                  style: PlutoGridStyleConfig(
-                    columnFilterHeight: 36,
-                    cellTextStyle: cellStyle,
-                    columnTextStyle: columnStyle,
-                    gridBorderRadius: BorderRadius.circular(12),
-                    gridBorderColor:
-                        theme.colorScheme.outline.withValues(alpha: 0.12),
-                  ),
+        final body = Expanded(
+          child: Scrollbar(
+            controller: _verticalController,
+            thumbVisibility: true,
+            child: SingleChildScrollView(
+              controller: _verticalController,
+              child: Scrollbar(
+                controller: _horizontalController,
+                thumbVisibility: true,
+                notificationPredicate: (notification) =>
+                    notification.depth == 1,
+                child: SingleChildScrollView(
+                  controller: _horizontalController,
+                  scrollDirection: Axis.horizontal,
+                  child: buildTable(bodyRows),
                 ),
+              ),
+            ),
+          ),
+        );
+
+        return Column(
+          children: [
+            header,
+            const SizedBox(height: 4),
+            body,
+          ],
         );
       },
     );
   }
 
-  void _buildTableData(double containerWidth) {
-    final availableWidth = containerWidth;
+  TableRow _buildHeaderRow(
+    ThemeData theme,
+    List<_EstimateColumnConfig> configs,
+  ) {
+    return TableRow(
+      children: [
+        for (final config in configs)
+          _headerCell(theme, config.title, align: config.headerAlign),
+      ],
+    );
+  }
 
-    final nameColumnWidth = availableWidth * 0.4;
-    const otherColumnCount = 9;
-    final otherColumnWidth = (availableWidth * 0.6) / otherColumnCount;
+  List<TableRow> _buildRows(
+    ThemeData theme,
+    List<_EstimateColumnConfig> configs,
+  ) {
+    final rows = <TableRow>[];
 
-    final moneyFormat = NumberFormat('###,##0.00', 'ru_RU');
+    if (widget.items.isEmpty) {
+      rows.add(
+        TableRow(
+          children: [
+            _bodyCell(
+              theme,
+              const Text('Нет позиций', textAlign: TextAlign.center),
+              align: Alignment.center,
+            ),
+            for (int i = 1; i < configs.length; i++)
+              _bodyCell(theme, const SizedBox.shrink()),
+          ],
+        ),
+      );
+      return rows;
+    }
 
-    _columns = [
-      PlutoColumn(
+    final sortedItems = [...widget.items]..sort(EstimateSorter.compareByNumber);
+
+    bool alternate = false;
+    for (final estimate in sortedItems) {
+      alternate = !alternate;
+      final completion = widget.completionData?[estimate.id];
+      rows.add(
+        TableRow(
+          decoration: BoxDecoration(
+            color: alternate
+                ? theme.colorScheme.primary.withValues(alpha: 0.08)
+                : Colors.transparent,
+          ),
+          children: [
+            for (final config in configs)
+              _bodyCell(
+                theme,
+                config.builder(estimate, completion, theme),
+                align: config.cellAlignment,
+              ),
+          ],
+        ),
+      );
+    }
+
+    return rows;
+  }
+
+  List<_EstimateColumnConfig> _buildColumnConfigs({
+    required bool canUpdate,
+    required bool canCreate,
+    required bool canDelete,
+  }) {
+    final configs = <_EstimateColumnConfig>[
+      _EstimateColumnConfig(
         title: 'Система',
-        field: 'system',
-        type: PlutoColumnType.text(),
-        width: otherColumnWidth,
-        titleTextAlign: PlutoColumnTextAlign.center,
+        headerAlign: TextAlign.center,
+        cellAlignment: Alignment.center,
+        flex: 0.9,
+        minWidth: 50,
+        measureText: (estimate, _) => estimate.system,
+        builder: (estimate, _, __) => Text(estimate.system),
       ),
-      PlutoColumn(
+      _EstimateColumnConfig(
         title: 'Подсистема',
-        field: 'subsystem',
-        type: PlutoColumnType.text(),
-        width: otherColumnWidth,
-        titleTextAlign: PlutoColumnTextAlign.center,
+        headerAlign: TextAlign.center,
+        cellAlignment: Alignment.center,
+        flex: 0.9,
+        minWidth: 50,
+        measureText: (estimate, _) => estimate.subsystem,
+        builder: (estimate, _, __) => Text(estimate.subsystem),
       ),
-      PlutoColumn(
+      _EstimateColumnConfig(
         title: '№',
-        field: 'number',
-        type: PlutoColumnType.text(),
-        width: otherColumnWidth,
-        titleTextAlign: PlutoColumnTextAlign.center,
-        renderer: (rendererContext) {
-          return Text(
-            rendererContext.cell.value?.toString() ?? '',
-            textAlign: TextAlign.center,
-            style:
-                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
-                    .textTheme
-                    .bodyMedium,
-          );
-        },
+        headerAlign: TextAlign.center,
+        cellAlignment: Alignment.center,
+        flex: 0.7,
+        minWidth: 40,
+        measureText: (estimate, _) => estimate.number,
+        builder: (estimate, _, __) => Text(estimate.number),
       ),
-      PlutoColumn(
+      _EstimateColumnConfig(
         title: 'Наименование',
-        field: 'name',
-        type: PlutoColumnType.text(),
-        width: nameColumnWidth,
-        titleTextAlign: PlutoColumnTextAlign.center,
-        renderer: (rendererContext) {
-          return Text(
-            rendererContext.cell.value?.toString() ?? '',
-            softWrap: true,
-            overflow: TextOverflow.visible,
-            maxLines: null,
-            style:
-                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
-                    .textTheme
-                    .bodyMedium,
-          );
-        },
-      ),
-      PlutoColumn(
-        title: 'Артикул',
-        field: 'article',
-        type: PlutoColumnType.text(),
-        width: otherColumnWidth,
-        titleTextAlign: PlutoColumnTextAlign.center,
-        renderer: (rendererContext) {
-          return Text(
-            rendererContext.cell.value?.toString() ?? '',
-            textAlign: TextAlign.center,
-            style:
-                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
-                    .textTheme
-                    .bodyMedium,
-          );
-        },
-      ),
-      PlutoColumn(
-        title: 'Производитель',
-        field: 'manufacturer',
-        type: PlutoColumnType.text(),
-        width: otherColumnWidth,
-        titleTextAlign: PlutoColumnTextAlign.center,
-        renderer: (rendererContext) {
-          return Text(
-            rendererContext.cell.value?.toString() ?? '',
-            textAlign: TextAlign.center,
-            style:
-                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
-                    .textTheme
-                    .bodyMedium,
-          );
-        },
-      ),
-      PlutoColumn(
-        title: 'Ед. изм.',
-        field: 'unit',
-        type: PlutoColumnType.text(),
-        width: otherColumnWidth,
-        titleTextAlign: PlutoColumnTextAlign.center,
-        renderer: (rendererContext) {
-          return Text(
-            rendererContext.cell.value?.toString() ?? '',
-            textAlign: TextAlign.center,
-            style:
-                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
-                    .textTheme
-                    .bodyMedium,
-          );
-        },
-      ),
-      PlutoColumn(
-        title: 'Количество',
-        field: 'quantity',
-        type: PlutoColumnType.number(),
-        width: otherColumnWidth,
-        titleTextAlign: PlutoColumnTextAlign.center,
-        renderer: (rendererContext) {
-          return Text(
-            rendererContext.cell.value?.toString() ?? '',
-            textAlign: TextAlign.center,
-            style:
-                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
-                    .textTheme
-                    .bodyMedium,
-          );
-        },
-      ),
-      PlutoColumn(
-        title: 'Цена',
-        field: 'price',
-        type: PlutoColumnType.number(),
-        width: otherColumnWidth,
-        titleTextAlign: PlutoColumnTextAlign.center,
-        renderer: (rendererContext) {
-          final value = rendererContext.cell.value;
-          final formatted = value is num
-              ? moneyFormat.format(value)
-              : (value?.toString() ?? '');
-          return Text(
-            formatted,
-            textAlign: TextAlign.right,
-            style:
-                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(
-                      color: Colors.green,
-                    ),
-          );
-        },
-      ),
-      PlutoColumn(
-        title: 'Сумма',
-        field: 'total',
-        type: PlutoColumnType.number(),
-        width: otherColumnWidth,
-        titleTextAlign: PlutoColumnTextAlign.center,
-        renderer: (rendererContext) {
-          final value = rendererContext.cell.value;
-          final formatted = value is num
-              ? moneyFormat.format(value)
-              : (value?.toString() ?? '');
-          return Text(
-            formatted,
-            textAlign: TextAlign.right,
-            style:
-                Theme.of(rendererContext.stateManager.gridKey.currentContext!)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green,
-                    ),
-          );
-        },
-      ),
-      PlutoColumn(
-        title: 'Действия',
-        field: 'actions',
-        type: PlutoColumnType.text(),
-        width: otherColumnWidth,
-        titleTextAlign: PlutoColumnTextAlign.center,
-        enableFilterMenuItem: false,
-        enableSorting: false,
-        renderer: (rendererContext) {
-          final rowData = rendererContext.row;
-          final itemId = rowData.cells['id']!.value.toString();
-          // Находим объект Estimate для этой строки
-          final itemData = widget.items.firstWhere(
-            (e) => e.id == itemId,
-            orElse: () => widget.items.first,
-          );
-          final theme = Theme.of(context);
-
-          return _ActionButton(
-            onTap: (details) => _showActionMenu(
-                context, details.globalPosition, itemData, itemId),
-            theme: theme,
-          );
-        },
+        headerAlign: TextAlign.center,
+        flex: 4.2,
+        isFlexible: true,
+        minWidth: 220,
+        measureText: (estimate, _) => estimate.name,
+        builder: (estimate, _, __) => Text(
+          estimate.name,
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+        ),
       ),
     ];
 
-    _rows = widget.items
-        .map((e) => PlutoRow(cells: {
-              'id': PlutoCell(value: e.id),
-              'number': PlutoCell(value: e.number),
-              'name': PlutoCell(value: e.name),
-              'system': PlutoCell(value: e.system),
-              'subsystem': PlutoCell(value: e.subsystem),
-              'article': PlutoCell(value: e.article),
-              'manufacturer': PlutoCell(value: e.manufacturer),
-              'unit': PlutoCell(value: e.unit),
-              'quantity': PlutoCell(value: e.quantity),
-              'price': PlutoCell(value: e.price),
-              'total': PlutoCell(value: e.total),
-              'actions': PlutoCell(value: ''),
-            }))
-        .toList();
-  }
-
-  void _showActionMenu(
-      BuildContext context, Offset position, Estimate item, String itemId) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final permissionService = ref.read(permissionServiceProvider);
-    final canUpdate = permissionService.can('estimates', 'update');
-    final canCreate = permissionService.can('estimates', 'create');
-    final canDelete = permissionService.can('estimates', 'delete');
-
-    if (!canUpdate && !canCreate && !canDelete) {
-      return;
+    if (_isPlanning) {
+      configs.addAll([
+        _EstimateColumnConfig(
+          title: 'Артикул',
+          headerAlign: TextAlign.center,
+          cellAlignment: Alignment.center,
+          flex: 0.8,
+          minWidth: 60,
+          measureText: (estimate, _) => estimate.article,
+          builder: (estimate, _, __) => Text(estimate.article),
+        ),
+        _EstimateColumnConfig(
+          title: 'Производитель',
+          headerAlign: TextAlign.center,
+          cellAlignment: Alignment.center,
+          flex: 0.8,
+          minWidth: 70,
+          measureText: (estimate, _) => estimate.manufacturer,
+          builder: (estimate, _, __) => Text(estimate.manufacturer),
+        ),
+      ]);
     }
 
-    showMenu(
-      context: context,
-      position: RelativeRect.fromLTRB(
-          position.dx, position.dy, position.dx + 1, position.dy + 1),
-      elevation: 8,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+    configs.addAll([
+      _EstimateColumnConfig(
+        title: 'Ед. изм.',
+        headerAlign: TextAlign.center,
+        cellAlignment: Alignment.center,
+        flex: 0.8,
+        minWidth: 60,
+        measureText: (estimate, _) => estimate.unit,
+        builder: (estimate, _, __) => Text(estimate.unit),
       ),
-      color: isDark ? theme.colorScheme.surface : theme.colorScheme.surface,
-      items: [
-        if (canUpdate)
-          PopupMenuItem(
-            height: 40,
-            child: Row(
-              children: [
-                Icon(
-                  CupertinoIcons.pencil,
-                  color: theme.colorScheme.primary,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Редактировать',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurface,
-                  ),
-                ),
-              ],
+      _EstimateColumnConfig(
+        title: 'Кол-во',
+        headerAlign: TextAlign.center,
+        cellAlignment: Alignment.center,
+        flex: 0.8,
+        minWidth: 70,
+        measureText: (estimate, _) => _quantityFormat.format(estimate.quantity),
+        builder: (estimate, _, __) =>
+            Text(_quantityFormat.format(estimate.quantity)),
+      ),
+    ]);
+
+    if (_isPlanning) {
+      configs.addAll([
+        _EstimateColumnConfig(
+          title: 'Цена',
+          headerAlign: TextAlign.center,
+          cellAlignment: Alignment.centerRight,
+          flex: 1.1,
+          minWidth: 90,
+          measureText: (estimate, _) => formatCurrency(estimate.price),
+          builder: (estimate, _, theme) => Text(
+            formatCurrency(estimate.price),
+            style: TextStyle(
+              color: theme.colorScheme.primary,
             ),
-            onTap: () {
-              // Закрываем меню и вызываем колбэк
-              Future.delayed(const Duration(milliseconds: 10), () {
-                widget.onEdit(item);
-              });
-            },
           ),
-        if (canCreate)
-          PopupMenuItem(
-            height: 40,
-            child: Row(
-              children: [
-                Icon(
-                  CupertinoIcons.doc_on_doc,
-                  color: theme.colorScheme.secondary,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Дублировать',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurface,
-                  ),
-                ),
-              ],
+        ),
+      ]);
+    }
+
+    if (!_isExecution) {
+      configs.add(
+        _EstimateColumnConfig(
+          title: 'Сумма',
+          headerAlign: TextAlign.center,
+          cellAlignment: Alignment.centerRight,
+          flex: 1.2,
+          minWidth: 100,
+          measureText: (estimate, _) => formatCurrency(estimate.total),
+          builder: (estimate, _, __) => Text(formatCurrency(estimate.total)),
+        ),
+      );
+    }
+
+    if (_isExecution) {
+      configs.addAll([
+        _EstimateColumnConfig(
+          title: 'Кол-во вып.',
+          headerAlign: TextAlign.center,
+          cellAlignment: Alignment.center,
+          flex: 1.0,
+          minWidth: 80,
+          measureText: (_, completion) =>
+              _quantityFormat.format(completion?.completedQuantity ?? 0),
+          builder: (estimate, completion, __) => Text(
+            _quantityFormat.format(completion?.completedQuantity ?? 0),
+          ),
+        ),
+        /*
+        _EstimateColumnConfig(
+          title: 'Сумма вып.',
+          headerAlign: TextAlign.center,
+          cellAlignment: Alignment.centerRight,
+          flex: 1.2,
+          minWidth: 110,
+          measureText: (_, completion) =>
+              formatCurrency(completion?.completedTotal ?? 0),
+          builder: (estimate, completion, __) => Text(
+            formatCurrency(completion?.completedTotal ?? 0),
+          ),
+        ),
+        */
+        _EstimateColumnConfig(
+          title: 'Остаток',
+          headerAlign: TextAlign.center,
+          cellAlignment: Alignment.center,
+          flex: 1.0,
+          minWidth: 90,
+          measureText: (estimate, completion) => _quantityFormat
+              .format(completion?.remainingQuantity ?? estimate.quantity),
+          builder: (estimate, completion, __) => Text(
+            _quantityFormat.format(
+              completion?.remainingQuantity ?? estimate.quantity,
             ),
-            onTap: () {
-              Future.delayed(const Duration(milliseconds: 10), () {
-                widget.onDuplicate(item);
-              });
-            },
           ),
-        if (canDelete)
-          PopupMenuItem(
-            height: 40,
-            child: Row(
-              children: [
-                Icon(
-                  CupertinoIcons.trash,
-                  color: theme.colorScheme.error,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Удалить',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.error,
-                  ),
-                ),
-              ],
+        ),
+        _EstimateColumnConfig(
+          title: '%',
+          headerAlign: TextAlign.center,
+          cellAlignment: Alignment.center,
+          flex: 0.7,
+          minWidth: 60,
+          measureText: (_, completion) =>
+              '${(completion?.percentage ?? 0).toStringAsFixed(0)}%',
+          builder: (estimate, completion, theme) {
+            final percent = (completion?.percentage ?? 0).toDouble();
+            Color color = theme.colorScheme.onSurface;
+            if (percent > 100) {
+              color = theme.colorScheme.error;
+            } else if ((percent - 100).abs() < 0.01) {
+              color = Colors.green;
+            }
+            return Text(
+              '${percent.toStringAsFixed(0)}%',
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w600,
+              ),
+            );
+          },
+        ),
+      ]);
+    }
+
+    if (!_isExecution) {
+      configs.add(
+        _EstimateColumnConfig(
+          title: '',
+          headerAlign: TextAlign.center,
+          cellAlignment: Alignment.center,
+          minWidth: 36,
+          measureText: (_, __) => '⋮',
+          builder: (estimate, _, theme) => _ActionsMenu(
+            theme: theme,
+            estimate: estimate,
+            canEdit: canUpdate,
+            canDuplicate: canCreate,
+            canDelete: canDelete,
+            onEdit: widget.onEdit,
+            onDuplicate: widget.onDuplicate,
+            onDelete: widget.onDelete,
+          ),
+        ),
+      );
+    }
+
+    return configs;
+  }
+
+  Widget _headerCell(ThemeData theme, String title,
+      {TextAlign align = TextAlign.left}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      alignment: _alignmentFromTextAlign(align),
+      child: Text(
+        title,
+        textAlign: align,
+        softWrap: true,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              fontSize: 10,
+            ) ??
+            const TextStyle(fontWeight: FontWeight.w600, fontSize: 10),
+      ),
+    );
+  }
+
+  Widget _bodyCell(ThemeData theme, Widget child,
+      {Alignment align = Alignment.centerLeft}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+          horizontal: _kCellHorizontalPadding, vertical: _kCellVerticalPadding),
+      constraints: const BoxConstraints(minHeight: 30),
+      alignment: align,
+      child: DefaultTextStyle.merge(
+        style: theme.textTheme.bodySmall?.copyWith(fontSize: 12, height: 1.0) ??
+            const TextStyle(fontSize: 12, height: 1.0),
+        child: child,
+      ),
+    );
+  }
+
+  Alignment _alignmentFromTextAlign(TextAlign align) {
+    switch (align) {
+      case TextAlign.center:
+        return Alignment.center;
+      case TextAlign.right:
+        return Alignment.centerRight;
+      default:
+        return Alignment.centerLeft;
+    }
+  }
+
+  Map<int, TableColumnWidth> _buildColumnWidths(
+    List<_EstimateColumnConfig> configs,
+    ThemeData theme,
+    double availableWidth,
+  ) {
+    final widths = <int, TableColumnWidth>{};
+    final fixedWidths = <int, double>{};
+    double totalFixed = 0;
+
+    final headerStyle = theme.textTheme.labelMedium?.copyWith(
+          fontWeight: FontWeight.w600,
+          fontSize: 11,
+        ) ??
+        const TextStyle(fontWeight: FontWeight.w600, fontSize: 11);
+    final bodyStyle =
+        theme.textTheme.bodySmall?.copyWith(fontSize: 12, height: 1.0) ??
+            const TextStyle(fontSize: 12, height: 1.0);
+
+    final paddingWidth = _kCellHorizontalPadding * 2;
+
+    for (var i = 0; i < configs.length; i++) {
+      final config = configs[i];
+
+      if (config.isFlexible) {
+        // handle later
+        continue;
+      }
+
+      double columnWidth = config.minWidth ?? _kDefaultMinColumnWidth;
+      if (config.measureText != null) {
+        for (final estimate in widget.items) {
+          final completion = widget.completionData?[estimate.id];
+          final text = config.measureText!(estimate, completion);
+          if (text == null || text.isEmpty) continue;
+          final width = _measureText(text, bodyStyle) + paddingWidth;
+          columnWidth = math.max(columnWidth, width);
+        }
+      }
+
+      if (widget.items.isEmpty) {
+        final headerWidth =
+            _measureText(config.title, headerStyle) + paddingWidth;
+        columnWidth = math.max(columnWidth, headerWidth);
+      }
+
+      columnWidth =
+          math.max(columnWidth, config.minWidth ?? _kDefaultMinColumnWidth);
+
+      fixedWidths[i] = columnWidth;
+      totalFixed += columnWidth;
+    }
+
+    double remainingWidth =
+        math.max(availableWidth - totalFixed, configs.length * 40);
+    final flexibleIndexes = <int>[];
+    for (var i = 0; i < configs.length; i++) {
+      final config = configs[i];
+      if (config.isFlexible) {
+        flexibleIndexes.add(i);
+      } else {
+        widths[i] = FixedColumnWidth(fixedWidths[i]!);
+      }
+    }
+
+    if (flexibleIndexes.isEmpty) {
+      return widths;
+    }
+
+    final totalFlex = flexibleIndexes
+        .map((index) => configs[index].flex)
+        .fold<double>(0, (prev, flex) => prev + flex);
+
+    for (final index in flexibleIndexes) {
+      final config = configs[index];
+      final flexPortion = totalFlex == 0
+          ? 1.0 / flexibleIndexes.length
+          : config.flex / totalFlex;
+      double width = remainingWidth * flexPortion;
+      width = math.max(width, config.minWidth ?? 100);
+      widths[index] = FixedColumnWidth(width);
+    }
+
+    return widths;
+  }
+
+  double _measureText(String text, TextStyle style) {
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: ui.TextDirection.ltr,
+      maxLines: 1,
+    )..layout();
+    return painter.width;
+  }
+}
+
+class _EstimateColumnConfig {
+  const _EstimateColumnConfig({
+    required this.title,
+    required this.builder,
+    this.headerAlign = TextAlign.left,
+    this.cellAlignment = Alignment.centerLeft,
+    this.flex = 1,
+    this.minWidth,
+    this.isFlexible = false,
+    this.measureText,
+  });
+
+  final String title;
+  final Widget Function(
+    Estimate estimate,
+    EstimateCompletionModel? completion,
+    ThemeData theme,
+  ) builder;
+  final TextAlign headerAlign;
+  final Alignment cellAlignment;
+  final double flex;
+  final double? minWidth;
+  final bool isFlexible;
+  final String? Function(
+      Estimate estimate, EstimateCompletionModel? completion)? measureText;
+}
+
+enum _RowAction { edit, duplicate, delete }
+
+class _ActionsMenu extends StatelessWidget {
+  const _ActionsMenu({
+    required this.theme,
+    required this.estimate,
+    required this.canEdit,
+    required this.canDuplicate,
+    required this.canDelete,
+    required this.onEdit,
+    required this.onDuplicate,
+    required this.onDelete,
+  });
+
+  final ThemeData theme;
+  final Estimate estimate;
+  final bool canEdit;
+  final bool canDuplicate;
+  final bool canDelete;
+  final void Function(Estimate) onEdit;
+  final void Function(Estimate) onDuplicate;
+  final void Function(String) onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!canEdit && !canDuplicate && !canDelete) {
+      return const SizedBox.shrink();
+    }
+
+    return Theme(
+      data: theme.copyWith(
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        hoverColor: Colors.transparent,
+        highlightColor: Colors.transparent,
+        splashColor: Colors.transparent,
+        iconButtonTheme: IconButtonThemeData(
+          style: ButtonStyle(
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            minimumSize: MaterialStateProperty.all<Size>(
+              const Size(28, 28),
             ),
-            onTap: () {
-              Future.delayed(const Duration(milliseconds: 10), () {
-                widget.onDelete(itemId);
-              });
-            },
+            overlayColor: MaterialStateProperty.all<Color>(
+              Colors.transparent,
+            ),
+            splashFactory: NoSplash.splashFactory,
           ),
-      ],
+        ),
+      ),
+      child: PopupMenuButton<_RowAction>(
+        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+        tooltip: 'Действия',
+        padding: EdgeInsets.zero,
+        icon: Icon(
+          CupertinoIcons.ellipsis_vertical,
+          size: 16,
+          color: theme.colorScheme.onSurface,
+        ),
+        onSelected: (action) {
+          switch (action) {
+            case _RowAction.edit:
+              onEdit(estimate);
+              break;
+            case _RowAction.duplicate:
+              onDuplicate(estimate);
+              break;
+            case _RowAction.delete:
+              onDelete(estimate.id);
+              break;
+          }
+        },
+        itemBuilder: (context) => [
+          if (canEdit)
+            PopupMenuItem(
+              value: _RowAction.edit,
+              child: _MenuRow(
+                icon: CupertinoIcons.pencil,
+                color: theme.colorScheme.primary,
+                label: 'Редактировать',
+              ),
+            ),
+          if (canDuplicate)
+            PopupMenuItem(
+              value: _RowAction.duplicate,
+              child: _MenuRow(
+                icon: CupertinoIcons.doc_on_doc,
+                color: theme.colorScheme.secondary,
+                label: 'Дублировать',
+              ),
+            ),
+          if (canDelete)
+            PopupMenuItem(
+              value: _RowAction.delete,
+              child: _MenuRow(
+                icon: CupertinoIcons.trash,
+                color: theme.colorScheme.error,
+                label: 'Удалить',
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
 
-/// Внутренний виджет кнопки действий
-class _ActionButton extends StatefulWidget {
-  final void Function(TapDownDetails) onTap;
-  final ThemeData theme;
-
-  const _ActionButton({
-    required this.onTap,
-    required this.theme,
+class _MenuRow extends StatelessWidget {
+  const _MenuRow({
+    required this.icon,
+    required this.color,
+    required this.label,
   });
 
-  @override
-  State<_ActionButton> createState() => _ActionButtonState();
-}
-
-class _ActionButtonState extends State<_ActionButton> {
-  bool _isHovered = false;
+  final IconData icon;
+  final Color color;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: GestureDetector(
-        onTapDown: widget.onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(6),
-            color: Colors.transparent,
-          ),
-          margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-          child: Center(
-            child: _isHovered
-                ? const Icon(
-                    CupertinoIcons.ellipsis,
-                    size: 18,
-                    color: Colors.green,
-                  )
-                : const Icon(
-                    CupertinoIcons.ellipsis,
-                    size: 18,
-                    color: Colors.red,
-                  ),
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurface,
           ),
         ),
-      ),
+      ],
     );
   }
 }

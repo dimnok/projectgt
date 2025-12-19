@@ -28,6 +28,9 @@ abstract class EstimateDataSource {
 
   /// Получает отчёт о выполнении смет с информацией о выполненных работах.
   Future<List<EstimateCompletionModel>> getEstimateCompletion();
+
+  /// Получает историю выполнения для конкретной позиции сметы.
+  Future<List<Map<String, dynamic>>> getEstimateCompletionHistory(String estimateId);
 }
 
 /// Реализация EstimateDataSource через Supabase/PostgreSQL.
@@ -37,6 +40,9 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
 
   /// Имя таблицы смет в базе данных.
   static const String table = 'estimates';
+
+  /// Имя представления для чтения смет с метаданными.
+  static const String view = 'estimates_with_contracts';
 
   /// Регулярное выражение для удаления пробелов (скомпилировано для производительности).
   static final RegExp _whitespaceRegex = RegExp(r'\s+');
@@ -55,7 +61,7 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
     // чтобы обойти ограничение Supabase на максимальное количество строк в одном ответе.
     while (hasMore) {
       final response = await client
-          .from(table)
+          .from(view)
           .select('*')
           .order('system')
           .range(offset, offset + limit - 1);
@@ -84,7 +90,7 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
   @override
   Future<EstimateModel?> getEstimate(String id) async {
     final response =
-        await client.from(table).select('*').eq('id', id).maybeSingle();
+        await client.from(view).select('*').eq('id', id).maybeSingle();
     if (response == null) return null;
     return EstimateModel.fromJson(response);
   }
@@ -142,22 +148,168 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
     }).toList();
   }
 
-  @override
-  Future<List<EstimateCompletionModel>> getEstimateCompletion() async {
+  /// Получает сгруппированный список смет (заголовки).
+  Future<List<Map<String, dynamic>>> getEstimateGroups() async {
     try {
-      final response = await client.rpc('get_estimate_completion_report');
-
-      if (response is! List) {
-        return [];
+      // Вызываем RPC для получения легкого списка групп
+      final response = await client.rpc('get_estimate_groups');
+      return (response as List).cast<Map<String, dynamic>>();
+    } catch (e) {
+      // Fallback: Если RPC недоступен, выполняем группировку на клиенте (старый метод)
+      // Но это не оптимально, поэтому лучше убедиться что миграция применена
+      // В качестве fallback можно попробовать получить уникальные записи через distinct
+      // Но Supabase JS SDK не поддерживает DISTINCT ON легко без RPC.
+      // Поэтому здесь мы просто пробрасываем ошибку или возвращаем пустой список,
+      // или (в крайнем случае) грузим всё (чего мы хотим избежать).
+      // Решение: загрузим только нужные поля для группировки
+      final response = await client
+          .from(view)
+          .select('estimate_title, object_id, contract_id, contract_number, total');
+      
+      // Группируем на клиенте (Fallback)
+      final groups = <String, Map<String, dynamic>>{};
+      for (final item in response) {
+        final key = '${item['estimate_title']}_${item['object_id']}_${item['contract_id']}';
+        if (!groups.containsKey(key)) {
+          groups[key] = {
+            'estimate_title': item['estimate_title'],
+            'object_id': item['object_id'],
+            'contract_id': item['contract_id'],
+            'contract_number': item['contract_number'],
+            'items_count': 0,
+            'total_amount': 0.0,
+          };
+        }
+        groups[key]!['items_count'] = (groups[key]!['items_count'] as int) + 1;
+        groups[key]!['total_amount'] = (groups[key]!['total_amount'] as double) + (item['total'] as num).toDouble();
       }
+      return groups.values.toList();
+    }
+  }
 
+  /// Получает позиции сметы по фильтру (заголовок + объект + договор).
+  Future<List<EstimateModel>> getEstimatesByFile({
+    required String estimateTitle,
+    String? objectId,
+    String? contractId,
+  }) async {
+    var query = client.from(view).select('*').eq('estimate_title', estimateTitle);
+    
+    if (objectId != null) {
+      query = query.eq('object_id', objectId);
+    }
+    if (contractId != null) {
+      query = query.eq('contract_id', contractId);
+    }
+    
+    // Сортировка по системе
+    final response = await query.order('system');
+    
+    return response.map((json) => EstimateModel.fromJson(json)).toList();
+  }
+
+  /// Получает выполнение только для указанных ID сметных позиций.
+  Future<List<EstimateCompletionModel>> getEstimateCompletionByIds(List<String> estimateIds) async {
+    if (estimateIds.isEmpty) return [];
+    
+    try {
+      final response = await client.rpc('get_estimate_completion_by_ids', params: {
+        'p_estimate_ids': estimateIds,
+      });
+      
+      if (response is! List) return [];
+      
       return response
           .cast<Map<String, dynamic>>()
           .map((json) => EstimateCompletionModel.fromJson(json))
           .toList();
     } catch (e) {
+      // Fallback на пагинированную функцию с фильтром (если новый RPC недоступен)
+      // Но это менее эффективно.
       rethrow;
     }
+  }
+
+  @override
+  Future<List<EstimateCompletionModel>> getEstimateCompletion() async {
+    final allItems = <EstimateCompletionModel>[];
+    var offset = 0;
+    const limit = 1000;
+    var hasNext = true;
+
+    try {
+      // Пытаемся использовать пагинированную функцию
+      while (hasNext) {
+        try {
+          final response =
+              await client.rpc('get_estimate_completion_paginated', params: {
+            'p_offset': offset,
+            'p_limit': limit,
+          });
+
+          // Если ответ не Map (ошибка формата новой функции), вызываем исключение, чтобы уйти в catch
+          if (response is! Map) {
+            throw const FormatException('Invalid response format');
+          }
+
+          final data = response['data'] as List;
+          final next = response['has_next'] as bool;
+
+          final chunk = data
+              .cast<Map<String, dynamic>>()
+              .map((json) => EstimateCompletionModel.fromJson(json))
+              .toList();
+
+          allItems.addAll(chunk);
+          hasNext = next;
+          offset += limit;
+        } catch (e) {
+          // Если ошибка на первой странице (например, функции нет), пробуем старый метод
+          if (offset == 0) {
+            final oldResponse =
+                await client.rpc('get_estimate_completion_report');
+
+            if (oldResponse is! List) {
+              return [];
+            }
+
+            return oldResponse
+                .cast<Map<String, dynamic>>()
+                .map((json) => EstimateCompletionModel.fromJson(json))
+                .toList();
+          } else {
+            // Если ошибка в середине пагинации, пробрасываем её
+            rethrow;
+          }
+        }
+      }
+      return allItems;
+    } catch (e) {
+      // Если всё сломалось, пробуем старый метод как последний шанс (на случай если catch внутри while не сработал как надо)
+      try {
+        final oldResponse = await client.rpc('get_estimate_completion_report');
+        if (oldResponse is List) {
+          return oldResponse
+              .cast<Map<String, dynamic>>()
+              .map((json) => EstimateCompletionModel.fromJson(json))
+              .toList();
+        }
+      } catch (_) {
+        // Игнорируем ошибку старого метода, если он тоже не работает
+      }
+      rethrow;
+    }
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getEstimateCompletionHistory(String estimateId) async {
+    final response = await client
+        .from('work_items')
+        .select('quantity, works!inner(date)')
+        .eq('estimate_id', estimateId)
+        .order('date', referencedTable: 'works', ascending: false);
+    
+    return (response as List).cast<Map<String, dynamic>>();
   }
 
   /// Получает ячейку безопасно по индексу

@@ -64,7 +64,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             // Логотип
             Image.asset(
               'assets/images/logo.png',
-              width: 120, // Подбери размер как на нативе
+              width: 240, // Увеличено в 2 раза
             )
                 .animate(
                     onPlay: (controller) => controller.repeat(reverse: true))

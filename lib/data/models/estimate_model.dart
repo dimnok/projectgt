@@ -24,6 +24,7 @@ abstract class EstimateModel with _$EstimateModel {
   /// [total] — итоговая сумма.
   /// [objectId] — идентификатор объекта.
   /// [contractId] — идентификатор договора.
+  /// [contractNumber] — номер договора (из view).
   /// [estimateTitle] — название сметы.
   @JsonSerializable(explicitToJson: true, includeIfNull: false)
   const factory EstimateModel({
@@ -40,6 +41,7 @@ abstract class EstimateModel with _$EstimateModel {
     required double total,
     @JsonKey(name: 'object_id') String? objectId,
     @JsonKey(name: 'contract_id') String? contractId,
+    @JsonKey(name: 'contract_number') String? contractNumber,
     @JsonKey(name: 'estimate_title') String? estimateTitle,
   }) = _EstimateModel;
 
@@ -74,6 +76,7 @@ extension EstimateModelMapper on EstimateModel {
         total: total,
         objectId: objectId,
         contractId: contractId,
+        contractNumber: contractNumber,
         estimateTitle: estimateTitle,
       );
 }
@@ -95,6 +98,7 @@ extension EstimateDomainMapper on Estimate {
         total: total,
         objectId: objectId,
         contractId: contractId,
+        contractNumber: contractNumber,
         estimateTitle: estimateTitle,
       );
 }

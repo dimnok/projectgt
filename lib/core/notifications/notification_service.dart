@@ -53,6 +53,7 @@ class NotificationService {
     const InitializationSettings settings = InitializationSettings(
       android: initAndroid,
       iOS: initDarwin,
+      macOS: initDarwin,
     );
 
     await _plugin.initialize(
@@ -75,10 +76,14 @@ class NotificationService {
       final android = _plugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
       await android?.requestNotificationsPermission();
-    } else if (Platform.isIOS || Platform.isMacOS) {
+    } else if (Platform.isIOS) {
       final ios = _plugin.resolvePlatformSpecificImplementation<
           IOSFlutterLocalNotificationsPlugin>();
       await ios?.requestPermissions(alert: true, badge: true, sound: true);
+    } else if (Platform.isMacOS) {
+      final macos = _plugin.resolvePlatformSpecificImplementation<
+          MacOSFlutterLocalNotificationsPlugin>();
+      await macos?.requestPermissions(alert: true, badge: true, sound: true);
     }
   }
 

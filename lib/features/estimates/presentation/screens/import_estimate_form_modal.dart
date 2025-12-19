@@ -604,11 +604,13 @@ class _ImportEstimateFormModalState
     return Column(
       children: [
         if (_isImporting) ...[
-          LinearProgressIndicator(
-            value: _totalRows > 0 ? _importedRows / _totalRows : 0,
-          ),
+          const Center(child: CupertinoActivityIndicator()),
           const SizedBox(height: 16),
-          Text(_importStatus),
+          Center(
+            child: Text(
+              '$_importStatus (${_totalRows > 0 ? '$_importedRows / $_totalRows' : '...'})',
+            ),
+          ),
         ] else ...[
           Text(_importStatus.isEmpty ? 'Готово к импорту' : _importStatus),
         ],

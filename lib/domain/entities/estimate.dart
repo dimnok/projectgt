@@ -22,6 +22,7 @@ abstract class Estimate with _$Estimate {
   /// [total] — итоговая сумма.
   /// [objectId] — идентификатор объекта.
   /// [contractId] — идентификатор договора.
+  /// [contractNumber] — номер договора.
   /// [estimateTitle] — название сметы.
   const factory Estimate({
     required String id,
@@ -37,6 +38,7 @@ abstract class Estimate with _$Estimate {
     required double total,
     String? objectId,
     String? contractId,
+    String? contractNumber,
     String? estimateTitle,
   }) = _Estimate;
 

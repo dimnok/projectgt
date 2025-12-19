@@ -97,7 +97,7 @@ class SplashController extends _$SplashController {
         ref.read(employeeProvider.notifier).getEmployees(
               includeResponsibilityMap: false,
             ),
-        ref.read(estimateNotifierProvider.notifier).loadEstimates(),
+        // ref.read(estimateNotifierProvider.notifier).loadEstimates(), // Сметы теперь грузятся лениво
         ref.read(workPlanNotifierProvider.notifier).loadWorkPlans(),
         ref.read(contractorProvider.notifier).loadContractors(),
         ref.read(contractProvider.notifier).loadContracts(),

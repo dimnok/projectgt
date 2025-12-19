@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
@@ -10,6 +11,7 @@ import '../../../../core/widgets/mobile_bottom_sheet_content.dart';
 import '../../../../core/widgets/desktop_dialog_content.dart';
 import '../../../../core/widgets/gt_buttons.dart';
 import '../../../../core/widgets/app_snackbar.dart';
+import '../providers/estimate_providers.dart';
 
 /// Диалоговое окно для создания или редактирования позиции сметы.
 class EstimateEditDialog extends ConsumerStatefulWidget {
@@ -110,9 +112,18 @@ class _EstimateEditDialogState extends ConsumerState<EstimateEditDialog> {
 
   void _initControllers() {
     final e = widget.estimate;
+
+    String initialNumber = '';
+    if (e != null) {
+      initialNumber = e.number;
+    } else {
+      // При создании новой позиции вычисляем следующий номер
+      initialNumber = _calculateNextNumber();
+    }
+
     _systemController = TextEditingController(text: e?.system ?? '');
     _subsystemController = TextEditingController(text: e?.subsystem ?? '');
-    _numberController = TextEditingController(text: e?.number.toString() ?? '');
+    _numberController = TextEditingController(text: initialNumber);
     _nameController = TextEditingController(text: e?.name ?? '');
     _articleController = TextEditingController(text: e?.article ?? '');
     _manufacturerController =
@@ -121,6 +132,86 @@ class _EstimateEditDialogState extends ConsumerState<EstimateEditDialog> {
     _quantityController =
         TextEditingController(text: e?.quantity.toString() ?? '');
     _priceController = TextEditingController(text: e?.price.toString() ?? '');
+  }
+
+  String _calculateNextNumber() {
+    try {
+      List<Estimate> currentContextEstimates = [];
+
+      // 1. Пытаемся получить актуальные данные из estimateItemsProvider
+      // Это основной источник данных для экрана сметы
+      if (widget.estimateTitle != null) {
+        final args = EstimateDetailArgs(
+          estimateTitle: widget.estimateTitle!,
+          objectId: widget.objectId,
+          contractId: widget.contractId,
+        );
+        // Используем read для получения текущего значения без подписки (так как мы в initState)
+        final asyncValue = ref.read(estimateItemsProvider(args));
+        currentContextEstimates = asyncValue.valueOrNull ?? [];
+      }
+
+      // 2. Если данных нет (например, провайдер не был инициализирован или пуст),
+      // пробуем fallback на estimateNotifierProvider
+      if (currentContextEstimates.isEmpty) {
+        final allEstimates = ref.read(estimateNotifierProvider).estimates;
+        currentContextEstimates = allEstimates.where((est) {
+          bool matches = true;
+          if (widget.estimateTitle != null) {
+            matches = matches && est.estimateTitle == widget.estimateTitle;
+          }
+          if (widget.objectId != null) {
+            matches = matches && est.objectId == widget.objectId;
+          }
+          if (widget.contractId != null) {
+            matches = matches && est.contractId == widget.contractId;
+          }
+          return matches;
+        }).toList();
+      }
+
+      if (currentContextEstimates.isEmpty) return '1';
+
+      int maxNumber = 0;
+      bool hasDPrefix = false;
+
+      // Анализируем номера на наличие префикса "д-"
+      for (final est in currentContextEstimates) {
+        final numStr = est.number.trim();
+        // Проверяем формат "д-<число>" (регистронезависимо, допускаем D латинскую)
+        // Пример: д-1, Д-5, d-10
+        final match = RegExp(r'^[дДdD]\s*-\s*(\d+)$').firstMatch(numStr);
+        if (match != null) {
+          hasDPrefix = true;
+          final num = int.tryParse(match.group(1) ?? '0') ?? 0;
+          if (num > maxNumber) {
+            maxNumber = num;
+          }
+        }
+      }
+
+      // Если нашли номера с префиксом "д-", генерируем следующий в том же формате
+      if (hasDPrefix) {
+        return 'д-${maxNumber + 1}';
+      }
+
+      // Если префикса "д-" не было, ищем максимум среди обычных целых чисел
+      maxNumber = 0;
+      for (final est in currentContextEstimates) {
+        final numStr = est.number.trim();
+        if (RegExp(r'^\d+$').hasMatch(numStr)) {
+          final num = int.tryParse(numStr);
+          if (num != null && num > maxNumber) {
+            maxNumber = num;
+          }
+        }
+      }
+
+      return (maxNumber + 1).toString();
+    } catch (e) {
+      debugPrint('Error calculating next number: $e');
+      return '';
+    }
   }
 
   @override
@@ -450,7 +541,7 @@ class _EstimateEditDialogState extends ConsumerState<EstimateEditDialog> {
     if (isLoading) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 16),
-        child: Center(child: CircularProgressIndicator()),
+        child: Center(child: CupertinoActivityIndicator()),
       );
     }
     return TypeAheadField<String>(

@@ -28,6 +28,7 @@ mixin _$Estimate {
   double get total;
   String? get objectId;
   String? get contractId;
+  String? get contractNumber;
   String? get estimateTitle;
 
   /// Create a copy of Estimate
@@ -60,6 +61,8 @@ mixin _$Estimate {
                 other.objectId == objectId) &&
             (identical(other.contractId, contractId) ||
                 other.contractId == contractId) &&
+            (identical(other.contractNumber, contractNumber) ||
+                other.contractNumber == contractNumber) &&
             (identical(other.estimateTitle, estimateTitle) ||
                 other.estimateTitle == estimateTitle));
   }
@@ -80,11 +83,12 @@ mixin _$Estimate {
       total,
       objectId,
       contractId,
+      contractNumber,
       estimateTitle);
 
   @override
   String toString() {
-    return 'Estimate(id: $id, system: $system, subsystem: $subsystem, number: $number, name: $name, article: $article, manufacturer: $manufacturer, unit: $unit, quantity: $quantity, price: $price, total: $total, objectId: $objectId, contractId: $contractId, estimateTitle: $estimateTitle)';
+    return 'Estimate(id: $id, system: $system, subsystem: $subsystem, number: $number, name: $name, article: $article, manufacturer: $manufacturer, unit: $unit, quantity: $quantity, price: $price, total: $total, objectId: $objectId, contractId: $contractId, contractNumber: $contractNumber, estimateTitle: $estimateTitle)';
   }
 }
 
@@ -107,6 +111,7 @@ abstract mixin class $EstimateCopyWith<$Res> {
       double total,
       String? objectId,
       String? contractId,
+      String? contractNumber,
       String? estimateTitle});
 }
 
@@ -135,6 +140,7 @@ class _$EstimateCopyWithImpl<$Res> implements $EstimateCopyWith<$Res> {
     Object? total = null,
     Object? objectId = freezed,
     Object? contractId = freezed,
+    Object? contractNumber = freezed,
     Object? estimateTitle = freezed,
   }) {
     return _then(_self.copyWith(
@@ -190,6 +196,10 @@ class _$EstimateCopyWithImpl<$Res> implements $EstimateCopyWith<$Res> {
           ? _self.contractId
           : contractId // ignore: cast_nullable_to_non_nullable
               as String?,
+      contractNumber: freezed == contractNumber
+          ? _self.contractNumber
+          : contractNumber // ignore: cast_nullable_to_non_nullable
+              as String?,
       estimateTitle: freezed == estimateTitle
           ? _self.estimateTitle
           : estimateTitle // ignore: cast_nullable_to_non_nullable
@@ -215,6 +225,7 @@ class _Estimate extends Estimate {
       required this.total,
       this.objectId,
       this.contractId,
+      this.contractNumber,
       this.estimateTitle})
       : super._();
 
@@ -244,6 +255,8 @@ class _Estimate extends Estimate {
   final String? objectId;
   @override
   final String? contractId;
+  @override
+  final String? contractNumber;
   @override
   final String? estimateTitle;
 
@@ -278,6 +291,8 @@ class _Estimate extends Estimate {
                 other.objectId == objectId) &&
             (identical(other.contractId, contractId) ||
                 other.contractId == contractId) &&
+            (identical(other.contractNumber, contractNumber) ||
+                other.contractNumber == contractNumber) &&
             (identical(other.estimateTitle, estimateTitle) ||
                 other.estimateTitle == estimateTitle));
   }
@@ -298,11 +313,12 @@ class _Estimate extends Estimate {
       total,
       objectId,
       contractId,
+      contractNumber,
       estimateTitle);
 
   @override
   String toString() {
-    return 'Estimate(id: $id, system: $system, subsystem: $subsystem, number: $number, name: $name, article: $article, manufacturer: $manufacturer, unit: $unit, quantity: $quantity, price: $price, total: $total, objectId: $objectId, contractId: $contractId, estimateTitle: $estimateTitle)';
+    return 'Estimate(id: $id, system: $system, subsystem: $subsystem, number: $number, name: $name, article: $article, manufacturer: $manufacturer, unit: $unit, quantity: $quantity, price: $price, total: $total, objectId: $objectId, contractId: $contractId, contractNumber: $contractNumber, estimateTitle: $estimateTitle)';
   }
 }
 
@@ -327,6 +343,7 @@ abstract mixin class _$EstimateCopyWith<$Res>
       double total,
       String? objectId,
       String? contractId,
+      String? contractNumber,
       String? estimateTitle});
 }
 
@@ -355,6 +372,7 @@ class __$EstimateCopyWithImpl<$Res> implements _$EstimateCopyWith<$Res> {
     Object? total = null,
     Object? objectId = freezed,
     Object? contractId = freezed,
+    Object? contractNumber = freezed,
     Object? estimateTitle = freezed,
   }) {
     return _then(_Estimate(
@@ -409,6 +427,10 @@ class __$EstimateCopyWithImpl<$Res> implements _$EstimateCopyWith<$Res> {
       contractId: freezed == contractId
           ? _self.contractId
           : contractId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      contractNumber: freezed == contractNumber
+          ? _self.contractNumber
+          : contractNumber // ignore: cast_nullable_to_non_nullable
               as String?,
       estimateTitle: freezed == estimateTitle
           ? _self.estimateTitle

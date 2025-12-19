@@ -1,4 +1,5 @@
 import '../entities/estimate.dart';
+import '../entities/estimate_completion_history.dart';
 
 /// Абстракция репозитория для работы со сметами.
 ///
@@ -30,4 +31,7 @@ abstract class EstimateRepository {
   /// Получает список уникальных единиц измерения из всех смет.
   /// Если [estimateTitle] указан, возвращает только единицы измерения из этой сметы.
   Future<List<String>> getUnits({String? estimateTitle});
+
+  /// Получает историю выполнения для конкретной позиции сметы.
+  Future<List<EstimateCompletionHistory>> getEstimateCompletionHistory(String estimateId);
 }

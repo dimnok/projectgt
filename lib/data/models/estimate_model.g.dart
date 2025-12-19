@@ -21,6 +21,7 @@ _EstimateModel _$EstimateModelFromJson(Map<String, dynamic> json) =>
       total: (json['total'] as num).toDouble(),
       objectId: json['object_id'] as String?,
       contractId: json['contract_id'] as String?,
+      contractNumber: json['contract_number'] as String?,
       estimateTitle: json['estimate_title'] as String?,
     );
 
@@ -39,5 +40,6 @@ Map<String, dynamic> _$EstimateModelToJson(_EstimateModel instance) =>
       'total': instance.total,
       if (instance.objectId case final value?) 'object_id': value,
       if (instance.contractId case final value?) 'contract_id': value,
+      if (instance.contractNumber case final value?) 'contract_number': value,
       if (instance.estimateTitle case final value?) 'estimate_title': value,
     };

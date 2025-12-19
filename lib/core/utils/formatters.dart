@@ -27,6 +27,12 @@ class GtFormatters {
   static String formatRuDateTime(DateTime date) {
     return DateFormat('dd.MM.yyyy HH:mm', 'ru_RU').format(date);
   }
+
+  /// Форматирует количество (до 3 знаков после запятой, группировка тысяч).
+  /// Пример: 1234.5 -> "1 234,5".
+  static String formatQuantity(num value) {
+    return NumberFormat('###,##0.###', 'ru_RU').format(value);
+  }
 }
 
 /// Короткие топ-левел алиасы для форматирования валюты (ru_RU, ₽, 2 знака).
@@ -37,3 +43,6 @@ String formatRuDate(DateTime date) => GtFormatters.formatRuDate(date);
 
 /// Короткие топ-левел алиасы для форматирования даты и времени (dd.MM.yyyy HH:mm, ru_RU).
 String formatRuDateTime(DateTime date) => GtFormatters.formatRuDateTime(date);
+
+/// Короткие топ-левел алиасы для форматирования количества.
+String formatQuantity(num value) => GtFormatters.formatQuantity(value);

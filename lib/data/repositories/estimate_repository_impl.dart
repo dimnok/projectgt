@@ -1,7 +1,9 @@
 import '../../domain/entities/estimate.dart';
+import '../../domain/entities/estimate_completion_history.dart';
 import '../../domain/repositories/estimate_repository.dart';
 import '../datasources/estimate_data_source.dart';
 import '../models/estimate_model.dart';
+import '../models/estimate_completion_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Реализация репозитория EstimateRepository для работы со сметами через data source.
@@ -94,6 +96,42 @@ class EstimateRepositoryImpl implements EstimateRepository {
     return subsystems.toList()..sort();
   }
 
+  /// Получает сгруппированный список смет (заголовки).
+  Future<List<Map<String, dynamic>>> getEstimateGroups() async {
+    if (dataSource is SupabaseEstimateDataSource) {
+      return (dataSource as SupabaseEstimateDataSource).getEstimateGroups();
+    }
+    return [];
+  }
+
+  /// Получает позиции сметы по фильтру (заголовок + объект + договор).
+  Future<List<Estimate>> getEstimatesByFile({
+    required String estimateTitle,
+    String? objectId,
+    String? contractId,
+  }) async {
+    if (dataSource is SupabaseEstimateDataSource) {
+      final models =
+          await (dataSource as SupabaseEstimateDataSource).getEstimatesByFile(
+        estimateTitle: estimateTitle,
+        objectId: objectId,
+        contractId: contractId,
+      );
+      return models.map((e) => e.toDomain()).toList();
+    }
+    return [];
+  }
+
+  /// Получает выполнение только для указанных ID сметных позиций.
+  Future<List<EstimateCompletionModel>> getEstimateCompletionByIds(
+      List<String> estimateIds) async {
+    if (dataSource is SupabaseEstimateDataSource) {
+      return (dataSource as SupabaseEstimateDataSource)
+          .getEstimateCompletionByIds(estimateIds);
+    }
+    return [];
+  }
+
   /// Получает список уникальных единиц измерения из всех смет.
   @override
   Future<List<String>> getUnits({String? estimateTitle}) async {
@@ -117,5 +155,26 @@ class EstimateRepositoryImpl implements EstimateRepository {
       }
     }
     return units.toList()..sort();
+  }
+
+  @override
+  Future<List<EstimateCompletionHistory>> getEstimateCompletionHistory(String estimateId) async {
+    final rawData = await dataSource.getEstimateCompletionHistory(estimateId);
+    
+    final history = rawData.map((row) {
+      final works = row['works'] as Map<String, dynamic>?;
+      final dateStr = works?['date'] as String?;
+      final quantity = (row['quantity'] as num?)?.toDouble() ?? 0.0;
+      
+      return EstimateCompletionHistory(
+        date: dateStr != null ? DateTime.parse(dateStr) : DateTime.now(),
+        quantity: quantity,
+      );
+    }).toList();
+
+    // Сортируем: сначала новые даты (по убыванию)
+    history.sort((a, b) => b.date.compareTo(a.date));
+    
+    return history;
   }
 }
