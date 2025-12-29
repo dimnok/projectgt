@@ -43,10 +43,7 @@ abstract class AuthDataSource {
   ///
   /// [fullName] — полное ФИО пользователя.
   /// [phone] — номер телефона в формате +7-(XXX)-XXX-XXXX.
-  Future<void> updateProfile({
-    required String fullName,
-    required String phone,
-  });
+  Future<void> updateProfile({required String fullName, required String phone});
 }
 
 /// Реализация [AuthDataSource] через Supabase.
@@ -117,9 +114,7 @@ class SupabaseAuthDataSource implements AuthDataSource {
       final response = await client.auth.signUp(
         email: email,
         password: password,
-        data: {
-          'name': name,
-        },
+        data: {'name': name},
       );
 
       if (response.user == null) {
@@ -196,19 +191,7 @@ class SupabaseAuthDataSource implements AuthDataSource {
   @override
   Future<void> requestEmailOtp(String email) async {
     try {
-      await client.auth.signInWithOtp(
-        email: email,
-        shouldCreateUser: true,
-      );
-      // Доп. гарантия для НОВЫХ пользователей: отправим confirm-signup OTP
-      try {
-        await client.auth.resend(
-          type: OtpType.signup,
-          email: email,
-        );
-      } catch (_) {
-        // игнорируем, если пользователь уже существует
-      }
+      await client.auth.signInWithOtp(email: email, shouldCreateUser: true);
     } catch (e) {
       final message = e.toString();
       if (message.contains('network')) {
@@ -284,11 +267,14 @@ class SupabaseAuthDataSource implements AuthDataSource {
 
     try {
       // Обновляем только поля full_name и phone для текущего пользователя
-      await client.from('profiles').update({
-        'full_name': fullName.trim(),
-        'phone': phone.trim(),
-        'updated_at': DateTime.now().toIso8601String(),
-      }).eq('id', currentUser.id);
+      await client
+          .from('profiles')
+          .update({
+            'full_name': fullName.trim(),
+            'phone': phone.trim(),
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', currentUser.id);
 
       // Логируем успешное обновление профиля
       logger.i('Профиль пользователя обновлён: ${currentUser.id}');

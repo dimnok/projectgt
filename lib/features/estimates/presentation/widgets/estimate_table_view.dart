@@ -4,7 +4,6 @@ import 'dart:ui' as ui show TextDirection;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../../../../core/utils/formatters.dart';
 import '../../../../data/models/estimate_completion_model.dart';
@@ -23,21 +22,41 @@ enum EstimateViewMode {
 
 /// Облегчённая таблица сметы без зависимостей от PlutoGrid.
 class EstimateTableView extends ConsumerStatefulWidget {
+  /// Создает экземпляр [EstimateTableView].
   const EstimateTableView({
     super.key,
     required this.items,
     required this.onEdit,
     required this.onDuplicate,
     required this.onDelete,
+    this.onRowTap,
     this.completionData,
+    this.selectedId,
     this.viewMode = EstimateViewMode.planning,
   });
 
+  /// Список позиций сметы.
   final List<Estimate> items;
+
+  /// Данные о выполнении позиций сметы.
   final Map<String, EstimateCompletionModel>? completionData;
+
+  /// ID выбранной позиции для выделения.
+  final String? selectedId;
+
+  /// Режим отображения таблицы.
   final EstimateViewMode viewMode;
+
+  /// Обратный вызов при клике на строку.
+  final void Function(Estimate)? onRowTap;
+
+  /// Обратный вызов для редактирования позиции.
   final void Function(Estimate) onEdit;
+
+  /// Обратный вызов для дублирования позиции.
   final void Function(Estimate) onDuplicate;
+
+  /// Обратный вызов для удаления позиции по ID.
   final void Function(String id) onDelete;
 
   @override
@@ -53,7 +72,6 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
   final ScrollController _horizontalController = ScrollController();
   final ScrollController _headerHorizontalController = ScrollController();
   bool _isSyncingScroll = false;
-  final NumberFormat _quantityFormat = NumberFormat('###,##0.###', 'ru_RU');
 
   bool get _isPlanning => widget.viewMode == EstimateViewMode.planning;
   bool get _isExecution => widget.viewMode == EstimateViewMode.execution;
@@ -213,12 +231,22 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
     for (final estimate in sortedItems) {
       alternate = !alternate;
       final completion = widget.completionData?[estimate.id];
+      final isSelected = widget.selectedId == estimate.id;
+
       rows.add(
         TableRow(
           decoration: BoxDecoration(
-            color: alternate
+            color: isSelected
+                ? theme.colorScheme.primaryContainer
+                : (alternate
                 ? theme.colorScheme.primary.withValues(alpha: 0.08)
-                : Colors.transparent,
+                    : Colors.transparent),
+            border: isSelected
+                ? Border.all(
+                    color: theme.colorScheme.primary,
+                    width: 2,
+                  )
+                : null,
           ),
           children: [
             for (final config in configs)
@@ -226,6 +254,10 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
                 theme,
                 config.builder(estimate, completion, theme),
                 align: config.cellAlignment,
+                isSelected: isSelected,
+                onTap: widget.onRowTap != null
+                    ? () => widget.onRowTap!(estimate)
+                    : null,
               ),
           ],
         ),
@@ -322,9 +354,9 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
         cellAlignment: Alignment.center,
         flex: 0.8,
         minWidth: 70,
-        measureText: (estimate, _) => _quantityFormat.format(estimate.quantity),
+          measureText: (estimate, _) => formatQuantity(estimate.quantity),
         builder: (estimate, _, __) =>
-            Text(_quantityFormat.format(estimate.quantity)),
+              Text(formatQuantity(estimate.quantity)),
       ),
     ]);
 
@@ -370,9 +402,9 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
           flex: 1.0,
           minWidth: 80,
           measureText: (_, completion) =>
-              _quantityFormat.format(completion?.completedQuantity ?? 0),
+              formatQuantity(completion?.completedQuantity ?? 0),
           builder: (estimate, completion, __) => Text(
-            _quantityFormat.format(completion?.completedQuantity ?? 0),
+            formatQuantity(completion?.completedQuantity ?? 0),
           ),
         ),
         /*
@@ -395,10 +427,10 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
           cellAlignment: Alignment.center,
           flex: 1.0,
           minWidth: 90,
-          measureText: (estimate, completion) => _quantityFormat
-              .format(completion?.remainingQuantity ?? estimate.quantity),
+          measureText: (estimate, completion) => formatQuantity(
+              completion?.remainingQuantity ?? estimate.quantity),
           builder: (estimate, completion, __) => Text(
-            _quantityFormat.format(
+            formatQuantity(
               completion?.remainingQuantity ?? estimate.quantity,
             ),
           ),
@@ -476,17 +508,32 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
     );
   }
 
-  Widget _bodyCell(ThemeData theme, Widget child,
-      {Alignment align = Alignment.centerLeft}) {
-    return Container(
+  Widget _bodyCell(
+    ThemeData theme,
+    Widget child, {
+    Alignment align = Alignment.centerLeft,
+    VoidCallback? onTap,
+    bool isSelected = false,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
       padding: const EdgeInsets.symmetric(
-          horizontal: _kCellHorizontalPadding, vertical: _kCellVerticalPadding),
+            horizontal: _kCellHorizontalPadding,
+            vertical: _kCellVerticalPadding),
       constraints: const BoxConstraints(minHeight: 30),
       alignment: align,
       child: DefaultTextStyle.merge(
-        style: theme.textTheme.bodySmall?.copyWith(fontSize: 12, height: 1.0) ??
+          style: theme.textTheme.bodySmall?.copyWith(
+                fontSize: 12,
+                height: 1.0,
+                fontWeight: isSelected ? FontWeight.bold : null,
+                color: isSelected ? theme.colorScheme.onPrimaryContainer : null,
+              ) ??
             const TextStyle(fontSize: 12, height: 1.0),
         child: child,
+        ),
       ),
     );
   }
@@ -520,7 +567,7 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
         theme.textTheme.bodySmall?.copyWith(fontSize: 12, height: 1.0) ??
             const TextStyle(fontSize: 12, height: 1.0);
 
-    final paddingWidth = _kCellHorizontalPadding * 2;
+    const paddingWidth = _kCellHorizontalPadding * 2;
 
     for (var i = 0; i < configs.length; i++) {
       final config = configs[i];
@@ -662,10 +709,10 @@ class _ActionsMenu extends StatelessWidget {
         iconButtonTheme: IconButtonThemeData(
           style: ButtonStyle(
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            minimumSize: MaterialStateProperty.all<Size>(
+            minimumSize: WidgetStateProperty.all<Size>(
               const Size(28, 28),
             ),
-            overlayColor: MaterialStateProperty.all<Color>(
+            overlayColor: WidgetStateProperty.all<Color>(
               Colors.transparent,
             ),
             splashFactory: NoSplash.splashFactory,

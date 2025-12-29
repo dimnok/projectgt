@@ -40,7 +40,7 @@ class PermissionService {
     if (_user == null) return false;
 
     // 1. Новая система (по role_id)
-    if (_user!.roleId != null) {
+    if (_user.roleId != null) {
       // Если права еще загружаются, считаем что доступа нет (или можно вернуть false, чтобы не блокировать UI, а скрыть элементы)
       // Но лучше безопасно отказать.
       if (_isLoading) return false;

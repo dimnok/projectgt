@@ -87,7 +87,8 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
     final theme = Theme.of(context);
     final employeeState = ref.watch(state.employeeProvider);
     final employee = employeeState.employee;
-    final isLoading = employee == null &&
+    final isLoading =
+        employee == null &&
         employeeState.status == state.EmployeeStatus.loading;
     final objectState = ref.watch(objectProvider);
     final objects = objectState.objects;
@@ -114,30 +115,31 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
             ? const AppDrawer(activeRoute: AppRoute.employees)
             : null,
         body: Center(
-          child: Text(
-            'Сотрудник не найден',
-            style: theme.textTheme.bodyLarge,
-          ),
+          child: Text('Сотрудник не найден', style: theme.textTheme.bodyLarge),
         ),
       );
     }
 
     // Получаем данные для отображения только один раз
-    final (statusText, statusColor) =
-        EmployeeUIUtils.getStatusInfo(employee.status);
-    final employmentTypeText =
-        EmployeeUIUtils.getEmploymentTypeText(employee.employmentType);
+    final (statusText, statusColor) = EmployeeUIUtils.getStatusInfo(
+      employee.status,
+    );
+    final employmentTypeText = EmployeeUIUtils.getEmploymentTypeText(
+      employee.employmentType,
+    );
     // Получаем имена объектов по objectIds
     String objectsText = 'Не указаны';
     if (employee.objectIds.isNotEmpty) {
       final names = employee.objectIds
-          .map((id) => objects
-              .firstWhere(
-                (o) => o.id == id,
-                orElse: () =>
-                    const ObjectEntity(id: '', name: '—', address: ''),
-              )
-              .name)
+          .map(
+            (id) => objects
+                .firstWhere(
+                  (o) => o.id == id,
+                  orElse: () =>
+                      const ObjectEntity(id: '', name: '—', address: ''),
+                )
+                .name,
+          )
           .where((name) => name != '—')
           .toList();
       if (names.isNotEmpty) {
@@ -161,14 +163,20 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
     final labelStyle = TextStyle(
       color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
       fontSize: ResponsiveUtils.adaptiveValue(
-          context: context, mobile: 14.0, desktop: 15.0),
+        context: context,
+        mobile: 14.0,
+        desktop: 15.0,
+      ),
     );
 
     // Общий стиль для значений
     final valueStyle = TextStyle(
       fontWeight: FontWeight.w500,
       fontSize: ResponsiveUtils.adaptiveValue(
-          context: context, mobile: 15.0, desktop: 16.0),
+        context: context,
+        mobile: 15.0,
+        desktop: 16.0,
+      ),
     );
 
     return Scaffold(
@@ -198,7 +206,8 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
                             .read(state.employeeProvider.notifier)
                             .toggleCanBeResponsible(current.id, null);
                         if (!mounted) return;
-                        final isOn = ref
+                        final isOn =
+                            ref
                                 .read(state.employeeProvider)
                                 .canBeResponsibleMap[current.id] ==
                             true;
@@ -225,8 +234,10 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
                     padding: EdgeInsets.zero,
                     child: const Icon(Icons.edit, color: Colors.amber),
                     onPressed: () {
-                      ModalUtils.showEmployeeFormModal(context,
-                          employeeId: employee.id);
+                      ModalUtils.showEmployeeFormModal(
+                        context,
+                        employeeId: employee.id,
+                      );
                     },
                   ),
                 ),
@@ -252,9 +263,7 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
                   MediaQuery.of(context).viewPadding.top + kToolbarHeight + 24,
             ),
           // Отступ сверху как в списке сотрудников
-          SizedBox(
-            height: ResponsiveUtils.isMobile(context) ? 8 : 6,
-          ),
+          SizedBox(height: ResponsiveUtils.isMobile(context) ? 8 : 6),
           // Единый блок с информацией и табами
           Container(
             margin: EdgeInsets.symmetric(
@@ -284,11 +293,13 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
               children: [
                 // Шапка с фото и основной информацией
                 Padding(
-                  padding: EdgeInsets.all(ResponsiveUtils.adaptiveValue(
-                    context: context,
-                    mobile: _contentPadding,
-                    desktop: _contentPadding * 1.5,
-                  )),
+                  padding: EdgeInsets.all(
+                    ResponsiveUtils.adaptiveValue(
+                      context: context,
+                      mobile: _contentPadding,
+                      desktop: _contentPadding * 1.5,
+                    ),
+                  ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -303,14 +314,16 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: theme.colorScheme.outline
-                                    .withValues(alpha: 0.3),
+                                color: theme.colorScheme.outline.withValues(
+                                  alpha: 0.3,
+                                ),
                                 width: 1,
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: theme.colorScheme.shadow
-                                      .withValues(alpha: 0.1),
+                                  color: theme.colorScheme.shadow.withValues(
+                                    alpha: 0.1,
+                                  ),
                                   blurRadius: 6,
                                   offset: const Offset(0, 2),
                                 ),
@@ -324,28 +337,29 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
                                       imageUrl: employee.photoUrl!,
                                       imageBuilder: (context, imageProvider) =>
                                           CircleAvatar(
-                                        radius: avatarRadius,
-                                        backgroundImage: imageProvider,
-                                      ),
+                                            radius: avatarRadius,
+                                            backgroundImage: imageProvider,
+                                          ),
                                       placeholder: (context, url) => SizedBox(
                                         width: avatarRadius / 2,
                                         height: avatarRadius / 2,
-                                        child: const CircularProgressIndicator
-                                            .adaptive(),
+                                        child:
+                                            const CircularProgressIndicator.adaptive(),
                                       ),
                                       errorWidget: (context, url, error) =>
                                           CircleAvatar(
-                                        radius: avatarRadius,
-                                        backgroundColor: theme
-                                            .colorScheme.surface
-                                            .withValues(alpha: 0.1),
-                                        child: Icon(
-                                          Icons.person,
-                                          size: avatarRadius,
-                                          color: theme.colorScheme.primary
-                                              .withValues(alpha: 0.8),
-                                        ),
-                                      ),
+                                            radius: avatarRadius,
+                                            backgroundColor: theme
+                                                .colorScheme
+                                                .surface
+                                                .withValues(alpha: 0.1),
+                                            child: Icon(
+                                              Icons.person,
+                                              size: avatarRadius,
+                                              color: theme.colorScheme.primary
+                                                  .withValues(alpha: 0.8),
+                                            ),
+                                          ),
                                     )
                                   : Icon(
                                       Icons.person,
@@ -374,20 +388,21 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
                                   context: context,
                                   mobile:
                                       theme.textTheme.titleLarge?.fontSize ??
-                                          22.0,
+                                      22.0,
                                   desktop:
                                       (theme.textTheme.titleLarge?.fontSize ??
-                                              22.0) *
-                                          1.2,
+                                          22.0) *
+                                      1.2,
                                 ),
                               ),
                             ),
                             SizedBox(
-                                height: ResponsiveUtils.adaptiveValue(
-                              context: context,
-                              mobile: 8.0,
-                              desktop: 12.0,
-                            )),
+                              height: ResponsiveUtils.adaptiveValue(
+                                context: context,
+                                mobile: 8.0,
+                                desktop: 12.0,
+                              ),
+                            ),
                             // Должность
                             if (employee.position != null)
                               Text(
@@ -397,8 +412,11 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
                                     context: context,
                                     mobile:
                                         theme.textTheme.titleMedium?.fontSize ??
-                                            16.0,
-                                    desktop: (theme.textTheme.titleMedium
+                                        16.0,
+                                    desktop:
+                                        (theme
+                                                .textTheme
+                                                .titleMedium
                                                 ?.fontSize ??
                                             16.0) *
                                         1.1,
@@ -406,15 +424,18 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
                                 ),
                               ),
                             SizedBox(
-                                height: ResponsiveUtils.adaptiveValue(
-                              context: context,
-                              mobile: 8.0,
-                              desktop: 12.0,
-                            )),
+                              height: ResponsiveUtils.adaptiveValue(
+                                context: context,
+                                mobile: 8.0,
+                                desktop: 12.0,
+                              ),
+                            ),
                             // Статус
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 6),
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
                               decoration: BoxDecoration(
                                 color: statusColor.withValues(alpha: 0.1),
                                 border: Border.all(
@@ -432,11 +453,11 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
                                     context: context,
                                     mobile:
                                         theme.textTheme.bodyMedium?.fontSize ??
-                                            14.0,
+                                        14.0,
                                     desktop:
                                         (theme.textTheme.bodyMedium?.fontSize ??
-                                                14.0) *
-                                            1.1,
+                                            14.0) *
+                                        1.1,
                                   ),
                                 ),
                               ),
@@ -460,10 +481,12 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
                   padding: const EdgeInsets.all(12),
                   child: CupertinoSlidingSegmentedControl<int>(
                     groupValue: _selectedTab,
-                    backgroundColor:
-                        theme.colorScheme.surface.withValues(alpha: 0.5),
-                    thumbColor:
-                        theme.colorScheme.primary.withValues(alpha: 0.8),
+                    backgroundColor: theme.colorScheme.surface.withValues(
+                      alpha: 0.5,
+                    ),
+                    thumbColor: theme.colorScheme.primary.withValues(
+                      alpha: 0.8,
+                    ),
                     padding: const EdgeInsets.all(4),
                     onValueChanged: (int? value) {
                       if (value != null) {
@@ -477,7 +500,9 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
                         width: 110,
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 4, vertical: 8),
+                            horizontal: 4,
+                            vertical: 8,
+                          ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             mainAxisSize: MainAxisSize.min,
@@ -487,8 +512,9 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
                                 size: 18,
                                 color: _selectedTab == 0
                                     ? theme.colorScheme.onPrimary
-                                    : theme.colorScheme.onSurface
-                                        .withValues(alpha: 0.7),
+                                    : theme.colorScheme.onSurface.withValues(
+                                        alpha: 0.7,
+                                      ),
                               ),
                               const SizedBox(width: 6),
                               Flexible(
@@ -498,7 +524,7 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
                                     color: _selectedTab == 0
                                         ? theme.colorScheme.onPrimary
                                         : theme.colorScheme.onSurface
-                                            .withValues(alpha: 0.7),
+                                              .withValues(alpha: 0.7),
                                     fontWeight: _selectedTab == 0
                                         ? FontWeight.w600
                                         : FontWeight.normal,
@@ -514,7 +540,9 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
                         width: 110,
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 4, vertical: 8),
+                            horizontal: 4,
+                            vertical: 8,
+                          ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             mainAxisSize: MainAxisSize.min,
@@ -524,8 +552,9 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
                                 size: 18,
                                 color: _selectedTab == 1
                                     ? theme.colorScheme.onPrimary
-                                    : theme.colorScheme.onSurface
-                                        .withValues(alpha: 0.7),
+                                    : theme.colorScheme.onSurface.withValues(
+                                        alpha: 0.7,
+                                      ),
                               ),
                               const SizedBox(width: 6),
                               Flexible(
@@ -535,7 +564,7 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
                                     color: _selectedTab == 1
                                         ? theme.colorScheme.onPrimary
                                         : theme.colorScheme.onSurface
-                                            .withValues(alpha: 0.7),
+                                              .withValues(alpha: 0.7),
                                     fontWeight: _selectedTab == 1
                                         ? FontWeight.w600
                                         : FontWeight.normal,
@@ -551,7 +580,9 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
                         width: 120,
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 4, vertical: 8),
+                            horizontal: 4,
+                            vertical: 8,
+                          ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             mainAxisSize: MainAxisSize.min,
@@ -561,8 +592,9 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
                                 size: 18,
                                 color: _selectedTab == 2
                                     ? theme.colorScheme.onPrimary
-                                    : theme.colorScheme.onSurface
-                                        .withValues(alpha: 0.7),
+                                    : theme.colorScheme.onSurface.withValues(
+                                        alpha: 0.7,
+                                      ),
                               ),
                               const SizedBox(width: 6),
                               Flexible(
@@ -572,7 +604,7 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
                                     color: _selectedTab == 2
                                         ? theme.colorScheme.onPrimary
                                         : theme.colorScheme.onSurface
-                                            .withValues(alpha: 0.7),
+                                              .withValues(alpha: 0.7),
                                     fontWeight: _selectedTab == 2
                                         ? FontWeight.w600
                                         : FontWeight.normal,
@@ -602,31 +634,47 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
                     'Личная информация',
                     [
                       _buildInfoItem(
-                          'Фамилия', employee.lastName, labelStyle, valueStyle),
+                        'Фамилия',
+                        employee.lastName,
+                        labelStyle,
+                        valueStyle,
+                      ),
                       _buildInfoItem(
-                          'Имя', employee.firstName, labelStyle, valueStyle),
+                        'Имя',
+                        employee.firstName,
+                        labelStyle,
+                        valueStyle,
+                      ),
                       _buildInfoItem(
-                          'Отчество',
-                          employee.middleName ?? 'Не указано',
-                          labelStyle,
-                          valueStyle),
+                        'Отчество',
+                        employee.middleName ?? 'Не указано',
+                        labelStyle,
+                        valueStyle,
+                      ),
                       _buildInfoItem(
-                          'Дата рождения',
-                          _formatDate(employee.birthDate),
-                          labelStyle,
-                          valueStyle),
+                        'Дата рождения',
+                        _formatDate(employee.birthDate),
+                        labelStyle,
+                        valueStyle,
+                      ),
                       _buildInfoItem(
-                          'Место рождения',
-                          employee.birthPlace ?? 'Не указано',
-                          labelStyle,
-                          valueStyle),
+                        'Место рождения',
+                        employee.birthPlace ?? 'Не указано',
+                        labelStyle,
+                        valueStyle,
+                      ),
                       _buildInfoItem(
-                          'Гражданство',
-                          employee.citizenship ?? 'Не указано',
-                          labelStyle,
-                          valueStyle),
-                      _buildInfoItem('Телефон', employee.phone ?? 'Не указан',
-                          labelStyle, valueStyle),
+                        'Гражданство',
+                        employee.citizenship ?? 'Не указано',
+                        labelStyle,
+                        valueStyle,
+                      ),
+                      _buildInfoItem(
+                        'Телефон',
+                        employee.phone ?? 'Не указан',
+                        labelStyle,
+                        valueStyle,
+                      ),
                     ],
                     sectionTitleStyle,
                     icon: Icons.person,
@@ -635,18 +683,24 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
                   _buildInfoSection(
                     'Физические параметры',
                     [
-                      _buildInfoItem('Рост', employee.height ?? 'Не указан',
-                          labelStyle, valueStyle),
                       _buildInfoItem(
-                          'Размер одежды',
-                          employee.clothingSize ?? 'Не указан',
-                          labelStyle,
-                          valueStyle),
+                        'Рост',
+                        employee.height ?? 'Не указан',
+                        labelStyle,
+                        valueStyle,
+                      ),
                       _buildInfoItem(
-                          'Размер обуви',
-                          employee.shoeSize ?? 'Не указан',
-                          labelStyle,
-                          valueStyle),
+                        'Размер одежды',
+                        employee.clothingSize ?? 'Не указан',
+                        labelStyle,
+                        valueStyle,
+                      ),
+                      _buildInfoItem(
+                        'Размер обуви',
+                        employee.shoeSize ?? 'Не указан',
+                        labelStyle,
+                        valueStyle,
+                      ),
                     ],
                     sectionTitleStyle,
                     icon: Icons.accessibility_new,
@@ -659,17 +713,23 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
                     'Информация о работе',
                     [
                       _buildInfoItem(
-                          'Должность',
-                          employee.position ?? 'Не указана',
-                          labelStyle,
-                          valueStyle),
+                        'Должность',
+                        employee.position ?? 'Не указана',
+                        labelStyle,
+                        valueStyle,
+                      ),
                       _buildInfoItem(
-                          'Дата трудоустройства',
-                          _formatDate(employee.employmentDate),
-                          labelStyle,
-                          valueStyle),
-                      _buildInfoItem('Вид трудоустройства', employmentTypeText,
-                          labelStyle, valueStyle),
+                        'Дата трудоустройства',
+                        _formatDate(employee.employmentDate),
+                        labelStyle,
+                        valueStyle,
+                      ),
+                      _buildInfoItem(
+                        'Вид трудоустройства',
+                        employmentTypeText,
+                        labelStyle,
+                        valueStyle,
+                      ),
 
                       // Текущая ставка (раскрывающаяся)
                       EmployeeRateSummaryWidget(
@@ -687,12 +747,16 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
                         theme: theme,
                         onAddBusinessTrip:
                             permissionService.can('employees', 'update')
-                                ? () => _showBusinessTripModal(employee)
-                                : null,
+                            ? () => _showBusinessTripModal(employee)
+                            : null,
                       ),
 
                       _buildInfoItem(
-                          'Объекты', objectsText, labelStyle, valueStyle),
+                        'Объекты',
+                        objectsText,
+                        labelStyle,
+                        valueStyle,
+                      ),
                       _buildInfoItem(
                         'Статус',
                         statusText,
@@ -713,35 +777,41 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
                     'Паспортные данные',
                     [
                       _buildInfoItem(
-                          'Серия',
-                          employee.passportSeries ?? 'Не указана',
-                          labelStyle,
-                          valueStyle),
+                        'Серия',
+                        employee.passportSeries ?? 'Не указана',
+                        labelStyle,
+                        valueStyle,
+                      ),
                       _buildInfoItem(
-                          'Номер',
-                          employee.passportNumber ?? 'Не указан',
-                          labelStyle,
-                          valueStyle),
+                        'Номер',
+                        employee.passportNumber ?? 'Не указан',
+                        labelStyle,
+                        valueStyle,
+                      ),
                       _buildInfoItem(
-                          'Кем выдан',
-                          employee.passportIssuedBy ?? 'Не указано',
-                          labelStyle,
-                          valueStyle),
+                        'Кем выдан',
+                        employee.passportIssuedBy ?? 'Не указано',
+                        labelStyle,
+                        valueStyle,
+                      ),
                       _buildInfoItem(
-                          'Дата выдачи',
-                          _formatDate(employee.passportIssueDate),
-                          labelStyle,
-                          valueStyle),
+                        'Дата выдачи',
+                        _formatDate(employee.passportIssueDate),
+                        labelStyle,
+                        valueStyle,
+                      ),
                       _buildInfoItem(
-                          'Код подразделения',
-                          employee.passportDepartmentCode ?? 'Не указан',
-                          labelStyle,
-                          valueStyle),
+                        'Код подразделения',
+                        employee.passportDepartmentCode ?? 'Не указан',
+                        labelStyle,
+                        valueStyle,
+                      ),
                       _buildInfoItem(
-                          'Адрес регистрации',
-                          employee.registrationAddress ?? 'Не указан',
-                          labelStyle,
-                          valueStyle),
+                        'Адрес регистрации',
+                        employee.registrationAddress ?? 'Не указан',
+                        labelStyle,
+                        valueStyle,
+                      ),
                     ],
                     sectionTitleStyle,
                     icon: Icons.credit_card,
@@ -750,10 +820,18 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
                   _buildInfoSection(
                     'Дополнительные документы',
                     [
-                      _buildInfoItem('ИНН', employee.inn ?? 'Не указан',
-                          labelStyle, valueStyle),
-                      _buildInfoItem('СНИЛС', employee.snils ?? 'Не указан',
-                          labelStyle, valueStyle),
+                      _buildInfoItem(
+                        'ИНН',
+                        employee.inn ?? 'Не указан',
+                        labelStyle,
+                        valueStyle,
+                      ),
+                      _buildInfoItem(
+                        'СНИЛС',
+                        employee.snils ?? 'Не указан',
+                        labelStyle,
+                        valueStyle,
+                      ),
                     ],
                     sectionTitleStyle,
                     icon: Icons.assignment,
@@ -777,8 +855,11 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
 
   // Построение секции с информацией
   Widget _buildInfoSection(
-      String title, List<Widget> items, TextStyle? titleStyle,
-      {IconData? icon}) {
+    String title,
+    List<Widget> items,
+    TextStyle? titleStyle, {
+    IconData? icon,
+  }) {
     final theme = Theme.of(context);
     return Card(
       margin: EdgeInsets.zero,
@@ -822,8 +903,12 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
 
   // Построение элемента с информацией
   Widget _buildInfoItem(
-      String label, String value, TextStyle labelStyle, TextStyle valueStyle,
-      {Color? valueColor}) {
+    String label,
+    String value,
+    TextStyle labelStyle,
+    TextStyle valueStyle, {
+    Color? valueColor,
+  }) {
     // Адаптивная ширина метки
     final double adaptiveLabelWidth = ResponsiveUtils.adaptiveValue(
       context: context,
@@ -836,8 +921,12 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
 
     return Container(
       margin: EdgeInsets.only(
-          bottom: ResponsiveUtils.adaptiveValue(
-              context: context, mobile: 12.0, desktop: 16.0)),
+        bottom: ResponsiveUtils.adaptiveValue(
+          context: context,
+          mobile: 12.0,
+          desktop: 16.0,
+        ),
+      ),
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
@@ -869,9 +958,10 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Text(label,
-                        style:
-                            labelStyle.copyWith(fontWeight: FontWeight.w500)),
+                    Text(
+                      label,
+                      style: labelStyle.copyWith(fontWeight: FontWeight.w500),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -908,10 +998,13 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
                 ),
                 const SizedBox(width: 8),
                 SizedBox(
-                  width: adaptiveLabelWidth -
+                  width:
+                      adaptiveLabelWidth -
                       12, // учитываем отступ для вертикальной полосы
-                  child: Text(label,
-                      style: labelStyle.copyWith(fontWeight: FontWeight.w500)),
+                  child: Text(
+                    label,
+                    style: labelStyle.copyWith(fontWeight: FontWeight.w500),
+                  ),
                 ),
                 Expanded(
                   child: Text(
@@ -1014,11 +1107,7 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
                         child: CircularProgressIndicator(color: Colors.white),
                       ),
                       errorWidget: (context, url, error) => const Center(
-                        child: Icon(
-                          Icons.error,
-                          color: Colors.white,
-                          size: 48,
-                        ),
+                        child: Icon(Icons.error, color: Colors.white, size: 48),
                       ),
                     )
                   : const SizedBox(),
@@ -1073,17 +1162,28 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
           : '';
 
       final cleanFileName = '${lastName}_$firstName$middleName$position'
-          .replaceAll(RegExp(r'[^\w\s\-\._а-яА-Я]', unicode: true),
-              '') // Убираем спецсимволы, оставляем кириллицу
+          .replaceAll(
+            // ignore: deprecated_member_use
+            RegExp(r'[^\w\s\-\._а-яА-Я]', unicode: true),
+            '',
+          ) // Убираем спецсимволы, оставляем кириллицу
+          // ignore: deprecated_member_use
           .replaceAll(RegExp(r'\s+'), '_') // Заменяем пробелы на подчеркивания
           .replaceAll(
-              RegExp(r'_+'), '_'); // Убираем множественные подчеркивания
+            // ignore: deprecated_member_use
+            RegExp(r'_+'),
+            '_',
+          ); // Убираем множественные подчеркивания
 
       // Финальная проверка и fallback
       final finalFileName = cleanFileName.replaceAll(
-          RegExp(r'^_+|_+$'), ''); // Убираем начальные/конечные _
-      final safeFileName =
-          finalFileName.isNotEmpty ? finalFileName : 'employee';
+        // ignore: deprecated_member_use
+        RegExp(r'^_+|_+$'),
+        '',
+      ); // Убираем начальные/конечные _
+      final safeFileName = finalFileName.isNotEmpty
+          ? finalFileName
+          : 'employee';
 
       if (kIsWeb) {
         // Для веб-платформы
@@ -1099,10 +1199,7 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
           // Пробуем определить платформу безопасно
           if (Platform.isIOS) {
             // Для iOS - сохраняем в галерею
-            await Gal.putImageBytes(
-              response.bodyBytes,
-              name: safeFileName,
-            );
+            await Gal.putImageBytes(response.bodyBytes, name: safeFileName);
           } else if (Platform.isAndroid) {
             // Для Android
             await FileSaver.instance.saveFile(
@@ -1150,19 +1247,13 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
           }
         }
 
-        SnackBarUtils.showSuccess(
-          context,
-          successMessage,
-        );
+        SnackBarUtils.showSuccess(context, successMessage);
       }
     } catch (e) {
       // Убираем индикатор загрузки и показываем ошибку
       if (context.mounted) {
         ScaffoldMessenger.of(context).removeCurrentSnackBar();
-        SnackBarUtils.showError(
-          context,
-          'Ошибка скачивания: ${e.toString()}',
-        );
+        SnackBarUtils.showError(context, 'Ошибка скачивания: ${e.toString()}');
       }
     }
   }

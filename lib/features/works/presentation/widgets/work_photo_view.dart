@@ -20,6 +20,7 @@ String? extractPhotoTimeFromUrl(String url) {
   try {
     final uri = Uri.parse(url);
     final last = uri.pathSegments.isNotEmpty ? uri.pathSegments.last : '';
+    // ignore: deprecated_member_use
     final match = RegExp(r"(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})")
         .firstMatch(last);
     if (match != null) {

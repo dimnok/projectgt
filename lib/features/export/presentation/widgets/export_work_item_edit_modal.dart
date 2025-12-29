@@ -569,6 +569,7 @@ class _ExportWorkItemEditModalState
           ),
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           inputFormatters: [
+            // ignore: deprecated_member_use
             FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
           ],
           validator: (value) {

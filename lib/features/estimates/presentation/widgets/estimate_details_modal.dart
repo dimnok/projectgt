@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/mobile_bottom_sheet_content.dart';
 import '../../../../data/models/estimate_completion_model.dart';
 import '../../../../domain/entities/estimate.dart';
@@ -9,18 +9,18 @@ import '../providers/estimate_providers.dart';
 
 /// Модальное окно с детальной информацией о позиции сметы.
 class EstimateDetailsModal extends ConsumerWidget {
+  /// Позиция сметы.
   final Estimate item;
+
+  /// Данные о выполнении позиции.
   final EstimateCompletionModel? completion;
 
+  /// Создает экземпляр [EstimateDetailsModal].
   const EstimateDetailsModal({
     super.key,
     required this.item,
     this.completion,
   });
-
-  /// Форматтеры для отображения данных
-  static final NumberFormat moneyFormat = NumberFormat('###,##0.00', 'ru_RU');
-  static final NumberFormat quantityFormat = NumberFormat('###,##0.###', 'ru_RU');
 
   /// Отображает модальное окно.
   static Future<void> show(
@@ -69,28 +69,28 @@ class EstimateDetailsModal extends ConsumerWidget {
 
           // 3. Плановые данные (Смета)
           _buildSectionTitle(theme, 'По смете'),
-          _buildInfoRow('Количество', '${quantityFormat.format(item.quantity)} ${item.unit}'),
-          _buildInfoRow('Цена ед.', '${moneyFormat.format(item.price)} ₽'),
-          _buildInfoRow('Итого стоимость', '${moneyFormat.format(item.total)} ₽', isBold: true),
+          _buildInfoRow('Количество', '${formatQuantity(item.quantity)} ${item.unit}'),
+          _buildInfoRow('Цена ед.', formatCurrency(item.price)),
+          _buildInfoRow('Итого стоимость', formatCurrency(item.total), isBold: true),
           const SizedBox(height: 20),
 
           // 4. Фактические данные (Выполнение)
           _buildSectionTitle(theme, 'Выполнение'),
           _buildInfoRow(
             'Сделано',
-            '${quantityFormat.format(completion?.completedQuantity ?? 0)} ${item.unit}',
+            '${formatQuantity(completion?.completedQuantity ?? 0)} ${item.unit}',
             valueColor: Colors.green[700],
             onTap: () => _showHistory(context, ref),
             showChevron: true,
           ),
           _buildInfoRow(
             'Сумма вып.',
-            '${moneyFormat.format(completion?.completedTotal ?? 0)} ₽',
+            formatCurrency(completion?.completedTotal ?? 0),
             valueColor: Colors.green[700],
           ),
           _buildInfoRow(
             'Остаток',
-            '${quantityFormat.format(completion?.remainingQuantity ?? item.quantity)} ${item.unit}',
+            '${formatQuantity(completion?.remainingQuantity ?? item.quantity)} ${item.unit}',
             valueColor: Colors.amber[800],
           ),
           _buildInfoRow(
@@ -233,11 +233,11 @@ class _CompletionHistoryModal extends ConsumerWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      DateFormat('dd.MM.yyyy', 'ru_RU').format(record.date),
+                      formatRuDate(record.date),
                       style: theme.textTheme.bodyMedium,
                     ),
                     Text(
-                      '${EstimateDetailsModal.quantityFormat.format(record.quantity)} $unit',
+                      '${formatQuantity(record.quantity)} $unit',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: Colors.green[700],

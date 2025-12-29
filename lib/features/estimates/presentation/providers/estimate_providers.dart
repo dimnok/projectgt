@@ -10,14 +10,28 @@ import '../../../../domain/entities/estimate_completion_history.dart';
 
 /// Класс, представляющий сгруппированный файл сметы.
 class EstimateFile {
+  /// Заголовок сметы.
   final String estimateTitle;
+
+  /// Идентификатор объекта.
   final String? objectId;
+
+  /// Идентификатор контракта.
   final String? contractId;
+
+  /// Номер контракта.
   final String? contractNumber;
+
+  /// Общая сумма по смете.
   final double total;
+
+  /// Количество позиций в смете.
   final int itemsCount;
+
+  /// Список элементов сметы.
   final List<Estimate> items;
 
+  /// Создает экземпляр [EstimateFile].
   const EstimateFile({
     required this.estimateTitle,
     required this.objectId,
@@ -31,8 +45,8 @@ class EstimateFile {
 
 // --- Провайдеры ---
 
-/// 1. Провайдер групп смет (для списков и Sidebar)
-/// Использует SQL функцию get_estimate_groups для быстрой загрузки
+/// Провайдер групп смет (для списков и Sidebar).
+/// Использует SQL функцию get_estimate_groups для быстрой загрузки.
 final estimateGroupsProvider =
     FutureProvider.autoDispose<List<EstimateFile>>((ref) async {
   final repository = ref.watch(estimateRepositoryProvider);
@@ -53,12 +67,18 @@ final estimateGroupsProvider =
   return [];
 });
 
-/// 2. Аргументы для загрузки деталей сметы
+/// Аргументы для загрузки деталей сметы.
 class EstimateDetailArgs {
+  /// Заголовок сметы.
   final String estimateTitle;
+
+  /// Идентификатор объекта.
   final String? objectId;
+
+  /// Идентификатор контракта.
   final String? contractId;
 
+  /// Создает экземпляр [EstimateDetailArgs].
   const EstimateDetailArgs({
     required this.estimateTitle,
     this.objectId,
@@ -79,8 +99,8 @@ class EstimateDetailArgs {
       estimateTitle.hashCode ^ objectId.hashCode ^ contractId.hashCode;
 }
 
-/// 3. Провайдер элементов конкретной сметы (Detail)
-/// Загружает только элементы выбранной сметы
+/// Провайдер элементов конкретной сметы (Detail).
+/// Загружает только элементы выбранной сметы.
 final estimateItemsProvider = FutureProvider.autoDispose
     .family<List<Estimate>, EstimateDetailArgs>((ref, args) async {
   final repository = ref.watch(estimateRepositoryProvider);
@@ -94,9 +114,12 @@ final estimateItemsProvider = FutureProvider.autoDispose
   return [];
 });
 
-/// 4. Обертка для списка ID с корректным сравнением (чтобы избежать лишних ребилдов)
+/// Обертка для списка ID с корректным сравнением (чтобы избежать лишних ребилдов).
 class EstimateIds {
+  /// Список идентификаторов смет.
   final List<String> ids;
+
+  /// Создает экземпляр [EstimateIds].
   const EstimateIds(this.ids);
 
   @override
@@ -108,8 +131,8 @@ class EstimateIds {
   int get hashCode => const ListEquality().hash(ids);
 }
 
-/// 5. Провайдер выполнения для конкретных элементов
-/// Загружает данные о выполнении только для переданных ID
+/// Провайдер выполнения для конкретных элементов.
+/// Загружает данные о выполнении только для переданных ID.
 final estimateCompletionByIdsProvider = FutureProvider.autoDispose
     .family<List<EstimateCompletionModel>, EstimateIds>((ref, args) async {
   final repository = ref.watch(estimateRepositoryProvider);
@@ -119,7 +142,7 @@ final estimateCompletionByIdsProvider = FutureProvider.autoDispose
   return [];
 });
 
-/// 6. Провайдер истории выполнения конкретной позиции
+/// Провайдер истории выполнения конкретной позиции.
 final estimateCompletionHistoryProvider = FutureProvider.autoDispose
     .family<List<EstimateCompletionHistory>, String>((ref, estimateId) async {
   final repository = ref.watch(estimateRepositoryProvider);

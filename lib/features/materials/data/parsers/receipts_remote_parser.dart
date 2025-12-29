@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:logger/logger.dart';
 
 /// Краткая модель позиции из приходного документа, возвращаемая парсером.
 /// Используется для предпросмотра данных, распознанных из Excel.
@@ -86,12 +87,15 @@ class ReceiptsRemoteParser {
   /// Если ассет отсутствует/невалиден — возвращает минимальный маппинг по умолчанию.
   static Future<Map<String, dynamic>> loadMappingJson(
       {String assetPath = 'assets/templates/receipts/mapping.json'}) async {
+    final logger = Logger();
     try {
       final s = await rootBundle.loadString(assetPath);
       final m = jsonDecode(s) as Map<String, dynamic>;
       if (m.isNotEmpty) return m;
-    } catch (_) {}
-    // Fallback минимальный маппинг, совпадающий с текущим UI
+    } catch (e) {
+      logger.w('Не удалось загрузить маппинг из ассета $assetPath: $e. Используем fallback.');
+    }
+    // Fallback маппинг, синхронизированный с актуальным mapping.json (E11 для договора и т.д.)
     return <String, dynamic>{
       'sheet': 'Лист_1',
       'headerRow': 16,
@@ -99,7 +103,9 @@ class ReceiptsRemoteParser {
       'globals': {
         'receiptDateCell': {'ref': 'E9', 'dateFormat': 'dd.MM.yyyy'},
         'receiptNumberCell': {'ref': 'J2'},
+        'contractNumberCell': {'ref': 'E11'},
       },
+      'stopAtEmptyIn': ['E'],
       'columns': {
         'name': 'E',
         'unit': 'M',
@@ -107,6 +113,8 @@ class ReceiptsRemoteParser {
         'price': 'U',
         'total': 'Z',
       },
+      'numbers': {'decimal': ',', 'thousands': ' '},
+      'skipRowsIfCellContains': ['ИТОГО', 'ВСЕГО'],
     };
   }
 

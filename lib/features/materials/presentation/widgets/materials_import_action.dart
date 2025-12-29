@@ -1,9 +1,13 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:intl/intl.dart';
+import 'package:logger/logger.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/utils/formatters.dart';
+import '../../../../core/widgets/app_snackbar.dart';
+import '../../../../core/widgets/desktop_dialog_content.dart';
+import '../../../../core/widgets/gt_buttons.dart';
 import '../../data/parsers/receipts_remote_parser.dart';
 import '../../data/repositories/materials_import_repository.dart';
 import '../providers/materials_providers.dart';
@@ -52,7 +56,9 @@ class MaterialsImportAction extends StatelessWidget {
               .trim();
       if (rowStr.isEmpty) return false;
       final numTokens =
+          // ignore: deprecated_member_use
           RegExp(r'[0-9]+(?:[.,][0-9]+)?').allMatches(rowStr).length;
+      // ignore: deprecated_member_use
       final hasLetters = RegExp(r'[A-Za-zА-Яа-я]').hasMatch(rowStr);
       return !hasLetters && numTokens >= 3;
     }
@@ -81,12 +87,38 @@ class MaterialsImportAction extends StatelessWidget {
 
   /// Открывает диалог выбора файлов и запускает предпросмотр импорта.
   Future<void> _pickFiles(BuildContext context) async {
-    final result = await FilePicker.platform.pickFiles(
-      allowMultiple: true,
-      type: FileType.custom,
-      allowedExtensions: const ['xlsx', 'xls'],
-      withData: true,
-    );
+    final logger = Logger();
+    FilePickerResult? result;
+
+    try {
+      result = await FilePicker.platform.pickFiles(
+        allowMultiple: true,
+        type: FileType.custom,
+        allowedExtensions: const ['xlsx', 'xls'],
+        withData: true,
+      );
+    } on PlatformException catch (e) {
+      logger.e('Ошибка при выборе файлов (PlatformException): $e');
+      if (context.mounted) {
+        AppSnackBar.show(
+          context: context,
+          message: 'Ошибка доступа к файлам. Проверьте права приложения.',
+          kind: AppSnackBarKind.error,
+        );
+      }
+      return;
+    } catch (e) {
+      logger.e('Неизвестная ошибка при выборе файлов: $e');
+      if (context.mounted) {
+        AppSnackBar.show(
+          context: context,
+          message: 'Произошла ошибка при выборе файлов.',
+          kind: AppSnackBarKind.error,
+        );
+      }
+      return;
+    }
+
     if (result == null || result.files.isEmpty) return;
 
     // Проверяем context перед использованием
@@ -152,8 +184,10 @@ class MaterialsImportAction extends StatelessWidget {
 class _ImportPreviewDialog extends ConsumerStatefulWidget {
   final List<ReceiptParseResult> results;
   final Map<String, Uint8List> bytesByName;
-  const _ImportPreviewDialog(
-      {required this.results, required this.bytesByName});
+  const _ImportPreviewDialog({
+    required this.results,
+    required this.bytesByName,
+  });
 
   @override
   ConsumerState<_ImportPreviewDialog> createState() =>
@@ -295,7 +329,7 @@ class _ImportPreviewDialogState extends ConsumerState<_ImportPreviewDialog> {
       final bytes = widget.bytesByName[r.fileName];
       if (bytes == null || bytes.isEmpty) continue;
       final cn = (r.contractNumber ?? '').trim();
-      final ym = DateFormat('yyyy-MM').format(rd);
+      final ym = "${rd.year}-${rd.month.toString().padLeft(2, '0')}";
       final ext = _extOf(r.fileName).toLowerCase();
       const bucket = 'receipts';
       final safeContract = _sanitizePathSegment(cn.isNotEmpty ? cn : 'unknown');
@@ -303,7 +337,9 @@ class _ImportPreviewDialogState extends ConsumerState<_ImportPreviewDialog> {
       final safeName = _sanitizePathSegment(rn);
       final path = '$safeContract/$ym/$safeName$ext';
       try {
-        await client.storage.from(bucket).uploadBinary(
+        await client.storage
+            .from(bucket)
+            .uploadBinary(
               path,
               bytes,
               fileOptions: FileOptions(
@@ -338,16 +374,19 @@ class _ImportPreviewDialogState extends ConsumerState<_ImportPreviewDialog> {
       final dateStr = rd.toIso8601String().split('T').first;
       final cn = (r.contractNumber ?? '').trim();
       try {
-        final res =
-            await client.functions.invoke('receipts-attach-fileurl', body: {
-          'receiptNumber': rn,
-          'receiptDate': dateStr,
-          'contractNumber': cn.isNotEmpty ? cn : null,
-          'storagePath': storagePath,
-        });
+        final res = await client.functions.invoke(
+          'receipts-attach-fileurl',
+          body: {
+            'receiptNumber': rn,
+            'receiptDate': dateStr,
+            'contractNumber': cn.isNotEmpty ? cn : null,
+            'storagePath': storagePath,
+          },
+        );
         if (res.data is Map && res.data['error'] != null) {
           errors.add(
-              'Не удалось проставить file_url для №$rn: ${res.data['error']}');
+            'Не удалось проставить file_url для №$rn: ${res.data['error']}',
+          );
         }
       } catch (e) {
         errors.add('Не удалось проставить file_url для №$rn: $e');
@@ -368,6 +407,7 @@ class _ImportPreviewDialogState extends ConsumerState<_ImportPreviewDialog> {
 
   String _sanitizePathSegment(String s) {
     // Разрешаем латиницу/цифры/точку/тире/нижнее подчёркивание, остальное → _
+    // ignore: deprecated_member_use
     return s.replaceAll(RegExp(r"[^A-Za-z0-9._-]+"), '_');
   }
 
@@ -392,60 +432,61 @@ class _ImportPreviewDialogState extends ConsumerState<_ImportPreviewDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return AlertDialog(
-      title: const Text('Предпросмотр импорта'),
-      content: SizedBox(
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(24),
+      child: DesktopDialogContent(
+        title: 'Предпросмотр импорта',
         width: 720,
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (_checking)
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    children: [
-                      SizedBox(
-                          height: 16,
-                          width: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2)),
-                      SizedBox(width: 8),
-                      Text('Проверка существующих накладных...'),
-                    ],
-                  ),
+        footer: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            GTSecondaryButton(
+              onPressed: _loading ? null : () => Navigator.of(context).pop(),
+              text: 'Закрыть',
+            ),
+            const SizedBox(width: 16),
+            GTPrimaryButton(
+              onPressed: _loading ? null : _doImport,
+              isLoading: _loading,
+              text: 'Импортировать в БД',
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_checking)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      height: 16,
+                      width: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 8),
+                    Text('Проверка существующих накладных...'),
+                  ],
                 ),
-              ..._sortedIndices().map((i) {
-                final r = widget.results[i];
-                final already = _existsByIdx[i] == true;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: _ResultTile(result: r, alreadyImported: already),
-                );
-              }),
-              if (_status != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text(_status!, style: theme.textTheme.bodySmall),
-                ),
-            ],
-          ),
+              ),
+            ..._sortedIndices().map((i) {
+              final r = widget.results[i];
+              final already = _existsByIdx[i] == true;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: _ResultTile(result: r, alreadyImported: already),
+              );
+            }),
+            if (_status != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(_status!, style: theme.textTheme.bodySmall),
+              ),
+          ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: _loading ? null : () => Navigator.of(context).pop(),
-          child: const Text('Закрыть'),
-        ),
-        FilledButton(
-          onPressed: _loading ? null : _doImport,
-          child: _loading
-              ? const SizedBox(
-                  height: 16,
-                  width: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2))
-              : const Text('Импортировать в БД'),
-        ),
-      ],
     );
   }
 
@@ -482,17 +523,21 @@ class _ResultTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: theme.colorScheme.error.withValues(alpha: 0.06),
           borderRadius: BorderRadius.circular(8),
-          border:
-              Border.all(color: theme.colorScheme.error.withValues(alpha: 0.3)),
+          border: Border.all(
+            color: theme.colorScheme.error.withValues(alpha: 0.3),
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(result.fileName, style: theme.textTheme.titleSmall),
             const SizedBox(height: 6),
-            Text(result.error!,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.error)),
+            Text(
+              result.error!,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.error,
+              ),
+            ),
           ],
         ),
       );
@@ -503,8 +548,9 @@ class _ResultTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(8),
-        border:
-            Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.2)),
+        border: Border.all(
+          color: theme.colorScheme.outline.withValues(alpha: 0.2),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -512,28 +558,34 @@ class _ResultTile extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                  child:
-                      Text(result.fileName, style: theme.textTheme.titleSmall)),
+                child: Text(result.fileName, style: theme.textTheme.titleSmall),
+              ),
               if (alreadyImported)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.blue.withValues(alpha: 0.10),
                     borderRadius: BorderRadius.circular(12),
-                    border:
-                        Border.all(color: Colors.blue.withValues(alpha: 0.35)),
+                    border: Border.all(
+                      color: Colors.blue.withValues(alpha: 0.35),
+                    ),
                   ),
-                  child: Text('Уже импортирована',
-                      style: theme.textTheme.labelSmall
-                          ?.copyWith(color: Colors.blue)),
+                  child: Text(
+                    'Уже импортирована',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: Colors.blue,
+                    ),
+                  ),
                 ),
             ],
           ),
           const SizedBox(height: 6),
           Text(
             'Накладная № ${result.receiptNumber ?? '-'} от '
-            '${result.receiptDate != null ? DateFormat('dd.MM.yyyy').format(result.receiptDate!) : '-'} '
+            '${result.receiptDate != null ? formatRuDate(result.receiptDate!) : '-'} '
             'года. Кол-во позиций - ${result.items.length}',
             style: theme.textTheme.bodyMedium,
           ),

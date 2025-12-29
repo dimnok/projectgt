@@ -208,8 +208,11 @@ class PhotoService {
       'Я': 'Ya'
     };
     String result = input.split('').map((c) => map[c] ?? c).join();
+    // ignore: deprecated_member_use
     result = result.replaceAll(RegExp(r'[^a-zA-Z0-9]+'), '_');
+    // ignore: deprecated_member_use
     result = result.replaceAll(RegExp(r'_+'), '_');
+    // ignore: deprecated_member_use
     result = result.replaceAll(RegExp(r'^_|_$'), '');
     return result.toLowerCase();
   }

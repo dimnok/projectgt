@@ -18,6 +18,7 @@ class EstimateDetailsScreen extends ConsumerWidget {
   /// Флаг отображения AppBar (зарезервирован для будущих сценариев).
   final bool showAppBar;
 
+  /// Создает экземпляр [EstimateDetailsScreen].
   const EstimateDetailsScreen({
     super.key,
     this.estimateTitle,

@@ -1,6 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../data/models/estimate_completion_model.dart';
 import '../../../../domain/entities/estimate.dart';
 import '../../../../presentation/widgets/cupertino_dialog_widget.dart';
@@ -26,10 +26,6 @@ class EstimateItemCard extends StatelessWidget {
   /// Обработчик дублирования позиции
   final void Function(Estimate) onDuplicate;
 
-  /// Форматтер для отображения денежных сумм
-  final NumberFormat moneyFormat = NumberFormat('###,##0.00', 'ru_RU');
-  final NumberFormat quantityFormat = NumberFormat('###,##0.###', 'ru_RU');
-
   /// Разрешено ли редактирование
   final bool canEdit;
 
@@ -40,7 +36,7 @@ class EstimateItemCard extends StatelessWidget {
   final bool canDuplicate;
 
   /// Создает карточку позиции сметы.
-  EstimateItemCard({
+  const EstimateItemCard({
     super.key,
     required this.item,
     this.completion,
@@ -211,7 +207,7 @@ class EstimateItemCard extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              '${quantityFormat.format(item.quantity)} ${item.unit}',
+                              '${formatQuantity(item.quantity)} ${item.unit}',
                               style: theme.textTheme.bodySmall?.copyWith(
                                 fontWeight: FontWeight.w600,
                                 color: Colors.amber[800],
@@ -235,7 +231,7 @@ class EstimateItemCard extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              '${moneyFormat.format(item.price)} ₽',
+                              formatCurrency(item.price),
                               style: theme.textTheme.bodySmall?.copyWith(
                                 fontWeight: FontWeight.w600,
                                 color: theme.colorScheme.primary
@@ -260,7 +256,7 @@ class EstimateItemCard extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              '${quantityFormat.format(completedQuantity)} ${item.unit}',
+                              '${formatQuantity(completedQuantity)} ${item.unit}',
                               style: theme.textTheme.bodySmall?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.green[700],

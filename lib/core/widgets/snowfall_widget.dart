@@ -3,10 +3,16 @@ import 'package:flutter/material.dart';
 
 /// Виджет, создающий эффект падающих снежинок (Unicode символы).
 class SnowfallWidget extends StatefulWidget {
+  /// Дочерний виджет, поверх которого будет отрисовываться снег.
   final Widget? child;
+
+  /// Общее количество одновременно отображаемых снежинок.
   final int totalSnowflakes;
+
+  /// Скорость падения снежинок.
   final double speed;
 
+  /// Создает экземпляр [SnowfallWidget].
   const SnowfallWidget({
     super.key,
     this.child,

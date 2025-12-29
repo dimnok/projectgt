@@ -47,6 +47,7 @@ class _VersionManagementScreenState
     }
 
     // Проверка формата версии (major.minor.patch)
+    // ignore: deprecated_member_use
     final versionRegex = RegExp(r'^\d+\.\d+\.\d+$');
     if (!versionRegex.hasMatch(minimumVersion)) {
       if (!mounted) return;

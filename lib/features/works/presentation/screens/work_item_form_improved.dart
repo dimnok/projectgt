@@ -581,6 +581,7 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
                               textAlign: TextAlign.center,
                               inputFormatters: [
                                 FilteringTextInputFormatter.allow(
+                                    // ignore: deprecated_member_use
                                     RegExp(r'[0-9.,]')),
                               ],
                               onChanged: (value) {

@@ -154,6 +154,7 @@ class EstimatesMappingPager
       }
       if (_query.trim().isNotEmpty) {
         final term = _query.trim();
+        // ignore: deprecated_member_use
         final normalized = term.replaceAll(RegExp('\\s+'), ' ');
         final escaped = normalized.replaceAll('"', '""');
         final pattern = '%$escaped%';

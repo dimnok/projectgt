@@ -20,6 +20,7 @@ import '../providers/estimate_providers.dart';
 import '../widgets/estimate_search_field.dart';
 import '../widgets/estimate_filter_buttons.dart';
 import '../widgets/estimate_table_view.dart';
+import '../widgets/estimate_completion_history_panel.dart';
 
 /// Виджет для отображения списка смет и детальной информации (таблицы) в десктопном режиме.
 class EstimateDesktopView extends ConsumerStatefulWidget {
@@ -41,6 +42,7 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
   String? _displayedCompletionKey;
   String _searchQuery = '';
   EstimateStatusFilter _statusFilter = EstimateStatusFilter.none;
+  Estimate? _selectedHistoryEstimate;
 
   @override
   EstimateDetailArgs? get currentEstimateArgs {
@@ -88,6 +90,16 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (_selectedHistoryEstimate != null)
+                  EstimateCompletionHistoryPanel(
+                    estimate: _selectedHistoryEstimate!,
+                    completedQuantity:
+                        _displayedCompletion?[_selectedHistoryEstimate!.id]
+                            ?.completedQuantity,
+                    onClose: () =>
+                        setState(() => _selectedHistoryEstimate = null),
+                  )
+                else
                 Container(
                   width: 350,
                   margin: const EdgeInsets.only(right: 16),
@@ -157,8 +169,10 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
                                     isSelected: isSelected,
                                     canDelete: canDelete,
                                     onTap: () {
-                                      setState(
-                                          () => _selectedEstimateFile = file);
+                                        setState(() {
+                                          _selectedEstimateFile = file;
+                                          _selectedHistoryEstimate = null;
+                                        });
                                     },
                                     onDelete: () => _deleteEstimateFile(file),
                                   );
@@ -166,8 +180,8 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
                               ),
                             );
                           },
-                          loading: () =>
-                              const Center(child: CupertinoActivityIndicator()),
+                            loading: () => const Center(
+                                child: CupertinoActivityIndicator()),
                           error: (e, s) =>
                               Center(child: Text('Ошибка списка: $e')),
                         ),
@@ -336,6 +350,11 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
             items: filteredItems,
             completionData: completionMap,
             viewMode: _viewMode,
+            selectedId: _selectedHistoryEstimate?.id,
+            onRowTap: _viewMode == EstimateViewMode.execution
+                ? (estimate) =>
+                    setState(() => _selectedHistoryEstimate = estimate)
+                : null,
             onEdit: (estimate) => openEditDialog(
               context,
               estimate: estimate,

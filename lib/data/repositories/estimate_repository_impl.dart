@@ -165,10 +165,14 @@ class EstimateRepositoryImpl implements EstimateRepository {
       final works = row['works'] as Map<String, dynamic>?;
       final dateStr = works?['date'] as String?;
       final quantity = (row['quantity'] as num?)?.toDouble() ?? 0.0;
+      final section = row['section'] as String? ?? '';
+      final floor = row['floor'] as String? ?? '';
       
       return EstimateCompletionHistory(
         date: dateStr != null ? DateTime.parse(dateStr) : DateTime.now(),
         quantity: quantity,
+        section: section,
+        floor: floor,
       );
     }).toList();
 

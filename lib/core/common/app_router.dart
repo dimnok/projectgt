@@ -51,6 +51,7 @@ import 'package:projectgt/features/version_control/presentation/version_manageme
 import 'package:projectgt/features/roles/presentation/screens/roles_list_screen.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
 import 'package:projectgt/features/splash/presentation/screens/splash_screen.dart';
+import 'package:projectgt/features/company/presentation/screens/company_screen.dart';
 
 /// Проверяет, может ли пользователь просматривать информацию о конкретном сотруднике.
 ///
@@ -75,18 +76,12 @@ bool _canViewEmployee(WidgetRef ref, String employeeId) {
 /// Создаёт экран "Доступ запрещён" для неавторизованных пользователей.
 Widget _buildAccessDeniedScreen() {
   return Scaffold(
-    appBar: AppBar(
-      title: const Text('Доступ запрещён'),
-    ),
+    appBar: AppBar(title: const Text('Доступ запрещён')),
     body: const Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.lock_outline,
-            size: 64,
-            color: Colors.grey,
-          ),
+          Icon(Icons.lock_outline, size: 64, color: Colors.grey),
           SizedBox(height: 16),
           Text(
             'Недостаточно прав для доступа к данному разделу',
@@ -139,6 +134,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.home,
         name: 'home',
         builder: (context, state) => const AuthGate(),
+      ),
+      GoRoute(
+        path: AppRoutes.company,
+        name: 'company',
+        builder: (context, state) => const CompanyScreen(),
       ),
       GoRoute(
         path: AppRoutes.profile,
@@ -504,8 +504,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                 child: WorkDetailsScreen(workId: workId),
                 transitionDuration: const Duration(milliseconds: 600),
                 reverseTransitionDuration: const Duration(milliseconds: 600),
-                transitionsBuilder:
-                    (context, animation, secondaryAnimation, child) {
+                transitionsBuilder: (context, animation, secondaryAnimation, child) {
                   // Возвращаем child без FadeTransition, чтобы фон нового экрана
                   // сразу перекрывал старый (по требованию пользователя).
                   // Hero-анимация при этом продолжит работать благодаря длительности перехода.
@@ -743,11 +742,8 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // Страницы статусов доступа управляются через AuthGate
     ],
-    errorBuilder: (context, state) => Scaffold(
-      body: Center(
-        child: Text('Ошибка: ${state.error}'),
-      ),
-    ),
+    errorBuilder: (context, state) =>
+        Scaffold(body: Center(child: Text('Ошибка: ${state.error}'))),
   );
 });
 
@@ -765,6 +761,9 @@ class AppRoutes {
 
   /// Главная страница
   static const String home = '/home';
+
+  /// Модуль Компания
+  static const String company = '/company';
 
   /// Профиль пользователя
   static const String profile = '/profile';

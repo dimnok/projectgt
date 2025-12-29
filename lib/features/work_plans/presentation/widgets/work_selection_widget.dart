@@ -326,6 +326,7 @@ class _WorkSelectionWidgetState extends State<WorkSelectionWidget> {
                                     ),
                                     inputFormatters: [
                                       FilteringTextInputFormatter.allow(
+                                        // ignore: deprecated_member_use
                                         RegExp(r'^\d*\.?\d*'),
                                       ),
                                     ],

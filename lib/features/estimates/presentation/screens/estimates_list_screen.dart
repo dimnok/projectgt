@@ -10,9 +10,9 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart' as path_provider;
 import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
 import 'package:projectgt/domain/entities/object.dart';
@@ -40,16 +40,6 @@ class EstimatesListScreen extends ConsumerStatefulWidget {
 class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
   EstimateFile? selectedEstimateFile;
 
-  final NumberFormat moneyFormat = NumberFormat.currency(
-    locale: 'ru_RU',
-    symbol: '',
-    decimalDigits: 2,
-  );
-
-  String formatMoney(double value) {
-    return moneyFormat.format(value).trim();
-  }
-
   @override
   void initState() {
     super.initState();
@@ -72,6 +62,7 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
     try {
       // Загружаем все группы смет
       final groups = await ref.read(estimateGroupsProvider.future);
+      if (!context.mounted) return;
       if (groups.isEmpty) {
         SnackBarUtils.showInfo(context, 'Нет данных для экспорта');
         return;
@@ -188,13 +179,13 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
 
       ref.invalidate(estimateGroupsProvider);
 
+      if (!mounted) return;
       if (selectedEstimateFile?.estimateTitle == file.estimateTitle) {
         setState(() {
           selectedEstimateFile = null;
         });
       }
 
-      if (!mounted) return;
       SnackBarUtils.showSuccess(
           context, 'Смета "${file.estimateTitle}" удалена');
     } catch (e) {
@@ -391,7 +382,7 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
                 const SizedBox(height: 4),
                 _buildInfoRow(theme, 'Объект:', objectName),
                 const SizedBox(height: 4),
-                _buildInfoRow(theme, 'Сумма:', formatMoney(file.total)),
+                _buildInfoRow(theme, 'Сумма:', formatCurrency(file.total)),
               ],
             ),
           ),

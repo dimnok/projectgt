@@ -2,6 +2,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
+import 'package:projectgt/core/widgets/gt_buttons.dart';
 import '../providers/materials_mapping_providers.dart';
 import '../../data/models/similar_estimate.dart';
 
@@ -33,16 +35,9 @@ class MaterialsLinkButton extends ConsumerWidget {
       child: Container(
         width: 18,
         height: 18,
-        decoration: BoxDecoration(
-          color: bg,
-          shape: BoxShape.circle,
-        ),
+        decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
         alignment: Alignment.center,
-        child: const Icon(
-          Icons.add,
-          size: 12,
-          color: Colors.white,
-        ),
+        child: const Icon(Icons.add, size: 12, color: Colors.white),
       ),
     );
   }
@@ -163,12 +158,14 @@ class _MaterialsListDialogState extends ConsumerState<_MaterialsListDialog> {
         );
 
         final result = (rows as List)
-            .map((e) => {
-                  'id': e['id']?.toString() ?? '',
-                  'name': e['name']?.toString() ?? '',
-                  'unit': e['unit']?.toString(),
-                  'receipt_number': e['receipt_number']?.toString(),
-                })
+            .map(
+              (e) => {
+                'id': e['id']?.toString() ?? '',
+                'name': e['name']?.toString() ?? '',
+                'unit': e['unit']?.toString(),
+                'receipt_number': e['receipt_number']?.toString(),
+              },
+            )
             .toList();
 
         if (mounted) {
@@ -186,12 +183,14 @@ class _MaterialsListDialogState extends ConsumerState<_MaterialsListDialog> {
             .limit(500);
 
         final result = (rows as List)
-            .map((e) => {
-                  'id': e['id']?.toString() ?? '',
-                  'name': e['name']?.toString() ?? '',
-                  'unit': e['unit']?.toString(),
-                  'receipt_number': e['receipt_number']?.toString(),
-                })
+            .map(
+              (e) => {
+                'id': e['id']?.toString() ?? '',
+                'name': e['name']?.toString() ?? '',
+                'unit': e['unit']?.toString(),
+                'receipt_number': e['receipt_number']?.toString(),
+              },
+            )
             .toList();
 
         if (mounted) {
@@ -209,115 +208,125 @@ class _MaterialsListDialogState extends ConsumerState<_MaterialsListDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return AlertDialog(
-      title: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text('Выберите материал из накладных'),
-          if (_estimateName != null && _estimateName!.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.blue.withValues(alpha: 0.08),
-                    Colors.blue.withValues(alpha: 0.04),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: Colors.blue.withValues(alpha: 0.25),
-                  width: 1.5,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: const Icon(
-                      Icons.bookmark_outline,
-                      size: 18,
-                      color: Colors.blue,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Привязка к:',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: Colors.blue.withValues(alpha: 0.8),
-                            fontWeight: FontWeight.w600,
-                            fontSize: 11,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          _estimateName!,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurface,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (_estimateUnit != null && _estimateUnit!.isNotEmpty) ...[
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: Colors.blue.withValues(alpha: 0.4),
-                          width: 1,
-                        ),
-                      ),
-                      child: Text(
-                        _estimateUnit!,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: Colors.blue,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(24),
+      child: DesktopDialogContent(
+        title: 'Выберите материал из накладных',
+        width: 720,
+        footer: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            GTSecondaryButton(
+              onPressed: () => Navigator.of(context).pop(),
+              text: 'Закрыть',
             ),
           ],
-        ],
-      ),
-      content: SizedBox(
-        width: 720,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (_estimateName != null && _estimateName!.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.blue.withValues(alpha: 0.08),
+                      Colors.blue.withValues(alpha: 0.04),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: Colors.blue.withValues(alpha: 0.25),
+                    width: 1.5,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Icon(
+                        Icons.bookmark_outline,
+                        size: 18,
+                        color: Colors.blue,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Привязка к:',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: Colors.blue.withValues(alpha: 0.8),
+                              fontWeight: FontWeight.w600,
+                              fontSize: 11,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            _estimateName!,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurface,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (_estimateUnit != null && _estimateUnit!.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: Colors.blue.withValues(alpha: 0.4),
+                            width: 1,
+                          ),
+                        ),
+                        child: Text(
+                          _estimateUnit!,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: Colors.blue,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
             // Переключатель режима: обычная связь / комплект
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 color: _isKitMode
                     ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
-                    : theme.colorScheme.surfaceContainerHighest
-                        .withValues(alpha: 0.3),
+                    : theme.colorScheme.surfaceContainerHighest.withValues(
+                        alpha: 0.3,
+                      ),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: _isKitMode
@@ -410,8 +419,11 @@ class _MaterialsListDialogState extends ConsumerState<_MaterialsListDialog> {
                 padding: EdgeInsets.all(24),
                 child: Column(
                   children: [
-                    Icon(Icons.inventory_2_outlined,
-                        size: 48, color: Colors.grey),
+                    Icon(
+                      Icons.inventory_2_outlined,
+                      size: 48,
+                      color: Colors.grey,
+                    ),
                     SizedBox(height: 8),
                     Text(
                       'Материалы не найдены',
@@ -421,192 +433,195 @@ class _MaterialsListDialogState extends ConsumerState<_MaterialsListDialog> {
                 ),
               )
             else
-              Flexible(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 4),
-                      child: Text(
-                        'Найдено: ${_items.length} ${_items.length >= 500 ? '(показаны первые 500)' : 'материалов'}',
-                        style: theme.textTheme.bodySmall
-                            ?.copyWith(color: Colors.grey),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 4,
+                    ),
+                    child: Text(
+                      'Найдено: ${_items.length} ${_items.length >= 500 ? '(показаны первые 500)' : 'материалов'}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.grey,
                       ),
                     ),
-                    Expanded(
-                      child: ListView.separated(
-                        shrinkWrap: true,
-                        itemBuilder: (context, index) {
-                          final it = _items[index];
-                          final materialId =
-                              it['id']?.toString() ?? index.toString();
+                  ),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.of(context).size.height * 0.4,
+                    ),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemBuilder: (context, index) {
+                        final it = _items[index];
+                        final materialId =
+                            it['id']?.toString() ?? index.toString();
 
-                          // Создаём контроллер для каждого материала
-                          if (!_multiplierControllers.containsKey(materialId)) {
-                            _multiplierControllers[materialId] =
-                                TextEditingController(text: '1');
-                          }
+                        // Создаём контроллер для каждого материала
+                        if (!_multiplierControllers.containsKey(materialId)) {
+                          _multiplierControllers[materialId] =
+                              TextEditingController(text: '1');
+                        }
 
-                          return Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                            child: Row(
-                              children: [
-                                // Основная информация
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        it['name'] ?? '—',
-                                        style: theme.textTheme.bodyMedium,
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Row(
-                                        children: [
-                                          // Единица измерения
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 6,
-                                              vertical: 2,
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          child: Row(
+                            children: [
+                              // Основная информация
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      it['name'] ?? '—',
+                                      style: theme.textTheme.bodyMedium,
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Row(
+                                      children: [
+                                        // Единица измерения
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.blue.withValues(
+                                              alpha: 0.15,
                                             ),
-                                            decoration: BoxDecoration(
-                                              color: Colors.blue
-                                                  .withValues(alpha: 0.15),
-                                              borderRadius:
-                                                  BorderRadius.circular(4),
-                                            ),
-                                            child: Text(
-                                              it['unit'] ?? '—',
-                                              style: theme.textTheme.labelSmall
-                                                  ?.copyWith(
-                                                color: Colors.blue,
-                                                fontWeight: FontWeight.w700,
-                                              ),
+                                            borderRadius: BorderRadius.circular(
+                                              4,
                                             ),
                                           ),
-                                          const SizedBox(width: 8),
-                                          // Номер накладной
-                                          Text(
-                                            '№ ${it['receipt_number'] ?? '?'}',
-                                            style: theme.textTheme.labelMedium
+                                          child: Text(
+                                            it['unit'] ?? '—',
+                                            style: theme.textTheme.labelSmall
                                                 ?.copyWith(
-                                              color:
-                                                  theme.colorScheme.secondary,
-                                              fontWeight: FontWeight.w600,
-                                            ),
+                                                  color: Colors.blue,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
                                           ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                // Поле ввода коэффициента
-                                SizedBox(
-                                  width: 70,
-                                  child: TextField(
-                                    controller:
-                                        _multiplierControllers[materialId],
-                                    keyboardType:
-                                        const TextInputType.numberWithOptions(
-                                            decimal: true),
-                                    textAlign: TextAlign.center,
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.blue,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        // Номер накладной
+                                        Text(
+                                          '№ ${it['receipt_number'] ?? '?'}',
+                                          style: theme.textTheme.labelMedium
+                                              ?.copyWith(
+                                                color:
+                                                    theme.colorScheme.secondary,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                        ),
+                                      ],
                                     ),
-                                    decoration: InputDecoration(
-                                      isDense: true,
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 8,
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              // Поле ввода коэффициента
+                              SizedBox(
+                                width: 70,
+                                child: TextField(
+                                  controller:
+                                      _multiplierControllers[materialId],
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                        decimal: true,
                                       ),
-                                      prefixText: '×',
-                                      prefixStyle:
-                                          theme.textTheme.bodySmall?.copyWith(
-                                        color: Colors.blue,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(6),
-                                        borderSide: BorderSide(
-                                          color: Colors.blue
-                                              .withValues(alpha: 0.4),
-                                        ),
-                                      ),
-                                      enabledBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(6),
-                                        borderSide: BorderSide(
-                                          color: Colors.blue
-                                              .withValues(alpha: 0.3),
-                                        ),
-                                      ),
-                                      focusedBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(6),
-                                        borderSide: const BorderSide(
+                                  textAlign: TextAlign.center,
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue,
+                                  ),
+                                  decoration: InputDecoration(
+                                    isDense: true,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 8,
+                                    ),
+                                    prefixText: '×',
+                                    prefixStyle: theme.textTheme.bodySmall
+                                        ?.copyWith(
                                           color: Colors.blue,
-                                          width: 2,
+                                          fontWeight: FontWeight.bold,
                                         ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                      borderSide: BorderSide(
+                                        color: Colors.blue.withValues(
+                                          alpha: 0.4,
+                                        ),
+                                      ),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                      borderSide: BorderSide(
+                                        color: Colors.blue.withValues(
+                                          alpha: 0.3,
+                                        ),
+                                      ),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                      borderSide: const BorderSide(
+                                        color: Colors.blue,
+                                        width: 2,
                                       ),
                                     ),
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                // Кнопка добавления
-                                Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.circular(8),
-                                    onTap: () => _linkMaterial(it),
-                                    child: Container(
-                                      padding: const EdgeInsets.all(10),
-                                      decoration: BoxDecoration(
-                                        color:
-                                            Colors.green.withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(
-                                          color: Colors.green
-                                              .withValues(alpha: 0.3),
+                              ),
+                              const SizedBox(width: 8),
+                              // Кнопка добавления
+                              Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(8),
+                                  onTap: () => _linkMaterial(it),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green.withValues(
+                                        alpha: 0.1,
+                                      ),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: Colors.green.withValues(
+                                          alpha: 0.3,
                                         ),
                                       ),
-                                      child: const Icon(
-                                        Icons.add_circle_outline,
-                                        color: Colors.green,
-                                        size: 20,
-                                      ),
+                                    ),
+                                    child: const Icon(
+                                      Icons.add_circle_outline,
+                                      color: Colors.green,
+                                      size: 20,
                                     ),
                                   ),
                                 ),
-                              ],
-                            ),
-                          );
-                        },
-                        separatorBuilder: (_, __) => Divider(
-                          height: 1,
-                          color:
-                              theme.colorScheme.outline.withValues(alpha: 0.2),
-                        ),
-                        itemCount: _items.length,
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                      separatorBuilder: (_, __) => Divider(
+                        height: 1,
+                        color: theme.colorScheme.outline.withValues(alpha: 0.2),
                       ),
+                      itemCount: _items.length,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
           ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Закрыть'),
-        ),
-      ],
     );
   }
 
@@ -634,8 +649,11 @@ class _MaterialsListDialogState extends ConsumerState<_MaterialsListDialog> {
 
       if (_isKitMode) {
         // РЕЖИМ КОМПЛЕКТА: запрашиваем количество через диалог
-        final double? qtyPerKit =
-            await _showQuantityDialog(context, alias, uom);
+        final double? qtyPerKit = await _showQuantityDialog(
+          context,
+          alias,
+          uom,
+        );
 
         if (qtyPerKit == null) {
           setState(() => _saving = false);
@@ -643,13 +661,16 @@ class _MaterialsListDialogState extends ConsumerState<_MaterialsListDialog> {
         }
 
         try {
-          await client.rpc('add_kit_component', params: {
-            'p_parent_estimate_id': widget.estimateId,
-            'p_material_name': alias,
-            'p_material_unit': uom ?? 'шт',
-            'p_qty_per_kit': qtyPerKit,
-            'p_alias_raw': alias,
-          });
+          await client.rpc(
+            'add_kit_component',
+            params: {
+              'p_parent_estimate_id': widget.estimateId,
+              'p_material_name': alias,
+              'p_material_unit': uom ?? 'шт',
+              'p_qty_per_kit': qtyPerKit,
+              'p_alias_raw': alias,
+            },
+          );
 
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
@@ -821,19 +842,31 @@ class _MaterialsListDialogState extends ConsumerState<_MaterialsListDialog> {
           builder: (context, setState) {
             final theme = Theme.of(context);
 
-            return AlertDialog(
-              title: Row(
-                children: [
-                  Icon(Icons.auto_awesome,
-                      color: theme.colorScheme.primary, size: 24),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text('Найдены похожие работы'),
-                  ),
-                ],
-              ),
-              content: SizedBox(
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              insetPadding: const EdgeInsets.all(24),
+              child: DesktopDialogContent(
+                title: 'Найдены похожие работы',
                 width: 650,
+                footer: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    GTSecondaryButton(
+                      onPressed: () =>
+                          Navigator.of(dialogContext).pop([currentEstimateId]),
+                      text: 'Только к текущей',
+                    ),
+                    const SizedBox(width: 16),
+                    GTPrimaryButton(
+                      onPressed: selected.isEmpty
+                          ? null
+                          : () => Navigator.of(
+                              dialogContext,
+                            ).pop([currentEstimateId, ...selected]),
+                      text: 'Привязать ко всем (${selected.length + 1})',
+                    ),
+                  ],
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -841,12 +874,14 @@ class _MaterialsListDialogState extends ConsumerState<_MaterialsListDialog> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.primaryContainer
-                            .withValues(alpha: 0.15),
+                        color: theme.colorScheme.primaryContainer.withValues(
+                          alpha: 0.15,
+                        ),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color:
-                              theme.colorScheme.primary.withValues(alpha: 0.3),
+                          color: theme.colorScheme.primary.withValues(
+                            alpha: 0.3,
+                          ),
                         ),
                       ),
                       child: Row(
@@ -876,7 +911,10 @@ class _MaterialsListDialogState extends ConsumerState<_MaterialsListDialog> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    Flexible(
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.of(context).size.height * 0.4,
+                      ),
                       child: ListView.builder(
                         shrinkWrap: true,
                         itemCount: similarEstimates.length,
@@ -938,21 +976,6 @@ class _MaterialsListDialogState extends ConsumerState<_MaterialsListDialog> {
                   ],
                 ),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () =>
-                      Navigator.of(dialogContext).pop([currentEstimateId]),
-                  child: const Text('Только к текущей'),
-                ),
-                FilledButton(
-                  onPressed: selected.isEmpty
-                      ? null
-                      : () => Navigator.of(dialogContext).pop(
-                            [currentEstimateId, ...selected],
-                          ),
-                  child: Text('Привязать ко всем (${selected.length + 1})'),
-                ),
-              ],
             );
           },
         );
@@ -974,14 +997,18 @@ class _MaterialsListDialogState extends ConsumerState<_MaterialsListDialog> {
 
     try {
       // Массовая вставка
-      await client.from('material_aliases').insert(
+      await client
+          .from('material_aliases')
+          .insert(
             estimateIds
-                .map((estimateId) => {
-                      'estimate_id': estimateId,
-                      'alias_raw': alias,
-                      'uom_raw': uom,
-                      'multiplier_to_estimate': multiplier,
-                    })
+                .map(
+                  (estimateId) => {
+                    'estimate_id': estimateId,
+                    'alias_raw': alias,
+                    'uom_raw': uom,
+                    'multiplier_to_estimate': multiplier,
+                  },
+                )
                 .toList(),
           );
 
@@ -989,7 +1016,12 @@ class _MaterialsListDialogState extends ConsumerState<_MaterialsListDialog> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              '✅ Материал привязан к ${estimateIds.length} ${estimateIds.length == 1 ? 'позиции' : estimateIds.length < 5 ? 'позициям' : 'позициям'}'),
+            '✅ Материал привязан к ${estimateIds.length} ${estimateIds.length == 1
+                ? 'позиции'
+                : estimateIds.length < 5
+                ? 'позициям'
+                : 'позициям'}',
+          ),
           backgroundColor: Colors.green,
           duration: const Duration(seconds: 2),
         ),
@@ -1008,7 +1040,10 @@ class _MaterialsListDialogState extends ConsumerState<_MaterialsListDialog> {
 
   /// Диалог для ввода количества материала в комплекте (для режима комплекта).
   Future<double?> _showQuantityDialog(
-      BuildContext context, String materialName, String? materialUnit) async {
+    BuildContext context,
+    String materialName,
+    String? materialUnit,
+  ) async {
     final controller = TextEditingController(text: '1.0');
     final formKey = GlobalKey<FormState>();
 
@@ -1016,129 +1051,142 @@ class _MaterialsListDialogState extends ConsumerState<_MaterialsListDialog> {
       context: context,
       builder: (context) {
         final theme = Theme.of(context);
-        return AlertDialog(
-          title: const Text('Количество в комплекте'),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(24),
+          child: DesktopDialogContent(
+            title: 'Количество в комплекте',
+            width: 500,
+            footer: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer
-                        .withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Материал:',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.secondary,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        materialName,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Единица: ${materialUnit ?? "шт"}',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.secondary,
-                        ),
-                      ),
-                    ],
-                  ),
+                GTSecondaryButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  text: 'Отмена',
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: controller,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  decoration: InputDecoration(
-                    labelText: 'Количество на 1 работу',
-                    hintText: '1.0',
-                    helperText:
-                        'Сколько ${materialUnit ?? "шт"} нужно на 1 ед. работы?',
-                    border: const OutlineInputBorder(),
-                  ),
-                  autofocus: true,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Введите количество';
+                const SizedBox(width: 16),
+                GTPrimaryButton(
+                  onPressed: () {
+                    if (formKey.currentState!.validate()) {
+                      final value = double.parse(controller.text.trim());
+                      Navigator.of(context).pop(value);
                     }
-                    final num = double.tryParse(value.trim());
-                    if (num == null) {
-                      return 'Введите число';
-                    }
-                    if (num <= 0) {
-                      return 'Количество должно быть > 0';
-                    }
-                    if (num > 1000000) {
-                      return 'Количество слишком большое';
-                    }
-                    return null;
                   },
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.secondaryContainer
-                        .withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.info_outline,
-                            size: 16,
-                            color: theme.colorScheme.secondary,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Пример комплекта:',
-                            style: theme.textTheme.labelLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                          'На 1 "Монтаж мачты" нужно:\n• 10 шайб\n• 5 гаек\n• 5 болтов\n• 10 м троса',
-                          style: theme.textTheme.bodySmall),
-                    ],
-                  ),
+                  text: 'Добавить',
                 ),
               ],
             ),
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer.withValues(
+                        alpha: 0.3,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Материал:',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.secondary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          materialName,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Единица: ${materialUnit ?? "шт"}',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.secondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: controller,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: InputDecoration(
+                      labelText: 'Количество на 1 работу',
+                      hintText: '1.0',
+                      helperText:
+                          'Сколько ${materialUnit ?? "шт"} нужно на 1 ед. работы?',
+                      border: const OutlineInputBorder(),
+                    ),
+                    autofocus: true,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Введите количество';
+                      }
+                      final num = double.tryParse(value.trim());
+                      if (num == null) {
+                        return 'Введите число';
+                      }
+                      if (num <= 0) {
+                        return 'Количество должно быть > 0';
+                      }
+                      if (num > 1000000) {
+                        return 'Количество слишком большое';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.secondaryContainer.withValues(
+                        alpha: 0.3,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              size: 16,
+                              color: theme.colorScheme.secondary,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Пример комплекта:',
+                              style: theme.textTheme.labelLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'На 1 "Монтаж мачты" нужно:\n• 10 шайб\n• 5 гаек\n• 5 болтов\n• 10 м троса',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Отмена'),
-            ),
-            FilledButton(
-              onPressed: () {
-                if (formKey.currentState!.validate()) {
-                  final value = double.parse(controller.text.trim());
-                  Navigator.of(context).pop(value);
-                }
-              },
-              child: const Text('Добавить'),
-            ),
-          ],
         );
       },
     );

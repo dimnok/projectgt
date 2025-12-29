@@ -43,6 +43,7 @@ class ProcurementStageCard extends StatelessWidget {
   });
 
   String _formatShortName(String fullName) {
+    // ignore: deprecated_member_use
     final parts = fullName.trim().split(RegExp(r'\s+'));
     if (parts.isEmpty) return '';
     if (parts.length == 1) return parts[0];

@@ -8,13 +8,13 @@ import 'package:excel/excel.dart' as excel;
 import 'dart:typed_data';
 import 'package:projectgt/data/models/estimate_model.dart';
 import 'package:projectgt/data/services/excel_estimate_service.dart';
-import 'package:intl/intl.dart';
 import 'package:file_saver/file_saver.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io';
 import 'package:path_provider/path_provider.dart' as path_provider;
 import 'package:share_plus/share_plus.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
+import 'package:projectgt/core/utils/formatters.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/widgets/mobile_bottom_sheet_content.dart';
@@ -99,12 +99,6 @@ class _ImportEstimateFormModalState
   int _totalRows = 0;
   String _importStatus = '';
   bool _validationPassed = false;
-
-  final NumberFormat moneyFormat = NumberFormat.currency(
-    locale: 'ru_RU',
-    symbol: '₽',
-    decimalDigits: 2,
-  );
 
   @override
   void initState() {
@@ -566,8 +560,7 @@ class _ImportEstimateFormModalState
           ],
           if (_validationResult!.isValid) ...[
             Text('Строк: ${_previewData?.rowCount ?? 0}'),
-            Text(
-                'Сумма: ${moneyFormat.format(_previewData?.totalAmount ?? 0)}'),
+            Text('Сумма: ${formatCurrency(_previewData?.totalAmount ?? 0)}'),
             const SizedBox(height: 16),
             const Text('Системы в смете:',
                 style: TextStyle(fontWeight: FontWeight.bold)),

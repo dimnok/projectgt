@@ -58,9 +58,6 @@ class ExcelEstimateService {
   static const String templateAssetPath =
       'assets/templates/estimate_template.xlsx';
 
-  /// Путь к тестовому текстовому файлу в assets.
-  static const String testTextFile = 'assets/templates/test.txt';
-
   /// Список обязательных колонок в Excel-файле сметы.
   static const List<String> requiredColumns = [
     'Система',
@@ -72,7 +69,7 @@ class ExcelEstimateService {
     'Ед. изм.',
     'Кол-во',
     'Цена',
-    'Сумма'
+    'Сумма',
   ];
 
   /// Загружает шаблон Excel из assets.
@@ -115,7 +112,8 @@ class ExcelEstimateService {
       // Читаем файл
       final fileBytes = await tempFile.readAsBytes();
       debugPrint(
-          'Файл прочитан из временной директории, размер: ${fileBytes.length} байт');
+        'Файл прочитан из временной директории, размер: ${fileBytes.length} байт',
+      );
 
       return fileBytes;
     } catch (e) {
@@ -153,7 +151,7 @@ class ExcelEstimateService {
       TextCellValue('шт'),
       const IntCellValue(10),
       const DoubleCellValue(100.0),
-      const DoubleCellValue(1000.0)
+      const DoubleCellValue(1000.0),
     ]);
     final bytes = excel.encode()!;
     return Uint8List.fromList(bytes);
@@ -183,7 +181,8 @@ class ExcelEstimateService {
       final headers = sheet.rows.first;
       if (headers.length < requiredColumns.length) {
         errors.add(
-            'В заголовке недостаточно колонок. Ожидалось: ${requiredColumns.length}, найдено: ${headers.length}');
+          'В заголовке недостаточно колонок. Ожидалось: ${requiredColumns.length}, найдено: ${headers.length}',
+        );
       }
 
       // Проверяем заголовки
@@ -191,7 +190,8 @@ class ExcelEstimateService {
         if (i >= headers.length ||
             headers[i]?.value.toString().trim() != requiredColumns[i]) {
           errors.add(
-              'Ожидалась колонка "${requiredColumns[i]}" в позиции ${i + 1}');
+            'Ожидалась колонка "${requiredColumns[i]}" в позиции ${i + 1}',
+          );
         }
       }
 
@@ -210,7 +210,8 @@ class ExcelEstimateService {
           // Проверяем обязательные поля
           if (row.length < 10) {
             warnings.add(
-                'Строка ${rowIndex + 2} содержит меньше колонок, чем требуется (${row.length}/10)');
+              'Строка ${rowIndex + 2} содержит меньше колонок, чем требуется (${row.length}/10)',
+            );
             continue;
           }
 
@@ -360,6 +361,7 @@ class ExcelEstimateService {
             } else {
               String totalStr = totalCell
                   .toString()
+                  // ignore: deprecated_member_use
                   .replaceAll(RegExp(r'\s+'), '')
                   .replaceAll(',', '.');
               totalAmount += double.tryParse(totalStr) ?? 0;
@@ -394,8 +396,12 @@ class ExcelEstimateService {
   /// [contractId] — идентификатор договора.
   /// [estimateTitle] — название сметы.
   /// Возвращает объект EstimateModel или null, если строка недействительна.
-  static dynamic rowToEstimateModel(List<Data?> row, String? objectId,
-      String? contractId, String estimateTitle) {
+  static dynamic rowToEstimateModel(
+    List<Data?> row,
+    String? objectId,
+    String? contractId,
+    String estimateTitle,
+  ) {
     try {
       if (row.length < 10) return null;
 
@@ -440,6 +446,7 @@ class ExcelEstimateService {
       final totalStr = row[9]?.value?.toString() ?? '0';
 
       String clean(String value) =>
+          // ignore: deprecated_member_use
           value.replaceAll(RegExp(r'\s+'), '').replaceAll(',', '.');
       final cleanPrice = clean(priceStr);
       final cleanTotal = clean(totalStr);
@@ -479,20 +486,6 @@ class ExcelEstimateService {
     } catch (e) {
       debugPrint('Ошибка при обработке строки Excel: $e');
       return null;
-    }
-  }
-
-  /// Тестирует загрузку обычного текстового файла из ассетов.
-  ///
-  /// Возвращает содержимое файла как строку.
-  static Future<String> testAssetLoading() async {
-    try {
-      final String text = await rootBundle.loadString(testTextFile);
-      debugPrint('Успешно загружен тестовый файл: $text');
-      return text;
-    } catch (e) {
-      debugPrint('Ошибка загрузки тестового файла: $e');
-      return 'Ошибка: $e';
     }
   }
 }

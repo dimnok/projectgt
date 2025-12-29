@@ -1,14 +1,19 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+/// Виджет текстового поля для поиска позиций сметы.
 class EstimateSearchField extends StatefulWidget {
+  /// Создает экземпляр [EstimateSearchField].
   const EstimateSearchField({
     super.key,
     required this.onChanged,
     this.hintText = 'Поиск по наименованию...',
   });
 
+  /// Обратный вызов при изменении текста поиска.
   final ValueChanged<String> onChanged;
+
+  /// Текст подсказки (placeholder).
   final String hintText;
 
   @override

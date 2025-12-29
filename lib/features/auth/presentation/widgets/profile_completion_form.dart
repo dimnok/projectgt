@@ -77,6 +77,7 @@ class _ProfileCompletionFormState extends ConsumerState<ProfileCompletionForm>
       return 'ФИО должно содержать минимум 2 символа';
     }
     // Проверяем, что есть хотя бы одно имя и фамилия
+    // ignore: deprecated_member_use
     final parts = value.trim().split(RegExp(r'\s+'));
     if (parts.length < 2) {
       return 'Введите имя и фамилию';
@@ -91,6 +92,7 @@ class _ProfileCompletionFormState extends ConsumerState<ProfileCompletionForm>
     }
 
     // Убираем все нецифровые символы для проверки
+    // ignore: deprecated_member_use
     final cleanPhone = value.replaceAll(RegExp(r'[^\d]'), '');
 
     // Проверяем длину (для российского номера: 11 цифр)
@@ -109,6 +111,7 @@ class _ProfileCompletionFormState extends ConsumerState<ProfileCompletionForm>
   /// Форматирует номер телефона в читаемый вид.
   String _formatPhoneNumber(String value) {
     // Убираем все нецифровые символы
+    // ignore: deprecated_member_use
     final digits = value.replaceAll(RegExp(r'[^\d]'), '');
 
     if (digits.isEmpty) return '';
@@ -315,6 +318,7 @@ class _ProfileCompletionFormState extends ConsumerState<ProfileCompletionForm>
                   enabled: !_isLoading,
                   textInputAction: TextInputAction.done,
                   inputFormatters: [
+                    // ignore: deprecated_member_use
                     FilteringTextInputFormatter.allow(RegExp(r'[\d+\-\(\)\s]')),
                     LengthLimitingTextInputFormatter(18), // Ограничение длины
                   ],

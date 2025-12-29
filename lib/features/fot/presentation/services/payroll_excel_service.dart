@@ -1,10 +1,9 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:excel/excel.dart';
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:file_saver/file_saver.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:universal_html/html.dart' as html;
 import '../../domain/entities/payroll_calculation.dart';
 
 /// Сервис для экспорта данных ФОТ в Excel.
@@ -149,15 +148,26 @@ class PayrollExcelService {
       }
 
       if (kIsWeb) {
-        await FileSaver.instance.saveFile(
-          name: fileName,
-          bytes: Uint8List.fromList(bytes),
-          mimeType: MimeType.microsoftExcel,
-        );
+        // Чистая реализация для Web без сторонних плагинов сохранения
+        final blob = html.Blob([bytes]);
+        final url = html.Url.createObjectUrlFromBlob(blob);
+        html.AnchorElement(href: url)
+          ..setAttribute("download", fileName)
+          ..click();
+        html.Url.revokeObjectUrl(url);
       } else {
-        final directory = await getApplicationDocumentsDirectory();
-        final file = File('${directory.path}/$fileName');
-        await file.writeAsBytes(bytes);
+        // Полный переход на FilePicker для macOS/Desktop
+        final String? outputFile = await FilePicker.platform.saveFile(
+          dialogTitle: 'Сохранить экспорт ФОТ',
+          fileName: fileName,
+          type: FileType.custom,
+          allowedExtensions: ['xlsx'],
+        );
+
+        if (outputFile != null) {
+          final file = File(outputFile);
+          await file.writeAsBytes(bytes);
+        }
       }
     } catch (e) {
       rethrow;

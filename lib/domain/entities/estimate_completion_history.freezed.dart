@@ -17,6 +17,8 @@ T _$identity<T>(T value) => value;
 mixin _$EstimateCompletionHistory {
   DateTime get date;
   double get quantity;
+  String get section;
+  String get floor;
 
   /// Create a copy of EstimateCompletionHistory
   /// with the given fields replaced by the non-null parameter values.
@@ -33,15 +35,17 @@ mixin _$EstimateCompletionHistory {
             other is EstimateCompletionHistory &&
             (identical(other.date, date) || other.date == date) &&
             (identical(other.quantity, quantity) ||
-                other.quantity == quantity));
+                other.quantity == quantity) &&
+            (identical(other.section, section) || other.section == section) &&
+            (identical(other.floor, floor) || other.floor == floor));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, date, quantity);
+  int get hashCode => Object.hash(runtimeType, date, quantity, section, floor);
 
   @override
   String toString() {
-    return 'EstimateCompletionHistory(date: $date, quantity: $quantity)';
+    return 'EstimateCompletionHistory(date: $date, quantity: $quantity, section: $section, floor: $floor)';
   }
 }
 
@@ -51,7 +55,7 @@ abstract mixin class $EstimateCompletionHistoryCopyWith<$Res> {
           $Res Function(EstimateCompletionHistory) _then) =
       _$EstimateCompletionHistoryCopyWithImpl;
   @useResult
-  $Res call({DateTime date, double quantity});
+  $Res call({DateTime date, double quantity, String section, String floor});
 }
 
 /// @nodoc
@@ -69,6 +73,8 @@ class _$EstimateCompletionHistoryCopyWithImpl<$Res>
   $Res call({
     Object? date = null,
     Object? quantity = null,
+    Object? section = null,
+    Object? floor = null,
   }) {
     return _then(_self.copyWith(
       date: null == date
@@ -79,6 +85,14 @@ class _$EstimateCompletionHistoryCopyWithImpl<$Res>
           ? _self.quantity
           : quantity // ignore: cast_nullable_to_non_nullable
               as double,
+      section: null == section
+          ? _self.section
+          : section // ignore: cast_nullable_to_non_nullable
+              as String,
+      floor: null == floor
+          ? _self.floor
+          : floor // ignore: cast_nullable_to_non_nullable
+              as String,
     ));
   }
 }
@@ -87,12 +101,19 @@ class _$EstimateCompletionHistoryCopyWithImpl<$Res>
 
 class _EstimateCompletionHistory implements EstimateCompletionHistory {
   const _EstimateCompletionHistory(
-      {required this.date, required this.quantity});
+      {required this.date,
+      required this.quantity,
+      required this.section,
+      required this.floor});
 
   @override
   final DateTime date;
   @override
   final double quantity;
+  @override
+  final String section;
+  @override
+  final String floor;
 
   /// Create a copy of EstimateCompletionHistory
   /// with the given fields replaced by the non-null parameter values.
@@ -111,15 +132,17 @@ class _EstimateCompletionHistory implements EstimateCompletionHistory {
             other is _EstimateCompletionHistory &&
             (identical(other.date, date) || other.date == date) &&
             (identical(other.quantity, quantity) ||
-                other.quantity == quantity));
+                other.quantity == quantity) &&
+            (identical(other.section, section) || other.section == section) &&
+            (identical(other.floor, floor) || other.floor == floor));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, date, quantity);
+  int get hashCode => Object.hash(runtimeType, date, quantity, section, floor);
 
   @override
   String toString() {
-    return 'EstimateCompletionHistory(date: $date, quantity: $quantity)';
+    return 'EstimateCompletionHistory(date: $date, quantity: $quantity, section: $section, floor: $floor)';
   }
 }
 
@@ -131,7 +154,7 @@ abstract mixin class _$EstimateCompletionHistoryCopyWith<$Res>
       __$EstimateCompletionHistoryCopyWithImpl;
   @override
   @useResult
-  $Res call({DateTime date, double quantity});
+  $Res call({DateTime date, double quantity, String section, String floor});
 }
 
 /// @nodoc
@@ -149,6 +172,8 @@ class __$EstimateCompletionHistoryCopyWithImpl<$Res>
   $Res call({
     Object? date = null,
     Object? quantity = null,
+    Object? section = null,
+    Object? floor = null,
   }) {
     return _then(_EstimateCompletionHistory(
       date: null == date
@@ -159,6 +184,14 @@ class __$EstimateCompletionHistoryCopyWithImpl<$Res>
           ? _self.quantity
           : quantity // ignore: cast_nullable_to_non_nullable
               as double,
+      section: null == section
+          ? _self.section
+          : section // ignore: cast_nullable_to_non_nullable
+              as String,
+      floor: null == floor
+          ? _self.floor
+          : floor // ignore: cast_nullable_to_non_nullable
+              as String,
     ));
   }
 }

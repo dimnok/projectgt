@@ -291,6 +291,7 @@ class _WorkHoursTabState extends ConsumerState<WorkHoursTab> {
                                               .numberWithOptions(decimal: true),
                                           inputFormatters: [
                                             FilteringTextInputFormatter.allow(
+                                                // ignore: deprecated_member_use
                                                 RegExp(r'[0-9.,]')),
                                           ],
                                           decoration: const InputDecoration(

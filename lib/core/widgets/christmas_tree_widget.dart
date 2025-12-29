@@ -3,9 +3,13 @@ import 'package:flutter/material.dart';
 
 /// Виджет красивой наряженной ёлки с мерцающей гирляндой.
 class ChristmasTreeWidget extends StatefulWidget {
+  /// Высота ёлки.
   final double height;
+
+  /// Прозрачность всей композиции.
   final double opacity;
 
+  /// Создает экземпляр [ChristmasTreeWidget].
   const ChristmasTreeWidget({
     super.key,
     this.height = 400,
@@ -117,7 +121,11 @@ class _TreePainter extends CustomPainter {
       double angle = i * 4 * pi / 5 - pi / 2;
       double x = centerX + cos(angle) * starSize;
       double y = starTop + starSize + sin(angle) * starSize;
-      if (i == 0) starPath.moveTo(x, y); else starPath.lineTo(x, y);
+      if (i == 0) {
+        starPath.moveTo(x, y);
+      } else {
+        starPath.lineTo(x, y);
+      }
     }
     starPath.close();
     canvas.drawPath(starPath, starPaint);
@@ -134,7 +142,11 @@ class _TreePainter extends CustomPainter {
       final ballPaint = Paint()..color = ballColors[random.nextInt(ballColors.length)];
       canvas.drawCircle(Offset(x, y), 5, ballPaint);
       // Блик на шарике
-      canvas.drawCircle(Offset(x - 1.5, y - 1.5), 1.5, Paint()..color = Colors.white.withOpacity(0.5));
+      canvas.drawCircle(
+        Offset(x - 1.5, y - 1.5),
+        1.5,
+        Paint()..color = Colors.white.withValues(alpha: 0.5),
+      );
     }
 
     // 5. Гирлянда (мерцающие огни)
@@ -142,12 +154,12 @@ class _TreePainter extends CustomPainter {
       final t = i / 20;
       final y = size.height * (0.15 + t * 0.7);
       final x = centerX + sin(t * 10) * (size.width * 0.4 * t);
-      
+
       final opacity = 0.3 + (0.7 * sin(animationValue * pi + i).abs());
       final lightPaint = Paint()
-        ..color = Colors.yellowAccent.withOpacity(opacity)
+        ..color = Colors.yellowAccent.withValues(alpha: opacity)
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, 4 * animationValue);
-      
+
       canvas.drawCircle(Offset(x, y), 3, lightPaint);
     }
   }

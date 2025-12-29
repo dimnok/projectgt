@@ -1,21 +1,34 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+/// Фильтры статуса выполнения сметы.
 enum EstimateStatusFilter {
+  /// Фильтр не выбран.
   none,
+
+  /// Перевыполнение (более 100%).
   overExecution,
+
+  /// Полное выполнение (100%).
   completed,
+
+  /// Нулевое выполнение (0%).
   zeroExecution,
 }
 
+/// Виджет с кнопками фильтрации смет по статусу выполнения.
 class EstimateFilterButtons extends StatelessWidget {
+  /// Создает экземпляр [EstimateFilterButtons].
   const EstimateFilterButtons({
     super.key,
     required this.selectedFilter,
     required this.onChanged,
   });
 
+  /// Текущий выбранный фильтр.
   final EstimateStatusFilter selectedFilter;
+
+  /// Обратный вызов при изменении фильтра.
   final ValueChanged<EstimateStatusFilter> onChanged;
 
   @override

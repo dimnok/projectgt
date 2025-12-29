@@ -45,7 +45,8 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
   static const String view = 'estimates_with_contracts';
 
   /// Регулярное выражение для удаления пробелов (скомпилировано для производительности).
-  static final RegExp _whitespaceRegex = RegExp(r'\s+');
+  // ignore: deprecated_member_use
+  static final Pattern _whitespaceRegex = RegExp(r'\s+');
 
   /// Создаёт экземпляр [SupabaseEstimateDataSource] с клиентом [client].
   const SupabaseEstimateDataSource(this.client);
@@ -305,7 +306,7 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
   Future<List<Map<String, dynamic>>> getEstimateCompletionHistory(String estimateId) async {
     final response = await client
         .from('work_items')
-        .select('quantity, works!inner(date)')
+        .select('quantity, section, floor, works!inner(date)')
         .eq('estimate_id', estimateId)
         .order('date', referencedTable: 'works', ascending: false);
     

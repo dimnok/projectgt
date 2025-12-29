@@ -89,6 +89,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     String firstName = '';
     final fullName = profileState.profile?.fullName;
     if (fullName != null && fullName.trim().isNotEmpty) {
+      // ignore: deprecated_member_use
       final parts = fullName.trim().split(RegExp(r'\s+'));
       if (parts.length >= 2) {
         firstName = parts[1]; // Берём Имя
@@ -150,7 +151,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         const double crossAxisSpacing = 16;
                         final double cardWidth =
                             (width - (crossAxisCount - 1) * crossAxisSpacing) /
-                                crossAxisCount;
+                            crossAxisCount;
 
                         // Desktop: карточки рядом
                         if (width >= 1100) {
@@ -162,8 +163,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(
-                                    color: theme.colorScheme.outline
-                                        .withValues(alpha: 0.18),
+                                    color: theme.colorScheme.outline.withValues(
+                                      alpha: 0.18,
+                                    ),
                                   ),
                                 ),
                                 child: const Padding(
@@ -180,8 +182,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(
-                                    color: theme.colorScheme.outline
-                                        .withValues(alpha: 0.18),
+                                    color: theme.colorScheme.outline.withValues(
+                                      alpha: 0.18,
+                                    ),
                                   ),
                                 ),
                                 child: const Padding(
@@ -198,8 +201,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(
-                                    color: theme.colorScheme.outline
-                                        .withValues(alpha: 0.18),
+                                    color: theme.colorScheme.outline.withValues(
+                                      alpha: 0.18,
+                                    ),
                                   ),
                                 ),
                                 child: const Padding(
@@ -222,8 +226,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(
-                                color: theme.colorScheme.outline
-                                    .withValues(alpha: 0.18),
+                                color: theme.colorScheme.outline.withValues(
+                                  alpha: 0.18,
+                                ),
                               ),
                             ),
                             child: Padding(
@@ -236,7 +241,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     child: PageView(
                                       controller: _mainCardsPageController,
                                       onPageChanged: (i) => setState(
-                                          () => _mainCardsPageIndex = i),
+                                        () => _mainCardsPageIndex = i,
+                                      ),
                                       children: const [
                                         // Страница 1: Календарь смен
                                         ShiftsCalendarFlipCard(),
@@ -252,13 +258,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       _buildDot(
-                                          theme, _mainCardsPageIndex == 0),
+                                        theme,
+                                        _mainCardsPageIndex == 0,
+                                      ),
                                       const SizedBox(width: 6),
                                       _buildDot(
-                                          theme, _mainCardsPageIndex == 1),
+                                        theme,
+                                        _mainCardsPageIndex == 1,
+                                      ),
                                       const SizedBox(width: 6),
                                       _buildDot(
-                                          theme, _mainCardsPageIndex == 2),
+                                        theme,
+                                        _mainCardsPageIndex == 2,
+                                      ),
                                     ],
                                   ),
                                 ],
@@ -273,12 +285,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ),
             ),
-            const Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: GarlandWidget(),
-            ),
+            const Positioned(top: 0, left: 0, right: 0, child: GarlandWidget()),
           ],
         ),
       ),
@@ -358,10 +365,7 @@ class _GreetingHeader extends StatelessWidget {
             baseColor.withValues(alpha: 0.04),
           ],
         ),
-        border: Border.all(
-          color: baseColor.withValues(alpha: 0.15),
-          width: 1,
-        ),
+        border: Border.all(color: baseColor.withValues(alpha: 0.15), width: 1),
       ),
       child: Stack(
         clipBehavior: Clip.none,
@@ -382,10 +386,7 @@ class _GreetingHeader extends StatelessWidget {
             top: -15,
             child: Transform.rotate(
               angle: -0.2,
-              child: const Text(
-                '🎅',
-                style: TextStyle(fontSize: 32),
-              ),
+              child: const Text('🎅', style: TextStyle(fontSize: 32)),
             ),
           ),
           Padding(
@@ -399,8 +400,9 @@ class _GreetingHeader extends StatelessWidget {
                     Text(
                       dateString.toUpperCase(),
                       style: theme.textTheme.labelSmall?.copyWith(
-                        color:
-                            theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.5,
+                        ),
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.5,
                       ),
@@ -440,7 +442,7 @@ class _GreetingHeader extends StatelessWidget {
       'Четверг',
       'Пятница',
       'Суббота',
-      'Воскресенье'
+      'Воскресенье',
     ];
     return days[day - 1];
   }
@@ -458,7 +460,7 @@ class _GreetingHeader extends StatelessWidget {
       'сентября',
       'октября',
       'ноября',
-      'декабря'
+      'декабря',
     ];
     return months[month - 1];
   }

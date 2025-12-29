@@ -193,6 +193,7 @@ class MaterialsExportAction extends ConsumerWidget {
 
   /// Генерирует безопасное имя файла для экспорта.
   String _fileName(String? contract, DateTime start, DateTime end) {
+    // ignore: deprecated_member_use
     final cs = (contract ?? 'all').replaceAll(RegExp(r"[^A-Za-z0-9._-]+"), '_');
     final s = DateFormat('yyyyMMdd').format(start);
     final e = DateFormat('yyyyMMdd').format(end);

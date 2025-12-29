@@ -140,7 +140,8 @@ class DesktopDialogContent extends StatelessWidget {
                   const Divider(height: 1),
 
                   // Скроллящийся контент
-                  Expanded(
+                  Flexible(
+                    fit: FlexFit.loose,
                     child: scrollable
                         ? SingleChildScrollView(
                             padding: padding,

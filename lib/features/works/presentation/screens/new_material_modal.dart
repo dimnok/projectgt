@@ -117,6 +117,7 @@ class _NewMaterialModalState extends ConsumerState<NewMaterialModal> {
               e.system == widget.system &&
               e.subsystem == widget.subsystem &&
               e.estimateTitle == _selectedEstimateTitle) {
+            // ignore: deprecated_member_use
             final match = RegExp(r'^д-(\d+)$', caseSensitive: false)
                 .firstMatch(e.number.trim());
             if (match != null) {

@@ -18,12 +18,21 @@ import '../widgets/estimate_item_card.dart';
 import '../widgets/estimate_mobile_header.dart';
 import 'estimate_details_screen.dart';
 
+/// Мобильное представление раздела смет.
 class EstimateMobileView extends ConsumerStatefulWidget {
+  /// Заголовок (название) сметы.
   final String? estimateTitle;
+
+  /// Идентификатор объекта.
   final String? objectId;
+
+  /// Идентификатор контракта.
   final String? contractId;
+
+  /// Флаг отображения AppBar.
   final bool showAppBar;
 
+  /// Создает экземпляр [EstimateMobileView].
   const EstimateMobileView({
     super.key,
     required this.estimateTitle,
@@ -139,7 +148,7 @@ class _EstimateMobileViewState extends ConsumerState<EstimateMobileView>
           body: const Center(child: CupertinoActivityIndicator()),
         ),
         error: (e, s) => Scaffold(
-          appBar: AppBarWidget(title: 'Ошибка'),
+          appBar: const AppBarWidget(title: 'Ошибка'),
           body: Center(child: Text('Ошибка: $e')),
         ),
       );
@@ -148,7 +157,7 @@ class _EstimateMobileViewState extends ConsumerState<EstimateMobileView>
     // 2. Иначе показываем список групп (файлов смет)
     final groupsAsync = ref.watch(estimateGroupsProvider);
     return Scaffold(
-      appBar: AppBarWidget(title: 'Сметы'),
+      appBar: const AppBarWidget(title: 'Сметы'),
       body: groupsAsync.when(
         data: (groups) {
           if (groups.isEmpty) {

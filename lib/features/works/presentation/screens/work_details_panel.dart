@@ -740,7 +740,9 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                                                                 decimal: true),
                                                         inputFormatters: [
                                                           FilteringTextInputFormatter
-                                                              .allow(RegExp(
+                                                              .allow(
+                                                                  // ignore: deprecated_member_use
+                                                                  RegExp(
                                                                   r'[0-9.,]')),
                                                         ],
                                                         textAlign:

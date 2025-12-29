@@ -81,6 +81,7 @@ mixin EstimateActionsMixin<T extends ConsumerStatefulWidget> on ConsumerState<T>
     String newNumber = estimate.number;
     
     // Умная инкрементация номера
+    // ignore: deprecated_member_use
     if (RegExp(r'^\d+$').hasMatch(estimate.number)) {
       try {
         final numValue = int.parse(estimate.number);

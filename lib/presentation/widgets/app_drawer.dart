@@ -69,6 +69,9 @@ enum AppRoute {
 
   /// Экран настроек заявок.
   procurementSettings,
+
+  /// Экран модуля "Компания".
+  company,
 }
 
 /// Виджет для группировки пунктов меню (например, "Справочники" с подпунктами).
@@ -549,6 +552,19 @@ class AppDrawer extends ConsumerWidget {
                               } else {
                                 context.pop();
                                 context.goNamed('home');
+                              }
+                            },
+                          ),
+                          DrawerItemWidget(
+                            icon: CupertinoIcons.briefcase,
+                            title: 'Компания',
+                            isSelected: activeRoute == AppRoute.company,
+                            onTap: () {
+                              if (activeRoute == AppRoute.company) {
+                                context.pop();
+                              } else {
+                                context.pop();
+                                context.goNamed('company');
                               }
                             },
                           ),

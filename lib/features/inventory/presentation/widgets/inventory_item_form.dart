@@ -339,6 +339,7 @@ class _InventoryItemFormState extends ConsumerState<InventoryItemForm> {
                         const TextInputType.numberWithOptions(decimal: true),
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(
+                          // ignore: deprecated_member_use
                           RegExp(r'^\d+\.?\d{0,3}')),
                     ],
                     validator: (value) {
@@ -508,6 +509,7 @@ class _InventoryItemFormState extends ConsumerState<InventoryItemForm> {
                         const TextInputType.numberWithOptions(decimal: true),
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(
+                          // ignore: deprecated_member_use
                           RegExp(r'^\d+\.?\d{0,2}')),
                     ],
                     readOnly: _isSaving,

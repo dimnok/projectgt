@@ -34,6 +34,7 @@ class EstimateSorter {
       return const _EstimateNumberSortKey.other();
     }
 
+    // ignore: deprecated_member_use
     final simpleMatch = RegExp(r'^\d+$');
     if (simpleMatch.hasMatch(normalized)) {
       return _EstimateNumberSortKey(
@@ -43,6 +44,7 @@ class EstimateSorter {
       );
     }
 
+    // ignore: deprecated_member_use
     final dottedMatch = RegExp(r'^\d+(?:\.\d+)+$');
     if (dottedMatch.hasMatch(normalized)) {
       final parts =

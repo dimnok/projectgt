@@ -57,7 +57,6 @@ class AppTheme {
     ).copyWith(
       // Дополнительные ручные переопределения для точного соответствия дизайну
       dialogTheme: const DialogThemeData(
-        backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
       ),
       bottomSheetTheme: const BottomSheetThemeData(
@@ -118,7 +117,6 @@ class AppTheme {
     ).copyWith(
       // Дополнительные ручные переопределения для точного соответствия дизайну
       dialogTheme: const DialogThemeData(
-        backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
       ),
       bottomSheetTheme: const BottomSheetThemeData(

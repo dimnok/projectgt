@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 
 /// Виджет, создающий эффект мерцающей гирлянды.
 class GarlandWidget extends StatefulWidget {
+  /// Общее количество лампочек в гирлянде.
   final int totalLights;
 
+  /// Создает экземпляр [GarlandWidget].
   const GarlandWidget({
     super.key,
     this.totalLights = 12,

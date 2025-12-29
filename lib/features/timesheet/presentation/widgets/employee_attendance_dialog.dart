@@ -620,6 +620,7 @@ class _EmployeeAttendanceDialogState
                         const TextInputType.numberWithOptions(decimal: true),
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(
+                          // ignore: deprecated_member_use
                           RegExp(r'^(2[0-4]|1[0-9]|[0-9])(\.[0-9])?$')),
                     ],
                     style: theme.textTheme.bodySmall?.copyWith(

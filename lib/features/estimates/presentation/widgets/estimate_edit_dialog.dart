@@ -180,6 +180,7 @@ class _EstimateEditDialogState extends ConsumerState<EstimateEditDialog> {
         final numStr = est.number.trim();
         // Проверяем формат "д-<число>" (регистронезависимо, допускаем D латинскую)
         // Пример: д-1, Д-5, d-10
+        // ignore: deprecated_member_use
         final match = RegExp(r'^[дДdD]\s*-\s*(\d+)$').firstMatch(numStr);
         if (match != null) {
           hasDPrefix = true;
@@ -199,6 +200,7 @@ class _EstimateEditDialogState extends ConsumerState<EstimateEditDialog> {
       maxNumber = 0;
       for (final est in currentContextEstimates) {
         final numStr = est.number.trim();
+        // ignore: deprecated_member_use
         if (RegExp(r'^\d+$').hasMatch(numStr)) {
           final num = int.tryParse(numStr);
           if (num != null && num > maxNumber) {
