@@ -956,63 +956,69 @@ class _WorkPlanMonthGroupHeaderDelegate extends SliverPersistentHeaderDelegate {
         children: [
           Align(
             alignment: Alignment.center,
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: onTap,
-                borderRadius: BorderRadius.circular(12),
-                hoverColor:
-                    theme.colorScheme.onSurface.withValues(alpha: 0.05),
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isDesktop ? 4 : 16,
-                    vertical: 12,
-                  ),
-                  child: Row(
-                    children: [
-                      // Информация о месяце
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            // Месяц и год
-                            Transform.scale(
-                              scale: textScale,
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                group.monthName,
-                                style:
-                                    theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: titleColor,
+            child: Container(
+              margin: EdgeInsets.symmetric(
+                horizontal: isDesktop ? 4 : 16,
+                vertical: 4,
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: onTap,
+                  borderRadius: BorderRadius.circular(12),
+                  hoverColor:
+                      theme.colorScheme.onSurface.withValues(alpha: 0.05),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    child: Row(
+                      children: [
+                        // Информация о месяце
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              // Месяц и год
+                              Transform.scale(
+                                scale: textScale,
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  group.monthName,
+                                  style:
+                                      theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: titleColor,
+                                  ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(height: 4),
-                            // Статистика (мелким шрифтом)
-                            Text(
-                              '${group.plansCount} ${_pluralizePlans(group.plansCount)} • ${GtFormatters.formatCurrency(group.totalPlannedCost)}',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: subtitleColor,
+                              const SizedBox(height: 4),
+                              // Статистика (мелким шрифтом)
+                              Text(
+                                '${group.plansCount} ${_pluralizePlans(group.plansCount)} • ${GtFormatters.formatCurrency(group.totalPlannedCost)}',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: subtitleColor,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
 
-                      // Индикатор раскрытия
-                      AnimatedRotation(
-                        turns: group.isExpanded ? 0.25 : 0,
-                        duration: const Duration(milliseconds: 200),
-                        curve: Curves.easeInOut,
-                        child: Icon(
-                          CupertinoIcons.chevron_right,
-                          color: subtitleColor,
-                          size: 16,
+                        // Индикатор раскрытия
+                        AnimatedRotation(
+                          turns: group.isExpanded ? 0.25 : 0,
+                          duration: const Duration(milliseconds: 200),
+                          curve: Curves.easeInOut,
+                          child: Icon(
+                            CupertinoIcons.chevron_right,
+                            color: subtitleColor,
+                            size: 16,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
