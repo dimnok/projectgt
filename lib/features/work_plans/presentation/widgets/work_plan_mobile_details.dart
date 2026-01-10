@@ -176,16 +176,14 @@ class _WorkPlanMobileDetailsState extends ConsumerState<WorkPlanMobileDetails> {
     );
   }
 
-  /// Строит карточку с основной информацией о плане работ.
+  /// Строит карточку с основной информацией о плане работ (компактная версия для мобильных).
   Widget _buildMainInfoCard(
       WorkPlan workPlan, ObjectEntity? objectEntity, ThemeData theme) {
     final dateFormat = DateFormat('dd.MM.yyyy');
 
-    // Подсчитываем общую статистику
-    final totalWorkers =
+    // Подсчитываем количество специалистов и общую стоимость
+    final totalSpecialists =
         workPlan.workBlocks.expand((block) => block.workerIds).toSet().length;
-    final totalWorks =
-        workPlan.workBlocks.expand((block) => block.selectedWorks).length;
     final totalCost = workPlan.workBlocks
         .expand((block) => block.selectedWorks)
         .fold(0.0, (sum, work) => sum + work.totalPlannedCost);
@@ -207,170 +205,66 @@ class _WorkPlanMobileDetailsState extends ConsumerState<WorkPlanMobileDetails> {
           ),
         ],
       ),
-      child: Column(
-        children: [
-          // Шапка с основной информацией
-          Padding(
-            padding: const EdgeInsets.all(_contentPadding),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: Padding(
+        padding: const EdgeInsets.all(_contentPadding),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Объект и дата
+            Row(
               children: [
-                // Иконка и заголовок
-                Row(
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color:
-                              theme.colorScheme.outline.withValues(alpha: 0.3),
-                          width: 1,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color:
-                                theme.colorScheme.shadow.withValues(alpha: 0.1),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: CircleAvatar(
-                        radius: 30,
-                        backgroundColor:
-                            theme.colorScheme.primary.withValues(alpha: 0.1),
-                        child: Icon(
-                          Icons.assignment_outlined,
-                          size: 24,
-                          color: theme.colorScheme.primary,
-                        ),
-                      ),
+                Expanded(
+                  child: Text(
+                    objectEntity?.name ??
+                        workPlan.objectName ??
+                        'Неизвестный объект',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'План работ',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            dateFormat.format(workPlan.date),
-                            style: theme.textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: theme.colorScheme.primary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 16),
-
-                // Информация об объекте
-                _buildInfoRow(
-                  theme,
-                  'Объект',
-                  objectEntity?.name ??
-                      workPlan.objectName ??
-                      'Неизвестный объект',
-                  Icons.business_outlined,
-                ),
-
-                if (objectEntity?.address != null ||
-                    workPlan.objectAddress != null) ...[
-                  const SizedBox(height: 8),
-                  _buildInfoRow(
-                    theme,
-                    'Адрес',
-                    objectEntity?.address ??
-                        workPlan.objectAddress ??
-                        'Не указан',
-                    Icons.location_on_outlined,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ],
-
-                const SizedBox(height: 16),
-
-                // Статистика в компактном виде
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildStatItem(
-                              theme,
-                              Icons.view_module_outlined,
-                              '${workPlan.workBlocks.length}',
-                              'блоков',
-                            ),
-                          ),
-                          Expanded(
-                            child: _buildStatItem(
-                              theme,
-                              Icons.people_outline,
-                              '$totalWorkers',
-                              'сотрудников',
-                            ),
-                          ),
-                          Expanded(
-                            child: _buildStatItem(
-                              theme,
-                              Icons.assignment_outlined,
-                              '$totalWorks',
-                              'работ',
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 8, horizontal: 12),
-                        decoration: BoxDecoration(
-                          color:
-                              theme.colorScheme.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Общая стоимость:',
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            Text(
-                              _formatCurrency(totalCost),
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: theme.colorScheme.primary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  dateFormat.format(workPlan.date),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
                 ),
               ],
             ),
-          ),
-        ],
+
+            const SizedBox(height: 12),
+
+            // Количество специалистов и сумма
+            Row(
+              children: [
+                Icon(
+                  CupertinoIcons.group,
+                  size: 18,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  '$totalSpecialists',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  _formatCurrency(totalCost),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -681,64 +575,6 @@ class _WorkPlanMobileDetailsState extends ConsumerState<WorkPlanMobileDetails> {
           ),
         ],
       ),
-    );
-  }
-
-  /// Строит строку информации с иконкой.
-  Widget _buildInfoRow(
-      ThemeData theme, String label, String value, IconData icon) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(
-          icon,
-          size: 16,
-          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          label,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.w500,
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            value,
-            style: theme.textTheme.bodyMedium,
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Строит элемент статистики.
-  Widget _buildStatItem(
-      ThemeData theme, IconData icon, String value, String label) {
-    return Column(
-      children: [
-        Icon(
-          icon,
-          size: 16,
-          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: theme.textTheme.bodySmall?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        Text(
-          label,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-            fontSize: 10,
-          ),
-        ),
-      ],
     );
   }
 
