@@ -133,9 +133,10 @@ class _WorkPlanMobileDetailsState extends ConsumerState<WorkPlanMobileDetails> {
     return EdgeToEdgeScaffold(
       appBar: widget.showAppBar
           ? AppBarWidget(
-              title: 'План работ на ${GtFormatters.formatRuDate(workPlan.date)}',
+              title: GtFormatters.formatRuDate(workPlan.date),
               leading: const BackButton(),
               showThemeSwitch: false,
+              centerTitle: false,
               actions: [
                 CupertinoButton(
                   padding: EdgeInsets.zero,

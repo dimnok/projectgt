@@ -136,9 +136,10 @@ class _WorkPlanDetailsScreenState extends ConsumerState<WorkPlanDetailsScreen> {
     return EdgeToEdgeScaffold(
       appBar: widget.showAppBar
           ? AppBarWidget(
-              title: 'План работ на ${_formatDate(workPlan.date)}',
+              title: _formatDate(workPlan.date),
               leading: const BackButton(),
               showThemeSwitch: false,
+              centerTitle: false,
             )
           : null,
       drawer: widget.showAppBar
