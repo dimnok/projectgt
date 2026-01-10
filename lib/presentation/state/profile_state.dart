@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:projectgt/core/utils/agent_logger.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/domain/entities/profile.dart';
 import 'package:projectgt/presentation/state/auth_state.dart';
+import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Перечисление возможных статусов загрузки и обработки профиля пользователя.
@@ -142,11 +144,24 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
     state = state.copyWith(status: ProfileStatus.loading);
 
     try {
-      final profile = await _ref.read(getProfileUseCaseProvider).call(userId);
+      final activeCompanyId = _ref.read(activeCompanyIdProvider);
+      if (activeCompanyId == null) {
+        state = state.copyWith(
+          status: ProfileStatus.error,
+          errorMessage: 'Компания не выбрана',
+        );
+        return;
+      }
+
+      final profile = await _ref.read(getProfileUseCaseProvider).call(userId, activeCompanyId);
       if (profile != null) {
+        // Обновляем профиль в списке, если он там есть
+        final updatedList = state.profiles.map((p) => p.id == profile.id ? profile : p).toList();
+        
         state = state.copyWith(
           status: ProfileStatus.success,
           profile: profile,
+          profiles: updatedList,
         );
       } else {
         state = state.copyWith(
@@ -178,7 +193,16 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
     state = state.copyWith(status: ProfileStatus.loading);
 
     try {
-      final profiles = await _ref.read(getProfilesUseCaseProvider).call();
+      final activeCompanyId = _ref.read(activeCompanyIdProvider);
+      if (activeCompanyId == null) {
+        state = state.copyWith(
+          status: ProfileStatus.error,
+          errorMessage: 'Компания не выбрана',
+        );
+        return;
+      }
+
+      final profiles = await _ref.read(getProfilesUseCaseProvider).call(activeCompanyId);
       state = state.copyWith(
         status: ProfileStatus.success,
         profiles: profiles,
@@ -212,6 +236,32 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
         profile: updatedProfile,
         profiles: updatedList,
       );
+    } catch (e) {
+      state = state.copyWith(
+        status: ProfileStatus.error,
+        errorMessage: e.toString(),
+      );
+    }
+  }
+
+  /// Обновляет данные участника компании (роль, статус).
+  Future<void> updateMember({
+    required String userId,
+    required String companyId,
+    String? roleId,
+    bool? isActive,
+  }) async {
+    state = state.copyWith(status: ProfileStatus.loading);
+    try {
+      await _ref.read(updateMemberUseCaseProvider).execute(
+            userId: userId,
+            companyId: companyId,
+            roleId: roleId,
+            isActive: isActive,
+          );
+      // После обновления данных в company_members, принудительно обновляем профиль,
+      // так как он отображает данные из этой таблицы.
+      await refreshProfile(userId);
     } catch (e) {
       state = state.copyWith(
         status: ProfileStatus.error,
@@ -321,8 +371,12 @@ class CurrentUserProfileNotifier extends StateNotifier<ProfileState> {
   /// Подписывается на изменения статуса авторизации и автоматически загружает профиль текущего пользователя.
   void _listenToAuthChanges() {
     _ref.listen(authProvider, (previous, current) {
+      final isAuthenticated = current.status == AuthStatus.authenticated ||
+          current.status == AuthStatus.onboarding ||
+          current.status == AuthStatus.pendingApproval;
+
       // Загружаем профиль только при смене пользователя или первой авторизации
-      if (current.status == AuthStatus.authenticated &&
+      if (isAuthenticated &&
           current.user != null &&
           (previous?.user?.id != current.user!.id || state.profile == null)) {
         getCurrentUserProfile(current.user!.id);
@@ -333,9 +387,11 @@ class CurrentUserProfileNotifier extends StateNotifier<ProfileState> {
     });
 
     final authState = _ref.read(authProvider);
-    if (authState.status == AuthStatus.authenticated &&
-        authState.user != null &&
-        state.profile == null) {
+    final isAuthenticated = authState.status == AuthStatus.authenticated ||
+        authState.status == AuthStatus.onboarding ||
+        authState.status == AuthStatus.pendingApproval;
+
+    if (isAuthenticated && authState.user != null && state.profile == null) {
       getCurrentUserProfile(authState.user!.id);
     }
   }
@@ -344,11 +400,20 @@ class CurrentUserProfileNotifier extends StateNotifier<ProfileState> {
   ///
   /// Этот метод всегда загружает профиль текущего пользователя и не перезаписывается
   /// при просмотре чужих профилей.
-  Future<void> getCurrentUserProfile(String userId) async {
+  ///
+  /// [force] — если true, игнорирует кешированные данные и загружает профиль заново.
+  Future<void> getCurrentUserProfile(String userId, {bool force = false}) async {
+    // #region agent log
+    AgentLogger.log(hypothesisId: '4', message: 'CurrentUserProfileNotifier.getCurrentUserProfile() started', data: {'userId': userId, 'force': force}, location: 'profile_state.dart:407');
+    // #endregion
     if (_isLoadingProfile ||
-        (state.profile != null &&
+        (!force &&
+            state.profile != null &&
             state.profile!.id == userId &&
             state.status == ProfileStatus.success)) {
+      // #region agent log
+      AgentLogger.log(hypothesisId: '4', message: 'getCurrentUserProfile skipped: already loading or already success', location: 'profile_state.dart:415');
+      // #endregion
       return;
     }
 
@@ -356,12 +421,31 @@ class CurrentUserProfileNotifier extends StateNotifier<ProfileState> {
     state = state.copyWith(status: ProfileStatus.loading);
 
     try {
+      // [RBAC] Мы НЕ читаем activeCompanyIdProvider здесь, чтобы избежать CircularDependencyError.
+      // Метод dataSource.getProfile сам подхватит last_company_id из записи профиля.
+      // #region agent log
+      AgentLogger.log(hypothesisId: '4', message: 'Executing getProfileUseCase', location: 'profile_state.dart:425');
+      // #endregion
       final profile = await _ref.read(getProfileUseCaseProvider).call(userId);
+      // #region agent log
+      AgentLogger.log(hypothesisId: '4', message: 'getProfileUseCase result', data: {'profileId': profile?.id, 'status': profile?.status}, location: 'profile_state.dart:429');
+      // #endregion
       if (profile != null) {
         state = state.copyWith(
           status: ProfileStatus.success,
           profile: profile,
         );
+
+        // [RBAC] Сразу обновляем статус в AuthProvider на основе данных профиля
+        final authNotifier = _ref.read(authProvider.notifier);
+        if (profile.status == false) {
+          authNotifier.state = authNotifier.state.copyWith(
+            status: AuthStatus.disabled,
+          );
+        } else if (profile.lastCompanyId == null) {
+          authNotifier.state = authNotifier.state.copyWith(status: AuthStatus.onboarding);
+        }
+
         // Подписываемся на Realtime изменения статуса
         _subscribeToStatusChanges(userId);
       } else {
@@ -371,12 +455,18 @@ class CurrentUserProfileNotifier extends StateNotifier<ProfileState> {
         );
       }
     } catch (e) {
+      // #region agent log
+      AgentLogger.log(hypothesisId: '4', message: 'getCurrentUserProfile error', data: {'error': e.toString()}, location: 'profile_state.dart:445');
+      // #endregion
       state = state.copyWith(
         status: ProfileStatus.error,
         errorMessage: e.toString(),
       );
     } finally {
       _isLoadingProfile = false;
+      // #region agent log
+      AgentLogger.log(hypothesisId: '4', message: 'CurrentUserProfileNotifier.getCurrentUserProfile() finished', data: {'status': state.status.toString()}, location: 'profile_state.dart:455');
+      // #endregion
     }
   }
 
@@ -459,6 +549,8 @@ class CurrentUserProfileNotifier extends StateNotifier<ProfileState> {
 /// Используется для доступа к [ProfileNotifier] и [ProfileState] во всём приложении.
 final profileProvider =
     StateNotifierProvider<ProfileNotifier, ProfileState>((ref) {
+  // [RBAC] Слушаем смену компании для автоматического обновления списка пользователей
+  ref.watch(activeCompanyIdProvider);
   return ProfileNotifier(ref);
 });
 
