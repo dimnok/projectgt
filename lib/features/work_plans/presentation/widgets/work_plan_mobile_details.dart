@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import 'package:projectgt/core/widgets/edge_to_edge_scaffold.dart';
-import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/gt_confirmation_dialog.dart';
 import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:projectgt/domain/entities/work_plan.dart';
@@ -138,21 +137,27 @@ class _WorkPlanMobileDetailsState extends ConsumerState<WorkPlanMobileDetails> {
               leading: const BackButton(),
               showThemeSwitch: false,
               actions: [
-                GTTextButton(
-                  text: 'Редактировать',
-                  icon: Icons.edit,
-                  color: Colors.amber,
+                CupertinoButton(
+                  padding: EdgeInsets.zero,
                   onPressed: () {
                     _showEditWorkPlanModal(workPlan);
                   },
+                  child: const Icon(
+                    CupertinoIcons.pencil,
+                    size: 22,
+                    color: Colors.amber,
+                  ),
                 ),
-                GTTextButton(
-                  text: 'Удалить',
-                  icon: Icons.delete,
-                  color: Colors.red,
+                CupertinoButton(
+                  padding: EdgeInsets.zero,
                   onPressed: () {
                     _confirmAndDeleteWorkPlan(workPlan);
                   },
+                  child: Icon(
+                    CupertinoIcons.trash,
+                    size: 22,
+                    color: theme.colorScheme.error,
+                  ),
                 ),
               ],
             )
