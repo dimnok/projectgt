@@ -75,8 +75,7 @@ class SliverMonthWorkPlansList extends ConsumerWidget {
 
     // Получаем название объекта
     String objectName = plan.objectName ?? 'Без названия';
-    if ((plan.objectName?.isEmpty ?? true) &&
-        objectsState.objects.isNotEmpty) {
+    if ((plan.objectName?.isEmpty ?? true) && objectsState.objects.isNotEmpty) {
       try {
         final obj = objectsState.objects.firstWhere(
           (o) => o.id == plan.objectId,

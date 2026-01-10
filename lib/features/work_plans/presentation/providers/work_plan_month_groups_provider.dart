@@ -66,7 +66,7 @@ class WorkPlanMonthGroup {
       'Сентябрь',
       'Октябрь',
       'Ноябрь',
-      'Декабрь'
+      'Декабрь',
     ];
     return '${months[month.month - 1]} ${month.year}';
   }
@@ -135,7 +135,7 @@ class WorkPlanMonthGroupsNotifier
 
   /// Создаёт notifier для групп месяцев планов.
   WorkPlanMonthGroupsNotifier(this._workPlanNotifier)
-      : super(const WorkPlanMonthGroupsState());
+    : super(const WorkPlanMonthGroupsState());
 
   /// Загружает и группирует планы по месяцам.
   ///
@@ -157,11 +157,13 @@ class WorkPlanMonthGroupsNotifier
       }
 
       // Создаём MonthGroup объекты
-      final groups = groupedByMonth.entries
-          .map((entry) {
+      final groups =
+          groupedByMonth.entries.map((entry) {
             final plans = entry.value;
-            final totalCost =
-                plans.fold(0.0, (sum, plan) => sum + plan.totalPlannedCost);
+            final totalCost = plans.fold(
+              0.0,
+              (sum, plan) => sum + plan.totalPlannedCost,
+            );
 
             return WorkPlanMonthGroup(
               month: entry.key,
@@ -170,9 +172,9 @@ class WorkPlanMonthGroupsNotifier
               isExpanded: false,
               workPlans: null, // Загружаются при раскрытии
             );
-          })
-          .toList()
-        ..sort((a, b) => b.month.compareTo(a.month)); // Сортируем по убыванию
+          }).toList()..sort(
+            (a, b) => b.month.compareTo(a.month),
+          ); // Сортируем по убыванию
 
       state = state.copyWith(groups: groups, isLoading: false);
     } catch (e) {
@@ -210,15 +212,15 @@ class WorkPlanMonthGroupsNotifier
     }
 
     // Обновляем целевую группу: развёрнута и загружаем планы
-    final workPlans = _workPlanNotifier.state.workPlans
-        .where((plan) {
-          final planMonth = DateTime(plan.date.year, plan.date.month, 1);
-          return planMonth == month;
-        })
-        .toList();
+    final workPlans = _workPlanNotifier.state.workPlans.where((plan) {
+      final planMonth = DateTime(plan.date.year, plan.date.month, 1);
+      return planMonth == month;
+    }).toList();
 
-    updatedGroups[groupIndex] =
-        group.copyWith(isExpanded: true, workPlans: workPlans);
+    updatedGroups[groupIndex] = group.copyWith(
+      isExpanded: true,
+      workPlans: workPlans,
+    );
     state = state.copyWith(groups: updatedGroups);
   }
 
@@ -272,14 +274,16 @@ class WorkPlanMonthGroupsNotifier
 }
 
 /// Провайдер для управления группами месяцев планов работ.
-final workPlanMonthGroupsProvider = StateNotifierProvider<
-    WorkPlanMonthGroupsNotifier,
-    WorkPlanMonthGroupsState>((ref) {
-  final workPlanNotifier = ref.watch(workPlanNotifierProvider.notifier);
-  final notifier = WorkPlanMonthGroupsNotifier(workPlanNotifier);
+final workPlanMonthGroupsProvider =
+    StateNotifierProvider<
+      WorkPlanMonthGroupsNotifier,
+      WorkPlanMonthGroupsState
+    >((ref) {
+      final workPlanNotifier = ref.watch(workPlanNotifierProvider.notifier);
+      final notifier = WorkPlanMonthGroupsNotifier(workPlanNotifier);
 
-  // Автоматически загружаем месяцы при создании провайдера
-  notifier.loadMonths();
+      // Автоматически загружаем месяцы при создании провайдера
+      notifier.loadMonths();
 
-  return notifier;
-});
+      return notifier;
+    });

@@ -23,6 +23,7 @@ import 'package:projectgt/features/work_plans/presentation/screens/work_plan_for
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/features/work_plans/presentation/providers/work_plan_month_groups_provider.dart';
+import 'package:projectgt/core/utils/formatters.dart';
 
 /// Режим отображения: смены или планы.
 enum _DisplayMode { works, workPlans }
@@ -923,11 +924,30 @@ class _WorkPlanMonthGroupHeaderDelegate extends SliverPersistentHeaderDelegate {
     bool overlapsContent,
   ) {
     final theme = Theme.of(context);
+    final isDesktop = ResponsiveUtils.isDesktop(context);
 
     final double rawStuckAmount = (shrinkOffset / (maxExtent - minExtent))
         .clamp(0.0, 1.0);
 
     final double stuckAmount = group.isExpanded ? rawStuckAmount : 0.0;
+
+    // Анимация текста (как в MonthGroupHeader)
+    final textScale = 1.0 + (stuckAmount * 0.15);
+
+    // Цвет: от стандартного к синему
+    final targetColor = Colors.blue.shade600;
+    final titleColor = Color.lerp(
+      theme.colorScheme.onSurface,
+      targetColor,
+      stuckAmount,
+    );
+
+    final subtitleColor = Color.lerp(
+      theme.colorScheme.onSurfaceVariant,
+      targetColor.withValues(alpha: 0.7),
+      stuckAmount * 0.5,
+    );
+
     final isStuck = stuckAmount > 0.1;
 
     return Container(
@@ -936,42 +956,64 @@ class _WorkPlanMonthGroupHeaderDelegate extends SliverPersistentHeaderDelegate {
         children: [
           Align(
             alignment: Alignment.center,
-            child: InkWell(
-              onTap: onTap,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            group.monthName,
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.blue,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onTap,
+                borderRadius: BorderRadius.circular(12),
+                hoverColor:
+                    theme.colorScheme.onSurface.withValues(alpha: 0.05),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isDesktop ? 4 : 16,
+                    vertical: 12,
+                  ),
+                  child: Row(
+                    children: [
+                      // Информация о месяце
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // Месяц и год
+                            Transform.scale(
+                              scale: textScale,
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                group.monthName,
+                                style:
+                                    theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: titleColor,
+                                ),
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${group.plansCount} план${group.plansCount % 10 == 1 && group.plansCount % 100 != 11 ? '' : 'ов'}',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.outline,
+                            const SizedBox(height: 4),
+                            // Статистика (мелким шрифтом)
+                            Text(
+                              '${group.plansCount} ${_pluralizePlans(group.plansCount)} • ${GtFormatters.formatCurrency(group.totalPlannedCost)}',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: subtitleColor,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                    Icon(
-                      group.isExpanded
-                          ? CupertinoIcons.chevron_up
-                          : CupertinoIcons.chevron_down,
-                      color: Colors.blue,
-                    ),
-                  ],
+
+                      // Индикатор раскрытия
+                      AnimatedRotation(
+                        turns: group.isExpanded ? 0.25 : 0,
+                        duration: const Duration(milliseconds: 200),
+                        curve: Curves.easeInOut,
+                        child: Icon(
+                          CupertinoIcons.chevron_right,
+                          color: subtitleColor,
+                          size: 16,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -992,6 +1034,18 @@ class _WorkPlanMonthGroupHeaderDelegate extends SliverPersistentHeaderDelegate {
         ],
       ),
     );
+  }
+
+  /// Возвращает правильную форму слова "план" в зависимости от количества.
+  String _pluralizePlans(int count) {
+    if (count % 10 == 1 && count % 100 != 11) {
+      return 'план';
+    } else if ([2, 3, 4].contains(count % 10) &&
+        ![12, 13, 14].contains(count % 100)) {
+      return 'плана';
+    } else {
+      return 'планов';
+    }
   }
 
   @override
