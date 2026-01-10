@@ -226,35 +226,15 @@ class _WorksMasterDetailScreenState
                     if (!hasOpenByUser)
                       Padding(
                         padding: const EdgeInsets.all(16.0),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: PermissionGuard(
-                                module: 'works',
-                                permission: 'create',
-                                child: GTPrimaryButton(
-                                  onPressed: () => _showOpenShiftModal(context),
-                                  icon: CupertinoIcons.add,
-                                  text: 'Смена',
-                                  backgroundColor: Colors.green,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: PermissionGuard(
-                                module: 'work_plans',
-                                permission: 'create',
-                                child: GTPrimaryButton(
-                                  onPressed: () =>
-                                      _showCreateWorkPlanModal(context),
-                                  icon: CupertinoIcons.add,
-                                  text: 'План',
-                                  backgroundColor: Colors.blue,
-                                ),
-                              ),
-                            ),
-                          ],
+                        child: PermissionGuard(
+                          module: 'works',
+                          permission: 'create',
+                          child: GTPrimaryButton(
+                            onPressed: () => _showOpenShiftModal(context),
+                            icon: CupertinoIcons.add,
+                            text: 'Открыть смену',
+                            backgroundColor: Colors.green,
+                          ),
                         ),
                       ),
                     Expanded(
@@ -272,6 +252,21 @@ class _WorksMasterDetailScreenState
                         ),
                       ),
                     ),
+                    if (!hasOpenByUser)
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: PermissionGuard(
+                          module: 'work_plans',
+                          permission: 'create',
+                          child: GTPrimaryButton(
+                            onPressed: () =>
+                                _showCreateWorkPlanModal(context),
+                            icon: CupertinoIcons.add,
+                            text: 'Составить план',
+                            backgroundColor: Colors.blue,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -409,39 +404,20 @@ class _WorksMasterDetailScreenState
               ),
             ),
 
-          // Кнопки добавления смены и плана для мобильных (над списком)
+          // Кнопка открытия смены для мобильных (над списком)
           if (!isDesktop && !hasOpenByUser)
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: PermissionGuard(
-                        module: 'works',
-                        permission: 'create',
-                        child: GTPrimaryButton(
-                          onPressed: () => _showOpenShiftModal(context),
-                          icon: CupertinoIcons.add,
-                          text: 'Смена',
-                          backgroundColor: Colors.green,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: PermissionGuard(
-                        module: 'work_plans',
-                        permission: 'create',
-                        child: GTPrimaryButton(
-                          onPressed: () => _showCreateWorkPlanModal(context),
-                          icon: CupertinoIcons.add,
-                          text: 'План',
-                          backgroundColor: Colors.blue,
-                        ),
-                      ),
-                    ),
-                  ],
+                child: PermissionGuard(
+                  module: 'works',
+                  permission: 'create',
+                  child: GTPrimaryButton(
+                    onPressed: () => _showOpenShiftModal(context),
+                    icon: CupertinoIcons.add,
+                    text: 'Открыть смену',
+                    backgroundColor: Colors.green,
+                  ),
                 ),
               ),
             ),
@@ -536,8 +512,27 @@ class _WorksMasterDetailScreenState
               ),
           ],
 
+          // Кнопка составления плана для мобильных (внизу)
+          if (!isDesktop && !hasOpenByUser)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                child: PermissionGuard(
+                  module: 'work_plans',
+                  permission: 'create',
+                  child: GTPrimaryButton(
+                    onPressed: () => _showCreateWorkPlanModal(context),
+                    icon: CupertinoIcons.add,
+                    text: 'Составить план',
+                    backgroundColor: Colors.blue,
+                  ),
+                ),
+              ),
+            ),
+
           // Небольшой отступ внизу списка
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+          if (isDesktop || hasOpenByUser)
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
         ],
       ),
     );
