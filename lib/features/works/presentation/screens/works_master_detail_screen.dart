@@ -372,10 +372,7 @@ class _WorksMasterDetailScreenState
               groups: groups,
               theme: theme,
             )
-          : _buildPlansView(
-              key: const ValueKey('plans_view'),
-              theme: theme,
-            ),
+          : _buildPlansView(key: const ValueKey('plans_view'), theme: theme),
     );
   }
 
@@ -398,10 +395,7 @@ class _WorksMasterDetailScreenState
   }
 
   /// Строит представление с планами (верх: "Составить план", низ: "Открыть смену").
-  Widget _buildPlansView({
-    Key? key,
-    required ThemeData theme,
-  }) {
+  Widget _buildPlansView({Key? key, required ThemeData theme}) {
     return _buildWorkPlansList(
       key: key,
       theme: theme,
@@ -482,8 +476,7 @@ class _WorksMasterDetailScreenState
                           module: 'work_plans',
                           permission: 'create',
                           child: GTPrimaryButton(
-                            onPressed: () =>
-                                _showCreateWorkPlanModal(context),
+                            onPressed: () => _showCreateWorkPlanModal(context),
                             icon: CupertinoIcons.add,
                             text: 'Составить план',
                             backgroundColor: Colors.blue,
@@ -541,8 +534,8 @@ class _WorksMasterDetailScreenState
                                     _displayMode = _DisplayMode.workPlans;
                                   });
                                 },
-                                icon: CupertinoIcons.add,
-                                text: 'Составить план',
+                                icon: CupertinoIcons.eye,
+                                text: 'Просмотреть планы',
                                 backgroundColor: Colors.blue,
                               ),
                             )
@@ -555,8 +548,8 @@ class _WorksMasterDetailScreenState
                                     _displayMode = _DisplayMode.works;
                                   });
                                 },
-                                icon: CupertinoIcons.add,
-                                text: 'Открыть смену',
+                                icon: CupertinoIcons.eye,
+                                text: 'Просмотреть смены',
                                 backgroundColor: Colors.green,
                               ),
                             ),
@@ -567,8 +560,7 @@ class _WorksMasterDetailScreenState
             ),
 
           // Небольшой отступ внизу списка (только для десктопа)
-          if (isDesktop)
-            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+          if (isDesktop) const SliverToBoxAdapter(child: SizedBox(height: 24)),
         ],
       ),
     );
@@ -661,8 +653,7 @@ class _WorksMasterDetailScreenState
                           module: 'work_plans',
                           permission: 'create',
                           child: GTPrimaryButton(
-                            onPressed: () =>
-                                _showCreateWorkPlanModal(context),
+                            onPressed: () => _showCreateWorkPlanModal(context),
                             icon: CupertinoIcons.add,
                             text: 'Составить план',
                             backgroundColor: Colors.blue,
@@ -783,8 +774,8 @@ class _WorksMasterDetailScreenState
                                     _displayMode = _DisplayMode.workPlans;
                                   });
                                 },
-                                icon: CupertinoIcons.add,
-                                text: 'Составить план',
+                                icon: CupertinoIcons.eye,
+                                text: 'Просмотреть планы',
                                 backgroundColor: Colors.blue,
                               ),
                             )
@@ -809,8 +800,7 @@ class _WorksMasterDetailScreenState
             ),
 
           // Небольшой отступ внизу списка (только для десктопа)
-          if (isDesktop)
-            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+          if (isDesktop) const SliverToBoxAdapter(child: SizedBox(height: 24)),
         ],
       ),
     );
@@ -966,8 +956,9 @@ class _WorkPlanMonthGroupHeaderDelegate extends SliverPersistentHeaderDelegate {
                 child: InkWell(
                   onTap: onTap,
                   borderRadius: BorderRadius.circular(12),
-                  hoverColor:
-                      theme.colorScheme.onSurface.withValues(alpha: 0.05),
+                  hoverColor: theme.colorScheme.onSurface.withValues(
+                    alpha: 0.05,
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
@@ -987,8 +978,7 @@ class _WorkPlanMonthGroupHeaderDelegate extends SliverPersistentHeaderDelegate {
                                 alignment: Alignment.centerLeft,
                                 child: Text(
                                   group.monthName,
-                                  style:
-                                      theme.textTheme.titleMedium?.copyWith(
+                                  style: theme.textTheme.titleMedium?.copyWith(
                                     fontWeight: FontWeight.bold,
                                     color: titleColor,
                                   ),
