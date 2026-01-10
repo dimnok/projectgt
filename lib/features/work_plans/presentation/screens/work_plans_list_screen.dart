@@ -421,7 +421,7 @@ class _WorkPlansListScreenState extends ConsumerState<WorkPlansListScreen> {
               Row(
                 children: [
                   Icon(
-                    Icons.people_outline,
+                    CupertinoIcons.group,
                     size: 14,
                     color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
