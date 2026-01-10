@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/domain/entities/work_plan.dart';
@@ -458,7 +459,7 @@ class _WorkPlanDetailsScreenState extends ConsumerState<WorkPlanDetailsScreen> {
                     .map((w) =>
                         '${w.lastName} ${w.firstName}${w.middleName != null ? ' ${w.middleName}' : ''}')
                     .join(', '),
-                Icons.people_outline,
+                CupertinoIcons.group,
               ),
               const SizedBox(height: 12),
             ],

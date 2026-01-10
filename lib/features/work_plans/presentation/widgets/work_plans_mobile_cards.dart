@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:projectgt/core/utils/formatters.dart';
@@ -267,7 +267,7 @@ class WorkPlansMobileCards extends ConsumerWidget {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
-                              Icons.people_outline,
+                              CupertinoIcons.group,
                               size: 16,
                               color: theme.colorScheme.onSurface
                                   .withValues(alpha: 0.6),
