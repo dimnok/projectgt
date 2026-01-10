@@ -1,11 +1,10 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/core/widgets/edge_to_edge_scaffold.dart';
-import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/gt_confirmation_dialog.dart';
 import 'package:projectgt/domain/entities/work_plan.dart';
 import 'package:projectgt/features/objects/domain/entities/object.dart';
@@ -115,26 +114,31 @@ class _WorkPlansListScreenState extends ConsumerState<WorkPlansListScreen> {
             PermissionGuard(
               module: 'work_plans',
               permission: 'update',
-              child: GTTextButton(
-                text: 'Редактировать',
-                icon: Icons.edit,
-                color: Colors.amber,
+              child: CupertinoButton(
+                padding: EdgeInsets.zero,
                 onPressed: () {
                   _showEditWorkPlanModal(context, selectedWorkPlan!);
                 },
+                child: const Icon(
+                  CupertinoIcons.pencil,
+                  size: 22,
+                  color: Colors.amber,
+                ),
               ),
             ),
-            const SizedBox(width: 8),
             PermissionGuard(
               module: 'work_plans',
               permission: 'delete',
-              child: GTTextButton(
-                text: 'Удалить',
-                icon: Icons.delete_outline,
-                color: Colors.red,
+              child: CupertinoButton(
+                padding: EdgeInsets.zero,
                 onPressed: () {
                   _confirmAndDeleteSelectedWorkPlan();
                 },
+                child: Icon(
+                  CupertinoIcons.trash,
+                  size: 22,
+                  color: theme.colorScheme.error,
+                ),
               ),
             ),
           ],
