@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../../../core/utils/responsive_utils.dart';
 import '../../widgets/payroll_penalty_table_widget.dart';
-import '../../widgets/payroll_transaction_form_modal.dart';
-import '../../../domain/entities/payroll_transaction.dart';
-import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
 
 /// Таб "Штрафы" в модуле ФОТ.
 ///
@@ -17,6 +15,17 @@ class PayrollTabPenalties extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isMobile = ResponsiveUtils.isMobile(context);
+
+    const content = PayrollPenaltyTableWidget();
+
+    if (isMobile) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 8.0),
+        child: content,
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Card(
@@ -24,43 +33,12 @@ class PayrollTabPenalties extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
           side: BorderSide(
-            color: theme.colorScheme.outline.withValues(alpha: 51),
+            color: theme.colorScheme.outline.withValues(alpha: 0.2),
           ),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Stack(
-            children: [
-              const PayrollPenaltyTableWidget(),
-              Positioned(
-                right: 8,
-                bottom: 8,
-                child: PermissionGuard(
-                  module: 'payroll',
-                  permission: 'create',
-                  child: FloatingActionButton(
-                    heroTag: 'addPayrollPenalty',
-                    onPressed: () {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        constraints: BoxConstraints(
-                          maxHeight: MediaQuery.of(context).size.height -
-                              MediaQuery.of(context).padding.top -
-                              kToolbarHeight,
-                        ),
-                        builder: (ctx) => const PayrollTransactionFormModal(
-                          transactionType: PayrollTransactionType.penalty,
-                        ),
-                      );
-                    },
-                    child: const Icon(Icons.add),
-                  ),
-                ),
-              ),
-            ],
-          ),
+        child: const Padding(
+          padding: EdgeInsets.all(16.0),
+          child: content,
         ),
       ),
     );

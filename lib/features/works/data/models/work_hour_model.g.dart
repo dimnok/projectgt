@@ -9,6 +9,7 @@ part of 'work_hour_model.dart';
 _WorkHourModel _$WorkHourModelFromJson(Map<String, dynamic> json) =>
     _WorkHourModel(
       id: json['id'] as String,
+      companyId: json['company_id'] as String,
       workId: json['work_id'] as String,
       employeeId: json['employee_id'] as String,
       hours: json['hours'] as num,
@@ -24,6 +25,7 @@ _WorkHourModel _$WorkHourModelFromJson(Map<String, dynamic> json) =>
 Map<String, dynamic> _$WorkHourModelToJson(_WorkHourModel instance) =>
     <String, dynamic>{
       'id': instance.id,
+      'company_id': instance.companyId,
       'work_id': instance.workId,
       'employee_id': instance.employeeId,
       'hours': instance.hours,

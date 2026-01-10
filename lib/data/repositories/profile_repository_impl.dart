@@ -14,14 +14,14 @@ class ProfileRepositoryImpl implements ProfileRepository {
   ProfileRepositoryImpl(this.dataSource);
 
   @override
-  Future<Profile?> getProfile(String userId) async {
-    final profileModel = await dataSource.getProfile(userId);
+  Future<Profile?> getProfile(String userId, [String? companyId]) async {
+    final profileModel = await dataSource.getProfile(userId, companyId);
     return profileModel?.toDomain();
   }
 
   @override
-  Future<List<Profile>> getProfiles() async {
-    final profileModels = await dataSource.getProfiles();
+  Future<List<Profile>> getProfiles(String companyId) async {
+    final profileModels = await dataSource.getProfiles(companyId);
     return profileModels.map((model) => model.toDomain()).toList();
   }
 

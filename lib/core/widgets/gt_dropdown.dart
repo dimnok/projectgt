@@ -7,8 +7,10 @@ const double _kDropdownBorderRadius = 8.0;
 const double _kDialogBorderRadius = 16.0;
 const double _kDropdownElevation = 4.0;
 const double _kDropdownOffset = 5.0;
-const EdgeInsets _kDropdownItemPadding =
-    EdgeInsets.symmetric(horizontal: 16, vertical: 12);
+const EdgeInsets _kDropdownItemPadding = EdgeInsets.symmetric(
+  horizontal: 16,
+  vertical: 12,
+);
 const EdgeInsets _kEmptyStatePadding = EdgeInsets.all(16);
 
 /// Кастомный выпадающий список для проекта GT.
@@ -64,28 +66,35 @@ class GTDropdown<T> extends StatefulWidget {
   /// Максимальная высота выпадающего списка
   final double maxDropdownHeight;
 
-  /// Функция для создания нового элемента из строки (для allowCustomInput)
+  /// Отступы внутри поля
+  final EdgeInsets? contentPadding;
+
+  /// Плотный режим отображения
+  final bool isDense;
+
+  /// Стиль текста в поле
+  final TextStyle? style;
+
+  /// Радиус скругления углов.
+  final double borderRadius;
+
+  /// Цвет и стиль границы.
+  final BorderSide? borderSide;
+
+  /// Иконка в начале поля.
+  final IconData? prefixIcon;
+
+  /// Функция для создания нового элемента из строки (для allowCustomInput).
   final T Function(String input)? customInputBuilder;
 
   /// Создает кастомный выпадающий список GTDropdown.
   ///
-  /// [items] - список доступных элементов для выбора.
-  /// [itemDisplayBuilder] - функция для отображения элемента в виде строки.
-  /// [labelText] - текст метки для поля ввода.
-  /// [hintText] - подсказка для поля ввода.
-  /// [selectedItems] - список выбранных элементов для множественного выбора.
-  /// [selectedItem] - выбранный элемент для одинарного выбора.
-  /// [onMultiSelectionChanged] - callback при изменении множественного выбора.
-  /// [onSelectionChanged] - callback при изменении одинарного выбора.
-  /// [allowMultipleSelection] - разрешить выбор нескольких элементов.
-  /// [allowCustomInput] - разрешить ручной ввод новых значений.
-  /// [showAddNewOption] - показывать кнопку добавления нового элемента.
-  /// [allowClear] - разрешить очистку выбора.
-  /// [validator] - функция валидации поля.
-  /// [readOnly] - поле только для чтения.
-  /// [isLoading] - показывать индикатор загрузки.
-  /// [maxDropdownHeight] - максимальная высота выпадающего списка.
-  /// [customInputBuilder] - функция создания нового элемента из строки.
+  /// [items] — список элементов для выбора.
+  /// [itemDisplayBuilder] — преобразует элемент [T] в строку для отображения.
+  /// [labelText] — заголовок поля.
+  /// [hintText] — подсказка внутри поля.
+  /// [borderRadius] — скругление углов (по умолчанию 16.0).
+  /// [allowClear] — разрешить очистку выбранного значения.
   const GTDropdown({
     super.key,
     required this.items,
@@ -104,11 +113,21 @@ class GTDropdown<T> extends StatefulWidget {
     this.readOnly = false,
     this.isLoading = false,
     this.maxDropdownHeight = 200,
+    this.contentPadding,
+    this.isDense = false,
+    this.style,
+    this.borderRadius = 16.0,
+    this.borderSide,
+    this.prefixIcon,
     this.customInputBuilder,
-  })  : assert(!allowMultipleSelection || onMultiSelectionChanged != null,
-            'onMultiSelectionChanged required for multiple selection'),
-        assert(allowMultipleSelection || onSelectionChanged != null,
-            'onSelectionChanged required for single selection');
+  }) : assert(
+         !allowMultipleSelection || onMultiSelectionChanged != null,
+         'onMultiSelectionChanged required for multiple selection',
+       ),
+       assert(
+         allowMultipleSelection || onSelectionChanged != null,
+         'onSelectionChanged required for single selection',
+       );
 
   @override
   State<GTDropdown<T>> createState() => _GTDropdownState<T>();
@@ -135,8 +154,9 @@ class _GTDropdownState<T> extends State<GTDropdown<T>> {
       if (widget.selectedItems.isEmpty) {
         _textController.text = '';
       } else if (widget.selectedItems.length == 1) {
-        _textController.text =
-            widget.itemDisplayBuilder(widget.selectedItems.first);
+        _textController.text = widget.itemDisplayBuilder(
+          widget.selectedItems.first,
+        );
       } else {
         _textController.text = '${widget.selectedItems.length} выбрано';
       }
@@ -151,7 +171,8 @@ class _GTDropdownState<T> extends State<GTDropdown<T>> {
   void didUpdateWidget(GTDropdown<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
     final hasSelectionChanged = _hasSelectionChanged(oldWidget);
-    final hasItemsChanged = widget.items.length != oldWidget.items.length ||
+    final hasItemsChanged =
+        widget.items.length != oldWidget.items.length ||
         !_areItemsEqual(widget.items, oldWidget.items);
 
     if (hasSelectionChanged) {
@@ -213,8 +234,9 @@ class _GTDropdownState<T> extends State<GTDropdown<T>> {
         if (widget.selectedItems.isEmpty) {
           _textController.text = '';
         } else if (widget.selectedItems.length == 1) {
-          _textController.text =
-              widget.itemDisplayBuilder(widget.selectedItems.first);
+          _textController.text = widget.itemDisplayBuilder(
+            widget.selectedItems.first,
+          );
         } else {
           _textController.text = '${widget.selectedItems.length} выбрано';
         }
@@ -283,11 +305,7 @@ class _GTDropdownState<T> extends State<GTDropdown<T>> {
         child: Stack(
           children: [
             // Невидимый слой на весь экран для перехвата кликов
-            Positioned.fill(
-              child: Container(
-                color: Colors.transparent,
-              ),
-            ),
+            Positioned.fill(child: Container(color: Colors.transparent)),
             // Сам dropdown
             Positioned(
               width: size.width,
@@ -318,8 +336,9 @@ class _GTDropdownState<T> extends State<GTDropdown<T>> {
         widget.showAddNewOption && widget.allowCustomInput && !widget.readOnly;
 
     return Container(
-      constraints:
-          BoxConstraints(maxHeight: maxHeight ?? widget.maxDropdownHeight),
+      constraints: BoxConstraints(
+        maxHeight: maxHeight ?? widget.maxDropdownHeight,
+      ),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(_kDropdownBorderRadius),
@@ -406,11 +425,7 @@ class _GTDropdownState<T> extends State<GTDropdown<T>> {
 
             // Иконка выбора для одинарного выбора
             if (!widget.allowMultipleSelection && isSelected)
-              Icon(
-                Icons.check,
-                size: 20,
-                color: theme.colorScheme.primary,
-              ),
+              Icon(Icons.check, size: 20, color: theme.colorScheme.primary),
           ],
         ),
       ),
@@ -517,8 +532,10 @@ class _GTDropdownState<T> extends State<GTDropdown<T>> {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
               ),
               onSubmitted: (value) {
                 if (value.trim().isNotEmpty) {
@@ -740,17 +757,31 @@ class _GTDropdownState<T> extends State<GTDropdown<T>> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return CompositedTransformTarget(
       link: _layerLink,
       child: TextFormField(
         controller: _textController,
         focusNode: _focusNode,
+        style: widget.style ?? const TextStyle(fontSize: 15),
         readOnly:
             true, // Всегда только для чтения, чтобы не открывалась клавиатура
         validator: widget.validator,
         decoration: InputDecoration(
-          labelText: widget.labelText,
+          labelText: widget.labelText.isEmpty ? null : widget.labelText,
           hintText: widget.hintText,
+          isDense: widget.isDense,
+          prefixIcon: widget.prefixIcon != null
+              ? Icon(widget.prefixIcon, size: 20)
+              : null,
+          contentPadding:
+              widget.contentPadding ??
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          suffixIconConstraints: widget.isDense
+              ? const BoxConstraints(minWidth: 32, minHeight: 20)
+              : null,
           suffixIcon: widget.isLoading
               ? const SizedBox(
                   width: 20,
@@ -758,7 +789,44 @@ class _GTDropdownState<T> extends State<GTDropdown<T>> {
                   child: CupertinoActivityIndicator(radius: 8),
                 )
               : _buildSuffixIcon(),
-          border: const OutlineInputBorder(),
+          filled: true,
+          fillColor: !widget.readOnly
+              ? (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white)
+              : (isDark
+                    ? Colors.white.withValues(alpha: 0.02)
+                    : Colors.grey.withValues(alpha: 0.05)),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(widget.borderRadius),
+            borderSide:
+                widget.borderSide ??
+                BorderSide(
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.1)
+                      : Colors.black12,
+                ),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(widget.borderRadius),
+            borderSide:
+                widget.borderSide ??
+                BorderSide(
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.1)
+                      : Colors.black12,
+                ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(widget.borderRadius),
+            borderSide:
+                widget.borderSide?.copyWith(
+                  color: isDark ? Colors.white : Colors.black,
+                  width: 1.5,
+                ) ??
+                BorderSide(
+                  color: isDark ? Colors.white : Colors.black,
+                  width: 1.5,
+                ),
+          ),
         ),
         onTap: () {
           // Проверяем, можно ли открыть dropdown
@@ -806,7 +874,25 @@ class GTEnumDropdown<T extends Enum> extends StatelessWidget {
   /// Разрешить очистку выбора.
   final bool allowClear;
 
+  /// Отступы внутри поля.
+  final EdgeInsets? contentPadding;
+
+  /// Плотный режим отображения.
+  final bool isDense;
+
+  /// Стиль текста в поле.
+  final TextStyle? style;
+
+  /// Радиус скругления углов.
+  final double borderRadius;
+
   /// Создает dropdown для enum значений.
+  ///
+  /// [values] — список доступных вариантов enum.
+  /// [selectedValue] — текущее выбранное значение.
+  /// [onChanged] — callback при изменении выбора.
+  /// [enumToString] — функция преобразования enum в человекочитаемую строку.
+  /// [borderRadius] — скругление углов (по умолчанию 16.0).
   const GTEnumDropdown({
     super.key,
     required this.values,
@@ -818,6 +904,10 @@ class GTEnumDropdown<T extends Enum> extends StatelessWidget {
     this.validator,
     this.readOnly = false,
     this.allowClear = true,
+    this.contentPadding,
+    this.isDense = false,
+    this.style,
+    this.borderRadius = 16.0,
   });
 
   @override
@@ -837,6 +927,10 @@ class GTEnumDropdown<T extends Enum> extends StatelessWidget {
       allowClear: allowClear,
       validator: validator,
       readOnly: readOnly,
+      contentPadding: contentPadding,
+      isDense: isDense,
+      style: style,
+      borderRadius: borderRadius,
     );
   }
 }
@@ -885,7 +979,25 @@ class GTStringDropdown extends StatelessWidget {
   /// Поле только для чтения.
   final bool readOnly;
 
+  /// Отступы внутри поля.
+  final EdgeInsets? contentPadding;
+
+  /// Плотный режим отображения.
+  final bool isDense;
+
+  /// Стиль текста в поле.
+  final TextStyle? style;
+
+  /// Радиус скругления углов.
+  final double borderRadius;
+
   /// Создает dropdown для строковых значений.
+  ///
+  /// [items] — список строк для выбора.
+  /// [selectedItem] — текущая выбранная строка.
+  /// [onSelectionChanged] — callback при изменении выбора.
+  /// [allowCustomInput] — разрешить ручной ввод произвольных строк.
+  /// [borderRadius] — скругление углов (по умолчанию 16.0).
   const GTStringDropdown({
     super.key,
     required this.items,
@@ -901,6 +1013,10 @@ class GTStringDropdown extends StatelessWidget {
     this.allowClear = true,
     this.validator,
     this.readOnly = false,
+    this.contentPadding,
+    this.isDense = false,
+    this.style,
+    this.borderRadius = 16.0,
   });
 
   @override
@@ -921,6 +1037,10 @@ class GTStringDropdown extends StatelessWidget {
       customInputBuilder: (input) => input,
       validator: validator,
       readOnly: readOnly,
+      contentPadding: contentPadding,
+      isDense: isDense,
+      style: style,
+      borderRadius: borderRadius,
     );
   }
 }

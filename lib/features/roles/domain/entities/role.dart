@@ -10,6 +10,7 @@ abstract class Role with _$Role {
     required String id,
     required String name,
     required String description,
+    String? companyId,
     @Default(false) bool isSystem,
     required DateTime createdAt,
     required DateTime updatedAt,

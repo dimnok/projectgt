@@ -15,6 +15,7 @@ import '../../../../core/di/providers.dart';
 import '../../../../domain/entities/estimate.dart';
 import '../../../../core/widgets/gt_dropdown.dart';
 import '../providers/work_provider.dart';
+import '../../../../features/company/presentation/providers/company_providers.dart';
 import 'package:projectgt/core/utils/modal_utils.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 
@@ -116,8 +117,14 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
     });
 
     try {
-      final workItemsNotifier =
-          ref.read(workItemsProvider(widget.workId).notifier);
+      final workItemsNotifier = ref.read(
+        workItemsProvider(widget.workId).notifier,
+      );
+      final activeCompanyId = ref.read(activeCompanyIdProvider);
+
+      if (activeCompanyId == null) {
+        throw Exception('Компания не выбрана');
+      }
 
       // Создаём список WorkItem и сохраняем пакетно одним вызовом
       final itemsToAdd = <WorkItem>[];
@@ -127,6 +134,7 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
         itemsToAdd.add(
           WorkItem(
             id: isModifying ? widget.initial!.id : const Uuid().v4(),
+            companyId: activeCompanyId,
             workId: widget.workId,
             section: _selectedSection!,
             floor: _selectedFloor!,
@@ -316,16 +324,19 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
         _selectedSystem != null &&
         _selectedSubsystem != null) {
       final workItemsAsync = ref.read(workItemsProvider(widget.workId));
-      final existingItems =
-          workItemsAsync.hasValue ? (workItemsAsync.value ?? []) : <WorkItem>[];
+      final existingItems = workItemsAsync.hasValue
+          ? (workItemsAsync.value ?? [])
+          : <WorkItem>[];
 
       // Собираем множество estimateId уже добавленных материалов для выбранной комбинации
       final existingEstimateIdsForCombo = existingItems
-          .where((item) =>
-              item.section == _selectedSection &&
-              item.floor == _selectedFloor &&
-              item.system == _selectedSystem &&
-              item.subsystem == _selectedSubsystem)
+          .where(
+            (item) =>
+                item.section == _selectedSection &&
+                item.floor == _selectedFloor &&
+                item.system == _selectedSystem &&
+                item.subsystem == _selectedSubsystem,
+          )
           .map((e) => e.estimateId)
           .toSet();
 
@@ -349,8 +360,11 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
   /// Получает список доступных участков (модулей) для текущего объекта.
   Future<List<String>> _getAvailableSections() async {
     try {
-      final response = await Supabase.instance.client
-          .rpc('get_object_sections', params: {'target_object_id': objectId});
+      final activeCompanyId = ref.read(activeCompanyIdProvider);
+      final response = await Supabase.instance.client.rpc(
+        'get_object_sections',
+        params: {'target_object_id': objectId, 'p_company_id': activeCompanyId},
+      );
 
       final List<dynamic> data = response as List<dynamic>;
       return data.map((e) => e['section'] as String).toList();
@@ -363,8 +377,11 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
   /// Получает список всех доступных этажей для текущего объекта.
   Future<List<String>> _getAvailableFloors() async {
     try {
-      final response = await Supabase.instance.client
-          .rpc('get_object_floors', params: {'target_object_id': objectId});
+      final activeCompanyId = ref.read(activeCompanyIdProvider);
+      final response = await Supabase.instance.client.rpc(
+        'get_object_floors',
+        params: {'target_object_id': objectId, 'p_company_id': activeCompanyId},
+      );
 
       final List<dynamic> data = response as List<dynamic>;
       return data.map((e) => e['floor'] as String).toList();
@@ -377,8 +394,9 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
   @override
   Widget build(BuildContext context) {
     final isMobile = ResponsiveUtils.isMobile(context);
-    final title =
-        widget.initial == null ? 'Добавить работы' : 'Редактировать работу';
+    final title = widget.initial == null
+        ? 'Добавить работы'
+        : 'Редактировать работу';
 
     final footer = Row(
       children: [
@@ -401,10 +419,7 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
 
     final content = _isLoading
         ? const Center(child: CupertinoActivityIndicator())
-        : Form(
-            key: _formKey,
-            child: _buildFormContent(Theme.of(context)),
-          );
+        : Form(key: _formKey, child: _buildFormContent(Theme.of(context)));
 
     if (isMobile) {
       return MobileBottomSheetContent(
@@ -432,10 +447,7 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
       slivers: [
         SliverToBoxAdapter(
           child: Column(
-            children: [
-              _buildSelectionFields(),
-              const SizedBox(height: 12),
-            ],
+            children: [_buildSelectionFields(), const SizedBox(height: 12)],
           ),
         ),
         if (allSelected) ..._buildMaterialsSlivers(theme),
@@ -448,8 +460,8 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
     final filteredBySearch = query.isEmpty
         ? _filteredEstimates
         : _filteredEstimates
-            .where((e) => e.name.toLowerCase().contains(query.toLowerCase()))
-            .toList();
+              .where((e) => e.name.toLowerCase().contains(query.toLowerCase()))
+              .toList();
 
     return [
       SliverAppBar(
@@ -476,9 +488,7 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
                 _searchQuery = value;
               });
             },
-            style: TextStyle(
-              color: theme.colorScheme.onSurface,
-            ),
+            style: TextStyle(color: theme.colorScheme.onSurface),
           ),
         ),
       ),
@@ -493,117 +503,117 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
         )
       else
         SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (context, index) {
-              final estimate = filteredBySearch[index];
-              final isSelected = _selectedEstimateItems.containsKey(estimate);
-              final isDark = theme.brightness == Brightness.dark;
+          delegate: SliverChildBuilderDelegate((context, index) {
+            final estimate = filteredBySearch[index];
+            final isSelected = _selectedEstimateItems.containsKey(estimate);
+            final isDark = theme.brightness == Brightness.dark;
 
-              // Цвета для выделенного состояния
-              final selectedBgColor = isDark
-                  ? Colors.green.withValues(alpha: 0.2)
-                  : Colors.green.shade50;
-              final selectedTextColor =
-                  isDark ? Colors.greenAccent.shade100 : Colors.green.shade700;
-              final selectedSubColor = isDark
-                  ? Colors.greenAccent.shade100.withValues(alpha: 0.7)
-                  : Colors.green.shade600;
+            // Цвета для выделенного состояния
+            final selectedBgColor = isDark
+                ? Colors.green.withValues(alpha: 0.2)
+                : Colors.green.shade50;
+            final selectedTextColor = isDark
+                ? Colors.greenAccent.shade100
+                : Colors.green.shade700;
+            final selectedSubColor = isDark
+                ? Colors.greenAccent.shade100.withValues(alpha: 0.7)
+                : Colors.green.shade600;
 
-              return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    if (isSelected) {
-                      _selectedEstimateItems.remove(estimate);
-                      _quantityControllers[estimate]?.dispose();
-                      _quantityControllers.remove(estimate);
-                    } else {
-                      _selectedEstimateItems[estimate] = null;
-                      _quantityControllers.putIfAbsent(
-                        estimate,
-                        () => TextEditingController(text: ''),
-                      );
-                    }
-                  });
-                },
-                child: Card(
-                  color:
-                      isSelected ? selectedBgColor : theme.colorScheme.surface,
-                  elevation: isSelected ? 2 : 0,
-                  margin: const EdgeInsets.symmetric(vertical: 4),
-                  child: ListTile(
-                    leading: Text(
-                      estimate.number,
-                      style: TextStyle(
-                        color: isSelected
-                            ? selectedTextColor
-                            : theme.colorScheme.onSurface,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
+            return GestureDetector(
+              onTap: () {
+                setState(() {
+                  if (isSelected) {
+                    _selectedEstimateItems.remove(estimate);
+                    _quantityControllers[estimate]?.dispose();
+                    _quantityControllers.remove(estimate);
+                  } else {
+                    _selectedEstimateItems[estimate] = null;
+                    _quantityControllers.putIfAbsent(
+                      estimate,
+                      () => TextEditingController(text: ''),
+                    );
+                  }
+                });
+              },
+              child: Card(
+                color: isSelected ? selectedBgColor : theme.colorScheme.surface,
+                elevation: isSelected ? 2 : 0,
+                margin: const EdgeInsets.symmetric(vertical: 4),
+                child: ListTile(
+                  leading: Text(
+                    estimate.number,
+                    style: TextStyle(
+                      color: isSelected
+                          ? selectedTextColor
+                          : theme.colorScheme.onSurface,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
                     ),
-                    title: Text(
-                      estimate.name,
-                      style: TextStyle(
-                        color: isSelected
-                            ? selectedTextColor
-                            : theme.colorScheme.onSurface,
-                        fontWeight:
-                            isSelected ? FontWeight.w600 : FontWeight.normal,
-                      ),
-                    ),
-                    subtitle: Text(
-                      '${formatCurrency(estimate.price)} / ${estimate.unit}',
-                      style: TextStyle(
-                        color: isSelected
-                            ? selectedSubColor
-                            : theme.colorScheme.onSurface
-                                .withValues(alpha: 0.6),
-                      ),
-                    ),
-                    trailing: isSelected
-                        ? SizedBox(
-                            width: 80,
-                            child: TextField(
-                              controller: _quantityControllers[estimate],
-                              decoration: const InputDecoration(
-                                hintText: 'Кол-во',
-                                border: OutlineInputBorder(),
-                                isDense: true,
-                                contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 8),
-                              ),
-                              style: TextStyle(
-                                color: isDark ? Colors.white : Colors.black,
-                              ),
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                      decimal: true),
-                              textAlign: TextAlign.center,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.allow(
-                                    // ignore: deprecated_member_use
-                                    RegExp(r'[0-9.,]')),
-                              ],
-                              onChanged: (value) {
-                                final normalized = value.replaceAll(',', '.');
-                                final qty = double.tryParse(normalized) ?? 0.0;
-                                setState(() {
-                                  if (qty > 0) {
-                                    _selectedEstimateItems[estimate] = qty;
-                                  } else {
-                                    _selectedEstimateItems[estimate] = null;
-                                  }
-                                });
-                              },
-                            ),
-                          )
-                        : null,
                   ),
+                  title: Text(
+                    estimate.name,
+                    style: TextStyle(
+                      color: isSelected
+                          ? selectedTextColor
+                          : theme.colorScheme.onSurface,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                    ),
+                  ),
+                  subtitle: Text(
+                    '${formatCurrency(estimate.price)} / ${estimate.unit}',
+                    style: TextStyle(
+                      color: isSelected
+                          ? selectedSubColor
+                          : theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                  ),
+                  trailing: isSelected
+                      ? SizedBox(
+                          width: 80,
+                          child: TextField(
+                            controller: _quantityControllers[estimate],
+                            decoration: const InputDecoration(
+                              hintText: 'Кол-во',
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 8,
+                              ),
+                            ),
+                            style: TextStyle(
+                              color: isDark ? Colors.white : Colors.black,
+                            ),
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            textAlign: TextAlign.center,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                // ignore: deprecated_member_use
+                                RegExp(r'[0-9.,]'),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              final normalized = value.replaceAll(',', '.');
+                              final qty = double.tryParse(normalized) ?? 0.0;
+                              setState(() {
+                                if (qty > 0) {
+                                  _selectedEstimateItems[estimate] = qty;
+                                } else {
+                                  _selectedEstimateItems[estimate] = null;
+                                }
+                              });
+                            },
+                          ),
+                        )
+                      : null,
                 ),
-              );
-            },
-            childCount: filteredBySearch.length,
-          ),
+              ),
+            );
+          }, childCount: filteredBySearch.length),
         ),
       SliverToBoxAdapter(
         child: Padding(
@@ -621,7 +631,8 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: const Text(
-                          'Сначала заполните участок, этаж, систему и подсистему'),
+                        'Сначала заполните участок, этаж, систему и подсистему',
+                      ),
                       backgroundColor: Theme.of(context).colorScheme.error,
                     ),
                   );
@@ -642,8 +653,9 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
                       .loadEstimates();
                   _updateFilteredEstimates();
 
-                  final estimates =
-                      ref.read(estimateNotifierProvider).estimates;
+                  final estimates = ref
+                      .read(estimateNotifierProvider)
+                      .estimates;
                   final created = estimates.firstWhere(
                     (e) =>
                         e.objectId == objectId &&

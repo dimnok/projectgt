@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import '../providers/materials_mapping_providers.dart';
@@ -89,10 +90,12 @@ class _MaterialsListDialogState extends ConsumerState<_MaterialsListDialog> {
   Future<void> _initContract() async {
     try {
       final client = ref.read(supabaseClientProvider);
+      final activeCompanyId = ref.read(activeCompanyIdProvider);
       final estimateRes = await client
           .from('estimates')
           .select('name, unit, contracts!inner(number)')
           .eq('id', widget.estimateId)
+          .eq('company_id', activeCompanyId ?? '')
           .maybeSingle();
 
       if (estimateRes != null && estimateRes['contracts'] != null) {
@@ -139,8 +142,9 @@ class _MaterialsListDialogState extends ConsumerState<_MaterialsListDialog> {
     setState(() => _loading = true);
     try {
       final client = ref.read(supabaseClientProvider);
+      final activeCompanyId = ref.read(activeCompanyIdProvider);
 
-      if (_contractNumber == null || _contractNumber!.isEmpty) {
+      if (_contractNumber == null || _contractNumber!.isEmpty || activeCompanyId == null) {
         if (mounted) setState(() => _items = []);
         return;
       }
@@ -154,6 +158,7 @@ class _MaterialsListDialogState extends ConsumerState<_MaterialsListDialog> {
           params: {
             'search_query': searchQuery,
             'contract_num': _contractNumber!,
+            'p_company_id': activeCompanyId,
           },
         );
 
@@ -176,6 +181,7 @@ class _MaterialsListDialogState extends ConsumerState<_MaterialsListDialog> {
         final rows = await client
             .from('v_materials_with_usage')
             .select('id, name, unit, receipt_number')
+            .eq('company_id', activeCompanyId)
             .eq('contract_number', _contractNumber!)
             .isFilter('estimate_id', null)
             .ilike('name', '%$searchQuery%')
@@ -661,6 +667,7 @@ class _MaterialsListDialogState extends ConsumerState<_MaterialsListDialog> {
         }
 
         try {
+          final activeCompanyId = ref.read(activeCompanyIdProvider);
           await client.rpc(
             'add_kit_component',
             params: {
@@ -669,6 +676,7 @@ class _MaterialsListDialogState extends ConsumerState<_MaterialsListDialog> {
               'p_material_unit': uom ?? 'шт',
               'p_qty_per_kit': qtyPerKit,
               'p_alias_raw': alias,
+              'p_company_id': activeCompanyId,
             },
           );
 
@@ -797,6 +805,7 @@ class _MaterialsListDialogState extends ConsumerState<_MaterialsListDialog> {
     try {
       final client = ref.read(supabaseClientProvider);
 
+      final activeCompanyId = ref.read(activeCompanyIdProvider);
       final response = await client.rpc(
         'find_similar_estimates',
         params: {
@@ -805,6 +814,7 @@ class _MaterialsListDialogState extends ConsumerState<_MaterialsListDialog> {
           'p_unit': estimateUnit,
           'p_current_estimate_id': currentEstimateId,
           'p_min_similarity': 0.4, // Порог 40% схожести
+          'p_company_id': activeCompanyId,
         },
       );
 
@@ -992,6 +1002,7 @@ class _MaterialsListDialogState extends ConsumerState<_MaterialsListDialog> {
     required double multiplier,
   }) async {
     final client = ref.read(supabaseClientProvider);
+    final activeCompanyId = ref.read(activeCompanyIdProvider);
     final alias = material['name']?.toString() ?? '';
     final uom = material['unit']?.toString();
 
@@ -1007,6 +1018,7 @@ class _MaterialsListDialogState extends ConsumerState<_MaterialsListDialog> {
                     'alias_raw': alias,
                     'uom_raw': uom,
                     'multiplier_to_estimate': multiplier,
+                    'company_id': activeCompanyId,
                   },
                 )
                 .toList(),

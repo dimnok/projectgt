@@ -9,6 +9,9 @@ abstract class PayrollTransaction {
   /// Идентификатор сотрудника
   String get employeeId;
 
+  /// Идентификатор компании
+  String get companyId;
+
   /// Тип транзакции (manual, automatic и т.д.)
   String get type;
 

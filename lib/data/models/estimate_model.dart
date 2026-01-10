@@ -29,6 +29,7 @@ abstract class EstimateModel with _$EstimateModel {
   @JsonSerializable(explicitToJson: true, includeIfNull: false)
   const factory EstimateModel({
     String? id,
+    @JsonKey(name: 'company_id') required String companyId,
     required String system,
     required String subsystem,
     @JsonKey(fromJson: _numberFromJson) required String number,
@@ -64,6 +65,7 @@ extension EstimateModelMapper on EstimateModel {
   /// Преобразует [EstimateModel] в доменную сущность [Estimate].
   Estimate toDomain() => Estimate(
         id: id ?? '',
+        companyId: companyId,
         system: system,
         subsystem: subsystem,
         number: number,
@@ -86,6 +88,7 @@ extension EstimateDomainMapper on Estimate {
   /// Преобразует доменную сущность [Estimate] в [EstimateModel].
   EstimateModel toModel() => EstimateModel(
         id: id.trim().isEmpty ? null : id,
+        companyId: companyId,
         system: system,
         subsystem: subsystem,
         number: number,

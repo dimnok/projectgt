@@ -35,6 +35,9 @@ abstract class Profile with _$Profile {
     /// ID роли пользователя (связь с таблицей roles).
     String? roleId,
 
+    /// Системная роль пользователя (owner, admin).
+    String? system_role,
+
     /// Статус профиля (активен/неактивен).
     @Default(true) bool status,
 
@@ -49,6 +52,9 @@ abstract class Profile with _$Profile {
 
     /// Дата последнего обновления профиля.
     DateTime? updatedAt,
+
+    /// ID последней активной компании пользователя.
+    String? lastCompanyId,
   }) = _Profile;
 
   /// Приватный конструктор для расширения функциональности через методы.

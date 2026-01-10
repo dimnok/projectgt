@@ -21,6 +21,7 @@ abstract class PayrollPayoutModel with _$PayrollPayoutModel {
   const factory PayrollPayoutModel({
     required String id,
     @JsonKey(name: 'employee_id') required String employeeId,
+    @JsonKey(name: 'company_id') required String companyId,
     required num amount,
     @JsonKey(name: 'payout_date') required DateTime payoutDate,
     required String method,

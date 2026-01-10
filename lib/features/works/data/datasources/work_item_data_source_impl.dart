@@ -8,13 +8,16 @@ class WorkItemDataSourceImpl implements WorkItemDataSource {
   /// Клиент Supabase для доступа к базе данных.
   final SupabaseClient client;
 
+  /// ID текущей активной компании для фильтрации данных (Multi-tenancy).
+  final String activeCompanyId;
+
   /// Название таблицы работ.
   static const String table = 'work_items';
 
   /// Логгер удалён.
 
   /// Создаёт источник данных для работы с работами в смене.
-  WorkItemDataSourceImpl(this.client);
+  WorkItemDataSourceImpl(this.client, this.activeCompanyId);
 
   /// Возвращает список работ для смены по идентификатору [workId].
   @override
@@ -27,6 +30,7 @@ class WorkItemDataSourceImpl implements WorkItemDataSource {
           .from(table)
           .select()
           .eq('work_id', workId)
+          .eq('company_id', activeCompanyId)
           .order('created_at');
       return response.map<WorkItemModel>((json) {
         try {
@@ -51,6 +55,7 @@ class WorkItemDataSourceImpl implements WorkItemDataSource {
       final itemJson = item.toJson();
       itemJson['created_at'] = now;
       itemJson['updated_at'] = now;
+      itemJson['company_id'] = activeCompanyId;
       await client.from(table).insert(itemJson);
     } catch (e) {
       rethrow;
@@ -70,6 +75,7 @@ class WorkItemDataSourceImpl implements WorkItemDataSource {
         }
         json['created_at'] = now;
         json['updated_at'] = now;
+        json['company_id'] = activeCompanyId;
         return json;
       }).toList();
       await client.from(table).insert(payload);
@@ -85,8 +91,13 @@ class WorkItemDataSourceImpl implements WorkItemDataSource {
       final now = DateTime.now().toIso8601String();
       final itemJson = item.toJson();
       itemJson['updated_at'] = now;
+      itemJson['company_id'] = activeCompanyId;
 
-      await client.from(table).update(itemJson).eq('id', item.id);
+      await client
+          .from(table)
+          .update(itemJson)
+          .eq('id', item.id)
+          .eq('company_id', activeCompanyId);
     } catch (e) {
       rethrow;
     }
@@ -96,7 +107,11 @@ class WorkItemDataSourceImpl implements WorkItemDataSource {
   @override
   Future<void> deleteWorkItem(String id) async {
     try {
-      await client.from(table).delete().eq('id', id);
+      await client
+          .from(table)
+          .delete()
+          .eq('id', id)
+          .eq('company_id', activeCompanyId);
     } catch (e) {
       rethrow;
     }
@@ -106,7 +121,11 @@ class WorkItemDataSourceImpl implements WorkItemDataSource {
   @override
   Future<List<WorkItemModel>> getAllWorkItems() async {
     try {
-      final response = await client.from(table).select().order('created_at');
+      final response = await client
+          .from(table)
+          .select()
+          .eq('company_id', activeCompanyId)
+          .order('created_at');
       return response.map<WorkItemModel>((json) {
         try {
           return WorkItemModel.fromJson(json);

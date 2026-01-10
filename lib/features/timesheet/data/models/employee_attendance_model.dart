@@ -10,6 +10,7 @@ abstract class EmployeeAttendanceModel with _$EmployeeAttendanceModel {
   /// Основной конструктор [EmployeeAttendanceModel].
   const factory EmployeeAttendanceModel({
     required String id,
+    @JsonKey(name: 'company_id') required String companyId,
     @JsonKey(name: 'employee_id') required String employeeId,
     @JsonKey(name: 'object_id') required String objectId,
     required String date,
@@ -34,6 +35,7 @@ extension EmployeeAttendanceModelX on EmployeeAttendanceModel {
   EmployeeAttendanceEntry toDomain() {
     return EmployeeAttendanceEntry(
       id: id,
+      companyId: companyId,
       employeeId: employeeId,
       objectId: objectId,
       date: DateTime.parse(date),
@@ -52,6 +54,7 @@ EmployeeAttendanceModel employeeAttendanceModelFromDomain(
     EmployeeAttendanceEntry entry) {
   return EmployeeAttendanceModel(
     id: entry.id,
+    companyId: entry.companyId,
     employeeId: entry.employeeId,
     objectId: entry.objectId,
     date: entry.date.toIso8601String().split('T')[0], // Только дата

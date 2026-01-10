@@ -15,8 +15,14 @@ class BusinessTripRateDataSource {
   /// Клиент Supabase для выполнения запросов к БД.
   final SupabaseClient _client = Supabase.instance.client;
 
+  /// ID активной компании.
+  final String _activeCompanyId;
+
   /// Название таблицы в БД.
   static const String _tableName = 'business_trip_rates';
+
+  /// Создаёт экземпляр [BusinessTripRateDataSource] с заданным [_activeCompanyId].
+  BusinessTripRateDataSource(this._activeCompanyId);
 
   /// Получает все ставки командировочных выплат.
   ///
@@ -31,6 +37,7 @@ class BusinessTripRateDataSource {
       final response = await _client
           .from(_tableName)
           .select()
+          .eq('company_id', _activeCompanyId)
           .order('created_at', ascending: false);
 
       return (response as List)
@@ -57,6 +64,7 @@ class BusinessTripRateDataSource {
           .from(_tableName)
           .select()
           .eq('object_id', objectId)
+          .eq('company_id', _activeCompanyId)
           .order('valid_from', ascending: false);
 
       return (response as List)
@@ -88,6 +96,7 @@ class BusinessTripRateDataSource {
           .from(_tableName)
           .select()
           .eq('object_id', objectId)
+          .eq('company_id', _activeCompanyId)
           .lte('valid_from', dateStr)
           .or('valid_to.is.null,valid_to.gte.$dateStr')
           .order('valid_from', ascending: false)
@@ -139,6 +148,7 @@ class BusinessTripRateDataSource {
           .select()
           .eq('object_id', objectId)
           .eq('employee_id', employeeId)
+          .eq('company_id', _activeCompanyId)
           .lte('valid_from', dateStr)
           .or('valid_to.is.null,valid_to.gte.$dateStr')
           .order('valid_from', ascending: false)
@@ -159,6 +169,7 @@ class BusinessTripRateDataSource {
           .from(_tableName)
           .select()
           .eq('object_id', objectId)
+          .eq('company_id', _activeCompanyId)
           .filter('employee_id', 'is', 'null') // Проверка employee_id IS NULL
           .lte('valid_from', dateStr)
           .or('valid_to.is.null,valid_to.gte.$dateStr')
@@ -211,6 +222,7 @@ class BusinessTripRateDataSource {
   Future<BusinessTripRateModel> createRate(BusinessTripRateModel rate) async {
     try {
       final data = rate.toJson();
+      data['company_id'] = _activeCompanyId;
 
       // Убираем системные поля, которые заполняются автоматически
       data.remove('created_at');
@@ -255,6 +267,7 @@ class BusinessTripRateDataSource {
           .from(_tableName)
           .update(data)
           .eq('id', rate.id)
+          .eq('company_id', _activeCompanyId)
           .select()
           .single();
 
@@ -274,7 +287,11 @@ class BusinessTripRateDataSource {
   /// ```
   Future<void> deleteRate(String id) async {
     try {
-      await _client.from(_tableName).delete().eq('id', id);
+      await _client
+          .from(_tableName)
+          .delete()
+          .eq('id', id)
+          .eq('company_id', _activeCompanyId);
     } catch (e) {
       throw Exception('Ошибка удаления ставки командировочных: $e');
     }
@@ -291,8 +308,12 @@ class BusinessTripRateDataSource {
   /// ```
   Future<BusinessTripRateModel?> getRateById(String id) async {
     try {
-      final response =
-          await _client.from(_tableName).select().eq('id', id).maybeSingle();
+      final response = await _client
+          .from(_tableName)
+          .select()
+          .eq('id', id)
+          .eq('company_id', _activeCompanyId)
+          .maybeSingle();
 
       if (response == null) return null;
 
@@ -329,8 +350,11 @@ class BusinessTripRateDataSource {
     String? excludeId,
   ]) async {
     try {
-      var query =
-          _client.from(_tableName).select('id').eq('object_id', objectId);
+      var query = _client
+          .from(_tableName)
+          .select('id')
+          .eq('object_id', objectId)
+          .eq('company_id', _activeCompanyId);
 
       // Фильтруем по сотруднику, если указан
       if (employeeId != null) {

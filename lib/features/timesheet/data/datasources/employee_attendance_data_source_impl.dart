@@ -8,6 +8,9 @@ class EmployeeAttendanceDataSourceImpl implements EmployeeAttendanceDataSource {
   /// Клиент Supabase для работы с базой данных.
   final SupabaseClient client;
 
+  /// ID активной компании.
+  final String activeCompanyId;
+
   /// Логгер для отладки и отслеживания ошибок.
   final Logger _logger = Logger();
 
@@ -15,7 +18,7 @@ class EmployeeAttendanceDataSourceImpl implements EmployeeAttendanceDataSource {
   static const String tableName = 'employee_attendance';
 
   /// Создает экземпляр [EmployeeAttendanceDataSourceImpl].
-  EmployeeAttendanceDataSourceImpl(this.client);
+  EmployeeAttendanceDataSourceImpl(this.client, this.activeCompanyId);
 
   @override
   Future<List<EmployeeAttendanceModel>> getAttendanceRecords({
@@ -26,7 +29,7 @@ class EmployeeAttendanceDataSourceImpl implements EmployeeAttendanceDataSource {
   }) async {
     try {
       // Создаём начальный query builder
-      var queryBuilder = client.from(tableName).select();
+      var queryBuilder = client.from(tableName).select().eq('company_id', activeCompanyId);
 
       // Фильтрация по сотруднику
       if (employeeId != null) {
@@ -116,8 +119,12 @@ class EmployeeAttendanceDataSourceImpl implements EmployeeAttendanceDataSource {
   @override
   Future<EmployeeAttendanceModel?> getAttendanceById(String id) async {
     try {
-      final response =
-          await client.from(tableName).select().eq('id', id).maybeSingle();
+      final response = await client
+          .from(tableName)
+          .select()
+          .eq('id', id)
+          .eq('company_id', activeCompanyId)
+          .maybeSingle();
 
       if (response == null) {
         return null;
@@ -145,6 +152,7 @@ class EmployeeAttendanceDataSourceImpl implements EmployeeAttendanceDataSource {
             .from(tableName)
             .select('id')
             .eq('employee_id', employeeId)
+            .eq('company_id', activeCompanyId)
             .eq('object_id', objectId)
             .eq('date', date)
             .maybeSingle();
@@ -161,11 +169,13 @@ class EmployeeAttendanceDataSourceImpl implements EmployeeAttendanceDataSource {
               .from(tableName)
               .update(data)
               .eq('employee_id', employeeId)
+              .eq('company_id', activeCompanyId)
               .eq('object_id', objectId)
               .eq('date', date);
         } else {
           // Записи нет - вставляем новую
           data.remove('id'); // Пусть БД сгенерирует id
+          data['company_id'] = activeCompanyId;
           await client.from(tableName).insert(data);
         }
       }

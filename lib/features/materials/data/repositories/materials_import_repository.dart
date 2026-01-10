@@ -9,8 +9,10 @@ class MaterialsImportRepository {
   MaterialsImportRepository(this._client);
 
   /// Импорт на сервере через Edge Function `receipts_import` с возвратом summary.
-  Future<Map<String, dynamic>> importViaServer(
-      List<ReceiptParseResult> results) async {
+  Future<Map<String, dynamic>> importViaServer({
+    required List<ReceiptParseResult> results,
+    required String companyId,
+  }) async {
     final files = <Map<String, dynamic>>[];
     for (final r in results) {
       if (r.error != null) continue;
@@ -37,6 +39,7 @@ class MaterialsImportRepository {
     }
     final res = await _client.functions.invoke('receipts_import', body: {
       'files': files,
+      'companyId': companyId,
     }, headers: {
       'Content-Type': 'application/json',
     });

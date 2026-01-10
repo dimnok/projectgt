@@ -3,12 +3,15 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:projectgt/features/ks2/domain/repositories/ks2_repository.dart';
 import 'package:projectgt/features/ks2/data/repositories/ks2_repository_impl.dart';
 import 'package:projectgt/domain/entities/ks2_act.dart';
+import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 
 part 'ks2_providers.g.dart';
 
 /// Провайдер репозитория КС-2.
 final ks2RepositoryProvider = Provider<Ks2Repository>((ref) {
-  return Ks2RepositoryImpl(Supabase.instance.client);
+  final client = Supabase.instance.client;
+  final activeCompanyId = ref.watch(activeCompanyIdProvider);
+  return Ks2RepositoryImpl(client, activeCompanyId ?? '');
 });
 
 /// Провайдер списка актов для конкретного договора.

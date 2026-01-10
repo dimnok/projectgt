@@ -1,83 +1,105 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'dart:io';
-import 'package:projectgt/domain/entities/contractor.dart';
-import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/features/contractors/domain/entities/contractor.dart';
+import 'package:projectgt/features/contractors/presentation/state/contractor_state.dart';
+import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 import 'package:uuid/uuid.dart';
 import 'package:projectgt/presentation/widgets/photo_picker_avatar.dart';
+import 'package:projectgt/core/widgets/gt_dropdown.dart';
+import 'package:projectgt/core/widgets/gt_text_field.dart';
+import 'package:projectgt/core/widgets/gt_section_title.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
+import 'package:projectgt/core/widgets/gt_buttons.dart';
+import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
+import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
 
-/// Контент формы создания/редактирования контрагента.
+/// Виджет, содержащий поля формы для ввода и редактирования данных контрагента.
 ///
-/// Используется для отображения и валидации полей контрагента, загрузки логотипа и управления состоянием формы.
-///
-/// Пример использования:
-/// ```dart
-/// ContractorFormContent(
-///   isNew: true,
-///   isLoading: false,
-///   fullNameController: ..., // инициализированный TextEditingController
-///   ...
-/// )
-/// ```
-class ContractorFormContent extends StatelessWidget {
-  /// Является ли форма созданием нового контрагента (`true`) или редактированием (`false`).
-  final bool isNew;
-
-  /// Флаг загрузки состояния (блокирует поля и кнопки).
+/// Используется как в мобильной версии (bottom sheet), так и в десктопной (диалог).
+class ContractorFormFields extends StatelessWidget {
+  /// Флаг состояния загрузки данных или процесса сохранения.
   final bool isLoading;
 
-  /// Контроллер для поля "Полное наименование".
+  /// Контроллер для полного юридического наименования организации.
   final TextEditingController fullNameController;
 
-  /// Контроллер для поля "Сокращенное наименование".
+  /// Контроллер для сокращенного наименования организации.
   final TextEditingController shortNameController;
 
-  /// Контроллер для поля "ИНН".
+  /// Контроллер для ИНН (Идентификационный номер налогоплательщика).
   final TextEditingController innController;
 
-  /// Контроллер для поля "Директор".
+  /// Контроллер для ФИО руководителя организации.
   final TextEditingController directorController;
 
-  /// Контроллер для поля "Юридический адрес".
+  /// Контроллер для юридического адреса организации.
   final TextEditingController legalAddressController;
 
-  /// Контроллер для поля "Фактический адрес".
+  /// Контроллер для фактического адреса организации.
   final TextEditingController actualAddressController;
 
-  /// Контроллер для поля "Телефон".
+  /// Контроллер для основного контактного телефона организации.
   final TextEditingController phoneController;
 
-  /// Контроллер для поля "Почта".
+  /// Контроллер для контактного адреса электронной почты.
   final TextEditingController emailController;
+
+  /// Контроллер для адреса веб-сайта организации.
+  final TextEditingController websiteController;
+
+  /// Контроллер для краткого описания сферы деятельности организации.
+  final TextEditingController activityDescriptionController;
+
+  /// Контроллер для КПП (Код причины постановки на учет).
+  final TextEditingController kppController;
+
+  /// Контроллер для ОГРН (Основной государственный регистрационный номер).
+  final TextEditingController ogrnController;
+
+  /// Контроллер для ОКПО (Общероссийский классификатор предприятий и организаций).
+  final TextEditingController okpoController;
+
+  /// Контроллер для документального основания полномочий руководителя (например, "Устав").
+  final TextEditingController directorBasisController;
+
+  /// Контроллер для контактного телефона руководителя.
+  final TextEditingController directorPhoneController;
+
+  /// Контроллер для ФИО главного бухгалтера.
+  final TextEditingController chiefAccountantNameController;
+
+  /// Контроллер для контактного телефона главного бухгалтера.
+  final TextEditingController chiefAccountantPhoneController;
+
+  /// Контроллер для ФИО основного контактного лица.
+  final TextEditingController contactPersonController;
+
+  /// Контроллер для описания применяемой системы налогообложения (например, "ОСНО").
+  final TextEditingController taxationSystemController;
+
+  /// Контроллер для указания процентной ставки НДС.
+  final TextEditingController vatRateController;
+
+  /// Является ли контрагент плательщиком НДС.
+  final bool isVatPayer;
+
+  /// Колбэк, вызываемый при изменении статуса плательщика НДС.
+  final void Function(bool) onVatPayerChanged;
 
   /// Тип контрагента (заказчик, подрядчик, поставщик).
   final ContractorType type;
 
-  /// Колбэк при изменении типа контрагента.
+  /// Колбэк, вызываемый при изменении типа контрагента.
   final void Function(ContractorType) onTypeChanged;
 
-  /// Локальный файл логотипа (если выбран).
-  final File? logoFile;
+  /// Колбэк для поиска в DaData.
+  final VoidCallback? onSearchInn;
 
-  /// URL логотипа (если уже загружен).
-  final String? logoUrl;
-
-  /// Колбэк для сохранения формы.
-  final VoidCallback onSave;
-
-  /// Колбэк для отмены/закрытия формы.
-  final VoidCallback onCancel;
-
-  /// Флаг загрузки логотипа (отображает индикатор).
-  final bool isLogoLoading;
-
-  /// Конструктор [ContractorFormContent]. Все параметры обязательны, кроме [isLogoLoading] (по умолчанию `false`).
-  const ContractorFormContent({
+  /// Создает экземпляр полей формы контрагента.
+  const ContractorFormFields({
     super.key,
-    required this.isNew,
     required this.isLoading,
     required this.fullNameController,
     required this.shortNameController,
@@ -87,13 +109,23 @@ class ContractorFormContent extends StatelessWidget {
     required this.actualAddressController,
     required this.phoneController,
     required this.emailController,
+    required this.websiteController,
+    required this.activityDescriptionController,
+    required this.kppController,
+    required this.ogrnController,
+    required this.okpoController,
+    required this.directorBasisController,
+    required this.directorPhoneController,
+    required this.chiefAccountantNameController,
+    required this.chiefAccountantPhoneController,
+    required this.contactPersonController,
+    required this.taxationSystemController,
+    required this.vatRateController,
+    required this.isVatPayer,
+    required this.onVatPayerChanged,
     required this.type,
     required this.onTypeChanged,
-    required this.logoFile,
-    required this.logoUrl,
-    required this.onSave,
-    required this.onCancel,
-    this.isLogoLoading = false,
+    this.onSearchInn,
   });
 
   @override
@@ -102,133 +134,275 @@ class ContractorFormContent extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Card(
-          margin: EdgeInsets.zero,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(
-              color:
-                  Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Информация о контрагенте',
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleMedium
-                      ?.copyWith(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: fullNameController,
-                  decoration:
-                      const InputDecoration(labelText: 'Полное наименование *'),
-                  validator: (v) => v == null || v.trim().isEmpty
-                      ? 'Введите полное наименование'
-                      : null,
-                  enabled: !isLoading,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: shortNameController,
-                  decoration: const InputDecoration(
-                      labelText: 'Сокращенное наименование *'),
-                  validator: (v) => v == null || v.trim().isEmpty
-                      ? 'Введите сокращенное наименование'
-                      : null,
-                  enabled: !isLoading,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: innController,
-                  decoration: const InputDecoration(labelText: 'ИНН *'),
-                  validator: (v) =>
-                      v == null || v.trim().isEmpty ? 'Введите ИНН' : null,
-                  enabled: !isLoading,
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: directorController,
-                  decoration: const InputDecoration(labelText: 'Директор'),
-                  validator: (v) => null,
-                  enabled: !isLoading,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: legalAddressController,
-                  decoration:
-                      const InputDecoration(labelText: 'Юридический адрес'),
-                  validator: (v) => null,
-                  enabled: !isLoading,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: actualAddressController,
-                  decoration:
-                      const InputDecoration(labelText: 'Фактический адрес'),
-                  validator: (v) => null,
-                  enabled: !isLoading,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: phoneController,
-                  decoration:
-                      const InputDecoration(labelText: 'Контактный номер'),
-                  validator: (v) => null,
-                  enabled: !isLoading,
-                  keyboardType: TextInputType.phone,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: emailController,
-                  decoration: const InputDecoration(labelText: 'Почта'),
-                  validator: (v) => null,
-                  enabled: !isLoading,
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<ContractorType>(
-                  initialValue: type,
-                  decoration:
-                      const InputDecoration(labelText: 'Тип контрагента'),
-                  items: ContractorType.values.map((type) {
-                    return DropdownMenuItem(
-                      value: type,
-                      child: Text(_typeLabel(type)),
-                    );
-                  }).toList(),
-                  onChanged: isLoading ? null : (val) => onTypeChanged(val!),
-                ),
-              ],
-            ),
-          ),
+        const GTSectionTitle(title: 'Основная информация'),
+        const SizedBox(height: 16),
+        GTTextField(
+          controller: fullNameController,
+          labelText: 'Полное наименование *',
+          prefixIcon: CupertinoIcons.doc_text,
+          validator: (v) => v == null || v.trim().isEmpty
+              ? 'Введите полное наименование'
+              : null,
+          enabled: !isLoading,
         ),
-        const SizedBox(height: 32),
+        const SizedBox(height: 16),
+        GTTextField(
+          controller: shortNameController,
+          labelText: 'Сокращенное наименование *',
+          prefixIcon: CupertinoIcons.doc_plaintext,
+          validator: (v) => v == null || v.trim().isEmpty
+              ? 'Введите сокращенное наименование'
+              : null,
+          enabled: !isLoading,
+        ),
+        const SizedBox(height: 16),
+        GTTextField(
+          controller: activityDescriptionController,
+          labelText: 'Сфера деятельности',
+          prefixIcon: CupertinoIcons.briefcase,
+          enabled: !isLoading,
+        ),
+        const SizedBox(height: 16),
+        GTEnumDropdown<ContractorType>(
+          values: ContractorType.values,
+          selectedValue: type,
+          labelText: 'Тип контрагента',
+          hintText: 'Выберите тип...',
+          enumToString: (val) => val.label,
+          onChanged: (val) => onTypeChanged(val!),
+          readOnly: isLoading,
+          allowClear: false,
+        ),
+        const SizedBox(height: 24),
+        const GTSectionTitle(title: 'Юридические данные'),
+        const SizedBox(height: 16),
         Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Expanded(
-              child: OutlinedButton(
-                onPressed: isLoading ? null : onCancel,
-                child: const Text('Отмена'),
+              child: GTTextField(
+                controller: innController,
+                labelText: 'ИНН *',
+                prefixIcon: CupertinoIcons.number,
+                suffixIcon: onSearchInn != null
+                    ? IconButton(
+                        icon: const Icon(CupertinoIcons.search),
+                        onPressed: isLoading ? null : onSearchInn,
+                        tooltip: 'Поиск в DaData',
+                      )
+                    : null,
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? 'Введите ИНН' : null,
+                enabled: !isLoading,
+                keyboardType: TextInputType.number,
               ),
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: ElevatedButton(
-                onPressed: isLoading ? null : onSave,
-                child: isLoading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CupertinoActivityIndicator())
-                    : Text(isNew ? 'Создать' : 'Сохранить'),
+              child: GTTextField(
+                controller: kppController,
+                labelText: 'КПП',
+                prefixIcon: CupertinoIcons.number,
+                enabled: !isLoading,
+                keyboardType: TextInputType.number,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: GTTextField(
+                controller: ogrnController,
+                labelText: 'ОГРН',
+                prefixIcon: CupertinoIcons.number,
+                enabled: !isLoading,
+                keyboardType: TextInputType.number,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: GTTextField(
+                controller: okpoController,
+                labelText: 'ОКПО',
+                prefixIcon: CupertinoIcons.number,
+                enabled: !isLoading,
+                keyboardType: TextInputType.number,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        const GTSectionTitle(title: 'Налогообложение'),
+        const SizedBox(height: 16),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: GTTextField(
+                controller: taxationSystemController,
+                labelText: 'Система налогообложения',
+                hintText: 'ОСНО, УСН и др.',
+                prefixIcon: CupertinoIcons.percent,
+                enabled: !isLoading,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                children: [
+                  InkWell(
+                    onTap: isLoading
+                        ? null
+                        : () => onVatPayerChanged(!isVatPayer),
+                    splashColor: Colors.transparent,
+                    highlightColor: Colors.transparent,
+                    hoverColor: Colors.transparent,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'НДС',
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                          ),
+                          Switch.adaptive(
+                            value: isVatPayer,
+                            onChanged: isLoading ? null : onVatPayerChanged,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (isVatPayer)
+                    GTTextField(
+                      controller: vatRateController,
+                      labelText: 'Ставка НДС (%)',
+                      enabled: !isLoading,
+                      keyboardType: TextInputType.number,
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        const GTSectionTitle(title: 'Контакты'),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: GTTextField(
+                controller: phoneController,
+                labelText: 'Телефон',
+                prefixIcon: CupertinoIcons.phone,
+                enabled: !isLoading,
+                keyboardType: TextInputType.phone,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: GTTextField(
+                controller: emailController,
+                labelText: 'Email',
+                prefixIcon: CupertinoIcons.mail,
+                enabled: !isLoading,
+                keyboardType: TextInputType.emailAddress,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        GTTextField(
+          controller: websiteController,
+          labelText: 'Сайт',
+          prefixIcon: CupertinoIcons.globe,
+          enabled: !isLoading,
+          keyboardType: TextInputType.url,
+        ),
+        const SizedBox(height: 16),
+        GTTextField(
+          controller: contactPersonController,
+          labelText: 'Контактное лицо',
+          prefixIcon: CupertinoIcons.person_crop_square,
+          enabled: !isLoading,
+        ),
+        const SizedBox(height: 24),
+        const GTSectionTitle(title: 'Адреса'),
+        const SizedBox(height: 16),
+        GTTextField(
+          controller: legalAddressController,
+          labelText: 'Юридический адрес',
+          prefixIcon: CupertinoIcons.location,
+          enabled: !isLoading,
+          maxLines: 2,
+        ),
+        const SizedBox(height: 16),
+        GTTextField(
+          controller: actualAddressController,
+          labelText: 'Фактический адрес',
+          prefixIcon: CupertinoIcons.location_north,
+          enabled: !isLoading,
+          maxLines: 2,
+        ),
+        const SizedBox(height: 24),
+        const GTSectionTitle(title: 'Руководство и бухгалтерия'),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: GTTextField(
+                controller: directorController,
+                labelText: 'Генеральный директор *',
+                prefixIcon: CupertinoIcons.person,
+                validator: (v) => v == null || v.trim().isEmpty
+                    ? 'Введите ФИО директора'
+                    : null,
+                enabled: !isLoading,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: GTTextField(
+                controller: directorPhoneController,
+                labelText: 'Телефон руководителя',
+                prefixIcon: CupertinoIcons.phone,
+                enabled: !isLoading,
+                keyboardType: TextInputType.phone,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        GTTextField(
+          controller: directorBasisController,
+          labelText: 'Действует на основании',
+          hintText: 'Устава, Доверенности...',
+          prefixIcon: CupertinoIcons.doc_plaintext,
+          enabled: !isLoading,
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: GTTextField(
+                controller: chiefAccountantNameController,
+                labelText: 'Главный бухгалтер',
+                prefixIcon: CupertinoIcons.person_crop_circle,
+                enabled: !isLoading,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: GTTextField(
+                controller: chiefAccountantPhoneController,
+                labelText: 'Телефон бухгалтера',
+                prefixIcon: CupertinoIcons.phone,
+                enabled: !isLoading,
+                keyboardType: TextInputType.phone,
               ),
             ),
           ],
@@ -236,56 +410,58 @@ class ContractorFormContent extends StatelessWidget {
       ],
     );
   }
-
-  /// Возвращает строковое представление типа контрагента для отображения в UI.
-  ///
-  /// [type] — тип контрагента.
-  ///
-  /// Возможные значения:
-  /// - [ContractorType.customer] — "Заказчик"
-  /// - [ContractorType.contractor] — "Подрядчик"
-  /// - [ContractorType.supplier] — "Поставщик"
-  String _typeLabel(ContractorType type) {
-    switch (type) {
-      case ContractorType.customer:
-        return 'Заказчик';
-      case ContractorType.contractor:
-        return 'Подрядчик';
-      case ContractorType.supplier:
-        return 'Поставщик';
-    }
-  }
 }
 
-/// Экран создания/редактирования контрагента с поддержкой состояния через Riverpod.
+/// Экран создания или редактирования данных контрагента.
 ///
-/// Использует [ContractorFormContent] для отображения формы. Поддерживает работу как в Scaffold, так и встраивание в другие экраны.
+/// Поддерживает работу в режимах создания нового контрагента (если [contractorId] null)
+/// и редактирования существующего. Использует Clean Architecture и Riverpod для управления состоянием.
 class ContractorFormScreen extends ConsumerStatefulWidget {
-  /// ID контрагента для редактирования. Если `null` — создаётся новый контрагент.
+  /// Идентификатор контрагента для режима редактирования.
+  /// Если null, экран работает в режиме создания нового контрагента.
   final String? contractorId;
 
-  /// Показывать ли Scaffold вокруг формы (по умолчанию `true`).
-  final bool showScaffold;
+  /// Предварительно заполненное имя (для быстрого создания из выписки).
+  final String? initialName;
 
-  /// Конструктор [ContractorFormScreen].
-  const ContractorFormScreen(
-      {super.key, this.contractorId, this.showScaffold = true});
+  /// Предварительно заполненный ИНН (для быстрого создания из выписки).
+  final String? initialInn;
+
+  /// Создает экран формы контрагента.
+  const ContractorFormScreen({
+    super.key,
+    this.contractorId,
+    this.initialName,
+    this.initialInn,
+  });
 
   @override
   ConsumerState<ContractorFormScreen> createState() =>
       _ContractorFormScreenState();
 }
 
-/// Состояние для [ContractorFormScreen]. Управляет контроллерами, загрузкой, логикой сохранения и загрузки логотипа.
 class _ContractorFormScreenState extends ConsumerState<ContractorFormScreen> {
   final _fullNameController = TextEditingController();
   final _shortNameController = TextEditingController();
+  final _activityDescriptionController = TextEditingController();
   final _innController = TextEditingController();
+  final _kppController = TextEditingController();
+  final _ogrnController = TextEditingController();
+  final _okpoController = TextEditingController();
   final _directorController = TextEditingController();
+  final _directorBasisController = TextEditingController();
+  final _directorPhoneController = TextEditingController();
+  final _chiefAccountantNameController = TextEditingController();
+  final _chiefAccountantPhoneController = TextEditingController();
+  final _contactPersonController = TextEditingController();
   final _legalAddressController = TextEditingController();
   final _actualAddressController = TextEditingController();
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
+  final _websiteController = TextEditingController();
+  final _taxationSystemController = TextEditingController();
+  final _vatRateController = TextEditingController(text: '0');
+  bool _isVatPayer = false;
   ContractorType _type = ContractorType.customer;
   File? _logoFile;
   String? _logoUrl;
@@ -296,12 +472,24 @@ class _ContractorFormScreenState extends ConsumerState<ContractorFormScreen> {
   void dispose() {
     _fullNameController.dispose();
     _shortNameController.dispose();
+    _activityDescriptionController.dispose();
     _innController.dispose();
+    _kppController.dispose();
+    _ogrnController.dispose();
+    _okpoController.dispose();
     _directorController.dispose();
+    _directorBasisController.dispose();
+    _directorPhoneController.dispose();
+    _chiefAccountantNameController.dispose();
+    _chiefAccountantPhoneController.dispose();
+    _contactPersonController.dispose();
     _legalAddressController.dispose();
     _actualAddressController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
+    _websiteController.dispose();
+    _taxationSystemController.dispose();
+    _vatRateController.dispose();
     super.dispose();
   }
 
@@ -309,55 +497,143 @@ class _ContractorFormScreenState extends ConsumerState<ContractorFormScreen> {
   void initState() {
     super.initState();
     if (widget.contractorId != null) {
-      final state = ref.read(contractorProvider);
+      final state = ref.read(contractorNotifierProvider);
       final contractor = state.contractors.firstWhere(
         (c) => c.id == widget.contractorId,
-        orElse: () =>
-            state.contractor ??
-            Contractor(
-              id: widget.contractorId!,
-              logoUrl: null,
-              fullName: '',
-              shortName: '',
-              inn: '',
-              director: '',
-              legalAddress: '',
-              actualAddress: '',
-              phone: '',
-              email: '',
-              type: ContractorType.customer,
-            ),
+        orElse: () => state.contractors.first,
       );
       _fullNameController.text = contractor.fullName;
       _shortNameController.text = contractor.shortName;
+      _activityDescriptionController.text =
+          contractor.activityDescription ?? '';
       _innController.text = contractor.inn;
+      _kppController.text = contractor.kpp ?? '';
+      _ogrnController.text = contractor.ogrn ?? '';
+      _okpoController.text = contractor.okpo ?? '';
       _directorController.text = contractor.director;
+      _directorBasisController.text = contractor.directorBasis ?? '';
+      _directorPhoneController.text = contractor.directorPhone ?? '';
+      _chiefAccountantNameController.text =
+          contractor.chiefAccountantName ?? '';
+      _chiefAccountantPhoneController.text =
+          contractor.chiefAccountantPhone ?? '';
+      _contactPersonController.text = contractor.contactPerson ?? '';
       _legalAddressController.text = contractor.legalAddress;
       _actualAddressController.text = contractor.actualAddress;
       _phoneController.text = contractor.phone;
       _emailController.text = contractor.email;
+      _websiteController.text = contractor.website ?? '';
+      _taxationSystemController.text = contractor.taxationSystem ?? '';
+      _vatRateController.text = contractor.vatRate.toString();
+      _isVatPayer = contractor.isVatPayer;
       _type = contractor.type;
       _logoUrl = contractor.logoUrl;
+    } else {
+      // Предзаполнение для нового контрагента (например, из банковской выписки)
+      if (widget.initialName != null) {
+        _fullNameController.text = widget.initialName!;
+        _shortNameController.text = widget.initialName!;
+      }
+      if (widget.initialInn != null) {
+        _innController.text = widget.initialInn!;
+        // Автоматический поиск в DaData при наличии ИНН
+        WidgetsBinding.instance.addPostFrameCallback((_) => _searchDaData());
+      }
+    }
+  }
+
+  Future<void> _searchDaData() async {
+    final inn = _innController.text.trim();
+    if (inn.length < 10) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final repository = ref.read(companyRepositoryProvider);
+      final data = await repository.searchCompanyByInn(inn);
+
+      if (data != null && mounted) {
+        setState(() {
+          _fullNameController.text =
+              data['nameFull'] ?? _fullNameController.text;
+          _shortNameController.text =
+              data['nameShort'] ?? _shortNameController.text;
+          _kppController.text = data['kpp'] ?? _kppController.text;
+          _ogrnController.text = data['ogrn'] ?? _ogrnController.text;
+          _okpoController.text = data['okpo'] ?? _okpoController.text;
+          _legalAddressController.text =
+              data['legalAddress'] ?? _legalAddressController.text;
+          _actualAddressController.text =
+              data['legalAddress'] ?? _actualAddressController.text;
+          _directorController.text =
+              data['directorName'] ?? _directorController.text;
+          _activityDescriptionController.text =
+              data['activityDescription'] ??
+              _activityDescriptionController.text;
+          _emailController.text = data['email'] ?? _emailController.text;
+          _phoneController.text = data['phone'] ?? _phoneController.text;
+        });
+        if (mounted) {
+          SnackBarUtils.showInfo(context, 'Данные загружены из DaData');
+        }
+      } else if (mounted) {
+        SnackBarUtils.showError(context, 'Организация не найдена в DaData');
+      }
+    } catch (e) {
+      if (mounted) {
+        SnackBarUtils.showError(context, 'Ошибка при поиске в DaData: $e');
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _handleSave() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
-    final notifier = ref.read(contractorProvider.notifier);
+    final notifier = ref.read(contractorNotifierProvider.notifier);
+    final activeCompanyId = ref.read(activeCompanyIdProvider);
+
+    if (activeCompanyId == null) {
+      if (mounted) {
+        SnackBarUtils.showError(context, 'Ошибка: компания не выбрана');
+        setState(() => _isLoading = false);
+      }
+      return;
+    }
+
     final isNew = widget.contractorId == null;
     final id = widget.contractorId ?? const Uuid().v4();
     final contractor = Contractor(
       id: id,
+      companyId: isNew
+          ? activeCompanyId
+          : ref
+                .read(contractorNotifierProvider)
+                .contractors
+                .firstWhere((c) => c.id == id)
+                .companyId,
       logoUrl: _logoUrl,
       fullName: _fullNameController.text.trim(),
       shortName: _shortNameController.text.trim(),
+      activityDescription: _activityDescriptionController.text.trim(),
       inn: _innController.text.trim(),
+      kpp: _kppController.text.trim(),
+      ogrn: _ogrnController.text.trim(),
+      okpo: _okpoController.text.trim(),
       director: _directorController.text.trim(),
+      directorBasis: _directorBasisController.text.trim(),
+      directorPhone: _directorPhoneController.text.trim(),
+      chiefAccountantName: _chiefAccountantNameController.text.trim(),
+      chiefAccountantPhone: _chiefAccountantPhoneController.text.trim(),
+      contactPerson: _contactPersonController.text.trim(),
       legalAddress: _legalAddressController.text.trim(),
       actualAddress: _actualAddressController.text.trim(),
       phone: _phoneController.text.trim(),
       email: _emailController.text.trim(),
+      website: _websiteController.text.trim(),
+      taxationSystem: _taxationSystemController.text.trim(),
+      isVatPayer: _isVatPayer,
+      vatRate: double.tryParse(_vatRateController.text) ?? 0,
       type: _type,
     );
     try {
@@ -374,111 +650,108 @@ class _ContractorFormScreenState extends ConsumerState<ContractorFormScreen> {
       }
       if (mounted) Navigator.pop(context);
     } catch (e) {
-      if (mounted) {
-        SnackBarUtils.showError(context, 'Ошибка: ${e.toString()}');
-      }
+      if (mounted) SnackBarUtils.showError(context, 'Ошибка: ${e.toString()}');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isNew = widget.contractorId == null;
-    return Material(
-      color: theme.colorScheme.surface,
-      child: _isLoading
-          ? const Center(child: CupertinoActivityIndicator())
-          : Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24.0),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 700),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 16.0),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  isNew
-                                      ? 'Новый контрагент'
-                                      : 'Редактировать контрагента',
-                                  style: theme.textTheme.titleLarge
-                                      ?.copyWith(fontWeight: FontWeight.bold),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.close),
-                                style: IconButton.styleFrom(
-                                    foregroundColor: Colors.red),
-                                onPressed: () {
-                                  if (Navigator.of(context).canPop()) {
-                                    Navigator.pop(context);
-                                  } else {
-                                    context.goNamed('contractors');
-                                  }
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Divider(),
-                        Center(
-                          child: PhotoPickerAvatar(
-                            imageUrl: _logoUrl,
-                            localFile: _logoFile,
-                            label: 'Логотип контрагента',
-                            isLoading: _isLoading,
-                            entity: 'contractor',
-                            id: widget.contractorId ?? const Uuid().v4(),
-                            displayName: _shortNameController.text.trim(),
-                            onPhotoChanged: (url) {
-                              setState(() {
-                                _logoUrl = url;
-                                _logoFile = null;
-                              });
-                            },
-                            placeholderIcon: Icons.business,
-                            radius: 48,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        ContractorFormContent(
-                          isNew: isNew,
-                          isLoading: _isLoading,
-                          fullNameController: _fullNameController,
-                          shortNameController: _shortNameController,
-                          innController: _innController,
-                          directorController: _directorController,
-                          legalAddressController: _legalAddressController,
-                          actualAddressController: _actualAddressController,
-                          phoneController: _phoneController,
-                          emailController: _emailController,
-                          type: _type,
-                          onTypeChanged: (val) => setState(() => _type = val),
-                          logoFile: _logoFile,
-                          logoUrl: _logoUrl,
-                          onSave: _handleSave,
-                          onCancel: () {
-                            if (Navigator.of(context).canPop()) {
-                              Navigator.pop(context);
-                            } else {
-                              context.goNamed('contractors');
-                            }
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+    final isDesktop = MediaQuery.of(context).size.width >= 900;
+    final title = widget.contractorId == null
+        ? 'Новый контрагент'
+        : 'Редактировать контрагента';
+
+    Widget footer = Row(
+      children: [
+        Expanded(
+          child: GTSecondaryButton(
+            text: 'Отмена',
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: GTPrimaryButton(
+            text: widget.contractorId == null ? 'Создать' : 'Сохранить',
+            isLoading: _isLoading,
+            onPressed: _handleSave,
+          ),
+        ),
+      ],
+    );
+
+    Widget formContent = Form(
+      key: _formKey,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: PhotoPickerAvatar(
+              imageUrl: _logoUrl,
+              localFile: _logoFile,
+              label: 'Логотип контрагента',
+              isLoading: _isLoading,
+              entity: 'contractor',
+              id: widget.contractorId ?? const Uuid().v4(),
+              displayName: _shortNameController.text.trim(),
+              onPhotoChanged: (url) {
+                setState(() {
+                  _logoUrl = url;
+                  _logoFile = null;
+                });
+              },
+              placeholderIcon: Icons.business,
+              radius: 48,
             ),
+          ),
+          const SizedBox(height: 24),
+          ContractorFormFields(
+            isLoading: _isLoading,
+            fullNameController: _fullNameController,
+            shortNameController: _shortNameController,
+            innController: _innController,
+            kppController: _kppController,
+            directorController: _directorController,
+            legalAddressController: _legalAddressController,
+            actualAddressController: _actualAddressController,
+            phoneController: _phoneController,
+            emailController: _emailController,
+            websiteController: _websiteController,
+            activityDescriptionController: _activityDescriptionController,
+            ogrnController: _ogrnController,
+            okpoController: _okpoController,
+            directorBasisController: _directorBasisController,
+            directorPhoneController: _directorPhoneController,
+            chiefAccountantNameController: _chiefAccountantNameController,
+            chiefAccountantPhoneController: _chiefAccountantPhoneController,
+            contactPersonController: _contactPersonController,
+            taxationSystemController: _taxationSystemController,
+            vatRateController: _vatRateController,
+            isVatPayer: _isVatPayer,
+            onVatPayerChanged: (val) => setState(() => _isVatPayer = val),
+            type: _type,
+            onTypeChanged: (val) => setState(() => _type = val),
+            onSearchInn: _searchDaData,
+          ),
+        ],
+      ),
+    );
+
+    if (isDesktop) {
+      return DesktopDialogContent(
+        title: title,
+        footer: footer,
+        child: formContent,
+      );
+    }
+
+    return MobileBottomSheetContent(
+      title: title,
+      footer: footer,
+      child: formContent,
     );
   }
 }

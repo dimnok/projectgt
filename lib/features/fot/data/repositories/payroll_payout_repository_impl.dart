@@ -9,8 +9,11 @@ class PayrollPayoutRepositoryImpl implements PayrollPayoutRepository {
   /// Экземпляр SupabaseClient для доступа к базе данных.
   final SupabaseClient client;
 
-  /// Создаёт экземпляр [PayrollPayoutRepositoryImpl] с переданным [client].
-  PayrollPayoutRepositoryImpl(this.client);
+  /// Идентификатор активной компании.
+  final String activeCompanyId;
+
+  /// Создаёт экземпляр [PayrollPayoutRepositoryImpl] с переданным [client] и [activeCompanyId].
+  PayrollPayoutRepositoryImpl(this.client, this.activeCompanyId);
 
   /// Создать новую выплату.
   ///
@@ -39,6 +42,7 @@ class PayrollPayoutRepositoryImpl implements PayrollPayoutRepository {
         .from('payroll_payout')
         .update(payout.toJson())
         .eq('id', payout.id)
+        .eq('company_id', activeCompanyId)
         .select()
         .single();
 
@@ -51,6 +55,10 @@ class PayrollPayoutRepositoryImpl implements PayrollPayoutRepository {
   @override
   Future<void> deletePayout(String id) async {
     // Удалить выплату по id
-    await client.from('payroll_payout').delete().eq('id', id);
+    await client
+        .from('payroll_payout')
+        .delete()
+        .eq('id', id)
+        .eq('company_id', activeCompanyId);
   }
 }

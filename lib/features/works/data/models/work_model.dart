@@ -24,6 +24,9 @@ abstract class WorkModel with _$WorkModel {
     /// Идентификатор смены.
     String? id,
 
+    /// Идентификатор компании.
+    @JsonKey(name: 'company_id') required String companyId,
+
     /// Дата смены.
     @JsonKey(name: 'date') required DateTime date,
 

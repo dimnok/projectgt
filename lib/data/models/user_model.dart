@@ -24,6 +24,7 @@ abstract class UserModel with _$UserModel {
     String? name,
     String? photoUrl,
     String? roleId,
+    String? systemRole,
   }) = _UserModel;
 
   /// Приватный конструктор для расширения функциональности через методы.
@@ -40,6 +41,7 @@ abstract class UserModel with _$UserModel {
         name: user.name,
         photoUrl: user.photoUrl,
         roleId: user.roleId,
+        systemRole: user.system_role,
       );
 
   /// Преобразует [UserModel] в доменную сущность [User].
@@ -49,5 +51,6 @@ abstract class UserModel with _$UserModel {
         name: name,
         photoUrl: photoUrl,
         roleId: roleId,
+        system_role: systemRole,
       );
 }

@@ -52,6 +52,9 @@ abstract class Employee with _$Employee {
     /// Уникальный идентификатор сотрудника.
     required String id,
 
+    /// ID компании, к которой принадлежит сотрудник.
+    required String companyId,
+
     /// URL фотографии сотрудника.
     String? photoUrl,
 

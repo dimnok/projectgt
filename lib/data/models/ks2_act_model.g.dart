@@ -7,27 +7,30 @@ part of 'ks2_act_model.dart';
 // **************************************************************************
 
 _Ks2ActModel _$Ks2ActModelFromJson(Map<String, dynamic> json) => _Ks2ActModel(
-      id: json['id'] as String,
-      contractId: json['contract_id'] as String,
-      number: json['number'] as String,
-      date: DateTime.parse(json['date'] as String),
-      periodFrom: DateTime.parse(json['period_from'] as String),
-      periodTo: DateTime.parse(json['period_to'] as String),
-      status: $enumDecodeNullable(_$Ks2StatusEnumMap, json['status']) ??
-          Ks2Status.draft,
-      totalAmount: (json['total_amount'] as num?)?.toDouble() ?? 0,
-      createdAt: json['created_at'] == null
-          ? null
-          : DateTime.parse(json['created_at'] as String),
-      updatedAt: json['updated_at'] == null
-          ? null
-          : DateTime.parse(json['updated_at'] as String),
-      createdBy: json['created_by'] as String?,
-    );
+  id: json['id'] as String,
+  companyId: json['company_id'] as String,
+  contractId: json['contract_id'] as String,
+  number: json['number'] as String,
+  date: DateTime.parse(json['date'] as String),
+  periodFrom: DateTime.parse(json['period_from'] as String),
+  periodTo: DateTime.parse(json['period_to'] as String),
+  status:
+      $enumDecodeNullable(_$Ks2StatusEnumMap, json['status']) ??
+      Ks2Status.draft,
+  totalAmount: (json['total_amount'] as num?)?.toDouble() ?? 0,
+  createdAt: json['created_at'] == null
+      ? null
+      : DateTime.parse(json['created_at'] as String),
+  updatedAt: json['updated_at'] == null
+      ? null
+      : DateTime.parse(json['updated_at'] as String),
+  createdBy: json['created_by'] as String?,
+);
 
 Map<String, dynamic> _$Ks2ActModelToJson(_Ks2ActModel instance) =>
     <String, dynamic>{
       'id': instance.id,
+      'company_id': instance.companyId,
       'contract_id': instance.contractId,
       'number': instance.number,
       'date': instance.date.toIso8601String(),

@@ -8,6 +8,9 @@ class WorkHourDataSourceImpl implements WorkHourDataSource {
   /// Клиент Supabase для доступа к базе данных.
   final SupabaseClient client;
 
+  /// ID текущей активной компании для фильтрации данных (Multi-tenancy).
+  final String activeCompanyId;
+
   /// Название таблицы учёта часов.
   static const String table = 'work_hours';
 
@@ -15,7 +18,7 @@ class WorkHourDataSourceImpl implements WorkHourDataSource {
   final Logger _logger = Logger();
 
   /// Создаёт источник данных для работы с часами сотрудников в смене.
-  WorkHourDataSourceImpl(this.client);
+  WorkHourDataSourceImpl(this.client, this.activeCompanyId);
 
   /// Возвращает список записей о часах для смены по идентификатору [workId].
   @override
@@ -25,6 +28,7 @@ class WorkHourDataSourceImpl implements WorkHourDataSource {
           .from(table)
           .select()
           .eq('work_id', workId)
+          .eq('company_id', activeCompanyId)
           .order('created_at');
 
       return response
@@ -44,6 +48,7 @@ class WorkHourDataSourceImpl implements WorkHourDataSource {
       final hourJson = hour.toJson();
       hourJson['created_at'] = now;
       hourJson['updated_at'] = now;
+      hourJson['company_id'] = activeCompanyId;
 
       await client.from(table).insert(hourJson);
     } catch (e) {
@@ -59,8 +64,13 @@ class WorkHourDataSourceImpl implements WorkHourDataSource {
       final now = DateTime.now().toIso8601String();
       final hourJson = hour.toJson();
       hourJson['updated_at'] = now;
+      hourJson['company_id'] = activeCompanyId;
 
-      await client.from(table).update(hourJson).eq('id', hour.id);
+      await client
+          .from(table)
+          .update(hourJson)
+          .eq('id', hour.id)
+          .eq('company_id', activeCompanyId);
     } catch (e) {
       _logger.e('Ошибка обновления часов: $e');
       rethrow;
@@ -71,7 +81,11 @@ class WorkHourDataSourceImpl implements WorkHourDataSource {
   @override
   Future<void> deleteWorkHour(String id) async {
     try {
-      await client.from(table).delete().eq('id', id);
+      await client
+          .from(table)
+          .delete()
+          .eq('id', id)
+          .eq('company_id', activeCompanyId);
     } catch (e) {
       _logger.e('Ошибка удаления часов: $e');
       rethrow;
@@ -86,6 +100,7 @@ class WorkHourDataSourceImpl implements WorkHourDataSource {
           .from(table)
           .select()
           .eq('employee_id', employeeId)
+          .eq('company_id', activeCompanyId)
           .gte('created_at', monthStart.toIso8601String())
           .lt('created_at', monthEnd.toIso8601String());
       return response
@@ -106,6 +121,7 @@ class WorkHourDataSourceImpl implements WorkHourDataSource {
       final payload = hours.map((h) {
         final map = h.toJson();
         map['updated_at'] = now;
+        map['company_id'] = activeCompanyId;
         return map;
       }).toList();
 

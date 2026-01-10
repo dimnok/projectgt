@@ -1,82 +1,58 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+part 'material_item.freezed.dart';
+part 'material_item.g.dart';
+
 /// Модель материала из таблицы `public.materials` в Supabase.
 ///
-/// Поля соответствуют колонкам БД. Все числовые значения
-/// представлены как `double?` для удобства форматирования в UI.
-class MaterialItem {
-  /// Идентификатор записи (UUID)
-  final String id;
+/// Поля соответствуют колонкам БД.
+@freezed
+abstract class MaterialItem with _$MaterialItem {
+  @JsonSerializable(fieldRename: FieldRename.snake)
+  const factory MaterialItem({
+    /// Идентификатор записи (UUID)
+    required String id,
 
-  /// Наименование материала
-  final String name;
+    /// Наименование материала
+    required String name,
 
-  /// Единица измерения, например: шт, м, т, м³
-  final String? unit;
+    /// ID компании (Multi-tenancy)
+    required String companyId,
 
-  /// Количество
-  final double? quantity;
+    /// Единица измерения, например: шт, м, т, м³
+    String? unit,
 
-  /// Цена за единицу
-  final double? price;
+    /// Количество
+    double? quantity,
 
-  /// Итоговая стоимость (computed в БД)
-  final double? total;
+    /// Цена за единицу
+    double? price,
 
-  /// Номер расходной накладной
-  final String? receiptNumber;
+    /// Итоговая стоимость (computed в БД)
+    double? total,
 
-  /// Дата расходной накладной (ISO-строка в БД)
-  final DateTime? receiptDate;
+    /// Номер расходной накладной
+    String? receiptNumber,
 
-  /// Использовано
-  final double? used;
+    /// Дата расходной накладной
+    DateTime? receiptDate,
 
-  /// Остаток
-  final double? remaining;
+    /// Использовано
+    double? used,
 
-  /// URL файла (накладная/скан)
-  final String? fileUrl;
+    /// Остаток
+    double? remaining,
 
-  /// Создаёт экземпляр материала из БД `public.materials`.
-  const MaterialItem({
-    required this.id,
-    required this.name,
-    this.unit,
-    this.quantity,
-    this.price,
-    this.total,
-    this.receiptNumber,
-    this.receiptDate,
-    this.used,
-    this.remaining,
-    this.fileUrl,
-  });
+    /// URL файла (накладная/скан)
+    String? fileUrl,
+  }) = _MaterialItem;
 
-  /// Создание модели из JSON-объекта Supabase.
+  factory MaterialItem.fromJson(Map<String, dynamic> json) =>
+      _$MaterialItemFromJson(json);
+
+  /// Создание модели из Map (для совместимости со старым кодом, если нужно, 
+  /// но лучше использовать fromJson)
   factory MaterialItem.fromMap(Map<String, dynamic> map) {
-    DateTime? parseDate(dynamic v) {
-      if (v == null) return null;
-      if (v is DateTime) return v;
-      return DateTime.tryParse(v.toString());
-    }
-
-    double? parseNum(dynamic v) {
-      if (v == null) return null;
-      if (v is num) return v.toDouble();
-      return double.tryParse(v.toString());
-    }
-
-    return MaterialItem(
-      id: map['id']?.toString() ?? '',
-      name: map['name']?.toString() ?? '',
-      unit: map['unit']?.toString(),
-      quantity: parseNum(map['quantity']),
-      price: parseNum(map['price']),
-      total: parseNum(map['total']),
-      receiptNumber: map['receipt_number']?.toString(),
-      receiptDate: parseDate(map['receipt_date']),
-      used: parseNum(map['used']),
-      remaining: parseNum(map['remaining']),
-      fileUrl: map['file_url']?.toString(),
-    );
+    return MaterialItem.fromJson(map);
   }
 }

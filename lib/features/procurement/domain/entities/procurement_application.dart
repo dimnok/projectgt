@@ -1,6 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:projectgt/data/models/object_model.dart';
-import 'package:projectgt/domain/entities/object.dart';
+import 'package:projectgt/features/objects/data/models/object_model.dart';
+import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:projectgt/features/procurement/data/models/bot_user_model.dart';
 import 'package:projectgt/features/procurement/domain/entities/procurement_request.dart';
 

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:projectgt/core/widgets/edge_to_edge_scaffold.dart';
 import 'package:projectgt/domain/entities/work_plan.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 import 'package:projectgt/core/di/providers.dart';
-import 'package:projectgt/presentation/state/object_state.dart';
+import 'package:projectgt/features/objects/presentation/state/object_state.dart';
 import 'package:projectgt/presentation/state/employee_state.dart' as state;
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/features/work_plans/presentation/widgets/work_plan_mobile_details.dart';
@@ -82,7 +83,7 @@ class _WorkPlanDetailsScreenState extends ConsumerState<WorkPlanDetailsScreen> {
     final isLoading = workPlan == null && workPlanState.isLoading;
 
     if (isLoading) {
-      return Scaffold(
+      return EdgeToEdgeScaffold(
         appBar:
             widget.showAppBar ? const AppBarWidget(title: 'План работ') : null,
         drawer: widget.showAppBar
@@ -93,7 +94,7 @@ class _WorkPlanDetailsScreenState extends ConsumerState<WorkPlanDetailsScreen> {
     }
 
     if (workPlan == null) {
-      return Scaffold(
+      return EdgeToEdgeScaffold(
         appBar:
             widget.showAppBar ? const AppBarWidget(title: 'План работ') : null,
         drawer: widget.showAppBar
@@ -132,7 +133,7 @@ class _WorkPlanDetailsScreenState extends ConsumerState<WorkPlanDetailsScreen> {
           context: context, mobile: 15.0, desktop: 16.0),
     );
 
-    return Scaffold(
+    return EdgeToEdgeScaffold(
       appBar: widget.showAppBar
           ? AppBarWidget(
               title: 'План работ на ${_formatDate(workPlan.date)}',

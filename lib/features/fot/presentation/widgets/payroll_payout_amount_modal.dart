@@ -3,12 +3,16 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
+import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 import '../providers/payroll_providers.dart';
 import '../providers/balance_providers.dart';
 import '../../data/models/payroll_payout_model.dart';
 import '../../../../core/utils/snackbar_utils.dart';
-import '../../../../core/widgets/modal_container_wrapper.dart';
-import '../../../../core/utils/modal_utils.dart';
+import '../../../../core/widgets/gt_buttons.dart';
+import '../../../../core/widgets/gt_text_field.dart';
+import '../../../../core/widgets/desktop_dialog_content.dart';
+import '../../../../core/widgets/mobile_bottom_sheet_content.dart';
+import '../../../../core/utils/responsive_utils.dart';
 import '../utils/payout_utils.dart';
 
 /// Модальное окно для указания индивидуальных сумм выплат для выбранных сотрудников.
@@ -118,6 +122,11 @@ class _PayrollPayoutAmountModalState
 
     try {
       final payouts = <PayrollPayoutModel>[];
+      final activeCompanyId = ref.read(activeCompanyIdProvider);
+
+      if (activeCompanyId == null) {
+        throw Exception('Компания не выбрана');
+      }
 
       // Создаем выплату для каждого сотрудника
       for (final employee in _currentEmployees) {
@@ -128,6 +137,7 @@ class _PayrollPayoutAmountModalState
             final payout = PayrollPayoutModel(
               id: const Uuid().v4(),
               employeeId: employee.id,
+              companyId: activeCompanyId,
               amount: amount,
               payoutDate: widget.payoutDate,
               method: widget.method,
@@ -155,7 +165,7 @@ class _PayrollPayoutAmountModalState
       // Обновляем провайдеры
       ref.invalidate(filteredPayrollPayoutsProvider);
       ref.invalidate(employeeAggregatedBalanceProvider);
-      ref.invalidate(payrollPayoutsByMonthProvider);
+      ref.invalidate(payrollPayoutsByFilterProvider);
 
       if (mounted) {
         // Закрываем оба модальных окна
@@ -175,8 +185,7 @@ class _PayrollPayoutAmountModalState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDesktop = MediaQuery.of(context).size.width >= 900;
-    final screenWidth = MediaQuery.of(context).size.width;
+    final isDesktop = ResponsiveUtils.isDesktop(context);
     final numberFormat =
         NumberFormat.currency(locale: 'ru_RU', symbol: '₽', decimalDigits: 2);
 
@@ -184,278 +193,242 @@ class _PayrollPayoutAmountModalState
     final balanceAsync = ref.watch(employeeAggregatedBalanceProvider);
 
     return balanceAsync.when(
-      data: (balanceMap) => _buildModalContent(
-          context, theme, isDesktop, screenWidth, numberFormat, balanceMap),
-      loading: () => _buildLoadingModal(context, theme, isDesktop, screenWidth),
-      error: (e, st) =>
-          _buildErrorModal(context, theme, isDesktop, screenWidth, e),
+      data: (balanceMap) =>
+          _buildModalContent(context, theme, isDesktop, numberFormat, balanceMap),
+      loading: () => _buildLoadingModal(context, theme, isDesktop),
+      error: (e, st) => _buildErrorModal(context, theme, isDesktop, e),
     );
   }
 
-  Widget _buildModalContent(
-      BuildContext context,
-      ThemeData theme,
-      bool isDesktop,
-      double screenWidth,
-      NumberFormat numberFormat,
-      Map<String, double> balanceMap) {
+  Widget _buildModalContent(BuildContext context, ThemeData theme,
+      bool isDesktop, NumberFormat numberFormat, Map<String, double> balanceMap) {
     // Форматирование для сумм в строках сотрудников
     final amountNumberFormat =
         NumberFormat.currency(locale: 'ru_RU', symbol: '₽', decimalDigits: 2);
-    return ModalContainerWrapper(
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                ModalUtils.buildModalHeader(
-                  title: 'Массовые выплаты',
-                  onClose: () => Navigator.pop(context),
-                  theme: theme,
-                ),
-                const Divider(),
 
-                // Информационная панель
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16.0),
-                  child: Card(
-                    margin: EdgeInsets.zero,
-                    elevation: 0,
-                    color: theme.colorScheme.primaryContainer
-                        .withValues(alpha: 0.3),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(
-                        color: theme.colorScheme.primary.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.info_outline,
-                                color: theme.colorScheme.primary,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Этап 2 из 2: Укажите суммы для каждого сотрудника',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.primary,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                              'Дата: ${DateFormat('dd.MM.yyyy').format(widget.payoutDate)}'),
-                          Text(
-                              'Способ: ${_getMethodDisplayName(widget.method)}'),
-                          Text('Тип: ${_getTypeDisplayName(widget.type)}'),
-                          if (widget.comment.isNotEmpty)
-                            Text('Комментарий: ${widget.comment}'),
-                          Text('Сотрудников: ${_currentEmployees.length}'),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-
-                // Список сотрудников с суммами
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+    const title = 'Массовые выплаты';
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Информационная панель
+        Padding(
+          padding: const EdgeInsets.only(bottom: 16.0),
+          child: Card(
+            margin: EdgeInsets.zero,
+            elevation: 0,
+            color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(
+                color: theme.colorScheme.primary.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
-                      Text(
-                        'Суммы выплат',
-                        style: theme.textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.bold),
+                      Icon(
+                        Icons.info_outline,
+                        color: theme.colorScheme.primary,
+                        size: 20,
                       ),
-                      const SizedBox(height: 16),
-
-                      // Список сотрудников
-                      for (int i = 0; i < _currentEmployees.length; i++) ...[
-                        if (i > 0) const SizedBox(height: 12),
-                        _buildEmployeeAmountRow(_currentEmployees[i], theme,
-                            balanceMap, amountNumberFormat),
-                      ],
-
-                      const SizedBox(height: 16),
-                      const Divider(),
-                      const SizedBox(height: 8),
-
-                      // Итоговая сумма
-                      ValueListenableBuilder<double>(
-                        valueListenable: _totalAmount,
-                        builder: (context, total, child) {
-                          return Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'ИТОГО:',
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                numberFormat.format(total),
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: theme.colorScheme.primary,
-                                ),
-                              ),
-                            ],
-                          );
-                        },
+                      const SizedBox(width: 8),
+                      Text(
+                        'Этап 2 из 2: Укажите суммы для каждого сотрудника',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ],
                   ),
-                ),
-
-                const SizedBox(height: 24),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.pop(context),
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size.fromHeight(44),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          textStyle: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
-                        child: const Text('Назад'),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: ValueListenableBuilder<bool>(
-                        valueListenable: _isSaving,
-                        builder: (context, isSaving, child) {
-                          return ElevatedButton(
-                            onPressed: isSaving ? null : _savePayouts,
-                            style: ElevatedButton.styleFrom(
-                              minimumSize: const Size.fromHeight(44),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              textStyle: const TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.bold),
-                            ),
-                            child: isSaving
-                                ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CupertinoActivityIndicator())
-                                : const Text('Создать выплаты'),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 32),
-              ],
+                  const SizedBox(height: 8),
+                  Text(
+                      'Дата: ${DateFormat('dd.MM.yyyy').format(widget.payoutDate)}'),
+                  Text('Способ: ${_getMethodDisplayName(widget.method)}'),
+                  Text('Тип: ${_getTypeDisplayName(widget.type)}'),
+                  if (widget.comment.isNotEmpty)
+                    Text('Комментарий: ${widget.comment}'),
+                  Text('Сотрудников: ${_currentEmployees.length}'),
+                ],
+              ),
             ),
           ),
         ),
-      ),
+
+        // Список сотрудников с суммами
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Суммы выплат',
+              style:
+                  theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+
+            // Список сотрудников
+            for (int i = 0; i < _currentEmployees.length; i++) ...[
+              if (i > 0) const SizedBox(height: 12),
+              _buildEmployeeAmountRow(
+                  _currentEmployees[i], theme, balanceMap, amountNumberFormat),
+            ],
+
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 8),
+
+            // Итоговая сумма
+            ValueListenableBuilder<double>(
+              valueListenable: _totalAmount,
+              builder: (context, total, child) {
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'ИТОГО:',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      numberFormat.format(total),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ],
+    );
+
+    final footer = Row(
+      children: [
+        Expanded(
+          child: GTSecondaryButton(
+            text: 'Назад',
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: ValueListenableBuilder<bool>(
+            valueListenable: _isSaving,
+            builder: (context, isSaving, child) {
+              return GTPrimaryButton(
+                text: 'Создать выплаты',
+                onPressed: isSaving ? null : _savePayouts,
+                isLoading: isSaving,
+              );
+            },
+          ),
+        ),
+      ],
+    );
+
+    if (isDesktop) {
+      return Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: DesktopDialogContent(
+          title: title,
+          footer: footer,
+          child: content,
+        ),
+      );
+    }
+
+    return MobileBottomSheetContent(
+      title: title,
+      footer: footer,
+      child: content,
     );
   }
 
-  Widget _buildLoadingModal(BuildContext context, ThemeData theme,
-      bool isDesktop, double screenWidth) {
-    final modalContent = Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-      ),
-      child: const Center(
-        child: Padding(
-          padding: EdgeInsets.all(48.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CupertinoActivityIndicator(),
-              SizedBox(height: 16),
-              Text('Загрузка балансов...'),
-            ],
-          ),
+  Widget _buildLoadingModal(
+      BuildContext context, ThemeData theme, bool isDesktop) {
+    const title = 'Загрузка';
+    const content = Center(
+      child: Padding(
+        padding: EdgeInsets.all(48.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CupertinoActivityIndicator(),
+            SizedBox(height: 16),
+            Text('Загрузка балансов...'),
+          ],
         ),
       ),
     );
 
     if (isDesktop) {
-      return Align(
-        alignment: Alignment.bottomCenter,
-        child: Container(
-          constraints: BoxConstraints(maxWidth: screenWidth * 0.5),
-          child: modalContent,
+      return const Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: DesktopDialogContent(
+          title: title,
+          child: content,
         ),
       );
-    } else {
-      return modalContent;
     }
+
+    return const MobileBottomSheetContent(
+      title: title,
+      child: content,
+    );
   }
 
-  Widget _buildErrorModal(BuildContext context, ThemeData theme, bool isDesktop,
-      double screenWidth, Object error) {
-    final modalContent = Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-      ),
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(48.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.error_outline,
-                  size: 48, color: theme.colorScheme.error),
-              const SizedBox(height: 16),
-              Text('Ошибка загрузки балансов',
-                  style: theme.textTheme.titleMedium),
-              const SizedBox(height: 8),
-              Text(error.toString(), style: theme.textTheme.bodySmall),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Закрыть'),
-              ),
-            ],
-          ),
+  Widget _buildErrorModal(
+      BuildContext context, ThemeData theme, bool isDesktop, Object error) {
+    const title = 'Ошибка';
+    final content = Center(
+      child: Padding(
+        padding: const EdgeInsets.all(48.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
+            const SizedBox(height: 16),
+            Text('Ошибка загрузки балансов', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Text(error.toString(), style: theme.textTheme.bodySmall),
+          ],
         ),
       ),
     );
 
+    final footer = GTPrimaryButton(
+      text: 'Закрыть',
+      onPressed: () => Navigator.pop(context),
+    );
+
     if (isDesktop) {
-      return Align(
-        alignment: Alignment.bottomCenter,
-        child: Container(
-          constraints: BoxConstraints(maxWidth: screenWidth * 0.5),
-          child: modalContent,
+      return Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: DesktopDialogContent(
+          title: title,
+          footer: footer,
+          child: content,
         ),
       );
-    } else {
-      return modalContent;
     }
+
+    return MobileBottomSheetContent(
+      title: title,
+      footer: footer,
+      child: content,
+    );
   }
 
   Widget _buildEmployeeAmountRow(dynamic employee, ThemeData theme,
@@ -484,8 +457,8 @@ class _PayrollPayoutAmountModalState
             flex: 3,
             child: Text(
               fio,
-              style: theme.textTheme.bodyLarge
-                  ?.copyWith(fontWeight: FontWeight.w500),
+              style:
+                  theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
             ),
           ),
           const SizedBox(width: 8),
@@ -504,8 +477,7 @@ class _PayrollPayoutAmountModalState
                 color: _getBalanceColor(balance, theme).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(
-                  color:
-                      _getBalanceColor(balance, theme).withValues(alpha: 0.3),
+                  color: _getBalanceColor(balance, theme).withValues(alpha: 0.3),
                 ),
               ),
               child: Row(
@@ -529,8 +501,7 @@ class _PayrollPayoutAmountModalState
                     Icon(
                       Icons.touch_app,
                       size: 12,
-                      color: _getBalanceColor(balance, theme)
-                          .withValues(alpha: 0.7),
+                      color: _getBalanceColor(balance, theme).withValues(alpha: 0.7),
                     ),
                   ],
                 ],
@@ -540,25 +511,13 @@ class _PayrollPayoutAmountModalState
           const SizedBox(width: 8),
 
           // Поле ввода суммы
-          SizedBox(
-            width: 140,
-            child: TextFormField(
+          Expanded(
+            flex: 2,
+            child: GTTextField(
               controller: _amountControllers[employee.id],
-              decoration: InputDecoration(
-                labelText: 'Сумма',
-                border: const OutlineInputBorder(),
-                isDense: false,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                hintText: balance > 0 ? balance.toInt().toString() : '0',
-                hintStyle: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.outline,
-                ),
-              ),
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(fontWeight: FontWeight.w500),
+              labelText: 'Сумма',
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              hintText: balance > 0 ? balance.toInt().toString() : '0',
             ),
           ),
           const SizedBox(width: 8),

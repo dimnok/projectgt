@@ -21,11 +21,12 @@ class GetProfilesUseCase {
   /// Создаёт use case с указанным репозиторием.
   const GetProfilesUseCase(this.repository);
 
-  /// Получение списка всех профилей.
+  /// Получение списка всех профилей для конкретной компании [companyId].
   ///
+  /// [companyId] — идентификатор компании.
   /// Возвращает список [Profile].
   /// Бросает [Exception] при ошибке.
-  Future<List<Profile>> call() async {
-    return await repository.getProfiles();
+  Future<List<Profile>> call(String companyId) async {
+    return await repository.getProfiles(companyId);
   }
 }

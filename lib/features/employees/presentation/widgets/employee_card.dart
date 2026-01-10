@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:projectgt/domain/entities/employee.dart';
-import 'package:projectgt/domain/entities/object.dart';
+import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:projectgt/core/utils/employee_ui_utils.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/presentation/widgets/app_badge.dart';
@@ -282,7 +282,12 @@ class EmployeeCard extends StatelessWidget {
         .map((id) => objects
             .firstWhere(
               (o) => o.id == id,
-              orElse: () => const ObjectEntity(id: '', name: '—', address: ''),
+              orElse: () => const ObjectEntity(
+                id: '',
+                companyId: '',
+                name: '—',
+                address: '',
+              ),
             )
             .name)
         .where((name) => name != '—')

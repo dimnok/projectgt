@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:logger/logger.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../features/company/presentation/providers/company_providers.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/desktop_dialog_content.dart';
@@ -238,6 +239,9 @@ class _ImportPreviewDialogState extends ConsumerState<_ImportPreviewDialog> {
     });
     try {
       final client = Supabase.instance.client;
+      final activeId = ref.read(activeCompanyIdProvider);
+      if (activeId == null) return;
+
       final map = <int, bool>{};
       for (int i = 0; i < widget.results.length; i++) {
         final r = widget.results[i];
@@ -258,6 +262,7 @@ class _ImportPreviewDialogState extends ConsumerState<_ImportPreviewDialog> {
               .select('id')
               .eq('receipt_number', rn)
               .eq('receipt_date', dateStr)
+              .eq('company_id', activeId)
               .limit(1);
           map[i] = ex.isNotEmpty;
         } catch (_) {
@@ -281,20 +286,26 @@ class _ImportPreviewDialogState extends ConsumerState<_ImportPreviewDialog> {
     });
     try {
       // Проверка авторизации — Storage требует authenticated
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) {
+      final client = Supabase.instance.client;
+      final user = client.auth.currentUser;
+      final activeId = ref.read(activeCompanyIdProvider);
+
+      if (user == null || activeId == null) {
         setState(() {
-          _status = 'Ошибка: требуется авторизация для загрузки файлов.';
+          _status = 'Ошибка: требуется авторизация и выбор компании.';
         });
         return;
       }
-      final repo = MaterialsImportRepository(Supabase.instance.client);
+      final repo = MaterialsImportRepository(client);
       // 1) Загрузка файлов накладных в Storage
       final uploadedPaths = await _uploadAllReceiptFiles();
       // 2) Импорт строк в БД
-      final summary = await repo.importViaServer(widget.results);
+      final summary = await repo.importViaServer(
+        results: widget.results,
+        companyId: activeId,
+      );
       // 3) Проставление file_url через Edge Function (service role)
-      await _applyFileUrlsServer(uploadedPaths);
+      await _applyFileUrlsServer(uploadedPaths, activeId);
       // 4) Обновляем таблицу материалов (пагинатор)
       ref.read(materialsPagerProvider.notifier).refresh();
       ref.invalidate(materialsListProvider);
@@ -360,7 +371,10 @@ class _ImportPreviewDialogState extends ConsumerState<_ImportPreviewDialog> {
     return paths;
   }
 
-  Future<void> _applyFileUrlsServer(Map<int, String> uploadedPaths) async {
+  Future<void> _applyFileUrlsServer(
+    Map<int, String> uploadedPaths,
+    String companyId,
+  ) async {
     if (uploadedPaths.isEmpty) return;
     final client = Supabase.instance.client;
     final List<String> errors = <String>[];
@@ -381,6 +395,7 @@ class _ImportPreviewDialogState extends ConsumerState<_ImportPreviewDialog> {
             'receiptDate': dateStr,
             'contractNumber': cn.isNotEmpty ? cn : null,
             'storagePath': storagePath,
+            'companyId': companyId,
           },
         );
         if (res.data is Map && res.data['error'] != null) {

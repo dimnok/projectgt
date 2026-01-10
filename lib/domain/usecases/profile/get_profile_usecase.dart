@@ -25,9 +25,10 @@ class GetProfileUseCase {
   /// Получение профиля по id.
   ///
   /// [id] — идентификатор профиля.
+  /// [companyId] — опциональный идентификатор компании.
   /// Возвращает [Profile] или null, если не найден.
   /// Бросает [Exception] при ошибке.
-  Future<Profile?> call(String id) async {
-    return await repository.getProfile(id);
+  Future<Profile?> call(String id, [String? companyId]) async {
+    return await repository.getProfile(id, companyId);
   }
 }

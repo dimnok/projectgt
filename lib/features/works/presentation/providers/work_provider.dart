@@ -73,6 +73,7 @@ class WorksNotifier extends StateNotifier<WorksState> {
   ///
   /// Возвращает созданную смену или null в случае ошибки.
   Future<Work?> addWork({
+    required String companyId,
     required DateTime date,
     required String objectId,
     required String openedBy,
@@ -85,6 +86,7 @@ class WorksNotifier extends StateNotifier<WorksState> {
       final id = DateTime.now().millisecondsSinceEpoch.toString();
       final work = Work(
         id: id,
+        companyId: companyId,
         date: date,
         objectId: objectId,
         openedBy: openedBy,

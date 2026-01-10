@@ -24,6 +24,9 @@ abstract class Contract with _$Contract {
     /// Уникальный идентификатор контракта.
     required String id,
 
+    /// Идентификатор компании.
+    required String companyId,
+
     /// Номер контракта.
     required String number,
 

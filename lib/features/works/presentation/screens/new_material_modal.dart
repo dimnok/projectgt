@@ -8,6 +8,7 @@ import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/gt_dropdown.dart';
 import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
+import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 
 /// Модалка "Новый материал"
 ///
@@ -130,9 +131,11 @@ class _NewMaterialModalState extends ConsumerState<NewMaterialModal> {
       }
 
       final nextNumber = generateNextNumber();
+      final activeCompanyId = ref.read(activeCompanyIdProvider);
 
       final estimate = Estimate(
         id: '',
+        companyId: activeCompanyId ?? '',
         system: widget.system,
         subsystem: widget.subsystem,
         number: nextNumber,

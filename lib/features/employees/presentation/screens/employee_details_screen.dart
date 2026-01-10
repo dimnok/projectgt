@@ -10,7 +10,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
 import 'package:projectgt/core/di/providers.dart';
-import 'package:projectgt/domain/entities/object.dart';
+import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:go_router/go_router.dart';
 import 'package:projectgt/core/utils/employee_ui_utils.dart';
 import 'package:projectgt/core/utils/modal_utils.dart';
@@ -135,8 +135,12 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
             (id) => objects
                 .firstWhere(
                   (o) => o.id == id,
-                  orElse: () =>
-                      const ObjectEntity(id: '', name: '—', address: ''),
+                  orElse: () => const ObjectEntity(
+                    id: '',
+                    companyId: '',
+                    name: '—',
+                    address: '',
+                  ),
                 )
                 .name,
           )

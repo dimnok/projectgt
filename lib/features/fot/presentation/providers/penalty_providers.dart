@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/payroll_penalty_model.dart';
 import '../../domain/repositories/payroll_penalty_repository.dart';
 import '../../data/repositories/payroll_penalty_repository_impl.dart';
+import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:collection/collection.dart';
 import 'package:projectgt/presentation/state/employee_state.dart';
@@ -11,7 +12,8 @@ import 'payroll_filter_providers.dart';
 final payrollPenaltyRepositoryProvider =
     Provider<PayrollPenaltyRepository>((ref) {
   final client = ref.watch(supabaseClientProvider);
-  return PayrollPenaltyRepositoryImpl(client);
+  final activeCompanyId = ref.watch(activeCompanyIdProvider);
+  return PayrollPenaltyRepositoryImpl(client, activeCompanyId ?? '');
 });
 
 /// Провайдер функции создания штрафа.
@@ -50,47 +52,86 @@ final deletePenaltyUseCaseProvider =
   };
 });
 
-/// Провайдер асинхронной загрузки всех штрафов (PayrollPenaltyModel) из репозитория.
+/// Провайдер получения штрафов с учетом фильтров.
 ///
-/// Используется для получения полного списка штрафов из Supabase через PayrollPenaltyRepository.
-/// Возвращает Future<List<PayrollPenaltyModel>> для дальнейшей фильтрации и отображения в UI.
-final allPenaltiesProvider =
-    FutureProvider<List<PayrollPenaltyModel>>((ref) async {
-  final repo = ref.watch(payrollPenaltyRepositoryProvider);
-  return await repo.getAllPenalties();
+/// Если поиск пустой — грузит за выбранный месяц.
+/// Если поиск не пустой — грузит за все время для фильтрации по ФИО.
+final penaltiesByFilterProvider = FutureProvider<List<PayrollPenaltyModel>>((ref) async {
+  final client = ref.watch(supabaseClientProvider);
+  final filterState = ref.watch(payrollFilterProvider);
+  final searchQuery = ref.watch(payrollSearchQueryProvider);
+  final activeCompanyId = ref.watch(activeCompanyIdProvider);
+
+  if (activeCompanyId == null) return [];
+
+  var query = client.from('payroll_penalty').select().eq('company_id', activeCompanyId);
+
+  // 1. Фильтрация по периоду или поиску
+  if (searchQuery.trim().isEmpty) {
+    // Если поиск пустой — грузим за выбранный месяц
+    final startDate =
+        DateTime(filterState.selectedYear, filterState.selectedMonth, 1);
+    final endDate =
+        DateTime(filterState.selectedYear, filterState.selectedMonth + 1, 0);
+    
+    query = query
+        .gte('date', startDate.toIso8601String())
+        .lte('date', endDate.toIso8601String());
+  } else {
+    // Если поиск не пустой — грузим за все время, но только для подходящих сотрудников
+    final queryText = searchQuery.trim().toLowerCase();
+    final matchingEmployeeIds = ref.read(employeeProvider).employees
+        .where((e) {
+          final fullName = '${e.lastName} ${e.firstName} ${e.middleName ?? ''}'
+              .toLowerCase();
+          return fullName.contains(queryText);
+        })
+        .map((e) => e.id)
+        .toList();
+
+    if (matchingEmployeeIds.isEmpty) return [];
+    
+    query = query.inFilter('employee_id', matchingEmployeeIds);
+  }
+
+  // 2. Фильтрация по объектам
+  if (filterState.selectedObjectIds.isNotEmpty) {
+    // Штрафы могут быть не привязаны к объекту (object_id IS NULL)
+    final objectIdsStr = filterState.selectedObjectIds.map((id) => '"$id"').join(',');
+    query = query.or('object_id.in.($objectIdsStr),object_id.is.null');
+  }
+
+  final response = await query.order('date', ascending: false);
+  
+  return (response as List)
+      .map((json) => PayrollPenaltyModel.fromJson(json as Map<String, dynamic>))
+      .toList();
 });
 
 /// Провайдер всех штрафов с опциональной фильтрацией.
-///
-/// По умолчанию показывает ВСЕ штрафы.
-/// Если в фильтрах выбран период (не текущий месяц) - фильтрует по периоду.
-/// Возвращает List<PayrollPenaltyModel> для отображения в таблице штрафов.
 final filteredPenaltiesProvider = Provider<List<PayrollPenaltyModel>>((ref) {
-  final penaltiesAsync = ref.watch(allPenaltiesProvider);
+  final penaltiesAsync = ref.watch(penaltiesByFilterProvider);
   final employeeState = ref.watch(employeeProvider);
   final employees = employeeState.employees;
-  final filterState = ref.watch(payrollFilterProvider);
-
-  // Проверяем, изменен ли период от текущего месяца
-  final now = DateTime.now();
-  final isPeriodFiltered = filterState.selectedYear != now.year ||
-      filterState.selectedMonth != now.month;
+  final searchQuery = ref.watch(payrollSearchQueryProvider);
 
   return penaltiesAsync.maybeWhen(
     data: (allPenalties) {
-      // Применяем фильтр по периоду только если выбран НЕ текущий месяц
-      final filteredPenalties = isPeriodFiltered
-          ? allPenalties.where((penalty) {
-              // Используем penalty.date (дата штрафа), fallback на createdAt если date == null
-              final date = penalty.date ?? penalty.createdAt;
-              return date != null &&
-                  date.year == filterState.selectedYear &&
-                  date.month == filterState.selectedMonth;
-            }).toList()
-          : allPenalties; // Показываем ВСЕ штрафы если фильтр не применен
+      // Если есть поиск по ФИО, фильтруем на клиенте
+      var result = allPenalties;
+      if (searchQuery.trim().isNotEmpty) {
+        final query = searchQuery.trim().toLowerCase();
+        result = result.where((penalty) {
+          final emp = employees.firstWhereOrNull((e) => e.id == penalty.employeeId);
+          if (emp == null) return false;
+          final fullName = '${emp.lastName} ${emp.firstName} ${emp.middleName ?? ''}'
+              .toLowerCase();
+          return fullName.contains(query);
+        }).toList();
+      }
 
       // Сортируем по алфавиту (ФИО сотрудников)
-      filteredPenalties.sort((a, b) {
+      result.sort((a, b) {
         final empA = employees.firstWhereOrNull((e) => e.id == a.employeeId);
         final empB = employees.firstWhereOrNull((e) => e.id == b.employeeId);
         final nameA = empA != null
@@ -106,7 +147,7 @@ final filteredPenaltiesProvider = Provider<List<PayrollPenaltyModel>>((ref) {
         return nameA.compareTo(nameB);
       });
 
-      return filteredPenalties;
+      return result;
     },
     orElse: () => [],
   );

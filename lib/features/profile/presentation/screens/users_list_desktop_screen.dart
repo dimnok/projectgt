@@ -3,11 +3,11 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:projectgt/domain/entities/profile.dart';
-import 'package:projectgt/domain/entities/object.dart';
+import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:projectgt/features/profile/presentation/widgets/profile_edit_form.dart';
-import 'package:projectgt/features/profile/utils/profile_utils.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
+import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/features/profile/presentation/widgets/profile_status_switch.dart';
 import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
@@ -59,8 +59,9 @@ class _UsersListDesktopScreenState
     // обновляем его и в _selectedProfile
     if (_selectedProfile != null) {
       try {
-        final updatedProfile =
-            widget.profiles.firstWhere((p) => p.id == _selectedProfile!.id);
+        final updatedProfile = widget.profiles.firstWhere(
+          (p) => p.id == _selectedProfile!.id,
+        );
         if (updatedProfile != _selectedProfile) {
           setState(() {
             _selectedProfile = updatedProfile;
@@ -113,18 +114,38 @@ class _UsersListDesktopScreenState
             initialEmployeeId: profile.object?['employee_id'] as String?,
             initialRoleId: profile.roleId,
             showButtons: false, // Скрываем кнопки внутри формы
-            onSave: (fullName, phone, selectedObjectIds, employeeId, roleId) {
-              final updatedProfile = ProfileUtils.prepareProfileForUpdate(
-                originalProfile: profile,
-                fullName: fullName,
-                phone: phone,
-                selectedObjectIds: selectedObjectIds,
-                employeeId: employeeId,
-                roleId: roleId,
-                isAdmin: isAdmin,
-              );
+            onSave: (fullName, phone, selectedObjectIds, employeeId, roleId) async {
+              // [RBAC v3] В списке пользователей админ обновляет только данные в company_members
+              // Мы НЕ вызываем updateProfile, так как это заблокировано RLS для чужих профилей
+              if (profile.lastCompanyId != null) {
+                try {
+                  await ref
+                      .read(profileProvider.notifier)
+                      .updateMember(
+                        userId: profile.id,
+                        companyId: profile.lastCompanyId!,
+                        roleId: roleId,
+                      );
 
-              ref.read(profileProvider.notifier).updateProfile(updatedProfile);
+                  // Проверяем состояние после обновления
+                  final state = ref.read(profileProvider);
+                  if (state.status == ProfileStatus.error && context.mounted) {
+                    AppSnackBar.show(
+                      context: context,
+                      message: 'Ошибка: ${state.errorMessage}',
+                      kind: AppSnackBarKind.error,
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    AppSnackBar.show(
+                      context: context,
+                      message: 'Ошибка при обновлении: $e',
+                      kind: AppSnackBarKind.error,
+                    );
+                  }
+                }
+              }
             },
             onSuccess: () {
               Navigator.of(context).pop();
@@ -185,39 +206,38 @@ class _UsersListDesktopScreenState
                 child: widget.isLoading && widget.profiles.isEmpty
                     ? const Center(child: CupertinoActivityIndicator())
                     : widget.profiles.isEmpty
-                        ? const Center(child: Text('Пользователи не найдены'))
-                        : ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
-                            child: ListView.separated(
-                              itemCount: widget.profiles.length,
-                              separatorBuilder: (context, index) => Divider(
-                                height: 1,
-                                indent: 72,
-                                color: theme.colorScheme.outlineVariant
-                                    .withValues(alpha: 0.5),
-                              ),
-                              itemBuilder: (context, index) {
-                                final profile = widget.profiles[index];
-                                final isSelected =
-                                    _selectedProfile?.id == profile.id;
-                                return _UserListTileDesktop(
-                                  profile: profile,
-                                  isSelected: isSelected,
-                                  onTap: () {
-                                    setState(() {
-                                      _selectedProfile = profile;
-                                    });
-                                  },
-                                );
-                              },
+                    ? const Center(child: Text('Пользователи не найдены'))
+                    : ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: ListView.separated(
+                          itemCount: widget.profiles.length,
+                          separatorBuilder: (context, index) => Divider(
+                            height: 1,
+                            indent: 72,
+                            color: theme.colorScheme.outlineVariant.withValues(
+                              alpha: 0.5,
                             ),
                           ),
+                          itemBuilder: (context, index) {
+                            final profile = widget.profiles[index];
+                            final isSelected =
+                                _selectedProfile?.id == profile.id;
+                            return _UserListTileDesktop(
+                              profile: profile,
+                              isSelected: isSelected,
+                              onTap: () {
+                                setState(() {
+                                  _selectedProfile = profile;
+                                });
+                              },
+                            );
+                          },
+                        ),
+                      ),
               ),
 
               // Правая панель - детали
-              Expanded(
-                child: _buildDetailPanel(theme),
-              ),
+              Expanded(child: _buildDetailPanel(theme)),
             ],
           ),
         ),
@@ -302,12 +322,17 @@ class _UsersListDesktopScreenState
                               value: profile.status == true,
                               canToggle: isAdmin,
                               isBusy: false,
-                              onChanged: (value) {
-                                ref
-                                    .read(profileProvider.notifier)
-                                    .updateProfile(profile.copyWith(
-                                        status: value,
-                                        updatedAt: DateTime.now()));
+                              onChanged: (value) async {
+                                // [RBAC v3] Обновляем статус в company_members
+                                if (profile.lastCompanyId != null) {
+                                  await ref
+                                      .read(profileProvider.notifier)
+                                      .updateMember(
+                                        userId: profile.id,
+                                        companyId: profile.lastCompanyId!,
+                                        isActive: value,
+                                      );
+                                }
                               },
                             ),
                           ],
@@ -339,11 +364,21 @@ class _UsersListDesktopScreenState
                       Consumer(
                         builder: (context, ref, _) {
                           final rolesState = ref.watch(rolesNotifierProvider);
-                          final roleName = rolesState.valueOrNull
-                                  ?.where((r) => r.id == profile.roleId)
-                                  .firstOrNull
-                                  ?.name ??
-                              'ROLE';
+                          String getDisplayRole() {
+                            if (profile.system_role == 'owner')
+                              return 'Владелец';
+                            if (profile.system_role == 'admin')
+                              return 'Администратор';
+
+                            final roleName = rolesState.valueOrNull
+                                ?.where((r) => r.id == profile.roleId)
+                                .firstOrNull
+                                ?.name;
+
+                            return roleName ??
+                                (profile.roleId != null ? '...' : 'Без роли');
+                          }
+
                           return _buildInfoRow(
                             theme,
                             'Роль',
@@ -351,19 +386,20 @@ class _UsersListDesktopScreenState
                             customContent: Row(
                               children: [
                                 Text(
-                                  profile.roleId != null ? roleName : 'User',
+                                  getDisplayRole(),
                                   style: theme.textTheme.bodyMedium?.copyWith(
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
-                                if (profile.roleId != null) ...[
+                                if (profile.roleId != null ||
+                                    profile.system_role != null) ...[
                                   const SizedBox(width: 8),
                                   InkWell(
                                     onTap: () {
                                       context.pushNamed(
                                         'roles',
                                         queryParameters: {
-                                          'roleId': profile.roleId!
+                                          'roleId': profile.roleId!,
                                         },
                                       );
                                     },
@@ -385,7 +421,10 @@ class _UsersListDesktopScreenState
                       ),
                       const SizedBox(height: 24),
                       _buildInfoRow(
-                          theme, 'Телефон', profile.phone ?? 'Не указан'),
+                        theme,
+                        'Телефон',
+                        profile.phone ?? 'Не указан',
+                      ),
                       const SizedBox(height: 24),
                       _buildInfoRow(theme, 'Почта', profile.email),
                       if (profile.object?['employee_id'] != null) ...[
@@ -412,7 +451,7 @@ class _UsersListDesktopScreenState
                                     'employee_details',
                                     pathParameters: {
                                       'employeeId':
-                                          profile.object!['employee_id']
+                                          profile.object!['employee_id'],
                                     },
                                   );
                                 },
@@ -441,8 +480,10 @@ class _UsersListDesktopScreenState
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Доступные объекты',
-                          style: theme.textTheme.titleLarge),
+                      Text(
+                        'Доступные объекты',
+                        style: theme.textTheme.titleLarge,
+                      ),
                       const SizedBox(height: 24),
                       if (validObjects.isNotEmpty)
                         Column(
@@ -486,8 +527,12 @@ class _UsersListDesktopScreenState
     );
   }
 
-  Widget _buildInfoRow(ThemeData theme, String label, String value,
-      {Widget? customContent}) {
+  Widget _buildInfoRow(
+    ThemeData theme,
+    String label,
+    String value, {
+    Widget? customContent,
+  }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -501,7 +546,8 @@ class _UsersListDesktopScreenState
           ),
         ),
         Expanded(
-          child: customContent ??
+          child:
+              customContent ??
               Text(
                 value,
                 style: theme.textTheme.bodyMedium?.copyWith(
@@ -661,8 +707,8 @@ class _UserListTileDesktop extends StatelessWidget {
     final titleColor = isSelected
         ? colorScheme.onPrimary
         : (!isActive
-            ? colorScheme.onSurface.withValues(alpha: 0.38)
-            : colorScheme.onSurface);
+              ? colorScheme.onSurface.withValues(alpha: 0.38)
+              : colorScheme.onSurface);
 
     return Material(
       color: isSelected ? colorScheme.primary : Colors.transparent,

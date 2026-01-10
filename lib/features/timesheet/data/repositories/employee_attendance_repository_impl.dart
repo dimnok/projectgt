@@ -1,5 +1,5 @@
 import 'package:projectgt/domain/repositories/employee_repository.dart';
-import 'package:projectgt/domain/repositories/object_repository.dart';
+import 'package:projectgt/features/objects/domain/repositories/object_repository.dart';
 import '../../domain/entities/employee_attendance_entry.dart';
 import '../../domain/repositories/employee_attendance_repository.dart';
 import '../datasources/employee_attendance_data_source.dart';

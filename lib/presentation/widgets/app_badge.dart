@@ -11,19 +11,23 @@ class AppBadge extends StatelessWidget {
   /// Иконка, отображаемая слева от текста (опционально).
   final IconData? icon;
 
+  /// Размер шрифта текста.
+  final double fontSize;
+
   /// Создаёт [AppBadge] с заданным текстом, цветом и (опционально) иконкой.
   const AppBadge({
     super.key,
     required this.text,
     required this.color,
     this.icon,
+    this.fontSize = 11,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(minHeight: 24),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      constraints: const BoxConstraints(minHeight: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
         color: color.withAlpha((0.15 * 255).toInt()),
         borderRadius: BorderRadius.circular(999),
@@ -32,15 +36,15 @@ class AppBadge extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 16, color: color),
-            const SizedBox(width: 6),
+            Icon(icon, size: fontSize + 3, color: color),
+            const SizedBox(width: 4),
           ],
           Text(
             text,
             style: TextStyle(
               color: color,
               fontWeight: FontWeight.w600,
-              fontSize: 13,
+              fontSize: fontSize,
               letterSpacing: 0.1,
             ),
             maxLines: 1,

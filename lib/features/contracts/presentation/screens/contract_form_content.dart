@@ -92,6 +92,12 @@ class ContractFormContent extends StatelessWidget {
   /// Статус договора (активен, приостановлен, завершён).
   final ContractStatus status;
 
+  /// Показывать ли заголовок формы (используется, когда форма не в модальном окне).
+  final bool showHeader;
+
+  /// Показывать ли кнопки в футере (используется, когда форма не в модальном окне).
+  final bool showFooter;
+
   /// Ключ формы для валидации.
   final GlobalKey<FormState> formKey;
 
@@ -154,6 +160,8 @@ class ContractFormContent extends StatelessWidget {
     required this.selectedContractorId,
     required this.selectedObjectId,
     required this.status,
+    this.showHeader = true,
+    this.showFooter = true,
     required this.formKey,
     required this.onSave,
     required this.onCancel,
@@ -171,34 +179,37 @@ class ContractFormContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24.0),
+      physics: const ClampingScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
       child: Form(
         key: formKey,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16.0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      isNew ? 'Новый договор' : 'Редактировать договор',
-                      style: theme.textTheme.titleLarge
-                          ?.copyWith(fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
+            if (showHeader) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16.0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        isNew ? 'Новый договор' : 'Редактировать договор',
+                        style: theme.textTheme.titleLarge
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    style: IconButton.styleFrom(foregroundColor: Colors.red),
-                    onPressed: onCancel,
-                  ),
-                ],
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      style: IconButton.styleFrom(foregroundColor: Colors.red),
+                      onPressed: onCancel,
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const Divider(),
+              const Divider(),
+            ],
             Text('Данные договора',
                 style: theme.textTheme.titleMedium
                     ?.copyWith(fontWeight: FontWeight.bold)),
@@ -366,11 +377,30 @@ class ContractFormContent extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('НДС включен в стоимость'),
-              value: isVatIncluded,
-              onChanged: isLoading ? null : onVatIncludedChanged,
+            InkWell(
+              onTap: isLoading
+                  ? null
+                  : () => onVatIncludedChanged(!isVatIncluded),
+              splashColor: Colors.transparent,
+              highlightColor: Colors.transparent,
+              hoverColor: Colors.transparent,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'НДС включен в стоимость',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ),
+                    Switch.adaptive(
+                      value: isVatIncluded,
+                      onChanged: isLoading ? null : onVatIncludedChanged,
+                    ),
+                  ],
+                ),
+              ),
             ),
             const SizedBox(height: 16),
             // Аванс
@@ -579,45 +609,46 @@ class ContractFormContent extends StatelessWidget {
 
             const SizedBox(height: 32),
 
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: onCancel,
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(44),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(22),
+            if (showFooter)
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: onCancel,
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(44),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(22),
+                        ),
+                        textStyle: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
                       ),
-                      textStyle: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold),
+                      child: const Text('Отмена'),
                     ),
-                    child: const Text('Отмена'),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: isLoading ? null : onSave,
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(44),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(22),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: isLoading ? null : onSave,
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(44),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(22),
+                        ),
+                        textStyle: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
                       ),
-                      textStyle: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold),
+                      child: isLoading
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CupertinoActivityIndicator(),
+                            )
+                          : Text(isNew ? 'Создать' : 'Сохранить'),
                     ),
-                    child: isLoading
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CupertinoActivityIndicator(),
-                          )
-                        : Text(isNew ? 'Создать' : 'Сохранить'),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
             const SizedBox(height: 32),
           ],
         ),

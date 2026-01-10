@@ -10,6 +10,7 @@ import 'package:uuid/uuid.dart';
 import 'package:projectgt/core/utils/modal_utils.dart';
 import 'package:projectgt/core/widgets/gt_dropdown.dart';
 import '../providers/work_provider.dart';
+import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 
 /// Модальное окно для добавления или редактирования часов сотрудника в смене.
 class WorkHourFormModal extends ConsumerStatefulWidget {
@@ -68,8 +69,14 @@ class _WorkHourFormModalState extends ConsumerState<WorkHourFormModal> {
     });
 
     try {
+      final activeCompanyId = ref.read(activeCompanyIdProvider);
+      if (activeCompanyId == null) {
+        throw Exception('Компания не выбрана');
+      }
+
       final hour = WorkHour(
         id: widget.initial?.id ?? const Uuid().v4(),
+        companyId: activeCompanyId,
         workId: widget.workId,
         employeeId: _selectedEmployeeId!,
         hours: num.tryParse(hoursController.text) ?? 0,
@@ -103,6 +110,7 @@ class _WorkHourFormModalState extends ConsumerState<WorkHourFormModal> {
 
   @override
   Widget build(BuildContext context) {
+    final activeCompanyId = ref.watch(activeCompanyIdProvider);
     final employeeState = ref.watch(employee_state.employeeProvider);
     final allEmployees = employeeState.employees;
     final workHoursAsync = ref.watch(workHoursProvider(widget.workId));
@@ -127,34 +135,42 @@ class _WorkHourFormModalState extends ConsumerState<WorkHourFormModal> {
     if (workObjectId != null) {
       if (widget.initial == null) {
         availableEmployees = allEmployees
-            .where((e) =>
-                e.status == EmployeeStatus.working &&
-                e.objectIds.contains(workObjectId) &&
-                !busyEmployeeIds.contains(e.id))
+            .where(
+              (e) =>
+                  e.status == EmployeeStatus.working &&
+                  e.objectIds.contains(workObjectId) &&
+                  !busyEmployeeIds.contains(e.id),
+            )
             .toList();
       } else {
         availableEmployees = allEmployees
-            .where((e) =>
-                e.status == EmployeeStatus.working &&
-                e.objectIds.contains(workObjectId) &&
-                (!busyEmployeeIds.contains(e.id) ||
-                    e.id == widget.initial!.employeeId))
+            .where(
+              (e) =>
+                  e.status == EmployeeStatus.working &&
+                  e.objectIds.contains(workObjectId) &&
+                  (!busyEmployeeIds.contains(e.id) ||
+                      e.id == widget.initial!.employeeId),
+            )
             .toList();
       }
     } else {
       // Если объект смены не найден, показываем всех работающих
       if (widget.initial == null) {
         availableEmployees = allEmployees
-            .where((e) =>
-                e.status == EmployeeStatus.working &&
-                !busyEmployeeIds.contains(e.id))
+            .where(
+              (e) =>
+                  e.status == EmployeeStatus.working &&
+                  !busyEmployeeIds.contains(e.id),
+            )
             .toList();
       } else {
         availableEmployees = allEmployees
-            .where((e) =>
-                e.status == EmployeeStatus.working &&
-                (!busyEmployeeIds.contains(e.id) ||
-                    e.id == widget.initial!.employeeId))
+            .where(
+              (e) =>
+                  e.status == EmployeeStatus.working &&
+                  (!busyEmployeeIds.contains(e.id) ||
+                      e.id == widget.initial!.employeeId),
+            )
             .toList();
       }
     }
@@ -182,8 +198,9 @@ class _WorkHourFormModalState extends ConsumerState<WorkHourFormModal> {
                         color: theme.colorScheme.surface,
                         border: Border(
                           bottom: BorderSide(
-                            color: theme.colorScheme.outline
-                                .withValues(alpha: 0.2),
+                            color: theme.colorScheme.outline.withValues(
+                              alpha: 0.2,
+                            ),
                             width: 1,
                           ),
                         ),
@@ -237,11 +254,13 @@ class _WorkHourFormModalState extends ConsumerState<WorkHourFormModal> {
                                             (employee) =>
                                                 employee.id ==
                                                 _selectedEmployeeId,
-                                            orElse: () => availableEmployees
-                                                    .isNotEmpty
+                                            orElse: () =>
+                                                availableEmployees.isNotEmpty
                                                 ? availableEmployees.first
                                                 : Employee(
                                                     id: '',
+                                                    companyId:
+                                                        activeCompanyId ?? '',
                                                     firstName: '',
                                                     lastName: '',
                                                     middleName: null,
@@ -279,13 +298,17 @@ class _WorkHourFormModalState extends ConsumerState<WorkHourFormModal> {
                                         width: 1,
                                       ),
                                       borderRadius: const BorderRadius.all(
-                                          Radius.circular(4)),
+                                        Radius.circular(4),
+                                      ),
                                       color: theme
-                                          .colorScheme.surfaceContainerHighest
+                                          .colorScheme
+                                          .surfaceContainerHighest
                                           .withValues(alpha: 0.3),
                                     ),
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: 16, vertical: 12),
+                                      horizontal: 16,
+                                      vertical: 12,
+                                    ),
                                     child: Row(
                                       children: [
                                         Icon(
@@ -305,6 +328,9 @@ class _WorkHourFormModalState extends ConsumerState<WorkHourFormModal> {
                                                           _selectedEmployeeId,
                                                       orElse: () => Employee(
                                                         id: '',
+                                                        companyId:
+                                                            activeCompanyId ??
+                                                            '',
                                                         firstName: '',
                                                         lastName: '',
                                                         middleName: null,
@@ -320,11 +346,12 @@ class _WorkHourFormModalState extends ConsumerState<WorkHourFormModal> {
                                                 : '',
                                             style: theme.textTheme.bodyLarge
                                                 ?.copyWith(
-                                              color:
-                                                  theme.colorScheme.onSurface,
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w500,
-                                            ),
+                                                  color: theme
+                                                      .colorScheme
+                                                      .onSurface,
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
                                           ),
                                         ),
                                       ],
@@ -380,7 +407,8 @@ class _WorkHourFormModalState extends ConsumerState<WorkHourFormModal> {
                                 ),
 
                                 const SizedBox(
-                                    height: 100), // Место для плавающих кнопок
+                                  height: 100,
+                                ), // Место для плавающих кнопок
                               ],
                             ),
                           ),

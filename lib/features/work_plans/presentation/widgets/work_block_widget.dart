@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:projectgt/core/widgets/gt_dropdown.dart';
 import 'package:projectgt/domain/entities/employee.dart' as domain_employee;
-import 'package:projectgt/domain/entities/object.dart';
+import 'package:projectgt/core/utils/formatters.dart';
+import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:projectgt/features/work_plans/presentation/widgets/work_block_state.dart';
 import 'package:projectgt/features/work_plans/presentation/widgets/work_selection_widget.dart';
 
@@ -527,10 +528,5 @@ class WorkBlockWidget extends StatelessWidget {
   }
 
   /// Форматирует сумму с разделителями тысяч
-  String _formatCurrency(double amount) {
-    final formatted = amount.toStringAsFixed(0);
-    // ignore: deprecated_member_use
-    final regex = RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))');
-    return '${formatted.replaceAllMapped(regex, (Match match) => '${match[1]} ')} ₽';
-  }
+  String _formatCurrency(double amount) => formatCurrency(amount);
 }

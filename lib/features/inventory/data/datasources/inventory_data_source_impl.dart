@@ -10,8 +10,11 @@ class SupabaseInventoryDataSource implements InventoryDataSource {
   /// Клиент Supabase для выполнения запросов к базе данных.
   final SupabaseClient client;
 
-  /// Создаёт [SupabaseInventoryDataSource] с указанным [client].
-  SupabaseInventoryDataSource(this.client);
+  /// ID активной компании для фильтрации данных.
+  final String? activeCompanyId;
+
+  /// Создаёт [SupabaseInventoryDataSource] с указанным [client] и [activeCompanyId].
+  SupabaseInventoryDataSource(this.client, {this.activeCompanyId});
 
   @override
   Future<List<InventoryItemModel>> getInventoryItems() async {
@@ -132,7 +135,14 @@ class SupabaseInventoryDataSource implements InventoryDataSource {
   @override
   Future<List<Map<String, dynamic>>> getSuppliersForDropdown() async {
     try {
-      final response = await client.rpc('get_suppliers_for_dropdown');
+      if (activeCompanyId == null) {
+        Logger().w('activeCompanyId is null, returning empty suppliers list');
+        return [];
+      }
+      final response = await client.rpc(
+        'get_suppliers_for_dropdown',
+        params: {'p_company_id': activeCompanyId},
+      );
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
       Logger().e('Error fetching suppliers for dropdown: $e');

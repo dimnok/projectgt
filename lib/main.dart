@@ -37,6 +37,7 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 /// Точка входа в приложение ProjectGT.
 ///
 /// Выполняет инициализацию Supabase, конфигурации приложения и запуск приложения с поддержкой Riverpod.
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 

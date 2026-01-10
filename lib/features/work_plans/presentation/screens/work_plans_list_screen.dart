@@ -3,16 +3,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:projectgt/core/widgets/app_snackbar.dart';
+import 'package:projectgt/core/widgets/edge_to_edge_scaffold.dart';
+import 'package:projectgt/core/widgets/gt_buttons.dart';
+import 'package:projectgt/core/widgets/gt_confirmation_dialog.dart';
 import 'package:projectgt/domain/entities/work_plan.dart';
-import 'package:projectgt/domain/entities/object.dart';
+import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 import 'package:projectgt/features/work_plans/presentation/screens/work_plan_form_modal.dart';
 import 'package:projectgt/features/work_plans/presentation/screens/work_plan_details_screen.dart';
 import 'package:projectgt/features/employees/presentation/widgets/master_detail_layout.dart';
 import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/features/objects/presentation/state/object_state.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
-import 'package:projectgt/presentation/state/object_state.dart';
 import 'package:projectgt/features/work_plans/presentation/widgets/work_plans_mobile_cards.dart';
 import 'package:intl/intl.dart';
 import 'package:projectgt/core/utils/formatters.dart';
@@ -101,7 +105,7 @@ class _WorkPlansListScreenState extends ConsumerState<WorkPlansListScreen> {
 
     final objects = objectState.objects;
 
-    return Scaffold(
+    return EdgeToEdgeScaffold(
       backgroundColor: theme.colorScheme.surface,
       extendBodyBehindAppBar: true,
       appBar: AppBarWidget(
@@ -111,9 +115,10 @@ class _WorkPlansListScreenState extends ConsumerState<WorkPlansListScreen> {
             PermissionGuard(
               module: 'work_plans',
               permission: 'update',
-              child: CupertinoButton(
-                padding: EdgeInsets.zero,
-                child: const Icon(Icons.edit, color: Colors.amber),
+              child: GTTextButton(
+                text: 'Редактировать',
+                icon: Icons.edit,
+                color: Colors.amber,
                 onPressed: () {
                   _showEditWorkPlanModal(context, selectedWorkPlan!);
                 },
@@ -123,9 +128,10 @@ class _WorkPlansListScreenState extends ConsumerState<WorkPlansListScreen> {
             PermissionGuard(
               module: 'work_plans',
               permission: 'delete',
-              child: CupertinoButton(
-                padding: EdgeInsets.zero,
-                child: const Icon(Icons.delete_outline, color: Colors.red),
+              child: GTTextButton(
+                text: 'Удалить',
+                icon: Icons.delete_outline,
+                color: Colors.red,
                 onPressed: () {
                   _confirmAndDeleteSelectedWorkPlan();
                 },
@@ -502,139 +508,74 @@ class _WorkPlansListScreenState extends ConsumerState<WorkPlansListScreen> {
 
   /// Показывает модальное окно создания плана работ
   void _showCreateWorkPlanModal(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height -
-            MediaQuery.of(context).padding.top -
-            kToolbarHeight,
-      ),
-      builder: (context) {
-        final isDesktop = MediaQuery.of(context).size.width >= 900;
-        Widget modalContent = Container(
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(28),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1),
-                blurRadius: 10,
-                offset: const Offset(0, -5),
-              ),
-            ],
+    if (ResponsiveUtils.isDesktop(context)) {
+      showDialog(
+        context: context,
+        builder: (context) => Dialog(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          child: WorkPlanFormModal(
+            onSuccess: (isNew) {
+              ref.read(workPlanNotifierProvider.notifier).loadWorkPlans();
+            },
           ),
-          child: DraggableScrollableSheet(
-            initialChildSize: 1.0,
-            minChildSize: 0.5,
-            maxChildSize: 1.0,
-            expand: false,
-            builder: (context, scrollController) => SingleChildScrollView(
-              controller: scrollController,
-              child: Padding(
-                padding: EdgeInsets.only(
-                  bottom: MediaQuery.of(context).viewInsets.bottom,
-                ),
-                child: WorkPlanFormModal(
-                  onSuccess: (isNew) {
-                    // Обновляем список планов работ после успешного сохранения
-                    ref.read(workPlanNotifierProvider.notifier).loadWorkPlans();
-                  },
-                ),
-              ),
-            ),
-          ),
-        );
-
-        if (isDesktop) {
-          return Center(
-            child: SizedBox(
-              width:
-                  (MediaQuery.of(context).size.width * 0.5).clamp(400.0, 900.0),
-              child: modalContent,
-            ),
-          );
-        } else {
-          return modalContent;
-        }
-      },
-    );
+        ),
+      );
+    } else {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) => WorkPlanFormModal(
+          onSuccess: (isNew) {
+            ref.read(workPlanNotifierProvider.notifier).loadWorkPlans();
+          },
+        ),
+      );
+    }
   }
 
   /// Показывает модальное окно редактирования плана работ
   void _showEditWorkPlanModal(BuildContext context, WorkPlan workPlan) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height -
-            MediaQuery.of(context).padding.top -
-            kToolbarHeight,
-      ),
-      builder: (context) {
-        final isDesktop = MediaQuery.of(context).size.width >= 900;
-        Widget modalContent = Container(
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(28),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1),
-                blurRadius: 10,
-                offset: const Offset(0, -5),
-              ),
-            ],
+    if (ResponsiveUtils.isDesktop(context)) {
+      showDialog(
+        context: context,
+        builder: (context) => Dialog(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          child: WorkPlanFormModal(
+            workPlan: workPlan,
+            onSuccess: (isNew) {
+              ref.read(workPlanNotifierProvider.notifier).loadWorkPlans();
+              if (!isNew) {
+                setState(() {
+                  selectedWorkPlan = null;
+                });
+              }
+            },
           ),
-          child: DraggableScrollableSheet(
-            initialChildSize: 1.0,
-            minChildSize: 0.5,
-            maxChildSize: 1.0,
-            expand: false,
-            builder: (context, scrollController) => SingleChildScrollView(
-              controller: scrollController,
-              child: Padding(
-                padding: EdgeInsets.only(
-                  bottom: MediaQuery.of(context).viewInsets.bottom,
-                ),
-                child: WorkPlanFormModal(
-                  workPlan: workPlan, // Передаем план для редактирования
-                  onSuccess: (isNew) {
-                    // Обновляем список планов работ после успешного сохранения
-                    ref.read(workPlanNotifierProvider.notifier).loadWorkPlans();
-                    if (!isNew) {
-                      // При редактировании сбрасываем выбранный план для перезагрузки
-                      setState(() {
-                        selectedWorkPlan = null;
-                      });
-                    }
-                  },
-                ),
-              ),
-            ),
-          ),
-        );
-
-        if (isDesktop) {
-          return Center(
-            child: SizedBox(
-              width:
-                  (MediaQuery.of(context).size.width * 0.5).clamp(400.0, 900.0),
-              child: modalContent,
-            ),
-          );
-        } else {
-          return modalContent;
-        }
-      },
-    );
+        ),
+      );
+    } else {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) => WorkPlanFormModal(
+          workPlan: workPlan,
+          onSuccess: (isNew) {
+            ref.read(workPlanNotifierProvider.notifier).loadWorkPlans();
+            if (!isNew) {
+              setState(() {
+                selectedWorkPlan = null;
+              });
+            }
+          },
+        ),
+      );
+    }
   }
 
   /// Подтверждает и удаляет выбранный план работ (для десктопа из AppBar).
@@ -642,35 +583,36 @@ class _WorkPlansListScreenState extends ConsumerState<WorkPlansListScreen> {
     final workPlan = selectedWorkPlan;
     if (workPlan?.id == null) return;
 
-    final theme = Theme.of(context);
-    final confirmed = await showDialog<bool>(
+    final confirmed = await GTConfirmationDialog.show(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Удалить план?'),
-        content: const Text('Действие нельзя отменить.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Отмена'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style:
-                TextButton.styleFrom(foregroundColor: theme.colorScheme.error),
-            child: const Text('Удалить'),
-          ),
-        ],
-      ),
+      title: 'Удалить план?',
+      message: 'Действие нельзя отменить.',
+      confirmText: 'Удалить',
+      type: GTConfirmationType.danger,
     );
 
     if (confirmed == true) {
-      await ref
-          .read(workPlanNotifierProvider.notifier)
-          .deleteWorkPlan(workPlan!.id!);
-      if (!mounted) return;
-      setState(() {
-        selectedWorkPlan = null;
-      });
+      try {
+        await ref
+            .read(workPlanNotifierProvider.notifier)
+            .deleteWorkPlan(workPlan!.id!);
+        if (!mounted) return;
+        setState(() {
+          selectedWorkPlan = null;
+        });
+        AppSnackBar.show(
+          context: context,
+          message: 'План работ успешно удален',
+          kind: AppSnackBarKind.success,
+        );
+      } catch (e) {
+        if (!mounted) return;
+        AppSnackBar.show(
+          context: context,
+          message: 'Ошибка при удалении плана: $e',
+          kind: AppSnackBarKind.error,
+        );
+      }
     }
   }
 }

@@ -9,6 +9,7 @@ part of 'estimate_model.dart';
 _EstimateModel _$EstimateModelFromJson(Map<String, dynamic> json) =>
     _EstimateModel(
       id: json['id'] as String?,
+      companyId: json['company_id'] as String,
       system: json['system'] as String,
       subsystem: json['subsystem'] as String,
       number: _numberFromJson(json['number']),
@@ -28,6 +29,7 @@ _EstimateModel _$EstimateModelFromJson(Map<String, dynamic> json) =>
 Map<String, dynamic> _$EstimateModelToJson(_EstimateModel instance) =>
     <String, dynamic>{
       if (instance.id case final value?) 'id': value,
+      'company_id': instance.companyId,
       'system': instance.system,
       'subsystem': instance.subsystem,
       'number': instance.number,

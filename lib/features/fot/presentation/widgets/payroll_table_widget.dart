@@ -7,14 +7,17 @@ import 'package:projectgt/core/utils/responsive_utils.dart';
 import '../providers/payroll_providers.dart';
 import '../providers/payroll_filter_providers.dart';
 import '../providers/balance_providers.dart';
-import 'payroll_table_cells.dart';
-import 'payroll_table_row_builder.dart';
+import 'package:projectgt/core/widgets/gt_month_picker.dart';
+import 'package:projectgt/core/widgets/gt_object_picker.dart';
+import '../utils/payroll_filter_helpers.dart';
+import 'payroll_table_view.dart';
+import 'payroll_search_action.dart';
 
 /// Виджет для отображения табличных данных расчётов ФОТ.
 ///
 /// Поддерживает группировку по сотрудникам с детальной стилизацией.
 /// Оптимизирован для производительности и соответствует Clean Architecture.
-class PayrollTableWidget extends ConsumerStatefulWidget {
+class PayrollTableWidget extends ConsumerWidget {
   /// Список расчётов ФОТ.
   final List<PayrollCalculation> payrolls;
 
@@ -29,45 +32,34 @@ class PayrollTableWidget extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<PayrollTableWidget> createState() => _PayrollTableWidgetState();
-}
-
-class _PayrollTableWidgetState extends ConsumerState<PayrollTableWidget> {
-  /// Контроллер для вертикального скролла.
-  final ScrollController _verticalController = ScrollController();
-
-  /// Контроллер для горизонтального скролла.
-  final ScrollController _horizontalController = ScrollController();
-
-  @override
-  void dispose() {
-    _verticalController.dispose();
-    _horizontalController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
 
-    // Используем текущий месяц
-    final now = DateTime.now();
-    final year = now.year;
-    final month = now.month;
-    final monthDate = DateTime(year, month);
-
-    // Получаем только список сотрудников (без лишних полей)
-    final employees = ref.watch(employeeProvider.select((s) => s.employees));
-
-    // Используем независимые данные work_hours вместо timesheetEntries
-    final workHoursAsync = ref.watch(payrollWorkHoursProvider);
-    final workHours = workHoursAsync.asData?.value ?? [];
-
-    // Получаем FIFO распределение выплат по месяцам
-    final payoutsMapAsync = ref.watch(payoutsByEmployeeAndMonthFIFOProvider);
-    final payoutsMap = payoutsMapAsync.asData?.value ?? {};
+    // Используем текущий месяц и год из фильтра
     final filterState = ref.watch(payrollFilterProvider);
-    final currentMonth = filterState.selectedMonth;
+    final monthDate = DateTime(
+      filterState.selectedYear,
+      filterState.selectedMonth,
+    );
+    final lastDayOfMonth = DateTime(
+      filterState.selectedYear,
+      filterState.selectedMonth + 1,
+      0,
+    );
+
+    // Получаем список сотрудников
+    final allEmployees = ref.watch(employeeProvider.select((s) => s.employees));
+    final searchQuery = ref.watch(payrollSearchQueryProvider);
+
+    // Фильтруем сотрудников по поисковому запросу
+    final employees = filterEmployeesBySearchQuery(allEmployees, searchQuery);
+
+    // Получаем выплаты по сотрудникам (FIFO)
+    final payoutsMapAsync = ref.watch(
+      payoutsByEmployeeAndMonthFIFOProvider(filterState.selectedYear),
+    );
+    final payoutsMap = payoutsMapAsync.asData?.value ?? {};
+    final currentMonth = filterState.selectedMonth; // int (1-12)
 
     final payoutsByEmployee = <String, double>{};
     for (final empId in payoutsMap.keys) {
@@ -75,11 +67,15 @@ class _PayrollTableWidgetState extends ConsumerState<PayrollTableWidget> {
       payoutsByEmployee[empId] = payoutsForAllMonths[currentMonth] ?? 0;
     }
 
-    // Получаем оптимизированный агрегированный баланс
-    final aggregatedBalanceAsync = ref.watch(employeeAggregatedBalanceProvider);
+    // Получаем агрегированный баланс на конец выбранного месяца
+    final aggregatedBalanceAsync = ref.watch(
+      employeeBalanceAtDateProvider(lastDayOfMonth),
+    );
     final aggregatedBalance = aggregatedBalanceAsync.asData?.value ?? {};
 
-    if (widget.payrolls.isEmpty) {
+    final isDesktop = ResponsiveUtils.isDesktop(context);
+
+    if (payrolls.isEmpty && employees.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -87,22 +83,25 @@ class _PayrollTableWidgetState extends ConsumerState<PayrollTableWidget> {
             Icon(
               Icons.assignment_late_outlined,
               size: 64,
-              color: theme.colorScheme.outline,
+              color: theme.colorScheme.outline.withValues(alpha: 0.5),
             ),
             const SizedBox(height: 16),
             Text(
               'Нет данных для отображения',
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: theme.colorScheme.outline,
-              ),
+              style: theme.textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
-            Text(
-              'Попробуйте изменить фильтры или выбрать другой период',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.outline,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Text(
+                searchQuery.isNotEmpty
+                    ? 'По запросу "$searchQuery" ничего не найдено. Попробуйте изменить фильтры или выбрать другой период.'
+                    : 'За выбранный период записей не найдено. Попробуйте выбрать другой месяц или добавить новую операцию.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -112,248 +111,69 @@ class _PayrollTableWidgetState extends ConsumerState<PayrollTableWidget> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 16.0),
-          child: Text(
-            'ФОТ ${DateFormat.yMMMM('ru').format(monthDate)}',
-            style: theme.textTheme.headlineSmall,
-          ),
+        Row(
+          children: [
+            Text(
+              'ФОТ ${DateFormat.yMMMM('ru').format(monthDate)}',
+              style: theme.textTheme.headlineSmall,
+            ),
+            if (isDesktop) ...[
+              const SizedBox(width: 16),
+              GTMonthPicker(
+                selectedDate: monthDate,
+                onPrevious: () {
+                  final prev = DateTime(monthDate.year, monthDate.month - 1);
+                  ref
+                      .read(payrollFilterProvider.notifier)
+                      .setYearAndMonth(prev.year, prev.month);
+                },
+                onNext: () {
+                  final next = DateTime(monthDate.year, monthDate.month + 1);
+                  ref
+                      .read(payrollFilterProvider.notifier)
+                      .setYearAndMonth(next.year, next.month);
+                },
+                onTap: () => PayrollFilterHelpers.showMonthSelection(
+                  context,
+                  ref,
+                  monthDate,
+                ),
+              ),
+              const SizedBox(width: 8),
+              GTObjectPicker(
+                objectName: PayrollFilterHelpers.getObjectName(
+                  ref,
+                  filterState.selectedObjectIds,
+                ),
+                onPrevious: () => PayrollFilterHelpers.handleObjectSwitch(
+                  ref,
+                  filterState.selectedObjectIds,
+                  -1,
+                ),
+                onNext: () => PayrollFilterHelpers.handleObjectSwitch(
+                  ref,
+                  filterState.selectedObjectIds,
+                  1,
+                ),
+                onTap: () =>
+                    PayrollFilterHelpers.showObjectSelection(context, ref),
+              ),
+            ],
+          ],
         ),
+        const SizedBox(height: 16),
         Expanded(
-          child: _buildEmployeeGroupedTable(
-            context,
-            employees,
-            workHours, // Используем независимые данные work_hours
-            payoutsByEmployee,
-            aggregatedBalance,
+          child: PayrollTableView(
+            payrolls: payrolls,
+            employees: employees,
+            payoutsByEmployee: payoutsByEmployee,
+            aggregatedBalance: aggregatedBalance,
+            isMobile: ResponsiveUtils.isMobile(context),
+            isTablet: ResponsiveUtils.isTablet(context),
+            isDesktop: isDesktop,
           ),
         ),
       ],
     );
-  }
-
-  /// Строит таблицу с группировкой по сотрудникам с полным соответствием стилю табеля.
-  Widget _buildEmployeeGroupedTable(
-    BuildContext context,
-    List<dynamic> employees,
-    List<dynamic> workHours, // Изменили тип с timesheetEntries на workHours
-    Map<String, double> payoutsByEmployee,
-    Map<String, double> aggregatedBalance,
-  ) {
-    final theme = Theme.of(context);
-
-    // Группируем записи по сотрудникам (учитывая, что employeeId может быть null)
-    final Map<String?, List<PayrollCalculation>> groupedPayrolls = {};
-
-    try {
-      for (final payroll in widget.payrolls) {
-        final employeeKey = payroll.employeeId ?? 'unknown';
-
-        if (!groupedPayrolls.containsKey(employeeKey)) {
-          groupedPayrolls[employeeKey] = [];
-        }
-        groupedPayrolls[employeeKey]!.add(payroll);
-      }
-    } catch (e) {
-      // Игнорируем ошибку группировки
-    }
-
-    // Используем LayoutBuilder для определения доступной ширины
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Определяем, является ли устройство мобильным, планшетом или десктопом
-        final isMobile = ResponsiveUtils.isMobile(context);
-        final isTablet = ResponsiveUtils.isTablet(context);
-        final isDesktop = ResponsiveUtils.isDesktop(context);
-
-        // Определяем минимальную ширину для таблицы на основе типа устройства
-        final double minTableWidth = isDesktop
-            ? 1200
-            : isTablet
-                ? 900
-                : constraints.maxWidth;
-
-        // Определяем, нужно ли использовать горизонтальный скролл
-        final needsHorizontalScroll = minTableWidth > constraints.maxWidth;
-
-        // Определяем колонки таблицы на основе типа устройства
-        final columns = _buildAdaptiveColumns(isDesktop, isTablet, isMobile);
-
-        // Создаём объект для хранения итогов
-        final totals = PayrollTotals();
-
-        // Строим строки таблицы используя новый строитель
-        final rows = PayrollTableRowBuilder.buildDataRows(
-          groupedPayrolls: groupedPayrolls,
-          theme: theme,
-          employees: employees,
-          timesheetEntries:
-              workHours, // Передаём workHours как timesheetEntries для совместимости
-          payoutsByEmployee: payoutsByEmployee,
-          aggregatedBalance: aggregatedBalance,
-          isMobile: isMobile,
-          isTablet: isTablet,
-          isDesktop: isDesktop,
-          totals: totals,
-        );
-
-        return Scrollbar(
-          controller: _verticalController,
-          thumbVisibility: true,
-          child: SingleChildScrollView(
-            controller: _verticalController,
-            child: Scrollbar(
-              controller: _horizontalController,
-              thumbVisibility: needsHorizontalScroll,
-              scrollbarOrientation: ScrollbarOrientation.bottom,
-              child: SingleChildScrollView(
-                controller: _horizontalController,
-                scrollDirection: Axis.horizontal,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minWidth: needsHorizontalScroll
-                        ? minTableWidth
-                        : constraints.maxWidth,
-                  ),
-                  child: DataTable(
-                    // Стилизация заголовка - точно как в табеле
-                    headingTextStyle: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                    dataTextStyle: theme.textTheme.bodyMedium,
-                    headingRowColor:
-                        WidgetStateProperty.resolveWith<Color>((states) {
-                      return theme.colorScheme.surface;
-                    }),
-                    // Границы таблицы с прозрачностью 0.2 как в табеле
-                    border: TableBorder.all(
-                      color: theme.colorScheme.outline.withValues(alpha: 0.2),
-                      width: 1,
-                    ),
-                    // Отступы между колонками - адаптивные
-                    columnSpacing: ResponsiveUtils.adaptiveValue(
-                      context: context,
-                      mobile: PayrollTableConstants.mobileColumnSpacing,
-                      tablet: PayrollTableConstants.tabletColumnSpacing,
-                      desktop: PayrollTableConstants.desktopColumnSpacing,
-                    ),
-                    // Высота строк и заголовка - как в календаре табеля
-                    headingRowHeight: 48,
-                    dataRowMinHeight: 52,
-                    dataRowMaxHeight: 52,
-                    // Горизонтальный отступ - адаптивный
-                    horizontalMargin: ResponsiveUtils.adaptiveValue(
-                      context: context,
-                      mobile: 6,
-                      tablet: 8,
-                      desktop: 12,
-                    ),
-                    // Разделитель строк
-                    dividerThickness: 0.5,
-                    columns: columns,
-                    rows: rows,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  /// Строит адаптивные колонки таблицы в зависимости от типа устройства
-  List<DataColumn> _buildAdaptiveColumns(
-      bool isDesktop, bool isTablet, bool isMobile) {
-    final List<DataColumn> columns = [
-      DataColumn(
-        label: Container(
-          constraints: BoxConstraints(
-            minWidth: isDesktop
-                ? 200
-                : isTablet
-                    ? 150
-                    : 120,
-          ),
-          child: const Text('Сотрудник'),
-        ),
-      ),
-    ];
-
-    if (isDesktop) {
-      columns.addAll([
-        const DataColumn(label: Text('Часы'), numeric: true),
-        const DataColumn(label: Text('Ставка'), numeric: true),
-        const DataColumn(label: Text('Базовая сумма'), numeric: true),
-        const DataColumn(label: Text('Премии'), numeric: true),
-        const DataColumn(label: Text('Штрафы'), numeric: true),
-        const DataColumn(label: Text('Суточные'), numeric: true),
-        DataColumn(
-          label: Container(
-            constraints: BoxConstraints(
-              minWidth: isDesktop
-                  ? 120
-                  : isTablet
-                      ? 100
-                      : 80,
-            ),
-            child: const Text('К выплате',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-          numeric: true,
-        ),
-        const DataColumn(label: Text('Выплаты'), numeric: true),
-        const DataColumn(label: Text('Остаток'), numeric: true),
-        const DataColumn(label: Text('Баланс'), numeric: true),
-      ]);
-    } else if (isTablet) {
-      columns.addAll([
-        const DataColumn(label: Text('Часы'), numeric: true),
-        const DataColumn(label: Text('Базовая сумма'), numeric: true),
-        if (!isMobile) const DataColumn(label: Text('Премии'), numeric: true),
-        const DataColumn(label: Text('Суточные'), numeric: true),
-        DataColumn(
-          label: Container(
-            constraints: BoxConstraints(
-              minWidth: isDesktop
-                  ? 120
-                  : isTablet
-                      ? 100
-                      : 80,
-            ),
-            child: const Text('К выплате',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-          numeric: true,
-        ),
-        const DataColumn(label: Text('Выплаты'), numeric: true),
-        const DataColumn(label: Text('Остаток'), numeric: true),
-        const DataColumn(label: Text('Баланс'), numeric: true),
-      ]);
-    } else {
-      columns.addAll([
-        const DataColumn(label: Text('Часы'), numeric: true),
-        const DataColumn(label: Text('Суточные'), numeric: true),
-        DataColumn(
-          label: Container(
-            constraints: BoxConstraints(
-              minWidth: isDesktop
-                  ? 120
-                  : isTablet
-                      ? 100
-                      : 80,
-            ),
-            child: const Text('К выплате',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-          numeric: true,
-        ),
-        const DataColumn(label: Text('Выплаты'), numeric: true),
-        const DataColumn(label: Text('Остаток'), numeric: true),
-        const DataColumn(label: Text('Баланс'), numeric: true),
-      ]);
-    }
-
-    return columns;
   }
 }

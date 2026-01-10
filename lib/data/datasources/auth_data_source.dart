@@ -12,6 +12,7 @@ abstract class AuthDataSource {
   /// [password] — пароль пользователя.
   /// Возвращает [UserModel] при успешной аутентификации.
   /// Генерирует исключение при ошибке.
+  @Deprecated('Используйте телефонную авторизацию через OTP')
   Future<UserModel> login(String email, String password);
 
   /// Регистрирует нового пользователя.
@@ -21,6 +22,7 @@ abstract class AuthDataSource {
   /// [password] — пароль пользователя.
   /// Возвращает [UserModel] при успешной регистрации.
   /// Генерирует исключение при ошибке.
+  @Deprecated('Используйте телефонную авторизацию через OTP')
   Future<UserModel> register(String name, String email, String password);
 
   /// Выходит из аккаунта пользователя.
@@ -34,10 +36,26 @@ abstract class AuthDataSource {
   Future<UserModel?> getCurrentUser();
 
   /// Отправляет 6-значный код подтверждения на email (passwordless OTP).
+  @Deprecated('Используйте requestPhoneOtp')
   Future<void> requestEmailOtp(String email);
 
   /// Подтверждает 6-значный код и возвращает пользователя.
+  @Deprecated('Используйте verifyPhoneOtp')
   Future<UserModel> verifyEmailOtp(String email, String code);
+
+  /// Отправляет 6-значный код подтверждения на телефон через Notisend Telegram Gateway.
+  /// Возвращает токен верификации, который нужно передать в [verifyPhoneOtp].
+  Future<String> requestPhoneOtp(String phone);
+
+  /// Подтверждает 6-значный код с телефона и возвращает пользователя.
+  /// [phone] — номер телефона.
+  /// [code] — код из Telegram.
+  /// [token] — токен верификации из [requestPhoneOtp].
+  Future<UserModel> verifyPhoneOtp({
+    required String phone,
+    required String code,
+    required String token,
+  });
 
   /// Обновляет профиль пользователя при первой авторизации.
   ///
@@ -73,28 +91,43 @@ class SupabaseAuthDataSource implements AuthDataSource {
         throw Exception('Неверные учетные данные');
       }
 
-      // Получаем роль пользователя из профиля
-      String? roleId;
-      try {
-        final profileData = await client
-            .from('profiles')
-            .select('role_id')
-            .eq('id', response.user!.id)
-            .single();
+    // [RBAC v3] Получаем роль пользователя строго из контекста компании.
+    // Сначала определяем активную компанию (last_company_id), затем ищем роль в этой компании.
+    String? roleId;
+    String? systemRole;
+    try {
+      final profileData = await client
+          .from('profiles')
+          .select('last_company_id')
+          .eq('id', response.user!.id)
+          .single();
 
-        roleId = profileData['role_id'];
-      } catch (e) {
-        Logger().e('Ошибка при получении роли: $e');
+      final String? lastCompanyId = profileData['last_company_id'];
+
+      if (lastCompanyId != null) {
+        final memberData = await client
+            .from('company_members')
+            .select('role_id, system_role')
+            .eq('company_id', lastCompanyId)
+            .eq('user_id', response.user!.id)
+            .maybeSingle();
+        
+        roleId = memberData?['role_id'];
+        systemRole = memberData?['system_role'];
       }
-
-      return UserModel(
-        id: response.user!.id,
-        email: response.user!.email!,
-        name: response.user!.userMetadata?['name'] as String?,
-        photoUrl: response.user!.userMetadata?['photoUrl'] as String?,
-        roleId: roleId,
-      );
     } catch (e) {
+      Logger().e('Ошибка при получении роли (login): $e');
+    }
+
+    return UserModel(
+      id: response.user!.id,
+      email: response.user!.email!,
+      name: response.user!.userMetadata?['name'] as String?,
+      photoUrl: response.user!.userMetadata?['photoUrl'] as String?,
+      roleId: roleId,
+      systemRole: systemRole,
+    );
+  } catch (e) {
       // Обрабатываем конкретные ошибки Supabase
       final errorMessage = e.toString();
       if (errorMessage.contains('invalid_credentials') ||
@@ -155,7 +188,7 @@ class SupabaseAuthDataSource implements AuthDataSource {
     // Если локально пользователь ещё не подхвачен, пробуем получить через API
     if (user == null) {
       try {
-        final res = await client.auth.getUser();
+        final res = await client.auth.getUser().timeout(const Duration(seconds: 15));
         user = res.user;
       } catch (e) {
         // игнорируем, вернём null ниже
@@ -165,18 +198,37 @@ class SupabaseAuthDataSource implements AuthDataSource {
       }
     }
 
-    // Получаем роль пользователя из профиля
+    // [RBAC v3] Получаем роль пользователя строго из контекста компании.
+    // Сначала определяем активную компанию (last_company_id), затем ищем роль в этой компании.
     String? roleId;
+    String? systemRole;
     try {
       final profileData = await client
           .from('profiles')
-          .select('role_id')
+          .select('last_company_id')
           .eq('id', user.id)
-          .single();
+          .single()
+          .timeout(const Duration(seconds: 15));
 
-      roleId = profileData['role_id'];
+      final String? lastCompanyId = profileData['last_company_id'];
+
+      if (lastCompanyId != null && lastCompanyId.isNotEmpty) {
+        final memberData = await client
+            .from('company_members')
+            .select('role_id, system_role')
+            .eq('company_id', lastCompanyId)
+            .eq('user_id', user.id)
+            .maybeSingle()
+            .timeout(const Duration(seconds: 15));
+        
+        roleId = memberData?['role_id'];
+        systemRole = memberData?['system_role'];
+      }
     } catch (e) {
-      Logger().e('Ошибка при получении роли: $e');
+      Logger().e('Ошибка при получении роли (getCurrentUser): $e');
+      if (e.toString().contains('PGRST116')) {
+        await client.auth.signOut();
+      }
     }
 
     return UserModel(
@@ -185,6 +237,7 @@ class SupabaseAuthDataSource implements AuthDataSource {
       name: user.userMetadata?['name'] as String?,
       photoUrl: user.userMetadata?['photoUrl'] as String?,
       roleId: roleId,
+      systemRole: systemRole,
     );
   }
 
@@ -225,24 +278,41 @@ class SupabaseAuthDataSource implements AuthDataSource {
         throw Exception('Не удалось подтвердить код');
       }
 
-      String? roleId;
-      try {
-        final profileData = await client
-            .from('profiles')
-            .select('role_id')
-            .eq('id', user.id)
-            .single();
-        roleId = profileData['role_id'];
-      } catch (_) {}
+    // [RBAC v3] Получаем роль пользователя строго из контекста компании.
+    // Сначала определяем активную компанию (last_company_id), затем ищем роль в этой компании.
+    String? roleId;
+    String? systemRole;
+    try {
+      final profileData = await client
+          .from('profiles')
+          .select('last_company_id')
+          .eq('id', user.id)
+          .single();
 
-      return UserModel(
-        id: user.id,
-        email: user.email ?? email,
-        name: user.userMetadata?['name'] as String?,
-        photoUrl: user.userMetadata?['photoUrl'] as String?,
-        roleId: roleId,
-      );
-    } catch (e) {
+      final String? lastCompanyId = profileData['last_company_id'];
+
+      if (lastCompanyId != null) {
+        final memberData = await client
+            .from('company_members')
+            .select('role_id, system_role')
+            .eq('company_id', lastCompanyId)
+            .eq('user_id', user.id)
+            .maybeSingle();
+        
+        roleId = memberData?['role_id'];
+        systemRole = memberData?['system_role'];
+      }
+    } catch (_) {}
+
+    return UserModel(
+      id: user.id,
+      email: user.email ?? email,
+      name: user.userMetadata?['name'] as String?,
+      photoUrl: user.userMetadata?['photoUrl'] as String?,
+      roleId: roleId,
+      systemRole: systemRole,
+    );
+  } catch (e) {
       final message = e.toString();
       if (message.contains('Token has expired') ||
           message.contains('Invalid token')) {
@@ -251,6 +321,110 @@ class SupabaseAuthDataSource implements AuthDataSource {
       if (message.contains('network')) {
         throw Exception('Ошибка сети. Проверьте подключение к интернету');
       }
+      throw Exception('Ошибка подтверждения кода: $e');
+    }
+  }
+
+  @override
+  Future<String> requestPhoneOtp(String phone) async {
+    try {
+      final response = await client.functions.invoke(
+        'otp-notisend',
+        body: {'action': 'send', 'phone': phone},
+      );
+
+      final data = response.data as Map<String, dynamic>;
+      if (data['success'] == true) {
+        return data['token'] as String;
+      } else {
+        throw Exception(data['error'] ?? 'Ошибка отправки кода');
+      }
+    } catch (e) {
+      logger.e('Ошибка requestPhoneOtp: $e');
+      throw Exception('Не удалось отправить код в Telegram: $e');
+    }
+  }
+
+  @override
+  Future<UserModel> verifyPhoneOtp({
+    required String phone,
+    required String code,
+    required String token,
+  }) async {
+    try {
+      // 1. Верифицируем код через Edge Function
+      final response = await client.functions.invoke(
+        'otp-notisend',
+        body: {
+          'action': 'verify',
+          'phone': phone,
+          'code': code,
+          'token': token,
+        },
+      );
+
+      final data = response.data as Map<String, dynamic>;
+      if (data['success'] != true) {
+        throw Exception(data['error'] ?? 'Неверный код');
+      }
+
+      // 2. Получаем временный пароль и email для входа
+      final tempPass = data['temp_pass']?.toString();
+      final email = data['email']?.toString();
+
+      if (tempPass == null || email == null) {
+        throw Exception(
+          'Ошибка данных авторизации: отсутствуют необходимые поля',
+        );
+      }
+
+      // 3. Выполняем вход по временному паролю
+      final authRes = await client.auth.signInWithPassword(
+        email: email,
+        password: tempPass,
+      );
+
+      final user = authRes.user;
+      if (user == null) {
+        throw Exception('Ошибка авторизации после проверки кода');
+      }
+
+    // [RBAC v3] Получаем роль пользователя строго из контекста компании.
+    // Сначала определяем активную компанию (last_company_id), затем ищем роль в этой компании.
+    String? roleId;
+    String? systemRole;
+    try {
+      final profileData = await client
+          .from('profiles')
+          .select('last_company_id')
+          .eq('id', user.id)
+          .single();
+
+      final String? lastCompanyId = profileData['last_company_id'];
+
+      if (lastCompanyId != null) {
+        final memberData = await client
+            .from('company_members')
+            .select('role_id, system_role')
+            .eq('company_id', lastCompanyId)
+            .eq('user_id', user.id)
+            .maybeSingle();
+        
+        roleId = memberData?['role_id'];
+        systemRole = memberData?['system_role'];
+      }
+    } catch (_) {}
+
+    return UserModel(
+      id: user.id,
+      email: user.email ?? email,
+      name: user.userMetadata?['name'] as String?,
+      photoUrl: user.userMetadata?['photoUrl'] as String?,
+      roleId: roleId,
+      systemRole: systemRole,
+    );
+  } catch (e) {
+      logger.e('Ошибка verifyPhoneOtp: $e');
       throw Exception('Ошибка подтверждения кода: $e');
     }
   }

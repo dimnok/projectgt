@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/domain/entities/profile.dart';
 import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 
 /// Notifier для кэширования профилей пользователей по ID.
 ///
@@ -10,8 +11,19 @@ class ProfilesCacheNotifier extends StateNotifier<Map<String, Profile?>> {
   /// Репозиторий для загрузки профилей.
   final Ref _ref;
 
-  /// Создаёт notifier с пустым кэшем.
-  ProfilesCacheNotifier(this._ref) : super({});
+  /// Создаёт notifier с пустым кэшем и подписывается на смену компании.
+  ProfilesCacheNotifier(this._ref) : super({}) {
+    _listenToCompanyChanges();
+  }
+
+  /// Подписывается на изменения активной компании и очищает кэш.
+  void _listenToCompanyChanges() {
+    _ref.listen(activeCompanyIdProvider, (previous, current) {
+      if (previous != current) {
+        clear();
+      }
+    });
+  }
 
   /// Получает профиль по [userId].
   ///
@@ -27,8 +39,10 @@ class ProfilesCacheNotifier extends StateNotifier<Map<String, Profile?>> {
 
     // Загружаем из БД
     try {
-      final profile =
-          await _ref.read(profileRepositoryProvider).getProfile(userId);
+      final profile = await _ref
+          .read(profileRepositoryProvider)
+          .getProfile(userId);
+
       // Кэшируем результат (даже если null)
       state = {...state, userId: profile};
       return profile;
@@ -62,8 +76,8 @@ class ProfilesCacheNotifier extends StateNotifier<Map<String, Profile?>> {
 /// Автоматически предотвращает дублирование запросов к БД.
 final profilesCacheProvider =
     StateNotifierProvider<ProfilesCacheNotifier, Map<String, Profile?>>((ref) {
-  return ProfilesCacheNotifier(ref);
-});
+      return ProfilesCacheNotifier(ref);
+    });
 
 /// Family-провайдер для получения профиля по ID с автоматическим кэшированием.
 ///
@@ -76,7 +90,9 @@ final profilesCacheProvider =
 ///   error: (e, st) => Text('Ошибка'),
 /// );
 /// ```
-final userProfileProvider =
-    FutureProvider.family<Profile?, String>((ref, userId) async {
+final userProfileProvider = FutureProvider.family<Profile?, String>((
+  ref,
+  userId,
+) async {
   return ref.read(profilesCacheProvider.notifier).getProfile(userId);
 });

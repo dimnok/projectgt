@@ -13,13 +13,16 @@ class CompanyRepositoryImpl implements CompanyRepository {
   CompanyRepositoryImpl(this.dataSource);
 
   @override
-  Future<CompanyProfile?> getCompanyProfile() => dataSource.getCompanyProfile();
+  Future<CompanyProfile?> getCompanyProfile({String? companyId}) =>
+      dataSource.getCompanyProfile(companyId: companyId);
 
   @override
-  Future<List<CompanyBankAccount>> getBankAccounts() => dataSource.getBankAccounts();
+  Future<List<CompanyBankAccount>> getBankAccounts({String? companyId}) =>
+      dataSource.getBankAccounts(companyId: companyId);
 
   @override
-  Future<List<CompanyDocument>> getDocuments() => dataSource.getDocuments();
+  Future<List<CompanyDocument>> getDocuments({String? companyId}) =>
+      dataSource.getDocuments(companyId: companyId);
 
   @override
   Future<void> updateCompanyProfile(CompanyProfile profile) =>
@@ -43,7 +46,14 @@ class CompanyRepositoryImpl implements CompanyRepository {
 
   @override
   Future<void> deleteBankAccount(String id) async {
-    final accounts = await dataSource.getBankAccounts();
+    // Получаем аккаунт по ID, чтобы узнать companyId
+    final accountToDelete = await dataSource.getBankAccount(id);
+    if (accountToDelete == null) {
+      throw Exception('Account not found');
+    }
+    final companyId = accountToDelete.companyId;
+
+    final accounts = await dataSource.getBankAccounts(companyId: companyId);
 
     await dataSource.deleteBankAccount(id);
 
@@ -59,8 +69,11 @@ class CompanyRepositoryImpl implements CompanyRepository {
     }
   }
 
-  Future<void> _ensureOnlyOnePrimary(String companyId, String? excludeId) async {
-    final accounts = await dataSource.getBankAccounts();
+  Future<void> _ensureOnlyOnePrimary(
+    String companyId,
+    String? excludeId,
+  ) async {
+    final accounts = await dataSource.getBankAccounts(companyId: companyId);
     for (final account in accounts) {
       if (account.isPrimary && account.id != excludeId) {
         await dataSource.updateBankAccount(account.copyWith(isPrimary: false));
@@ -78,5 +91,42 @@ class CompanyRepositoryImpl implements CompanyRepository {
 
   @override
   Future<void> deleteDocument(String id) => dataSource.deleteDocument(id);
-}
 
+  @override
+  Future<CompanyProfile> createCompany({
+    required String name,
+    Map<String, dynamic>? additionalData,
+  }) {
+    return dataSource.createCompany(name: name, additionalData: additionalData);
+  }
+
+  @override
+  Future<void> joinCompany({required String invitationCode}) {
+    return dataSource.joinCompany(invitationCode: invitationCode);
+  }
+
+  @override
+  Future<List<CompanyProfile>> getMyCompanies() {
+    return dataSource.getMyCompanies();
+  }
+
+  @override
+  Future<Map<String, dynamic>?> searchCompanyByInn(String inn) {
+    return dataSource.searchCompanyByInn(inn);
+  }
+
+  @override
+  Future<void> updateMember({
+    required String userId,
+    required String companyId,
+    String? roleId,
+    bool? isActive,
+  }) {
+    return dataSource.updateMember(
+      userId: userId,
+      companyId: companyId,
+      roleId: roleId,
+      isActive: isActive,
+    );
+  }
+}

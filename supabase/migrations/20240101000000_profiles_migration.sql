@@ -71,9 +71,9 @@ BEGIN
         COALESCE(NEW.raw_user_meta_data->>'name', NEW.raw_user_meta_data->>'full_name', ''),
         '',
         '',
-        false,
+        true,
         COALESCE(NEW.raw_user_meta_data->>'role', 'user'),
-        null,
+        now(),
         null
     );
     RETURN NEW;

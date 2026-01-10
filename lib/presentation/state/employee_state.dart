@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/domain/entities/employee.dart';
+import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 
 /// Перечисление возможных статусов загрузки и обработки сотрудников.
 ///
@@ -383,6 +384,8 @@ class EmployeeNotifier extends StateNotifier<EmployeeState> {
 /// Используется для доступа к [EmployeeNotifier] и [EmployeeState] во всём приложении через Riverpod.
 final employeeProvider =
     StateNotifierProvider<EmployeeNotifier, EmployeeState>((ref) {
+  // [RBAC] Слушаем смену компании для автоматического обновления списка сотрудников
+  ref.watch(activeCompanyIdProvider);
   return EmployeeNotifier(ref);
 });
 

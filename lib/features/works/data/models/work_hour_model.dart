@@ -21,6 +21,9 @@ abstract class WorkHourModel with _$WorkHourModel {
     /// Идентификатор записи.
     required String id,
 
+    /// Идентификатор компании.
+    required String companyId,
+
     /// Идентификатор смены.
     required String workId,
 

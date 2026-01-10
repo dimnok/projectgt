@@ -6,9 +6,10 @@ import 'package:projectgt/data/models/ks2_act_model.dart';
 /// Реализация репозитория для работы с актами КС-2 через Supabase.
 class Ks2RepositoryImpl implements Ks2Repository {
   final SupabaseClient _supabase;
+  final String _activeCompanyId;
 
   /// Создает экземпляр репозитория.
-  Ks2RepositoryImpl(this._supabase);
+  Ks2RepositoryImpl(this._supabase, this._activeCompanyId);
 
   @override
   Future<List<Ks2Act>> getActs(String contractId) async {
@@ -16,6 +17,7 @@ class Ks2RepositoryImpl implements Ks2Repository {
         .from('ks2_acts')
         .select()
         .eq('contract_id', contractId)
+        .eq('company_id', _activeCompanyId)
         .order('date', ascending: false); // Свежие сверху
 
     return (response as List)
@@ -33,6 +35,7 @@ class Ks2RepositoryImpl implements Ks2Repository {
       body: {
         'action': 'preview',
         'contractId': contractId,
+        'companyId': _activeCompanyId,
         'periodTo': periodTo.toIso8601String(),
       },
     );
@@ -56,6 +59,7 @@ class Ks2RepositoryImpl implements Ks2Repository {
       body: {
         'action': 'create',
         'contractId': contractId,
+        'companyId': _activeCompanyId,
         'periodTo': periodTo.toIso8601String(),
         'actNumber': number,
         'actDate': date.toIso8601String(),
@@ -72,9 +76,15 @@ class Ks2RepositoryImpl implements Ks2Repository {
     // 1. Сначала отвязываем работы (возвращаем их в пул доступных)
     await _supabase
         .from('work_items')
-        .update({'ks2_id': null}).eq('ks2_id', actId);
+        .update({'ks2_id': null})
+        .eq('ks2_id', actId)
+        .eq('company_id', _activeCompanyId);
 
     // 2. Затем удаляем сам акт
-    await _supabase.from('ks2_acts').delete().eq('id', actId);
+    await _supabase
+        .from('ks2_acts')
+        .delete()
+        .eq('id', actId)
+        .eq('company_id', _activeCompanyId);
   }
 }

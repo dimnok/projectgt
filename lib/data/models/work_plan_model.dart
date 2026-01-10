@@ -16,6 +16,7 @@ abstract class WorkPlanModel with _$WorkPlanModel {
   @JsonSerializable(explicitToJson: true, fieldRename: FieldRename.snake)
   const factory WorkPlanModel({
     @JsonKey(includeIfNull: false) String? id,
+    required String companyId,
     required DateTime createdAt,
     required DateTime updatedAt,
     required String createdBy,
@@ -36,6 +37,7 @@ abstract class WorkPlanModel with _$WorkPlanModel {
   /// Создаёт [WorkPlanModel] из доменной сущности [WorkPlan].
   factory WorkPlanModel.fromDomain(WorkPlan workPlan) => WorkPlanModel(
         id: workPlan.id,
+        companyId: workPlan.companyId,
         createdAt: workPlan.createdAt,
         updatedAt: workPlan.updatedAt,
         createdBy: workPlan.createdBy,
@@ -51,6 +53,7 @@ abstract class WorkPlanModel with _$WorkPlanModel {
   /// Преобразует [WorkPlanModel] в доменную сущность [WorkPlan].
   WorkPlan toDomain() => WorkPlan(
         id: id,
+        companyId: companyId,
         createdAt: createdAt,
         updatedAt: updatedAt,
         createdBy: createdBy,
@@ -68,6 +71,7 @@ abstract class WorkPlanItemModel with _$WorkPlanItemModel {
   /// Конструктор для создания [WorkPlanItemModel].
   @JsonSerializable(explicitToJson: true, fieldRename: FieldRename.snake)
   const factory WorkPlanItemModel({
+    required String companyId,
     required String estimateId,
     required String name,
     required String unit,
@@ -85,6 +89,7 @@ abstract class WorkPlanItemModel with _$WorkPlanItemModel {
 
   /// Создаёт [WorkPlanItemModel] из доменной сущности [WorkPlanItem].
   factory WorkPlanItemModel.fromDomain(WorkPlanItem item) => WorkPlanItemModel(
+        companyId: item.companyId,
         estimateId: item.estimateId,
         name: item.name,
         unit: item.unit,
@@ -95,6 +100,7 @@ abstract class WorkPlanItemModel with _$WorkPlanItemModel {
 
   /// Преобразует [WorkPlanItemModel] в доменную сущность [WorkPlanItem].
   WorkPlanItem toDomain() => WorkPlanItem(
+        companyId: companyId,
         estimateId: estimateId,
         name: name,
         unit: unit,
@@ -108,9 +114,13 @@ abstract class WorkPlanItemModel with _$WorkPlanItemModel {
 @freezed
 abstract class WorkBlockModel with _$WorkBlockModel {
   /// Основной конструктор [WorkBlockModel].
+  @JsonSerializable(explicitToJson: true, fieldRename: FieldRename.snake)
   const factory WorkBlockModel({
     /// Уникальный идентификатор блока работ.
     @JsonKey(includeIfNull: false) String? id,
+
+    /// ID компании.
+    required String companyId,
 
     /// ID ответственного сотрудника за блок.
     @JsonKey(includeIfNull: false) String? responsibleId,
@@ -128,7 +138,9 @@ abstract class WorkBlockModel with _$WorkBlockModel {
     required String system,
 
     /// Список работ в блоке с объемами.
-    @Default([]) List<WorkPlanItemModel> selectedWorks,
+    @JsonKey(name: 'work_plan_items')
+    @Default([])
+    List<WorkPlanItemModel> selectedWorks,
   }) = _WorkBlockModel;
 
   /// Создает [WorkBlockModel] из JSON.
@@ -138,6 +150,7 @@ abstract class WorkBlockModel with _$WorkBlockModel {
   /// Создает [WorkBlockModel] из доменной сущности [WorkBlock].
   factory WorkBlockModel.fromDomain(WorkBlock workBlock) => WorkBlockModel(
         id: workBlock.id,
+        companyId: workBlock.companyId,
         responsibleId: workBlock.responsibleId,
         workerIds: workBlock.workerIds,
         section: workBlock.section,
@@ -154,6 +167,7 @@ extension WorkBlockModelExtension on WorkBlockModel {
   /// Преобразует [WorkBlockModel] в доменную сущность [WorkBlock].
   WorkBlock toDomain() => WorkBlock(
         id: id,
+        companyId: companyId,
         responsibleId: responsibleId,
         workerIds: workerIds,
         section: section,

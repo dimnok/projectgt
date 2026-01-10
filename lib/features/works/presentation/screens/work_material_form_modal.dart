@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/work_material.dart';
 import '../providers/work_materials_provider.dart';
+import '../../../../features/company/presentation/providers/company_providers.dart';
 import 'package:uuid/uuid.dart';
 
 /// Модальное окно для добавления или редактирования материала в смене.
@@ -50,8 +51,12 @@ class _WorkMaterialFormModalState extends ConsumerState<WorkMaterialFormModal> {
   /// Сохраняет или обновляет запись о материале.
   void _save() async {
     if (!_formKey.currentState!.validate()) return;
+    final activeCompanyId = ref.read(activeCompanyIdProvider);
+    if (activeCompanyId == null) return;
+
     final material = WorkMaterial(
       id: widget.initial?.id ?? const Uuid().v4(),
+      companyId: activeCompanyId,
       workId: widget.workId,
       name: nameController.text.trim(),
       unit: unitController.text.trim(),

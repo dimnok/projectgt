@@ -20,7 +20,7 @@ final exportPayrollToExcelProvider =
   final year = params['year'] as int;
   final month = params['month'] as int;
 
-  // Получаем имена сотрудников
+  // 1. Получаем имена сотрудников
   final employeeState = ref.watch(employeeProvider);
   final employeeNames = <String, String>{};
 
@@ -30,9 +30,39 @@ final exportPayrollToExcelProvider =
             .trim();
   }
 
+  // 2. Дополняем список начислений сотрудниками с ненулевым балансом
+  final Set<String> existingEmployeeIds =
+      payrolls.map((p) => p.employeeId).whereType<String>().toSet();
+
+  final List<PayrollCalculation> augmentedPayrolls = List.from(payrolls);
+  final periodDate = DateTime(year, month);
+
+  aggregatedBalance.forEach((employeeId, balance) {
+    // Если баланс не нулевой и сотрудника еще нет в списке начислений этого месяца
+    if (balance.abs() > 0.01 && !existingEmployeeIds.contains(employeeId)) {
+      augmentedPayrolls.add(
+        PayrollCalculation(
+          employeeId: employeeId,
+          periodMonth: periodDate,
+          hoursWorked: 0,
+          hourlyRate: 0,
+          baseSalary: 0,
+          netSalary: 0,
+        ),
+      );
+    }
+  });
+
+  // 3. Сортируем по имени сотрудника (как в UI таблице)
+  augmentedPayrolls.sort((a, b) {
+    final nameA = employeeNames[a.employeeId] ?? '';
+    final nameB = employeeNames[b.employeeId] ?? '';
+    return nameA.compareTo(nameB);
+  });
+
   // Вызываем экспорт
   await service.exportPayrollToExcel(
-    payrolls: payrolls,
+    payrolls: augmentedPayrolls,
     payoutsByEmployee: payoutsByEmployee,
     aggregatedBalance: aggregatedBalance,
     employeeNames: employeeNames,

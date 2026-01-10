@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 import '../widgets/materials_date_filter.dart';
 import '../providers/materials_providers.dart';
 
@@ -28,10 +29,12 @@ class MaterialsExportAction extends ConsumerWidget {
         final end = DateTime(range.end.year, range.end.month, range.end.day);
         final client = ref.read(supabaseClientProvider);
         try {
+          final activeCompanyId = ref.read(activeCompanyIdProvider);
           final rows = await client.rpc('v_materials_usage_period', params: {
             'in_contract_number': contract,
             'in_date_start': _d(start),
             'in_date_end': _d(end),
+            'p_company_id': activeCompanyId,
           }) as List<dynamic>;
           if (!context.mounted) return;
           await _exportXlsx(context, rows, contract, start, end);

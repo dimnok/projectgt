@@ -14,7 +14,7 @@ import 'package:projectgt/features/profile/presentation/widgets/content_constrai
 import 'package:projectgt/features/profile/presentation/widgets/profile_status_switch.dart';
 import 'package:projectgt/features/profile/presentation/screens/applications_screen.dart';
 import 'package:projectgt/features/profile/presentation/screens/instructions_screen.dart';
-import 'package:projectgt/domain/entities/object.dart';
+import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:projectgt/domain/entities/profile.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/features/profile/presentation/widgets/profile_edit_form.dart';
@@ -142,13 +142,34 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   // String? _generateShortName(String fullName) { ... } // Удалено, используется ProfileUtils
 
   /// Обновляет профиль пользователя (текущий или просматриваемый).
-  Future<void> _updateProfile(Profile updatedProfile, bool isOwn) async {
-    if (isOwn) {
-      await ref
-          .read(currentUserProfileProvider.notifier)
-          .updateCurrentUserProfile(updatedProfile);
-    } else {
-      await ref.read(profileProvider.notifier).updateProfile(updatedProfile);
+  Future<void> _updateProfile(Profile updatedProfile, bool isOwn,
+      {String? newRoleId, bool? newStatus}) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      // Обновляем таблицу profiles только если это наш собственный профиль
+      if (isOwn) {
+        await ref
+            .read(currentUserProfileProvider.notifier)
+            .updateCurrentUserProfile(updatedProfile);
+      }
+
+      // [RBAC v3] Если роль или статус были изменены админом, обновляем их в company_members
+      // Это работает для любого пользователя (включая себя), если есть права
+      if ((newRoleId != null || newStatus != null) &&
+          updatedProfile.lastCompanyId != null) {
+        await ref.read(profileProvider.notifier).updateMember(
+              userId: updatedProfile.id,
+              companyId: updatedProfile.lastCompanyId!,
+              roleId: newRoleId,
+              isActive: newStatus,
+            );
+      }
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('Ошибка при обновлении: $e')),
+        );
+      }
     }
   }
 
@@ -168,7 +189,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         defaultTargetPlatform == TargetPlatform.linux;
 
     void onSave(String fullName, String phone, List<String> selectedObjectIds,
-        String? employeeId, String? roleId) {
+        String? employeeId, String? roleId) async {
       final updatedProfile = ProfileUtils.prepareProfileForUpdate(
         originalProfile: profile,
         fullName: fullName,
@@ -179,7 +200,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         isAdmin: isAdmin,
       );
 
-      _updateProfile(updatedProfile, isOwn);
+      // Передаем newRoleId только если он изменился и мы админы
+      final String? changedRoleId =
+          (isAdmin && roleId != profile.roleId) ? roleId : null;
+
+      await _updateProfile(updatedProfile, isOwn, newRoleId: changedRoleId);
 
       if (context.mounted) {
         Navigator.pop(context);
@@ -405,6 +430,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               title: 'Роль',
               trailing: RoleBadge(
                 roleId: profile?.roleId,
+                systemRole: profile?.system_role,
                 fallbackRole: null,
               ),
             ),
@@ -425,7 +451,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       status: v,
                       updatedAt: DateTime.now(),
                     );
-                    await _updateProfile(updatedProfile, isOwn);
+                    await _updateProfile(updatedProfile, isOwn, newStatus: v);
                   }
                 },
               ),

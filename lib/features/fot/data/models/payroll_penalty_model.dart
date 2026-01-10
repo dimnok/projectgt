@@ -28,6 +28,9 @@ abstract class PayrollPenaltyModel
     /// Идентификатор сотрудника
     @JsonKey(name: 'employee_id') required String employeeId,
 
+    /// Идентификатор компании
+    @JsonKey(name: 'company_id') required String companyId,
+
     /// Тип штрафа (опоздание/прогул/нарушение и т.д.)
     required String type,
 

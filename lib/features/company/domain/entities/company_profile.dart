@@ -32,6 +32,12 @@ abstract class CompanyProfile with _$CompanyProfile {
     @JsonKey(name: 'taxation_system') String? taxationSystem,
     @JsonKey(name: 'is_vat_payer') @Default(false) bool isVatPayer,
     @JsonKey(name: 'vat_rate') @Default(0) double vatRate,
+
+    // Системные поля Multi-tenancy
+    @JsonKey(name: 'owner_id') String? ownerId,
+    @JsonKey(name: 'invitation_code') String? invitationCode,
+    @JsonKey(name: 'is_active') @Default(true) bool isActive,
+
     @JsonKey(name: 'created_at') DateTime? createdAt,
     @JsonKey(name: 'updated_at') DateTime? updatedAt,
   }) = _CompanyProfile;

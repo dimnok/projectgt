@@ -7,12 +7,12 @@ import 'package:projectgt/presentation/state/auth_state.dart';
 
 /// Модальное окно для ввода OTP кода.
 class OtpInputBottomSheet extends ConsumerStatefulWidget {
-  /// Email адрес для отправки кода.
-  final String email;
+  /// Номер телефона для отправки кода.
+  final String phone;
 
   /// Конструктор [OtpInputBottomSheet].
   const OtpInputBottomSheet({
-    required this.email,
+    required this.phone,
     super.key,
   });
 
@@ -20,8 +20,8 @@ class OtpInputBottomSheet extends ConsumerStatefulWidget {
   ConsumerState<OtpInputBottomSheet> createState() =>
       _OtpInputBottomSheetState();
 
-  /// Показывает модальное окно для ввода OTP.
-  static Future<void> show(BuildContext context, String email) {
+  /// Показывает модальное окно для ввода OTP через телефон.
+  static Future<void> showPhone(BuildContext context, String phone) {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -30,7 +30,7 @@ class OtpInputBottomSheet extends ConsumerStatefulWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (context) => OtpInputBottomSheet(email: email),
+      builder: (context) => OtpInputBottomSheet(phone: phone),
     );
   }
 }
@@ -113,7 +113,9 @@ class _OtpInputBottomSheetState extends ConsumerState<OtpInputBottomSheet> {
     });
 
     try {
-      await ref.read(authProvider.notifier).verifyEmailOtp(widget.email, code);
+      await ref
+          .read(authProvider.notifier)
+          .verifyPhoneOtp(widget.phone, code);
 
       if (!mounted) return;
 
@@ -126,19 +128,26 @@ class _OtpInputBottomSheetState extends ConsumerState<OtpInputBottomSheet> {
       final currentState = ref.read(authProvider);
 
       if (currentState.status == AuthStatus.authenticated ||
-          currentState.status == AuthStatus.pendingApproval) {
+          currentState.status == AuthStatus.pendingApproval ||
+          currentState.status == AuthStatus.onboarding) {
+        // Легкая вибрация при успехе
+        HapticFeedback.mediumImpact();
+        
         setState(() {
           _isCodeValid = true;
           _isVerifying = false;
         });
-        // Не закрываем модальное окно сразу, даем пользователю увидеть зеленые границы
-        await Future.delayed(const Duration(milliseconds: 800));
+        
+        // Даем пользователю визуальное подтверждение успеха (зеленые границы)
+        await Future.delayed(const Duration(milliseconds: 600));
+        
         if (mounted) {
+          // Плавное закрытие
           Navigator.of(context).pop();
         }
       } else {
         setState(() {
-          _errorMessage = 'Код неверный';
+          _errorMessage = currentState.errorMessage ?? 'Код неверный';
           _isVerifying = false;
           _isCodeValid = false;
         });
@@ -147,7 +156,9 @@ class _OtpInputBottomSheetState extends ConsumerState<OtpInputBottomSheet> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = 'Код неверный';
+          _errorMessage = e.toString().contains('Exception:')
+              ? e.toString().split('Exception: ').last
+              : 'Код неверный';
           _isVerifying = false;
           _isCodeValid = false;
         });
@@ -169,7 +180,6 @@ class _OtpInputBottomSheetState extends ConsumerState<OtpInputBottomSheet> {
     });
 
     // Автоматически убираем сообщение об ошибке через 3 секунды
-    // Отменяем предыдущий таймер ошибки, если он существует
     _errorHideTimer?.cancel();
     _errorHideTimer = Timer(const Duration(seconds: 3), () {
       if (mounted && _errorMessage != null) {
@@ -183,7 +193,7 @@ class _OtpInputBottomSheetState extends ConsumerState<OtpInputBottomSheet> {
   /// Повторно отправляет код.
   Future<void> _resendCode() async {
     try {
-      await ref.read(authProvider.notifier).requestEmailOtp(widget.email);
+      await ref.read(authProvider.notifier).requestPhoneOtp(widget.phone);
       // Отменяем старый таймер перед запуском нового
       _timer?.cancel();
       _timeLeft.value = 30;
@@ -214,9 +224,8 @@ class _OtpInputBottomSheetState extends ConsumerState<OtpInputBottomSheet> {
     double borderWidth = 1.5;
 
     if (_isCodeValid) {
-      // Зеленый цвет при успешной верификации
       borderColor = Colors.green;
-      borderWidth = 2.0; // Более толстая граница для акцента
+      borderWidth = 2.0;
     } else if (hasError) {
       borderColor = theme.colorScheme.error;
     } else if (hasFocus) {
@@ -236,20 +245,19 @@ class _OtpInputBottomSheetState extends ConsumerState<OtpInputBottomSheet> {
         border: Border.all(color: borderColor, width: borderWidth),
         color: Colors.transparent,
       ),
-      // СТРОГО ПО ЦЕНТРУ - тройное центрирование!!!
       child: Center(
         child: SizedBox(
           width: 48,
           height: 48,
           child: Align(
-            alignment: Alignment.center, // СТРОГО ПО ЦЕНТРУ
+            alignment: Alignment.center,
             child: TextField(
               controller: _codeControllers[index],
               focusNode: _focusNodes[index],
               readOnly: _isVerifying,
               textAlign: TextAlign.center,
               keyboardType: TextInputType.number,
-              mouseCursor: SystemMouseCursors.click, // Стандартный курсор
+              mouseCursor: SystemMouseCursors.click,
               inputFormatters: [
                 FilteringTextInputFormatter.digitsOnly,
                 LengthLimitingTextInputFormatter(1),
@@ -258,7 +266,7 @@ class _OtpInputBottomSheetState extends ConsumerState<OtpInputBottomSheet> {
               style: theme.textTheme.titleLarge?.copyWith(
                 color: onSurface,
                 fontWeight: FontWeight.bold,
-                height: 1.0, // Фиксированная высота
+                height: 1.0,
               ),
               decoration: const InputDecoration(
                 counterText: '',
@@ -267,15 +275,15 @@ class _OtpInputBottomSheetState extends ConsumerState<OtpInputBottomSheet> {
                 enabledBorder: InputBorder.none,
                 errorBorder: InputBorder.none,
                 disabledBorder: InputBorder.none,
-                hoverColor:
-                    Colors.transparent, // УБИРАЕМ выделение при наведении
-                fillColor: Colors.transparent, // УБИРАЕМ заливку
-                contentPadding: EdgeInsets.zero, // НИКАКИХ отступов!
+                hoverColor: Colors.transparent,
+                fillColor: Colors.transparent,
+                contentPadding: EdgeInsets.zero,
                 isDense: true,
               ),
               onChanged: (value) => _handleInputChange(index, value),
-              textInputAction:
-                  index == 5 ? TextInputAction.done : TextInputAction.next,
+              textInputAction: index == 5
+                  ? TextInputAction.done
+                  : TextInputAction.next,
             ),
           ),
         ),
@@ -287,7 +295,6 @@ class _OtpInputBottomSheetState extends ConsumerState<OtpInputBottomSheet> {
   void _handleInputChange(int index, String value) {
     if (_isVerifying) return;
 
-    // Сбрасываем ошибку и состояние успешной верификации при начале нового ввода
     if (value.isNotEmpty && (_errorMessage != null || _isCodeValid)) {
       setState(() {
         _errorMessage = null;
@@ -296,7 +303,6 @@ class _OtpInputBottomSheetState extends ConsumerState<OtpInputBottomSheet> {
     }
 
     if (value.isNotEmpty) {
-      // Переходим к следующему полю или проверяем код
       if (index < 5) {
         _focusNodes[index + 1].requestFocus();
       } else {
@@ -304,10 +310,8 @@ class _OtpInputBottomSheetState extends ConsumerState<OtpInputBottomSheet> {
         _verifyCode();
       }
     } else if (value.isEmpty && index > 0) {
-      // Возвращаемся к предыдущему полю при удалении
       _focusNodes[index - 1].requestFocus();
     }
-    // Если удаляем символ в первом поле, остаемся на первом поле
   }
 
   @override
@@ -326,7 +330,6 @@ class _OtpInputBottomSheetState extends ConsumerState<OtpInputBottomSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Заголовок
           Text(
             'Введите 6-значный код',
             style: theme.textTheme.headlineSmall?.copyWith(
@@ -337,7 +340,7 @@ class _OtpInputBottomSheetState extends ConsumerState<OtpInputBottomSheet> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Код отправлен на ${widget.email}',
+            'Код отправлен в Telegram на номер\n${widget.phone}',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
             ),
@@ -345,16 +348,11 @@ class _OtpInputBottomSheetState extends ConsumerState<OtpInputBottomSheet> {
           ),
           const SizedBox(height: 32),
 
-          // Поля ввода кода
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(
-              6,
-              (index) => _buildCodeInput(index),
-            ),
+            children: List.generate(6, (index) => _buildCodeInput(index)),
           ),
 
-          // Сообщение об ошибке
           if (_errorMessage != null) ...[
             const SizedBox(height: 16),
             Text(
@@ -368,7 +366,6 @@ class _OtpInputBottomSheetState extends ConsumerState<OtpInputBottomSheet> {
 
           const SizedBox(height: 32),
 
-          // Таймер и кнопка повтора
           ValueListenableBuilder<int>(
             valueListenable: _timeLeft,
             builder: (context, timeLeft, _) {
@@ -378,8 +375,9 @@ class _OtpInputBottomSheetState extends ConsumerState<OtpInputBottomSheet> {
                     Text(
                       'Повторная отправка через ${_formatTime(timeLeft)}',
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color:
-                            theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.7,
+                        ),
                       ),
                     ),
                     if (_isVerifying) ...[
@@ -396,8 +394,6 @@ class _OtpInputBottomSheetState extends ConsumerState<OtpInputBottomSheet> {
               }
             },
           ),
-
-          // Дополнительное пространство для мобильных устройств
           if (!isDesktop) const SizedBox(height: 16),
         ],
       ),

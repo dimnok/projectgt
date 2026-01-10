@@ -26,6 +26,7 @@ abstract class Estimate with _$Estimate {
   /// [estimateTitle] — название сметы.
   const factory Estimate({
     required String id,
+    required String companyId,
     required String system,
     required String subsystem,
     required String number,

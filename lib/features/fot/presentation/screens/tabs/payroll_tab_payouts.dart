@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../../../core/utils/responsive_utils.dart';
 import '../../widgets/payroll_payout_table_widget.dart';
-import '../../widgets/payroll_payout_form_modal.dart';
-import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
 
 /// Таб "Выплаты" в модуле ФОТ.
 /// Отображает таблицу всех выплат с возможностью добавления выплат.
@@ -13,58 +12,31 @@ class PayrollTabPayouts extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isMobile = ResponsiveUtils.isMobile(context);
+
+    const content = PayrollPayoutTableWidget();
+
+    if (isMobile) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 8.0),
+        child: content,
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Card(
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: const BorderSide(
-            color:
-                Color(0xFF66BB6A), // Цвет таба "Выплаты" (Material Green 400)
+          side: BorderSide(
+            color: theme.colorScheme.outline.withValues(alpha: 0.2),
           ),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Column(
-            children: [
-              Expanded(
-                child: Stack(
-                  children: [
-                    const PayrollPayoutTableWidget(),
-                    Positioned(
-                      right: 8,
-                      bottom: 8,
-                      child: PermissionGuard(
-                        module: 'payroll',
-                        permission: 'create',
-                        child: FloatingActionButton(
-                          heroTag: 'addPayrollPayout',
-                          shape: const CircleBorder(),
-                          onPressed: () {
-                            showModalBottomSheet(
-                              context: context,
-                              isScrollControlled: true,
-                              backgroundColor: Colors.transparent,
-                              useSafeArea: true,
-                              constraints: BoxConstraints(
-                                maxHeight: MediaQuery.of(context).size.height -
-                                    MediaQuery.of(context).padding.top -
-                                    kToolbarHeight,
-                              ),
-                              builder: (ctx) => const PayrollPayoutFormModal(),
-                            );
-                          },
-                          tooltip: 'Добавить выплату',
-                          child: const Icon(Icons.add),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+        child: const Padding(
+          padding: EdgeInsets.all(16.0),
+          child: content,
         ),
       ),
     );

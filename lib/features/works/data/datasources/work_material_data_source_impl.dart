@@ -8,6 +8,9 @@ class WorkMaterialDataSourceImpl implements WorkMaterialDataSource {
   /// Клиент Supabase для доступа к базе данных.
   final SupabaseClient client;
 
+  /// ID текущей активной компании для фильтрации данных (Multi-tenancy).
+  final String activeCompanyId;
+
   /// Название таблицы материалов.
   static const String table = 'work_materials';
 
@@ -15,7 +18,7 @@ class WorkMaterialDataSourceImpl implements WorkMaterialDataSource {
   final Logger _logger = Logger();
 
   /// Создаёт источник данных для работы с материалами смены.
-  WorkMaterialDataSourceImpl(this.client);
+  WorkMaterialDataSourceImpl(this.client, this.activeCompanyId);
 
   /// Возвращает список материалов для смены по идентификатору [workId].
   @override
@@ -25,6 +28,7 @@ class WorkMaterialDataSourceImpl implements WorkMaterialDataSource {
           .from(table)
           .select()
           .eq('work_id', workId)
+          .eq('company_id', activeCompanyId)
           .order('created_at');
 
       return response
@@ -44,6 +48,7 @@ class WorkMaterialDataSourceImpl implements WorkMaterialDataSource {
       final materialJson = material.toJson();
       materialJson['created_at'] = now;
       materialJson['updated_at'] = now;
+      materialJson['company_id'] = activeCompanyId;
 
       await client.from(table).insert(materialJson);
     } catch (e) {
@@ -59,8 +64,13 @@ class WorkMaterialDataSourceImpl implements WorkMaterialDataSource {
       final now = DateTime.now().toIso8601String();
       final materialJson = material.toJson();
       materialJson['updated_at'] = now;
+      materialJson['company_id'] = activeCompanyId;
 
-      await client.from(table).update(materialJson).eq('id', material.id);
+      await client
+          .from(table)
+          .update(materialJson)
+          .eq('id', material.id)
+          .eq('company_id', activeCompanyId);
     } catch (e) {
       _logger.e('Ошибка обновления материала: $e');
       rethrow;
@@ -71,7 +81,11 @@ class WorkMaterialDataSourceImpl implements WorkMaterialDataSource {
   @override
   Future<void> deleteWorkMaterial(String id) async {
     try {
-      await client.from(table).delete().eq('id', id);
+      await client
+          .from(table)
+          .delete()
+          .eq('id', id)
+          .eq('company_id', activeCompanyId);
     } catch (e) {
       _logger.e('Ошибка удаления материала: $e');
       rethrow;

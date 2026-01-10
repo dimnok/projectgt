@@ -11,6 +11,7 @@ abstract class RolePermissionModel with _$RolePermissionModel {
   const factory RolePermissionModel({
     required String id,
     required String roleId,
+    String? companyId,
     required String moduleCode,
     required String permissionCode,
     @Default(true) bool isEnabled,

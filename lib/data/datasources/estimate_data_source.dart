@@ -24,19 +24,31 @@ abstract class EstimateDataSource {
   Future<void> deleteEstimate(String id);
 
   /// Импортирует сметы из Excel-файла по [filePath].
-  Future<List<EstimateModel>> importFromExcel(String filePath);
+  Future<List<EstimateModel>> importFromExcel(String filePath, String companyId);
 
   /// Получает отчёт о выполнении смет с информацией о выполненных работах.
   Future<List<EstimateCompletionModel>> getEstimateCompletion();
 
   /// Получает историю выполнения для конкретной позиции сметы.
   Future<List<Map<String, dynamic>>> getEstimateCompletionHistory(String estimateId);
+
+  /// Получает список уникальных систем из всех смет.
+  Future<List<String>> getSystems({String? estimateTitle});
+
+  /// Получает список уникальных подсистем из всех смет.
+  Future<List<String>> getSubsystems({String? estimateTitle});
+
+  /// Получает список уникальных единиц измерения из всех смет.
+  Future<List<String>> getUnits({String? estimateTitle});
 }
 
 /// Реализация EstimateDataSource через Supabase/PostgreSQL.
 class SupabaseEstimateDataSource implements EstimateDataSource {
   /// Экземпляр клиента Supabase.
   final SupabaseClient client;
+
+  /// ID активной компании.
+  final String activeCompanyId;
 
   /// Имя таблицы смет в базе данных.
   static const String table = 'estimates';
@@ -49,7 +61,7 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
   static final Pattern _whitespaceRegex = RegExp(r'\s+');
 
   /// Создаёт экземпляр [SupabaseEstimateDataSource] с клиентом [client].
-  const SupabaseEstimateDataSource(this.client);
+  const SupabaseEstimateDataSource(this.client, this.activeCompanyId);
 
   @override
   Future<List<EstimateModel>> getEstimates() async {
@@ -64,6 +76,7 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
       final response = await client
           .from(view)
           .select('*')
+          .eq('company_id', activeCompanyId)
           .order('system')
           .range(offset, offset + limit - 1);
 
@@ -90,30 +103,46 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
 
   @override
   Future<EstimateModel?> getEstimate(String id) async {
-    final response =
-        await client.from(view).select('*').eq('id', id).maybeSingle();
+    final response = await client
+        .from(view)
+        .select('*')
+        .eq('id', id)
+        .eq('company_id', activeCompanyId)
+        .maybeSingle();
     if (response == null) return null;
     return EstimateModel.fromJson(response);
   }
 
   @override
   Future<void> createEstimate(EstimateModel estimate) async {
-    await client.from(table).insert(estimate.toJson());
+    final json = estimate.toJson();
+    json['company_id'] = activeCompanyId;
+    await client.from(table).insert(json);
   }
 
   @override
   Future<void> updateEstimate(EstimateModel estimate) async {
     if (estimate.id == null) throw Exception('id is required for update');
-    await client.from(table).update(estimate.toJson()).eq('id', estimate.id!);
+    final json = estimate.toJson();
+    json['company_id'] = activeCompanyId;
+    await client
+        .from(table)
+        .update(json)
+        .eq('id', estimate.id!)
+        .eq('company_id', activeCompanyId);
   }
 
   @override
   Future<void> deleteEstimate(String id) async {
-    await client.from(table).delete().eq('id', id);
+    await client
+        .from(table)
+        .delete()
+        .eq('id', id)
+        .eq('company_id', activeCompanyId);
   }
 
   @override
-  Future<List<EstimateModel>> importFromExcel(String filePath) async {
+  Future<List<EstimateModel>> importFromExcel(String filePath, String companyId) async {
     final bytes = await File(filePath).readAsBytes();
     final excel = Excel.decodeBytes(bytes);
 
@@ -135,6 +164,7 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
 
       return EstimateModel(
         id: '', // генерировать на сервере или локально
+        companyId: companyId,
         system: _parseString(_getCell(row, 0)),
         subsystem: _parseString(_getCell(row, 1)),
         number: _parseString(_getCell(row, 2)),
@@ -153,7 +183,9 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
   Future<List<Map<String, dynamic>>> getEstimateGroups() async {
     try {
       // Вызываем RPC для получения легкого списка групп
-      final response = await client.rpc('get_estimate_groups');
+      final response = await client.rpc('get_estimate_groups', params: {
+        'p_company_id': activeCompanyId,
+      });
       return (response as List).cast<Map<String, dynamic>>();
     } catch (e) {
       // Fallback: Если RPC недоступен, выполняем группировку на клиенте (старый метод)
@@ -165,7 +197,8 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
       // Решение: загрузим только нужные поля для группировки
       final response = await client
           .from(view)
-          .select('estimate_title, object_id, contract_id, contract_number, total');
+          .select('estimate_title, object_id, contract_id, contract_number, total')
+          .eq('company_id', activeCompanyId);
       
       // Группируем на клиенте (Fallback)
       final groups = <String, Map<String, dynamic>>{};
@@ -194,7 +227,11 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
     String? objectId,
     String? contractId,
   }) async {
-    var query = client.from(view).select('*').eq('estimate_title', estimateTitle);
+    var query = client
+        .from(view)
+        .select('*')
+        .eq('estimate_title', estimateTitle)
+        .eq('company_id', activeCompanyId);
     
     if (objectId != null) {
       query = query.eq('object_id', objectId);
@@ -216,6 +253,7 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
     try {
       final response = await client.rpc('get_estimate_completion_by_ids', params: {
         'p_estimate_ids': estimateIds,
+        'p_company_id': activeCompanyId,
       });
       
       if (response is! List) return [];
@@ -244,6 +282,7 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
         try {
           final response =
               await client.rpc('get_estimate_completion_paginated', params: {
+            'p_company_id': activeCompanyId,
             'p_offset': offset,
             'p_limit': limit,
           });
@@ -308,9 +347,79 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
         .from('work_items')
         .select('quantity, section, floor, works!inner(date)')
         .eq('estimate_id', estimateId)
+        .eq('company_id', activeCompanyId)
         .order('date', referencedTable: 'works', ascending: false);
     
     return (response as List).cast<Map<String, dynamic>>();
+  }
+
+  @override
+  Future<List<String>> getSystems({String? estimateTitle}) async {
+    var query = client
+        .from(table)
+        .select('system')
+        .eq('company_id', activeCompanyId)
+        .not('system', 'is', null);
+
+    if (estimateTitle != null) {
+      query = query.eq('estimate_title', estimateTitle);
+    }
+
+    final data = await query;
+    final systems = <String>{};
+    for (final row in data as List) {
+      final system = row['system']?.toString().trim();
+      if (system != null && system.isNotEmpty) {
+        systems.add(system);
+      }
+    }
+    return systems.toList()..sort();
+  }
+
+  @override
+  Future<List<String>> getSubsystems({String? estimateTitle}) async {
+    var query = client
+        .from(table)
+        .select('subsystem')
+        .eq('company_id', activeCompanyId)
+        .not('subsystem', 'is', null);
+
+    if (estimateTitle != null) {
+      query = query.eq('estimate_title', estimateTitle);
+    }
+
+    final data = await query;
+    final subsystems = <String>{};
+    for (final row in data as List) {
+      final subsystem = row['subsystem']?.toString().trim();
+      if (subsystem != null && subsystem.isNotEmpty) {
+        subsystems.add(subsystem);
+      }
+    }
+    return subsystems.toList()..sort();
+  }
+
+  @override
+  Future<List<String>> getUnits({String? estimateTitle}) async {
+    var query = client
+        .from(table)
+        .select('unit')
+        .eq('company_id', activeCompanyId)
+        .not('unit', 'is', null);
+
+    if (estimateTitle != null) {
+      query = query.eq('estimate_title', estimateTitle);
+    }
+
+    final data = await query;
+    final units = <String>{};
+    for (final row in data as List) {
+      final unit = row['unit']?.toString().trim();
+      if (unit != null && unit.isNotEmpty) {
+        units.add(unit);
+      }
+    }
+    return units.toList()..sort();
   }
 
   /// Получает ячейку безопасно по индексу

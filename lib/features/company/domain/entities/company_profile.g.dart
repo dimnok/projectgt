@@ -32,6 +32,9 @@ _CompanyProfile _$CompanyProfileFromJson(Map<String, dynamic> json) =>
       taxationSystem: json['taxation_system'] as String?,
       isVatPayer: json['is_vat_payer'] as bool? ?? false,
       vatRate: (json['vat_rate'] as num?)?.toDouble() ?? 0,
+      ownerId: json['owner_id'] as String?,
+      invitationCode: json['invitation_code'] as String?,
+      isActive: json['is_active'] as bool? ?? true,
       createdAt: json['created_at'] == null
           ? null
           : DateTime.parse(json['created_at'] as String),
@@ -66,6 +69,9 @@ Map<String, dynamic> _$CompanyProfileToJson(_CompanyProfile instance) =>
       'taxation_system': instance.taxationSystem,
       'is_vat_payer': instance.isVatPayer,
       'vat_rate': instance.vatRate,
+      'owner_id': instance.ownerId,
+      'invitation_code': instance.invitationCode,
+      'is_active': instance.isActive,
       'created_at': instance.createdAt?.toIso8601String(),
       'updated_at': instance.updatedAt?.toIso8601String(),
     };

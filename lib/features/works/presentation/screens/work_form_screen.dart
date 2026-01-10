@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/features/objects/presentation/state/object_state.dart';
 import 'package:projectgt/core/notifications/notification_service.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/core/widgets/app_snackbar.dart';
@@ -16,7 +17,7 @@ import 'package:projectgt/core/widgets/gt_dropdown.dart';
 import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
 import 'package:projectgt/domain/entities/employee.dart' as emp_domain;
 import 'package:projectgt/domain/entities/employee.dart' show Employee;
-import 'package:projectgt/domain/entities/object.dart';
+import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:projectgt/features/works/domain/entities/work_hour.dart';
 import 'package:projectgt/features/works/presentation/providers/month_groups_provider.dart';
 import 'package:projectgt/features/works/presentation/providers/work_hours_provider.dart';
@@ -24,9 +25,9 @@ import 'package:projectgt/features/works/presentation/providers/work_provider.da
 import 'package:projectgt/features/works/presentation/utils/photo_upload_helper.dart';
 import 'package:projectgt/features/works/presentation/widgets/photo_loading_dialog.dart';
 import 'package:intl/intl.dart';
+import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
 import 'package:projectgt/presentation/state/employee_state.dart' as emp_state;
-import 'package:projectgt/presentation/state/object_state.dart';
 import 'package:uuid/uuid.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 
@@ -36,10 +37,7 @@ class WorkFormScreen extends ConsumerStatefulWidget {
   final BuildContext? parentContext;
 
   /// Создаёт экран формы создания новой смены.
-  const WorkFormScreen({
-    super.key,
-    this.parentContext,
-  });
+  const WorkFormScreen({super.key, this.parentContext});
 
   @override
   ConsumerState<WorkFormScreen> createState() => _WorkFormScreenState();
@@ -79,8 +77,9 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
     if (objects.isEmpty) return;
 
     final profileObjectIds = profile.objectIds ?? [];
-    final availableObjects =
-        objects.where((o) => profileObjectIds.contains(o.id)).toList();
+    final availableObjects = objects
+        .where((o) => profileObjectIds.contains(o.id))
+        .toList();
 
     if (availableObjects.length == 1) {
       if (mounted) {
@@ -121,16 +120,23 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
   Future<Set<String>> _getEmployeesInOpenShifts() async {
     try {
       final supabase = ref.read(supabaseClientProvider);
+      final activeCompanyId = ref.read(activeCompanyIdProvider);
       final today = DateTime.now();
       final dateStr = DateFormat('yyyy-MM-dd').format(today);
 
       // Получаем открытые смены на сегодня и сразу джойним часы сотрудников
       // Используем !inner для фильтрации только тех смен, которые подходят под условия
-      final response = await supabase
+      var query = supabase
           .from('works')
           .select('work_hours(employee_id)')
           .eq('date', dateStr)
           .eq('status', 'open');
+
+      if (activeCompanyId != null) {
+        query = query.eq('company_id', activeCompanyId);
+      }
+
+      final response = await query;
 
       final occupiedEmployeeIds = <String>{};
 
@@ -235,138 +241,152 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
 
     try {
       // ✅ Загружаем фото через helper
-      final uploadedPhotoUrl = await PhotoUploadHelper(
-        context: context,
-        ref: ref,
-      ).uploadPhoto(
-        photoType: PhotoType.morning,
-        entity: 'shift',
-        entityId: _selectedObjectId!,
-        displayName: 'morning',
-        photoBytes: _selectedPhotoBytes,
-        photoFile: _selectedPhotoFile,
-        // ✅ Все длительные операции выполняются ВО ВРЕМЯ диалога загрузки
-        onLoadingComplete: (String photoUrl) async {
-          try {
-            final notifier = ref.read(worksProvider.notifier);
-            final profile = ref.read(currentUserProfileProvider).profile;
-            if (profile == null) return;
+      final uploadedPhotoUrl =
+          await PhotoUploadHelper(context: context, ref: ref).uploadPhoto(
+            photoType: PhotoType.morning,
+            entity: 'shift',
+            entityId: _selectedObjectId!,
+            displayName: 'morning',
+            photoBytes: _selectedPhotoBytes,
+            photoFile: _selectedPhotoFile,
+            // ✅ Все длительные операции выполняются ВО ВРЕМЯ диалога загрузки
+            onLoadingComplete: (String photoUrl) async {
+              try {
+                final notifier = ref.read(worksProvider.notifier);
+                final profile = ref.read(currentUserProfileProvider).profile;
+                final activeCompanyId = ref.read(activeCompanyIdProvider);
 
-            final createdWork = await notifier.addWork(
-              date: DateTime.now(),
-              objectId: _selectedObjectId!,
-              openedBy: profile.id,
-              status: 'open',
-              photoUrl: photoUrl,
-            );
+                if (profile == null || activeCompanyId == null) return;
 
-            if (createdWork != null && createdWork.id != null) {
-              // Планируем напоминания
-              final slotTimes = (profile.object != null &&
-                      profile.object!.containsKey('slot_times'))
-                  ? (profile.object!['slot_times'] as List?)?.cast<String>()
-                  : null;
-
-              await ref
-                  .read(notificationServiceProvider)
-                  .scheduleShiftReminders(
-                    shiftId: createdWork.id!,
-                    date: DateTime.now(),
-                    slotTimesHHmm: slotTimes,
-                  );
-
-              // Добавляем часы работников параллельно
-              final hoursNotifier =
-                  ref.read(workHoursProvider(createdWork.id!).notifier);
-
-              await Future.wait(_selectedEmployeeIds.map((employeeId) {
-                final workHour = WorkHour(
-                  id: const Uuid().v4(),
-                  workId: createdWork.id!,
-                  employeeId: employeeId,
-                  hours: 0,
-                  comment: null,
-                  createdAt: DateTime.now(),
-                  updatedAt: DateTime.now(),
+                final createdWork = await notifier.addWork(
+                  companyId: activeCompanyId,
+                  date: DateTime.now(),
+                  objectId: _selectedObjectId!,
+                  openedBy: profile.id,
+                  status: 'open',
+                  photoUrl: photoUrl,
                 );
-                return hoursNotifier.add(workHour);
-              }));
 
-              // Отправляем PUSH админам
-              try {
-                final supabase = ref.read(supabaseClientProvider);
-                final accessToken = supabase.auth.currentSession?.accessToken;
-                if (accessToken != null) {
-                  await supabase.functions.invoke(
-                    'send_admin_work_event',
-                    body: {'action': 'open', 'work_id': createdWork.id!},
-                    headers: {'Authorization': 'Bearer $accessToken'},
+                if (createdWork != null && createdWork.id != null) {
+                  // Планируем напоминания
+                  final slotTimes =
+                      (profile.object != null &&
+                          profile.object!.containsKey('slot_times'))
+                      ? (profile.object!['slot_times'] as List?)?.cast<String>()
+                      : null;
+
+                  await ref
+                      .read(notificationServiceProvider)
+                      .scheduleShiftReminders(
+                        shiftId: createdWork.id!,
+                        date: DateTime.now(),
+                        slotTimesHHmm: slotTimes,
+                      );
+
+                  // Добавляем часы работников параллельно
+                  final hoursNotifier = ref.read(
+                    workHoursProvider(createdWork.id!).notifier,
                   );
-                }
-              } catch (_) {}
 
-              // Отправляем утренний отчет в Telegram
-              try {
-                // Даём время на синхронизацию работников в БД
-                await Future.delayed(const Duration(milliseconds: 1000));
+                  await Future.wait(
+                    _selectedEmployeeIds.map((employeeId) {
+                      final workHour = WorkHour(
+                        id: const Uuid().v4(),
+                        companyId: activeCompanyId,
+                        workId: createdWork.id!,
+                        employeeId: employeeId,
+                        hours: 0,
+                        comment: null,
+                        createdAt: DateTime.now(),
+                        updatedAt: DateTime.now(),
+                      );
+                      return hoursNotifier.add(workHour);
+                    }),
+                  );
 
-                // Получаем ФИО всех выбранных сотрудников из локального кеша
-                final allEmployees =
-                    await ref.read(employeeRepositoryProvider).getEmployees();
-
-                final workerNames = <String>[];
-                for (final empId in _selectedEmployeeIds) {
+                  // Отправляем PUSH админам
                   try {
-                    final emp = allEmployees.firstWhere((e) => e.id == empId);
-                    // Собираем ФИО из отдельных полей: Фамилия Имя Отчество
-                    final fullName = [
-                      emp.lastName,
-                      emp.firstName,
-                      if (emp.middleName != null && emp.middleName!.isNotEmpty)
-                        emp.middleName,
-                    ].join(' ');
-                    if (fullName.isNotEmpty) {
-                      workerNames.add(fullName);
+                    final supabase = ref.read(supabaseClientProvider);
+                    final accessToken =
+                        supabase.auth.currentSession?.accessToken;
+                    if (accessToken != null) {
+                      await supabase.functions.invoke(
+                        'send_admin_work_event',
+                        body: {'action': 'open', 'work_id': createdWork.id!},
+                        headers: {'Authorization': 'Bearer $accessToken'},
+                      );
+                    }
+                  } catch (_) {}
+
+                  // Отправляем утренний отчет в Telegram
+                  try {
+                    // Даём время на синхронизацию работников в БД
+                    await Future.delayed(const Duration(milliseconds: 1000));
+
+                    // Получаем ФИО всех выбранных сотрудников из локального кеша
+                    final allEmployees = await ref
+                        .read(employeeRepositoryProvider)
+                        .getEmployees();
+
+                    final workerNames = <String>[];
+                    for (final empId in _selectedEmployeeIds) {
+                      try {
+                        final emp = allEmployees.firstWhere(
+                          (e) => e.id == empId,
+                        );
+                        // Собираем ФИО из отдельных полей: Фамилия Имя Отчество
+                        final fullName = [
+                          emp.lastName,
+                          emp.firstName,
+                          if (emp.middleName != null &&
+                              emp.middleName!.isNotEmpty)
+                            emp.middleName,
+                        ].join(' ');
+                        if (fullName.isNotEmpty) {
+                          workerNames.add(fullName);
+                        }
+                      } catch (e) {
+                        // Сотрудник не найден, пропускаем
+                      }
+                    }
+
+                    final telegramResult =
+                        await TelegramHelper.sendWorkOpeningReport(
+                          createdWork.id!,
+                          workerNames: workerNames,
+                        );
+
+                    if (telegramResult != null &&
+                        telegramResult['success'] == true &&
+                        telegramResult['message_id'] != null) {
+                      // Сохраняем message_id в БД для связывания с вечерним отчетом
+                      final supabase = ref.read(supabaseClientProvider);
+
+                      await supabase
+                          .from('works')
+                          .update({
+                            'telegram_message_id': telegramResult['message_id'],
+                          })
+                          .eq('id', createdWork.id!);
                     }
                   } catch (e) {
-                    // Сотрудник не найден, пропускаем
+                    // Ошибка отправки отчета — не критично, работа уже создана
                   }
-                }
 
-                final telegramResult =
-                    await TelegramHelper.sendWorkOpeningReport(
-                  createdWork.id!,
-                  workerNames: workerNames,
-                );
-
-                if (telegramResult != null &&
-                    telegramResult['success'] == true &&
-                    telegramResult['message_id'] != null) {
-                  // Сохраняем message_id в БД для связывания с вечерним отчетом
-                  final supabase = ref.read(supabaseClientProvider);
-
-                  await supabase.from('works').update({
-                    'telegram_message_id': telegramResult['message_id']
-                  }).eq('id', createdWork.id!);
+                  // Обновляем список смен
+                  ref.read(monthGroupsProvider.notifier).refresh().ignore();
                 }
               } catch (e) {
-                // Ошибка отправки отчета — не критично, работа уже создана
+                if (mounted) {
+                  AppSnackBar.show(
+                    context: context,
+                    message: 'Ошибка: $e',
+                    kind: AppSnackBarKind.error,
+                  );
+                }
               }
-
-              // Обновляем список смен
-              ref.read(monthGroupsProvider.notifier).refresh().ignore();
-            }
-          } catch (e) {
-            if (mounted) {
-              AppSnackBar.show(
-                context: context,
-                message: 'Ошибка: $e',
-                kind: AppSnackBarKind.error,
-              );
-            }
-          }
-        },
-      );
+            },
+          );
 
       if (uploadedPhotoUrl == null) return;
 
@@ -401,8 +421,9 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
         : _buildFormContent(context, theme);
 
     // Кнопки действий (показываем только если не загружается)
-    final Widget? footer =
-        _isLoadingOccupiedEmployees ? null : _buildFooter(context);
+    final Widget? footer = _isLoadingOccupiedEmployees
+        ? null
+        : _buildFooter(context);
 
     if (isMobile) {
       return MobileBottomSheetContent(
@@ -438,8 +459,9 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
     final objects = objectsState.objects;
     final employees = employeesState.employees;
     final profileObjectIds = profile?.objectIds ?? [];
-    final availableObjects =
-        objects.where((o) => profileObjectIds.contains(o.id)).toList();
+    final availableObjects = objects
+        .where((o) => profileObjectIds.contains(o.id))
+        .toList();
 
     return Form(
       key: _formKey,
@@ -464,10 +486,7 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
           const SizedBox(height: 4),
           Text(
             'Отображаются только активные сотрудники',
-            style: TextStyle(
-              fontSize: 12,
-              color: theme.colorScheme.secondary,
-            ),
+            style: TextStyle(fontSize: 12, color: theme.colorScheme.secondary),
           ),
           const SizedBox(height: 12),
           _buildEmployeesList(employees, theme),
@@ -529,19 +548,22 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
   }
 
   Widget _buildObjectSelector(
-      List<ObjectEntity> availableObjects, ThemeData theme) {
+    List<ObjectEntity> availableObjects,
+    ThemeData theme,
+  ) {
     return GTStringDropdown(
       items: availableObjects.map((obj) => obj.name).toList(),
       selectedItem: _selectedObjectId != null
           ? availableObjects
-              .where((obj) => obj.id == _selectedObjectId)
-              .map((obj) => obj.name)
-              .firstOrNull
+                .where((obj) => obj.id == _selectedObjectId)
+                .map((obj) => obj.name)
+                .firstOrNull
           : null,
       onSelectionChanged: (selectedName) {
         if (selectedName != null) {
-          final selectedObject =
-              availableObjects.firstWhere((obj) => obj.name == selectedName);
+          final selectedObject = availableObjects.firstWhere(
+            (obj) => obj.name == selectedName,
+          );
           setState(() {
             _selectedObjectId = selectedObject.id;
             _selectedEmployeeIds.clear();
@@ -573,7 +595,8 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
 
     return FormField<bool>(
       key: ValueKey(
-          hasPhoto), // Сброс состояния ошибки при изменении наличия фото
+        hasPhoto,
+      ), // Сброс состояния ошибки при изменении наличия фото
       initialValue: hasPhoto,
       validator: (value) {
         if (!hasPhoto) {
@@ -617,10 +640,10 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) =>
                                   Icon(
-                                CupertinoIcons.exclamationmark_triangle,
-                                color: theme.colorScheme.error,
-                                size: 48,
-                              ),
+                                    CupertinoIcons.exclamationmark_triangle,
+                                    color: theme.colorScheme.error,
+                                    size: 48,
+                                  ),
                             ),
                           // Градиент для читаемости кнопки удаления
                           Positioned(
@@ -716,16 +739,15 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
             padding: const EdgeInsets.all(16),
             width: double.infinity,
             decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest
-                  .withValues(alpha: 0.3),
+              color: theme.colorScheme.surfaceContainerHighest.withValues(
+                alpha: 0.3,
+              ),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Center(
               child: Text(
                 'Выберите объект для отображения сотрудников',
-                style: TextStyle(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
+                style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -754,8 +776,9 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
               padding: const EdgeInsets.all(24),
               width: double.infinity,
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest
-                    .withValues(alpha: 0.3),
+                color: theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.3,
+                ),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(

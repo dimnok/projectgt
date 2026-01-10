@@ -21,6 +21,9 @@ abstract class EmployeeRate with _$EmployeeRate {
     /// Уникальный идентификатор записи ставки
     required String id,
 
+    /// Идентификатор компании
+    required String companyId,
+
     /// Идентификатор сотрудника
     required String employeeId,
 

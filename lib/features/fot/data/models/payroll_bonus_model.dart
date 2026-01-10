@@ -28,6 +28,9 @@ abstract class PayrollBonusModel
     /// Идентификатор сотрудника
     @JsonKey(name: 'employee_id') required String employeeId,
 
+    /// Идентификатор компании
+    @JsonKey(name: 'company_id') required String companyId,
+
     /// Тип премии (ручная/авто/поощрительная)
     required String type,
 

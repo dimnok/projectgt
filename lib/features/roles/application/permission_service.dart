@@ -39,6 +39,9 @@ class PermissionService {
   bool can(String module, String permission) {
     if (_user == null) return false;
 
+    // 0. Владелец имеет полный доступ ко всему (Бог системы)
+    if (_user.system_role == 'owner') return true;
+
     // 1. Новая система (по role_id)
     if (_user.roleId != null) {
       // Если права еще загружаются, считаем что доступа нет (или можно вернуть false, чтобы не блокировать UI, а скрыть элементы)

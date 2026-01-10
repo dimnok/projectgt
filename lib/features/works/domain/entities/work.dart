@@ -25,6 +25,9 @@ abstract class Work with _$Work {
     /// Идентификатор смены.
     String? id,
 
+    /// Идентификатор компании.
+    required String companyId,
+
     /// Дата смены.
     required DateTime date,
 

@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:projectgt/core/utils/agent_logger.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/domain/entities/profile.dart';
 import 'package:projectgt/presentation/state/auth_state.dart';
@@ -403,17 +402,11 @@ class CurrentUserProfileNotifier extends StateNotifier<ProfileState> {
   ///
   /// [force] — если true, игнорирует кешированные данные и загружает профиль заново.
   Future<void> getCurrentUserProfile(String userId, {bool force = false}) async {
-    // #region agent log
-    AgentLogger.log(hypothesisId: '4', message: 'CurrentUserProfileNotifier.getCurrentUserProfile() started', data: {'userId': userId, 'force': force}, location: 'profile_state.dart:407');
-    // #endregion
     if (_isLoadingProfile ||
         (!force &&
             state.profile != null &&
             state.profile!.id == userId &&
             state.status == ProfileStatus.success)) {
-      // #region agent log
-      AgentLogger.log(hypothesisId: '4', message: 'getCurrentUserProfile skipped: already loading or already success', location: 'profile_state.dart:415');
-      // #endregion
       return;
     }
 
@@ -423,13 +416,7 @@ class CurrentUserProfileNotifier extends StateNotifier<ProfileState> {
     try {
       // [RBAC] Мы НЕ читаем activeCompanyIdProvider здесь, чтобы избежать CircularDependencyError.
       // Метод dataSource.getProfile сам подхватит last_company_id из записи профиля.
-      // #region agent log
-      AgentLogger.log(hypothesisId: '4', message: 'Executing getProfileUseCase', location: 'profile_state.dart:425');
-      // #endregion
       final profile = await _ref.read(getProfileUseCaseProvider).call(userId);
-      // #region agent log
-      AgentLogger.log(hypothesisId: '4', message: 'getProfileUseCase result', data: {'profileId': profile?.id, 'status': profile?.status}, location: 'profile_state.dart:429');
-      // #endregion
       if (profile != null) {
         state = state.copyWith(
           status: ProfileStatus.success,
@@ -455,18 +442,12 @@ class CurrentUserProfileNotifier extends StateNotifier<ProfileState> {
         );
       }
     } catch (e) {
-      // #region agent log
-      AgentLogger.log(hypothesisId: '4', message: 'getCurrentUserProfile error', data: {'error': e.toString()}, location: 'profile_state.dart:445');
-      // #endregion
       state = state.copyWith(
         status: ProfileStatus.error,
         errorMessage: e.toString(),
       );
     } finally {
       _isLoadingProfile = false;
-      // #region agent log
-      AgentLogger.log(hypothesisId: '4', message: 'CurrentUserProfileNotifier.getCurrentUserProfile() finished', data: {'status': state.status.toString()}, location: 'profile_state.dart:455');
-      // #endregion
     }
   }
 

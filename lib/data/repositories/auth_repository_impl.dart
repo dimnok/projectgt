@@ -17,12 +17,14 @@ class AuthRepositoryImpl implements AuthRepository {
   // === Стандартные методы авторизации ===
 
   @override
+  @Deprecated('Используйте телефонную авторизацию через OTP')
   Future<User> login(String email, String password) async {
     final userModel = await authDataSource.login(email, password);
     return userModel.toDomain();
   }
 
   @override
+  @Deprecated('Используйте телефонную авторизацию через OTP')
   Future<User> register(String name, String email, String password) async {
     final userModel = await authDataSource.register(name, email, password);
     return userModel.toDomain();
@@ -50,14 +52,37 @@ class AuthRepositoryImpl implements AuthRepository {
   // === OTP (Email) methods ===
 
   @override
+  @Deprecated('Используйте requestPhoneOtp')
   Future<void> requestEmailOtp({required String email}) async {
     await authDataSource.requestEmailOtp(email);
   }
 
   @override
+  @Deprecated('Используйте verifyPhoneOtp')
   Future<User> verifyEmailOtp(
       {required String email, required String code}) async {
     final model = await authDataSource.verifyEmailOtp(email, code);
+    return model.toDomain();
+  }
+
+  // === OTP (Phone) methods ===
+
+  @override
+  Future<String> requestPhoneOtp({required String phone}) async {
+    return await authDataSource.requestPhoneOtp(phone);
+  }
+
+  @override
+  Future<User> verifyPhoneOtp({
+    required String phone,
+    required String code,
+    required String token,
+  }) async {
+    final model = await authDataSource.verifyPhoneOtp(
+      phone: phone,
+      code: code,
+      token: token,
+    );
     return model.toDomain();
   }
 

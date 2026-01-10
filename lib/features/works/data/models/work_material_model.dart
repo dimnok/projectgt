@@ -20,6 +20,9 @@ abstract class WorkMaterialModel with _$WorkMaterialModel {
     /// Идентификатор материала.
     required String id,
 
+    /// Идентификатор компании.
+    @JsonKey(name: 'company_id') required String companyId,
+
     /// Идентификатор смены.
     @JsonKey(name: 'work_id') required String workId,
 

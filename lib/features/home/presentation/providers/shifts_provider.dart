@@ -5,6 +5,7 @@ import '../../data/datasources/shifts_data_source.dart';
 import '../../data/datasources/shifts_data_source_impl.dart';
 import '../../data/repositories/shifts_repository_impl.dart';
 import '../../domain/repositories/shifts_repository.dart';
+import '../../../../features/company/presentation/providers/company_providers.dart';
 
 /// Провайдер клиента Supabase для календаря.
 final shiftsSupabaseProvider = Provider<SupabaseClient>((ref) {
@@ -14,7 +15,11 @@ final shiftsSupabaseProvider = Provider<SupabaseClient>((ref) {
 /// Провайдер источника данных календаря смен.
 final shiftsDataSourceProvider = Provider<ShiftsDataSource>((ref) {
   final client = ref.watch(shiftsSupabaseProvider);
-  return ShiftsDataSourceImpl(supabaseClient: client);
+  final activeCompanyId = ref.watch(activeCompanyIdProvider);
+  return ShiftsDataSourceImpl(
+    supabaseClient: client,
+    activeCompanyId: activeCompanyId,
+  );
 });
 
 /// Провайдер репозитория календаря смен.

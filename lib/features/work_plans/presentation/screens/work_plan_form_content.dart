@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:projectgt/domain/entities/object.dart';
+import 'package:projectgt/core/widgets/gt_buttons.dart';
+import 'package:projectgt/core/widgets/gt_text_field.dart';
+import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:projectgt/domain/entities/employee.dart' as domain_employee;
 import 'package:projectgt/core/widgets/gt_dropdown.dart';
 import 'package:projectgt/features/work_plans/presentation/widgets/work_block_widget.dart';
@@ -121,220 +122,117 @@ class WorkPlanFormContent extends StatelessWidget {
 
     return Column(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Шапка модального окна
-        Container(
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(28),
+        // Поле "Дата"
+        GTTextField(
+          controller: dateController,
+          enabled: !isLoading,
+          readOnly: true,
+          onTap: () async {
+            if (isLoading) return;
+
+            final pickedDate = await showDatePicker(
+              context: context,
+              initialDate: selectedDate ?? DateTime.now(),
+              firstDate: DateTime.now(),
+              lastDate: DateTime.now().add(const Duration(days: 365)),
+              builder: (context, child) {
+                return Theme(
+                  data: theme.copyWith(
+                    colorScheme: theme.colorScheme.copyWith(
+                      primary: Colors.green,
+                      onPrimary: Colors.white,
+                      surface: theme.colorScheme.surface,
+                      onSurface: theme.colorScheme.onSurface,
+                    ),
+                  ),
+                  child: child!,
+                );
+              },
+            );
+
+            if (pickedDate != null) {
+              onDateChanged(pickedDate);
+            }
+          },
+          labelText: 'Дата плана работ',
+          hintText: 'Выберите дату',
+          prefixIcon: Icons.calendar_today_rounded,
+          suffixIcon: IconButton(
+            icon: Icon(
+              Icons.calendar_view_month_rounded,
+              color: theme.colorScheme.primary,
             ),
-            boxShadow: [
-              BoxShadow(
-                color: theme.colorScheme.shadow.withValues(alpha: 0.1),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.green.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.calendar_view_week_rounded,
-                  color: Colors.green,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      isNew ? 'Создание плана работ' : 'Редактирование плана',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: theme.colorScheme.onSurface,
+            onPressed: () async {
+              if (isLoading) return;
+
+              final pickedDate = await showDatePicker(
+                context: context,
+                initialDate: selectedDate ?? DateTime.now(),
+                firstDate: DateTime.now(),
+                lastDate: DateTime.now().add(const Duration(days: 365)),
+                builder: (context, child) {
+                  return Theme(
+                    data: theme.copyWith(
+                      colorScheme: theme.colorScheme.copyWith(
+                        primary: Colors.green,
+                        onPrimary: Colors.white,
+                        surface: theme.colorScheme.surface,
+                        onSurface: theme.colorScheme.onSurface,
                       ),
                     ),
-                    Text(
-                      'Заполните данные плана работ',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color:
-                            theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+                    child: child!,
+                  );
+                },
+              );
+
+              if (pickedDate != null) {
+                onDateChanged(pickedDate);
+              }
+            },
           ),
         ),
 
-        // Форма
-        Flexible(
-          child: SingleChildScrollView(
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Поле "Дата"
-                TextField(
-                  controller: dateController,
-                  enabled: !isLoading,
-                  readOnly: true,
-                  onTap: () async {
-                    if (isLoading) return;
+        const SizedBox(height: 20),
 
-                    final pickedDate = await showDatePicker(
-                      context: context,
-                      initialDate: selectedDate ?? DateTime.now(),
-                      firstDate: DateTime.now(),
-                      lastDate: DateTime.now().add(const Duration(days: 365)),
-                      builder: (context, child) {
-                        return Theme(
-                          data: theme.copyWith(
-                            colorScheme: theme.colorScheme.copyWith(
-                              primary: Colors.green,
-                              onPrimary: Colors.white,
-                              surface: theme.colorScheme.surface,
-                              onSurface: theme.colorScheme.onSurface,
-                            ),
-                          ),
-                          child: child!,
-                        );
-                      },
-                    );
-
-                    if (pickedDate != null) {
-                      onDateChanged(pickedDate);
-                    }
-                  },
-                  decoration: InputDecoration(
-                    labelText: 'Дата плана работ',
-                    hintText: 'Выберите дату',
-                    prefixIcon: const Icon(Icons.calendar_today_rounded),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        Icons.calendar_view_month_rounded,
-                        color: theme.colorScheme.primary,
-                      ),
-                      onPressed: () async {
-                        if (isLoading) return;
-
-                        final pickedDate = await showDatePicker(
-                          context: context,
-                          initialDate: selectedDate ?? DateTime.now(),
-                          firstDate: DateTime.now(),
-                          lastDate:
-                              DateTime.now().add(const Duration(days: 365)),
-                          builder: (context, child) {
-                            return Theme(
-                              data: theme.copyWith(
-                                colorScheme: theme.colorScheme.copyWith(
-                                  primary: Colors.green,
-                                  onPrimary: Colors.white,
-                                  surface: theme.colorScheme.surface,
-                                  onSurface: theme.colorScheme.onSurface,
-                                ),
-                              ),
-                              child: child!,
-                            );
-                          },
-                        );
-
-                        if (pickedDate != null) {
-                          onDateChanged(pickedDate);
-                        }
-                      },
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(
-                        color: theme.colorScheme.outline.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(
-                        color: theme.colorScheme.outline.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(
-                        color: Colors.green,
-                        width: 2,
-                      ),
-                    ),
-                    filled: true,
-                    fillColor: theme.colorScheme.surface,
-                  ),
-                  style: theme.textTheme.bodyLarge,
-                ),
-
-                const SizedBox(height: 20),
-
-                // 2. Поле "Объект"
-                GTDropdown<ObjectEntity>(
-                  items: availableObjects,
-                  itemDisplayBuilder: (object) => object.name,
-                  selectedItem: selectedObject,
-                  onSelectionChanged: isLoading ? (_) {} : onObjectChanged,
-                  labelText: 'Объект',
-                  hintText: 'Выберите объект',
-                  allowClear: true,
-                  validator: (value) {
-                    if (selectedObject == null) {
-                      return 'Пожалуйста, выберите объект';
-                    }
-                    return null;
-                  },
-                  readOnly: isLoading,
-                ),
-
-                const SizedBox(height: 24),
-
-                const SizedBox(height: 24),
-
-                // Удалён заголовок "Блоки работ" и иконка; оставлена только кнопка добавления
-                if (selectedObject != null && !isLoading)
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: OutlinedButton.icon(
-                      onPressed: onAddBlock,
-                      icon: const Icon(Icons.add),
-                      label: const Text('Добавить блок'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                const SizedBox(height: 16),
-
-                // Сообщение при отсутствии выбранного объекта удалено по требованию
-              ],
-            ),
-          ),
+        // 2. Поле "Объект"
+        GTDropdown<ObjectEntity>(
+          items: availableObjects,
+          itemDisplayBuilder: (object) => object.name,
+          selectedItem: selectedObject,
+          onSelectionChanged: isLoading ? (_) {} : onObjectChanged,
+          labelText: 'Объект',
+          hintText: 'Выберите объект',
+          allowClear: true,
+          validator: (value) {
+            if (selectedObject == null) {
+              return 'Пожалуйста, выберите объект';
+            }
+            return null;
+          },
+          readOnly: isLoading,
         ),
 
-        // Список блоков работ (без боковых отступов)
+        const SizedBox(height: 24),
+
+        // Кнопка добавления блока
+        if (selectedObject != null && !isLoading)
+          Align(
+            alignment: Alignment.centerRight,
+            child: GTSecondaryButton(
+              onPressed: onAddBlock,
+              icon: Icons.add,
+              text: 'Добавить блок',
+            ),
+          ),
+
+        const SizedBox(height: 16),
+
+        // Список блоков работ
         if (selectedObject != null) ...[
           if (workBlocks.isEmpty)
             Container(
-              margin: const EdgeInsets.symmetric(horizontal: 24),
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 color: theme.colorScheme.surfaceContainerHighest
@@ -395,72 +293,12 @@ class WorkPlanFormContent extends StatelessWidget {
               );
             }),
         ],
-
-        // Кнопки действий
-        Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            children: [
-              const SizedBox(height: 32),
-
-              // Кнопки действий
-              Row(
-                children: [
-                  // Кнопка отмены
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: isLoading ? null : onCancel,
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text('Отмена'),
-                    ),
-                  ),
-
-                  const SizedBox(width: 16),
-
-                  // Кнопка сохранения
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: isLoading || !(isSaveEnabled ?? _canSave())
-                          ? null
-                          : onSave,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: theme.colorScheme.primary,
-                        foregroundColor: theme.colorScheme.onPrimary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: isLoading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CupertinoActivityIndicator(
-                                color: Colors.white,
-                              ),
-                            )
-                          : Text(isNew ? 'Создать план' : 'Сохранить'),
-                    ),
-                  ),
-                ],
-              ),
-
-              // Дополнительный отступ снизу для клавиатуры
-              SizedBox(height: MediaQuery.of(context).viewInsets.bottom + 16),
-            ],
-          ),
-        ),
       ],
     );
   }
 
-  /// Проверяет, можно ли сохранить план работ.
-  bool _canSave() {
+  /// Проверяет, можно ли сохранить план работ (для использования в родителе).
+  bool canSave() {
     if (selectedDate == null || selectedObject == null) return false;
     if (workBlocks.isEmpty) return false;
 

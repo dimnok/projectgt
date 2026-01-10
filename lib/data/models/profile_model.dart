@@ -51,11 +51,13 @@ abstract class ProfileModel with _$ProfileModel {
     String? phone,
     String? position,
     String? roleId,
+    String? systemRole,
     @Default(true) bool status,
     Map<String, dynamic>? object,
     @JsonKey(name: 'created_at') DateTime? createdAt,
     @JsonKey(name: 'updated_at') DateTime? updatedAt,
     @JsonKey(name: 'object_ids') List<String>? objectIds,
+    @JsonKey(name: 'last_company_id') String? lastCompanyId,
   }) = _ProfileModel;
 
   /// Приватный конструктор для поддержки расширения через [freezed].
@@ -78,37 +80,41 @@ abstract class ProfileModel with _$ProfileModel {
   /// [profile] — доменная сущность пользователя.
   /// Возвращает экземпляр [ProfileModel].
   factory ProfileModel.fromDomain(Profile profile) => ProfileModel(
-        id: profile.id,
-        email: profile.email,
-        fullName: profile.fullName,
-        shortName: profile.shortName,
-        photoUrl: profile.photoUrl,
-        phone: profile.phone,
-        position: profile.position,
-        roleId: profile.roleId,
-        status: profile.status,
-        object: profile.object,
-        objectIds: profile.objectIds,
-        createdAt: profile.createdAt,
-        updatedAt: profile.updatedAt,
-      );
+    id: profile.id,
+    email: profile.email,
+    fullName: profile.fullName,
+    shortName: profile.shortName,
+    photoUrl: profile.photoUrl,
+    phone: profile.phone,
+    position: profile.position,
+    roleId: profile.roleId,
+    systemRole: profile.system_role,
+    status: profile.status,
+    object: profile.object,
+    objectIds: profile.objectIds,
+    createdAt: profile.createdAt,
+    updatedAt: profile.updatedAt,
+    lastCompanyId: profile.lastCompanyId,
+  );
 
   /// Преобразует [ProfileModel] в доменную сущность [Profile].
   ///
   /// Возвращает [Profile] с соответствующими полями.
   Profile toDomain() => Profile(
-        id: id,
-        email: email,
-        fullName: fullName,
-        shortName: shortName,
-        photoUrl: photoUrl,
-        phone: phone,
-        position: position,
-        roleId: roleId,
-        status: status,
-        object: object,
-        objectIds: objectIds,
-        createdAt: createdAt,
-        updatedAt: updatedAt,
-      );
+    id: id,
+    email: email,
+    fullName: fullName,
+    shortName: shortName,
+    photoUrl: photoUrl,
+    phone: phone,
+    position: position,
+    roleId: roleId,
+    system_role: systemRole,
+    status: status,
+    object: object,
+    objectIds: objectIds,
+    createdAt: createdAt,
+    updatedAt: updatedAt,
+    lastCompanyId: lastCompanyId,
+  );
 }

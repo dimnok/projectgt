@@ -24,6 +24,9 @@ abstract class EmployeeRateModel with _$EmployeeRateModel {
     /// Уникальный идентификатор записи ставки
     required String id,
 
+    /// Идентификатор компании
+    @JsonKey(name: 'company_id') required String companyId,
+
     /// Идентификатор сотрудника
     @JsonKey(name: 'employee_id') required String employeeId,
 

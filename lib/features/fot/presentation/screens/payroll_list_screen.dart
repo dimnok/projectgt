@@ -6,7 +6,6 @@ import 'package:projectgt/presentation/widgets/app_drawer.dart'
     show AppRoute, AppDrawer;
 import '../widgets/payroll_table_widget.dart';
 import '../widgets/payroll_search_action.dart';
-import '../widgets/payroll_filter_widget.dart';
 import '../providers/payroll_providers.dart';
 import '../providers/payroll_filter_providers.dart';
 import '../providers/payroll_export_providers.dart';
@@ -17,6 +16,8 @@ import 'package:projectgt/features/roles/presentation/widgets/permission_guard.d
 import 'tabs/payroll_tab_penalties.dart';
 import 'tabs/payroll_tab_bonuses.dart';
 import 'tabs/payroll_tab_payouts.dart';
+import '../../../../core/utils/responsive_utils.dart';
+import '../../domain/entities/payroll_calculation.dart';
 
 /// Экран: Список расчётов ФОТ за текущий месяц.
 class PayrollListScreen extends ConsumerStatefulWidget {
@@ -50,7 +51,8 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
           'ФОТ',
           style: TextStyle(
             color: _selectedTabIndex == 0
-                ? Colors.black87 // Тёмный текст на белом thumb
+                ? Colors
+                      .black87 // Тёмный текст на белом thumb
                 : (isDark ? Colors.white70 : Colors.black54),
           ),
         ),
@@ -61,7 +63,8 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
           'Премии',
           style: TextStyle(
             color: _selectedTabIndex == 1
-                ? Colors.white // Светлый текст на голубом thumb
+                ? Colors
+                      .white // Светлый текст на голубом thumb
                 : (isDark ? Colors.white70 : Colors.black54),
           ),
         ),
@@ -72,7 +75,8 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
           'Штрафы',
           style: TextStyle(
             color: _selectedTabIndex == 2
-                ? Colors.white // Светлый текст на красном thumb
+                ? Colors
+                      .white // Светлый текст на красном thumb
                 : (isDark ? Colors.white70 : Colors.black54),
           ),
         ),
@@ -83,7 +87,8 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
           'Выплаты',
           style: TextStyle(
             color: _selectedTabIndex == 3
-                ? Colors.white // Светлый текст на зелёном thumb
+                ? Colors
+                      .white // Светлый текст на зелёном thumb
                 : (isDark ? Colors.white70 : Colors.black54),
           ),
         ),
@@ -103,7 +108,7 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
     'сентябрь',
     'октябрь',
     'ноябрь',
-    'декабрь'
+    'декабрь',
   ];
 
   @override
@@ -139,7 +144,13 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
       final filterState = ref.read(payrollFilterProvider);
       final payrolls = ref.read(filteredPayrollsProvider).asData?.value ?? [];
       final payoutsMapAsync =
-          ref.read(payoutsByEmployeeAndMonthFIFOProvider).asData?.value ?? {};
+          ref
+              .read(
+                payoutsByEmployeeAndMonthFIFOProvider(filterState.selectedYear),
+              )
+              .asData
+              ?.value ??
+          {};
       final balanceAsync =
           ref.read(employeeAggregatedBalanceProvider).asData?.value ?? {};
 
@@ -161,25 +172,25 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
       }
 
       // Вызываем экспорт через провайдер
-      await ref.read(exportPayrollToExcelProvider(
-        {
+      await ref.read(
+        exportPayrollToExcelProvider({
           'payrolls': payrolls,
           'payoutsByEmployee': payoutsByEmployee,
           'aggregatedBalance': balanceAsync,
           'year': filterState.selectedYear,
           'month': filterState.selectedMonth,
-        },
-      ).future);
+        }).future,
+      );
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✅ ФОТ выгружена в Excel')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('✅ ФОТ выгружена в Excel')));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('❌ Ошибка экспорта: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('❌ Ошибка экспорта: $e')));
     }
   }
 
@@ -200,8 +211,6 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
           const PayrollSearchAction(),
           const SizedBox(width: 8),
           if (_selectedTabIndex != 3) ...[
-            const PayrollFiltersAction(),
-            const SizedBox(width: 8),
             // Кнопка экспорта в Excel
             PermissionGuard(
               module: 'payroll',
@@ -222,8 +231,10 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
         children: [
           // --- iOS-стиль с плавающим цветным переключателем ---
           Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24.0,
+              vertical: 16.0,
+            ),
             child: CupertinoSlidingSegmentedControl<int>(
               children: _buildTabSegments(theme.brightness == Brightness.dark),
               groupValue: _selectedTabIndex,
@@ -251,77 +262,12 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
               index: _selectedTabIndex,
               children: [
                 // --- Таб 0: ФОТ ---
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Card(
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(
-                        color: theme.colorScheme.outline.withValues(alpha: 51),
-                      ),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: payrollsAsync.when(
-                        data: (payrolls) {
-                          // Применяем фильтрацию по поисковому запросу
-                          final filteredPayrolls = filterPayrollsByEmployeeName(
-                            payrolls,
-                            searchQuery,
-                            ref,
-                          );
-                          return PayrollTableWidget(payrolls: filteredPayrolls);
-                        },
-                        loading: () => Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const CircularProgressIndicator(),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Загрузка данных ФОТ...',
-                                style: theme.textTheme.bodyMedium,
-                              ),
-                            ],
-                          ),
-                        ),
-                        error: (e, st) => Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.error_outline,
-                                  size: 48, color: Colors.red),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Ошибка загрузки данных',
-                                style: theme.textTheme.titleMedium
-                                    ?.copyWith(color: Colors.red),
-                              ),
-                              const SizedBox(height: 8),
-                              SizedBox(
-                                width: 300,
-                                child: Text(
-                                  e.toString(),
-                                  style: theme.textTheme.bodyMedium
-                                      ?.copyWith(color: Colors.red),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              ElevatedButton.icon(
-                                icon: const Icon(Icons.refresh),
-                                label: const Text('Повторить'),
-                                onPressed: () {
-                                  ref.invalidate(filteredPayrollsProvider);
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+                _buildTabContent(
+                  context,
+                  ref,
+                  theme,
+                  payrollsAsync,
+                  searchQuery,
                 ),
                 // --- Таб 1: Премии ---
                 const PayrollTabBonuses(),
@@ -333,6 +279,84 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTabContent(
+    BuildContext context,
+    WidgetRef ref,
+    ThemeData theme,
+    AsyncValue<List<PayrollCalculation>> payrollsAsync,
+    String searchQuery,
+  ) {
+    final isMobile = ResponsiveUtils.isMobile(context);
+    final content = payrollsAsync.when(
+      data: (payrolls) {
+        final filteredPayrolls = filterPayrollsByEmployeeName(
+          payrolls,
+          searchQuery,
+          ref,
+        );
+        return PayrollTableWidget(payrolls: filteredPayrolls);
+      },
+      loading: () => Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text('Загрузка данных ФОТ...', style: theme.textTheme.bodyMedium),
+          ],
+        ),
+      ),
+      error: (e, st) => Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+            const SizedBox(height: 16),
+            Text(
+              'Ошибка загрузки данных',
+              style: theme.textTheme.titleMedium?.copyWith(color: Colors.red),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: 300,
+              child: Text(
+                e.toString(),
+                style: theme.textTheme.bodyMedium?.copyWith(color: Colors.red),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.refresh),
+              label: const Text('Повторить'),
+              onPressed: () {
+                ref.invalidate(filteredPayrollsProvider);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (isMobile) {
+      return content;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+            color: theme.colorScheme.outline.withValues(alpha: 0.2),
+          ),
+        ),
+        child: Padding(padding: const EdgeInsets.all(16.0), child: content),
       ),
     );
   }

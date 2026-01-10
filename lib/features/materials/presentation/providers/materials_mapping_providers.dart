@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'materials_providers.dart';
 import '../widgets/materials_search.dart';
@@ -83,6 +84,7 @@ final expandedEstimatesProvider =
 class EstimatesMappingPager
     extends StateNotifier<AsyncValue<List<EstimateMappingRow>>> {
   final SupabaseClient _client;
+  final String _activeCompanyId;
 
   /// Размер страницы пагинации.
   final int pageSize;
@@ -98,7 +100,8 @@ class EstimatesMappingPager
   String _query = '';
 
   /// Создаёт пагинатор сопоставления смет с алиасами.
-  EstimatesMappingPager(this._client, {this.pageSize = 50, this.contractNumber})
+  EstimatesMappingPager(this._client, this._activeCompanyId,
+      {this.pageSize = 50, this.contractNumber})
       : super(const AsyncValue.loading());
 
   /// Загружает первую страницу данных.
@@ -135,6 +138,7 @@ class EstimatesMappingPager
             .from('contracts')
             .select('id')
             .eq('number', contractNumber!.trim())
+            .eq('company_id', _activeCompanyId)
             .maybeSingle();
         contractId = c != null ? c['id']?.toString() : null;
         if (contractId == null) {
@@ -148,7 +152,10 @@ class EstimatesMappingPager
         }
       }
 
-      var builder = _client.from('estimates').select('id,number,name,unit');
+      var builder = _client
+          .from('estimates')
+          .select('id,number,name,unit')
+          .eq('company_id', _activeCompanyId);
       if (contractId != null) {
         builder = builder.eq('contract_id', contractId);
       }
@@ -188,6 +195,7 @@ class EstimatesMappingPager
             .select(
                 'id,estimate_id,alias_raw,uom_raw,supplier_id,multiplier_to_estimate')
             .inFilter('estimate_id', ids)
+            .eq('company_id', _activeCompanyId)
             .order('alias_raw');
 
         final Map<String, List<MaterialAliasRow>> aliasesByEstimate = {};
@@ -214,6 +222,7 @@ class EstimatesMappingPager
           final kitComponentsData =
               await _client.rpc('get_kit_components_with_names', params: {
             'parent_ids': ids,
+            'p_company_id': _activeCompanyId,
           });
 
           if (kitComponentsData != null) {
@@ -268,8 +277,10 @@ class EstimatesMappingPager
 final estimatesMappingPagerProvider = StateNotifierProvider<
     EstimatesMappingPager, AsyncValue<List<EstimateMappingRow>>>((ref) {
   final client = ref.watch(supabaseClientProvider);
+  final activeCompanyId = ref.watch(activeCompanyIdProvider);
   final contractNumber = ref.watch(selectedContractNumberProvider);
-  final pager = EstimatesMappingPager(client, contractNumber: contractNumber);
+  final pager = EstimatesMappingPager(client, activeCompanyId ?? '',
+      contractNumber: contractNumber);
   ref.listen<String>(materialsSearchQueryProvider('mapping'), (prev, next) {
     // Сброс пагинации и мягкая перезагрузка
     pager

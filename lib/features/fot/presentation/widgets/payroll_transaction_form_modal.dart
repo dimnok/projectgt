@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
@@ -8,14 +7,19 @@ import '../../data/models/payroll_bonus_model.dart';
 import '../../data/models/payroll_penalty_model.dart';
 import '../../../../presentation/state/employee_state.dart';
 import '../../../../domain/entities/employee.dart';
-import '../../../../domain/entities/object.dart';
+import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
+import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:projectgt/core/di/providers.dart';
 import '../providers/bonus_providers.dart';
 import '../providers/penalty_providers.dart';
 import '../providers/balance_providers.dart';
 import '../providers/payroll_providers.dart';
 import '../../../../core/utils/snackbar_utils.dart';
-import '../../../../core/widgets/modal_container_wrapper.dart';
+import '../../../../core/widgets/gt_buttons.dart';
+import '../../../../core/widgets/gt_text_field.dart';
+import '../../../../core/widgets/desktop_dialog_content.dart';
+import '../../../../core/widgets/mobile_bottom_sheet_content.dart';
+import '../../../../core/utils/responsive_utils.dart';
 import '../../../../core/widgets/gt_dropdown.dart';
 
 /// Переиспользуемое модальное окно для добавления/редактирования транзакций ФОТ.
@@ -28,14 +32,19 @@ class PayrollTransactionFormModal extends ConsumerStatefulWidget {
   /// Существующая транзакция для редактирования (null для создания новой)
   final PayrollTransaction? transaction;
 
+  /// Предзаполненный ID сотрудника
+  final String? initialEmployeeId;
+
   /// Создаёт модальное окно для транзакции ФОТ.
   ///
   /// [transactionType] — тип транзакции (премия или штраф)
   /// [transaction] — существующая транзакция для редактирования
+  /// [initialEmployeeId] — ID сотрудника для предзаполнения
   const PayrollTransactionFormModal({
     super.key,
     required this.transactionType,
     this.transaction,
+    this.initialEmployeeId,
   });
 
   @override
@@ -68,6 +77,18 @@ class _PayrollTransactionFormModalState
     super.didChangeDependencies();
     if (_isEditing) {
       _populateSelectedItems();
+    } else if (widget.initialEmployeeId != null && _selectedEmployee == null) {
+      _prefillEmployee();
+    }
+  }
+
+  /// Предзаполняет сотрудника по ID
+  void _prefillEmployee() {
+    final employeeState = ref.read(employeeProvider);
+    if (employeeState.employees.isNotEmpty) {
+      _selectedEmployee = employeeState.employees
+          .where((e) => e.id == widget.initialEmployeeId)
+          .firstOrNull;
     }
   }
 
@@ -165,9 +186,15 @@ class _PayrollTransactionFormModalState
   /// Сохранение премии
   Future<void> _saveBonus(
       Uuid uuid, num amount, String? reason, DateTime date) async {
+    final activeCompanyId = ref.read(activeCompanyIdProvider);
+    if (activeCompanyId == null) {
+      throw Exception('Компания не выбрана');
+    }
+
     final bonus = PayrollBonusModel(
       id: _isEditing ? widget.transaction!.id : uuid.v4(),
       employeeId: _selectedEmployee?.id ?? '',
+      companyId: activeCompanyId,
       type: 'manual',
       amount: amount,
       reason: reason,
@@ -188,9 +215,15 @@ class _PayrollTransactionFormModalState
   /// Сохранение штрафа
   Future<void> _savePenalty(
       Uuid uuid, num amount, String? reason, DateTime date) async {
+    final activeCompanyId = ref.read(activeCompanyIdProvider);
+    if (activeCompanyId == null) {
+      throw Exception('Компания не выбрана');
+    }
+
     final penalty = PayrollPenaltyModel(
       id: _isEditing ? widget.transaction!.id : uuid.v4(),
       employeeId: _selectedEmployee?.id ?? '',
+      companyId: activeCompanyId,
       type: 'manual',
       amount: amount,
       reason: reason,
@@ -211,12 +244,12 @@ class _PayrollTransactionFormModalState
   /// Инвалидация провайдеров после сохранения
   void _invalidateProviders() {
     if (_type == PayrollTransactionType.bonus) {
-      ref.invalidate(allBonusesProvider);
+      ref.invalidate(bonusesByFilterProvider);
     } else {
-      ref.invalidate(allPenaltiesProvider);
+      ref.invalidate(penaltiesByFilterProvider);
     }
     ref.invalidate(employeeAggregatedBalanceProvider);
-    ref.invalidate(payrollPayoutsByMonthProvider);
+    ref.invalidate(payrollPayoutsByFilterProvider);
     ref.invalidate(filteredPayrollsProvider); // Обновляем основную таблицу ФОТ
   }
 
@@ -225,6 +258,7 @@ class _PayrollTransactionFormModalState
     final theme = Theme.of(context);
     final employeeState = ref.watch(employeeProvider);
     final objectState = ref.watch(objectProvider);
+    final isDesktop = ResponsiveUtils.isDesktop(context);
 
     // Сортировка сотрудников по алфавиту (Фамилия Имя Отчество)
     final employees = List<Employee>.from(employeeState.employees)
@@ -244,82 +278,43 @@ class _PayrollTransactionFormModalState
 
     final objects = objectState.objects;
 
-    return ModalContainerWrapper(
-      child: DraggableScrollableSheet(
-        initialChildSize: 1.0,
-        minChildSize: 0.5,
-        maxChildSize: 1.0,
-        expand: false,
-        builder: (context, scrollController) => SingleChildScrollView(
-          controller: scrollController,
-          child: Padding(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(context).viewInsets.bottom,
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Form(
+    final title = _isEditing ? _type.editTitle : _type.addTitle;
+    final content = Form(
                 key: _formKey,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _buildHeader(theme),
-                    const Divider(),
                     _buildForm(theme, employees, objects),
-                    const SizedBox(height: 24),
-                    _buildButtons(),
-                    const SizedBox(height: 32),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
+        ],
+      ),
+    );
+
+    final footer = _buildButtons();
+
+    if (isDesktop) {
+      return Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: DesktopDialogContent(
+          title: title,
+          footer: footer,
+          child: content,
       ),
     );
   }
 
-  /// Строит заголовок модального окна
-  Widget _buildHeader(ThemeData theme) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16.0),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              _isEditing ? _type.editTitle : _type.addTitle,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.close),
-            style: IconButton.styleFrom(foregroundColor: Colors.red),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
-      ),
+    return MobileBottomSheetContent(
+      title: title,
+      footer: footer,
+      child: content,
     );
   }
 
   /// Строит форму
   Widget _buildForm(
       ThemeData theme, List<Employee> employees, List<ObjectEntity> objects) {
-    return Card(
-      margin: EdgeInsets.zero,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: theme.colorScheme.outline.withValues(alpha: 0.2),
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
+    return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildDateField(),
@@ -332,30 +327,22 @@ class _PayrollTransactionFormModalState
             const SizedBox(height: 16),
             _buildNoteField(),
           ],
-        ),
-      ),
     );
   }
 
   /// Поле выбора даты
   Widget _buildDateField() {
-    return GestureDetector(
+    return GTTextField(
+      labelText: 'Дата',
+      prefixIcon: Icons.event,
+      readOnly: true,
       onTap: _pickDate,
-      child: AbsorbPointer(
-        child: TextFormField(
-          decoration: const InputDecoration(
-            labelText: 'Дата',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.event),
-          ),
           controller: TextEditingController(
             text: _selectedDate != null
                 ? '${_selectedDate!.day.toString().padLeft(2, '0')}.${_selectedDate!.month.toString().padLeft(2, '0')}.${_selectedDate!.year}'
                 : '',
           ),
           validator: (_) => _selectedDate == null ? 'Выберите дату' : null,
-        ),
-      ),
     );
   }
 
@@ -402,14 +389,11 @@ class _PayrollTransactionFormModalState
 
   /// Поле ввода суммы
   Widget _buildAmountField() {
-    return TextFormField(
+    return GTTextField(
       controller: _amountController,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      decoration: InputDecoration(
         labelText: _type.amountLabel,
-        border: const OutlineInputBorder(),
-        prefixIcon: const Icon(Icons.currency_ruble),
-      ),
+      prefixIcon: Icons.currency_ruble,
       validator: (value) {
         if (value == null || value.isEmpty) return 'Введите сумму';
         final num? n = num.tryParse(value.replaceAll(',', '.'));
@@ -421,19 +405,15 @@ class _PayrollTransactionFormModalState
 
   /// Поле комментария
   Widget _buildNoteField() {
-    return TextFormField(
+    return GTTextField(
       controller: _noteController,
-      decoration: InputDecoration(
         labelText: _type == PayrollTransactionType.bonus
             ? 'Примечание'
             : 'Комментарий',
-        border: const OutlineInputBorder(),
-        prefixIcon: const Icon(Icons.comment_outlined),
+      prefixIcon: Icons.comment_outlined,
         hintText: _type == PayrollTransactionType.bonus
             ? 'Причина или комментарий'
             : null,
-      ),
-      minLines: 1,
       maxLines: 3,
     );
   }
@@ -443,42 +423,17 @@ class _PayrollTransactionFormModalState
     return Row(
       children: [
         Expanded(
-          child: OutlinedButton(
+          child: GTSecondaryButton(
+            text: 'Отмена',
             onPressed: () => Navigator.pop(context),
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size.fromHeight(44),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              textStyle: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            child: const Text('Отмена'),
           ),
         ),
         const SizedBox(width: 16),
         Expanded(
-          child: ElevatedButton(
+          child: GTPrimaryButton(
+            text: _isEditing ? 'Обновить' : 'Сохранить',
             onPressed: _isSaving ? null : _saveTransaction,
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size.fromHeight(44),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              textStyle: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            child: _isSaving
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CupertinoActivityIndicator(),
-                  )
-                : Text(_isEditing ? 'Обновить' : 'Сохранить'),
+            isLoading: _isSaving,
           ),
         ),
       ],

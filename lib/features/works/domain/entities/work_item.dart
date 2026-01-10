@@ -28,6 +28,9 @@ abstract class WorkItem with _$WorkItem {
     /// Идентификатор работы.
     required String id,
 
+    /// Идентификатор компании.
+    required String companyId,
+
     /// Идентификатор смены.
     required String workId,
 

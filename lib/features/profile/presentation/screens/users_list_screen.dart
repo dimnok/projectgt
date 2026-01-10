@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
-import 'package:projectgt/domain/entities/object.dart';
+import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/features/profile/presentation/screens/users_list_desktop_screen.dart';

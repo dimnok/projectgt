@@ -1,11 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/di/providers.dart';
-import '../../../../presentation/state/employee_state.dart';
 
 /// Провайдеры для фильтрации данных модуля ФОТ
 ///
 /// Обеспечивают фильтрацию расчётов, премий, штрафов и выплат
-/// по объектам и должностям сотрудников.
+/// по объектам сотрудников.
 
 /// Доступные объекты для фильтрации ФОТ
 final availableObjectsForPayrollProvider = Provider<List<dynamic>>((ref) {
@@ -13,33 +12,10 @@ final availableObjectsForPayrollProvider = Provider<List<dynamic>>((ref) {
   return objectState.objects;
 });
 
-/// Доступные должности для фильтрации ФОТ
-final availablePositionsForPayrollProvider =
-    FutureProvider<List<String>>((ref) async {
-  final employeeState = ref.watch(employeeProvider);
-  final employees = employeeState.employees;
-
-  try {
-    final positions = employees
-        .map((e) => e.position)
-        .whereType<String>()
-        .where((p) => p.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort();
-    return positions;
-  } catch (e) {
-    return <String>[];
-  }
-});
-
 /// Состояние фильтров модуля ФОТ
 class PayrollFilterState {
   /// Выбранные объекты для фильтрации
   final List<String> selectedObjectIds;
-
-  /// Выбранные должности для фильтрации
-  final List<String> selectedPositions;
 
   /// Выбранный год
   final int selectedYear;
@@ -50,7 +26,6 @@ class PayrollFilterState {
   /// Конструктор состояния фильтров
   PayrollFilterState({
     this.selectedObjectIds = const [],
-    this.selectedPositions = const [],
     int? selectedYear,
     int? selectedMonth,
   })  : selectedYear = selectedYear ?? DateTime.now().year,
@@ -59,13 +34,11 @@ class PayrollFilterState {
   /// Создаёт копию состояния с изменениями
   PayrollFilterState copyWith({
     List<String>? selectedObjectIds,
-    List<String>? selectedPositions,
     int? selectedYear,
     int? selectedMonth,
   }) {
     return PayrollFilterState(
       selectedObjectIds: selectedObjectIds ?? this.selectedObjectIds,
-      selectedPositions: selectedPositions ?? this.selectedPositions,
       selectedYear: selectedYear ?? this.selectedYear,
       selectedMonth: selectedMonth ?? this.selectedMonth,
     );
@@ -76,9 +49,7 @@ class PayrollFilterState {
     final now = DateTime.now();
     final hasNonDefaultPeriod =
         selectedYear != now.year || selectedMonth != now.month;
-    return selectedObjectIds.isNotEmpty ||
-        selectedPositions.isNotEmpty ||
-        hasNonDefaultPeriod;
+    return selectedObjectIds.isNotEmpty || hasNonDefaultPeriod;
   }
 }
 
@@ -90,11 +61,6 @@ class PayrollFilterNotifier extends StateNotifier<PayrollFilterState> {
   /// Устанавливает выбранные объекты
   void setSelectedObjects(List<String> objectIds) {
     state = state.copyWith(selectedObjectIds: objectIds);
-  }
-
-  /// Устанавливает выбранные должности
-  void setSelectedPositions(List<String> positions) {
-    state = state.copyWith(selectedPositions: positions);
   }
 
   /// Устанавливает выбранный год и месяц
@@ -113,3 +79,9 @@ final payrollFilterProvider =
     StateNotifierProvider<PayrollFilterNotifier, PayrollFilterState>((ref) {
   return PayrollFilterNotifier();
 });
+
+/// Провайдер состояния поиска в модуле ФОТ (текстовый запрос)
+final payrollSearchQueryProvider = StateProvider<String>((ref) => '');
+
+/// Провайдер видимости поля поиска в AppBar модуля ФОТ
+final payrollSearchVisibleProvider = StateProvider<bool>((ref) => false);

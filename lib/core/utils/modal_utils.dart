@@ -126,8 +126,10 @@ class ModalUtils {
   ///
   /// [context] - контекст для отображения модального окна.
   /// [employeeId] - ID сотрудника для редактирования (null для создания нового).
-  static Future<void> showEmployeeFormModal(BuildContext context,
-      {String? employeeId}) {
+  static Future<void> showEmployeeFormModal(
+    BuildContext context, {
+    String? employeeId,
+  }) {
     return _showFormModal(
       context: context,
       formBuilder: (scrollController) => EmployeeFormScreen(
@@ -146,9 +148,7 @@ class ModalUtils {
     if (isDesktop) {
       return showDialog(
         context: context,
-        builder: (context) => const Center(
-          child: WorkFormScreen(),
-        ),
+        builder: (context) => const Center(child: WorkFormScreen()),
       );
     } else {
       return showModalBottomSheet(
@@ -218,7 +218,8 @@ class ModalUtils {
       isDismissible: false, // Запрет закрытия по тапу вне
       enableDrag: false, // Запрет закрытия свайпом вниз
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height -
+        maxHeight:
+            MediaQuery.of(context).size.height -
             MediaQuery.of(context).padding.top,
       ),
       builder: (sheetContext) => NewMaterialModal(
@@ -281,10 +282,7 @@ class ModalUtils {
                 color: theme.colorScheme.onSurface,
               ),
               const SizedBox(width: 12),
-              Text(
-                'Редактировать',
-                style: theme.textTheme.bodyMedium,
-              ),
+              Text('Редактировать', style: theme.textTheme.bodyMedium),
             ],
           ),
         ),
@@ -302,10 +300,7 @@ class ModalUtils {
               color: theme.colorScheme.onSurface,
             ),
             const SizedBox(width: 12),
-            Text(
-              'К смене',
-              style: theme.textTheme.bodyMedium,
-            ),
+            Text('К смене', style: theme.textTheme.bodyMedium),
           ],
         ),
       ),
@@ -341,13 +336,12 @@ class ModalUtils {
       backgroundColor: Colors.transparent,
       useSafeArea: true,
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height -
+        maxHeight:
+            MediaQuery.of(context).size.height -
             MediaQuery.of(context).padding.top -
             kToolbarHeight,
       ),
-      builder: (ctx) => ExportWorkItemEditModal(
-        initialData: initialData,
-      ),
+      builder: (ctx) => ExportWorkItemEditModal(initialData: initialData),
     );
   }
 
@@ -422,7 +416,8 @@ class ModalUtils {
       isDismissible: false, // Запрет закрытия по тапу вне
       enableDrag: false, // Запрет закрытия свайпом вниз
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height -
+        maxHeight:
+            MediaQuery.of(context).size.height -
             MediaQuery.of(context).padding.top,
       ),
       builder: (context) => modalContent,
@@ -470,10 +465,13 @@ class _FloatingFormButtons extends StatelessWidget {
               minimumSize: const Size.fromHeight(buttonHeight),
               shape: const StadiumBorder(),
               elevation: isMobile ? 2 : 0,
-              shadowColor:
-                  isMobile ? Colors.black.withValues(alpha: 0.2) : null,
-              textStyle:
-                  const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              shadowColor: isMobile
+                  ? Colors.black.withValues(alpha: 0.2)
+                  : null,
+              textStyle: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             child: Text(cancelText),
           ),
@@ -486,10 +484,13 @@ class _FloatingFormButtons extends StatelessWidget {
               minimumSize: const Size.fromHeight(buttonHeight),
               shape: const StadiumBorder(),
               elevation: isMobile ? 4 : 1,
-              shadowColor:
-                  isMobile ? Colors.black.withValues(alpha: 0.3) : null,
-              textStyle:
-                  const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              shadowColor: isMobile
+                  ? Colors.black.withValues(alpha: 0.3)
+                  : null,
+              textStyle: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             child: isLoading
                 ? const SizedBox(

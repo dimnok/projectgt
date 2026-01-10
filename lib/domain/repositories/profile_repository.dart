@@ -4,13 +4,15 @@ import 'package:projectgt/domain/entities/profile.dart';
 abstract class ProfileRepository {
   /// Получи профиль пользователя по [userId].
   ///
+  /// [companyId] — опциональный идентификатор компании.
   /// Возвращает [Profile] или null, если не найден. Бросает [Exception] при ошибке.
-  Future<Profile?> getProfile(String userId);
+  Future<Profile?> getProfile(String userId, [String? companyId]);
 
-  /// Получи список всех профилей.
+  /// Получи список всех профилей для конкретной компании [companyId].
   ///
+  /// [companyId] — идентификатор компании.
   /// Возвращает список [Profile]. Бросает [Exception] при ошибке.
-  Future<List<Profile>> getProfiles();
+  Future<List<Profile>> getProfiles(String companyId);
 
   /// Обнови профиль [profile] в источнике данных.
   ///

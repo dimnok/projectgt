@@ -20,6 +20,7 @@ abstract class EmployeeModel with _$EmployeeModel {
   @JsonSerializable(explicitToJson: true, fieldRename: FieldRename.snake)
   const factory EmployeeModel({
     required String id,
+    required String companyId,
     @JsonKey(name: 'photo_url') String? photoUrl,
     @JsonKey(name: 'last_name') required String lastName,
     @JsonKey(name: 'first_name') required String firstName,
@@ -65,6 +66,7 @@ abstract class EmployeeModel with _$EmployeeModel {
   /// Создаёт модель из доменной сущности [Employee].
   factory EmployeeModel.fromDomain(Employee employee) => EmployeeModel(
         id: employee.id,
+        companyId: employee.companyId,
         photoUrl: employee.photoUrl,
         lastName: employee.lastName,
         firstName: employee.firstName,
@@ -97,6 +99,7 @@ abstract class EmployeeModel with _$EmployeeModel {
   /// Преобразует модель в доменную сущность [Employee].
   Employee toDomain() => Employee(
         id: id,
+        companyId: companyId,
         photoUrl: photoUrl,
         lastName: lastName,
         firstName: firstName,

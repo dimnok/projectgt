@@ -133,21 +133,44 @@ class ProcurementRepository {
   /// Получает список пользователей, имеющих доступ к согласованию (из профилей с указанным Telegram ID).
   Future<List<BotUserModel>> getBotUsers() async {
     try {
+      // [RBAC v3] Получаем role_id из company_members, а не из profiles
       final response = await _supabase
           .from('profiles')
-          .select('id, full_name, telegram_user_id, role_id')
+          .select('id, full_name, telegram_user_id')
           .not('telegram_user_id', 'is', null)
           .order('full_name');
 
-      return (response as List).map((json) {
-        // Map profiles data to BotUserModel format
-        return BotUserModel(
-          id: json['id'] as String,
-          telegramChatId: (json['telegram_user_id'] as int),
-          fullName: json['full_name'] as String? ?? 'Без имени',
-          roleId: json['role_id'] as String?,
-        );
-      }).toList();
+      // Получаем role_id из company_members для каждого пользователя
+      final profilesList = response as List;
+      final botUsers = <BotUserModel>[];
+
+      for (final profileJson in profilesList) {
+        final userId = profileJson['id'] as String;
+        
+        // Получаем role_id из company_members (берем первую активную компанию)
+        String? roleId;
+        try {
+          final memberData = await _supabase
+              .from('company_members')
+              .select('role_id')
+              .eq('user_id', userId)
+              .eq('is_active', true)
+              .maybeSingle();
+          
+          roleId = memberData?['role_id'] as String?;
+        } catch (_) {
+          // Игнорируем ошибки при получении role_id
+        }
+
+        botUsers.add(BotUserModel(
+          id: userId,
+          telegramChatId: (profileJson['telegram_user_id'] as int),
+          fullName: profileJson['full_name'] as String? ?? 'Без имени',
+          roleId: roleId,
+        ));
+      }
+
+      return botUsers;
     } catch (e) {
       // ignore: avoid_print
       print('Error fetching bot users from profiles: $e');

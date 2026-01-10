@@ -32,6 +32,7 @@ abstract class ContractModel with _$ContractModel {
   @JsonSerializable(explicitToJson: true, fieldRename: FieldRename.snake)
   const factory ContractModel({
     required String id,
+    required String companyId,
     required String number,
     @JsonKey(toJson: _dateOnlyToJson) required DateTime date,
     @JsonKey(toJson: _dateOnlyToJson) DateTime? endDate,
@@ -107,6 +108,7 @@ abstract class ContractModel with _$ContractModel {
   /// Используется для сохранения/обновления данных в БД.
   factory ContractModel.fromDomain(Contract contract) => ContractModel(
         id: contract.id,
+        companyId: contract.companyId,
         number: contract.number,
         date: contract.date,
         endDate: contract.endDate,
@@ -140,6 +142,7 @@ abstract class ContractModel with _$ContractModel {
   /// Используется для передачи данных в слой бизнес-логики.
   Contract toDomain() => Contract(
         id: id,
+        companyId: companyId,
         number: number,
         date: date,
         endDate: endDate,

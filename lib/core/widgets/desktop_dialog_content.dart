@@ -62,6 +62,10 @@ class DesktopDialogContent extends StatelessWidget {
   /// По умолчанию true. Если false, скролл должен быть реализован внутри child.
   final bool scrollable;
 
+  /// Определяет, показывать ли разделители между заголовком, контентом и подвалом.
+  /// По умолчанию true.
+  final bool showDividers;
+
   /// Создаёт содержимое диалогового окна для десктопа.
   const DesktopDialogContent({
     super.key,
@@ -73,6 +77,7 @@ class DesktopDialogContent extends StatelessWidget {
     this.padding = const EdgeInsets.all(24),
     this.onClose,
     this.scrollable = true,
+    this.showDividers = true,
   });
 
   @override
@@ -80,95 +85,87 @@ class DesktopDialogContent extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Material(
-        type: MaterialType.transparency,
-        child: Container(
-          width: width,
-          height: height,
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.85,
-            maxWidth: MediaQuery.of(context).size.width * 0.9,
-          ),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: theme.shadowColor.withValues(alpha: 0.2),
-                blurRadius: 24,
-                offset: const Offset(0, 8),
-              ),
-            ],
-            border: Border.all(
-              color: theme.colorScheme.outline.withValues(alpha: 0.1),
+      type: MaterialType.transparency,
+      child: Container(
+        width: width,
+        height: height,
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
+          maxWidth: MediaQuery.of(context).size.width * 0.9,
+        ),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: theme.shadowColor.withValues(alpha: 0.2),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
             ),
+          ],
+          border: Border.all(
+            color: theme.colorScheme.outline.withValues(alpha: 0.1),
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(24),
-            child: Material(
-              color: Colors.transparent,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Заголовок с кнопкой закрытия
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 20, 20, 20),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            title,
-                            style: theme.textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: Material(
+            color: Colors.transparent,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Заголовок с кнопкой закрытия
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 20, 20, 20),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: theme.textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(width: 16),
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed:
-                              onClose ?? () => Navigator.of(context).pop(),
-                          tooltip: 'Закрыть',
-                          style: IconButton.styleFrom(
-                            foregroundColor: theme.colorScheme.onSurfaceVariant,
-                          ),
+                      ),
+                      const SizedBox(width: 16),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: onClose ?? () => Navigator.of(context).pop(),
+                        tooltip: 'Закрыть',
+                        style: IconButton.styleFrom(
+                          foregroundColor: theme.colorScheme.onSurfaceVariant,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
+                ),
 
-                  const Divider(height: 1),
+                if (showDividers) const Divider(height: 1),
 
-                  // Скроллящийся контент
-                  Flexible(
-                    fit: FlexFit.loose,
-                    child: scrollable
-                        ? SingleChildScrollView(
-                            padding: padding,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                child,
-                              ],
-                            ),
-                          )
-                        : Padding(
-                            padding: padding,
-                            child: child,
+                // Скроллящийся контент
+                Flexible(
+                  fit: FlexFit.loose,
+                  child: scrollable
+                      ? SingleChildScrollView(
+                          padding: padding,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [child],
                           ),
-                  ),
+                        )
+                      : Padding(padding: padding, child: child),
+                ),
 
-                  if (footer != null) ...[
-                    const Divider(height: 1),
-                    Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: footer!,
-                    ),
-                  ],
+                if (footer != null) ...[
+                  if (showDividers) const Divider(height: 1),
+                  Padding(padding: const EdgeInsets.all(24), child: footer!),
                 ],
-              ),
+              ],
             ),
           ),
-        ));
+        ),
+      ),
+    );
   }
 }

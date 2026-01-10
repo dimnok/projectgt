@@ -19,6 +19,15 @@ class DrawerItemWidget extends StatelessWidget {
   /// Является ли действие деструктивным (например, выход).
   final bool isDestructive;
 
+  /// Размер иконки.
+  final double iconSize;
+
+  /// Отступ слева от иконки.
+  final double leadingPadding;
+
+  /// Размер шрифта текста.
+  final double fontSize;
+
   /// Создаёт элемент бокового меню с иконкой, текстом и обработчиком нажатия.
   ///
   /// [icon] — иконка пункта, [title] — текст, [onTap] — обработчик, [isSelected] — выделение, [isDestructive] — деструктивный стиль.
@@ -29,6 +38,9 @@ class DrawerItemWidget extends StatelessWidget {
     required this.onTap,
     this.isSelected = false,
     this.isDestructive = false,
+    this.iconSize = 20,
+    this.leadingPadding = 8,
+    this.fontSize = 16,
   });
 
   @override
@@ -69,10 +81,10 @@ class DrawerItemWidget extends StatelessWidget {
                   const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
               child: Row(
                 children: [
-                  const SizedBox(width: 8),
+                  SizedBox(width: leadingPadding),
                   Icon(
                     icon,
-                    size: 24,
+                    size: iconSize,
                     color: iconColor,
                   ),
                   const SizedBox(width: 16),
@@ -81,6 +93,7 @@ class DrawerItemWidget extends StatelessWidget {
                       title,
                       style: theme.textTheme.titleMedium?.copyWith(
                         color: textColor,
+                        fontSize: fontSize,
                         fontWeight:
                             isSelected ? FontWeight.bold : FontWeight.normal,
                       ),

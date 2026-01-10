@@ -22,9 +22,10 @@ abstract class EmployeeRateDataSource {
 /// Реализация data source через Supabase
 class EmployeeRateDataSourceImpl implements EmployeeRateDataSource {
   final SupabaseClient _client;
+  final String _activeCompanyId;
 
   /// Создаёт экземпляр [EmployeeRateDataSourceImpl] с заданным [_client].
-  const EmployeeRateDataSourceImpl(this._client);
+  const EmployeeRateDataSourceImpl(this._client, this._activeCompanyId);
 
   @override
   Future<List<EmployeeRateModel>> getEmployeeRates(String employeeId) async {
@@ -32,6 +33,7 @@ class EmployeeRateDataSourceImpl implements EmployeeRateDataSource {
         .from('employee_rates')
         .select()
         .eq('employee_id', employeeId)
+        .eq('company_id', _activeCompanyId)
         .order('valid_from', ascending: false);
 
     return response
@@ -45,6 +47,7 @@ class EmployeeRateDataSourceImpl implements EmployeeRateDataSource {
         .from('employee_rates')
         .select()
         .eq('employee_id', employeeId)
+        .eq('company_id', _activeCompanyId)
         .isFilter('valid_to', null)
         .maybeSingle();
 
@@ -56,6 +59,7 @@ class EmployeeRateDataSourceImpl implements EmployeeRateDataSource {
     final result = await _client.rpc('get_employee_rate', params: {
       'p_employee_id': employeeId,
       'p_date': date.toIso8601String().split('T')[0], // только дата
+      'p_company_id': _activeCompanyId,
     });
 
     return (result as num?)?.toDouble() ?? 0.0;
@@ -95,6 +99,7 @@ class EmployeeRateDataSourceImpl implements EmployeeRateDataSource {
     // Добавляем новую ставку
     await _client.from('employee_rates').insert({
       'employee_id': employeeId,
+      'company_id': _activeCompanyId,
       'hourly_rate': rate,
       'valid_from': validFrom.toIso8601String().split('T')[0],
     });
@@ -106,6 +111,7 @@ class EmployeeRateDataSourceImpl implements EmployeeRateDataSource {
         .from('employee_rates')
         .update({'valid_to': validTo.toIso8601String().split('T')[0]})
         .eq('employee_id', employeeId)
+        .eq('company_id', _activeCompanyId)
         .isFilter('valid_to', null);
   }
 }

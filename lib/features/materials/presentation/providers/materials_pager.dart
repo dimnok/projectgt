@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/di/providers.dart';
+import '../../../../features/company/presentation/providers/company_providers.dart';
 import '../../data/models/material_item.dart';
 import 'materials_providers.dart';
 import '../widgets/materials_search.dart';
@@ -8,6 +9,7 @@ import '../widgets/materials_search.dart';
 /// Пагинатор списка материалов с серверной фильтрацией и поиском.
 class MaterialsPager extends StateNotifier<AsyncValue<List<MaterialItem>>> {
   final SupabaseClient _client;
+  final String _activeCompanyId;
 
   /// Размер страницы пагинации.
   final int pageSize;
@@ -23,7 +25,8 @@ class MaterialsPager extends StateNotifier<AsyncValue<List<MaterialItem>>> {
   bool _initialized = false;
 
   /// Создаёт пагинатор материалов.
-  MaterialsPager(this._client, {this.pageSize = 50, this.contractNumber})
+  MaterialsPager(this._client, this._activeCompanyId,
+      {this.pageSize = 50, this.contractNumber})
       : super(const AsyncValue.loading()) {
     // Автоинициализация первой страницы сразу после создания
     Future.microtask(() => loadInitial());
@@ -71,7 +74,11 @@ class MaterialsPager extends StateNotifier<AsyncValue<List<MaterialItem>>> {
       final from = _offset;
       final to = _offset + pageSize - 1;
 
-      var builder = _client.from('v_materials_with_usage').select();
+      var builder = _client
+          .from('v_materials_with_usage')
+          .select()
+          .eq('company_id', _activeCompanyId);
+
       if (contractNumber != null && contractNumber!.trim().isNotEmpty) {
         builder = builder.eq('contract_number', contractNumber!.trim());
       }
@@ -86,7 +93,7 @@ class MaterialsPager extends StateNotifier<AsyncValue<List<MaterialItem>>> {
           .range(from, to);
 
       final page = (rows as List<dynamic>)
-          .map((e) => MaterialItem.fromMap(e as Map<String, dynamic>))
+          .map((e) => MaterialItem.fromJson(e as Map<String, dynamic>))
           .toList();
 
       if (!mounted) return;
@@ -113,8 +120,9 @@ final materialsPagerProvider =
     StateNotifierProvider<MaterialsPager, AsyncValue<List<MaterialItem>>>(
         (ref) {
   final client = ref.watch(supabaseClientProvider);
+  final activeId = ref.watch(activeCompanyIdProvider);
   final contract = ref.watch(selectedContractNumberProvider);
-  final pager = MaterialsPager(client, contractNumber: contract);
+  final pager = MaterialsPager(client, activeId ?? '', contractNumber: contract);
   // Живое обновление при наборе
   ref.listen<String>(materialsSearchQueryProvider('materials'), (prev, next) {
     pager.updateQuery(next);

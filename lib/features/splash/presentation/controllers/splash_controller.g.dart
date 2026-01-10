@@ -6,7 +6,7 @@ part of 'splash_controller.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$splashControllerHash() => r'eaa7cf6bbfcd2f798866322302896974512e1f61';
+String _$splashControllerHash() => r'431276f27457c68da029567363d52888b04ab448';
 
 /// Контроллер экрана заставки (Splash Screen).
 ///
@@ -17,14 +17,14 @@ String _$splashControllerHash() => r'eaa7cf6bbfcd2f798866322302896974512e1f61';
 @ProviderFor(SplashController)
 final splashControllerProvider =
     AutoDisposeNotifierProvider<SplashController, String>.internal(
-  SplashController.new,
-  name: r'splashControllerProvider',
-  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-      ? null
-      : _$splashControllerHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+      SplashController.new,
+      name: r'splashControllerProvider',
+      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+          ? null
+          : _$splashControllerHash,
+      dependencies: null,
+      allTransitiveDependencies: null,
+    );
 
 typedef _$SplashController = AutoDisposeNotifier<String>;
 // ignore_for_file: type=lint

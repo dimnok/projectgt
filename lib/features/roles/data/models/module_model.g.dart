@@ -7,13 +7,13 @@ part of 'module_model.dart';
 // **************************************************************************
 
 _ModuleModel _$ModuleModelFromJson(Map<String, dynamic> json) => _ModuleModel(
-      id: json['id'] as String,
-      code: json['code'] as String,
-      name: json['name'] as String,
-      description: json['description'] as String?,
-      iconKey: json['icon_key'] as String,
-      sortOrder: (json['sort_order'] as num?)?.toInt() ?? 0,
-    );
+  id: json['id'] as String,
+  code: json['code'] as String,
+  name: json['name'] as String,
+  description: json['description'] as String?,
+  iconKey: json['icon_key'] as String,
+  sortOrder: (json['sort_order'] as num?)?.toInt() ?? 0,
+);
 
 Map<String, dynamic> _$ModuleModelToJson(_ModuleModel instance) =>
     <String, dynamic>{

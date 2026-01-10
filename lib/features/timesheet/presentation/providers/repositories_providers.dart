@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/di/providers.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 import '../../data/datasources/timesheet_data_source.dart';
 import '../../data/datasources/timesheet_data_source_impl.dart';
 import '../../data/datasources/employee_attendance_data_source.dart';
@@ -10,22 +10,19 @@ import '../../data/repositories/employee_attendance_repository_impl.dart';
 import '../../domain/repositories/timesheet_repository.dart';
 import '../../domain/repositories/employee_attendance_repository.dart';
 
-/// Провайдер клиента Supabase
-final supabaseClientProvider = Provider<SupabaseClient>((ref) {
-  return Supabase.instance.client;
-});
-
 /// Провайдер источника данных для таймшита
 final timesheetDataSourceProvider = Provider<TimesheetDataSource>((ref) {
   final client = ref.watch(supabaseClientProvider);
-  return TimesheetDataSourceImpl(client);
+  final activeCompanyId = ref.watch(activeCompanyIdProvider);
+  return TimesheetDataSourceImpl(client, activeCompanyId ?? '');
 });
 
 /// Провайдер источника данных для посещаемости сотрудников
 final employeeAttendanceDataSourceProvider =
     Provider<EmployeeAttendanceDataSource>((ref) {
   final client = ref.watch(supabaseClientProvider);
-  return EmployeeAttendanceDataSourceImpl(client);
+  final activeCompanyId = ref.watch(activeCompanyIdProvider);
+  return EmployeeAttendanceDataSourceImpl(client, activeCompanyId ?? '');
 });
 
 /// Провайдер репозитория таймшита

@@ -8,9 +8,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// Реализация репозитория для работы с ролями через Supabase.
 class RolesRepositoryImpl implements RolesRepository {
   final SupabaseClient _supabase;
+  final String _activeCompanyId;
 
   /// Создаёт экземпляр [RolesRepositoryImpl].
-  RolesRepositoryImpl(this._supabase);
+  RolesRepositoryImpl(this._supabase, this._activeCompanyId);
 
   @override
   Future<List<Role>> getAllRoles() async {
@@ -18,6 +19,7 @@ class RolesRepositoryImpl implements RolesRepository {
       final response = await _supabase
           .from('roles')
           .select()
+          .or('company_id.is.null,company_id.eq.$_activeCompanyId')
           .order('created_at', ascending: false);
 
       return (response as List)
@@ -57,6 +59,7 @@ class RolesRepositoryImpl implements RolesRepository {
             'role_name': name,
             'description': description,
             'is_system': false,
+            'company_id': _activeCompanyId,
           })
           .select()
           .single();
@@ -125,7 +128,8 @@ class RolesRepositoryImpl implements RolesRepository {
       final response = await _supabase
           .from('role_permissions')
           .select('module_code, permission_code, is_enabled')
-          .eq('role_id', roleId);
+          .eq('role_id', roleId)
+          .or('company_id.is.null,company_id.eq.$_activeCompanyId');
 
       return _transformPermissions(response);
     } catch (e) {
@@ -140,7 +144,13 @@ class RolesRepositoryImpl implements RolesRepository {
         .from('role_permissions')
         .stream(primaryKey: ['id'])
         .eq('role_id', roleId)
-        .map((data) => _transformPermissions(data));
+        .map((data) {
+      // Фильтруем данные стрима на стороне клиента, так как .or() в stream может быть сложнее
+      final filteredData = data.where((item) =>
+          item['company_id'] == null ||
+          item['company_id'] == _activeCompanyId);
+      return _transformPermissions(filteredData.toList());
+    });
   }
 
   @override
@@ -155,6 +165,7 @@ class RolesRepositoryImpl implements RolesRepository {
         perms.forEach((permissionCode, isEnabled) {
           updates.add({
             'role_id': roleId,
+            'company_id': _activeCompanyId,
             'module_code': moduleCode,
             'permission_code': permissionCode,
             'is_enabled': isEnabled,

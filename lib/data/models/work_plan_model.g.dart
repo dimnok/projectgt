@@ -9,6 +9,7 @@ part of 'work_plan_model.dart';
 _WorkPlanModel _$WorkPlanModelFromJson(Map<String, dynamic> json) =>
     _WorkPlanModel(
       id: json['id'] as String?,
+      companyId: json['company_id'] as String,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
       createdBy: json['created_by'] as String,
@@ -16,7 +17,8 @@ _WorkPlanModel _$WorkPlanModelFromJson(Map<String, dynamic> json) =>
       objectId: json['object_id'] as String,
       objectName: json['object_name'] as String?,
       objectAddress: json['object_address'] as String?,
-      workBlocks: (json['work_blocks'] as List<dynamic>?)
+      workBlocks:
+          (json['work_blocks'] as List<dynamic>?)
               ?.map((e) => WorkBlockModel.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const [],
@@ -25,6 +27,7 @@ _WorkPlanModel _$WorkPlanModelFromJson(Map<String, dynamic> json) =>
 Map<String, dynamic> _$WorkPlanModelToJson(_WorkPlanModel instance) =>
     <String, dynamic>{
       if (instance.id case final value?) 'id': value,
+      'company_id': instance.companyId,
       'created_at': instance.createdAt.toIso8601String(),
       'updated_at': instance.updatedAt.toIso8601String(),
       'created_by': instance.createdBy,
@@ -37,6 +40,7 @@ Map<String, dynamic> _$WorkPlanModelToJson(_WorkPlanModel instance) =>
 
 _WorkPlanItemModel _$WorkPlanItemModelFromJson(Map<String, dynamic> json) =>
     _WorkPlanItemModel(
+      companyId: json['company_id'] as String,
       estimateId: json['estimate_id'] as String,
       name: json['name'] as String,
       unit: json['unit'] as String,
@@ -47,6 +51,7 @@ _WorkPlanItemModel _$WorkPlanItemModelFromJson(Map<String, dynamic> json) =>
 
 Map<String, dynamic> _$WorkPlanItemModelToJson(_WorkPlanItemModel instance) =>
     <String, dynamic>{
+      'company_id': instance.companyId,
       'estimate_id': instance.estimateId,
       'name': instance.name,
       'unit': instance.unit,
@@ -58,17 +63,21 @@ Map<String, dynamic> _$WorkPlanItemModelToJson(_WorkPlanItemModel instance) =>
 _WorkBlockModel _$WorkBlockModelFromJson(Map<String, dynamic> json) =>
     _WorkBlockModel(
       id: json['id'] as String?,
-      responsibleId: json['responsibleId'] as String?,
-      workerIds: (json['workerIds'] as List<dynamic>?)
+      companyId: json['company_id'] as String,
+      responsibleId: json['responsible_id'] as String?,
+      workerIds:
+          (json['worker_ids'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           const [],
       section: json['section'] as String?,
       floor: json['floor'] as String?,
       system: json['system'] as String,
-      selectedWorks: (json['selectedWorks'] as List<dynamic>?)
+      selectedWorks:
+          (json['work_plan_items'] as List<dynamic>?)
               ?.map(
-                  (e) => WorkPlanItemModel.fromJson(e as Map<String, dynamic>))
+                (e) => WorkPlanItemModel.fromJson(e as Map<String, dynamic>),
+              )
               .toList() ??
           const [],
     );
@@ -76,10 +85,11 @@ _WorkBlockModel _$WorkBlockModelFromJson(Map<String, dynamic> json) =>
 Map<String, dynamic> _$WorkBlockModelToJson(_WorkBlockModel instance) =>
     <String, dynamic>{
       if (instance.id case final value?) 'id': value,
-      if (instance.responsibleId case final value?) 'responsibleId': value,
-      'workerIds': instance.workerIds,
+      'company_id': instance.companyId,
+      if (instance.responsibleId case final value?) 'responsible_id': value,
+      'worker_ids': instance.workerIds,
       if (instance.section case final value?) 'section': value,
       if (instance.floor case final value?) 'floor': value,
       'system': instance.system,
-      'selectedWorks': instance.selectedWorks.map((e) => e.toJson()).toList(),
+      'work_plan_items': instance.selectedWorks.map((e) => e.toJson()).toList(),
     };

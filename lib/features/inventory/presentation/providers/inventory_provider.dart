@@ -5,11 +5,13 @@ import 'package:projectgt/features/inventory/data/datasources/inventory_data_sou
 import 'package:projectgt/features/inventory/data/repositories/inventory_repository_impl.dart';
 import 'package:projectgt/features/inventory/domain/entities/inventory_item.dart';
 import 'package:projectgt/features/inventory/domain/repositories/inventory_repository.dart';
+import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 
 /// Провайдер для [InventoryDataSource].
 final inventoryDataSourceProvider = Provider<InventoryDataSource>((ref) {
   final client = Supabase.instance.client;
-  return SupabaseInventoryDataSource(client);
+  final activeCompanyId = ref.watch(activeCompanyIdProvider);
+  return SupabaseInventoryDataSource(client, activeCompanyId: activeCompanyId);
 });
 
 /// Провайдер для [InventoryRepository].

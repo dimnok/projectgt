@@ -5,13 +5,16 @@ import 'package:projectgt/features/company/domain/entities/company_document.dart
 /// Репозиторий для управления данными компании.
 abstract class CompanyRepository {
   /// Получает профиль компании.
-  Future<CompanyProfile?> getCompanyProfile();
+  /// [companyId] - ID компании для фильтрации (если null, используется активная компания).
+  Future<CompanyProfile?> getCompanyProfile({String? companyId});
 
   /// Возвращает список банковских счетов компании.
-  Future<List<CompanyBankAccount>> getBankAccounts();
+  /// [companyId] - ID компании для фильтрации (если null, используется активная компания).
+  Future<List<CompanyBankAccount>> getBankAccounts({String? companyId});
 
   /// Возвращает список документов компании.
-  Future<List<CompanyDocument>> getDocuments();
+  /// [companyId] - ID компании для фильтрации (если null, используется активная компания).
+  Future<List<CompanyDocument>> getDocuments({String? companyId});
   
   /// Обновляет профиль компании.
   Future<void> updateCompanyProfile(CompanyProfile profile);
@@ -33,5 +36,28 @@ abstract class CompanyRepository {
 
   /// Удаляет документ по его идентификатору.
   Future<void> deleteDocument(String id);
+
+  /// Создает новую компанию и делает текущего пользователя владельцем.
+  Future<CompanyProfile> createCompany({
+    required String name,
+    Map<String, dynamic>? additionalData,
+  });
+
+  /// Добавляет пользователя в компанию по коду приглашения.
+  Future<void> joinCompany({required String invitationCode});
+
+  /// Получает список компаний пользователя.
+  Future<List<CompanyProfile>> getMyCompanies();
+
+  /// Ищет данные компании по ИНН.
+  Future<Map<String, dynamic>?> searchCompanyByInn(String inn);
+
+  /// Обновляет данные участника компании.
+  Future<void> updateMember({
+    required String userId,
+    required String companyId,
+    String? roleId,
+    bool? isActive,
+  });
 }
 

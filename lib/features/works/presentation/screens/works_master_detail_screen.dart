@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/month_groups_provider.dart';
 import 'work_details_panel.dart';
@@ -9,6 +9,7 @@ import 'package:projectgt/presentation/widgets/app_drawer.dart';
 import 'package:go_router/go_router.dart';
 import 'package:projectgt/features/works/domain/entities/work.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
+import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/core/utils/modal_utils.dart';
 import '../widgets/month_group_header.dart';
@@ -17,6 +18,9 @@ import '../widgets/sliver_month_works_list.dart';
 import '../widgets/mobile_month_works_list.dart';
 import '../../data/models/month_group.dart';
 import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
+import 'package:projectgt/features/work_plans/presentation/screens/work_plan_form_modal.dart';
+import 'package:projectgt/core/widgets/gt_buttons.dart';
+import 'package:projectgt/core/di/providers.dart';
 
 /// Экран списка смен с адаптивным отображением и группировкой по месяцам.
 ///
@@ -38,14 +42,11 @@ class _WorksMasterDetailScreenState
   final _scrollController = ScrollController();
   Work? selectedWork;
   MonthGroup?
-      selectedMonth; // Выбранная группа месяца для отображения в детальной панели
+  selectedMonth; // Выбранная группа месяца для отображения в детальной панели
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(monthGroupsProvider.notifier).loadMonths();
-    });
   }
 
   @override
@@ -64,9 +65,50 @@ class _WorksMasterDetailScreenState
     ModalUtils.showWorkFormModal(context);
   }
 
+  /// Показывает модальное окно создания плана работ.
+  void _showCreateWorkPlanModal(BuildContext context) {
+    if (ResponsiveUtils.isDesktop(context)) {
+      showDialog(
+        context: context,
+        builder: (context) => Dialog(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          child: WorkPlanFormModal(
+            onSuccess: (isNew) {
+              ref.read(workPlanNotifierProvider.notifier).loadWorkPlans();
+            },
+          ),
+        ),
+      );
+    } else {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) => WorkPlanFormModal(
+          onSuccess: (isNew) {
+            ref.read(workPlanNotifierProvider.notifier).loadWorkPlans();
+          },
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    // [RBAC] Сбрасываем выбор при смене компании
+    ref.listen(activeCompanyIdProvider, (previous, next) {
+      if (previous != next) {
+        setState(() {
+          selectedWork = null;
+          selectedMonth = null;
+        });
+      }
+    });
+
     final monthGroupsState = ref.watch(monthGroupsProvider);
     final profile = ref.watch(currentUserProfileProvider).profile;
     final isDesktop = ResponsiveUtils.isDesktop(context);
@@ -76,8 +118,9 @@ class _WorksMasterDetailScreenState
     // Актуализируем selectedMonth из groups, чтобы данные в панели обновлялись
     if (selectedMonth != null) {
       try {
-        selectedMonth =
-            groups.firstWhere((g) => g.month == selectedMonth!.month);
+        selectedMonth = groups.firstWhere(
+          (g) => g.month == selectedMonth!.month,
+        );
       } catch (e) {
         // Если группа исчезла, сбрасываем выбор
         selectedMonth = null;
@@ -88,9 +131,11 @@ class _WorksMasterDetailScreenState
     bool hasOpenByUser = false;
     for (final group in groups) {
       if (group.works != null) {
-        hasOpenByUser = group.works!.any((w) =>
-            w.status.toLowerCase() == 'open' &&
-            w.openedBy == (profile?.id ?? ''));
+        hasOpenByUser = group.works!.any(
+          (w) =>
+              w.status.toLowerCase() == 'open' &&
+              w.openedBy == (profile?.id ?? ''),
+        );
         if (hasOpenByUser) break;
       }
     }
@@ -98,11 +143,7 @@ class _WorksMasterDetailScreenState
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
       // На десктопе показываем AppBar в Scaffold, на мобильных - он будет в списке
-      appBar: isDesktop
-          ? const AppBarWidget(
-              title: 'Смены',
-            )
-          : null,
+      appBar: isDesktop ? const AppBarWidget(title: 'Смены') : null,
       drawer: const AppDrawer(activeRoute: AppRoute.works),
       floatingActionButton: null,
       body: LayoutBuilder(
@@ -185,26 +226,35 @@ class _WorksMasterDetailScreenState
                     if (!hasOpenByUser)
                       Padding(
                         padding: const EdgeInsets.all(16.0),
-                        child: PermissionGuard(
-                          module: 'works',
-                          permission: 'create',
-                          child: SizedBox(
-                            width: double.infinity,
-                            child: FilledButton.icon(
-                              onPressed: () => _showOpenShiftModal(context),
-                              icon: const Icon(Icons.add),
-                              label: const Text('Открыть смену'),
-                              style: FilledButton.styleFrom(
-                                backgroundColor: Colors.green, // Зеленый цвет
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius:
-                                      BorderRadius.circular(30), // Круглые края
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: PermissionGuard(
+                                module: 'works',
+                                permission: 'create',
+                                child: GTPrimaryButton(
+                                  onPressed: () => _showOpenShiftModal(context),
+                                  icon: CupertinoIcons.add,
+                                  text: 'Смена',
+                                  backgroundColor: Colors.green,
                                 ),
                               ),
                             ),
-                          ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: PermissionGuard(
+                                module: 'work_plans',
+                                permission: 'create',
+                                child: GTPrimaryButton(
+                                  onPressed: () =>
+                                      _showCreateWorkPlanModal(context),
+                                  icon: CupertinoIcons.add,
+                                  text: 'План',
+                                  backgroundColor: Colors.blue,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     Expanded(
@@ -216,8 +266,9 @@ class _WorksMasterDetailScreenState
                           theme: theme,
                           isDesktop: true,
                           // Цвет фона для прилипающего заголовка на десктопе
-                          stickyHeaderColor:
-                              isDark ? Colors.grey[900] : Colors.white,
+                          stickyHeaderColor: isDark
+                              ? Colors.grey[900]
+                              : Colors.white,
                         ),
                       ),
                     ),
@@ -226,9 +277,7 @@ class _WorksMasterDetailScreenState
               ),
 
               // Правая панель - детали
-              Expanded(
-                child: _buildDetailPanel(theme, isDesktop: true),
-              ),
+              Expanded(child: _buildDetailPanel(theme, isDesktop: true)),
             ],
           ),
         ),
@@ -248,9 +297,7 @@ class _WorksMasterDetailScreenState
       return Column(
         children: [
           if (!isDesktop) SizedBox(height: topPadding),
-          Expanded(
-            child: MonthDetailsPanel(group: selectedMonth!),
-          ),
+          Expanded(child: MonthDetailsPanel(group: selectedMonth!)),
         ],
       );
     } else if (selectedWork != null) {
@@ -329,9 +376,11 @@ class _WorksMasterDetailScreenState
     bool hasOpenByUser = false;
     for (final group in groups) {
       if (group.works != null) {
-        hasOpenByUser = group.works!.any((w) =>
-            w.status.toLowerCase() == 'open' &&
-            w.openedBy == (profile?.id ?? ''));
+        hasOpenByUser = group.works!.any(
+          (w) =>
+              w.status.toLowerCase() == 'open' &&
+              w.openedBy == (profile?.id ?? ''),
+        );
         if (hasOpenByUser) break;
       }
     }
@@ -351,10 +400,7 @@ class _WorksMasterDetailScreenState
                 leading: Builder(
                   builder: (context) => CupertinoButton(
                     padding: EdgeInsets.zero,
-                    child: const Icon(
-                      Icons.menu,
-                      color: Colors.green,
-                    ),
+                    child: const Icon(Icons.menu, color: Colors.green),
                     onPressed: () {
                       Scaffold.of(context).openDrawer();
                     },
@@ -363,29 +409,39 @@ class _WorksMasterDetailScreenState
               ),
             ),
 
-          // Кнопка добавления смены для мобильных (над списком)
+          // Кнопки добавления смены и плана для мобильных (над списком)
           if (!isDesktop && !hasOpenByUser)
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                child: PermissionGuard(
-                  module: 'works',
-                  permission: 'create',
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: () => _showOpenShiftModal(context),
-                      icon: const Icon(Icons.add),
-                      label: const Text('Открыть смену'),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: PermissionGuard(
+                        module: 'works',
+                        permission: 'create',
+                        child: GTPrimaryButton(
+                          onPressed: () => _showOpenShiftModal(context),
+                          icon: CupertinoIcons.add,
+                          text: 'Смена',
+                          backgroundColor: Colors.green,
                         ),
                       ),
                     ),
-                  ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: PermissionGuard(
+                        module: 'work_plans',
+                        permission: 'create',
+                        child: GTPrimaryButton(
+                          onPressed: () => _showCreateWorkPlanModal(context),
+                          icon: CupertinoIcons.add,
+                          text: 'План',
+                          backgroundColor: Colors.blue,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -423,10 +479,7 @@ class _WorksMasterDetailScreenState
                   final notifier = ref.read(monthGroupsProvider.notifier);
                   notifier.expandMonth(group.month);
 
-                  context.pushNamed(
-                    'month_details_mobile',
-                    extra: group,
-                  );
+                  context.pushNamed('month_details_mobile', extra: group);
                 },
               ),
             ),
@@ -484,9 +537,7 @@ class _WorksMasterDetailScreenState
           ],
 
           // Небольшой отступ внизу списка
-          const SliverToBoxAdapter(
-            child: SizedBox(height: 24),
-          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 24)),
         ],
       ),
     );
@@ -509,7 +560,10 @@ class _MonthGroupHeaderDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
     final theme = Theme.of(context);
 
     // Если группа свернута, мы не применяем эффект прилипания (не меняем цвет/размер),
@@ -519,8 +573,8 @@ class _MonthGroupHeaderDelegate extends SliverPersistentHeaderDelegate {
 
     // Вычисляем степень "прилипания" (0.0 -> 1.0)
     // shrinkOffset идет от 0 до (maxExtent - minExtent)
-    final double rawStuckAmount =
-        (shrinkOffset / (maxExtent - minExtent)).clamp(0.0, 1.0);
+    final double rawStuckAmount = (shrinkOffset / (maxExtent - minExtent))
+        .clamp(0.0, 1.0);
 
     // Применяем эффект ТОЛЬКО если группа развернута
     final double stuckAmount = isExpanded ? rawStuckAmount : 0.0;
@@ -552,8 +606,9 @@ class _MonthGroupHeaderDelegate extends SliverPersistentHeaderDelegate {
               child: Divider(
                 height: 1,
                 thickness: 1,
-                color: theme.colorScheme.outline
-                    .withValues(alpha: 0.1 * stuckAmount),
+                color: theme.colorScheme.outline.withValues(
+                  alpha: 0.1 * stuckAmount,
+                ),
               ),
             ),
         ],

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 import 'package:projectgt/features/roles/data/repositories/roles_repository_impl.dart';
 import 'package:projectgt/features/roles/domain/entities/module.dart';
 import 'package:projectgt/features/roles/domain/entities/role.dart';
@@ -8,7 +9,8 @@ import 'package:projectgt/features/roles/domain/repositories/roles_repository.da
 /// Провайдер репозитория ролей
 final rolesRepositoryProvider = Provider<RolesRepository>((ref) {
   final supabase = ref.watch(supabaseClientProvider);
-  return RolesRepositoryImpl(supabase);
+  final activeCompanyId = ref.watch(activeCompanyIdProvider);
+  return RolesRepositoryImpl(supabase, activeCompanyId ?? '');
 });
 
 /// Провайдер списка модулей

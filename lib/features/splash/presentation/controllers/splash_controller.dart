@@ -6,6 +6,7 @@ import 'package:projectgt/presentation/state/auth_state.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
 import 'package:projectgt/presentation/state/employee_state.dart';
 import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/features/contractors/presentation/state/contractor_state.dart';
 
 part 'splash_controller.g.dart';
 
@@ -73,11 +74,32 @@ class SplashController extends _$SplashController {
         await ref
             .read(currentUserProfileProvider.notifier)
             .getCurrentUserProfile(authState.user!.id);
+
+        // Ждем РЕАЛЬНОГО завершения загрузки профиля
+        for (int i = 0; i < 100; i++) {
+          final s = ref.read(currentUserProfileProvider).status;
+          if (s != ProfileStatus.loading && s != ProfileStatus.initial) {
+            break;
+          }
+          await Future.delayed(const Duration(milliseconds: 100));
+        }
       });
 
+      final profileState = ref.read(currentUserProfileProvider);
+
+      if (profileState.status == ProfileStatus.error || profileState.profile == null) {
+        // Если профиль не загрузился (например, таймаут), всё равно идем на /home,
+        // где AuthGate покажет ошибку и кнопку "Повторить"
+        navigate('/home');
+        return;
+      }
+
       // 4. Фоновые загрузки справочников (без блокировки UI)
-      state = "Подготовка данных...";
-      unawaited(_prefetchData());
+      // Только если есть компания
+      if (profileState.profile?.lastCompanyId != null) {
+        state = "Подготовка данных...";
+        unawaited(_prefetchData());
+      }
 
       // 5. Финал
       await Future.delayed(const Duration(milliseconds: 300));
@@ -93,13 +115,13 @@ class SplashController extends _$SplashController {
   // Фоновая предзагрузка справочников без блокировки основного потока навигации.
   Future<void> _prefetchData() async {
     try {
-      await Future.wait([
+      await Future.wait<void>([
         ref.read(employeeProvider.notifier).getEmployees(
               includeResponsibilityMap: false,
             ),
         // ref.read(estimateNotifierProvider.notifier).loadEstimates(), // Сметы теперь грузятся лениво
         ref.read(workPlanNotifierProvider.notifier).loadWorkPlans(),
-        ref.read(contractorProvider.notifier).loadContractors(),
+        ref.read(contractorNotifierProvider.notifier).loadContractors(),
         ref.read(contractProvider.notifier).loadContracts(),
       ]);
     } catch (e) {

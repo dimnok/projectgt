@@ -7,6 +7,9 @@ class TimesheetDataSourceImpl implements TimesheetDataSource {
   /// Клиент Supabase для работы с базой данных.
   final SupabaseClient client;
 
+  /// ID активной компании.
+  final String activeCompanyId;
+
   /// Логгер для отладки и отслеживания ошибок.
   final Logger _logger = Logger();
 
@@ -17,7 +20,7 @@ class TimesheetDataSourceImpl implements TimesheetDataSource {
   static const String worksTable = 'works';
 
   /// Создает экземпляр [TimesheetDataSourceImpl].
-  TimesheetDataSourceImpl(this.client);
+  TimesheetDataSourceImpl(this.client, this.activeCompanyId);
 
   @override
   Future<List<Map<String, dynamic>>> getTimesheetEntries({
@@ -40,15 +43,20 @@ class TimesheetDataSourceImpl implements TimesheetDataSource {
         works:work_id (
           date,
           object_id,
-          status
+          status,
+          company_id
         ),
         employees:employee_id (
-          position
+          position,
+          company_id
         )
       ''';
 
       // Строим запрос с серверной фильтрацией
-      var queryBuilder = client.from(workHoursTable).select(query);
+      var queryBuilder = client
+          .from(workHoursTable)
+          .select(query)
+          .eq('company_id', activeCompanyId);
 
       // Серверная фильтрация по employeeId (прямое поле в work_hours)
       if (employeeId != null) {

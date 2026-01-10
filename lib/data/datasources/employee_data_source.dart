@@ -66,16 +66,26 @@ class SupabaseEmployeeDataSource implements EmployeeDataSource {
   /// Экземпляр клиента Supabase.
   final SupabaseClient client;
 
+  /// ID активной компании.
+  final String activeCompanyId;
+
   /// Создаёт источник данных по сотрудникам через Supabase.
   ///
   /// [client] — экземпляр [SupabaseClient].
-  SupabaseEmployeeDataSource(this.client);
+  /// [activeCompanyId] — ID активной компании.
+  SupabaseEmployeeDataSource(this.client, this.activeCompanyId);
 
   @override
   Future<List<EmployeeModel>> getEmployees() async {
+    if (activeCompanyId.isEmpty || activeCompanyId == 'null') {
+      return [];
+    }
     try {
-      final response =
-          await client.from('employees').select('*').order('last_name');
+      final response = await client
+          .from('employees')
+          .select('*')
+          .eq('company_id', activeCompanyId)
+          .order('last_name');
 
       final employees = response
           .map<EmployeeModel>((json) => EmployeeModel.fromJson(json))
@@ -86,6 +96,7 @@ class SupabaseEmployeeDataSource implements EmployeeDataSource {
         final ratesResponse = await client
             .from('employee_rates')
             .select('employee_id, hourly_rate')
+            .eq('company_id', activeCompanyId)
             .isFilter('valid_to', null);
 
         // Создаем мапу employee_id -> hourly_rate
@@ -118,8 +129,12 @@ class SupabaseEmployeeDataSource implements EmployeeDataSource {
   @override
   Future<EmployeeModel?> getEmployee(String id) async {
     try {
-      final response =
-          await client.from('employees').select('*').eq('id', id).single();
+      final response = await client
+          .from('employees')
+          .select('*')
+          .eq('id', id)
+          .eq('company_id', activeCompanyId)
+          .single();
 
       final employee = EmployeeModel.fromJson(response);
 
@@ -129,6 +144,7 @@ class SupabaseEmployeeDataSource implements EmployeeDataSource {
             .from('employee_rates')
             .select('hourly_rate')
             .eq('employee_id', id)
+            .eq('company_id', activeCompanyId)
             .isFilter('valid_to', null)
             .maybeSingle();
 
@@ -187,6 +203,7 @@ class SupabaseEmployeeDataSource implements EmployeeDataSource {
           .from('employees')
           .update(employeeJson)
           .eq('id', employee.id)
+          .eq('company_id', activeCompanyId)
           .select('*')
           .single();
 
@@ -200,7 +217,11 @@ class SupabaseEmployeeDataSource implements EmployeeDataSource {
   @override
   Future<void> deleteEmployee(String id) async {
     try {
-      await client.from('employees').delete().eq('id', id);
+      await client
+          .from('employees')
+          .delete()
+          .eq('id', id)
+          .eq('company_id', activeCompanyId);
     } catch (e) {
       Logger().e('Error deleting employee: $e');
       rethrow;
@@ -213,6 +234,7 @@ class SupabaseEmployeeDataSource implements EmployeeDataSource {
       final response = await client
           .from('employees')
           .select('*')
+          .eq('company_id', activeCompanyId)
           .eq('status', 'working')
           .eq('can_be_responsible', true)
           .contains('object_ids', [objectId]).order('last_name');
@@ -240,6 +262,7 @@ class SupabaseEmployeeDataSource implements EmployeeDataSource {
             'updated_at': now,
           })
           .eq('id', employeeId)
+          .eq('company_id', activeCompanyId)
           .select('*')
           .single();
 
@@ -257,6 +280,7 @@ class SupabaseEmployeeDataSource implements EmployeeDataSource {
           .from('employees')
           .select('can_be_responsible')
           .eq('id', employeeId)
+          .eq('company_id', activeCompanyId)
           .single();
       final value = response['can_be_responsible'] as bool?;
       return value == true;
@@ -268,9 +292,14 @@ class SupabaseEmployeeDataSource implements EmployeeDataSource {
 
   @override
   Future<Map<String, bool>> getCanBeResponsibleMap() async {
+    if (activeCompanyId.isEmpty) {
+      return {};
+    }
     try {
-      final rows =
-          await client.from('employees').select('id, can_be_responsible');
+      final rows = await client
+          .from('employees')
+          .select('id, can_be_responsible')
+          .eq('company_id', activeCompanyId);
       final map = <String, bool>{};
       for (final row in rows as List<dynamic>) {
         final id = (row as Map)['id'] as String?;

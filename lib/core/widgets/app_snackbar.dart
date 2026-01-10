@@ -44,6 +44,7 @@ class AppSnackBar {
     required String message,
     AppSnackBarPosition position = AppSnackBarPosition.bottom,
     Duration duration = const Duration(milliseconds: 2400),
+    bool persistent = false,
     double borderRadius = 22,
     Color? backgroundColor,
     Color? foregroundColor,
@@ -75,12 +76,15 @@ class AppSnackBar {
       foregroundColor: fg,
       padding: padding,
       icon: resolvedIcon,
+      onClose: () => _removeById(position, id),
     );
 
     bucket.items.value = [...bucket.items.value, data];
 
-    _timers[id]?.cancel();
-    _timers[id] = Timer(duration, () => _removeById(position, id));
+    if (!persistent) {
+      _timers[id]?.cancel();
+      _timers[id] = Timer(duration, () => _removeById(position, id));
+    }
   }
 
   /// Принудительно скрывает все снекбары.
@@ -196,36 +200,34 @@ class _ToastStack extends StatelessWidget {
   Widget build(BuildContext context) {
     final isTop = position == AppSnackBarPosition.top;
     final alignment = isTop ? Alignment.topCenter : Alignment.bottomCenter;
-    return IgnorePointer(
-      child: SafeArea(
-        top: isTop,
-        bottom: !isTop,
-        minimum: const EdgeInsets.symmetric(vertical: 12),
-        child: Align(
-          alignment: alignment,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 520),
-              child: ValueListenableBuilder<List<_ToastData>>(
-                valueListenable: items,
-                builder: (context, list, _) {
-                  return Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      for (var i = 0; i < list.length; i++) ...[
-                        _ToastCard(
-                          key: ValueKey(list[i].id),
-                          data: list[i],
-                          isTop: isTop,
-                        ),
-                        if (i != list.length - 1) const SizedBox(height: 8),
-                      ],
+    return SafeArea(
+      top: isTop,
+      bottom: !isTop,
+      minimum: const EdgeInsets.symmetric(vertical: 12),
+      child: Align(
+        alignment: alignment,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: ValueListenableBuilder<List<_ToastData>>(
+              valueListenable: items,
+              builder: (context, list, _) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var i = 0; i < list.length; i++) ...[
+                      _ToastCard(
+                        key: ValueKey(list[i].id),
+                        data: list[i],
+                        isTop: isTop,
+                      ),
+                      if (i != list.length - 1) const SizedBox(height: 8),
                     ],
-                  );
-                },
-              ),
+                  ],
+                );
+              },
             ),
           ),
         ),
@@ -343,6 +345,15 @@ class _ToastCardState extends State<_ToastCard>
                       ),
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: widget.data.onClose,
+                    child: Icon(
+                      CupertinoIcons.xmark,
+                      color: textColor.withValues(alpha: 0.6),
+                      size: 16,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -366,6 +377,7 @@ class _ToastData {
     required this.message,
     required this.borderRadius,
     required this.padding,
+    required this.onClose,
     this.backgroundColor,
     this.foregroundColor,
     this.icon,
@@ -375,6 +387,7 @@ class _ToastData {
   final String message;
   final double borderRadius;
   final EdgeInsetsGeometry padding;
+  final VoidCallback onClose;
   final Color? backgroundColor;
   final Color? foregroundColor;
   final IconData? icon;

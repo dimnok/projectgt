@@ -41,6 +41,7 @@ class WorkRepositoryImpl implements WorkRepository {
   Future<Work> addWork(Work work) async {
     final model = WorkModel(
       id: null,
+      companyId: work.companyId,
       date: work.date,
       objectId: work.objectId,
       openedBy: work.openedBy,
@@ -63,6 +64,7 @@ class WorkRepositoryImpl implements WorkRepository {
   Future<Work> updateWork(Work work) async {
     final model = WorkModel(
       id: work.id,
+      companyId: work.companyId,
       date: work.date,
       objectId: work.objectId,
       openedBy: work.openedBy,
@@ -158,6 +160,7 @@ class WorkRepositoryImpl implements WorkRepository {
   Work _mapToEntity(WorkModel model) {
     return Work(
       id: model.id,
+      companyId: model.companyId,
       date: model.date,
       objectId: model.objectId,
       openedBy: model.openedBy,

@@ -10,7 +10,7 @@ import '../../../../core/utils/snackbar_utils.dart';
 import '../../../../core/widgets/gt_buttons.dart';
 import '../../../../data/models/estimate_completion_model.dart';
 import '../../../../domain/entities/estimate.dart';
-import '../../../../domain/entities/object.dart';
+import 'package:projectgt/features/objects/domain/entities/object.dart';
 import '../../../../features/estimates/presentation/screens/import_estimate_form_modal.dart';
 import '../../../../features/roles/application/permission_service.dart';
 import '../../../../features/roles/presentation/widgets/permission_guard.dart';

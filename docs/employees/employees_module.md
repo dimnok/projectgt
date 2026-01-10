@@ -1,59 +1,48 @@
 # Модуль Employees (Сотрудники)
 
-_Обновлено: 02.10.2025_
+_Обновлено: 08.01.2026_ (Интеграция Multi-tenancy)
 
 ## Назначение
 
-Модуль **Employees** обеспечивает полный цикл управления персоналом: хранение анкетных данных, назначение ставок, привязку к объектам, планирование работ и участие в расчёте заработной платы. Реализация построена по принципам Clean Architecture, использует Riverpod для управления состоянием, Freezed/JsonSerializable для моделей и Supabase в качестве единого источника данных.
+Модуль **Employees** обеспечивает полный цикл управления персоналом: хранение анкетных данных, назначение ставок, привязку к объектам, планирование работ и участие в расчёте заработной платы. Реализация построена по принципам Clean Architecture, использует Riverpod для управления состоянием, Freezed/JsonSerializable для моделей и Supabase в качестве единого источника данных. 
+
+**Поддержка Multi-tenancy**: Все данные изолированы на уровне компании через `company_id`.
 
 ## Архитектура и состав
 
 ### Presentation (`lib/features/employees/presentation`)
 - `screens/employees_list_screen.dart` — мастер-детейл список сотрудников с поиском, фильтрами, адаптивным layout и быстрыми действиями.
 - `screens/employee_details_screen.dart` — карточка сотрудника c вкладками по документам, объектам, ставкам и действиям.
-- `screens/employee_form_screen.dart` — форма создания/редактирования с валидацией, асинхронной загрузкой и обработкой ошибок.
+- `screens/employee_form_screen.dart` — форма создания/редактирования с валидацией, асинхронной загрузкой и обработкой ошибок. Теперь учитывает `activeCompanyIdProvider`.
 - `widgets/employee_card.dart` — карточка списка (compact/regular режимы, подсветка текущего выбора).
 - `widgets/employee_statistics_modal.dart` — модальное окно со статистикой по статусам и должностям.
 - `widgets/employee_rate_history_widget.dart` — исторический граф ставок с данными из `employee_rates`.
 - `widgets/employee_statistics_modal.dart`, `form_widgets.dart`, `master_detail_layout.dart`, `search_field.dart` — переиспользуемые элементы UI (адаптивные, используют `Color.withValues`).
 
 ### Domain (`lib/domain`)
-- `entities/employee.dart` — доменная модель, enum `EmploymentType`, `EmployeeStatus`.
-- `entities/employee_rate.dart` — ставки сотрудников (история тарифов).
-- `repositories/employee_repository.dart` — контракт для use-cases и тестирования.
-- Use-cases `create/get/update/delete_employee_usecase.dart`, сценарии `employee_rate` — оборачивают доступ к репозиторию и инкапсулируют бизнес-правила.
+- `entities/employee.dart` — доменная модель, включает `companyId`.
+- `entities/employee_rate.dart` — ставки сотрудников, включают `companyId`.
+- `repositories/employee_repository.dart` — контракт для управления сотрудниками.
+- `repositories/employee_rate_repository.dart` — контракт для управления ставками.
 
 ### Data (`lib/data`)
-- `models/employee_model.dart` — JSON-адаптер (Freezed + JsonSerializable, snake_case поля, списки объектов).
-- `datasources/employee_data_source.dart` — реализация `SupabaseEmployeeDataSource`, отвечает за CRUD, кэширование `can_be_responsible`, фильтрацию ответственных.
-- `repositories/employee_repository_impl.dart` — перевод доменных сущностей в модели и обратно, оборачивание Supabase вызовов в доменный слой.
-- `migrations` (например, `employees_migration.sql`, `20250911140600_add_employee_fields_to_work_plans.sql`) — поддерживают схемы таблиц и политики безопасности.
+- `models/employee_model.dart` — JSON-адаптер с поддержкой `company_id`.
+- `models/employee_rate_model.dart` — JSON-адаптер с поддержкой `company_id`.
+- `datasources/employee_data_source.dart` — `SupabaseEmployeeDataSource` с принудительной фильтрацией по `activeCompanyId`.
+- `repositories/employee_repository_impl.dart` — реализация с поддержкой Multi-tenancy.
 
 ### Core/DI
-- `core/di/providers.dart` — регистрация data source, репозитория, use-case и `employeeProvider`.
-- `presentation/state/employee_state.dart` — `EmployeeNotifier` (Riverpod `StateNotifier`), кэширует список, детали, флаг `can_be_responsible`, поиск.
+- `core/di/providers.dart` — регистрация провайдеров с учетом `activeCompanyIdProvider`.
+- `presentation/state/employee_state.dart` — `EmployeeNotifier`, управляет состоянием сотрудников внутри текущей компании.
 
 ## Пользовательские сценарии
-- Просмотр каталога сотрудников с поиском по ФИО, должности и телефону.
-- Детальный просмотр с историей ставок и быстрым переходом к связанным объектам.
-- Создание и редактирование карточек (включая паспортные данные и привязку к объектам).
-- Управление флагом «может быть ответственным» (desktop-тоггл, проверка на стороне БД).
-- Масштабируемая статистика по статусам и должностям (модальное окно).
-- Интеграция с Work Plans (назначение ответственных/исполнителей), Work Hours (учёт часов), FOT/Payroll (начисления, удержания, выплаты).
+- Просмотр каталога сотрудников текущей компании.
+- Создание сотрудника с автоматической привязкой к активной компании.
+- Управление ставками и посещаемостью в контексте Multi-tenancy.
 
 ## Управление состоянием и зависимости
-- `employeeProvider` (`StateNotifierProvider`) — единая точка доступа к состоянию сотрудников.
-  - Кэш `Employee` и `canBeResponsibleMap`, повторное использование между экранами.
-  - Ленивая загрузка, `refreshEmployees()` для принудительного обновления.
-  - Методы CRUD, переключатель `toggleCanBeResponsible`, защищён повторным чтением Supabase.
-- Взаимодействие с другими провайдерами: `authProvider` (роль пользователя, RLS), `objectProvider` (подтягивание объектов для фильтров и проверки доступов).
-- Обработка ошибок централизована: ошибки Supabase попадают в `errorMessage`, UI отображает `SnackBar`/диалоги.
-
-## Интеграции с другими модулями
-- **Work Plans:** выбор ответственных и исполнителей через кэш сотрудников; триггер `ensure_responsible_is_allowed` предотвращает назначение недоступных сотрудников.
-- **Works / Timesheet:** вкладка «Сотрудники» и формы учёта часов используют общий `employeeProvider`.
-- **Profiles:** связка профиля приложения с сотрудником по `profiles.employee_id`; авто-генерация `short_name` и слежение за статусом.
-- **FOT (финансовый модуль):** таблицы расчётов (`payroll_*`) завязаны на `employees.id` как FK для начислений, штрафов, удержаний и выплат.
+- `activeCompanyIdProvider` — обязательная зависимость для всех запросов к БД.
+- `employeeProvider` — основное состояние модуля.
 
 ## Supabase: структура данных
 
@@ -62,53 +51,39 @@ _Обновлено: 02.10.2025_
 | Колонка | Тип | Nullable | По умолчанию | Описание |
 | --- | --- | --- | --- | --- |
 | `id` | uuid (PK) | NO | `gen_random_uuid()` | Уникальный идентификатор сотрудника |
-| `photo_url` | text | YES | — | Ссылка на фото в Supabase Storage |
+| `company_id` | uuid (FK) | NO | — | Ссылка на компанию (Multi-tenancy) |
 | `last_name` | text | NO | — | Фамилия |
 | `first_name` | text | NO | — | Имя |
-| `middle_name` | text | YES | — | Отчество |
-| `birth_date` | timestamptz | YES | — | Дата рождения (UTC) |
-| `birth_place` | text | YES | — | Место рождения |
-| `citizenship` | text | YES | — | Гражданство |
-| `phone` | text | YES | — | Номер телефона |
-| `clothing_size` | text | YES | — | Размер одежды |
-| `shoe_size` | text | YES | — | Размер обуви |
-| `height` | text | YES | — | Рост (строка, учитывает единицы) |
-| `employment_date` | timestamptz | YES | — | Дата приёма |
-| `employment_type` | text | NO | `'official'::text` | Тип занятости (`official`, `contract`, `unofficial`) |
-| `position` | text | YES | — | Должность |
-| `status` | text | NO | `'working'::text` | Текущий статус (см. `EmployeeStatus`) |
-| `passport_series` | text | YES | — | Серия паспорта |
-| `passport_number` | text | YES | — | Номер паспорта |
-| `passport_issued_by` | text | YES | — | Орган, выдавший паспорт |
-| `passport_issue_date` | timestamptz | YES | — | Дата выдачи |
-| `passport_department_code` | text | YES | — | Код подразделения |
-| `registration_address` | text | YES | — | Адрес регистрации |
-| `inn` | text | YES | — | ИНН |
-| `snils` | text | YES | — | СНИЛС |
-| `created_at` | timestamptz | YES | `now()` | Дата создания (UTC) |
-| `updated_at` | timestamptz | YES | `now()` | Дата последнего обновления (UTC) |
-| `object_ids` | text[] | YES | `ARRAY[]::text[]` | Массив идентификаторов объектов (UUID в текстовом виде) |
-| `can_be_responsible` | boolean | NO | `false` | Признак допуска к роли ответственного |
+| ... | ... | ... | ... | ... |
 
 **RLS-политики**
-- `Users can view employees` — SELECT доступ для всех аутентифицированных.
-- `Only admins can create/update/delete employees` — INSERT/UPDATE/DELETE доступны только пользователям с ролью `admin` в `profiles`.
+- `Users can view employees of their companies` — SELECT на основе `company_id IN (public.get_my_company_ids())`.
+- `Users can manage employees of their companies` — ALL на основе `company_id IN (public.get_my_company_ids())`.
 
 ### Таблица `employee_rates`
 
 | Колонка | Тип | Nullable | По умолчанию | Описание |
 | --- | --- | --- | --- | --- |
 | `id` | uuid (PK) | NO | `gen_random_uuid()` | Идентификатор записи |
-| `employee_id` | uuid (FK → `employees.id`) | NO | — | Ссылка на сотрудника |
-| `hourly_rate` | numeric(10,2) | NO | — | Почасовая ставка |
-| `valid_from` | date | NO | — | Дата начала действия |
-| `valid_to` | date | YES | — | Дата окончания (null — открытый период) |
-| `created_at` | timestamptz | YES | `now()` | Время создания |
-| `created_by` | uuid (FK → `profiles.id`) | YES | — | Автор изменения |
+| `company_id` | uuid (FK) | NO | — | Ссылка на компанию |
+| `employee_id` | uuid (FK) | NO | — | Ссылка на сотрудника |
+| `hourly_rate` | numeric | NO | — | Почасовая ставка |
+| ... | ... | ... | ... | ... |
 
 **RLS**
-- `Users can view employee rates` — SELECT для аутентифицированных.
-- `Only admins can modify employee rates` — любые изменения доступны только администраторам.
+- Изоляция данных по `company_id`.
+
+### Таблица `employee_attendance`
+
+| Колонка | Тип | Nullable | По умолчанию | Описание |
+| --- | --- | --- | --- | --- |
+| `id` | uuid (PK) | NO | `gen_random_uuid()` | Идентификатор записи |
+| `company_id` | uuid (FK) | NO | — | Ссылка на компанию |
+| `employee_id` | uuid (FK) | NO | — | Ссылка на сотрудника |
+| ... | ... | ... | ... | ... |
+
+**RLS**
+- Изоляция данных по `company_id`.
 
 ### Таблица `profiles`
 

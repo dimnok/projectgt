@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
+import 'package:projectgt/core/widgets/gt_text_field.dart';
 import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/features/company/domain/entities/company_bank_account.dart';
 import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
@@ -22,8 +24,11 @@ class CompanyBankAccountEditDialog extends ConsumerStatefulWidget {
   });
 
   /// Показывает диалог.
-  static void show(BuildContext context, String companyId,
-      {CompanyBankAccount? account}) {
+  static void show(
+    BuildContext context,
+    String companyId, {
+    CompanyBankAccount? account,
+  }) {
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -64,11 +69,12 @@ class _CompanyBankAccountEditDialogState
     _accountNumberController = TextEditingController(text: a?.accountNumber);
     _corrAccountController = TextEditingController(text: a?.corrAccount);
     _bikController = TextEditingController(text: a?.bik);
-    
+
     final existingAccounts = ref.read(companyBankAccountsProvider).value ?? [];
-    _isOnlyAccount = existingAccounts.isEmpty || 
-                    (existingAccounts.length == 1 && widget.account != null);
-    
+    _isOnlyAccount =
+        existingAccounts.isEmpty ||
+        (existingAccounts.length == 1 && widget.account != null);
+
     // Если счет один, он автоматически основной
     _isPrimary = _isOnlyAccount ? true : (a?.isPrimary ?? false);
   }
@@ -213,48 +219,46 @@ class _CompanyBankAccountEditDialogState
         key: _formKey,
         child: Column(
           children: [
-            TextFormField(
+            GTTextField(
               controller: _bankNameController,
-              decoration: const InputDecoration(
-                labelText: 'Наименование банка',
-                border: OutlineInputBorder(),
-              ),
+              labelText: 'Наименование банка',
+              prefixIcon: CupertinoIcons.house,
+              enabled: !_isLoading,
               validator: (v) =>
                   v == null || v.isEmpty ? 'Введите название банка' : null,
             ),
             const SizedBox(height: 16),
-            TextFormField(
+            GTTextField(
               controller: _bankCityController,
-              decoration: const InputDecoration(
-                labelText: 'Город банка',
-                border: OutlineInputBorder(),
-              ),
+              labelText: 'Город банка',
+              prefixIcon: CupertinoIcons.location,
+              enabled: !_isLoading,
             ),
             const SizedBox(height: 16),
-            TextFormField(
+            GTTextField(
               controller: _accountNumberController,
-              decoration: const InputDecoration(
-                labelText: 'Расчетный счет',
-                border: OutlineInputBorder(),
-              ),
+              labelText: 'Расчетный счет',
+              prefixIcon: CupertinoIcons.number,
+              enabled: !_isLoading,
+              keyboardType: TextInputType.number,
               validator: (v) =>
                   v == null || v.isEmpty ? 'Введите расчетный счет' : null,
             ),
             const SizedBox(height: 16),
-            TextFormField(
+            GTTextField(
               controller: _corrAccountController,
-              decoration: const InputDecoration(
-                labelText: 'Корреспондентский счет',
-                border: OutlineInputBorder(),
-              ),
+              labelText: 'Корреспондентский счет',
+              prefixIcon: CupertinoIcons.number,
+              enabled: !_isLoading,
+              keyboardType: TextInputType.number,
             ),
             const SizedBox(height: 16),
-            TextFormField(
+            GTTextField(
               controller: _bikController,
-              decoration: const InputDecoration(
-                labelText: 'БИК',
-                border: OutlineInputBorder(),
-              ),
+              labelText: 'БИК',
+              prefixIcon: CupertinoIcons.number,
+              enabled: !_isLoading,
+              keyboardType: TextInputType.number,
             ),
             const SizedBox(height: 8),
             InkWell(
@@ -267,11 +271,13 @@ class _CompanyBankAccountEditDialogState
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Основной счет',
-                      style: Theme.of(context).textTheme.bodyLarge,
+                    Expanded(
+                      child: Text(
+                        'Основной счет',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
                     ),
-                    Switch(
+                    Switch.adaptive(
                       value: _isPrimary,
                       onChanged: _isOnlyAccount ? null : _togglePrimary,
                     ),
@@ -285,4 +291,3 @@ class _CompanyBankAccountEditDialogState
     );
   }
 }
-

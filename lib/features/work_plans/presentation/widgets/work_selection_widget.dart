@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:projectgt/core/widgets/gt_text_field.dart';
 import 'package:projectgt/domain/entities/estimate.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 
@@ -203,34 +204,23 @@ class _WorkSelectionWidgetState extends State<WorkSelectionWidget> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Поле поиска
         if (widget.availableWorks.isNotEmpty)
           Padding(
             padding: const EdgeInsets.all(16),
-            child: TextField(
+            child: GTTextField(
               controller: _searchController,
               enabled: !widget.readOnly && !widget.isLoading,
-              decoration: InputDecoration(
-                hintText: 'Поиск работ по названию...',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          FocusScope.of(context).unfocus();
-                        },
-                      )
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                filled: true,
-                fillColor: Theme.of(context)
-                    .colorScheme
-                    .surfaceContainerHighest
-                    .withValues(alpha: 0.3),
-              ),
+              hintText: 'Поиск работ по названию...',
+              prefixIcon: Icons.search,
+              suffixIcon: _searchController.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        _searchController.clear();
+                        FocusScope.of(context).unfocus();
+                      },
+                    )
+                  : null,
             ),
           ),
 
@@ -316,7 +306,7 @@ class _WorkSelectionWidgetState extends State<WorkSelectionWidget> {
                           trailing: isSelected
                               ? SizedBox(
                                   width: 64,
-                                  child: TextField(
+                                  child: GTTextField(
                                     controller: _controllers[work.id],
                                     enabled:
                                         !widget.readOnly && !widget.isLoading,
@@ -330,20 +320,7 @@ class _WorkSelectionWidgetState extends State<WorkSelectionWidget> {
                                         RegExp(r'^\d*\.?\d*'),
                                       ),
                                     ],
-                                    textAlign: TextAlign.center,
-                                    style: theme.textTheme.bodyMedium,
-                                    decoration: InputDecoration(
-                                      hintText: '0',
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 8,
-                                      ),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      isDense: true,
-                                    ),
+                                    hintText: '0',
                                     onChanged: (value) {
                                       final parsedValue =
                                           double.tryParse(value);

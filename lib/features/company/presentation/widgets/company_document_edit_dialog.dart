@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
+import 'package:projectgt/core/widgets/gt_text_field.dart';
 import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/features/company/domain/entities/company_document.dart';
 import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
-import 'package:intl/intl.dart';
+import 'package:projectgt/core/utils/formatters.dart';
 
 /// Диалоговое окно для добавления или редактирования документа.
 class CompanyDocumentEditDialog extends ConsumerStatefulWidget {
@@ -159,43 +161,44 @@ class _CompanyDocumentEditDialogState
         key: _formKey,
         child: Column(
           children: [
-            TextFormField(
+            GTTextField(
               controller: _titleController,
-              decoration: const InputDecoration(
-                labelText: 'Название документа',
-                border: OutlineInputBorder(),
-              ),
+              labelText: 'Название документа',
+              prefixIcon: CupertinoIcons.doc_text,
+              enabled: !_isLoading,
               validator: (v) =>
                   v == null || v.isEmpty ? 'Введите название' : null,
             ),
             const SizedBox(height: 16),
-            TextFormField(
+            GTTextField(
               controller: _numberController,
-              decoration: const InputDecoration(
-                labelText: 'Номер документа',
-                border: OutlineInputBorder(),
-              ),
+              labelText: 'Номер документа',
+              prefixIcon: CupertinoIcons.number,
+              enabled: !_isLoading,
             ),
             const SizedBox(height: 16),
-            TextFormField(
+            GTTextField(
               controller: _typeController,
-              decoration: const InputDecoration(
-                labelText: 'Тип (Лицензия, СРО и т.д.)',
-                border: OutlineInputBorder(),
-              ),
+              labelText: 'Тип (Лицензия, СРО и т.д.)',
+              prefixIcon: CupertinoIcons.tag,
+              enabled: !_isLoading,
             ),
             const SizedBox(height: 16),
             InkWell(
-              onTap: _selectDate,
+              onTap: _isLoading ? null : _selectDate,
+              borderRadius: BorderRadius.circular(16),
               child: InputDecorator(
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Дата выдачи',
-                  border: OutlineInputBorder(),
+                  prefixIcon: const Icon(CupertinoIcons.calendar, size: 20),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
                 child: Text(
                   _issueDate == null
                       ? 'Не выбрана'
-                      : DateFormat('dd.MM.yyyy').format(_issueDate!),
+                      : formatRuDate(_issueDate!),
                 ),
               ),
             ),

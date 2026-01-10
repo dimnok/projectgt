@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../presentation/state/employee_state.dart';
 import '../../../../domain/entities/employee.dart';
+import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 import 'package:intl/intl.dart';
 import '../providers/payroll_providers.dart';
 import '../providers/balance_providers.dart';
 import '../../data/models/payroll_payout_model.dart';
 import '../../../../core/utils/snackbar_utils.dart';
-import '../../../../core/widgets/modal_container_wrapper.dart';
 import '../../../../core/widgets/gt_dropdown.dart';
-import '../../../../core/utils/modal_utils.dart';
+import '../../../../core/widgets/gt_buttons.dart';
+import '../../../../core/widgets/gt_text_field.dart';
+import '../../../../core/widgets/desktop_dialog_content.dart';
+import '../../../../core/widgets/mobile_bottom_sheet_content.dart';
+import '../../../../core/utils/responsive_utils.dart';
 import 'payroll_payout_amount_modal.dart';
 
 /// Класс, представляющий способ выплаты сотруднику в рамках модуля ФОТ.
@@ -90,15 +93,20 @@ class PayrollPayoutFormModal extends ConsumerStatefulWidget {
   /// Выплата для редактирования (null для создания новой)
   final PayrollPayoutModel? payout;
 
+  /// Предзаполненный ID сотрудника
+  final String? initialEmployeeId;
+
   /// Конструктор [PayrollPayoutFormModal].
   ///
   /// Используется для создания новой выплаты или редактирования существующей в модуле ФОТ.
   ///
   /// [payout] — модель выплаты для редактирования (если null, открывается режим создания массовых выплат).
+  /// [initialEmployeeId] — ID сотрудника для предзаполнения (только для режима создания).
   /// [key] — уникальный ключ виджета (опционально).
   const PayrollPayoutFormModal({
     super.key,
     this.payout,
+    this.initialEmployeeId,
   });
 
   /// Создаёт состояние для модального окна [PayrollPayoutFormModal].
@@ -163,6 +171,23 @@ class _PayrollPayoutFormModalState
     super.didChangeDependencies();
     if (isEditing && _selectedEmployee == null) {
       _populateSelectedEmployee();
+    } else if (!isEditing &&
+        widget.initialEmployeeId != null &&
+        _selectedEmployees.isEmpty) {
+      _prefillEmployees();
+    }
+  }
+
+  /// Предзаполняет список сотрудников одним сотрудником по ID
+  void _prefillEmployees() {
+    final employeeState = ref.read(employeeProvider);
+    if (employeeState.employees.isNotEmpty) {
+      final employee = employeeState.employees
+          .where((e) => e.id == widget.initialEmployeeId)
+          .firstOrNull;
+      if (employee != null) {
+        _selectedEmployees = [employee];
+      }
     }
   }
 
@@ -223,10 +248,16 @@ class _PayrollPayoutFormModalState
 
     try {
       final amount = double.parse(_amountController.text.replaceAll(',', '.'));
+      final activeCompanyId = ref.read(activeCompanyIdProvider);
+
+      if (activeCompanyId == null) {
+        throw Exception('Компания не выбрана');
+      }
 
       final updatedPayout = PayrollPayoutModel(
         id: widget.payout!.id,
         employeeId: _selectedEmployee!.id,
+        companyId: activeCompanyId,
         amount: amount,
         payoutDate: _selectedDate ?? DateTime.now(),
         method: _selectedMethod.value,
@@ -242,7 +273,7 @@ class _PayrollPayoutFormModalState
 
       ref.invalidate(filteredPayrollPayoutsProvider);
       ref.invalidate(employeeAggregatedBalanceProvider);
-      ref.invalidate(payrollPayoutsByMonthProvider);
+      ref.invalidate(payrollPayoutsByFilterProvider);
 
       if (mounted) {
         Navigator.pop(context);
@@ -272,17 +303,23 @@ class _PayrollPayoutFormModalState
   /// Открытие модального окна для указания индивидуальных сумм
   Future<void> _openAmountModal() async {
     final comment = _commentController.text.trim();
+    final isDesktop = ResponsiveUtils.isDesktop(context);
 
-    final result = await showModalBottomSheet<bool>(
+    final result = await (isDesktop
+        ? showDialog<bool>(
+            context: context,
+            builder: (context) => PayrollPayoutAmountModal(
+              selectedEmployees: _selectedEmployees,
+              payoutDate: _selectedDate ?? DateTime.now(),
+              method: _selectedMethod.value,
+              type: _selectedType.value,
+              comment: comment.isEmpty ? '' : comment,
+            ),
+          )
+        : showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      useSafeArea: true,
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height -
-            MediaQuery.of(context).padding.top -
-            kToolbarHeight,
-      ),
       builder: (context) => PayrollPayoutAmountModal(
         selectedEmployees: _selectedEmployees,
         payoutDate: _selectedDate ?? DateTime.now(),
@@ -290,7 +327,7 @@ class _PayrollPayoutFormModalState
         type: _selectedType.value,
         comment: comment.isEmpty ? '' : comment,
       ),
-    );
+          ));
 
     if (result == true && mounted) {
       Navigator.pop(context);
@@ -301,55 +338,49 @@ class _PayrollPayoutFormModalState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final employeeState = ref.watch(employeeProvider);
+    final isDesktop = ResponsiveUtils.isDesktop(context);
 
     // Сортировка сотрудников по алфавиту
     final employees = List<Employee>.from(employeeState.employees)
       ..sort((a, b) =>
           _getEmployeeDisplayName(a).compareTo(_getEmployeeDisplayName(b)));
 
-    return ModalContainerWrapper(
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Form(
+    final title = isEditing ? 'Редактировать выплату' : 'Создать выплаты';
+    final content = Form(
               key: _formKey,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _buildHeader(theme),
-                  const Divider(),
                   _buildForm(theme, employees),
-                  const SizedBox(height: 24),
-                  _buildButtons(),
-                  const SizedBox(height: 32),
-                ],
-              ),
-            ),
-          ),
-        ),
+        ],
+      ),
+    );
+
+    final footer = _buildButtons();
+
+    if (isDesktop) {
+      return Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: DesktopDialogContent(
+          title: title,
+          footer: footer,
+          child: content,
       ),
     );
   }
 
-  /// Строит заголовок модального окна
-  Widget _buildHeader(ThemeData theme) {
-    return ModalUtils.buildModalHeader(
-      title: isEditing ? 'Редактировать выплату' : 'Создать выплаты',
-      onClose: () => Navigator.pop(context),
-      theme: theme,
+    return MobileBottomSheetContent(
+      title: title,
+      footer: footer,
+      child: content,
     );
   }
 
   /// Строит форму
   Widget _buildForm(ThemeData theme, List<Employee> employees) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
+    return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildDateField(),
@@ -366,26 +397,18 @@ class _PayrollPayoutFormModalState
           const SizedBox(height: 16),
           _buildCommentField(),
         ],
-      ),
     );
   }
 
   /// Поле выбора даты
   Widget _buildDateField() {
-    return GestureDetector(
+    return GTTextField(
+      controller: _dateController,
+      labelText: 'Дата выплаты',
+      prefixIcon: Icons.event,
+      readOnly: true,
       onTap: _pickDate,
-      child: AbsorbPointer(
-        child: TextFormField(
-          controller: _dateController,
-          decoration: const InputDecoration(
-            labelText: 'Дата выплаты',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.event),
-          ),
-          validator: (_) =>
-              _selectedDate == null ? 'Выберите дату выплаты' : null,
-        ),
-      ),
+      validator: (_) => _selectedDate == null ? 'Выберите дату выплаты' : null,
     );
   }
 
@@ -477,14 +500,11 @@ class _PayrollPayoutFormModalState
 
   /// Поле ввода суммы
   Widget _buildAmountField() {
-    return TextFormField(
+    return GTTextField(
       controller: _amountController,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      decoration: const InputDecoration(
         labelText: 'Сумма',
-        border: OutlineInputBorder(),
-        prefixIcon: Icon(Icons.currency_ruble),
-      ),
+      prefixIcon: Icons.currency_ruble,
       validator: (value) {
         if (value == null || value.isEmpty) return 'Введите сумму';
         final num? n = num.tryParse(value.replaceAll(',', '.'));
@@ -496,14 +516,10 @@ class _PayrollPayoutFormModalState
 
   /// Поле комментария
   Widget _buildCommentField() {
-    return TextFormField(
+    return GTTextField(
       controller: _commentController,
-      decoration: const InputDecoration(
         labelText: 'Комментарий (необязательно)',
-        border: OutlineInputBorder(),
-        prefixIcon: Icon(Icons.comment_outlined),
-      ),
-      minLines: 1,
+      prefixIcon: Icons.comment_outlined,
       maxLines: 3,
     );
   }
@@ -516,42 +532,17 @@ class _PayrollPayoutFormModalState
         return Row(
           children: [
             Expanded(
-              child: OutlinedButton(
+              child: GTSecondaryButton(
+                text: 'Отмена',
                 onPressed: isSaving ? null : () => Navigator.pop(context),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(44),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  textStyle: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                child: const Text('Отмена'),
               ),
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: ElevatedButton(
+              child: GTPrimaryButton(
+                text: isEditing ? 'Обновить' : 'Продолжить',
                 onPressed: isSaving ? null : _savePayout,
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(44),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  textStyle: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                child: isSaving
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CupertinoActivityIndicator(),
-                      )
-                    : Text(isEditing ? 'Обновить' : 'Продолжить'),
+                isLoading: isSaving,
               ),
             ),
           ],

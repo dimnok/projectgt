@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:projectgt/core/widgets/gt_dropdown.dart';
 import 'package:projectgt/domain/entities/employee.dart';
-import 'package:projectgt/domain/entities/object.dart' as project_object;
+import 'package:projectgt/features/objects/domain/entities/object.dart' as project_object;
 import '../../domain/entities/employee_attendance_entry.dart';
 import '../providers/repositories_providers.dart';
 
@@ -179,6 +179,7 @@ class _EmployeeAttendanceDialogState
       final entries = _hoursMap.entries.map((entry) {
         return EmployeeAttendanceEntry(
           id: '', // Пустой ID - БД сама сгенерирует или обновит через onConflict
+          companyId: widget.employee.companyId,
           employeeId: widget.employee.id,
           objectId: _selectedObjectId!,
           date: entry.key,

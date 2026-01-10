@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/domain/entities/contract.dart';
 import 'contract_form_content.dart';
 import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/features/contractors/presentation/state/contractor_state.dart';
+import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 import 'package:projectgt/data/models/contract_model.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
+import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
+import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
 
 /// Экран для создания или редактирования договора.
 ///
@@ -152,9 +157,18 @@ class _ContractFormScreenState extends ConsumerState<ContractFormScreen> {
     }
     setState(() => _isLoading = true);
     final notifier = ref.read(contractProvider.notifier);
+    final activeCompanyId = ref.read(activeCompanyIdProvider);
+
+    if (activeCompanyId == null) {
+      setState(() => _isLoading = false);
+      SnackBarUtils.showError(context, 'Ошибка: ID компании не найден');
+      return;
+    }
+
     final isNew = widget.contract == null;
     final contract = Contract(
       id: widget.contract?.id ?? const Uuid().v4(),
+      companyId: activeCompanyId,
       number: _numberController.text.trim(),
       date: _date!,
       endDate: _endDate,
@@ -244,14 +258,14 @@ class _ContractFormScreenState extends ConsumerState<ContractFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final contractorState = ref.watch(contractorProvider);
+    final contractorState = ref.watch(contractorNotifierProvider);
     final objectState = ref.watch(objectProvider);
     final isNew = widget.contract == null;
 
-    final contractorItems = {
+    final Map<String, String> contractorItems = {
       for (final c in contractorState.contractors) c.id: c.fullName
     };
-    final objectItems = {for (final o in objectState.objects) o.id: o.name};
+    final Map<String, String> objectItems = {for (final o in objectState.objects) o.id: o.name};
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
@@ -263,6 +277,7 @@ class _ContractFormScreenState extends ConsumerState<ContractFormScreen> {
       body: ContractFormContent(
         isNew: isNew,
         isLoading: _isLoading,
+        showHeader: false, // Заголовок уже есть в AppBarWidget
         numberController: _numberController,
         amountController: _amountController,
         vatRateController: _vatRateController,
@@ -447,9 +462,18 @@ class _ContractFormModalState extends ConsumerState<ContractFormModal> {
     }
     setState(() => _isLoading = true);
     final notifier = ref.read(contractProvider.notifier);
+    final activeCompanyId = ref.read(activeCompanyIdProvider);
+
+    if (activeCompanyId == null) {
+      setState(() => _isLoading = false);
+      SnackBarUtils.showError(context, 'Ошибка: ID компании не найден');
+      return;
+    }
+
     final isNew = widget.contract == null;
     final contract = Contract(
       id: widget.contract?.id ?? const Uuid().v4(),
+      companyId: activeCompanyId,
       number: _numberController.text.trim(),
       date: _date!,
       endDate: _endDate,
@@ -530,17 +554,58 @@ class _ContractFormModalState extends ConsumerState<ContractFormModal> {
 
   @override
   Widget build(BuildContext context) {
-    final contractorState = ref.watch(contractorProvider);
+    final contractorState = ref.watch(contractorNotifierProvider);
     final objectState = ref.watch(objectProvider);
     final isNew = widget.contract == null;
-    final contractorItems = {
+    final Map<String, String> contractorItems = {
       for (final c in contractorState.contractors) c.id: c.fullName
     };
-    final objectItems = {for (final o in objectState.objects) o.id: o.name};
+    final Map<String, String> objectItems = {for (final o in objectState.objects) o.id: o.name};
 
-    return ContractFormContent(
+    final isDesktop = MediaQuery.of(context).size.width > 800;
+    final title = isNew ? 'Новый договор' : 'Редактировать договор';
+
+    Widget footer = Row(
+      children: [
+        Expanded(
+          child: OutlinedButton(
+            onPressed: _handleCancel,
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+            ),
+            child: const Text('Отмена'),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: ElevatedButton(
+            onPressed: _isLoading ? null : _handleSave,
+            style: ElevatedButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+            ),
+            child: _isLoading
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CupertinoActivityIndicator(),
+                  )
+                : Text(isNew ? 'Создать' : 'Сохранить'),
+          ),
+        ),
+      ],
+    );
+
+    Widget content = ContractFormContent(
       isNew: isNew,
       isLoading: _isLoading,
+      showHeader: false, // Заголовок будет в DesktopDialogContent / MobileBottomSheetContent
+      showFooter: false, // Футер будет в DesktopDialogContent / MobileBottomSheetContent
       numberController: _numberController,
       amountController: _amountController,
       vatRateController: _vatRateController,
@@ -581,6 +646,22 @@ class _ContractFormModalState extends ConsumerState<ContractFormModal> {
       },
       contractorItems: contractorItems,
       objectItems: objectItems,
+    );
+
+    if (isDesktop) {
+      return DesktopDialogContent(
+        title: title,
+        footer: footer,
+        scrollable: false, // ContractFormContent уже содержит скролл
+        child: content,
+      );
+    }
+
+    return MobileBottomSheetContent(
+      title: title,
+      footer: footer,
+      scrollable: false, // ContractFormContent уже содержит скролл
+      child: content,
     );
   }
 }

@@ -50,10 +50,23 @@ class NotificationService {
       requestSoundPermission: false,
     );
 
+    const LinuxInitializationSettings initLinux = LinuxInitializationSettings(
+      defaultActionName: 'Открыть уведомление',
+    );
+
+    const WindowsInitializationSettings initWindows =
+        WindowsInitializationSettings(
+      appName: 'Стройка PRO',
+      appUserModelId: 'com.projectgt.app',
+      guid: 'f03947b5-22d7-4632-849a-e1a5338661c3',
+    );
+
     const InitializationSettings settings = InitializationSettings(
       android: initAndroid,
       iOS: initDarwin,
       macOS: initDarwin,
+      linux: initLinux,
+      windows: initWindows,
     );
 
     await _plugin.initialize(

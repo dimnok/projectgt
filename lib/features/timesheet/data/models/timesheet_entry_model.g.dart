@@ -26,17 +26,17 @@ _TimesheetEntryModel _$TimesheetEntryModelFromJson(Map<String, dynamic> json) =>
     );
 
 Map<String, dynamic> _$TimesheetEntryModelToJson(
-        _TimesheetEntryModel instance) =>
-    <String, dynamic>{
-      'id': instance.id,
-      'work_id': instance.workId,
-      'employee_id': instance.employeeId,
-      'hours': instance.hours,
-      'comment': instance.comment,
-      'date': instance.date.toIso8601String(),
-      'object_id': instance.objectId,
-      'employee_name': instance.employeeName,
-      'object_name': instance.objectName,
-      'created_at': instance.createdAt?.toIso8601String(),
-      'updated_at': instance.updatedAt?.toIso8601String(),
-    };
+  _TimesheetEntryModel instance,
+) => <String, dynamic>{
+  'id': instance.id,
+  'work_id': instance.workId,
+  'employee_id': instance.employeeId,
+  'hours': instance.hours,
+  'comment': instance.comment,
+  'date': instance.date.toIso8601String(),
+  'object_id': instance.objectId,
+  'employee_name': instance.employeeName,
+  'object_name': instance.objectName,
+  'created_at': instance.createdAt?.toIso8601String(),
+  'updated_at': instance.updatedAt?.toIso8601String(),
+};

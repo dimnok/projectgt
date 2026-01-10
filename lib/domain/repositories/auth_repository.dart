@@ -17,6 +17,7 @@ abstract class AuthRepository {
   /// [password] — пароль пользователя.
   /// Возвращает [User] при успешной аутентификации.
   /// Бросает исключение при ошибке.
+  @Deprecated('Используйте телефонную авторизацию через OTP')
   Future<User> login(String email, String password);
 
   /// Регистрирует нового пользователя.
@@ -26,6 +27,7 @@ abstract class AuthRepository {
   /// [password] — пароль пользователя.
   /// Возвращает созданного [User].
   /// Бросает исключение при ошибке.
+  @Deprecated('Используйте телефонную авторизацию через OTP')
   Future<User> register(String name, String email, String password);
 
   /// Выполняет выход пользователя из системы.
@@ -42,10 +44,23 @@ abstract class AuthRepository {
   // === OTP (Email) auth methods ===
 
   /// Отправляет 6-значный код подтверждения на указанный email.
+  @Deprecated('Используйте requestPhoneOtp')
   Future<void> requestEmailOtp({required String email});
 
   /// Подтверждает 6-значный код для указанного email и возвращает пользователя.
+  @Deprecated('Используйте verifyPhoneOtp')
   Future<User> verifyEmailOtp({required String email, required String code});
+
+  /// Отправляет 6-значный код подтверждения на указанный телефон через Notisend Telegram Gateway.
+  /// Возвращает токен верификации.
+  Future<String> requestPhoneOtp({required String phone});
+
+  /// Подтверждает 6-значный код для указанного телефона и возвращает пользователя.
+  Future<User> verifyPhoneOtp({
+    required String phone,
+    required String code,
+    required String token,
+  });
 
   /// Обновляет профиль пользователя при первой авторизации.
   ///

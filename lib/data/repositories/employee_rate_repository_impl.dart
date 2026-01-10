@@ -42,6 +42,7 @@ class EmployeeRateRepositoryImpl implements EmployeeRateRepository {
   EmployeeRate _mapToEntity(EmployeeRateModel model) {
     return EmployeeRate(
       id: model.id,
+      companyId: model.companyId,
       employeeId: model.employeeId,
       hourlyRate: model.hourlyRate,
       validFrom: model.validFrom,

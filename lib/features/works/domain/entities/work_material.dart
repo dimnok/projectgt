@@ -22,6 +22,9 @@ abstract class WorkMaterial with _$WorkMaterial {
     /// Идентификатор материала.
     required String id,
 
+    /// Идентификатор компании.
+    required String companyId,
+
     /// Идентификатор смены.
     required String workId,
 

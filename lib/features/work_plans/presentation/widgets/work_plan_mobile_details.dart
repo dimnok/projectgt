@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import 'package:projectgt/domain/entities/object.dart';
+import 'package:projectgt/core/widgets/edge_to_edge_scaffold.dart';
+import 'package:projectgt/core/widgets/gt_buttons.dart';
+import 'package:projectgt/core/widgets/gt_confirmation_dialog.dart';
+import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:projectgt/domain/entities/work_plan.dart';
 import 'package:projectgt/presentation/state/employee_state.dart' as state;
 import 'package:projectgt/core/di/providers.dart';
@@ -54,50 +57,14 @@ class _WorkPlanMobileDetailsState extends ConsumerState<WorkPlanMobileDetails> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height -
-            MediaQuery.of(context).padding.top -
-            kToolbarHeight,
+      builder: (context) => WorkPlanFormModal(
+        workPlan: workPlan,
+        onSuccess: (_) {
+          ref.read(workPlanNotifierProvider.notifier).loadWorkPlans();
+        },
       ),
-      builder: (context) {
-        final modalContent = Container(
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1),
-                blurRadius: 10,
-                offset: const Offset(0, -5),
-              ),
-            ],
-          ),
-          child: DraggableScrollableSheet(
-            initialChildSize: 1.0,
-            minChildSize: 0.5,
-            maxChildSize: 1.0,
-            expand: false,
-            builder: (context, scrollController) => SingleChildScrollView(
-              controller: scrollController,
-              child: Padding(
-                padding: EdgeInsets.only(
-                  bottom: MediaQuery.of(context).viewInsets.bottom,
-                ),
-                child: WorkPlanFormModal(
-                  workPlan: workPlan,
-                  onSuccess: (_) {
-                    // Обновляем список планов после сохранения
-                    ref.read(workPlanNotifierProvider.notifier).loadWorkPlans();
-                  },
-                ),
-              ),
-            ),
-          ),
-        );
-        return modalContent;
-      },
     );
   }
 
@@ -105,23 +72,12 @@ class _WorkPlanMobileDetailsState extends ConsumerState<WorkPlanMobileDetails> {
   Future<void> _confirmAndDeleteWorkPlan(WorkPlan workPlan) async {
     if (workPlan.id == null) return;
 
-    final confirmed = await showCupertinoDialog<bool>(
+    final confirmed = await GTConfirmationDialog.show(
       context: context,
-      builder: (ctx) => CupertinoAlertDialog(
-        title: const Text('Удалить план?'),
-        content: const Text('Действие нельзя отменить.'),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Отмена'),
-          ),
-          CupertinoDialogAction(
-            isDestructiveAction: true,
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Удалить'),
-          ),
-        ],
-      ),
+      title: 'Удалить план?',
+      message: 'Действие нельзя отменить.',
+      confirmText: 'Удалить',
+      type: GTConfirmationType.danger,
     );
 
     if (confirmed == true) {
@@ -148,7 +104,7 @@ class _WorkPlanMobileDetailsState extends ConsumerState<WorkPlanMobileDetails> {
     final employeeState = ref.watch(state.employeeProvider);
 
     if (isLoading) {
-      return Scaffold(
+      return EdgeToEdgeScaffold(
         appBar:
             widget.showAppBar ? const AppBarWidget(title: 'План работ') : null,
         drawer: widget.showAppBar ? null : null,
@@ -157,7 +113,7 @@ class _WorkPlanMobileDetailsState extends ConsumerState<WorkPlanMobileDetails> {
     }
 
     if (workPlan == null) {
-      return Scaffold(
+      return EdgeToEdgeScaffold(
         appBar:
             widget.showAppBar ? const AppBarWidget(title: 'План работ') : null,
         drawer: widget.showAppBar ? null : null,
@@ -175,23 +131,25 @@ class _WorkPlanMobileDetailsState extends ConsumerState<WorkPlanMobileDetails> {
         .where((obj) => obj.id == workPlan.objectId)
         .firstOrNull;
 
-    return Scaffold(
+    return EdgeToEdgeScaffold(
       appBar: widget.showAppBar
           ? AppBarWidget(
               title: 'План работ',
               leading: const BackButton(),
               showThemeSwitch: false,
               actions: [
-                CupertinoButton(
-                  padding: EdgeInsets.zero,
-                  child: const Icon(Icons.edit, color: Colors.amber),
+                GTTextButton(
+                  text: 'Редактировать',
+                  icon: Icons.edit,
+                  color: Colors.amber,
                   onPressed: () {
                     _showEditWorkPlanModal(workPlan);
                   },
                 ),
-                CupertinoButton(
-                  padding: EdgeInsets.zero,
-                  child: const Icon(Icons.delete, color: Colors.red),
+                GTTextButton(
+                  text: 'Удалить',
+                  icon: Icons.delete,
+                  color: Colors.red,
                   onPressed: () {
                     _confirmAndDeleteWorkPlan(workPlan);
                   },

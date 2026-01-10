@@ -79,27 +79,33 @@ class BalanceUtils {
           ),
           const SizedBox(width: 4),
         ],
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              formattedAmount,
-              style: (textStyle ?? const TextStyle()).copyWith(
-                color: color,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            if (showDescription)
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
               Text(
-                description,
-                style: TextStyle(
+                formattedAmount,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: (textStyle ?? const TextStyle()).copyWith(
                   color: color,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-          ],
+              if (showDescription)
+                Text(
+                  description,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+            ],
+          ),
         ),
       ],
     );

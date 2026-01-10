@@ -12,6 +12,7 @@ abstract class Ks2ActModel with _$Ks2ActModel {
   /// Создает экземпляр модели акта КС-2.
   const factory Ks2ActModel({
     required String id,
+    @JsonKey(name: 'company_id') required String companyId,
     @JsonKey(name: 'contract_id') required String contractId,
     required String number,
     required DateTime date,
@@ -32,6 +33,7 @@ abstract class Ks2ActModel with _$Ks2ActModel {
   Ks2Act toDomain() {
     return Ks2Act(
       id: id,
+      companyId: companyId,
       contractId: contractId,
       number: number,
       date: date,
@@ -49,6 +51,7 @@ abstract class Ks2ActModel with _$Ks2ActModel {
   factory Ks2ActModel.fromDomain(Ks2Act entity) {
     return Ks2ActModel(
       id: entity.id,
+      companyId: entity.companyId,
       contractId: entity.contractId,
       number: entity.number,
       date: entity.date,

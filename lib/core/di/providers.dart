@@ -11,11 +11,9 @@ import 'package:projectgt/domain/repositories/auth_repository.dart';
 import 'package:projectgt/domain/repositories/profile_repository.dart';
 import 'package:projectgt/domain/repositories/employee_repository.dart';
 import 'package:projectgt/domain/usecases/auth/get_current_user_usecase.dart';
-import 'package:projectgt/domain/usecases/auth/login_usecase.dart';
 import 'package:projectgt/domain/usecases/auth/logout_usecase.dart';
-import 'package:projectgt/domain/usecases/auth/register_usecase.dart';
-import 'package:projectgt/domain/usecases/auth/request_email_otp_usecase.dart';
-import 'package:projectgt/domain/usecases/auth/verify_email_otp_usecase.dart';
+import 'package:projectgt/domain/usecases/auth/request_phone_otp_usecase.dart';
+import 'package:projectgt/domain/usecases/auth/verify_phone_otp_usecase.dart';
 import 'package:projectgt/domain/usecases/auth/complete_user_profile_usecase.dart';
 
 // Telegram moderation слои удалены
@@ -28,23 +26,23 @@ import 'package:projectgt/domain/usecases/employee/create_employee_usecase.dart'
 import 'package:projectgt/domain/usecases/employee/update_employee_usecase.dart';
 import 'package:projectgt/domain/usecases/employee/delete_employee_usecase.dart';
 import 'package:projectgt/core/services/photo_service.dart';
-import 'package:projectgt/data/datasources/object_data_source.dart';
-import 'package:projectgt/data/repositories/object_repository_impl.dart';
-import 'package:projectgt/domain/repositories/object_repository.dart';
-import 'package:projectgt/domain/usecases/object/get_objects_usecase.dart';
-import 'package:projectgt/domain/usecases/object/create_object_usecase.dart';
-import 'package:projectgt/domain/usecases/object/update_object_usecase.dart';
-import 'package:projectgt/domain/usecases/object/delete_object_usecase.dart';
-import 'package:projectgt/presentation/state/object_state.dart';
-import 'package:projectgt/data/datasources/contractor_data_source.dart';
-import 'package:projectgt/data/repositories/contractor_repository_impl.dart';
-import 'package:projectgt/domain/repositories/contractor_repository.dart';
-import 'package:projectgt/domain/usecases/contractor/get_contractors_usecase.dart';
-import 'package:projectgt/domain/usecases/contractor/get_contractor_usecase.dart';
-import 'package:projectgt/domain/usecases/contractor/create_contractor_usecase.dart';
-import 'package:projectgt/domain/usecases/contractor/update_contractor_usecase.dart';
-import 'package:projectgt/domain/usecases/contractor/delete_contractor_usecase.dart';
-import 'package:projectgt/presentation/state/contractor_state.dart';
+import 'package:projectgt/features/objects/data/datasources/object_data_source.dart';
+import 'package:projectgt/features/objects/data/repositories/object_repository_impl.dart';
+import 'package:projectgt/features/objects/domain/repositories/object_repository.dart';
+import 'package:projectgt/features/objects/domain/usecases/get_objects_usecase.dart';
+import 'package:projectgt/features/objects/domain/usecases/create_object_usecase.dart';
+import 'package:projectgt/features/objects/domain/usecases/update_object_usecase.dart';
+import 'package:projectgt/features/objects/domain/usecases/delete_object_usecase.dart';
+import 'package:projectgt/features/objects/presentation/state/object_state.dart';
+import 'package:projectgt/features/contractors/data/datasources/contractor_data_source.dart';
+import 'package:projectgt/features/contractors/data/repositories/contractor_repository_impl.dart';
+import 'package:projectgt/features/contractors/domain/repositories/contractor_repository.dart';
+import 'package:projectgt/features/contractors/domain/usecases/get_contractors_usecase.dart';
+import 'package:projectgt/features/contractors/domain/usecases/get_contractor_usecase.dart';
+import 'package:projectgt/features/contractors/domain/usecases/create_contractor_usecase.dart';
+import 'package:projectgt/features/contractors/domain/usecases/update_contractor_usecase.dart';
+import 'package:projectgt/features/contractors/domain/usecases/delete_contractor_usecase.dart';
+// import 'package:projectgt/features/contractors/presentation/state/contractor_state.dart'; // Удалён как неиспользуемый
 import 'package:projectgt/data/datasources/contract_data_source.dart';
 import 'package:projectgt/data/repositories/contract_repository_impl.dart';
 import 'package:projectgt/domain/repositories/contract_repository.dart';
@@ -54,6 +52,12 @@ import 'package:projectgt/domain/usecases/contract/create_contract_usecase.dart'
 import 'package:projectgt/domain/usecases/contract/update_contract_usecase.dart';
 import 'package:projectgt/domain/usecases/contract/delete_contract_usecase.dart';
 import 'package:projectgt/presentation/state/contract_state.dart';
+import 'package:projectgt/data/datasources/contract_file_data_source.dart';
+import 'package:projectgt/data/repositories/contract_file_repository_impl.dart';
+import 'package:projectgt/domain/repositories/contract_file_repository.dart';
+import 'package:projectgt/domain/usecases/contract/get_contract_files_usecase.dart';
+import 'package:projectgt/domain/usecases/contract/upload_contract_file_usecase.dart';
+import 'package:projectgt/domain/usecases/contract/delete_contract_file_usecase.dart';
 import 'package:projectgt/data/datasources/estimate_data_source.dart';
 import 'package:projectgt/data/repositories/estimate_repository_impl.dart';
 import 'package:projectgt/domain/repositories/estimate_repository.dart';
@@ -95,6 +99,10 @@ import 'package:projectgt/domain/repositories/employee_rate_repository.dart';
 import 'package:projectgt/domain/usecases/employee_rate/get_employee_rate_for_date_usecase.dart';
 import 'package:projectgt/domain/usecases/employee_rate/set_employee_rate_usecase.dart';
 import 'package:projectgt/domain/usecases/employee_rate/get_employee_rates_usecase.dart';
+import 'package:projectgt/features/cash_flow/domain/repositories/cash_flow_repository_interface.dart';
+import 'package:projectgt/features/cash_flow/data/repositories/cash_flow_repository.dart';
+import 'package:projectgt/features/cash_flow/application/bank_import_service.dart';
+import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 
 /// Провайдер Supabase клиента для доступа к базе данных.
 final supabaseClientProvider = Provider<SupabaseClient>((ref) {
@@ -119,13 +127,15 @@ final profileDataSourceProvider = Provider<ProfileDataSource>((ref) {
 /// Провайдер для EmployeeDataSource (Supabase).
 final employeeDataSourceProvider = Provider<EmployeeDataSource>((ref) {
   final client = ref.watch(supabaseClientProvider);
-  return SupabaseEmployeeDataSource(client);
+  final activeCompanyId = ref.watch(activeCompanyIdProvider);
+  return SupabaseEmployeeDataSource(client, activeCompanyId ?? '');
 });
 
 /// Провайдер для ObjectDataSource (Supabase).
 final objectDataSourceProvider = Provider<ObjectDataSource>((ref) {
   final client = ref.watch(supabaseClientProvider);
-  return SupabaseObjectDataSource(client);
+  final activeCompanyId = ref.watch(activeCompanyIdProvider);
+  return SupabaseObjectDataSource(client, activeCompanyId ?? '');
 });
 
 /// Провайдер для ContractorDataSource (Supabase).
@@ -137,19 +147,29 @@ final contractorDataSourceProvider = Provider<ContractorDataSource>((ref) {
 /// Провайдер для ContractDataSource (Supabase).
 final contractDataSourceProvider = Provider<ContractDataSource>((ref) {
   final client = ref.watch(supabaseClientProvider);
-  return SupabaseContractDataSource(client);
+  final activeCompanyId = ref.watch(activeCompanyIdProvider);
+  return SupabaseContractDataSource(client, activeCompanyId ?? '');
+});
+
+/// Провайдер для ContractFileDataSource.
+final contractFileDataSourceProvider = Provider<ContractFileDataSource>((ref) {
+  final client = ref.watch(supabaseClientProvider);
+  final activeCompanyId = ref.watch(activeCompanyIdProvider);
+  return SupabaseContractFileDataSource(client, activeCompanyId ?? '');
 });
 
 /// Провайдер для EstimateDataSource (Supabase).
 final estimateDataSourceProvider = Provider<EstimateDataSource>((ref) {
   final client = ref.watch(supabaseClientProvider);
-  return SupabaseEstimateDataSource(client);
+  final activeCompanyId = ref.watch(activeCompanyIdProvider);
+  return SupabaseEstimateDataSource(client, activeCompanyId ?? '');
 });
 
 /// Провайдер для WorkPlanDataSource (Supabase).
 final workPlanDataSourceProvider = Provider<WorkPlanDataSource>((ref) {
   final client = ref.watch(supabaseClientProvider);
-  return SupabaseWorkPlanDataSource(client);
+  final activeCompanyId = ref.watch(activeCompanyIdProvider);
+  return SupabaseWorkPlanDataSource(client, activeCompanyId ?? '');
 });
 
 // Repositories
@@ -158,9 +178,7 @@ final workPlanDataSourceProvider = Provider<WorkPlanDataSource>((ref) {
 /// Провайдер репозитория аутентификации.
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   final authDataSource = ref.watch(authDataSourceProvider);
-  return AuthRepositoryImpl(
-    authDataSource: authDataSource,
-  );
+  return AuthRepositoryImpl(authDataSource: authDataSource);
 });
 
 /// Провайдер репозитория профилей.
@@ -172,7 +190,8 @@ final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
 /// Провайдер репозитория сотрудников.
 final employeeRepositoryProvider = Provider<EmployeeRepository>((ref) {
   final dataSource = ref.watch(employeeDataSourceProvider);
-  return EmployeeRepositoryImpl(dataSource);
+  final activeCompanyId = ref.watch(activeCompanyIdProvider);
+  return EmployeeRepositoryImpl(dataSource, activeCompanyId ?? '');
 });
 
 /// Провайдер репозитория объектов.
@@ -193,6 +212,12 @@ final contractRepositoryProvider = Provider<ContractRepository>((ref) {
   return ContractRepositoryImpl(dataSource);
 });
 
+/// Провайдер репозитория файлов договоров.
+final contractFileRepositoryProvider = Provider<ContractFileRepository>((ref) {
+  final dataSource = ref.watch(contractFileDataSourceProvider);
+  return ContractFileRepositoryImpl(dataSource);
+});
+
 /// Провайдер репозитория смет.
 final estimateRepositoryProvider = Provider<EstimateRepository>((ref) {
   final dataSource = ref.watch(estimateDataSourceProvider);
@@ -205,37 +230,27 @@ final workPlanRepositoryProvider = Provider<WorkPlanRepository>((ref) {
   return WorkPlanRepositoryImpl(dataSource);
 });
 
+/// Провайдер репозитория модуля Cash Flow.
+final cashFlowRepositoryProvider = Provider<ICashFlowRepository>((ref) {
+  final client = ref.watch(supabaseClientProvider);
+  final activeCompanyId = ref.watch(activeCompanyIdProvider);
+  return CashFlowRepository(client, activeCompanyId ?? '');
+});
+
+/// Провайдер сервиса импорта банковских выписок.
+final bankImportServiceProvider = Provider<BankImportService>((ref) {
+  final repository = ref.watch(cashFlowRepositoryProvider);
+  return BankImportService(repository);
+});
+
 // UseCases - Auth
-/// Провайдер use-case для логина пользователя.
-final loginUseCaseProvider = Provider<LoginUseCase>((ref) {
-  final repository = ref.watch(authRepositoryProvider);
-  return LoginUseCase(repository);
-});
-
-/// Провайдер use-case для регистрации пользователя.
-final registerUseCaseProvider = Provider<RegisterUseCase>((ref) {
-  final repository = ref.watch(authRepositoryProvider);
-  return RegisterUseCase(repository);
-});
-
-/// Провайдер use-case для отправки OTP на email
-final requestEmailOtpUseCaseProvider = Provider<RequestEmailOtpUseCase>((ref) {
-  final repository = ref.watch(authRepositoryProvider);
-  return RequestEmailOtpUseCase(repository);
-});
-
-/// Провайдер use-case для подтверждения OTP и входа
-final verifyEmailOtpUseCaseProvider = Provider<VerifyEmailOtpUseCase>((ref) {
-  final repository = ref.watch(authRepositoryProvider);
-  return VerifyEmailOtpUseCase(repository);
-});
-
 /// Провайдер use-case для завершения заполнения профиля пользователя
-final completeUserProfileUseCaseProvider =
-    Provider<CompleteUserProfileUseCase>((ref) {
-  final repository = ref.watch(authRepositoryProvider);
-  return CompleteUserProfileUseCase(repository);
-});
+final completeUserProfileUseCaseProvider = Provider<CompleteUserProfileUseCase>(
+  (ref) {
+    final repository = ref.watch(authRepositoryProvider);
+    return CompleteUserProfileUseCase(repository);
+  },
+);
 
 /// Провайдер use-case для выхода пользователя.
 final logoutUseCaseProvider = Provider<LogoutUseCase>((ref) {
@@ -247,6 +262,18 @@ final logoutUseCaseProvider = Provider<LogoutUseCase>((ref) {
 final getCurrentUserUseCaseProvider = Provider<GetCurrentUserUseCase>((ref) {
   final repository = ref.watch(authRepositoryProvider);
   return GetCurrentUserUseCase(repository);
+});
+
+/// Провайдер use-case для отправки OTP на телефон
+final requestPhoneOtpUseCaseProvider = Provider<RequestPhoneOtpUseCase>((ref) {
+  final repository = ref.watch(authRepositoryProvider);
+  return RequestPhoneOtpUseCase(repository);
+});
+
+/// Провайдер use-case для подтверждения OTP на телефоне
+final verifyPhoneOtpUseCaseProvider = Provider<VerifyPhoneOtpUseCase>((ref) {
+  final repository = ref.watch(authRepositoryProvider);
+  return VerifyPhoneOtpUseCase(repository);
 });
 
 // UseCases Telegram moderation удалены
@@ -346,22 +373,25 @@ final getContractorUseCaseProvider = Provider<GetContractorUseCase>((ref) {
 });
 
 /// Провайдер use-case для создания подрядчика.
-final createContractorUseCaseProvider =
-    Provider<CreateContractorUseCase>((ref) {
+final createContractorUseCaseProvider = Provider<CreateContractorUseCase>((
+  ref,
+) {
   final repository = ref.watch(contractorRepositoryProvider);
   return CreateContractorUseCase(repository);
 });
 
 /// Провайдер use-case для обновления подрядчика.
-final updateContractorUseCaseProvider =
-    Provider<UpdateContractorUseCase>((ref) {
+final updateContractorUseCaseProvider = Provider<UpdateContractorUseCase>((
+  ref,
+) {
   final repository = ref.watch(contractorRepositoryProvider);
   return UpdateContractorUseCase(repository);
 });
 
 /// Провайдер use-case для удаления подрядчика.
-final deleteContractorUseCaseProvider =
-    Provider<DeleteContractorUseCase>((ref) {
+final deleteContractorUseCaseProvider = Provider<DeleteContractorUseCase>((
+  ref,
+) {
   final repository = ref.watch(contractorRepositoryProvider);
   return DeleteContractorUseCase(repository);
 });
@@ -395,6 +425,30 @@ final updateContractUseCaseProvider = Provider<UpdateContractUseCase>((ref) {
 final deleteContractUseCaseProvider = Provider<DeleteContractUseCase>((ref) {
   final repository = ref.watch(contractRepositoryProvider);
   return DeleteContractUseCase(repository);
+});
+
+/// Провайдер use-case получения файлов договора.
+final getContractFilesUseCaseProvider = Provider<GetContractFilesUseCase>((
+  ref,
+) {
+  final repository = ref.watch(contractFileRepositoryProvider);
+  return GetContractFilesUseCase(repository);
+});
+
+/// Провайдер use-case загрузки файла договора.
+final uploadContractFileUseCaseProvider = Provider<UploadContractFileUseCase>((
+  ref,
+) {
+  final repository = ref.watch(contractFileRepositoryProvider);
+  return UploadContractFileUseCase(repository);
+});
+
+/// Провайдер use-case удаления файла договора.
+final deleteContractFileUseCaseProvider = Provider<DeleteContractFileUseCase>((
+  ref,
+) {
+  final repository = ref.watch(contractFileRepositoryProvider);
+  return DeleteContractFileUseCase(repository);
 });
 
 // UseCases - Estimate
@@ -463,7 +517,8 @@ final deleteWorkPlanUseCaseProvider = Provider<DeleteWorkPlanUseCase>((ref) {
 /// Провайдер для EmployeeRateDataSource.
 final employeeRateDataSourceProvider = Provider<EmployeeRateDataSource>((ref) {
   final client = ref.watch(supabaseClientProvider);
-  return EmployeeRateDataSourceImpl(client);
+  final activeCompanyId = ref.watch(activeCompanyIdProvider);
+  return EmployeeRateDataSourceImpl(client, activeCompanyId ?? '');
 });
 
 /// Провайдер для EmployeeRateRepository.
@@ -475,9 +530,9 @@ final employeeRateRepositoryProvider = Provider<EmployeeRateRepository>((ref) {
 /// Провайдер use-case для получения ставки на дату.
 final getEmployeeRateForDateUseCaseProvider =
     Provider<GetEmployeeRateForDateUseCase>((ref) {
-  final repository = ref.watch(employeeRateRepositoryProvider);
-  return GetEmployeeRateForDateUseCase(repository);
-});
+      final repository = ref.watch(employeeRateRepositoryProvider);
+      return GetEmployeeRateForDateUseCase(repository);
+    });
 
 /// Провайдер use-case для установки новой ставки.
 final setEmployeeRateUseCaseProvider = Provider<SetEmployeeRateUseCase>((ref) {
@@ -486,8 +541,9 @@ final setEmployeeRateUseCaseProvider = Provider<SetEmployeeRateUseCase>((ref) {
 });
 
 /// Провайдер use-case для получения истории ставок.
-final getEmployeeRatesUseCaseProvider =
-    Provider<GetEmployeeRatesUseCase>((ref) {
+final getEmployeeRatesUseCaseProvider = Provider<GetEmployeeRatesUseCase>((
+  ref,
+) {
   final repository = ref.watch(employeeRateRepositoryProvider);
   return GetEmployeeRatesUseCase(repository);
 });
@@ -497,8 +553,12 @@ final getEmployeeRatesUseCaseProvider =
 
 // ObjectNotifier provider
 /// StateNotifierProvider для управления состоянием объектов (ObjectState).
-final objectProvider =
-    StateNotifierProvider<ObjectNotifier, ObjectState>((ref) {
+final objectProvider = StateNotifierProvider<ObjectNotifier, ObjectState>((
+  ref,
+) {
+  // [RBAC] Слушаем смену компании для автоматического обновления списка объектов
+  ref.watch(activeCompanyIdProvider);
+
   return ObjectNotifier(
     getObjectsUseCase: ref.watch(getObjectsUseCaseProvider),
     createObjectUseCase: ref.watch(createObjectUseCaseProvider),
@@ -507,56 +567,54 @@ final objectProvider =
   )..loadObjects();
 });
 
-// ContractorNotifier provider
-/// StateNotifierProvider для управления состоянием подрядчиков (ContractorState).
-final contractorProvider =
-    StateNotifierProvider<ContractorNotifier, ContractorState>((ref) {
-  return ContractorNotifier(
-    getContractorsUseCase: ref.watch(getContractorsUseCaseProvider),
-    getContractorUseCase: ref.watch(getContractorUseCaseProvider),
-    createContractorUseCase: ref.watch(createContractorUseCaseProvider),
-    updateContractorUseCase: ref.watch(updateContractorUseCaseProvider),
-    deleteContractorUseCase: ref.watch(deleteContractorUseCaseProvider),
-    ref: ref,
-  )..loadContractors();
-});
+// ContractorNotifier provider удалён (используется генерируемый из lib/features/contractors/presentation/state/contractor_state.dart)
 
 // ContractNotifier provider
 /// StateNotifierProvider для управления состоянием договоров (ContractState).
-final contractProvider =
-    StateNotifierProvider<ContractNotifier, ContractState>((ref) {
-  return ContractNotifier(
-    getContractsUseCase: ref.watch(getContractsUseCaseProvider),
-    getContractUseCase: ref.watch(getContractUseCaseProvider),
-    createContractUseCase: ref.watch(createContractUseCaseProvider),
-    updateContractUseCase: ref.watch(updateContractUseCaseProvider),
-    deleteContractUseCase: ref.watch(deleteContractUseCaseProvider),
-  )..loadContracts();
-});
+final contractProvider = StateNotifierProvider<ContractNotifier, ContractState>(
+  (ref) {
+    // [RBAC] Слушаем смену компании для автоматического обновления списка договоров
+    ref.watch(activeCompanyIdProvider);
+
+    return ContractNotifier(
+      getContractsUseCase: ref.watch(getContractsUseCaseProvider),
+      getContractUseCase: ref.watch(getContractUseCaseProvider),
+      createContractUseCase: ref.watch(createContractUseCaseProvider),
+      updateContractUseCase: ref.watch(updateContractUseCaseProvider),
+      deleteContractUseCase: ref.watch(deleteContractUseCaseProvider),
+    )..loadContracts();
+  },
+);
 
 /// Провайдер состояния и логики EstimateNotifier.
 final estimateNotifierProvider =
     StateNotifierProvider<EstimateNotifier, EstimateState>((ref) {
-  return EstimateNotifier(
-    getEstimatesUseCase: ref.watch(getEstimatesUseCaseProvider),
-    getEstimateUseCase: ref.watch(getEstimateUseCaseProvider),
-    createEstimateUseCase: ref.watch(createEstimateUseCaseProvider),
-    updateEstimateUseCase: ref.watch(updateEstimateUseCaseProvider),
-    deleteEstimateUseCase: ref.watch(deleteEstimateUseCaseProvider),
-  );
-});
+      // [RBAC] Слушаем смену компании для автоматического обновления списка смет
+      ref.watch(activeCompanyIdProvider);
+
+      return EstimateNotifier(
+        getEstimatesUseCase: ref.watch(getEstimatesUseCaseProvider),
+        getEstimateUseCase: ref.watch(getEstimateUseCaseProvider),
+        createEstimateUseCase: ref.watch(createEstimateUseCaseProvider),
+        updateEstimateUseCase: ref.watch(updateEstimateUseCaseProvider),
+        deleteEstimateUseCase: ref.watch(deleteEstimateUseCaseProvider),
+      );
+    });
 
 /// Провайдер состояния и логики WorkPlanNotifier.
 final workPlanNotifierProvider =
     StateNotifierProvider<WorkPlanNotifier, WorkPlanState>((ref) {
-  return WorkPlanNotifier(
-    getWorkPlansUseCase: ref.watch(getWorkPlansUseCaseProvider),
-    getWorkPlanUseCase: ref.watch(getWorkPlanUseCaseProvider),
-    createWorkPlanUseCase: ref.watch(createWorkPlanUseCaseProvider),
-    updateWorkPlanUseCase: ref.watch(updateWorkPlanUseCaseProvider),
-    deleteWorkPlanUseCase: ref.watch(deleteWorkPlanUseCaseProvider),
-  );
-});
+      // [RBAC] Слушаем смену компании для автоматического обновления списка планов работ
+      ref.watch(activeCompanyIdProvider);
+
+      return WorkPlanNotifier(
+        getWorkPlansUseCase: ref.watch(getWorkPlansUseCaseProvider),
+        getWorkPlanUseCase: ref.watch(getWorkPlanUseCaseProvider),
+        createWorkPlanUseCase: ref.watch(createWorkPlanUseCaseProvider),
+        updateWorkPlanUseCase: ref.watch(updateWorkPlanUseCaseProvider),
+        deleteWorkPlanUseCase: ref.watch(deleteWorkPlanUseCaseProvider),
+      );
+    });
 
 /// Провайдер источника данных для работы с табелем (work_hours) через Supabase.
 ///
@@ -564,7 +622,8 @@ final workPlanNotifierProvider =
 /// @returns WorkHourDataSource — реализация источника данных для работы с таблицей work_hours.
 final workHourDataSourceProvider = Provider<WorkHourDataSource>((ref) {
   final client = ref.watch(supabaseClientProvider);
-  return WorkHourDataSourceImpl(client);
+  final activeCompanyId = ref.watch(activeCompanyIdProvider);
+  return WorkHourDataSourceImpl(client, activeCompanyId ?? '');
 });
 
 /// Провайдер репозитория для работы с табелем (work_hours).
@@ -582,70 +641,73 @@ final workHourRepositoryProvider = Provider<WorkHourRepository>((ref) {
 // === BUSINESS TRIP RATES ===
 
 /// Провайдер для DataSource командировочных ставок
-final businessTripRateDataSourceProvider =
-    Provider<BusinessTripRateDataSource>((ref) {
-  return BusinessTripRateDataSource();
-});
+final businessTripRateDataSourceProvider = Provider<BusinessTripRateDataSource>(
+  (ref) {
+    final activeCompanyId = ref.watch(activeCompanyIdProvider);
+    return BusinessTripRateDataSource(activeCompanyId ?? '');
+  },
+);
 
 /// Провайдер для Repository командировочных ставок
-final businessTripRateRepositoryProvider =
-    Provider<BusinessTripRateRepository>((ref) {
-  final dataSource = ref.watch(businessTripRateDataSourceProvider);
-  return BusinessTripRateRepositoryImpl(dataSource);
-});
+final businessTripRateRepositoryProvider = Provider<BusinessTripRateRepository>(
+  (ref) {
+    final dataSource = ref.watch(businessTripRateDataSourceProvider);
+    return BusinessTripRateRepositoryImpl(dataSource);
+  },
+);
 
 /// Провайдер для UseCase получения всех ставок командировочных
 final getBusinessTripRatesUseCaseProvider =
     Provider<GetBusinessTripRatesUseCase>((ref) {
-  final repository = ref.watch(businessTripRateRepositoryProvider);
-  return GetBusinessTripRatesUseCase(repository);
-});
+      final repository = ref.watch(businessTripRateRepositoryProvider);
+      return GetBusinessTripRatesUseCase(repository);
+    });
 
 /// Провайдер для UseCase получения ставок по объекту
 final getBusinessTripRatesByObjectUseCaseProvider =
     Provider<GetBusinessTripRatesByObjectUseCase>((ref) {
-  final repository = ref.watch(businessTripRateRepositoryProvider);
-  return GetBusinessTripRatesByObjectUseCase(repository);
-});
+      final repository = ref.watch(businessTripRateRepositoryProvider);
+      return GetBusinessTripRatesByObjectUseCase(repository);
+    });
 
 /// Провайдер для UseCase получения активной ставки
 final getActiveBusinessTripRateUseCaseProvider =
     Provider<GetActiveBusinessTripRateUseCase>((ref) {
-  final repository = ref.watch(businessTripRateRepositoryProvider);
-  return GetActiveBusinessTripRateUseCase(repository);
-});
+      final repository = ref.watch(businessTripRateRepositoryProvider);
+      return GetActiveBusinessTripRateUseCase(repository);
+    });
 
 /// Провайдер для UseCase создания ставки
 final createBusinessTripRateUseCaseProvider =
     Provider<CreateBusinessTripRateUseCase>((ref) {
-  final repository = ref.watch(businessTripRateRepositoryProvider);
-  return CreateBusinessTripRateUseCase(repository);
-});
+      final repository = ref.watch(businessTripRateRepositoryProvider);
+      return CreateBusinessTripRateUseCase(repository);
+    });
 
 /// Провайдер для UseCase обновления ставки
 final updateBusinessTripRateUseCaseProvider =
     Provider<UpdateBusinessTripRateUseCase>((ref) {
-  final repository = ref.watch(businessTripRateRepositoryProvider);
-  return UpdateBusinessTripRateUseCase(repository);
-});
+      final repository = ref.watch(businessTripRateRepositoryProvider);
+      return UpdateBusinessTripRateUseCase(repository);
+    });
 
 /// Провайдер для UseCase удаления ставки
 final deleteBusinessTripRateUseCaseProvider =
     Provider<DeleteBusinessTripRateUseCase>((ref) {
-  final repository = ref.watch(businessTripRateRepositoryProvider);
-  return DeleteBusinessTripRateUseCase(repository);
-});
+      final repository = ref.watch(businessTripRateRepositoryProvider);
+      return DeleteBusinessTripRateUseCase(repository);
+    });
 
 /// Провайдер для UseCase получения ставок по сотруднику
 final getBusinessTripRatesByEmployeeUseCaseProvider =
     Provider<GetBusinessTripRatesByEmployeeUseCase>((ref) {
-  final repository = ref.watch(businessTripRateRepositoryProvider);
-  return GetBusinessTripRatesByEmployeeUseCase(repository);
-});
+      final repository = ref.watch(businessTripRateRepositoryProvider);
+      return GetBusinessTripRatesByEmployeeUseCase(repository);
+    });
 
 /// Провайдер для получения отчёта о выполнении смет.
 final estimateCompletionProvider =
     FutureProvider<List<EstimateCompletionModel>>((ref) async {
-  final dataSource = ref.watch(estimateDataSourceProvider);
-  return dataSource.getEstimateCompletion();
-});
+      final dataSource = ref.watch(estimateDataSourceProvider);
+      return dataSource.getEstimateCompletion();
+    });

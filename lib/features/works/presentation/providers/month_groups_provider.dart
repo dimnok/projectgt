@@ -253,5 +253,11 @@ class MonthGroupsNotifier extends StateNotifier<MonthGroupsState> {
 final monthGroupsProvider =
     StateNotifierProvider<MonthGroupsNotifier, MonthGroupsState>((ref) {
   final repository = ref.watch(workRepositoryProvider);
-  return MonthGroupsNotifier(repository);
+  final notifier = MonthGroupsNotifier(repository);
+
+  // Автоматически загружаем месяцы при создании или пересоздании провайдера
+  // (например, при смене компании)
+  notifier.loadMonths();
+
+  return notifier;
 });

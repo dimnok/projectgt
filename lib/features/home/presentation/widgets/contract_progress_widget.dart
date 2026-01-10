@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 
 // Константы для визуализации прогресса
 const double _kCircleSize = 180.0;
@@ -46,6 +47,11 @@ class _AllProgress {
 /// Использует Server-Side RPC для масштабируемого решения (работает на любых объёмах данных).
 final allContractsProgressProvider = FutureProvider<_AllProgress>((ref) async {
   final client = ref.watch(supabaseClientProvider);
+  final activeCompanyId = ref.watch(activeCompanyIdProvider);
+
+  if (activeCompanyId == null) {
+    return const _AllProgress(byContract: {}, bestContractId: null);
+  }
 
   // Объявляем переменные вне try, чтобы они были видны после блока
   late final Map<String, double> estimatesTotalByContract;
@@ -53,7 +59,9 @@ final allContractsProgressProvider = FutureProvider<_AllProgress>((ref) async {
 
   try {
     // RPC запрос с timeout 30 сек
-    final rpcFuture = client.rpc('get_all_contracts_progress');
+    final rpcFuture = client.rpc('get_all_contracts_progress', params: {
+      'p_company_id': activeCompanyId,
+    });
     final List<dynamic> rpcResult = await rpcFuture.timeout(
       const Duration(seconds: 30),
       onTimeout: () => throw Exception(

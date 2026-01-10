@@ -9,6 +9,7 @@ part of 'contract_model.dart';
 _ContractModel _$ContractModelFromJson(Map<String, dynamic> json) =>
     _ContractModel(
       id: json['id'] as String,
+      companyId: json['company_id'] as String,
       number: json['number'] as String,
       date: DateTime.parse(json['date'] as String),
       endDate: json['end_date'] == null
@@ -33,7 +34,8 @@ _ContractModel _$ContractModelFromJson(Map<String, dynamic> json) =>
           (json['general_contractor_fee_rate'] as num?)?.toDouble() ?? 0.0,
       objectId: json['object_id'] as String,
       objectName: json['object_name'] as String?,
-      status: $enumDecodeNullable(_$ContractStatusEnumMap, json['status']) ??
+      status:
+          $enumDecodeNullable(_$ContractStatusEnumMap, json['status']) ??
           ContractStatus.active,
       contractorLegalName: json['contractor_legal_name'] as String?,
       contractorPosition: json['contractor_position'] as String?,
@@ -52,6 +54,7 @@ _ContractModel _$ContractModelFromJson(Map<String, dynamic> json) =>
 Map<String, dynamic> _$ContractModelToJson(_ContractModel instance) =>
     <String, dynamic>{
       'id': instance.id,
+      'company_id': instance.companyId,
       'number': instance.number,
       'date': _dateOnlyToJson(instance.date),
       'end_date': _dateOnlyToJson(instance.endDate),

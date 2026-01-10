@@ -7,9 +7,12 @@ import 'package:projectgt/presentation/state/auth_state.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
 import 'package:projectgt/presentation/widgets/drawer_item_widget.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
+import 'package:projectgt/features/company/presentation/widgets/company_create_dialog.dart';
 import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
 import 'package:projectgt/features/roles/presentation/widgets/role_badge.dart';
+import 'package:collection/collection.dart';
 
 /// Перечисление маршрутов приложения для навигации в AppDrawer.
 enum AppRoute {
@@ -70,12 +73,15 @@ enum AppRoute {
   /// Экран настроек заявок.
   procurementSettings,
 
+  /// Экран модуля Cash Flow (Движение денежных средств).
+  cashFlow,
+
   /// Экран модуля "Компания".
   company,
 }
 
 /// Виджет для группировки пунктов меню (например, "Справочники" с подпунктами).
-class DrawerGroupWidget extends StatefulWidget {
+class DrawerGroupWidget extends StatelessWidget {
   /// Иконка группы.
   final IconData icon;
 
@@ -98,175 +104,77 @@ class DrawerGroupWidget extends StatefulWidget {
   });
 
   @override
-  State<DrawerGroupWidget> createState() => _DrawerGroupWidgetState();
-}
-
-class _DrawerGroupWidgetState extends State<DrawerGroupWidget>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
-  late Animation<double> _rotationAnimation;
-  bool _isExpanded = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 300),
-      vsync: this,
-    );
-    _rotationAnimation = Tween<double>(begin: 0, end: math.pi / 2).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isAnyItemSelected = items.any((item) => item.isSelected(activeRoute));
 
-    return Column(
-      children: [
-        // Заголовок группы - точно как обычная кнопка
-        Padding(
+    return _CollapsibleSection(
+      initiallyExpanded: isAnyItemSelected,
+      forceExpand: isAnyItemSelected,
+      headerBuilder: (context, isExpanded, rotation) {
+        final headerColor = isAnyItemSelected
+            ? Colors.green
+            : theme.colorScheme.onSurface;
+
+        return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
           child: Material(
             color: Colors.transparent,
             borderRadius: BorderRadius.circular(12),
-            child: InkWell(
-              onTap: () {
-                setState(() {
-                  _isExpanded = !_isExpanded;
-                });
-                if (_isExpanded) {
-                  _animationController.forward();
-                } else {
-                  _animationController.reverse();
-                }
-              },
-              borderRadius: BorderRadius.circular(12),
-              splashColor: Colors.green.withValues(alpha: 0.1),
-              highlightColor: Colors.green.withValues(alpha: 0.05),
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
-                child: Row(
-                  children: [
-                    const SizedBox(width: 8),
-                    Icon(
-                      widget.icon,
-                      size: 24,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Text(
-                        widget.title,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: theme.colorScheme.onSurface,
-                          fontWeight: FontWeight.normal,
-                        ),
-                      ),
-                    ),
-                    RotationTransition(
-                      turns: _rotationAnimation,
-                      child: Icon(
-                        Icons.chevron_right,
-                        size: 20,
-                        color:
-                            theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                      ),
-                    ),
-                  ],
-                ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 8.0,
+                vertical: 12.0,
               ),
-            ),
-          ),
-        ),
-        // Дочерние элементы (анимируемое раскрытие)
-        ClipRect(
-          child: AnimatedBuilder(
-            animation: _animationController,
-            builder: (context, child) {
-              return Align(
-                alignment: Alignment.topCenter,
-                heightFactor: _animationController.value,
-                child: child,
-              );
-            },
-            child: Column(
-              children: widget.items.map((item) {
-                final isSelected = item.isSelected(widget.activeRoute);
-                return Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8.0, vertical: 2.0),
-                  child: Material(
-                    color: Colors.transparent,
-                    borderRadius: BorderRadius.circular(12),
-                    child: InkWell(
-                      onTap: item.onTap,
-                      borderRadius: BorderRadius.circular(12),
-                      splashColor: Colors.green.withValues(alpha: 0.1),
-                      highlightColor: Colors.green.withValues(alpha: 0.05),
-                      child: Ink(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          color: isSelected
-                              ? Colors.green.withValues(alpha: 0.1)
-                              : Colors.transparent,
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8.0, vertical: 12.0),
-                          child: Row(
-                            children: [
-                              const SizedBox(width: 8),
-                              Icon(
-                                Icons.circle,
-                                size: 6,
-                                color: isSelected
-                                    ? Colors.green
-                                    : Colors.transparent,
-                              ),
-                              const SizedBox(width: 18),
-                              Expanded(
-                                child: Text(
-                                  item.title,
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    color: isSelected
-                                        ? Colors.green
-                                        : theme.colorScheme.onSurface,
-                                    fontWeight: isSelected
-                                        ? FontWeight.bold
-                                        : FontWeight.normal,
-                                  ),
-                                ),
-                              ),
-                              if (isSelected)
-                                Container(
-                                  width: 4,
-                                  height: 24,
-                                  decoration: BoxDecoration(
-                                    color: Colors.green,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
+              child: Row(
+                children: [
+                  const SizedBox(width: 8),
+                  Icon(
+                    icon,
+                    size: 20,
+                    color: isAnyItemSelected
+                        ? Colors.green
+                        : theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: headerColor,
+                        fontSize: 16,
+                        fontWeight: isAnyItemSelected
+                            ? FontWeight.bold
+                            : FontWeight.normal,
                       ),
                     ),
                   ),
-                );
-              }).toList(),
+                  RotationTransition(
+                    turns: rotation,
+                    child: Icon(
+                      CupertinoIcons.chevron_right,
+                      size: 20,
+                      color: isAnyItemSelected ? Colors.green : Colors.grey,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-      ],
+        );
+      },
+      content: Column(
+        children: items.map((item) {
+          return DrawerItemWidget(
+            title: item.title,
+            icon: CupertinoIcons.circle,
+            iconSize: 6,
+            leadingPadding: 18,
+            isSelected: item.isSelected(activeRoute),
+            onTap: item.onTap,
+          );
+        }).toList(),
+      ),
     );
   }
 }
@@ -290,35 +198,56 @@ class DrawerGroupItem {
   });
 }
 
+/// Функция для навигации с закрытием Drawer и проверкой текущего маршрута.
+void _navigateTo(
+  BuildContext context,
+  String name,
+  AppRoute route,
+  AppRoute activeRoute,
+) {
+  context.pop();
+  if (activeRoute != route) {
+    context.goNamed(name);
+  }
+}
+
 /// Боковое меню (Drawer) для навигации по основным разделам приложения.
-///
-/// Адаптивный, поддерживает выделение активного маршрута, отображает профиль пользователя и быстрый выход.
 class AppDrawer extends ConsumerWidget {
   /// Активный маршрут для выделения текущего пункта меню.
   final AppRoute activeRoute;
 
   /// Создаёт боковое меню с выделением [activeRoute].
-  const AppDrawer({
-    super.key,
-    required this.activeRoute,
-  });
+  const AppDrawer({super.key, required this.activeRoute});
+
+  Widget _buildMenuItem({
+    required BuildContext context,
+    required String module,
+    required String title,
+    required IconData icon,
+    required AppRoute route,
+    required String routeName,
+  }) {
+    return PermissionGuard(
+      module: module,
+      permission: 'read',
+      child: DrawerItemWidget(
+        icon: icon,
+        title: title,
+        isSelected: activeRoute == route,
+        onTap: () => _navigateTo(context, routeName, route, activeRoute),
+      ),
+    );
+  }
 
   @override
-
-  /// Строит виджет бокового меню с профилем, навигацией и выходом.
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final authState = ref.watch(authProvider);
-    final currentUserProfileState = ref.watch(currentUserProfileProvider);
-    final permissionService = ref.watch(permissionServiceProvider);
-    final user = authState.user;
-    final currentUserProfile = currentUserProfileState.profile;
     final screenWidth = MediaQuery.of(context).size.width;
     final double drawerWidth = screenWidth >= 800
         ? 360.0
         : screenWidth >= 600
-            ? screenWidth * 0.6
-            : screenWidth * 0.7;
+        ? screenWidth * 0.6
+        : screenWidth * 0.7;
 
     return Drawer(
       backgroundColor: Colors.transparent,
@@ -369,482 +298,158 @@ class AppDrawer extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(16),
                 child: Column(
                   children: [
-                    // Верхняя часть с основным контентом
+                    _DrawerHeader(activeRoute: activeRoute),
                     Expanded(
                       child: ListView(
                         padding: EdgeInsets.zero,
                         children: [
-                          SizedBox(
-                            height: 120,
-                            child: DrawerHeader(
-                              margin: EdgeInsets.zero,
-                              padding:
-                                  const EdgeInsets.fromLTRB(24, 24, 24, 16),
-                              decoration: BoxDecoration(
-                                color: theme.colorScheme.surface,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: theme.colorScheme.shadow
-                                        .withValues(alpha: 0.1),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // Аватар и информация пользователя
-                                  Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.center,
-                                    children: [
-                                      // Аватар с улучшенным дизайном и возможностью клика
-                                      GestureDetector(
-                                        onTap: () => context.goNamed('profile'),
-                                        child: Container(
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: Colors.black
-                                                    .withValues(alpha: 0.2),
-                                                blurRadius: 8,
-                                                offset: const Offset(0, 2),
-                                              ),
-                                            ],
-                                          ),
-                                          child: Stack(
-                                            children: [
-                                              CircleAvatar(
-                                                radius: 32,
-                                                backgroundColor:
-                                                    theme.colorScheme.primary,
-                                                child: currentUserProfile
-                                                                ?.photoUrl !=
-                                                            null ||
-                                                        user?.photoUrl != null
-                                                    ? ClipOval(
-                                                        child:
-                                                            CachedNetworkImage(
-                                                          imageUrl: currentUserProfile
-                                                                  ?.photoUrl ??
-                                                              user?.photoUrl ??
-                                                              '',
-                                                          width: 64,
-                                                          height: 64,
-                                                          fit: BoxFit.cover,
-                                                          placeholder:
-                                                              (context, url) =>
-                                                                  Container(
-                                                            color: theme
-                                                                .colorScheme
-                                                                .primary
-                                                                .withValues(
-                                                                    alpha: 0.1),
-                                                            child: Icon(
-                                                              Icons.person,
-                                                              size: 32,
-                                                              color: theme
-                                                                  .colorScheme
-                                                                  .primary,
-                                                            ),
-                                                          ),
-                                                          errorWidget: (context,
-                                                                  url, error) =>
-                                                              Icon(
-                                                            Icons.person,
-                                                            size: 32,
-                                                            color: theme
-                                                                .colorScheme
-                                                                .onPrimary,
-                                                          ),
-                                                        ),
-                                                      )
-                                                    : Icon(
-                                                        Icons.person,
-                                                        size: 32,
-                                                        color: theme.colorScheme
-                                                            .onPrimary,
-                                                      ),
-                                              ),
-                                              Positioned(
-                                                right: 0,
-                                                bottom: 0,
-                                                child: Container(
-                                                  width: 14,
-                                                  height: 14,
-                                                  decoration: BoxDecoration(
-                                                    color: Colors.green,
-                                                    shape: BoxShape.circle,
-                                                    border: Border.all(
-                                                      color: theme
-                                                          .colorScheme.surface,
-                                                      width: 2,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 16),
-                                      // Имя и email пользователя
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Flexible(
-                                              child: Text(
-                                                currentUserProfile?.shortName ??
-                                                    user?.name ??
-                                                    'USER',
-                                                style: theme
-                                                    .textTheme.titleLarge
-                                                    ?.copyWith(
-                                                  color: theme
-                                                      .colorScheme.onSurface,
-                                                  fontWeight: FontWeight.bold,
-                                                  letterSpacing: 0.5,
-                                                ),
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Align(
-                                              alignment: Alignment.centerLeft,
-                                              child: RoleBadge(
-                                                roleId: user?.roleId,
-                                                fallbackRole: null,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 16.0),
-                            child: Divider(
-                              height: 1,
-                              thickness: 1,
-                              color: theme.colorScheme.onSurface
-                                  .withValues(alpha: 0.1),
-                            ),
-                          ),
+                          const _CompanySwitcher(),
                           const SizedBox(height: 8),
-                          // Пункты меню
                           DrawerItemWidget(
                             icon: CupertinoIcons.home,
                             title: 'Главная',
                             isSelected: activeRoute == AppRoute.home,
-                            onTap: () {
-                              if (activeRoute == AppRoute.home) {
-                                context.pop();
-                              } else {
-                                context.pop();
-                                context.goNamed('home');
-                              }
-                            },
+                            onTap: () => _navigateTo(
+                              context,
+                              'home',
+                              AppRoute.home,
+                              activeRoute,
+                            ),
                           ),
-                          DrawerItemWidget(
-                            icon: CupertinoIcons.briefcase,
+                          _buildMenuItem(
+                            context: context,
+                            module: 'cash_flow',
+                            title: 'CASH FLOW',
+                            icon: CupertinoIcons.money_rubl_circle,
+                            route: AppRoute.cashFlow,
+                            routeName: 'cash_flow',
+                          ),
+                          _buildMenuItem(
+                            context: context,
+                            module: 'company',
                             title: 'Компания',
-                            isSelected: activeRoute == AppRoute.company,
-                            onTap: () {
-                              if (activeRoute == AppRoute.company) {
-                                context.pop();
-                              } else {
-                                context.pop();
-                                context.goNamed('company');
-                              }
-                            },
+                            icon: CupertinoIcons.briefcase,
+                            route: AppRoute.company,
+                            routeName: 'company',
                           ),
-                          PermissionGuard(
+                          _buildMenuItem(
+                            context: context,
                             module: 'works',
-                            permission: 'read',
-                            child: DrawerItemWidget(
-                              icon: CupertinoIcons.wrench,
-                              title: 'Работы',
-                              isSelected:
-                                  activeRoute.toString() == 'AppRoute.works',
-                              onTap: () {
-                                context.pop();
-                                context.goNamed('works');
-                              },
-                            ),
+                            title: 'Работы',
+                            icon: CupertinoIcons.wrench,
+                            route: AppRoute.works,
+                            routeName: 'works',
                           ),
-                          PermissionGuard(
+                          _buildMenuItem(
+                            context: context,
                             module: 'work_plans',
-                            permission: 'read',
-                            child: DrawerItemWidget(
-                              icon: CupertinoIcons.calendar_today,
-                              title: 'План работ',
-                              isSelected: activeRoute == AppRoute.workPlans,
-                              onTap: () {
-                                if (activeRoute == AppRoute.workPlans) {
-                                  context.pop();
-                                } else {
-                                  context.pop();
-                                  context.goNamed('work_plans');
-                                }
-                              },
-                            ),
+                            title: 'План работ',
+                            icon: CupertinoIcons.calendar_today,
+                            route: AppRoute.workPlans,
+                            routeName: 'work_plans',
                           ),
-                          PermissionGuard(
+                          _buildMenuItem(
+                            context: context,
                             module: 'materials',
-                            permission: 'read',
-                            child: DrawerItemWidget(
-                              icon: CupertinoIcons.cube_box,
-                              title: 'Материал',
-                              isSelected: activeRoute == AppRoute.material,
-                              onTap: () {
-                                if (activeRoute == AppRoute.material) {
-                                  context.pop();
-                                } else {
-                                  context.pop();
-                                  context.goNamed('material');
-                                }
-                              },
-                            ),
+                            title: 'Материал',
+                            icon: CupertinoIcons.cube_box,
+                            route: AppRoute.material,
+                            routeName: 'material',
                           ),
-                          PermissionGuard(
+                          _buildMenuItem(
+                            context: context,
                             module: 'inventory',
-                            permission: 'read',
-                            child: DrawerItemWidget(
-                              icon: CupertinoIcons.archivebox, // Склад
-                              title: 'Склад',
-                              isSelected: activeRoute == AppRoute.inventory,
-                              onTap: () {
-                                if (activeRoute == AppRoute.inventory) {
-                                  context.pop();
-                                } else {
-                                  context.pop();
-                                  context.goNamed('inventory');
-                                }
-                              },
-                            ),
+                            title: 'Склад',
+                            icon: CupertinoIcons.archivebox,
+                            route: AppRoute.inventory,
+                            routeName: 'inventory',
                           ),
-                          PermissionGuard(
+                          _buildMenuItem(
+                            context: context,
                             module: 'timesheet',
-                            permission: 'read',
-                            child: DrawerItemWidget(
-                              icon: CupertinoIcons.clock,
-                              title: 'Табель',
-                              isSelected: activeRoute == AppRoute.timesheet,
-                              onTap: () {
-                                context.pop();
-                                context.goNamed('timesheet');
-                              },
-                            ),
+                            title: 'Табель',
+                            icon: CupertinoIcons.clock,
+                            route: AppRoute.timesheet,
+                            routeName: 'timesheet',
                           ),
-                          // Админские разделы
-                          PermissionGuard(
+                          _buildMenuItem(
+                            context: context,
                             module: 'employees',
-                            permission: 'read',
-                            child: DrawerItemWidget(
-                              icon: CupertinoIcons.person_3,
-                              title: 'Сотрудники',
-                              isSelected: activeRoute == AppRoute.employees,
-                              onTap: () {
-                                if (activeRoute == AppRoute.employees) {
-                                  context.pop();
-                                } else {
-                                  context.pop();
-                                  context.goNamed('employees');
-                                }
-                              },
-                            ),
+                            title: 'Сотрудники',
+                            icon: CupertinoIcons.person_3,
+                            route: AppRoute.employees,
+                            routeName: 'employees',
                           ),
-                          Builder(builder: (context) {
-                            final items = <DrawerGroupItem>[];
-                            if (permissionService.can('objects', 'read')) {
-                              items.add(DrawerGroupItem(
-                                title: 'Объекты',
-                                isSelected: (route) =>
-                                    route == AppRoute.objects,
-                                onTap: () {
-                                  context.pop();
-                                  context.goNamed('objects');
-                                },
-                              ));
-                            }
-                            if (permissionService.can('contractors', 'read')) {
-                              items.add(DrawerGroupItem(
-                                title: 'Контрагенты',
-                                isSelected: (route) =>
-                                    route == AppRoute.contractors,
-                                onTap: () {
-                                  context.pop();
-                                  context.goNamed('contractors');
-                                },
-                              ));
-                            }
-                            if (permissionService.can('contracts', 'read')) {
-                              items.add(DrawerGroupItem(
-                                title: 'Договоры',
-                                isSelected: (route) =>
-                                    route == AppRoute.contracts,
-                                onTap: () {
-                                  context.pop();
-                                  context.goNamed('contracts');
-                                },
-                              ));
-                            }
-
-                            if (items.isNotEmpty) {
-                              return DrawerGroupWidget(
-                                icon: CupertinoIcons.book,
-                                title: 'Справочники',
-                                activeRoute: activeRoute,
-                                items: items,
-                              );
-                            }
-                            return const SizedBox.shrink();
-                          }),
-                          PermissionGuard(
+                          _DirectoriesSection(activeRoute: activeRoute),
+                          _buildMenuItem(
+                            context: context,
                             module: 'estimates',
-                            permission: 'read',
-                            child: DrawerItemWidget(
-                              icon: CupertinoIcons.list_number,
-                              title: 'Сметы',
-                              isSelected: activeRoute == AppRoute.estimates,
-                              onTap: () {
-                                if (activeRoute == AppRoute.estimates) {
-                                  context.pop();
-                                } else {
-                                  context.pop();
-                                  context.goNamed('estimates');
-                                }
-                              },
-                            ),
+                            title: 'Сметы',
+                            icon: CupertinoIcons.list_number,
+                            route: AppRoute.estimates,
+                            routeName: 'estimates',
                           ),
-                          PermissionGuard(
+                          _buildMenuItem(
+                            context: context,
                             module: 'payroll',
-                            permission: 'read',
-                            child: DrawerItemWidget(
-                              icon: CupertinoIcons.creditcard,
-                              title: 'ФОТ',
-                              isSelected:
-                                  activeRoute.toString() == 'AppRoute.payrolls',
-                              onTap: () {
-                                context.pop();
-                                context.goNamed('payrolls');
-                              },
-                            ),
+                            title: 'ФОТ',
+                            icon: CupertinoIcons.creditcard,
+                            route: AppRoute.payrolls,
+                            routeName: 'payrolls',
                           ),
-                          PermissionGuard(
+                          _buildMenuItem(
+                            context: context,
                             module: 'procurement',
-                            permission: 'read',
-                            child: DrawerItemWidget(
-                              icon: CupertinoIcons.cart,
-                              title: 'Заявки',
-                              isSelected: activeRoute == AppRoute.procurement,
-                              onTap: () {
-                                if (activeRoute == AppRoute.procurement) {
-                                  context.pop();
-                                } else {
-                                  context.pop();
-                                  context.goNamed('procurement');
-                                }
-                              },
-                            ),
+                            title: 'Заявки',
+                            icon: CupertinoIcons.cart,
+                            route: AppRoute.procurement,
+                            routeName: 'procurement',
                           ),
-                          // Выгрузка доступна всем пользователям (с проверкой прав)
-                          PermissionGuard(
+                          _buildMenuItem(
+                            context: context,
                             module: 'export',
-                            permission: 'read',
-                            child: DrawerItemWidget(
-                              icon: CupertinoIcons.tray_arrow_down,
-                              title: 'Выгрузка',
-                              isSelected: activeRoute == AppRoute.export,
-                              onTap: () {
-                                if (activeRoute == AppRoute.export) {
-                                  context.pop();
-                                } else {
-                                  context.pop();
-                                  context.goNamed('export');
-                                }
-                              },
-                            ),
+                            title: 'Выгрузка',
+                            icon: CupertinoIcons.tray_arrow_down,
+                            route: AppRoute.export,
+                            routeName: 'export',
                           ),
-                          PermissionGuard(
+                          _buildMenuItem(
+                            context: context,
                             module: 'users',
-                            permission: 'read',
-                            child: DrawerItemWidget(
-                              icon: CupertinoIcons.person_2,
-                              title: 'Пользователи',
-                              isSelected: activeRoute == AppRoute.users,
-                              onTap: () {
-                                if (activeRoute == AppRoute.users) {
-                                  context.pop();
-                                } else {
-                                  context.pop();
-                                  context.goNamed('users');
-                                }
-                              },
-                            ),
+                            title: 'Пользователи',
+                            icon: CupertinoIcons.person_2,
+                            route: AppRoute.users,
+                            routeName: 'users',
                           ),
-                          PermissionGuard(
+                          _buildMenuItem(
+                            context: context,
                             module: 'system',
-                            permission: 'read',
-                            child: DrawerItemWidget(
-                              icon: CupertinoIcons.arrow_2_circlepath,
-                              title: 'Управление версиями',
-                              isSelected:
-                                  activeRoute == AppRoute.versionManagement,
-                              onTap: () {
-                                if (activeRoute == AppRoute.versionManagement) {
-                                  context.pop();
-                                } else {
-                                  context.pop();
-                                  context.goNamed('version_management');
-                                }
-                              },
-                            ),
+                            title: 'Управление версиями',
+                            icon: CupertinoIcons.arrow_2_circlepath,
+                            route: AppRoute.versionManagement,
+                            routeName: 'version_management',
                           ),
-                          PermissionGuard(
+                          _buildMenuItem(
+                            context: context,
                             module: 'roles',
-                            permission: 'read',
-                            child: DrawerItemWidget(
-                              icon: CupertinoIcons.lock_shield,
-                              title: 'Управление ролями',
-                              isSelected: activeRoute == AppRoute.roles,
-                              onTap: () {
-                                if (activeRoute == AppRoute.roles) {
-                                  context.pop();
-                                } else {
-                                  context.pop();
-                                  context.goNamed('roles');
-                                }
-                              },
-                            ),
+                            title: 'Управление ролями',
+                            icon: CupertinoIcons.lock_shield,
+                            route: AppRoute.roles,
+                            routeName: 'roles',
                           ),
-                          // Telegram модерация удалена
                         ],
                       ),
                     ),
-
-                    // Разделитель
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16.0),
                       child: Divider(
                         height: 1,
                         thickness: 1,
-                        color:
-                            theme.colorScheme.onSurface.withValues(alpha: 0.1),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.1,
+                        ),
                       ),
                     ),
-
-                    // Выход из аккаунта внизу меню
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8.0),
                       child: DrawerItemWidget(
@@ -866,6 +471,397 @@ class AppDrawer extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Виджет заголовка бокового меню, отображающий информацию о текущем пользователе.
+class _DrawerHeader extends ConsumerWidget {
+  final AppRoute activeRoute;
+
+  const _DrawerHeader({required this.activeRoute});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final authState = ref.watch(authProvider);
+    final profileState = ref.watch(currentUserProfileProvider);
+    final user = authState.user;
+    final profile = profileState.profile;
+
+    final photoUrl = profile?.photoUrl ?? user?.photoUrl;
+    final displayName = profile?.shortName ?? user?.name ?? 'USER';
+    final roleId = profile?.roleId ?? user?.roleId;
+    final systemRole = profile?.system_role ?? user?.system_role;
+
+    return Container(
+      height: 120,
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.shadow.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () =>
+                _navigateTo(context, 'profile', AppRoute.profile, activeRoute),
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Stack(
+                children: [
+                  CircleAvatar(
+                    radius: 32,
+                    backgroundColor: theme.colorScheme.primary,
+                    child: photoUrl != null
+                        ? ClipOval(
+                            child: CachedNetworkImage(
+                              imageUrl: photoUrl,
+                              width: 64,
+                              height: 64,
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => Container(
+                                color: theme.colorScheme.primary.withValues(
+                                  alpha: 0.1,
+                                ),
+                                child: Icon(
+                                  CupertinoIcons.person,
+                                  size: 32,
+                                  color: theme.colorScheme.primary,
+                                ),
+                              ),
+                              errorWidget: (context, url, error) => const Icon(
+                                CupertinoIcons.person,
+                                size: 32,
+                                color: Colors.white,
+                              ),
+                            ),
+                          )
+                        : const Icon(
+                            CupertinoIcons.person,
+                            size: 32,
+                            color: Colors.white,
+                          ),
+                  ),
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 14,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: Colors.green,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: theme.colorScheme.surface,
+                          width: 2,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  displayName,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    color: theme.colorScheme.onSurface,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                RoleBadge(
+                  roleId: roleId,
+                  systemRole: systemRole,
+                  fallbackRole: null,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Виджет для переключения между компаниями пользователя в боковом меню.
+class _CompanySwitcher extends ConsumerWidget {
+  const _CompanySwitcher();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final companiesAsync = ref.watch(userCompaniesProvider);
+    final activeCompanyId = ref.watch(activeCompanyIdProvider);
+
+    return companiesAsync.when(
+      data: (companies) {
+        if (companies.isEmpty) return const SizedBox.shrink();
+
+        final activeCompany =
+            companies.firstWhereOrNull((c) => c.id == activeCompanyId) ??
+            companies.first;
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+          child: _CollapsibleSection(
+            headerBuilder: (context, isExpanded, rotation) {
+              final headerColor = isExpanded
+                  ? Colors.green
+                  : theme.colorScheme.onSurface;
+
+              return Container(
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.04),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: theme.colorScheme.onSurface.withValues(
+                      alpha: isExpanded ? 0.1 : 0.05,
+                    ),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          activeCompany.nameShort,
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: headerColor,
+                            fontSize: 12,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      RotationTransition(
+                        turns: rotation,
+                        child: Icon(
+                          CupertinoIcons.chevron_right,
+                          size: 18,
+                          color: isExpanded ? Colors.green : Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+            content: Column(
+              children: [
+                const SizedBox(height: 4),
+                ...companies.where((c) => c.id != activeCompany.id).map((
+                  company,
+                ) {
+                  return DrawerItemWidget(
+                    title: company.nameShort,
+                    icon: CupertinoIcons.circle,
+                    iconSize: 4,
+                    fontSize: 12,
+                    leadingPadding: 32,
+                    onTap: () async {
+                      await ref
+                          .read(authProvider.notifier)
+                          .switchCompany(company.id);
+                      if (context.mounted) context.pop();
+                    },
+                  );
+                }),
+                DrawerItemWidget(
+                  title: 'Добавить компанию',
+                  icon: CupertinoIcons.plus_circle,
+                  iconSize: 16,
+                  fontSize: 12,
+                  leadingPadding: 32,
+                  onTap: () {
+                    context.pop();
+                    CompanyCreateDialog.show(context);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+      loading: () => const Center(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: CupertinoActivityIndicator(),
+        ),
+      ),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+}
+
+/// Вспомогательный виджет для реализации раскрывающихся секций в Drawer.
+class _CollapsibleSection extends StatefulWidget {
+  final Widget Function(
+    BuildContext context,
+    bool isExpanded,
+    Animation<double> rotation,
+  )
+  headerBuilder;
+  final Widget content;
+  final bool initiallyExpanded;
+  final bool forceExpand;
+
+  const _CollapsibleSection({
+    required this.headerBuilder,
+    required this.content,
+    this.initiallyExpanded = false,
+    this.forceExpand = false,
+  });
+
+  @override
+  State<_CollapsibleSection> createState() => _CollapsibleSectionState();
+}
+
+class _CollapsibleSectionState extends State<_CollapsibleSection>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _rotation;
+  late bool _isExpanded;
+
+  @override
+  void initState() {
+    super.initState();
+    _isExpanded = widget.initiallyExpanded;
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      value: _isExpanded ? 1.0 : 0.0,
+      vsync: this,
+    );
+    _rotation = Tween<double>(
+      begin: 0,
+      end: 0.25,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+  }
+
+  @override
+  void didUpdateWidget(_CollapsibleSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.forceExpand && !_isExpanded) {
+      _toggle(true);
+    }
+  }
+
+  void _toggle(bool expand) {
+    setState(() => _isExpanded = expand);
+    if (expand) {
+      _controller.forward();
+    } else {
+      _controller.reverse();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        InkWell(
+          onTap: () => _toggle(!_isExpanded),
+          borderRadius: BorderRadius.circular(12),
+          child: widget.headerBuilder(context, _isExpanded, _rotation),
+        ),
+        ClipRect(
+          child: AnimatedBuilder(
+            animation: _controller,
+            builder: (context, child) {
+              return Align(
+                alignment: Alignment.topCenter,
+                heightFactor: _controller.value,
+                child: child,
+              );
+            },
+            child: widget.content,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Секция справочников с проверкой прав доступа для каждого элемента.
+class _DirectoriesSection extends ConsumerWidget {
+  final AppRoute activeRoute;
+
+  const _DirectoriesSection({required this.activeRoute});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final permissionService = ref.watch(permissionServiceProvider);
+    final items = <DrawerGroupItem>[];
+
+    void addIfAllowed(
+      String module,
+      String title,
+      AppRoute route,
+      String routeName,
+    ) {
+      if (permissionService.can(module, 'read')) {
+        items.add(
+          DrawerGroupItem(
+            title: title,
+            isSelected: (r) => r == route,
+            onTap: () => _navigateTo(context, routeName, route, activeRoute),
+          ),
+        );
+      }
+    }
+
+    addIfAllowed('objects', 'Объекты', AppRoute.objects, 'objects');
+    addIfAllowed(
+      'contractors',
+      'Контрагенты',
+      AppRoute.contractors,
+      'contractors',
+    );
+    addIfAllowed('contracts', 'Договоры', AppRoute.contracts, 'contracts');
+
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    return DrawerGroupWidget(
+      icon: CupertinoIcons.book,
+      title: 'Справочники',
+      activeRoute: activeRoute,
+      items: items,
     );
   }
 }

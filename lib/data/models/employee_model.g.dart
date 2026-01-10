@@ -9,6 +9,7 @@ part of 'employee_model.dart';
 _EmployeeModel _$EmployeeModelFromJson(Map<String, dynamic> json) =>
     _EmployeeModel(
       id: json['id'] as String,
+      companyId: json['company_id'] as String,
       photoUrl: json['photo_url'] as String?,
       lastName: json['last_name'] as String,
       firstName: json['first_name'] as String,
@@ -25,13 +26,18 @@ _EmployeeModel _$EmployeeModelFromJson(Map<String, dynamic> json) =>
       employmentDate: json['employment_date'] == null
           ? null
           : DateTime.parse(json['employment_date'] as String),
-      employmentType: $enumDecodeNullable(
-              _$EmploymentTypeEnumMap, json['employment_type']) ??
+      employmentType:
+          $enumDecodeNullable(
+            _$EmploymentTypeEnumMap,
+            json['employment_type'],
+          ) ??
           EmploymentType.official,
       position: json['position'] as String?,
-      status: $enumDecodeNullable(_$EmployeeStatusEnumMap, json['status']) ??
+      status:
+          $enumDecodeNullable(_$EmployeeStatusEnumMap, json['status']) ??
           EmployeeStatus.working,
-      objectIds: (json['object_ids'] as List<dynamic>?)
+      objectIds:
+          (json['object_ids'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           const <String>[],
@@ -56,6 +62,7 @@ _EmployeeModel _$EmployeeModelFromJson(Map<String, dynamic> json) =>
 Map<String, dynamic> _$EmployeeModelToJson(_EmployeeModel instance) =>
     <String, dynamic>{
       'id': instance.id,
+      'company_id': instance.companyId,
       'photo_url': instance.photoUrl,
       'last_name': instance.lastName,
       'first_name': instance.firstName,

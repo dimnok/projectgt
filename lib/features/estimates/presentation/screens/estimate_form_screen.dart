@@ -5,6 +5,7 @@ import '../../../../core/di/providers.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../domain/entities/estimate.dart';
 import '../../../../core/widgets/gt_buttons.dart';
+import '../../../../features/company/presentation/providers/company_providers.dart';
 
 /// Экран для создания и редактирования сметы.
 ///
@@ -83,8 +84,10 @@ class _EstimateFormScreenState extends ConsumerState<EstimateFormScreen> {
   void _save() async {
     if (!_formKey.currentState!.validate()) return;
     final notifier = ref.read(estimateNotifierProvider.notifier);
+    final activeCompanyId = ref.read(activeCompanyIdProvider);
     final estimate = Estimate(
       id: widget.estimateId ?? '',
+      companyId: activeCompanyId ?? '',
       system: _systemController.text.trim(),
       subsystem: _subsystemController.text.trim(),
       number: _numberController.text.trim(),

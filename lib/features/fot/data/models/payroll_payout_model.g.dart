@@ -10,6 +10,7 @@ _PayrollPayoutModel _$PayrollPayoutModelFromJson(Map<String, dynamic> json) =>
     _PayrollPayoutModel(
       id: json['id'] as String,
       employeeId: json['employee_id'] as String,
+      companyId: json['company_id'] as String,
       amount: json['amount'] as num,
       payoutDate: DateTime.parse(json['payout_date'] as String),
       method: json['method'] as String,
@@ -24,6 +25,7 @@ Map<String, dynamic> _$PayrollPayoutModelToJson(_PayrollPayoutModel instance) =>
     <String, dynamic>{
       'id': instance.id,
       'employee_id': instance.employeeId,
+      'company_id': instance.companyId,
       'amount': instance.amount,
       'payout_date': instance.payoutDate.toIso8601String(),
       'method': instance.method,

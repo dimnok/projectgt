@@ -17,6 +17,7 @@ import 'package:projectgt/presentation/widgets/photo_picker_avatar.dart';
 
 import 'package:projectgt/features/employees/presentation/widgets/form_widgets.dart';
 import 'package:projectgt/core/utils/modal_utils.dart';
+import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 
 /// Экран создания/редактирования сотрудника.
 ///
@@ -227,8 +228,14 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
         _isLoading = true;
       });
       try {
+        final activeCompanyId = ref.read(activeCompanyIdProvider);
+        if (activeCompanyId == null) {
+          throw Exception('Компания не выбрана');
+        }
+
         final employee = Employee(
           id: widget.employeeId ?? const Uuid().v4(),
+          companyId: activeCompanyId,
           photoUrl: _photoUrl,
           lastName: _lastNameController.text.trim(),
           firstName: _firstNameController.text.trim(),
@@ -260,12 +267,12 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
           passportIssueDate: _passportIssueDate,
           passportDepartmentCode:
               _passportDepartmentCodeController.text.trim().isEmpty
-                  ? null
-                  : _passportDepartmentCodeController.text.trim(),
+              ? null
+              : _passportDepartmentCodeController.text.trim(),
           registrationAddress:
               _registrationAddressController.text.trim().isEmpty
-                  ? null
-                  : _registrationAddressController.text.trim(),
+              ? null
+              : _registrationAddressController.text.trim(),
           inn: _innController.text.trim().isEmpty
               ? null
               : _innController.text.trim(),
@@ -297,10 +304,7 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
           }
 
           if (mounted) {
-            SnackBarUtils.showSuccess(
-              context,
-              'Сотрудник успешно создан',
-            );
+            SnackBarUtils.showSuccess(context, 'Сотрудник успешно создан');
           }
         } else {
           // Проверяем, изменилась ли ставка
@@ -322,10 +326,7 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
           }
 
           if (mounted) {
-            SnackBarUtils.showInfo(
-              context,
-              'Изменения успешно сохранены',
-            );
+            SnackBarUtils.showInfo(context, 'Изменения успешно сохранены');
           }
         }
 
@@ -343,10 +344,7 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
       } catch (e) {
         // Показываем ошибку
         if (mounted) {
-          SnackBarUtils.showError(
-            context,
-            'Ошибка: ${e.toString()}',
-          );
+          SnackBarUtils.showError(context, 'Ошибка: ${e.toString()}');
         }
       } finally {
         if (mounted) {
@@ -380,8 +378,9 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                         color: theme.colorScheme.surface,
                         border: Border(
                           bottom: BorderSide(
-                            color: theme.colorScheme.outline
-                                .withValues(alpha: 0.2),
+                            color: theme.colorScheme.outline.withValues(
+                              alpha: 0.2,
+                            ),
                             width: 1,
                           ),
                         ),
@@ -579,10 +578,12 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                                     _positionsLoading
                                         ? const Padding(
                                             padding: EdgeInsets.symmetric(
-                                                vertical: 16),
+                                              vertical: 16,
+                                            ),
                                             child: Center(
-                                                child:
-                                                    CupertinoActivityIndicator()),
+                                              child:
+                                                  CupertinoActivityIndicator(),
+                                            ),
                                           )
                                         : GTStringDropdown(
                                             items: _positions,
@@ -664,31 +665,37 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                                     // Объекты и статус сотрудника
                                     Consumer(
                                       builder: (context, ref, _) {
-                                        final objectState =
-                                            ref.watch(objectProvider);
+                                        final objectState = ref.watch(
+                                          objectProvider,
+                                        );
                                         final objects = objectState.objects;
-                                        final objectNames =
-                                            objects.map((o) => o.name).toList();
+                                        final objectNames = objects
+                                            .map((o) => o.name)
+                                            .toList();
                                         final selectedObjectNames = objects
-                                            .where((obj) => _selectedObjectIds
-                                                .contains(obj.id))
+                                            .where(
+                                              (obj) => _selectedObjectIds
+                                                  .contains(obj.id),
+                                            )
                                             .map((obj) => obj.name)
                                             .toList();
 
-                                        Widget objectMultiSelectField =
-                                            GTStringDropdown(
+                                        Widget
+                                        objectMultiSelectField = GTStringDropdown(
                                           items: objectNames,
                                           selectedItems: selectedObjectNames,
                                           onMultiSelectionChanged:
                                               (selectedNames) {
-                                            setState(() {
-                                              _selectedObjectIds = objects
-                                                  .where((obj) => selectedNames
-                                                      .contains(obj.name))
-                                                  .map((obj) => obj.id)
-                                                  .toList();
-                                            });
-                                          },
+                                                setState(() {
+                                                  _selectedObjectIds = objects
+                                                      .where(
+                                                        (obj) => selectedNames
+                                                            .contains(obj.name),
+                                                      )
+                                                      .map((obj) => obj.id)
+                                                      .toList();
+                                                });
+                                              },
                                           labelText: 'Объекты',
                                           hintText: 'Выберите объекты',
                                           allowMultipleSelection: true,
@@ -708,14 +715,15 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                                               selectedValue: _status,
                                               onChanged: (value) {
                                                 setState(() {
-                                                  _status = value ??
+                                                  _status =
+                                                      value ??
                                                       EmployeeStatus.working;
                                                 });
                                               },
                                               enumToString: (status) =>
                                                   EmployeeUIUtils.getStatusInfo(
-                                                          status)
-                                                      .$1,
+                                                    status,
+                                                  ).$1,
                                               labelText: 'Статус сотрудника',
                                               hintText: 'Выберите статус',
                                             ),
@@ -829,8 +837,9 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
   Future<void> _loadPositions() async {
     setState(() => _positionsLoading = true);
     try {
-      final positions =
-          await ref.read(employeeRepositoryProvider).getPositions();
+      final positions = await ref
+          .read(employeeRepositoryProvider)
+          .getPositions();
       setState(() {
         _positions = positions;
         _positionsLoading = false;

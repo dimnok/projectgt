@@ -12,52 +12,47 @@ part of 'estimate_completion_history.dart';
 
 // dart format off
 T _$identity<T>(T value) => value;
-
 /// @nodoc
 mixin _$EstimateCompletionHistory {
-  DateTime get date;
-  double get quantity;
-  String get section;
-  String get floor;
 
-  /// Create a copy of EstimateCompletionHistory
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  @pragma('vm:prefer-inline')
-  $EstimateCompletionHistoryCopyWith<EstimateCompletionHistory> get copyWith =>
-      _$EstimateCompletionHistoryCopyWithImpl<EstimateCompletionHistory>(
-          this as EstimateCompletionHistory, _$identity);
+ DateTime get date; double get quantity; String get section; String get floor;
+/// Create a copy of EstimateCompletionHistory
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$EstimateCompletionHistoryCopyWith<EstimateCompletionHistory> get copyWith => _$EstimateCompletionHistoryCopyWithImpl<EstimateCompletionHistory>(this as EstimateCompletionHistory, _$identity);
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is EstimateCompletionHistory &&
-            (identical(other.date, date) || other.date == date) &&
-            (identical(other.quantity, quantity) ||
-                other.quantity == quantity) &&
-            (identical(other.section, section) || other.section == section) &&
-            (identical(other.floor, floor) || other.floor == floor));
-  }
 
-  @override
-  int get hashCode => Object.hash(runtimeType, date, quantity, section, floor);
 
-  @override
-  String toString() {
-    return 'EstimateCompletionHistory(date: $date, quantity: $quantity, section: $section, floor: $floor)';
-  }
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is EstimateCompletionHistory&&(identical(other.date, date) || other.date == date)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.section, section) || other.section == section)&&(identical(other.floor, floor) || other.floor == floor));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,date,quantity,section,floor);
+
+@override
+String toString() {
+  return 'EstimateCompletionHistory(date: $date, quantity: $quantity, section: $section, floor: $floor)';
+}
+
+
 }
 
 /// @nodoc
-abstract mixin class $EstimateCompletionHistoryCopyWith<$Res> {
-  factory $EstimateCompletionHistoryCopyWith(EstimateCompletionHistory value,
-          $Res Function(EstimateCompletionHistory) _then) =
-      _$EstimateCompletionHistoryCopyWithImpl;
-  @useResult
-  $Res call({DateTime date, double quantity, String section, String floor});
-}
+abstract mixin class $EstimateCompletionHistoryCopyWith<$Res>  {
+  factory $EstimateCompletionHistoryCopyWith(EstimateCompletionHistory value, $Res Function(EstimateCompletionHistory) _then) = _$EstimateCompletionHistoryCopyWithImpl;
+@useResult
+$Res call({
+ DateTime date, double quantity, String section, String floor
+});
 
+
+
+
+}
 /// @nodoc
 class _$EstimateCompletionHistoryCopyWithImpl<$Res>
     implements $EstimateCompletionHistoryCopyWith<$Res> {
@@ -66,97 +61,70 @@ class _$EstimateCompletionHistoryCopyWithImpl<$Res>
   final EstimateCompletionHistory _self;
   final $Res Function(EstimateCompletionHistory) _then;
 
-  /// Create a copy of EstimateCompletionHistory
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? date = null,
-    Object? quantity = null,
-    Object? section = null,
-    Object? floor = null,
-  }) {
-    return _then(_self.copyWith(
-      date: null == date
-          ? _self.date
-          : date // ignore: cast_nullable_to_non_nullable
-              as DateTime,
-      quantity: null == quantity
-          ? _self.quantity
-          : quantity // ignore: cast_nullable_to_non_nullable
-              as double,
-      section: null == section
-          ? _self.section
-          : section // ignore: cast_nullable_to_non_nullable
-              as String,
-      floor: null == floor
-          ? _self.floor
-          : floor // ignore: cast_nullable_to_non_nullable
-              as String,
-    ));
-  }
+/// Create a copy of EstimateCompletionHistory
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? date = null,Object? quantity = null,Object? section = null,Object? floor = null,}) {
+  return _then(_self.copyWith(
+date: null == date ? _self.date : date // ignore: cast_nullable_to_non_nullable
+as DateTime,quantity: null == quantity ? _self.quantity : quantity // ignore: cast_nullable_to_non_nullable
+as double,section: null == section ? _self.section : section // ignore: cast_nullable_to_non_nullable
+as String,floor: null == floor ? _self.floor : floor // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
 }
 
+}
+
+
 /// @nodoc
+
 
 class _EstimateCompletionHistory implements EstimateCompletionHistory {
-  const _EstimateCompletionHistory(
-      {required this.date,
-      required this.quantity,
-      required this.section,
-      required this.floor});
+  const _EstimateCompletionHistory({required this.date, required this.quantity, required this.section, required this.floor});
+  
 
-  @override
-  final DateTime date;
-  @override
-  final double quantity;
-  @override
-  final String section;
-  @override
-  final String floor;
+@override final  DateTime date;
+@override final  double quantity;
+@override final  String section;
+@override final  String floor;
 
-  /// Create a copy of EstimateCompletionHistory
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  @pragma('vm:prefer-inline')
-  _$EstimateCompletionHistoryCopyWith<_EstimateCompletionHistory>
-      get copyWith =>
-          __$EstimateCompletionHistoryCopyWithImpl<_EstimateCompletionHistory>(
-              this, _$identity);
+/// Create a copy of EstimateCompletionHistory
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$EstimateCompletionHistoryCopyWith<_EstimateCompletionHistory> get copyWith => __$EstimateCompletionHistoryCopyWithImpl<_EstimateCompletionHistory>(this, _$identity);
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _EstimateCompletionHistory &&
-            (identical(other.date, date) || other.date == date) &&
-            (identical(other.quantity, quantity) ||
-                other.quantity == quantity) &&
-            (identical(other.section, section) || other.section == section) &&
-            (identical(other.floor, floor) || other.floor == floor));
-  }
 
-  @override
-  int get hashCode => Object.hash(runtimeType, date, quantity, section, floor);
 
-  @override
-  String toString() {
-    return 'EstimateCompletionHistory(date: $date, quantity: $quantity, section: $section, floor: $floor)';
-  }
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _EstimateCompletionHistory&&(identical(other.date, date) || other.date == date)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.section, section) || other.section == section)&&(identical(other.floor, floor) || other.floor == floor));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,date,quantity,section,floor);
+
+@override
+String toString() {
+  return 'EstimateCompletionHistory(date: $date, quantity: $quantity, section: $section, floor: $floor)';
+}
+
+
 }
 
 /// @nodoc
-abstract mixin class _$EstimateCompletionHistoryCopyWith<$Res>
-    implements $EstimateCompletionHistoryCopyWith<$Res> {
-  factory _$EstimateCompletionHistoryCopyWith(_EstimateCompletionHistory value,
-          $Res Function(_EstimateCompletionHistory) _then) =
-      __$EstimateCompletionHistoryCopyWithImpl;
-  @override
-  @useResult
-  $Res call({DateTime date, double quantity, String section, String floor});
-}
+abstract mixin class _$EstimateCompletionHistoryCopyWith<$Res> implements $EstimateCompletionHistoryCopyWith<$Res> {
+  factory _$EstimateCompletionHistoryCopyWith(_EstimateCompletionHistory value, $Res Function(_EstimateCompletionHistory) _then) = __$EstimateCompletionHistoryCopyWithImpl;
+@override @useResult
+$Res call({
+ DateTime date, double quantity, String section, String floor
+});
 
+
+
+
+}
 /// @nodoc
 class __$EstimateCompletionHistoryCopyWithImpl<$Res>
     implements _$EstimateCompletionHistoryCopyWith<$Res> {
@@ -165,35 +133,19 @@ class __$EstimateCompletionHistoryCopyWithImpl<$Res>
   final _EstimateCompletionHistory _self;
   final $Res Function(_EstimateCompletionHistory) _then;
 
-  /// Create a copy of EstimateCompletionHistory
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @pragma('vm:prefer-inline')
-  $Res call({
-    Object? date = null,
-    Object? quantity = null,
-    Object? section = null,
-    Object? floor = null,
-  }) {
-    return _then(_EstimateCompletionHistory(
-      date: null == date
-          ? _self.date
-          : date // ignore: cast_nullable_to_non_nullable
-              as DateTime,
-      quantity: null == quantity
-          ? _self.quantity
-          : quantity // ignore: cast_nullable_to_non_nullable
-              as double,
-      section: null == section
-          ? _self.section
-          : section // ignore: cast_nullable_to_non_nullable
-              as String,
-      floor: null == floor
-          ? _self.floor
-          : floor // ignore: cast_nullable_to_non_nullable
-              as String,
-    ));
-  }
+/// Create a copy of EstimateCompletionHistory
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? date = null,Object? quantity = null,Object? section = null,Object? floor = null,}) {
+  return _then(_EstimateCompletionHistory(
+date: null == date ? _self.date : date // ignore: cast_nullable_to_non_nullable
+as DateTime,quantity: null == quantity ? _self.quantity : quantity // ignore: cast_nullable_to_non_nullable
+as double,section: null == section ? _self.section : section // ignore: cast_nullable_to_non_nullable
+as String,floor: null == floor ? _self.floor : floor // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
 }
 
 // dart format on

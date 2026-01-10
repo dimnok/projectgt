@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/features/company/domain/entities/company_profile.dart';
 import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
+import 'package:projectgt/features/company/presentation/widgets/company_form_content.dart';
 
 /// Диалоговое окно для редактирования данных профиля компании.
 class CompanyProfileEditDialog extends ConsumerStatefulWidget {
@@ -13,10 +13,7 @@ class CompanyProfileEditDialog extends ConsumerStatefulWidget {
   final CompanyProfile profile;
 
   /// Создаёт диалог редактирования профиля.
-  const CompanyProfileEditDialog({
-    super.key,
-    required this.profile,
-  });
+  const CompanyProfileEditDialog({super.key, required this.profile});
 
   /// Показывает диалог редактирования профиля.
   static void show(BuildContext context, CompanyProfile profile) {
@@ -69,8 +66,9 @@ class _CompanyProfileEditDialogState
     final p = widget.profile;
     _nameFullController = TextEditingController(text: p.nameFull);
     _nameShortController = TextEditingController(text: p.nameShort);
-    _activityDescriptionController =
-        TextEditingController(text: p.activityDescription);
+    _activityDescriptionController = TextEditingController(
+      text: p.activityDescription,
+    );
     _innController = TextEditingController(text: p.inn);
     _kppController = TextEditingController(text: p.kpp);
     _ogrnController = TextEditingController(text: p.ogrn);
@@ -79,14 +77,17 @@ class _CompanyProfileEditDialogState
     _emailController = TextEditingController(text: p.email);
     _phoneController = TextEditingController(text: p.phone);
     _directorNameController = TextEditingController(text: p.directorName);
-    _directorPositionController =
-        TextEditingController(text: p.directorPosition);
+    _directorPositionController = TextEditingController(
+      text: p.directorPosition,
+    );
     _directorBasisController = TextEditingController(text: p.directorBasis);
     _directorPhoneController = TextEditingController(text: p.directorPhone);
-    _chiefAccountantNameController =
-        TextEditingController(text: p.chiefAccountantName);
-    _chiefAccountantPhoneController =
-        TextEditingController(text: p.chiefAccountantPhone);
+    _chiefAccountantNameController = TextEditingController(
+      text: p.chiefAccountantName,
+    );
+    _chiefAccountantPhoneController = TextEditingController(
+      text: p.chiefAccountantPhone,
+    );
     _contactPersonController = TextEditingController(text: p.contactPerson);
     _legalAddressController = TextEditingController(text: p.legalAddress);
     _actualAddressController = TextEditingController(text: p.actualAddress);
@@ -182,6 +183,8 @@ class _CompanyProfileEditDialogState
 
   @override
   Widget build(BuildContext context) {
+    final isDesktop = MediaQuery.of(context).size.width >= 800;
+
     return DesktopDialogContent(
       title: 'Редактирование данных компании',
       onClose: _isLoading ? () {} : null,
@@ -202,306 +205,40 @@ class _CompanyProfileEditDialogState
       ),
       child: Form(
         key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const _SectionTitle(title: 'Основная информация'),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _nameFullController,
-              decoration: const InputDecoration(
-                labelText: 'Полное наименование',
-                border: OutlineInputBorder(),
-              ),
-              validator: (v) =>
-                  v == null || v.isEmpty ? 'Введите наименование' : null,
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _nameShortController,
-              decoration: const InputDecoration(
-                labelText: 'Краткое наименование',
-                border: OutlineInputBorder(),
-              ),
-              validator: (v) =>
-                  v == null || v.isEmpty ? 'Введите краткое наименование' : null,
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _activityDescriptionController,
-              decoration: const InputDecoration(
-                labelText: 'Сфера деятельности',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 24),
-            const _SectionTitle(title: 'Юридические данные'),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _innController,
-                    decoration: const InputDecoration(
-                      labelText: 'ИНН',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: TextFormField(
-                    controller: _kppController,
-                    decoration: const InputDecoration(
-                      labelText: 'КПП',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _ogrnController,
-                    decoration: const InputDecoration(
-                      labelText: 'ОГРН',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: TextFormField(
-                    controller: _okpoController,
-                    decoration: const InputDecoration(
-                      labelText: 'ОКПО',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            const _SectionTitle(title: 'Налогообложение'),
-            const SizedBox(height: 16),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _taxationSystemController,
-                    decoration: const InputDecoration(
-                      labelText: 'Система налогообложения',
-                      hintText: 'ОСНО, УСН и др.',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8.0),
-                        child: InkWell(
-                          onTap: () => setState(() => _isVatPayer = !_isVatPayer),
-                          splashColor: Colors.transparent,
-                          highlightColor: Colors.transparent,
-                          hoverColor: Colors.transparent,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Плательщик НДС',
-                                style: Theme.of(context).textTheme.bodyLarge,
-                              ),
-                              Switch(
-                                value: _isVatPayer,
-                                onChanged: (v) =>
-                                    setState(() => _isVatPayer = v),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      if (_isVatPayer)
-                        TextFormField(
-                          controller: _vatRateController,
-                          decoration: const InputDecoration(
-                            labelText: 'Ставка НДС (%)',
-                            border: OutlineInputBorder(),
-                          ),
-                          keyboardType: TextInputType.number,
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            const _SectionTitle(title: 'Контакты'),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _websiteController,
-                    decoration: const InputDecoration(
-                      labelText: 'Сайт',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(CupertinoIcons.globe),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: TextFormField(
-                    controller: _emailController,
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(CupertinoIcons.mail),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _phoneController,
-              decoration: const InputDecoration(
-                labelText: 'Телефон компании',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(CupertinoIcons.phone),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _contactPersonController,
-              decoration: const InputDecoration(
-                labelText: 'Контактное лицо',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(CupertinoIcons.person_crop_square),
-              ),
-            ),
-            const SizedBox(height: 24),
-            const _SectionTitle(title: 'Адреса'),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _legalAddressController,
-              decoration: const InputDecoration(
-                labelText: 'Юридический адрес',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(CupertinoIcons.location),
-              ),
-              maxLines: 2,
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _actualAddressController,
-              decoration: const InputDecoration(
-                labelText: 'Фактический адрес',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(CupertinoIcons.location_north),
-              ),
-              maxLines: 2,
-            ),
-            const SizedBox(height: 24),
-            const _SectionTitle(title: 'Руководство'),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _directorNameController,
-              decoration: const InputDecoration(
-                labelText: 'Генеральный директор',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(CupertinoIcons.person),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _directorPositionController,
-                    decoration: const InputDecoration(
-                      labelText: 'Должность руководителя',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: TextFormField(
-                    controller: _directorPhoneController,
-                    decoration: const InputDecoration(
-                      labelText: 'Телефон руководителя',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(CupertinoIcons.phone),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _directorBasisController,
-              decoration: const InputDecoration(
-                labelText: 'Действует на основании',
-                hintText: 'Устава, Доверенности...',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(CupertinoIcons.doc_plaintext),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _chiefAccountantNameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Главный бухгалтер',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(CupertinoIcons.person_crop_circle),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: TextFormField(
-                    controller: _chiefAccountantPhoneController,
-                    decoration: const InputDecoration(
-                      labelText: 'Телефон бухгалтера',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(CupertinoIcons.phone),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
+        child: CompanyFormContent(
+          isDesktop: isDesktop,
+          isLoading: _isLoading,
+          isSearching:
+              false, // В режиме редактирования поиск обычно не нужен, но можно добавить если требуется
+          nameFullController: _nameFullController,
+          nameShortController: _nameShortController,
+          innController: _innController,
+          kppController: _kppController,
+          ogrnController: _ogrnController,
+          okpoController: _okpoController,
+          legalAddressController: _legalAddressController,
+          actualAddressController: _actualAddressController,
+          directorNameController: _directorNameController,
+          directorPositionController: _directorPositionController,
+          directorBasisController: _directorBasisController,
+          directorPhoneController: _directorPhoneController,
+          chiefAccountantNameController: _chiefAccountantNameController,
+          chiefAccountantPhoneController: _chiefAccountantPhoneController,
+          contactPersonController: _contactPersonController,
+          websiteController: _websiteController,
+          emailController: _emailController,
+          phoneController: _phoneController,
+          activityDescriptionController: _activityDescriptionController,
+          taxationSystemController: _taxationSystemController,
+          vatRateController: _vatRateController,
+          isVatPayer: _isVatPayer,
+          onVatPayerChanged: (v) => setState(() => _isVatPayer = v),
+          onTaxationSystemChanged: (v) => setState(() {}),
+          onSearchByInn: () {}, // Можно добавить логику поиска если нужно
         ),
       ),
     );
   }
 }
 
-class _SectionTitle extends StatelessWidget {
-  final String title;
-  const _SectionTitle({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      title.toUpperCase(),
-      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: Theme.of(context).colorScheme.primary,
-            letterSpacing: 1.1,
-          ),
-    );
-  }
-}
-
+// Удаляем _SectionTitle так как он теперь внутри CompanyFormContent или не нужен здесь

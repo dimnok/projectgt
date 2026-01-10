@@ -16,6 +16,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:go_router/go_router.dart';
+import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 
 import '../../../../core/widgets/mobile_bottom_sheet_content.dart';
 import '../../../../core/widgets/desktop_dialog_content.dart';
@@ -308,6 +309,12 @@ class _ImportEstimateFormModalState
       return;
     }
 
+    final activeCompanyId = ref.read(activeCompanyIdProvider);
+    if (activeCompanyId == null) {
+      SnackBarUtils.showError(context, 'Компания не выбрана');
+      return;
+    }
+
     final estimateTitle = _estimateNameController.text.trim();
     final isExistingEstimate = _filteredEstimateTitles.contains(estimateTitle);
 
@@ -347,6 +354,7 @@ class _ImportEstimateFormModalState
 
           if (modelData != null) {
             final model = EstimateModel(
+              companyId: activeCompanyId,
               system: modelData['system'],
               subsystem: modelData['subsystem'],
               number: modelData['number'],

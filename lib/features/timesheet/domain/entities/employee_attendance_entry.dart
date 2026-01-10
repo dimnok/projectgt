@@ -39,6 +39,9 @@ abstract class EmployeeAttendanceEntry with _$EmployeeAttendanceEntry {
     /// Уникальный идентификатор записи
     required String id,
 
+    /// ID компании
+    required String companyId,
+
     /// ID сотрудника
     required String employeeId,
 

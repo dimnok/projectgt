@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 
 /// Провайдер оптимизированного расчёта агрегированного баланса по сотрудникам за ВСЁ ВРЕМЯ
 ///
@@ -13,10 +14,15 @@ import 'package:projectgt/core/di/providers.dart';
 final employeeAggregatedBalanceProvider =
     FutureProvider<Map<String, double>>((ref) async {
   final client = ref.read(supabaseClientProvider);
+  final activeCompanyId = ref.watch(activeCompanyIdProvider);
+
+  if (activeCompanyId == null) return {};
 
   try {
     // 🚀 ОПТИМИЗАЦИЯ: Один запрос вместо 5 отдельных
-    final response = await client.rpc('calculate_employee_balances');
+    final response = await client.rpc('calculate_employee_balances', params: {
+      'p_company_id': activeCompanyId,
+    });
 
     final Map<String, double> balance = {};
     for (final row in response) {
@@ -30,6 +36,44 @@ final employeeAggregatedBalanceProvider =
     return balance;
   } catch (e) {
     // Возвращаем пустой результат при ошибке
+    return <String, double>{};
+  }
+});
+
+/// Провайдер расчёта баланса на КОНЕЦ выбранного месяца.
+///
+/// Учитывает все начисления и выплаты, произведенные ДО конца указанной даты.
+/// Позволяет скрывать сотрудников, расчет с которыми был завершен в прошлом.
+final employeeBalanceAtDateProvider =
+    FutureProvider.family<Map<String, double>, DateTime>((ref, date) async {
+  final client = ref.read(supabaseClientProvider);
+  final activeCompanyId = ref.watch(activeCompanyIdProvider);
+
+  if (activeCompanyId == null) return {};
+
+  try {
+    // Вычисляем конец дня для переданной даты
+    final endOfDate = DateTime(date.year, date.month, date.day, 23, 59, 59);
+
+    final response = await client.rpc(
+      'calculate_employee_balances_at_date',
+      params: {
+        'p_date': endOfDate.toIso8601String(),
+        'p_company_id': activeCompanyId,
+      },
+    );
+
+    final Map<String, double> balance = {};
+    for (final row in response) {
+      final employeeId = row['employee_id'] as String?;
+      final balanceValue = (row['balance'] as num?)?.toDouble() ?? 0;
+      if (employeeId != null) {
+        balance[employeeId] = balanceValue;
+      }
+    }
+
+    return balance;
+  } catch (e) {
     return <String, double>{};
   }
 });

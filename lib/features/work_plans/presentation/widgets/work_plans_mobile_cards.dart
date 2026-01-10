@@ -3,9 +3,10 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:projectgt/core/utils/formatters.dart';
+import 'package:projectgt/core/widgets/gt_confirmation_dialog.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
 
-import '../../../../domain/entities/object.dart';
+import 'package:projectgt/features/objects/domain/entities/object.dart';
 import '../../../../domain/entities/work_plan.dart';
 import '../../../../core/di/providers.dart';
 
@@ -165,23 +166,12 @@ class WorkPlansMobileCards extends ConsumerWidget {
         }
 
         if (direction == DismissDirection.endToStart && canDelete) {
-          final result = await showCupertinoDialog<bool>(
+          final result = await GTConfirmationDialog.show(
             context: context,
-            builder: (ctx) => CupertinoAlertDialog(
-              title: const Text('Удалить план?'),
-              content: const Text('Действие нельзя отменить.'),
-              actions: [
-                CupertinoDialogAction(
-                  onPressed: () => Navigator.of(ctx).pop(false),
-                  child: const Text('Отмена'),
-                ),
-                CupertinoDialogAction(
-                  isDestructiveAction: true,
-                  onPressed: () => Navigator.of(ctx).pop(true),
-                  child: const Text('Удалить'),
-                ),
-              ],
-            ),
+            title: 'Удалить план?',
+            message: 'Действие нельзя отменить.',
+            confirmText: 'Удалить',
+            type: GTConfirmationType.danger,
           );
 
           if (result == true && workPlan.id != null) {

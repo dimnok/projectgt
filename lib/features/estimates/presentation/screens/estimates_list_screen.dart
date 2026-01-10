@@ -15,7 +15,7 @@ import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
-import 'package:projectgt/domain/entities/object.dart';
+import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:projectgt/features/estimates/presentation/screens/estimate_details_screen.dart';
 import 'package:projectgt/features/estimates/presentation/providers/estimate_providers.dart';
 import 'package:projectgt/features/estimates/presentation/screens/import_estimate_form_modal.dart';

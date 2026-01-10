@@ -8,6 +8,9 @@ class RoleBadge extends ConsumerWidget {
   /// ID роли для загрузки из БД.
   final String? roleId;
 
+  /// Системная роль (owner, admin).
+  final String? systemRole;
+
   /// Резервное название роли, если ID не указан или загрузка не удалась.
   final String? fallbackRole;
 
@@ -21,6 +24,7 @@ class RoleBadge extends ConsumerWidget {
   const RoleBadge({
     super.key,
     this.roleId,
+    this.systemRole,
     this.fallbackRole,
     this.style,
     this.color,
@@ -28,6 +32,13 @@ class RoleBadge extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (systemRole == 'owner') {
+      return _buildBadge(context, 'Владелец', true);
+    }
+    if (systemRole == 'admin') {
+      return _buildBadge(context, 'Администратор', true);
+    }
+
     final roleAsync =
         roleId != null ? ref.watch(roleByIdProvider(roleId!)) : null;
 

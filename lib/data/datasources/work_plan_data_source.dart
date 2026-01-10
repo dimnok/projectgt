@@ -65,30 +65,21 @@ class SupabaseWorkPlanDataSource implements WorkPlanDataSource {
   /// Клиент Supabase для работы с БД.
   final SupabaseClient client;
 
-  /// Создаёт экземпляр с переданным [client].
-  SupabaseWorkPlanDataSource(this.client);
+  /// ID текущей активной компании для фильтрации данных (Multi-tenancy).
+  final String activeCompanyId;
+
+  /// Создаёт экземпляр с переданным [client] и [activeCompanyId].
+  SupabaseWorkPlanDataSource(this.client, this.activeCompanyId);
 
   Map<String, dynamic> _transformEmbedded(Map<String, dynamic> src) {
     final result = Map<String, dynamic>.from(src);
-    final blocks = (result['work_plan_blocks'] as List<dynamic>?) ?? const [];
-    final transformedBlocks = blocks.map((b) {
-      final bm = Map<String, dynamic>.from(b as Map);
-      final items = (bm['work_plan_items'] as List<dynamic>?) ?? const [];
-      return <String, dynamic>{
-        'id': bm['id'],
-        'system': bm['system'],
-        'section': bm['section'],
-        'floor': bm['floor'],
-        'responsibleId': bm['responsible_id'],
-        'workerIds': bm['worker_ids'],
-        // Внутренние элементы уже в snake_case, что ожидает WorkPlanItemModel
-        'selectedWorks': items,
-      };
-    }).toList();
-
-    // WorkPlanModel ожидает ключ work_blocks (snake_case)
-    result['work_blocks'] = transformedBlocks;
-    result.remove('work_plan_blocks');
+    
+    // Переименовываем ключ блоков для соответствия WorkPlanModel (work_blocks)
+    if (result.containsKey('work_plan_blocks')) {
+      result['work_blocks'] = result['work_plan_blocks'];
+      result.remove('work_plan_blocks');
+    }
+    
     return result;
   }
 
@@ -99,10 +90,13 @@ class SupabaseWorkPlanDataSource implements WorkPlanDataSource {
     DateTime? dateFrom,
     DateTime? dateTo,
   }) async {
-    final query = client.from('work_plans').select(
-        'id, created_at, updated_at, created_by, date, object_id, '
-        'work_plan_blocks(id, system, section, floor, responsible_id, worker_ids, '
-        'work_plan_items(estimate_id, name, unit, price, planned_quantity, actual_quantity))');
+    final query = client
+        .from('work_plans')
+        .select(
+            'id, created_at, updated_at, created_by, date, object_id, company_id, '
+            'work_plan_blocks(id, system, section, floor, responsible_id, worker_ids, company_id, '
+            'work_plan_items(estimate_id, name, unit, price, planned_quantity, actual_quantity, company_id))')
+        .eq('company_id', activeCompanyId);
 
     if (dateFrom != null) {
       query.gte('date', dateFrom.toIso8601String().split('T')[0]);
@@ -128,10 +122,11 @@ class SupabaseWorkPlanDataSource implements WorkPlanDataSource {
   Future<WorkPlanModel?> getWorkPlan(String id) async {
     final response = await client
         .from('work_plans')
-        .select('id, created_at, updated_at, created_by, date, object_id, '
-            'work_plan_blocks(id, system, section, floor, responsible_id, worker_ids, '
-            'work_plan_items(estimate_id, name, unit, price, planned_quantity, actual_quantity))')
+        .select('id, created_at, updated_at, created_by, date, object_id, company_id, '
+            'work_plan_blocks(id, system, section, floor, responsible_id, worker_ids, company_id, '
+            'work_plan_items(estimate_id, name, unit, price, planned_quantity, actual_quantity, company_id))')
         .eq('id', id)
+        .eq('company_id', activeCompanyId)
         .maybeSingle();
 
     if (response == null) return null;
@@ -146,6 +141,7 @@ class SupabaseWorkPlanDataSource implements WorkPlanDataSource {
       'created_by': workPlan.createdBy,
       'date': workPlan.date.toIso8601String().split('T')[0],
       'object_id': workPlan.objectId,
+      'company_id': activeCompanyId,
     };
 
     final insertedPlan =
@@ -163,6 +159,7 @@ class SupabaseWorkPlanDataSource implements WorkPlanDataSource {
           'floor': block.floor,
           'responsible_id': block.responsibleId,
           'worker_ids': block.workerIds,
+          'company_id': activeCompanyId,
         };
 
         final insertedBlock = await client
@@ -184,6 +181,7 @@ class SupabaseWorkPlanDataSource implements WorkPlanDataSource {
               'price': item.price,
               'planned_quantity': item.plannedQuantity,
               'actual_quantity': item.actualQuantity,
+              'company_id': activeCompanyId,
             });
 
         await client.from('work_plan_items').insert(itemsInsert.toList());
@@ -191,7 +189,11 @@ class SupabaseWorkPlanDataSource implements WorkPlanDataSource {
     } catch (e) {
       // При ошибке пробуем откатить созданный план
       try {
-        await client.from('work_plans').delete().eq('id', planId);
+        await client
+            .from('work_plans')
+            .delete()
+            .eq('id', planId)
+            .eq('company_id', activeCompanyId);
       } catch (_) {}
       rethrow;
     }
@@ -199,10 +201,11 @@ class SupabaseWorkPlanDataSource implements WorkPlanDataSource {
     // Возвращаем доменную модель из объединённых таблиц
     final refreshed = await client
         .from('work_plans')
-        .select('id, created_at, updated_at, created_by, date, object_id, '
-            'work_plan_blocks(id, system, section, floor, responsible_id, worker_ids, '
-            'work_plan_items(estimate_id, name, unit, price, planned_quantity, actual_quantity))')
+        .select('id, created_at, updated_at, created_by, date, object_id, company_id, '
+            'work_plan_blocks(id, system, section, floor, responsible_id, worker_ids, company_id, '
+            'work_plan_items(estimate_id, name, unit, price, planned_quantity, actual_quantity, company_id))')
         .eq('id', planId)
+        .eq('company_id', activeCompanyId)
         .maybeSingle();
     return WorkPlanModel.fromJson(
         _transformEmbedded(Map<String, dynamic>.from(refreshed as Map)));
@@ -221,10 +224,18 @@ class SupabaseWorkPlanDataSource implements WorkPlanDataSource {
       'object_id': workPlan.objectId,
     };
 
-    await client.from('work_plans').update(baseUpdate).eq('id', planId);
+    await client
+        .from('work_plans')
+        .update(baseUpdate)
+        .eq('id', planId)
+        .eq('company_id', activeCompanyId);
 
     // 2) Пересоздаём блоки и их элементы (простая и надёжная стратегия)
-    await client.from('work_plan_blocks').delete().eq('work_plan_id', planId);
+    await client
+        .from('work_plan_blocks')
+        .delete()
+        .eq('work_plan_id', planId)
+        .eq('company_id', activeCompanyId);
 
     for (final block in workPlan.workBlocks) {
       final blockInsert = {
@@ -234,6 +245,7 @@ class SupabaseWorkPlanDataSource implements WorkPlanDataSource {
         'floor': block.floor,
         'responsible_id': block.responsibleId,
         'worker_ids': block.workerIds,
+        'company_id': activeCompanyId,
       };
 
       final insertedBlock = await client
@@ -254,6 +266,7 @@ class SupabaseWorkPlanDataSource implements WorkPlanDataSource {
             'price': item.price,
             'planned_quantity': item.plannedQuantity,
             'actual_quantity': item.actualQuantity,
+            'company_id': activeCompanyId,
           });
 
       await client.from('work_plan_items').insert(itemsInsert.toList());
@@ -262,10 +275,11 @@ class SupabaseWorkPlanDataSource implements WorkPlanDataSource {
     // 3) Возвращаем свежие данные из объединённых таблиц
     final refreshed = await client
         .from('work_plans')
-        .select('id, created_at, updated_at, created_by, date, object_id, '
-            'work_plan_blocks(id, system, section, floor, responsible_id, worker_ids, '
-            'work_plan_items(estimate_id, name, unit, price, planned_quantity, actual_quantity))')
+        .select('id, created_at, updated_at, created_by, date, object_id, company_id, '
+            'work_plan_blocks(id, system, section, floor, responsible_id, worker_ids, company_id, '
+            'work_plan_items(estimate_id, name, unit, price, planned_quantity, actual_quantity, company_id))')
         .eq('id', planId)
+        .eq('company_id', activeCompanyId)
         .maybeSingle();
     return WorkPlanModel.fromJson(
         _transformEmbedded(Map<String, dynamic>.from(refreshed as Map)));
@@ -273,7 +287,11 @@ class SupabaseWorkPlanDataSource implements WorkPlanDataSource {
 
   @override
   Future<bool> deleteWorkPlan(String id) async {
-    await client.from('work_plans').delete().eq('id', id);
+    await client
+        .from('work_plans')
+        .delete()
+        .eq('id', id)
+        .eq('company_id', activeCompanyId);
     return true;
   }
 
@@ -284,10 +302,13 @@ class SupabaseWorkPlanDataSource implements WorkPlanDataSource {
     DateTime? dateFrom,
     DateTime? dateTo,
   }) async {
-    final query = client.from('work_plans').select(
-        'id, created_at, updated_at, created_by, date, object_id, '
-        'work_plan_blocks(id, system, section, floor, responsible_id, worker_ids, '
-        'work_plan_items(estimate_id, name, unit, price, planned_quantity, actual_quantity))');
+    final query = client
+        .from('work_plans')
+        .select(
+            'id, created_at, updated_at, created_by, date, object_id, company_id, '
+            'work_plan_blocks(id, system, section, floor, responsible_id, worker_ids, company_id, '
+            'work_plan_items(estimate_id, name, unit, price, planned_quantity, actual_quantity, company_id))')
+        .eq('company_id', activeCompanyId);
 
     if (dateFrom != null) {
       query.gte('date', dateFrom.toIso8601String().split('T')[0]);
@@ -313,10 +334,11 @@ class SupabaseWorkPlanDataSource implements WorkPlanDataSource {
   Future<WorkPlanModel?> getWorkPlanDetails(String id) async {
     final response = await client
         .from('work_plans')
-        .select('id, created_at, updated_at, created_by, date, object_id, '
-            'work_plan_blocks(id, system, section, floor, responsible_id, worker_ids, '
-            'work_plan_items(estimate_id, name, unit, price, planned_quantity, actual_quantity))')
+        .select('id, created_at, updated_at, created_by, date, object_id, company_id, '
+            'work_plan_blocks(id, system, section, floor, responsible_id, worker_ids, company_id, '
+            'work_plan_items(estimate_id, name, unit, price, planned_quantity, actual_quantity, company_id))')
         .eq('id', id)
+        .eq('company_id', activeCompanyId)
         .maybeSingle();
 
     if (response == null) return null;

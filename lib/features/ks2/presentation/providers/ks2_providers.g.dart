@@ -33,9 +33,7 @@ abstract class _$Ks2Acts
     extends BuildlessAutoDisposeAsyncNotifier<List<Ks2Act>> {
   late final String contractId;
 
-  FutureOr<List<Ks2Act>> build(
-    String contractId,
-  );
+  FutureOr<List<Ks2Act>> build(String contractId);
 }
 
 /// Провайдер списка актов для конкретного договора.
@@ -56,21 +54,13 @@ class Ks2ActsFamily extends Family<AsyncValue<List<Ks2Act>>> {
   /// Провайдер списка актов для конкретного договора.
   ///
   /// Copied from [Ks2Acts].
-  Ks2ActsProvider call(
-    String contractId,
-  ) {
-    return Ks2ActsProvider(
-      contractId,
-    );
+  Ks2ActsProvider call(String contractId) {
+    return Ks2ActsProvider(contractId);
   }
 
   @override
-  Ks2ActsProvider getProviderOverride(
-    covariant Ks2ActsProvider provider,
-  ) {
-    return call(
-      provider.contractId,
-    );
+  Ks2ActsProvider getProviderOverride(covariant Ks2ActsProvider provider) {
+    return call(provider.contractId);
   }
 
   static const Iterable<ProviderOrFamily>? _dependencies = null;
@@ -96,20 +86,18 @@ class Ks2ActsProvider
   /// Провайдер списка актов для конкретного договора.
   ///
   /// Copied from [Ks2Acts].
-  Ks2ActsProvider(
-    String contractId,
-  ) : this._internal(
-          () => Ks2Acts()..contractId = contractId,
-          from: ks2ActsProvider,
-          name: r'ks2ActsProvider',
-          debugGetCreateSourceHash:
-              const bool.fromEnvironment('dart.vm.product')
-                  ? null
-                  : _$ks2ActsHash,
-          dependencies: Ks2ActsFamily._dependencies,
-          allTransitiveDependencies: Ks2ActsFamily._allTransitiveDependencies,
-          contractId: contractId,
-        );
+  Ks2ActsProvider(String contractId)
+    : this._internal(
+        () => Ks2Acts()..contractId = contractId,
+        from: ks2ActsProvider,
+        name: r'ks2ActsProvider',
+        debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+            ? null
+            : _$ks2ActsHash,
+        dependencies: Ks2ActsFamily._dependencies,
+        allTransitiveDependencies: Ks2ActsFamily._allTransitiveDependencies,
+        contractId: contractId,
+      );
 
   Ks2ActsProvider._internal(
     super._createNotifier, {
@@ -124,12 +112,8 @@ class Ks2ActsProvider
   final String contractId;
 
   @override
-  FutureOr<List<Ks2Act>> runNotifierBuild(
-    covariant Ks2Acts notifier,
-  ) {
-    return notifier.build(
-      contractId,
-    );
+  FutureOr<List<Ks2Act>> runNotifierBuild(covariant Ks2Acts notifier) {
+    return notifier.build(contractId);
   }
 
   @override
@@ -150,7 +134,7 @@ class Ks2ActsProvider
 
   @override
   AutoDisposeAsyncNotifierProviderElement<Ks2Acts, List<Ks2Act>>
-      createElement() {
+  createElement() {
     return _Ks2ActsProviderElement(this);
   }
 
@@ -192,13 +176,14 @@ String _$ks2CreationHash() => r'a9d56a0b906a7806ba4284e2fe462b725cb38e5e';
 @ProviderFor(Ks2Creation)
 final ks2CreationProvider =
     AutoDisposeAsyncNotifierProvider<Ks2Creation, Ks2PreviewData?>.internal(
-  Ks2Creation.new,
-  name: r'ks2CreationProvider',
-  debugGetCreateSourceHash:
-      const bool.fromEnvironment('dart.vm.product') ? null : _$ks2CreationHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+      Ks2Creation.new,
+      name: r'ks2CreationProvider',
+      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+          ? null
+          : _$ks2CreationHash,
+      dependencies: null,
+      allTransitiveDependencies: null,
+    );
 
 typedef _$Ks2Creation = AutoDisposeAsyncNotifier<Ks2PreviewData?>;
 // ignore_for_file: type=lint

@@ -59,21 +59,15 @@ class MonthChartDataFamily extends Family<AsyncValue<List<LightWork>>> {
   /// но с минимальным набором полей (только дата и сумма).
   ///
   /// Copied from [monthChartData].
-  MonthChartDataProvider call(
-    DateTime month,
-  ) {
-    return MonthChartDataProvider(
-      month,
-    );
+  MonthChartDataProvider call(DateTime month) {
+    return MonthChartDataProvider(month);
   }
 
   @override
   MonthChartDataProvider getProviderOverride(
     covariant MonthChartDataProvider provider,
   ) {
-    return call(
-      provider.month,
-    );
+    return call(provider.month);
   }
 
   static const Iterable<ProviderOrFamily>? _dependencies = null;
@@ -105,24 +99,19 @@ class MonthChartDataProvider
   /// но с минимальным набором полей (только дата и сумма).
   ///
   /// Copied from [monthChartData].
-  MonthChartDataProvider(
-    DateTime month,
-  ) : this._internal(
-          (ref) => monthChartData(
-            ref as MonthChartDataRef,
-            month,
-          ),
-          from: monthChartDataProvider,
-          name: r'monthChartDataProvider',
-          debugGetCreateSourceHash:
-              const bool.fromEnvironment('dart.vm.product')
-                  ? null
-                  : _$monthChartDataHash,
-          dependencies: MonthChartDataFamily._dependencies,
-          allTransitiveDependencies:
-              MonthChartDataFamily._allTransitiveDependencies,
-          month: month,
-        );
+  MonthChartDataProvider(DateTime month)
+    : this._internal(
+        (ref) => monthChartData(ref as MonthChartDataRef, month),
+        from: monthChartDataProvider,
+        name: r'monthChartDataProvider',
+        debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+            ? null
+            : _$monthChartDataHash,
+        dependencies: MonthChartDataFamily._dependencies,
+        allTransitiveDependencies:
+            MonthChartDataFamily._allTransitiveDependencies,
+        month: month,
+      );
 
   MonthChartDataProvider._internal(
     super._createNotifier, {
@@ -188,5 +177,6 @@ class _MonthChartDataProviderElement
   @override
   DateTime get month => (origin as MonthChartDataProvider).month;
 }
+
 // ignore_for_file: type=lint
 // ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package

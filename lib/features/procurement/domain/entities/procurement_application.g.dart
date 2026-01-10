@@ -7,40 +7,40 @@ part of 'procurement_application.dart';
 // **************************************************************************
 
 _ProcurementApplication _$ProcurementApplicationFromJson(
-        Map<String, dynamic> json) =>
-    _ProcurementApplication(
-      id: json['id'] as String,
-      readableId: json['readable_id'] as String?,
-      createdAt: DateTime.parse(json['created_at'] as String),
-      status: json['status'] as String? ?? 'pending_approval',
-      object: _objectFromJson(json['object'] as Map<String, dynamic>?),
-      requester: json['requester'] == null
-          ? null
-          : BotUserModel.fromJson(json['requester'] as Map<String, dynamic>),
-      items: (json['items'] as List<dynamic>?)
-              ?.map(
-                  (e) => ProcurementRequest.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          const [],
-      history: (json['history'] as List<dynamic>?)
-              ?.map(
-                  (e) => ProcurementHistory.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          const [],
-    );
+  Map<String, dynamic> json,
+) => _ProcurementApplication(
+  id: json['id'] as String,
+  readableId: json['readable_id'] as String?,
+  createdAt: DateTime.parse(json['created_at'] as String),
+  status: json['status'] as String? ?? 'pending_approval',
+  object: _objectFromJson(json['object'] as Map<String, dynamic>?),
+  requester: json['requester'] == null
+      ? null
+      : BotUserModel.fromJson(json['requester'] as Map<String, dynamic>),
+  items:
+      (json['items'] as List<dynamic>?)
+          ?.map((e) => ProcurementRequest.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+      const [],
+  history:
+      (json['history'] as List<dynamic>?)
+          ?.map((e) => ProcurementHistory.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+      const [],
+);
 
 Map<String, dynamic> _$ProcurementApplicationToJson(
-        _ProcurementApplication instance) =>
-    <String, dynamic>{
-      'id': instance.id,
-      'readable_id': instance.readableId,
-      'created_at': instance.createdAt.toIso8601String(),
-      'status': instance.status,
-      'object': _objectToJson(instance.object),
-      'requester': instance.requester?.toJson(),
-      'items': instance.items.map((e) => e.toJson()).toList(),
-      'history': instance.history.map((e) => e.toJson()).toList(),
-    };
+  _ProcurementApplication instance,
+) => <String, dynamic>{
+  'id': instance.id,
+  'readable_id': instance.readableId,
+  'created_at': instance.createdAt.toIso8601String(),
+  'status': instance.status,
+  'object': _objectToJson(instance.object),
+  'requester': instance.requester?.toJson(),
+  'items': instance.items.map((e) => e.toJson()).toList(),
+  'history': instance.history.map((e) => e.toJson()).toList(),
+};
 
 _ProcurementHistory _$ProcurementHistoryFromJson(Map<String, dynamic> json) =>
     _ProcurementHistory(

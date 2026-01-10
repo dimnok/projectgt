@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/widgets/gt_text_field.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/payroll_calculation.dart';
@@ -6,13 +7,6 @@ import '../../domain/entities/payroll_transaction.dart';
 import '../../data/models/payroll_payout_model.dart';
 import '../../../../presentation/state/employee_state.dart';
 import '../providers/payroll_filter_providers.dart';
-import '../providers/payroll_providers.dart';
-
-/// Провайдер состояния поиска в модуле ФОТ
-final payrollSearchQueryProvider = StateProvider<String>((ref) => '');
-
-/// Видимость поля поиска в AppBar модуля ФОТ
-final payrollSearchVisibleProvider = StateProvider<bool>((ref) => false);
 
 /// Виджет действий поиска для AppBar модуля ФОТ: анимированное поле + кнопка лупы
 ///
@@ -95,7 +89,6 @@ class _PayrollSearchActionState extends ConsumerState<PayrollSearchAction> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final query = ref.watch(payrollSearchQueryProvider);
     final isVisible = ref.watch(payrollSearchVisibleProvider);
 
@@ -111,42 +104,15 @@ class _PayrollSearchActionState extends ConsumerState<PayrollSearchAction> {
                   child: KeyboardListener(
                     focusNode: FocusNode(),
                     onKeyEvent: _handleKeyEvent,
-                    child: Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surface,
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.08),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: TextField(
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: GTTextField(
                         controller: _controller,
-                        focusNode: _focusNode,
-                        autofocus: true,
+                        hintText: 'Поиск по ФИО...',
+                        prefixIcon: Icons.person_search,
                         onChanged: (value) => ref
                             .read(payrollSearchQueryProvider.notifier)
                             .state = value,
-                        decoration: InputDecoration(
-                          hintText: 'Поиск по ФИО...',
-                          isDense: true,
-                          border: InputBorder.none,
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(24),
-                            borderSide: BorderSide(
-                              color: theme.colorScheme.outline
-                                  .withValues(alpha: 0.25),
-                              width: 1,
-                            ),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 10),
-                          prefixIcon: const Icon(Icons.person_search, size: 20),
-                        ),
                       ),
                     ),
                   ),
@@ -185,12 +151,11 @@ class _PayrollSearchActionState extends ConsumerState<PayrollSearchAction> {
   }
 }
 
-/// Функция фильтрации расчётов ФОТ по ФИО, объектам и должностям
+/// Функция фильтрации расчётов ФОТ по ФИО и объектам
 ///
 /// Применяет последовательную фильтрацию:
 /// 1. По поисковому запросу (ФИО)
-/// 2. По выбранным должностям
-/// 3. По выбранным объектам
+/// 2. По выбранным объектам
 List<PayrollCalculation> filterPayrollsByEmployeeName(
   List<PayrollCalculation> payrolls,
   String query,
@@ -199,7 +164,6 @@ List<PayrollCalculation> filterPayrollsByEmployeeName(
   final searchQuery = query.trim().toLowerCase();
   final employeeState = ref.watch(employeeProvider);
   final employees = employeeState.employees;
-  final filterState = ref.watch(payrollFilterProvider);
 
   var filteredPayrolls = payrolls;
 
@@ -222,49 +186,24 @@ List<PayrollCalculation> filterPayrollsByEmployeeName(
     }).toList();
   }
 
-  // 2. Фильтрация по должностям
-  if (filterState.selectedPositions.isNotEmpty) {
-    filteredPayrolls = filteredPayrolls.where((payroll) {
-      final employee =
-          employees.where((e) => e.id == payroll.employeeId).firstOrNull;
-
-      if (employee == null || employee.position == null) return false;
-
-      return filterState.selectedPositions.contains(employee.position);
-    }).toList();
-  }
-
-  // 3. Фильтрация по объектам (через work_hours)
+  // 2. Фильтрация по объектам (уже выполнена на сервере в filteredPayrollsProvider)
+  // Оставляем это здесь только для случая fallback (клиентский расчет)
+  // или если данные приходят не из RPC. 
+  // В идеале RPC уже вернул нужных сотрудников.
+  /*
   if (filterState.selectedObjectIds.isNotEmpty) {
-    final workHoursAsync = ref.watch(payrollWorkHoursProvider);
-
-    filteredPayrolls = workHoursAsync.when(
-      data: (workHours) {
-        final employeeIdsOnSelectedObjects = workHours
-            .where((wh) =>
-                wh.objectId != null &&
-                filterState.selectedObjectIds.contains(wh.objectId))
-            .map((wh) => wh.employeeId)
-            .toSet();
-
-        return filteredPayrolls
-            .where((p) => employeeIdsOnSelectedObjects.contains(p.employeeId))
-            .toList();
-      },
-      loading: () => filteredPayrolls,
-      error: (_, __) => filteredPayrolls,
-    );
+    ...
   }
+  */
 
   return filteredPayrolls;
 }
 
-/// Функция фильтрации транзакций (премии/штрафы) по ФИО, объектам и должностям
+/// Функция фильтрации транзакций (премии/штрафы) по ФИО и объектам
 ///
 /// Применяет последовательную фильтрацию:
 /// 1. По поисковому запросу (ФИО)
-/// 2. По выбранным должностям
-/// 3. По выбранным объектам
+/// 2. По выбранным объектам
 List<PayrollTransaction> filterTransactionsByEmployeeName(
   List<PayrollTransaction> transactions,
   String query,
@@ -296,19 +235,7 @@ List<PayrollTransaction> filterTransactionsByEmployeeName(
     }).toList();
   }
 
-  // 2. Фильтрация по должностям
-  if (filterState.selectedPositions.isNotEmpty) {
-    filteredTransactions = filteredTransactions.where((transaction) {
-      final employee =
-          employees.where((e) => e.id == transaction.employeeId).firstOrNull;
-
-      if (employee == null || employee.position == null) return false;
-
-      return filterState.selectedPositions.contains(employee.position);
-    }).toList();
-  }
-
-  // 3. Фильтрация по объектам
+  // 2. Фильтрация по объектам
   if (filterState.selectedObjectIds.isNotEmpty) {
     filteredTransactions = filteredTransactions
         .where((transaction) =>
@@ -320,13 +247,9 @@ List<PayrollTransaction> filterTransactionsByEmployeeName(
   return filteredTransactions;
 }
 
-/// Функция фильтрации выплат по ФИО и должностям
+/// Функция фильтрации выплат по ФИО
 ///
-/// Применяет последовательную фильтрацию:
-/// 1. По поисковому запросу (ФИО)
-/// 2. По выбранным должностям
-///
-/// Примечание: Выплаты не связаны напрямую с объектами, поэтому фильтр по объектам не применяется
+/// Применяет фильтрацию по поисковому запросу (ФИО)
 List<PayrollPayoutModel> filterPayoutsByEmployeeName(
   List<PayrollPayoutModel> payouts,
   String query,
@@ -335,7 +258,6 @@ List<PayrollPayoutModel> filterPayoutsByEmployeeName(
   final searchQuery = query.trim().toLowerCase();
   final employeeState = ref.watch(employeeProvider);
   final employees = employeeState.employees;
-  final filterState = ref.watch(payrollFilterProvider);
 
   var filteredPayouts = payouts;
 
@@ -358,17 +280,25 @@ List<PayrollPayoutModel> filterPayoutsByEmployeeName(
     }).toList();
   }
 
-  // 2. Фильтрация по должностям
-  if (filterState.selectedPositions.isNotEmpty) {
-    filteredPayouts = filteredPayouts.where((payout) {
-      final employee =
-          employees.where((e) => e.id == payout.employeeId).firstOrNull;
-
-      if (employee == null || employee.position == null) return false;
-
-      return filterState.selectedPositions.contains(employee.position);
-    }).toList();
-  }
-
   return filteredPayouts;
+}
+
+/// Функция фильтрации списка сотрудников по поисковому запросу
+List<dynamic> filterEmployeesBySearchQuery(
+  List<dynamic> employees,
+  String query,
+) {
+  final searchQuery = query.trim().toLowerCase();
+  if (searchQuery.isEmpty) return employees;
+
+  return employees.where((employee) {
+    final fullName = [
+      employee.lastName,
+      employee.firstName,
+      if (employee.middleName != null && employee.middleName!.isNotEmpty)
+        employee.middleName
+    ].join(' ').toLowerCase();
+
+    return fullName.contains(searchQuery);
+  }).toList();
 }

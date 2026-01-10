@@ -15,7 +15,7 @@ import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:intl/intl.dart';
+import 'package:projectgt/core/utils/formatters.dart';
 
 /// Экран модуля "Компания".
 ///
@@ -153,7 +153,7 @@ class CompanyScreen extends ConsumerWidget {
                       child: CompanyInfoRow(
                         label: doc.title,
                         value:
-                            '${doc.number ?? ''} ${doc.issueDate != null ? "от ${DateFormat('dd.MM.yyyy').format(doc.issueDate!)}" : ""}',
+                            '${doc.number ?? ''} ${doc.issueDate != null ? "от ${formatRuDate(doc.issueDate!)}" : ""}',
                         onEdit: () {
                           Navigator.pop(context);
                           CompanyDocumentEditDialog.show(context, companyId,

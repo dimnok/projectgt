@@ -20,6 +20,7 @@ abstract class Ks2Act with _$Ks2Act {
   /// Создает доменную сущность акта КС-2.
   const factory Ks2Act({
     required String id,
+    required String companyId,
     required String contractId,
     required String number,
     required DateTime date,

@@ -1,7 +1,7 @@
 import 'package:projectgt/domain/repositories/employee_repository.dart';
-import 'package:projectgt/domain/repositories/object_repository.dart';
+import 'package:projectgt/features/objects/domain/repositories/object_repository.dart';
 import 'package:projectgt/domain/entities/employee.dart';
-import 'package:projectgt/domain/entities/object.dart' as project_object;
+import 'package:projectgt/features/objects/domain/entities/object.dart' as project_object;
 import '../../domain/entities/timesheet_entry.dart';
 import '../../domain/repositories/timesheet_repository.dart';
 import '../../domain/repositories/employee_attendance_repository.dart';

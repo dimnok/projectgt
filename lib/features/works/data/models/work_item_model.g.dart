@@ -9,6 +9,7 @@ part of 'work_item_model.dart';
 _WorkItemModel _$WorkItemModelFromJson(Map<String, dynamic> json) =>
     _WorkItemModel(
       id: json['id'] as String,
+      companyId: json['company_id'] as String,
       workId: json['work_id'] as String,
       section: json['section'] as String,
       floor: json['floor'] as String,
@@ -32,6 +33,7 @@ _WorkItemModel _$WorkItemModelFromJson(Map<String, dynamic> json) =>
 Map<String, dynamic> _$WorkItemModelToJson(_WorkItemModel instance) =>
     <String, dynamic>{
       'id': instance.id,
+      'company_id': instance.companyId,
       'work_id': instance.workId,
       'section': instance.section,
       'floor': instance.floor,

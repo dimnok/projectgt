@@ -9,8 +9,11 @@ class PayrollPenaltyRepositoryImpl implements PayrollPenaltyRepository {
   /// Экземпляр SupabaseClient для доступа к базе данных.
   final SupabaseClient client;
 
-  /// Создаёт экземпляр [PayrollPenaltyRepositoryImpl] с переданным [client].
-  PayrollPenaltyRepositoryImpl(this.client);
+  /// Идентификатор активной компании.
+  final String activeCompanyId;
+
+  /// Создаёт экземпляр [PayrollPenaltyRepositoryImpl] с переданным [client] и [activeCompanyId].
+  PayrollPenaltyRepositoryImpl(this.client, this.activeCompanyId);
 
   /// Создать новый штраф.
   ///
@@ -38,6 +41,7 @@ class PayrollPenaltyRepositoryImpl implements PayrollPenaltyRepository {
         .from('payroll_penalty')
         .update(penalty.toJson())
         .eq('id', penalty.id)
+        .eq('company_id', activeCompanyId)
         .select()
         .single();
     return PayrollPenaltyModel.fromJson(response);
@@ -49,12 +53,19 @@ class PayrollPenaltyRepositoryImpl implements PayrollPenaltyRepository {
   @override
   Future<void> deletePenalty(String id) async {
     // Удалить штраф по id
-    await client.from('payroll_penalty').delete().eq('id', id);
+    await client
+        .from('payroll_penalty')
+        .delete()
+        .eq('id', id)
+        .eq('company_id', activeCompanyId);
   }
 
   @override
   Future<List<PayrollPenaltyModel>> getAllPenalties() async {
-    final response = await client.from('payroll_penalty').select();
+    final response = await client
+        .from('payroll_penalty')
+        .select()
+        .eq('company_id', activeCompanyId);
     return (response as List)
         .map((json) =>
             PayrollPenaltyModel.fromJson(json as Map<String, dynamic>))

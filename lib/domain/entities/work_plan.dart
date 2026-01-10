@@ -15,6 +15,9 @@ abstract class WorkPlan with _$WorkPlan {
     /// Уникальный идентификатор плана работ.
     String? id,
 
+    /// ID компании.
+    required String companyId,
+
     /// Дата создания плана работ.
     required DateTime createdAt,
 
@@ -44,24 +47,24 @@ abstract class WorkPlan with _$WorkPlan {
   const WorkPlan._();
 
   /// Общая стоимость всех блоков работ по плану.
-  double get totalPlannedCost => workBlocks.fold(
-        0.0,
-        (sum, block) => sum + block.totalPlannedCost,
-      );
+  double get totalPlannedCost =>
+      workBlocks.fold(0.0, (sum, block) => sum + block.totalPlannedCost);
 
   /// Общая стоимость фактически выполненных работ.
-  double get totalActualCost => workBlocks.fold(
-        0.0,
-        (sum, block) => sum + block.totalActualCost,
-      );
+  double get totalActualCost =>
+      workBlocks.fold(0.0, (sum, block) => sum + block.totalActualCost);
 
   /// Процент выполнения всего плана работ.
   double get completionPercentage {
     if (workBlocks.isEmpty) return 0;
-    final totalPlanned =
-        workBlocks.fold(0.0, (sum, block) => sum + block.totalPlannedCost);
-    final totalActual =
-        workBlocks.fold(0.0, (sum, block) => sum + block.totalActualCost);
+    final totalPlanned = workBlocks.fold(
+      0.0,
+      (sum, block) => sum + block.totalPlannedCost,
+    );
+    final totalActual = workBlocks.fold(
+      0.0,
+      (sum, block) => sum + block.totalActualCost,
+    );
     return totalPlanned > 0 ? (totalActual / totalPlanned * 100) : 0;
   }
 
@@ -89,6 +92,9 @@ abstract class WorkBlock with _$WorkBlock {
     /// Уникальный идентификатор блока работ.
     String? id,
 
+    /// ID компании.
+    required String companyId,
+
     /// ID ответственного сотрудника за блок.
     String? responsibleId,
 
@@ -112,24 +118,24 @@ abstract class WorkBlock with _$WorkBlock {
   const WorkBlock._();
 
   /// Общая стоимость всех работ в блоке по плану.
-  double get totalPlannedCost => selectedWorks.fold(
-        0.0,
-        (sum, item) => sum + item.totalPlannedCost,
-      );
+  double get totalPlannedCost =>
+      selectedWorks.fold(0.0, (sum, item) => sum + item.totalPlannedCost);
 
   /// Общая стоимость фактически выполненных работ в блоке.
-  double get totalActualCost => selectedWorks.fold(
-        0.0,
-        (sum, item) => sum + item.totalActualCost,
-      );
+  double get totalActualCost =>
+      selectedWorks.fold(0.0, (sum, item) => sum + item.totalActualCost);
 
   /// Процент выполнения блока работ.
   double get completionPercentage {
     if (selectedWorks.isEmpty) return 0;
-    final totalPlanned =
-        selectedWorks.fold(0.0, (sum, item) => sum + item.plannedQuantity);
-    final totalActual =
-        selectedWorks.fold(0.0, (sum, item) => sum + item.actualQuantity);
+    final totalPlanned = selectedWorks.fold(
+      0.0,
+      (sum, item) => sum + item.plannedQuantity,
+    );
+    final totalActual = selectedWorks.fold(
+      0.0,
+      (sum, item) => sum + item.actualQuantity,
+    );
     return totalPlanned > 0 ? (totalActual / totalPlanned * 100) : 0;
   }
 
@@ -145,6 +151,9 @@ abstract class WorkBlock with _$WorkBlock {
 abstract class WorkPlanItem with _$WorkPlanItem {
   /// Основной конструктор [WorkPlanItem].
   const factory WorkPlanItem({
+    /// ID компании.
+    required String companyId,
+
     /// ID работы из таблицы estimates.
     required String estimateId,
 

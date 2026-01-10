@@ -2,13 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // removed: intl direct import, use formatters
 import 'package:projectgt/core/utils/formatters.dart';
-import 'package:projectgt/core/utils/snackbar_utils.dart';
-import 'package:projectgt/domain/entities/object.dart';
+import 'package:projectgt/features/objects/domain/entities/object.dart';
+import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 import 'package:projectgt/domain/entities/estimate.dart';
 import 'package:projectgt/domain/entities/employee.dart' as domain_employee;
 import 'package:projectgt/presentation/state/employee_state.dart';
 import 'package:projectgt/domain/entities/work_plan.dart';
 import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/core/widgets/app_snackbar.dart';
+import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
+import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
+import 'package:projectgt/core/utils/responsive_utils.dart';
+import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/features/work_plans/presentation/screens/work_plan_form_content.dart';
 import 'package:projectgt/features/work_plans/presentation/widgets/work_block_state.dart';
 import 'package:projectgt/features/work_plans/presentation/widgets/work_selection_widget.dart';
@@ -27,11 +32,16 @@ class WorkPlanFormModal extends ConsumerStatefulWidget {
   /// [isNew] — true, если создан новый план, false — если редактирование.
   final void Function(bool isNew) onSuccess;
 
+  /// Нужно ли оборачивать форму в диалоговый виджет (DesktopDialogContent/MobileBottomSheetContent).
+  /// По умолчанию true.
+  final bool asDialog;
+
   /// Конструктор [WorkPlanFormModal].
   const WorkPlanFormModal({
     super.key,
     this.workPlan,
     required this.onSuccess,
+    this.asDialog = true,
   });
 
   @override
@@ -93,9 +103,11 @@ class _WorkPlanFormModalState extends ConsumerState<WorkPlanFormModal> {
       final found = objectState.objects
           .where((obj) => obj.id == workPlan.objectId)
           .firstOrNull;
-      _selectedObject = found ??
+      _selectedObject =
+          found ??
           ObjectEntity(
             id: workPlan.objectId,
+            companyId: ref.read(activeCompanyIdProvider) ?? '',
             name: workPlan.objectName ?? 'Объект',
             address: workPlan.objectAddress ?? '',
           );
@@ -136,10 +148,12 @@ class _WorkPlanFormModalState extends ConsumerState<WorkPlanFormModal> {
         }
 
         // Преобразуем WorkPlanItem в SelectedWork
-        blockState.selectedWorks =
-            block.selectedWorks.map<SelectedWork>((item) {
+        blockState.selectedWorks = block.selectedWorks.map<SelectedWork>((
+          item,
+        ) {
           final estimate = Estimate(
             id: item.estimateId,
+            companyId: item.companyId,
             system: block.system,
             subsystem: '',
             number: '',
@@ -179,21 +193,19 @@ class _WorkPlanFormModalState extends ConsumerState<WorkPlanFormModal> {
     // Валидация
 
     if (_selectedDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Выберите дату плана работ'),
-          backgroundColor: Colors.red,
-        ),
+      AppSnackBar.show(
+        context: context,
+        message: 'Выберите дату плана работ',
+        kind: AppSnackBarKind.error,
       );
       return;
     }
 
     if (_selectedObject == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Выберите объект'),
-          backgroundColor: Colors.red,
-        ),
+      AppSnackBar.show(
+        context: context,
+        message: 'Выберите объект',
+        kind: AppSnackBarKind.error,
       );
       return;
     }
@@ -203,32 +215,38 @@ class _WorkPlanFormModalState extends ConsumerState<WorkPlanFormModal> {
     setState(() => _isLoading = true);
 
     try {
-      // Получаем текущего пользователя
+      // Получаем текущего пользователя и активную компанию
       final auth = Supabase.instance.client.auth;
       final currentUser = auth.currentUser;
+      final activeCompanyId = ref.read(activeCompanyIdProvider);
 
-      if (currentUser == null) {
-        throw Exception('Пользователь не авторизован');
+      if (currentUser == null || activeCompanyId == null) {
+        throw Exception('Пользователь не авторизован или компания не выбрана');
       }
 
       // Создаем блоки работ
       final workBlocks = _workBlocks.map((blockState) {
         final selectedWorksItems = blockState.selectedWorks
-            .map((selectedWork) => WorkPlanItem(
-                  estimateId: selectedWork.estimate.id,
-                  name: selectedWork.estimate.name,
-                  unit: selectedWork.estimate.unit,
-                  price: selectedWork.estimate.price,
-                  plannedQuantity: selectedWork.quantity,
-                  actualQuantity: 0.0,
-                ))
+            .map(
+              (selectedWork) => WorkPlanItem(
+                companyId: activeCompanyId,
+                estimateId: selectedWork.estimate.id,
+                name: selectedWork.estimate.name,
+                unit: selectedWork.estimate.unit,
+                price: selectedWork.estimate.price,
+                plannedQuantity: selectedWork.quantity,
+                actualQuantity: 0.0,
+              ),
+            )
             .toList();
 
         return WorkBlock(
           id: null, // Генерируется автоматически
+          companyId: activeCompanyId,
           responsibleId: blockState.selectedResponsible?.id,
-          workerIds:
-              blockState.selectedWorkers.map((worker) => worker.id).toList(),
+          workerIds: blockState.selectedWorkers
+              .map((worker) => worker.id)
+              .toList(),
           section: blockState.selectedSection,
           floor: blockState.selectedFloor,
           system: blockState.selectedSystem!,
@@ -239,6 +257,7 @@ class _WorkPlanFormModalState extends ConsumerState<WorkPlanFormModal> {
       // Создаем план работ
       final workPlan = WorkPlan(
         id: widget.workPlan?.id,
+        companyId: activeCompanyId,
         createdAt: widget.workPlan?.createdAt ?? DateTime.now(),
         updatedAt: DateTime.now(),
         createdBy: currentUser.id,
@@ -249,10 +268,12 @@ class _WorkPlanFormModalState extends ConsumerState<WorkPlanFormModal> {
 
       // Используем Riverpod для вызова use case
       final container = ProviderScope.containerOf(context, listen: false);
-      final createWorkPlanUseCase =
-          container.read(createWorkPlanUseCaseProvider);
-      final updateWorkPlanUseCase =
-          container.read(updateWorkPlanUseCaseProvider);
+      final createWorkPlanUseCase = container.read(
+        createWorkPlanUseCaseProvider,
+      );
+      final updateWorkPlanUseCase = container.read(
+        updateWorkPlanUseCaseProvider,
+      );
 
       if (workPlan.id == null) {
         // Создание нового плана работ
@@ -275,20 +296,27 @@ class _WorkPlanFormModalState extends ConsumerState<WorkPlanFormModal> {
       // Показываем сообщение об успехе
       if (mounted) {
         if (isNew) {
-          SnackBarUtils.showSuccess(context, 'План работ успешно создан');
+          AppSnackBar.show(
+            context: context,
+            message: 'План работ успешно создан',
+            kind: AppSnackBarKind.success,
+          );
         } else {
-          SnackBarUtils.showInfo(context, 'Изменения успешно сохранены');
+          AppSnackBar.show(
+            context: context,
+            message: 'Изменения успешно сохранены',
+            kind: AppSnackBarKind.info,
+          );
         }
       }
     } catch (e) {
       setState(() => _isLoading = false);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Ошибка сохранения: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
+        AppSnackBar.show(
+          context: context,
+          message: 'Ошибка сохранения: ${e.toString()}',
+          kind: AppSnackBarKind.error,
         );
       }
     }
@@ -369,25 +397,34 @@ class _WorkPlanFormModalState extends ConsumerState<WorkPlanFormModal> {
   void _loadSystemsForBlock(WorkBlockState blockState, String objectId) {
     final estimates = ref.read(estimateNotifierProvider).estimates;
 
-    blockState.availableSystems = estimates
-        .where((estimate) =>
-            estimate.objectId == objectId && estimate.system.isNotEmpty)
-        .map((estimate) => estimate.system)
-        .toSet()
-        .toList()
-      ..sort();
+    blockState.availableSystems =
+        estimates
+            .where(
+              (estimate) =>
+                  estimate.objectId == objectId && estimate.system.isNotEmpty,
+            )
+            .map((estimate) => estimate.system)
+            .toSet()
+            .toList()
+          ..sort();
   }
 
   /// Загружает работы для выбранного объекта и системы в блоке.
   void _loadWorksForBlock(
-      WorkBlockState blockState, String objectId, String system) {
+    WorkBlockState blockState,
+    String objectId,
+    String system,
+  ) {
     final estimates = ref.read(estimateNotifierProvider).estimates;
 
-    blockState.availableWorks = estimates
-        .where((estimate) =>
-            estimate.objectId == objectId && estimate.system == system)
-        .toList()
-      ..sort((a, b) => a.name.compareTo(b.name));
+    blockState.availableWorks =
+        estimates
+            .where(
+              (estimate) =>
+                  estimate.objectId == objectId && estimate.system == system,
+            )
+            .toList()
+          ..sort((a, b) => a.name.compareTo(b.name));
   }
 
   /// Загружает участки для выбранного объекта в блоке.
@@ -456,7 +493,9 @@ class _WorkPlanFormModalState extends ConsumerState<WorkPlanFormModal> {
 
   /// Обрабатывает изменение ответственного в блоке.
   void _handleBlockResponsibleChanged(
-      int blockIndex, domain_employee.Employee? responsible) {
+    int blockIndex,
+    domain_employee.Employee? responsible,
+  ) {
     if (blockIndex >= _workBlocks.length) return;
 
     setState(() {
@@ -466,7 +505,9 @@ class _WorkPlanFormModalState extends ConsumerState<WorkPlanFormModal> {
 
   /// Обрабатывает изменение работников в блоке.
   void _handleBlockWorkersChanged(
-      int blockIndex, List<domain_employee.Employee> workers) {
+    int blockIndex,
+    List<domain_employee.Employee> workers,
+  ) {
     if (blockIndex >= _workBlocks.length) return;
 
     setState(() {
@@ -586,11 +627,14 @@ class _WorkPlanFormModalState extends ConsumerState<WorkPlanFormModal> {
 
         final availableEmployees = _selectedObject != null
             ? (employeeState.employees
-                .where((employee) =>
-                    employee.objectIds.contains(_selectedObject!.id) &&
-                    employee.status == domain_employee.EmployeeStatus.working)
-                .toList()
-              ..sort((a, b) => a.lastName.compareTo(b.lastName)))
+                  .where(
+                    (employee) =>
+                        employee.objectIds.contains(_selectedObject!.id) &&
+                        employee.status ==
+                            domain_employee.EmployeeStatus.working,
+                  )
+                  .toList()
+                ..sort((a, b) => a.lastName.compareTo(b.lastName)))
             : <domain_employee.Employee>[];
 
         // Получаем список уже выбранных работников во всех блоках (для исключения дублей)
@@ -601,7 +645,12 @@ class _WorkPlanFormModalState extends ConsumerState<WorkPlanFormModal> {
           }
         }
 
-        return WorkPlanFormContent(
+        final isDesktop = ResponsiveUtils.isDesktop(context);
+        final title = widget.workPlan == null
+            ? 'Создание плана работ'
+            : 'Редактирование плана';
+
+        final formContent = WorkPlanFormContent(
           isNew: widget.workPlan == null,
           isLoading: _isLoading,
           dateController: _dateController,
@@ -626,6 +675,49 @@ class _WorkPlanFormModalState extends ConsumerState<WorkPlanFormModal> {
           onSave: _handleSave,
           onCancel: _handleCancel,
         );
+
+        final footer = Row(
+          children: [
+            Expanded(
+              child: GTSecondaryButton(
+                onPressed: _isLoading ? null : _handleCancel,
+                text: 'Отмена',
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: GTPrimaryButton(
+                onPressed: _isLoading || !_canSave() ? null : _handleSave,
+                isLoading: _isLoading,
+                text: widget.workPlan == null ? 'Создать план' : 'Сохранить',
+              ),
+            ),
+          ],
+        );
+
+        if (!widget.asDialog) {
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [formContent, const SizedBox(height: 32), footer],
+            ),
+          );
+        }
+
+        if (isDesktop) {
+          return DesktopDialogContent(
+            title: title,
+            footer: footer,
+            child: formContent,
+          );
+        } else {
+          return MobileBottomSheetContent(
+            title: title,
+            footer: footer,
+            child: formContent,
+          );
+        }
       },
     );
   }

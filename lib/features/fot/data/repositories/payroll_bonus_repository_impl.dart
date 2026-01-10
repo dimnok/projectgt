@@ -9,8 +9,11 @@ class PayrollBonusRepositoryImpl implements PayrollBonusRepository {
   /// Экземпляр SupabaseClient для доступа к базе данных.
   final SupabaseClient client;
 
-  /// Создаёт экземпляр [PayrollBonusRepositoryImpl] с переданным [client].
-  PayrollBonusRepositoryImpl(this.client);
+  /// Идентификатор активной компании.
+  final String activeCompanyId;
+
+  /// Создаёт экземпляр [PayrollBonusRepositoryImpl] с переданным [client] и [activeCompanyId].
+  PayrollBonusRepositoryImpl(this.client, this.activeCompanyId);
 
   /// Создать новую премию.
   ///
@@ -38,6 +41,7 @@ class PayrollBonusRepositoryImpl implements PayrollBonusRepository {
         .from('payroll_bonus')
         .update(bonus.toJson())
         .eq('id', bonus.id)
+        .eq('company_id', activeCompanyId)
         .select()
         .single();
     return PayrollBonusModel.fromJson(response);
@@ -49,12 +53,19 @@ class PayrollBonusRepositoryImpl implements PayrollBonusRepository {
   @override
   Future<void> deleteBonus(String id) async {
     // Удалить премию по id
-    await client.from('payroll_bonus').delete().eq('id', id);
+    await client
+        .from('payroll_bonus')
+        .delete()
+        .eq('id', id)
+        .eq('company_id', activeCompanyId);
   }
 
   @override
   Future<List<PayrollBonusModel>> getAllBonuses() async {
-    final response = await client.from('payroll_bonus').select();
+    final response = await client
+        .from('payroll_bonus')
+        .select()
+        .eq('company_id', activeCompanyId);
     return (response as List)
         .map((json) => PayrollBonusModel.fromJson(json as Map<String, dynamic>))
         .toList();

@@ -3,12 +3,12 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/domain/entities/profile.dart';
-import 'package:projectgt/domain/entities/object.dart';
+import 'package:projectgt/features/objects/domain/entities/object.dart';
+import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/features/profile/presentation/widgets/profile_edit_form.dart';
 import 'package:projectgt/features/profile/presentation/widgets/profile_employee_link_info.dart';
 import 'package:projectgt/features/profile/presentation/widgets/profile_status_switch.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
-import 'package:projectgt/features/profile/utils/profile_utils.dart';
 import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
 import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
@@ -74,7 +74,8 @@ class _UsersListMobileScreenState extends ConsumerState<UsersListMobileScreen> {
                 if (widget.isError) {
                   return Center(
                     child: Text(
-                        'Ошибка: ${widget.errorMessage ?? "Неизвестная ошибка"}'),
+                      'Ошибка: ${widget.errorMessage ?? "Неизвестная ошибка"}',
+                    ),
                   );
                 }
 
@@ -86,15 +87,17 @@ class _UsersListMobileScreenState extends ConsumerState<UsersListMobileScreen> {
                         Icon(
                           CupertinoIcons.person_badge_minus_fill,
                           size: 48,
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.3),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.3,
+                          ),
                         ),
                         const SizedBox(height: 16),
                         Text(
                           'Пользователи не найдены',
                           style: theme.textTheme.titleMedium?.copyWith(
-                            color: theme.colorScheme.onSurface
-                                .withValues(alpha: 0.5),
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.5,
+                            ),
                           ),
                         ),
                       ],
@@ -104,7 +107,11 @@ class _UsersListMobileScreenState extends ConsumerState<UsersListMobileScreen> {
 
                 return ListView.separated(
                   padding: const EdgeInsets.only(
-                      left: 16, right: 16, top: 16, bottom: 80),
+                    left: 16,
+                    right: 16,
+                    top: 16,
+                    bottom: 80,
+                  ),
                   itemCount: widget.profiles.length,
                   separatorBuilder: (context, index) =>
                       const SizedBox(height: 12),
@@ -128,7 +135,8 @@ class _UsersListMobileScreenState extends ConsumerState<UsersListMobileScreen> {
   void _showEditModal(BuildContext context, WidgetRef ref, Profile profile) {
     final isAdmin = ref.read(permissionServiceProvider).can('users', 'update');
 
-    final isDesktop = kIsWeb ||
+    final isDesktop =
+        kIsWeb ||
         defaultTargetPlatform == TargetPlatform.macOS ||
         defaultTargetPlatform == TargetPlatform.windows ||
         defaultTargetPlatform == TargetPlatform.linux;
@@ -141,10 +149,9 @@ class _UsersListMobileScreenState extends ConsumerState<UsersListMobileScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: Theme.of(ctx)
-                  .colorScheme
-                  .surfaceContainerHighest
-                  .withValues(alpha: 0.3),
+              color: Theme.of(
+                ctx,
+              ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
@@ -166,10 +173,17 @@ class _UsersListMobileScreenState extends ConsumerState<UsersListMobileScreen> {
                       value: currentProfile.status == true,
                       canToggle: isAdmin,
                       isBusy: false,
-                      onChanged: (value) {
-                        ref.read(profileProvider.notifier).updateProfile(
-                            currentProfile.copyWith(
-                                status: value, updatedAt: DateTime.now()));
+                      onChanged: (value) async {
+                        // [RBAC v3] Обновляем статус в company_members
+                        if (currentProfile.lastCompanyId != null) {
+                          await ref
+                              .read(profileProvider.notifier)
+                              .updateMember(
+                                userId: currentProfile.id,
+                                companyId: currentProfile.lastCompanyId!,
+                                isActive: value,
+                              );
+                        }
                       },
                     );
                   },
@@ -186,18 +200,38 @@ class _UsersListMobileScreenState extends ConsumerState<UsersListMobileScreen> {
             isAdmin: isAdmin,
             initialEmployeeId: profile.object?['employee_id'] as String?,
             initialRoleId: profile.roleId,
-            onSave: (fullName, phone, selectedObjectIds, employeeId, roleId) {
-              final updatedProfile = ProfileUtils.prepareProfileForUpdate(
-                originalProfile: profile,
-                fullName: fullName,
-                phone: phone,
-                selectedObjectIds: selectedObjectIds,
-                employeeId: employeeId,
-                roleId: roleId,
-                isAdmin: isAdmin,
-              );
+            onSave: (fullName, phone, selectedObjectIds, employeeId, roleId) async {
+              // [RBAC v3] В списке пользователей админ обновляет только данные в company_members
+              // Мы НЕ вызываем updateProfile, так как это заблокировано RLS для чужих профилей
+              if (profile.lastCompanyId != null) {
+                try {
+                  await ref
+                      .read(profileProvider.notifier)
+                      .updateMember(
+                        userId: profile.id,
+                        companyId: profile.lastCompanyId!,
+                        roleId: roleId,
+                      );
 
-              ref.read(profileProvider.notifier).updateProfile(updatedProfile);
+                  // Проверяем состояние после обновления
+                  final state = ref.read(profileProvider);
+                  if (state.status == ProfileStatus.error && context.mounted) {
+                    AppSnackBar.show(
+                      context: context,
+                      message: 'Ошибка: ${state.errorMessage}',
+                      kind: AppSnackBarKind.error,
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    AppSnackBar.show(
+                      context: context,
+                      message: 'Ошибка при обновлении: $e',
+                      kind: AppSnackBarKind.error,
+                    );
+                  }
+                }
+              }
             },
             onSuccess: () {
               Navigator.of(context).pop();
@@ -257,11 +291,19 @@ class _UserListTile extends ConsumerWidget {
     final textTheme = theme.textTheme;
 
     final rolesState = ref.watch(rolesNotifierProvider);
-    final roleName = rolesState.valueOrNull
-            ?.where((r) => r.id == profile.roleId)
-            .firstOrNull
-            ?.name ??
-        'ROLE';
+    final String displayRole;
+    if (profile.system_role == 'owner') {
+      displayRole = 'Владелец';
+    } else if (profile.system_role == 'admin') {
+      displayRole = 'Администратор';
+    } else {
+      displayRole =
+          rolesState.valueOrNull
+              ?.where((r) => r.id == profile.roleId)
+              .firstOrNull
+              ?.name ??
+          (profile.roleId != null ? '...' : 'Без роли');
+    }
 
     // Используем onSurfaceVariant для второстепенного текста
     final subtitleColor = colorScheme.onSurfaceVariant;
@@ -347,17 +389,20 @@ class _UserListTile extends ConsumerWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          if (profile.roleId != null) ...[
+                          if (profile.roleId != null ||
+                              profile.system_role != null) ...[
                             const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 2),
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: colorScheme.tertiaryContainer,
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
-                                roleName,
+                                displayRole,
                                 style: textTheme.labelSmall?.copyWith(
                                   color: colorScheme.onTertiaryContainer,
                                   fontWeight: FontWeight.w600,
@@ -371,7 +416,7 @@ class _UserListTile extends ConsumerWidget {
                       Text(
                         [
                           profile.email,
-                          if (profile.phone != null) profile.phone
+                          if (profile.phone != null) profile.phone,
                         ].join(' • '),
                         style: textTheme.bodySmall?.copyWith(
                           color: subtitleColor,

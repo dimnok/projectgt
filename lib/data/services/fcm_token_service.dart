@@ -117,21 +117,27 @@ class FcmTokenService {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
 
-    // Для Web требуется передать VAPID ключ
-    final String? token = await FirebaseMessaging.instance.getToken(
-      vapidKey: kIsWeb
-          ? 'BGPPZr58sdNUlGT4RFTLiteNdyOxQWI9mJdxnP4ycqEA0qUrGh6sDRKdkvXN6O1jpdmeH1ETcwn8ePeTPocORW4'
-          : null,
-    );
-    if (token == null || token.isEmpty) return;
-
-    // Получаем installation_id для уникальной привязки установки
-    String? installationId;
     try {
-      installationId = await FirebaseInstallations.instance.getId();
-    } catch (_) {}
+      // Для Web требуется передать VAPID ключ
+      final String? token = await FirebaseMessaging.instance.getToken(
+        vapidKey: kIsWeb
+            ? 'BGPPZr58sdNUlGT4RFTLiteNdyOxQWI9mJdxnP4ycqEA0qUrGh6sDRKdkvXN6O1jpdmeH1ETcwn8ePeTPocORW4'
+            : null,
+      );
+      if (token == null || token.isEmpty) return;
 
-    await _saveToken(token, installationId: installationId);
+      // Получаем installation_id для уникальной привязки установки
+      String? installationId;
+      try {
+        installationId = await FirebaseInstallations.instance.getId();
+      } catch (_) {}
+
+      await _saveToken(token, installationId: installationId);
+    } catch (e) {
+      debugPrint('FCM token error: $e');
+      // Ошибка [firebase_messaging/apns-token-not-set] часто случается на iOS
+      // если вызвать getToken до того, как система выдаст APNS токен.
+    }
   }
 
   Future<void> _saveToken(String token, {String? installationId}) async {

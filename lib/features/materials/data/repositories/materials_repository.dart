@@ -10,10 +10,16 @@ class MaterialsRepository {
   const MaterialsRepository(this.client);
 
   /// Загрузка списка материалов с сортировкой по дате и имени.
-  Future<List<MaterialItem>> fetchAll({String? contractNumber}) async {
+  Future<List<MaterialItem>> fetchAll({
+    required String companyId,
+    String? contractNumber,
+  }) async {
     // ВАЖНО: сначала применяем фильтры, затем сортировку.
-    // eq() доступен на PostgrestFilterBuilder, а order() возвращает PostgrestTransformBuilder.
-    var builder = client.from('v_materials_with_usage').select();
+    var builder = client
+        .from('v_materials_with_usage')
+        .select()
+        .eq('company_id', companyId);
+
     if (contractNumber != null && contractNumber.trim().isNotEmpty) {
       builder = builder.eq('contract_number', contractNumber.trim());
     }
@@ -21,16 +27,19 @@ class MaterialsRepository {
         .order('receipt_date', ascending: false)
         .order('name', ascending: true);
     return (data as List<dynamic>)
-        .map((e) => MaterialItem.fromMap(e as Map<String, dynamic>))
+        .map((e) => MaterialItem.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
   /// Получить список уникальных номеров договоров из materials
-  Future<List<String>> fetchDistinctContractNumbers() async {
+  Future<List<String>> fetchDistinctContractNumbers({
+    required String companyId,
+  }) async {
     // Берём номера только активных договоров из справочника contracts
     final rows = await client
         .from('contracts')
         .select('number,status')
+        .eq('company_id', companyId)
         .inFilter('status', ['active', 'активен', 'ACTIVE', 'Активен']);
     final set = <String>{};
     for (final r in rows as List) {

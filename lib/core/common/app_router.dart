@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // imports of specific screens are not needed here because we use AuthGate
+import 'package:projectgt/features/auth/presentation/screens/onboarding_screen.dart';
 import 'package:projectgt/features/auth/presentation/screens/profile_completion_screen.dart';
 import 'package:projectgt/features/profile/presentation/screens/profile_screen.dart';
 import 'package:projectgt/features/profile/presentation/screens/notifications_settings_screen.dart';
@@ -44,6 +45,7 @@ import 'package:projectgt/features/inventory/presentation/screens/inventory_inve
 import 'package:projectgt/features/inventory/presentation/screens/inventory_categories_reference_screen.dart';
 import 'package:projectgt/features/procurement/presentation/screens/procurement_list_screen.dart';
 import 'package:projectgt/features/procurement/presentation/screens/procurement_settings_screen.dart';
+import 'package:projectgt/features/cash_flow/presentation/screens/cash_flow_list_screen.dart';
 // Telegram moderation экраны удалены
 import 'package:projectgt/core/widgets/auth_gate.dart';
 import 'package:projectgt/features/version_control/presentation/force_update_screen.dart';
@@ -138,12 +140,31 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.company,
         name: 'company',
-        builder: (context, state) => const CompanyScreen(),
+        builder: (context, state) {
+          return Consumer(
+            builder: (context, ref, child) {
+              final service = ref.watch(permissionServiceProvider);
+              if (service.can('company', 'read')) {
+                return const CompanyScreen();
+              }
+              return _buildAccessDeniedScreen();
+            },
+          );
+        },
       ),
       GoRoute(
         path: AppRoutes.profile,
         name: 'profile',
         builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.onboarding,
+        name: 'onboarding',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final showLogout = extra?['showLogout'] ?? true;
+          return OnboardingScreen(showLogout: showLogout);
+        },
       ),
       GoRoute(
         path: '${AppRoutes.profile}/complete',
@@ -740,6 +761,22 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
 
+      GoRoute(
+        path: AppRoutes.cashFlow,
+        name: 'cash_flow',
+        builder: (context, state) {
+          return Consumer(
+            builder: (context, ref, child) {
+              final service = ref.watch(permissionServiceProvider);
+              if (service.can('cash_flow', 'read')) {
+                return const CashFlowListScreen();
+              }
+              return _buildAccessDeniedScreen();
+            },
+          );
+        },
+      ),
+
       // Страницы статусов доступа управляются через AuthGate
     ],
     errorBuilder: (context, state) =>
@@ -767,6 +804,9 @@ class AppRoutes {
 
   /// Профиль пользователя
   static const String profile = '/profile';
+
+  /// Экран выбора компании (Onboarding)
+  static const String onboarding = '/onboarding';
 
   /// Список пользователей (админ)
   static const String users = '/users';
@@ -821,6 +861,9 @@ class AppRoutes {
 
   /// Маршрут для заявок
   static const String procurement = '/procurement';
+
+  /// Маршрут для модуля Cash Flow (Движение денежных средств)
+  static const String cashFlow = '/cash_flow';
 
   // Telegram маршруты удалены
 

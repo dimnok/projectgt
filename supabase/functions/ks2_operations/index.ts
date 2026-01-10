@@ -17,17 +17,21 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const { action, contractId, periodTo, actNumber, actDate } = await req.json();
+    const { action, contractId, companyId, periodTo, actNumber, actDate } = await req.json();
 
     if (!contractId) {
       throw new Error("contractId is required");
     }
 
+    if (!companyId) {
+      throw new Error("companyId is required");
+    }
+
     if (action === 'preview') {
-        return await handlePreview(supabase, contractId, periodTo);
+        return await handlePreview(supabase, contractId, companyId, periodTo);
     } else if (action === 'create') {
         if (!actNumber || !actDate) throw new Error("actNumber and actDate are required for creation");
-        return await handleCreate(supabase, contractId, periodTo, actNumber, actDate);
+        return await handleCreate(supabase, contractId, companyId, periodTo, actNumber, actDate);
     } else {
         throw new Error("Invalid action. Use 'preview' or 'create'");
     }
@@ -41,20 +45,20 @@ serve(async (req) => {
   }
 });
 
-async function handlePreview(supabase: any, contractId: string, periodTo: string) {
-    console.log(`Previewing KS-2 for contract ${contractId} until ${periodTo}`);
-    const data = await calculateKs2Candidates(supabase, contractId, periodTo);
+async function handlePreview(supabase: any, contractId: string, companyId: string, periodTo: string) {
+    console.log(`Previewing KS-2 for contract ${contractId} (company ${companyId}) until ${periodTo}`);
+    const data = await calculateKs2Candidates(supabase, contractId, companyId, periodTo);
     
     return new Response(JSON.stringify(data), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 }
 
-async function handleCreate(supabase: any, contractId: string, periodTo: string, actNumber: string, actDate: string) {
-    console.log(`Creating KS-2 for contract ${contractId}`);
+async function handleCreate(supabase: any, contractId: string, companyId: string, periodTo: string, actNumber: string, actDate: string) {
+    console.log(`Creating KS-2 for contract ${contractId} (company ${companyId})`);
     
     // 1. Recalculate candidates to ensure consistency (double-check limits)
-    const { candidates, totalAmount } = await calculateKs2Candidates(supabase, contractId, periodTo);
+    const { candidates, totalAmount } = await calculateKs2Candidates(supabase, contractId, companyId, periodTo);
 
     if (candidates.length === 0) {
         throw new Error("No eligible work items found for KS-2");
@@ -63,7 +67,6 @@ async function handleCreate(supabase: any, contractId: string, periodTo: string,
     const candidateIds = candidates.map((c: any) => c.id);
 
     // 2. Create Act
-    // period_from is min date of items, period_to is max date of items or provided periodTo
     const dates = candidates.map((c: any) => new Date(c.date).getTime());
     const minDate = new Date(Math.min(...dates));
     const maxDate = new Date(Math.max(...dates));
@@ -72,10 +75,11 @@ async function handleCreate(supabase: any, contractId: string, periodTo: string,
         .from('ks2_acts')
         .insert({
             contract_id: contractId,
+            company_id: companyId, // Added
             number: actNumber,
             date: actDate,
             period_from: minDate.toISOString(),
-            period_to: maxDate.toISOString(), // Or periodTo? Using actual max date is safer for facts.
+            period_to: maxDate.toISOString(),
             total_amount: totalAmount,
             status: 'draft'
         })
@@ -88,11 +92,12 @@ async function handleCreate(supabase: any, contractId: string, periodTo: string,
     const { error: updateError } = await supabase
         .from('work_items')
         .update({ ks2_id: act.id })
-        .in('id', candidateIds);
+        .in('id', candidateIds)
+        .eq('company_id', companyId); // Safety filter
 
     if (updateError) {
-        // Rollback act creation if update fails (manual compensation since no transactions in HTTP)
-        await supabase.from('ks2_acts').delete().eq('id', act.id);
+        // Rollback act creation if update fails
+        await supabase.from('ks2_acts').delete().eq('id', act.id).eq('company_id', companyId);
         throw updateError;
     }
 
@@ -101,14 +106,19 @@ async function handleCreate(supabase: any, contractId: string, periodTo: string,
     });
 }
 
-async function calculateKs2Candidates(supabase: any, contractId: string, periodTo: string) {
+async function calculateKs2Candidates(supabase: any, contractId: string, companyId: string, periodTo: string) {
     // 1. Get all Estimates for Contract (Limits)
     const { data: estimates, error: estError } = await supabase
         .from('estimates')
         .select('id, quantity, unit, price')
-        .eq('contract_id', contractId);
+        .eq('contract_id', contractId)
+        .eq('company_id', companyId); // Added
     
     if (estError) throw estError;
+
+    if (!estimates || estimates.length === 0) {
+        return { candidates: [], skipped: [], totalAmount: 0, stats: { candidatesCount: 0, skippedCount: 0 } };
+    }
 
     // Map: estimate_id -> { limit, price }
     const estimateLimits = new Map();
@@ -124,18 +134,20 @@ async function calculateKs2Candidates(supabase: any, contractId: string, periodT
         .from('work_items')
         .select('estimate_id, quantity')
         .not('ks2_id', 'is', null) // Closed
+        .eq('company_id', companyId) // Added
         .in('estimate_id', estimates.map((e: any) => e.id));
 
     if (closedError) throw closedError;
 
     const closedUsage = new Map();
-    closedItems.forEach((i: any) => {
-        const current = closedUsage.get(i.estimate_id) || 0;
-        closedUsage.set(i.estimate_id, current + Number(i.quantity));
-    });
+    if (closedItems) {
+        closedItems.forEach((i: any) => {
+            const current = closedUsage.get(i.estimate_id) || 0;
+            closedUsage.set(i.estimate_id, current + Number(i.quantity));
+        });
+    }
 
     // 3. Get Open Candidates (Items without KS-2, up to periodTo)
-    // We sort by date to close oldest items first (FIFO)
     let query = supabase
         .from('work_items')
         .select(`
@@ -148,6 +160,7 @@ async function calculateKs2Candidates(supabase: any, contractId: string, periodT
             works!inner(date)
         `)
         .is('ks2_id', null)
+        .eq('company_id', companyId) // Added
         .in('estimate_id', estimates.map((e: any) => e.id));
     
     if (periodTo) {

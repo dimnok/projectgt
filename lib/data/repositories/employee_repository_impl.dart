@@ -11,8 +11,11 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
   /// Data source для работы с сотрудниками.
   final EmployeeDataSource dataSource;
 
-  /// Создаёт [EmployeeRepositoryImpl] с указанным [dataSource].
-  EmployeeRepositoryImpl(this.dataSource);
+  /// ID активной компании.
+  final String activeCompanyId;
+
+  /// Создаёт [EmployeeRepositoryImpl] с указанным [dataSource] и [activeCompanyId].
+  EmployeeRepositoryImpl(this.dataSource, this.activeCompanyId);
 
   @override
   Future<List<Employee>> getEmployees() async {
@@ -50,6 +53,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     final data = await Supabase.instance.client
         .from('employees')
         .select('position')
+        .eq('company_id', activeCompanyId)
         .not('position', 'is', null);
 
     final positions = <String>{};

@@ -12,6 +12,9 @@ class WorkDataSourceImpl implements WorkDataSource {
   /// Клиент Supabase для доступа к базе данных.
   final SupabaseClient client;
 
+  /// ID текущей активной компании для фильтрации данных (Multi-tenancy).
+  final String activeCompanyId;
+
   /// Название таблицы смен.
   static const String table = 'works';
 
@@ -19,7 +22,7 @@ class WorkDataSourceImpl implements WorkDataSource {
   final Logger _logger = Logger();
 
   /// Создаёт источник данных для работы со сменами.
-  WorkDataSourceImpl(this.client);
+  WorkDataSourceImpl(this.client, this.activeCompanyId);
 
   /// Возвращает список всех смен.
   @override
@@ -28,6 +31,7 @@ class WorkDataSourceImpl implements WorkDataSource {
       final response = await client
           .from(table)
           .select('*')
+          .eq('company_id', activeCompanyId)
           .order('created_at', ascending: false);
       return response
           .map<WorkModel>((json) => WorkModel.fromJson(json))
@@ -42,8 +46,12 @@ class WorkDataSourceImpl implements WorkDataSource {
   @override
   Future<WorkModel?> getWork(String id) async {
     try {
-      final response =
-          await client.from(table).select('*').eq('id', id).maybeSingle();
+      final response = await client
+          .from(table)
+          .select('*')
+          .eq('id', id)
+          .eq('company_id', activeCompanyId)
+          .maybeSingle();
       if (response == null) return null;
       return WorkModel.fromJson(response);
     } catch (e) {
@@ -60,6 +68,7 @@ class WorkDataSourceImpl implements WorkDataSource {
       final workJson = work.toJson();
       workJson['created_at'] = now;
       workJson['updated_at'] = now;
+      workJson['company_id'] = activeCompanyId;
       workJson.remove('id');
 
       final response =
@@ -78,6 +87,7 @@ class WorkDataSourceImpl implements WorkDataSource {
       final now = DateTime.now().toIso8601String();
       final workJson = work.toJson();
       workJson['updated_at'] = now;
+      workJson['company_id'] = activeCompanyId;
 
       // КРИТИЧНО: Удаляем агрегатные поля, которые управляются триггерами БД.
       workJson.remove('total_amount');
@@ -97,6 +107,7 @@ class WorkDataSourceImpl implements WorkDataSource {
           .from(table)
           .update(workJson)
           .eq('id', work.id!)
+          .eq('company_id', activeCompanyId)
           .select()
           .single();
       return WorkModel.fromJson(response);
@@ -110,7 +121,11 @@ class WorkDataSourceImpl implements WorkDataSource {
   @override
   Future<void> deleteWork(String id) async {
     try {
-      await client.from(table).delete().eq('id', id);
+      await client
+          .from(table)
+          .delete()
+          .eq('id', id)
+          .eq('company_id', activeCompanyId);
     } catch (e) {
       _logger.e('Ошибка удаления смены: $e');
       rethrow;
@@ -121,7 +136,9 @@ class WorkDataSourceImpl implements WorkDataSource {
   @override
   Future<List<MonthGroup>> getMonthsHeaders() async {
     try {
-      final response = await client.rpc('get_months_summary');
+      final response = await client.rpc('get_months_summary', params: {
+        'p_company_id': activeCompanyId,
+      });
 
       final groups = (response as List).map<MonthGroup>((json) {
         final month = DateTime.parse(json['month'] as String);
@@ -158,6 +175,7 @@ class WorkDataSourceImpl implements WorkDataSource {
       final response = await client
           .from(table)
           .select('*')
+          .eq('company_id', activeCompanyId)
           .gte('date', startDate.toIso8601String())
           .lt('date', endDate.toIso8601String())
           .order('date', ascending: false)
@@ -182,6 +200,7 @@ class WorkDataSourceImpl implements WorkDataSource {
       final response = await client
           .from(table)
           .select('id, date, total_amount, employees_count')
+          .eq('company_id', activeCompanyId)
           .gte('date', startDate.toIso8601String())
           .lt('date', endDate.toIso8601String())
           .order('date', ascending: false);
@@ -204,6 +223,7 @@ class WorkDataSourceImpl implements WorkDataSource {
 
       final response = await client.rpc('get_month_objects_summary', params: {
         'p_month': monthStr,
+        'p_company_id': activeCompanyId,
       });
 
       return (response as List).map((json) {
@@ -229,6 +249,7 @@ class WorkDataSourceImpl implements WorkDataSource {
 
       final response = await client.rpc('get_month_systems_summary', params: {
         'p_month': monthStr,
+        'p_company_id': activeCompanyId,
       });
 
       return (response as List).map((json) {
@@ -254,6 +275,7 @@ class WorkDataSourceImpl implements WorkDataSource {
 
       final response = await client.rpc('get_month_hours_summary', params: {
         'p_month': monthStr,
+        'p_company_id': activeCompanyId,
       });
 
       final json = (response is List)
@@ -278,6 +300,7 @@ class WorkDataSourceImpl implements WorkDataSource {
 
       final response = await client.rpc('get_month_employees_summary', params: {
         'p_month': monthStr,
+        'p_company_id': activeCompanyId,
       });
 
       final json = (response is List)

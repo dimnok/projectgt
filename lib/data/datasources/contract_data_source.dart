@@ -58,13 +58,17 @@ class SupabaseContractDataSource implements ContractDataSource {
   /// Экземпляр клиента Supabase для выполнения запросов.
   final SupabaseClient client;
 
+  /// ID активной компании.
+  final String activeCompanyId;
+
   /// Логгер для отладочной информации.
   final Logger _logger = Logger();
 
   /// Создаёт источник данных по договорам через Supabase.
   ///
   /// [client] — экземпляр [SupabaseClient].
-  SupabaseContractDataSource(this.client);
+  /// [activeCompanyId] — ID активной компании.
+  SupabaseContractDataSource(this.client, this.activeCompanyId);
 
   /// Получает список всех договоров с названиями контрагента и объекта.
   ///
@@ -79,6 +83,7 @@ class SupabaseContractDataSource implements ContractDataSource {
     final response = await client
         .from('contracts')
         .select('*, contractor:contractors(short_name), object:objects(name)')
+        .eq('company_id', activeCompanyId)
         .order('date', ascending: false);
     return response
         .map<ContractModel>((json) => ContractModel.fromJson(json))
@@ -92,8 +97,12 @@ class SupabaseContractDataSource implements ContractDataSource {
   /// Выбрасывает исключение при ошибке.
   @override
   Future<ContractModel?> getContract(String id) async {
-    final response =
-        await client.from('contracts').select('*').eq('id', id).maybeSingle();
+    final response = await client
+        .from('contracts')
+        .select('*')
+        .eq('id', id)
+        .eq('company_id', activeCompanyId)
+        .maybeSingle();
     if (response == null) return null;
     return ContractModel.fromJson(response);
   }
@@ -107,6 +116,7 @@ class SupabaseContractDataSource implements ContractDataSource {
   Future<ContractModel> createContract(Contract contract) async {
     final now = DateTime.now().toIso8601String();
     final contractJson = ContractModel.fromDomain(contract).toJson();
+    contractJson['company_id'] = activeCompanyId;
     contractJson['created_at'] = now;
     contractJson['updated_at'] = now;
     _logger.d('[CONTRACTS][SEND TO SUPABASE] $contractJson');
@@ -131,11 +141,13 @@ class SupabaseContractDataSource implements ContractDataSource {
   Future<ContractModel> updateContract(ContractModel contract) async {
     final now = DateTime.now().toIso8601String();
     final contractJson = contract.toJson();
+    contractJson['company_id'] = activeCompanyId;
     contractJson['updated_at'] = now;
     final response = await client
         .from('contracts')
         .update(contractJson)
         .eq('id', contract.id)
+        .eq('company_id', activeCompanyId)
         .select()
         .maybeSingle();
     if (response == null) {
@@ -150,6 +162,10 @@ class SupabaseContractDataSource implements ContractDataSource {
   /// Выбрасывает исключение при ошибке.
   @override
   Future<void> deleteContract(String id) async {
-    await client.from('contracts').delete().eq('id', id);
+    await client
+        .from('contracts')
+        .delete()
+        .eq('id', id)
+        .eq('company_id', activeCompanyId);
   }
 }

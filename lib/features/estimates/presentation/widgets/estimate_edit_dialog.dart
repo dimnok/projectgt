@@ -12,6 +12,7 @@ import '../../../../core/widgets/desktop_dialog_content.dart';
 import '../../../../core/widgets/gt_buttons.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../providers/estimate_providers.dart';
+import '../../../../features/company/presentation/providers/company_providers.dart';
 
 /// Диалоговое окно для создания или редактирования позиции сметы.
 class EstimateEditDialog extends ConsumerStatefulWidget {
@@ -287,8 +288,19 @@ class _EstimateEditDialogState extends ConsumerState<EstimateEditDialog> {
         }
       }
 
+      final activeCompanyId = ref.read(activeCompanyIdProvider);
+      if (activeCompanyId == null) {
+        AppSnackBar.show(
+          context: context,
+          message: 'Компания не выбрана',
+          kind: AppSnackBarKind.error,
+        );
+        return;
+      }
+
       final updatedEstimate = Estimate(
         id: isEditing ? widget.estimate!.id : _uuid.v4(),
+        companyId: widget.estimate?.companyId ?? activeCompanyId,
         system: _systemController.text,
         subsystem: _subsystemController.text,
         number: _numberController.text,

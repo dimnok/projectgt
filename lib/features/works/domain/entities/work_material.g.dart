@@ -9,6 +9,7 @@ part of 'work_material.dart';
 _WorkMaterial _$WorkMaterialFromJson(Map<String, dynamic> json) =>
     _WorkMaterial(
       id: json['id'] as String,
+      companyId: json['companyId'] as String,
       workId: json['workId'] as String,
       name: json['name'] as String,
       unit: json['unit'] as String,
@@ -25,6 +26,7 @@ _WorkMaterial _$WorkMaterialFromJson(Map<String, dynamic> json) =>
 Map<String, dynamic> _$WorkMaterialToJson(_WorkMaterial instance) =>
     <String, dynamic>{
       'id': instance.id,
+      'companyId': instance.companyId,
       'workId': instance.workId,
       'name': instance.name,
       'unit': instance.unit,

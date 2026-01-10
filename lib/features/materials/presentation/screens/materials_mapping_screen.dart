@@ -7,6 +7,7 @@ import '../providers/materials_mapping_providers.dart';
 import '../widgets/materials_search.dart';
 import '../widgets/materials_link_button.dart';
 import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 import '../widgets/contracts_filter_chips.dart';
 
 /// Экран "Сопоставление материалов" (алиасы накладных → сметные позиции).
@@ -210,10 +211,12 @@ class MaterialsMappingScreen extends ConsumerWidget {
                         );
                         if (confirmed != true) return;
                         try {
+                          final activeCompanyId = ref.read(activeCompanyIdProvider);
                           await client
                               .from('material_aliases')
                               .delete()
-                              .eq('id', aliasId);
+                              .eq('id', aliasId)
+                              .eq('company_id', activeCompanyId ?? '');
                           // сбрасываем раскрытие строки
                           final exp =
                               ref.read(expandedEstimatesProvider.notifier);

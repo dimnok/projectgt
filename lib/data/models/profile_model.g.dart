@@ -16,6 +16,7 @@ _ProfileModel _$ProfileModelFromJson(Map<String, dynamic> json) =>
       phone: json['phone'] as String?,
       position: json['position'] as String?,
       roleId: json['role_id'] as String?,
+      systemRole: json['system_role'] as String?,
       status: json['status'] as bool? ?? true,
       object: json['object'] as Map<String, dynamic>?,
       createdAt: json['created_at'] == null
@@ -27,6 +28,7 @@ _ProfileModel _$ProfileModelFromJson(Map<String, dynamic> json) =>
       objectIds: (json['object_ids'] as List<dynamic>?)
           ?.map((e) => e as String)
           .toList(),
+      lastCompanyId: json['last_company_id'] as String?,
     );
 
 Map<String, dynamic> _$ProfileModelToJson(_ProfileModel instance) =>
@@ -39,9 +41,11 @@ Map<String, dynamic> _$ProfileModelToJson(_ProfileModel instance) =>
       'phone': instance.phone,
       'position': instance.position,
       'role_id': instance.roleId,
+      'system_role': instance.systemRole,
       'status': instance.status,
       'object': instance.object,
       'created_at': instance.createdAt?.toIso8601String(),
       'updated_at': instance.updatedAt?.toIso8601String(),
       'object_ids': instance.objectIds,
+      'last_company_id': instance.lastCompanyId,
     };

@@ -13,12 +13,22 @@ class ShiftsDataSourceImpl implements ShiftsDataSource {
   /// Клиент Supabase для работы с БД.
   final SupabaseClient supabaseClient;
 
+  /// ID текущей активной компании для фильтрации данных (Multi-tenancy).
+  final String? activeCompanyId;
+
   /// Создаёт реализацию источника данных календаря смен.
-  ShiftsDataSourceImpl({required this.supabaseClient});
+  ShiftsDataSourceImpl({
+    required this.supabaseClient,
+    this.activeCompanyId,
+  });
 
   @override
   Future<List<Map<String, dynamic>>> getShiftsForMonth(DateTime month) async {
     try {
+      if (activeCompanyId == null) {
+        return [];
+      }
+
       /// Правильно обрабатываем границы месяца.
       final monthStart = DateTime(month.year, month.month, 1);
       final monthEnd = month.month == 12
@@ -36,12 +46,13 @@ class ShiftsDataSourceImpl implements ShiftsDataSource {
       final response = await supabaseClient.from('works').select('''
             date,
             total_amount,
+            company_id,
             objects(name),
             work_items(
               system,
               total
             )
-          ''').gte('date', dateFromStr).lte('date', dateToStr).order('date');
+          ''').gte('date', dateFromStr).lte('date', dateToStr).eq('company_id', activeCompanyId!).order('date');
 
       final responseList = response as List;
 
@@ -84,6 +95,15 @@ class ShiftsDataSourceImpl implements ShiftsDataSource {
   @override
   Future<Map<String, dynamic>> getShiftsForDate(DateTime date) async {
     try {
+      if (activeCompanyId == null) {
+        return {
+          'date': date,
+          'totalAmount': 0.0,
+          'objectTotals': <String, double>{},
+          'systemsByObject': <String, Map<String, double>>{},
+        };
+      }
+
       /// Форматируем дату в формат YYYY-MM-DD.
       final dateStr =
           '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
@@ -94,12 +114,13 @@ class ShiftsDataSourceImpl implements ShiftsDataSource {
       final response = await supabaseClient.from('works').select('''
             date,
             total_amount,
+            company_id,
             objects(name),
             work_items(
               system,
               total
             )
-          ''').gte('date', dateStr).lte('date', dateEndStr);
+          ''').gte('date', dateStr).lte('date', dateEndStr).eq('company_id', activeCompanyId!);
 
       final responseList = response as List;
 
