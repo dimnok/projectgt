@@ -797,8 +797,8 @@ class _WorksMasterDetailScreenState
                                     _displayMode = _DisplayMode.works;
                                   });
                                 },
-                                icon: CupertinoIcons.add,
-                                text: 'Открыть смену',
+                                icon: CupertinoIcons.eye,
+                                text: 'Просмотреть смены',
                                 backgroundColor: Colors.green,
                               ),
                             ),
