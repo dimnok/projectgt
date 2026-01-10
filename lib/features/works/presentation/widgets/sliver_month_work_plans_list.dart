@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/domain/entities/work_plan.dart';
 import 'package:projectgt/features/work_plans/presentation/providers/work_plan_month_groups_provider.dart';
 import 'package:projectgt/core/utils/formatters.dart';
+import 'package:projectgt/features/objects/presentation/state/object_state.dart';
+import 'package:projectgt/core/di/providers.dart';
 
 /// Виджет для отображения списка планов в развёрнутой группе месяца.
 ///
 /// Показывает планы в виде карточек с информацией о дате, сумме, количестве блоков и специалистов.
-class SliverMonthWorkPlansList extends StatelessWidget {
+class SliverMonthWorkPlansList extends ConsumerWidget {
   /// Группа месяца с планами.
   final WorkPlanMonthGroup group;
 
@@ -25,7 +28,7 @@ class SliverMonthWorkPlansList extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final plans = group.workPlans ?? [];
 
@@ -45,22 +48,46 @@ class SliverMonthWorkPlansList extends StatelessWidget {
       );
     }
 
+    // Получаем объекты для заполнения названий
+    final objectsState = ref.watch(objectProvider);
+
     return SliverList(
       delegate: SliverChildBuilderDelegate((context, index) {
         final plan = plans[index];
-        return _buildPlanCard(context, theme, plan);
+        return _buildPlanCard(context, theme, plan, objectsState);
       }, childCount: plans.length),
     );
   }
 
   /// Строит карточку плана работ, аналогично карточке смены.
-  Widget _buildPlanCard(BuildContext context, ThemeData theme, WorkPlan plan) {
+  Widget _buildPlanCard(
+    BuildContext context,
+    ThemeData theme,
+    WorkPlan plan,
+    ObjectState objectsState,
+  ) {
     // Подсчитываем уникальных специалистов
     final Set<String> uniqueWorkers = {};
     for (final block in plan.workBlocks) {
       uniqueWorkers.addAll(block.workerIds);
     }
     final workersCount = uniqueWorkers.length;
+
+    // Получаем название объекта
+    String objectName = plan.objectName ?? 'Без названия';
+    if ((plan.objectName?.isEmpty ?? true) &&
+        objectsState.objects.isNotEmpty) {
+      try {
+        final obj = objectsState.objects.firstWhere(
+          (o) => o.id == plan.objectId,
+        );
+        if (obj.name.isNotEmpty) {
+          objectName = obj.name;
+        }
+      } catch (_) {
+        // Игнорируем ошибки при поиске объекта
+      }
+    }
 
     return Hero(
       tag: 'plan_card_${plan.id}',
@@ -130,7 +157,7 @@ class SliverMonthWorkPlansList extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 Text(
-                                  plan.objectName ?? 'Без названия',
+                                  objectName,
                                   style: theme.textTheme.bodyMedium?.copyWith(
                                     fontWeight: FontWeight.w500,
                                     fontSize: 13,
