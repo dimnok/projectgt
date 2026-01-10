@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import 'package:projectgt/core/widgets/edge_to_edge_scaffold.dart';
 import 'package:projectgt/core/widgets/gt_confirmation_dialog.dart';
 import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:projectgt/domain/entities/work_plan.dart';
@@ -103,19 +102,17 @@ class _WorkPlanMobileDetailsState extends ConsumerState<WorkPlanMobileDetails> {
     final employeeState = ref.watch(state.employeeProvider);
 
     if (isLoading) {
-      return EdgeToEdgeScaffold(
+      return Scaffold(
         appBar:
             widget.showAppBar ? const AppBarWidget(title: 'План работ') : null,
-        drawer: widget.showAppBar ? null : null,
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     if (workPlan == null) {
-      return EdgeToEdgeScaffold(
+      return Scaffold(
         appBar:
             widget.showAppBar ? const AppBarWidget(title: 'План работ') : null,
-        drawer: widget.showAppBar ? null : null,
         body: Center(
           child: Text(
             'План работ не найден',
@@ -130,7 +127,7 @@ class _WorkPlanMobileDetailsState extends ConsumerState<WorkPlanMobileDetails> {
         .where((obj) => obj.id == workPlan.objectId)
         .firstOrNull;
 
-    return EdgeToEdgeScaffold(
+    return Scaffold(
       appBar: widget.showAppBar
           ? AppBarWidget(
               title: GtFormatters.formatRuDate(workPlan.date),
@@ -163,7 +160,6 @@ class _WorkPlanMobileDetailsState extends ConsumerState<WorkPlanMobileDetails> {
               ],
             )
           : null,
-      drawer: null,
       body: SingleChildScrollView(
         child: Column(
           children: [

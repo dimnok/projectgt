@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/di/providers.dart';
-import 'package:projectgt/core/widgets/edge_to_edge_scaffold.dart';
 import 'package:projectgt/features/work_plans/presentation/screens/work_plan_form_modal.dart';
 
 /// Полноэкранный экран редактирования плана работ.
@@ -20,7 +19,7 @@ class WorkPlanEditScreen extends ConsumerWidget {
         workPlanState.workPlans.where((wp) => wp.id == workPlanId).firstOrNull;
 
     if (workPlanState.isLoading && workPlan == null) {
-      return const EdgeToEdgeScaffold(
+      return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
     }
@@ -30,12 +29,12 @@ class WorkPlanEditScreen extends ConsumerWidget {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ref.read(workPlanNotifierProvider.notifier).loadWorkPlans();
       });
-      return const EdgeToEdgeScaffold(
+      return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
     }
 
-    return EdgeToEdgeScaffold(
+    return Scaffold(
       appBar: AppBar(
         title: const Text('Редактирование плана'),
         leading: const BackButton(),

@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:projectgt/core/widgets/app_snackbar.dart';
-import 'package:projectgt/core/widgets/edge_to_edge_scaffold.dart';
 import 'package:projectgt/core/widgets/gt_confirmation_dialog.dart';
 import 'package:projectgt/domain/entities/work_plan.dart';
 import 'package:projectgt/features/objects/domain/entities/object.dart';
@@ -16,7 +15,6 @@ import 'package:projectgt/features/employees/presentation/widgets/master_detail_
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/features/objects/presentation/state/object_state.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
-import 'package:projectgt/features/work_plans/presentation/widgets/work_plans_mobile_cards.dart';
 import 'package:intl/intl.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
@@ -104,46 +102,47 @@ class _WorkPlansListScreenState extends ConsumerState<WorkPlansListScreen> {
 
     final objects = objectState.objects;
 
-    return EdgeToEdgeScaffold(
+    return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      extendBodyBehindAppBar: true,
-      appBar: AppBarWidget(
-        title: 'Планы работ',
-        actions: [
-          if (isDesktop && selectedWorkPlan != null) ...[
-            PermissionGuard(
-              module: 'work_plans',
-              permission: 'update',
-              child: CupertinoButton(
-                padding: EdgeInsets.zero,
-                onPressed: () {
-                  _showEditWorkPlanModal(context, selectedWorkPlan!);
-                },
-                child: const Icon(
-                  CupertinoIcons.pencil,
-                  size: 22,
-                  color: Colors.amber,
-                ),
-              ),
-            ),
-            PermissionGuard(
-              module: 'work_plans',
-              permission: 'delete',
-              child: CupertinoButton(
-                padding: EdgeInsets.zero,
-                onPressed: () {
-                  _confirmAndDeleteSelectedWorkPlan();
-                },
-                child: Icon(
-                  CupertinoIcons.trash,
-                  size: 22,
-                  color: theme.colorScheme.error,
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
+      appBar: isDesktop
+          ? AppBarWidget(
+              title: 'Планы работ',
+              actions: [
+                if (selectedWorkPlan != null) ...[
+                  PermissionGuard(
+                    module: 'work_plans',
+                    permission: 'update',
+                    child: CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      onPressed: () {
+                        _showEditWorkPlanModal(context, selectedWorkPlan!);
+                      },
+                      child: const Icon(
+                        CupertinoIcons.pencil,
+                        size: 22,
+                        color: Colors.amber,
+                      ),
+                    ),
+                  ),
+                  PermissionGuard(
+                    module: 'work_plans',
+                    permission: 'delete',
+                    child: CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      onPressed: () {
+                        _confirmAndDeleteSelectedWorkPlan();
+                      },
+                      child: Icon(
+                        CupertinoIcons.trash,
+                        size: 22,
+                        color: theme.colorScheme.error,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            )
+          : null,
       drawer: const AppDrawer(activeRoute: AppRoute.workPlans),
       floatingActionButton: PermissionGuard(
         module: 'work_plans',
@@ -172,10 +171,13 @@ class _WorkPlansListScreenState extends ConsumerState<WorkPlansListScreen> {
               objects: objects,
             );
           } else {
-            return _buildMobileLayout(
-              isLoading: isLoading,
-              workPlans: workPlans,
-              objects: objects,
+            // Для мобильных добавляем SafeArea, чтобы контент не залезал под статус-бар
+            return SafeArea(
+              child: _buildMobileLayout(
+                isLoading: isLoading,
+                workPlans: workPlans,
+                objects: objects,
+              ),
             );
           }
         },
@@ -223,18 +225,11 @@ class _WorkPlansListScreenState extends ConsumerState<WorkPlansListScreen> {
     required List<WorkPlan> workPlans,
     required List<ObjectEntity> objects,
   }) {
-    return Column(
-      children: [
-        // Список планов работ
-        Expanded(
-          child: _buildWorkPlansList(
-            isLoading: isLoading,
-            workPlans: workPlans,
-            objects: objects,
-            isDesktop: false,
-          ),
-        ),
-      ],
+    return _buildWorkPlansList(
+      isLoading: isLoading,
+      workPlans: workPlans,
+      objects: objects,
+      isDesktop: false,
     );
   }
 
@@ -247,19 +242,222 @@ class _WorkPlansListScreenState extends ConsumerState<WorkPlansListScreen> {
   }) {
     final theme = Theme.of(context);
 
-    return RefreshIndicator(
-      onRefresh: _handleRefresh,
-      child: _buildWorkPlansListContent(
-        isLoading: isLoading,
-        workPlans: workPlans,
-        objects: objects,
-        isDesktop: isDesktop,
-        theme: theme,
+    if (isDesktop) {
+      return RefreshIndicator(
+        onRefresh: _handleRefresh,
+        child: _buildWorkPlansListContent(
+          isLoading: isLoading,
+          workPlans: workPlans,
+          objects: objects,
+          isDesktop: isDesktop,
+          theme: theme,
+        ),
+      );
+    } else {
+      // Мобильная версия с AppBar в слайвере и контентом в CustomScrollView
+      return RefreshIndicator(
+        onRefresh: _handleRefresh,
+        child: _buildMobileWorkPlansContent(
+          isLoading: isLoading,
+          workPlans: workPlans,
+          objects: objects,
+          theme: theme,
+        ),
+      );
+    }
+  }
+
+  /// Строит мобильный контент со списком в CustomScrollView.
+  Widget _buildMobileWorkPlansContent({
+    required bool isLoading,
+    required List<WorkPlan> workPlans,
+    required List<ObjectEntity> objects,
+    required ThemeData theme,
+  }) {
+    if (isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (workPlans.isEmpty) {
+      return CustomScrollView(
+        controller: _scrollController,
+        slivers: [
+          SliverToBoxAdapter(
+            child: AppBarWidget(
+              title: 'Планы работ',
+              leading: Builder(
+                builder: (context) => CupertinoButton(
+                  padding: EdgeInsets.zero,
+                  child: const Icon(Icons.menu, color: Colors.blue),
+                  onPressed: () {
+                    Scaffold.of(context).openDrawer();
+                  },
+                ),
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: _buildEmptyState(theme),
+          ),
+        ],
+      );
+    }
+
+    // Создаем кэш объектов для быстрого доступа
+    final Map<String, ObjectEntity> objectById = {
+      for (final o in objects) o.id: o,
+    };
+
+    return CustomScrollView(
+      controller: _scrollController,
+      slivers: [
+        // AppBar для мобильных
+        SliverToBoxAdapter(
+          child: AppBarWidget(
+            title: 'Планы работ',
+            leading: Builder(
+              builder: (context) => CupertinoButton(
+                padding: EdgeInsets.zero,
+                child: const Icon(Icons.menu, color: Colors.blue),
+                onPressed: () {
+                  Scaffold.of(context).openDrawer();
+                },
+              ),
+            ),
+          ),
+        ),
+        // Карточки планов работ
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                final workPlan = workPlans[index];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _buildWorkPlanMobileCard(
+                    workPlan,
+                    objectById,
+                    theme,
+                  ),
+                );
+              },
+              childCount: workPlans.length,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Строит одну мобильную карточку плана работ.
+  Widget _buildWorkPlanMobileCard(
+    WorkPlan workPlan,
+    Map<String, ObjectEntity> objectById,
+    ThemeData theme,
+  ) {
+    final dateFormat = DateFormat('dd.MM.yyyy');
+
+    // Подсчитываем статистику
+    final totalWorkers =
+        workPlan.workBlocks.expand((block) => block.workerIds).toSet().length;
+    final totalCost = workPlan.workBlocks
+        .expand((block) => block.selectedWorks)
+        .fold(0.0, (sum, work) => sum + work.totalPlannedCost);
+
+    return Card(
+      elevation: 2,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => _handleWorkPlanTap(workPlan, false),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Заголовок с датой
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'План работ на ${dateFormat.format(workPlan.date)}',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              // Объект
+              Row(
+                children: [
+                  Icon(
+                    Icons.business_outlined,
+                    size: 14,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      _resolveObjectName(workPlan, objectById),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color:
+                            theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              // Компактная статистика
+              Row(
+                children: [
+                  Icon(
+                    Icons.people_outline,
+                    size: 14,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '$totalWorkers чел.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Icon(
+                    Icons.payments_outlined,
+                    size: 14,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      _formatCurrency(totalCost),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  /// Создает содержимое списка планов работ в зависимости от состояния.
+  /// Создает содержимое списка планов работ для десктопа.
   Widget _buildWorkPlansListContent({
     required bool isLoading,
     required List<WorkPlan> workPlans,
@@ -275,18 +473,7 @@ class _WorkPlansListScreenState extends ConsumerState<WorkPlansListScreen> {
       return _buildEmptyState(theme);
     }
 
-    if (isDesktop) {
-      return _buildWorkPlansDesktopListView(workPlans, objects);
-    } else {
-      // Используем новые мобильные карточки
-      return WorkPlansMobileCards(
-        workPlans: workPlans,
-        objects: objects,
-        onWorkPlanTap: (workPlan) => _handleWorkPlanTap(workPlan, false),
-        onEditWorkPlan: (workPlan) => _showEditWorkPlanModal(context, workPlan),
-        scrollController: _scrollController,
-      );
-    }
+    return _buildWorkPlansDesktopListView(workPlans, objects);
   }
 
   /// Строит состояние пустого списка планов работ.
@@ -329,11 +516,11 @@ class _WorkPlansListScreenState extends ConsumerState<WorkPlansListScreen> {
     return ListView.separated(
       controller: _scrollController,
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: EdgeInsets.only(
+      padding: const EdgeInsets.only(
         left: 16,
         right: 16,
         bottom: 16,
-        top: MediaQuery.of(context).viewPadding.top + kToolbarHeight + 24 + 6,
+        top: 24,
       ),
       itemCount: workPlans.length,
       separatorBuilder: (context, index) => const SizedBox(height: 12),
