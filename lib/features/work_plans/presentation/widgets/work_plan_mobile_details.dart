@@ -103,21 +103,20 @@ class _WorkPlanMobileDetailsState extends ConsumerState<WorkPlanMobileDetails> {
 
     if (isLoading) {
       return Scaffold(
-        appBar:
-            widget.showAppBar ? const AppBarWidget(title: 'План работ') : null,
+        appBar: widget.showAppBar
+            ? const AppBarWidget(title: 'План работ')
+            : null,
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     if (workPlan == null) {
       return Scaffold(
-        appBar:
-            widget.showAppBar ? const AppBarWidget(title: 'План работ') : null,
+        appBar: widget.showAppBar
+            ? const AppBarWidget(title: 'План работ')
+            : null,
         body: Center(
-          child: Text(
-            'План работ не найден',
-            style: theme.textTheme.bodyLarge,
-          ),
+          child: Text('План работ не найден', style: theme.textTheme.bodyLarge),
         ),
       );
     }
@@ -178,12 +177,17 @@ class _WorkPlanMobileDetailsState extends ConsumerState<WorkPlanMobileDetails> {
 
   /// Строит карточку с основной информацией о плане работ (компактная версия для мобильных).
   Widget _buildMainInfoCard(
-      WorkPlan workPlan, ObjectEntity? objectEntity, ThemeData theme) {
+    WorkPlan workPlan,
+    ObjectEntity? objectEntity,
+    ThemeData theme,
+  ) {
     final dateFormat = DateFormat('dd.MM.yyyy');
 
     // Подсчитываем количество специалистов и общую стоимость
-    final totalSpecialists =
-        workPlan.workBlocks.expand((block) => block.workerIds).toSet().length;
+    final totalSpecialists = workPlan.workBlocks
+        .expand((block) => block.workerIds)
+        .toSet()
+        .length;
     final totalCost = workPlan.workBlocks
         .expand((block) => block.selectedWorks)
         .fold(0.0, (sum, work) => sum + work.totalPlannedCost);
@@ -271,7 +275,10 @@ class _WorkPlanMobileDetailsState extends ConsumerState<WorkPlanMobileDetails> {
 
   /// Строит список блоков работ.
   Widget _buildWorkBlocksList(
-      WorkPlan workPlan, state.EmployeeState employeeState, ThemeData theme) {
+    WorkPlan workPlan,
+    state.EmployeeState employeeState,
+    ThemeData theme,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -299,18 +306,24 @@ class _WorkPlanMobileDetailsState extends ConsumerState<WorkPlanMobileDetails> {
   }
 
   /// Строит карточку блока работ для мобильной версии.
-  Widget _buildWorkBlockCard(WorkBlock block, int index, ThemeData theme,
-      state.EmployeeState employeeState) {
+  Widget _buildWorkBlockCard(
+    WorkBlock block,
+    int index,
+    ThemeData theme,
+    state.EmployeeState employeeState,
+  ) {
     // Получаем ответственного
     final responsible = block.responsibleId != null
         ? employeeState.employees
-            .where((emp) => emp.id == block.responsibleId)
-            .firstOrNull
+              .where((emp) => emp.id == block.responsibleId)
+              .firstOrNull
         : null;
 
     // Подсчитываем стоимость блока
-    final totalCost = block.selectedWorks
-        .fold(0.0, (sum, work) => sum + work.totalPlannedCost);
+    final totalCost = block.selectedWorks.fold(
+      0.0,
+      (sum, work) => sum + work.totalPlannedCost,
+    );
 
     return Container(
       margin: const EdgeInsets.only(
@@ -430,18 +443,20 @@ class _WorkPlanMobileDetailsState extends ConsumerState<WorkPlanMobileDetails> {
                   Row(
                     children: [
                       Icon(
-                        Icons.group_outlined,
+                        CupertinoIcons.group,
                         size: 16,
-                        color:
-                            theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.6,
+                        ),
                       ),
                       const SizedBox(width: 6),
                       Text(
                         'Сотрудники:',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w500,
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.7),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.7,
+                          ),
                         ),
                       ),
                     ],
@@ -459,14 +474,18 @@ class _WorkPlanMobileDetailsState extends ConsumerState<WorkPlanMobileDetails> {
 
                       return Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
-                          color:
-                              theme.colorScheme.primary.withValues(alpha: 0.1),
+                          color: theme.colorScheme.primary.withValues(
+                            alpha: 0.1,
+                          ),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: theme.colorScheme.primary
-                                .withValues(alpha: 0.3),
+                            color: theme.colorScheme.primary.withValues(
+                              alpha: 0.3,
+                            ),
                             width: 1,
                           ),
                         ),
@@ -502,8 +521,9 @@ class _WorkPlanMobileDetailsState extends ConsumerState<WorkPlanMobileDetails> {
                       decoration: BoxDecoration(
                         color: theme.colorScheme.surface,
                         border: Border.all(
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.1),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.1,
+                          ),
                           width: 1,
                         ),
                         borderRadius: BorderRadius.circular(6),
@@ -545,20 +565,20 @@ class _WorkPlanMobileDetailsState extends ConsumerState<WorkPlanMobileDetails> {
                                   children: [
                                     Text(
                                       '${work.plannedQuantity} ${work.unit}',
-                                      style:
-                                          theme.textTheme.bodySmall?.copyWith(
-                                        color: theme.colorScheme.onSurface
-                                            .withValues(alpha: 0.6),
-                                      ),
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                            color: theme.colorScheme.onSurface
+                                                .withValues(alpha: 0.6),
+                                          ),
                                     ),
                                     const SizedBox(width: 8),
                                     Text(
                                       _formatCurrency(work.totalPlannedCost),
-                                      style:
-                                          theme.textTheme.bodySmall?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                        color: theme.colorScheme.primary,
-                                      ),
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                            color: theme.colorScheme.primary,
+                                          ),
                                     ),
                                   ],
                                 ),
