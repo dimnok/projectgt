@@ -82,10 +82,7 @@ class SliverMonthWorkPlansList extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Синий индикатор статуса слева (для планов)
-                Container(
-                  width: 4,
-                  color: Colors.blue,
-                ),
+                Container(width: 4, color: Colors.blue),
                 // Контент карточки
                 Expanded(
                   child: InkWell(
@@ -98,7 +95,7 @@ class SliverMonthWorkPlansList extends StatelessWidget {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Левая колонка: Дата и Количество блоков
+                          // Левая колонка: Дата и Количество специалистов
                           Expanded(
                             flex: 4,
                             child: Column(
@@ -113,7 +110,7 @@ class SliverMonthWorkPlansList extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 6),
                                 Text(
-                                  'Блоков: ${plan.blocksCount} • Специалистов: $workersCount',
+                                  'Специалистов: $workersCount',
                                   style: theme.textTheme.bodySmall?.copyWith(
                                     color: theme.colorScheme.onSurface
                                         .withValues(alpha: 0.5),
@@ -145,7 +142,9 @@ class SliverMonthWorkPlansList extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 6),
                                 Text(
-                                  GtFormatters.formatCurrency(plan.totalPlannedCost),
+                                  GtFormatters.formatCurrency(
+                                    plan.totalPlannedCost,
+                                  ),
                                   style: theme.textTheme.titleSmall?.copyWith(
                                     fontWeight: FontWeight.w700,
                                     color: Colors.blue,
