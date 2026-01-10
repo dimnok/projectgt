@@ -16,11 +16,16 @@ import '../widgets/month_group_header.dart';
 import '../widgets/month_details_panel.dart';
 import '../widgets/sliver_month_works_list.dart';
 import '../widgets/mobile_month_works_list.dart';
+import '../widgets/sliver_month_work_plans_list.dart';
 import '../../data/models/month_group.dart';
 import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
 import 'package:projectgt/features/work_plans/presentation/screens/work_plan_form_modal.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/features/work_plans/presentation/providers/work_plan_month_groups_provider.dart';
+
+/// Режим отображения: смены или планы.
+enum _DisplayMode { works, workPlans }
 
 /// Экран списка смен с адаптивным отображением и группировкой по месяцам.
 ///
@@ -43,6 +48,7 @@ class _WorksMasterDetailScreenState
   Work? selectedWork;
   MonthGroup?
   selectedMonth; // Выбранная группа месяца для отображения в детальной панели
+  _DisplayMode _displayMode = _DisplayMode.works; // Начальный режим - смены
 
   @override
   void initState() {
@@ -344,12 +350,94 @@ class _WorksMasterDetailScreenState
     required List<MonthGroup> groups,
     required ThemeData theme,
   }) {
-    return _buildWorksList(
-      isLoading: isLoading,
-      groups: groups,
-      theme: theme,
-      isDesktop: false,
-      stickyHeaderColor: theme.colorScheme.surface,
+    if (_displayMode == _DisplayMode.works) {
+      return _buildWorksList(
+        isLoading: isLoading,
+        groups: groups,
+        theme: theme,
+        isDesktop: false,
+        stickyHeaderColor: theme.colorScheme.surface,
+      );
+    } else {
+      return _buildWorkPlansList(
+        theme: theme,
+      );
+    }
+  }
+
+  /// Строит список планов работ с группировкой по месяцам.
+  Widget _buildWorkPlansList({
+    required ThemeData theme,
+  }) {
+    final workPlanMonthGroupsState = ref.watch(workPlanMonthGroupsProvider);
+    final isLoading = workPlanMonthGroupsState.isLoading;
+    final groups = workPlanMonthGroupsState.groups;
+
+    if (isLoading) {
+      return const Center(child: CupertinoActivityIndicator());
+    }
+
+    if (groups.isEmpty) {
+      return const Center(child: Text('Планы не найдены'));
+    }
+
+    final isDesktop = ResponsiveUtils.isDesktop(context);
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        await ref.read(workPlanMonthGroupsProvider.notifier).refresh();
+      },
+      child: CustomScrollView(
+        slivers: [
+          // AppBar для мобильных
+          if (!isDesktop)
+            SliverToBoxAdapter(
+              child: AppBarWidget(
+                title: 'Планы',
+                showThemeSwitch: true,
+                leading: Builder(
+                  builder: (context) => CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    child: const Icon(Icons.menu, color: Colors.blue),
+                    onPressed: () {
+                      Scaffold.of(context).openDrawer();
+                    },
+                  ),
+                ),
+              ),
+            ),
+
+          // Группы планов по месяцам
+          for (final group in groups) ...[
+            // Заголовок группы
+            SliverPersistentHeader(
+              key: ValueKey('plan_header_${group.month}'),
+              pinned: group.isExpanded,
+              delegate: _WorkPlanMonthGroupHeaderDelegate(
+                group: group,
+                backgroundColor: theme.colorScheme.surface,
+                onTap: () {
+                  ref
+                      .read(workPlanMonthGroupsProvider.notifier)
+                      .toggleMonth(group.month);
+                },
+              ),
+            ),
+
+            // Список планов (только если развернут)
+            if (group.isExpanded)
+              SliverMonthWorkPlansList(
+                key: ValueKey('plan_list_${group.month}'),
+                group: group,
+              )
+            else
+              const SliverToBoxAdapter(child: SizedBox.shrink()),
+          ],
+
+          // Отступ внизу
+          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+        ],
+      ),
     );
   }
 
@@ -410,22 +498,51 @@ class _WorksMasterDetailScreenState
               ),
             ),
 
-          // Кнопка открытия смены для мобильных (над списком)
+          // Кнопка открытия смены / кнопка составления плана для мобильных (над списком)
           if (!isDesktop && !hasOpenByUser)
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                 child: SizedBox(
                   width: double.infinity,
-                  child: PermissionGuard(
-                    module: 'works',
-                    permission: 'create',
-                    child: GTPrimaryButton(
-                      onPressed: () => _showOpenShiftModal(context),
-                      icon: CupertinoIcons.add,
-                      text: 'Открыть смену',
-                      backgroundColor: Colors.green,
-                    ),
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    transitionBuilder: (child, animation) {
+                      return SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0, 0.2),
+                          end: Offset.zero,
+                        ).animate(animation),
+                        child: FadeTransition(
+                          opacity: animation,
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: _displayMode == _DisplayMode.works
+                        ? PermissionGuard(
+                            key: const ValueKey('open_shift_button'),
+                            module: 'works',
+                            permission: 'create',
+                            child: GTPrimaryButton(
+                              onPressed: () => _showOpenShiftModal(context),
+                              icon: CupertinoIcons.add,
+                              text: 'Открыть смену',
+                              backgroundColor: Colors.green,
+                            ),
+                          )
+                        : PermissionGuard(
+                            key: const ValueKey('create_plan_button'),
+                            module: 'work_plans',
+                            permission: 'create',
+                            child: GTPrimaryButton(
+                              onPressed: () =>
+                                  _showCreateWorkPlanModal(context),
+                              icon: CupertinoIcons.add,
+                              text: 'Составить план',
+                              backgroundColor: Colors.blue,
+                            ),
+                          ),
                   ),
                 ),
               ),
@@ -532,15 +649,51 @@ class _WorksMasterDetailScreenState
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                     child: SizedBox(
                       width: double.infinity,
-                      child: PermissionGuard(
-                        module: 'work_plans',
-                        permission: 'create',
-                        child: GTPrimaryButton(
-                          onPressed: () => _showCreateWorkPlanModal(context),
-                          icon: CupertinoIcons.add,
-                          text: 'Составить план',
-                          backgroundColor: Colors.blue,
-                        ),
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 300),
+                        transitionBuilder: (child, animation) {
+                          return SlideTransition(
+                            position: Tween<Offset>(
+                              begin: const Offset(0, 0.2),
+                              end: Offset.zero,
+                            ).animate(animation),
+                            child: FadeTransition(
+                              opacity: animation,
+                              child: child,
+                            ),
+                          );
+                        },
+                        child: _displayMode == _DisplayMode.works
+                            ? PermissionGuard(
+                                key: const ValueKey('create_plan_bottom_button'),
+                                module: 'work_plans',
+                                permission: 'create',
+                                child: GTPrimaryButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _displayMode = _DisplayMode.workPlans;
+                                    });
+                                  },
+                                  icon: CupertinoIcons.add,
+                                  text: 'Составить план',
+                                  backgroundColor: Colors.blue,
+                                ),
+                              )
+                            : PermissionGuard(
+                                key: const ValueKey('open_shift_bottom_button'),
+                                module: 'works',
+                                permission: 'create',
+                                child: GTPrimaryButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _displayMode = _DisplayMode.works;
+                                    });
+                                  },
+                                  icon: CupertinoIcons.add,
+                                  text: 'Открыть смену',
+                                  backgroundColor: Colors.green,
+                                ),
+                              ),
                       ),
                     ),
                   ),
@@ -640,6 +793,109 @@ class _MonthGroupHeaderDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(covariant _MonthGroupHeaderDelegate oldDelegate) {
+    return oldDelegate.group != group ||
+        oldDelegate.backgroundColor != backgroundColor;
+  }
+}
+
+/// Делегат для прилипающего заголовка месяца планов работ
+class _WorkPlanMonthGroupHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final WorkPlanMonthGroup group;
+  final VoidCallback onTap;
+  final Color? backgroundColor;
+
+  _WorkPlanMonthGroupHeaderDelegate({
+    required this.group,
+    required this.onTap,
+    this.backgroundColor,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    final theme = Theme.of(context);
+
+    final double rawStuckAmount = (shrinkOffset / (maxExtent - minExtent))
+        .clamp(0.0, 1.0);
+
+    final double stuckAmount = group.isExpanded ? rawStuckAmount : 0.0;
+    final isStuck = stuckAmount > 0.1;
+
+    return Container(
+      color: backgroundColor ?? theme.colorScheme.surface,
+      child: Stack(
+        children: [
+          Align(
+            alignment: Alignment.center,
+            child: InkWell(
+              onTap: onTap,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            group.monthName,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${group.plansCount} план${group.plansCount % 10 == 1 && group.plansCount % 100 != 11 ? '' : 'ов'}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.outline,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      group.isExpanded
+                          ? CupertinoIcons.chevron_up
+                          : CupertinoIcons.chevron_down,
+                      color: Colors.blue,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (isStuck)
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Divider(
+                height: 1,
+                thickness: 1,
+                color: theme.colorScheme.outline.withValues(
+                  alpha: 0.1 * stuckAmount,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  double get maxExtent => 100.0;
+
+  @override
+  double get minExtent => 80.0;
+
+  @override
+  bool shouldRebuild(covariant _WorkPlanMonthGroupHeaderDelegate oldDelegate) {
     return oldDelegate.group != group ||
         oldDelegate.backgroundColor != backgroundColor;
   }

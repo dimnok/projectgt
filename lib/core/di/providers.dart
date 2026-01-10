@@ -607,13 +607,18 @@ final workPlanNotifierProvider =
       // [RBAC] Слушаем смену компании для автоматического обновления списка планов работ
       ref.watch(activeCompanyIdProvider);
 
-      return WorkPlanNotifier(
+      final notifier = WorkPlanNotifier(
         getWorkPlansUseCase: ref.watch(getWorkPlansUseCaseProvider),
         getWorkPlanUseCase: ref.watch(getWorkPlanUseCaseProvider),
         createWorkPlanUseCase: ref.watch(createWorkPlanUseCaseProvider),
         updateWorkPlanUseCase: ref.watch(updateWorkPlanUseCaseProvider),
         deleteWorkPlanUseCase: ref.watch(deleteWorkPlanUseCaseProvider),
       );
+
+      // Автоматически загружаем планы при инициализации
+      notifier.loadWorkPlans();
+
+      return notifier;
     });
 
 /// Провайдер источника данных для работы с табелем (work_hours) через Supabase.

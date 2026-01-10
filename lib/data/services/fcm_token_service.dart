@@ -80,7 +80,8 @@ class FcmTokenService {
           try {
             await Supabase.instance.client
                 .from('user_tokens')
-                .update({'is_active': false}).eq('token', currentToken);
+                .update({'is_active': false})
+                .eq('token', currentToken);
           } catch (_) {}
         }
       }
@@ -147,8 +148,8 @@ class FcmTokenService {
     final String platform = kIsWeb
         ? 'web'
         : Platform.isIOS
-            ? 'ios'
-            : 'android';
+        ? 'ios'
+        : 'android';
 
     try {
       // Деактивируем старые записи этой установки/платформы с другим токеном
@@ -163,17 +164,14 @@ class FcmTokenService {
         } catch (_) {}
       }
 
-      await Supabase.instance.client.from('user_tokens').upsert(
-        {
-          'user_id': user.id,
-          'token': token,
-          'platform': platform,
-          'installation_id': installationId,
-          'is_active': true,
-          'updated_at': DateTime.now().toIso8601String(),
-        },
-        onConflict: 'installation_id,platform',
-      );
+      await Supabase.instance.client.from('user_tokens').upsert({
+        'user_id': user.id,
+        'token': token,
+        'platform': platform,
+        'installation_id': installationId,
+        'is_active': true,
+        'updated_at': DateTime.now().toIso8601String(),
+      }, onConflict: 'installation_id,platform');
       _lastToken = token;
     } catch (_) {
       // Проглатываем ошибку сохранения, чтобы не блокировать запуск приложения
