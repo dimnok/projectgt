@@ -350,24 +350,69 @@ class _WorksMasterDetailScreenState
     required List<MonthGroup> groups,
     required ThemeData theme,
   }) {
-    if (_displayMode == _DisplayMode.works) {
-      return _buildWorksList(
-        isLoading: isLoading,
-        groups: groups,
-        theme: theme,
-        isDesktop: false,
-        stickyHeaderColor: theme.colorScheme.surface,
-      );
-    } else {
-      return _buildWorkPlansList(
-        theme: theme,
-      );
-    }
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 500),
+      transitionBuilder: (child, animation) {
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 0.2),
+              end: Offset.zero,
+            ).animate(animation),
+            child: child,
+          ),
+        );
+      },
+      child: _displayMode == _DisplayMode.works
+          ? _buildWorksView(
+              key: const ValueKey('works_view'),
+              isLoading: isLoading,
+              groups: groups,
+              theme: theme,
+            )
+          : _buildPlansView(
+              key: const ValueKey('plans_view'),
+              theme: theme,
+            ),
+    );
+  }
+
+  /// Строит представление со сменами (верх: "Открыть смену", низ: "Составить план").
+  Widget _buildWorksView({
+    Key? key,
+    required bool isLoading,
+    required List<MonthGroup> groups,
+    required ThemeData theme,
+  }) {
+    return _buildWorksList(
+      key: key,
+      isLoading: isLoading,
+      groups: groups,
+      theme: theme,
+      isDesktop: false,
+      stickyHeaderColor: theme.colorScheme.surface,
+      topButtonMode: _DisplayMode.works,
+    );
+  }
+
+  /// Строит представление с планами (верх: "Составить план", низ: "Открыть смену").
+  Widget _buildPlansView({
+    Key? key,
+    required ThemeData theme,
+  }) {
+    return _buildWorkPlansList(
+      key: key,
+      theme: theme,
+      topButtonMode: _DisplayMode.workPlans,
+    );
   }
 
   /// Строит список планов работ с группировкой по месяцам.
   Widget _buildWorkPlansList({
+    Key? key,
     required ThemeData theme,
+    _DisplayMode topButtonMode = _DisplayMode.workPlans,
   }) {
     final workPlanMonthGroupsState = ref.watch(workPlanMonthGroupsProvider);
     final isLoading = workPlanMonthGroupsState.isLoading;
@@ -382,27 +427,67 @@ class _WorksMasterDetailScreenState
     }
 
     final isDesktop = ResponsiveUtils.isDesktop(context);
+    const hasOpenByUser = false; // Для планов всегда можно создать новый
 
     return RefreshIndicator(
       onRefresh: () async {
         await ref.read(workPlanMonthGroupsProvider.notifier).refresh();
       },
       child: CustomScrollView(
+        key: key,
         slivers: [
           // AppBar для мобильных
           if (!isDesktop)
             SliverToBoxAdapter(
               child: AppBarWidget(
-                title: 'Планы',
+                title: topButtonMode == _DisplayMode.works ? 'Смены' : 'Планы',
                 showThemeSwitch: true,
                 leading: Builder(
                   builder: (context) => CupertinoButton(
                     padding: EdgeInsets.zero,
-                    child: const Icon(Icons.menu, color: Colors.blue),
+                    child: Icon(
+                      Icons.menu,
+                      color: topButtonMode == _DisplayMode.works
+                          ? Colors.green
+                          : Colors.blue,
+                    ),
                     onPressed: () {
                       Scaffold.of(context).openDrawer();
                     },
                   ),
+                ),
+              ),
+            ),
+
+          // Верхняя кнопка для мобильных
+          if (!isDesktop && !hasOpenByUser)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: topButtonMode == _DisplayMode.works
+                      ? PermissionGuard(
+                          module: 'works',
+                          permission: 'create',
+                          child: GTPrimaryButton(
+                            onPressed: () => _showOpenShiftModal(context),
+                            icon: CupertinoIcons.add,
+                            text: 'Открыть смену',
+                            backgroundColor: Colors.green,
+                          ),
+                        )
+                      : PermissionGuard(
+                          module: 'work_plans',
+                          permission: 'create',
+                          child: GTPrimaryButton(
+                            onPressed: () =>
+                                _showCreateWorkPlanModal(context),
+                            icon: CupertinoIcons.add,
+                            text: 'Составить план',
+                            backgroundColor: Colors.blue,
+                          ),
+                        ),
                 ),
               ),
             ),
@@ -434,8 +519,55 @@ class _WorksMasterDetailScreenState
               const SliverToBoxAdapter(child: SizedBox.shrink()),
           ],
 
-          // Отступ внизу
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+          // Для мобильных: заполняем пространство и прижимаем кнопку вниз
+          if (!isDesktop && !hasOpenByUser)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: topButtonMode == _DisplayMode.works
+                          ? PermissionGuard(
+                              module: 'work_plans',
+                              permission: 'create',
+                              child: GTPrimaryButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _displayMode = _DisplayMode.workPlans;
+                                  });
+                                },
+                                icon: CupertinoIcons.add,
+                                text: 'Составить план',
+                                backgroundColor: Colors.blue,
+                              ),
+                            )
+                          : PermissionGuard(
+                              module: 'works',
+                              permission: 'create',
+                              child: GTPrimaryButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _displayMode = _DisplayMode.works;
+                                  });
+                                },
+                                icon: CupertinoIcons.add,
+                                text: 'Открыть смену',
+                                backgroundColor: Colors.green,
+                              ),
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          // Небольшой отступ внизу списка (только для десктопа)
+          if (isDesktop)
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
         ],
       ),
     );
@@ -446,11 +578,13 @@ class _WorksMasterDetailScreenState
   /// Использует [CustomScrollView] и [SliverMonthWorksList] для эффективного
   /// рендеринга и infinite scroll.
   Widget _buildWorksList({
+    Key? key,
     required bool isLoading,
     required List<MonthGroup> groups,
     required ThemeData theme,
     required bool isDesktop,
     Color? stickyHeaderColor,
+    _DisplayMode topButtonMode = _DisplayMode.works,
   }) {
     if (isLoading) {
       return const Center(child: CupertinoActivityIndicator());
@@ -477,19 +611,25 @@ class _WorksMasterDetailScreenState
     return RefreshIndicator(
       onRefresh: _handleRefresh,
       child: CustomScrollView(
+        key: key,
         controller: _scrollController,
         slivers: [
           // AppBar для мобильных (внутри списка, чтобы уезжал)
           if (!isDesktop)
             SliverToBoxAdapter(
               child: AppBarWidget(
-                title: 'Смены',
+                title: topButtonMode == _DisplayMode.works ? 'Смены' : 'Планы',
                 showThemeSwitch: true,
                 // Используем context для открытия Drawer, так как Scaffold выше
                 leading: Builder(
                   builder: (context) => CupertinoButton(
                     padding: EdgeInsets.zero,
-                    child: const Icon(Icons.menu, color: Colors.green),
+                    child: Icon(
+                      Icons.menu,
+                      color: topButtonMode == _DisplayMode.works
+                          ? Colors.green
+                          : Colors.blue,
+                    ),
                     onPressed: () {
                       Scaffold.of(context).openDrawer();
                     },
@@ -498,52 +638,35 @@ class _WorksMasterDetailScreenState
               ),
             ),
 
-          // Кнопка открытия смены / кнопка составления плана для мобильных (над списком)
+          // Верхняя кнопка для мобильных
           if (!isDesktop && !hasOpenByUser)
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                 child: SizedBox(
                   width: double.infinity,
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 300),
-                    transitionBuilder: (child, animation) {
-                      return SlideTransition(
-                        position: Tween<Offset>(
-                          begin: const Offset(0, 0.2),
-                          end: Offset.zero,
-                        ).animate(animation),
-                        child: FadeTransition(
-                          opacity: animation,
-                          child: child,
-                        ),
-                      );
-                    },
-                    child: _displayMode == _DisplayMode.works
-                        ? PermissionGuard(
-                            key: const ValueKey('open_shift_button'),
-                            module: 'works',
-                            permission: 'create',
-                            child: GTPrimaryButton(
-                              onPressed: () => _showOpenShiftModal(context),
-                              icon: CupertinoIcons.add,
-                              text: 'Открыть смену',
-                              backgroundColor: Colors.green,
-                            ),
-                          )
-                        : PermissionGuard(
-                            key: const ValueKey('create_plan_button'),
-                            module: 'work_plans',
-                            permission: 'create',
-                            child: GTPrimaryButton(
-                              onPressed: () =>
-                                  _showCreateWorkPlanModal(context),
-                              icon: CupertinoIcons.add,
-                              text: 'Составить план',
-                              backgroundColor: Colors.blue,
-                            ),
+                  child: topButtonMode == _DisplayMode.works
+                      ? PermissionGuard(
+                          module: 'works',
+                          permission: 'create',
+                          child: GTPrimaryButton(
+                            onPressed: () => _showOpenShiftModal(context),
+                            icon: CupertinoIcons.add,
+                            text: 'Открыть смену',
+                            backgroundColor: Colors.green,
                           ),
-                  ),
+                        )
+                      : PermissionGuard(
+                          module: 'work_plans',
+                          permission: 'create',
+                          child: GTPrimaryButton(
+                            onPressed: () =>
+                                _showCreateWorkPlanModal(context),
+                            icon: CupertinoIcons.add,
+                            text: 'Составить план',
+                            backgroundColor: Colors.blue,
+                          ),
+                        ),
                 ),
               ),
             ),
@@ -649,52 +772,35 @@ class _WorksMasterDetailScreenState
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                     child: SizedBox(
                       width: double.infinity,
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 300),
-                        transitionBuilder: (child, animation) {
-                          return SlideTransition(
-                            position: Tween<Offset>(
-                              begin: const Offset(0, 0.2),
-                              end: Offset.zero,
-                            ).animate(animation),
-                            child: FadeTransition(
-                              opacity: animation,
-                              child: child,
-                            ),
-                          );
-                        },
-                        child: _displayMode == _DisplayMode.works
-                            ? PermissionGuard(
-                                key: const ValueKey('create_plan_bottom_button'),
-                                module: 'work_plans',
-                                permission: 'create',
-                                child: GTPrimaryButton(
-                                  onPressed: () {
-                                    setState(() {
-                                      _displayMode = _DisplayMode.workPlans;
-                                    });
-                                  },
-                                  icon: CupertinoIcons.add,
-                                  text: 'Составить план',
-                                  backgroundColor: Colors.blue,
-                                ),
-                              )
-                            : PermissionGuard(
-                                key: const ValueKey('open_shift_bottom_button'),
-                                module: 'works',
-                                permission: 'create',
-                                child: GTPrimaryButton(
-                                  onPressed: () {
-                                    setState(() {
-                                      _displayMode = _DisplayMode.works;
-                                    });
-                                  },
-                                  icon: CupertinoIcons.add,
-                                  text: 'Открыть смену',
-                                  backgroundColor: Colors.green,
-                                ),
+                      child: topButtonMode == _DisplayMode.works
+                          ? PermissionGuard(
+                              module: 'work_plans',
+                              permission: 'create',
+                              child: GTPrimaryButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _displayMode = _DisplayMode.workPlans;
+                                  });
+                                },
+                                icon: CupertinoIcons.add,
+                                text: 'Составить план',
+                                backgroundColor: Colors.blue,
                               ),
-                      ),
+                            )
+                          : PermissionGuard(
+                              module: 'works',
+                              permission: 'create',
+                              child: GTPrimaryButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _displayMode = _DisplayMode.works;
+                                  });
+                                },
+                                icon: CupertinoIcons.add,
+                                text: 'Открыть смену',
+                                backgroundColor: Colors.green,
+                              ),
+                            ),
                     ),
                   ),
                 ],
