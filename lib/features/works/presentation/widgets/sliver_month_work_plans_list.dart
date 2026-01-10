@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:projectgt/domain/entities/work_plan.dart';
 import 'package:projectgt/features/work_plans/presentation/providers/work_plan_month_groups_provider.dart';
+import 'package:projectgt/core/utils/formatters.dart';
 
 /// Виджет для отображения списка планов в развёрнутой группе месяца.
 ///
-/// Показывает планы в виде карточек с информацией о стоимости и количестве блоков.
+/// Показывает планы в виде карточек с информацией о дате, сумме, количестве блоков и специалистов.
 class SliverMonthWorkPlansList extends StatelessWidget {
   /// Группа месяца с планами.
   final WorkPlanMonthGroup group;
@@ -26,7 +27,6 @@ class SliverMonthWorkPlansList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
     final plans = group.workPlans ?? [];
 
     if (plans.isEmpty) {
@@ -48,91 +48,123 @@ class SliverMonthWorkPlansList extends StatelessWidget {
     return SliverList(
       delegate: SliverChildBuilderDelegate((context, index) {
         final plan = plans[index];
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () => onPlanSelected?.call(plan),
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.grey[900] : Colors.white,
-                  border: Border.all(
-                    color: isDark ? Colors.grey[800]! : Colors.grey[300]!,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Объект и дата
-                    Text(
-                      plan.objectName ?? 'Без названия',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${plan.date.day}.${plan.date.month.toString().padLeft(2, '0')}.${plan.date.year}',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.outline,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
+        return _buildPlanCard(context, theme, plan);
+      }, childCount: plans.length),
+    );
+  }
 
-                    // Информация о планах
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Блоков работ',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.outline,
-                              ),
-                            ),
-                            Text(
-                              plan.blocksCount.toString(),
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              'Сумма плана',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.outline,
-                              ),
-                            ),
-                            Text(
-                              '₽ ${plan.totalPlannedCost.toStringAsFixed(0)}',
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.green,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+  /// Строит карточку плана работ, аналогично карточке смены.
+  Widget _buildPlanCard(BuildContext context, ThemeData theme, WorkPlan plan) {
+    // Подсчитываем уникальных специалистов
+    final Set<String> uniqueWorkers = {};
+    for (final block in plan.workBlocks) {
+      uniqueWorkers.addAll(block.workerIds);
+    }
+    final workersCount = uniqueWorkers.length;
+
+    return Hero(
+      tag: 'plan_card_${plan.id}',
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: theme.cardColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: theme.dividerColor.withValues(alpha: 0.1),
+              width: 1,
             ),
           ),
-        );
-      }, childCount: plans.length),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Синий индикатор статуса слева (для планов)
+                Container(
+                  width: 4,
+                  color: Colors.blue,
+                ),
+                // Контент карточки
+                Expanded(
+                  child: InkWell(
+                    onTap: () => onPlanSelected?.call(plan),
+                    hoverColor: Colors.transparent,
+                    splashColor: Colors.transparent,
+                    highlightColor: Colors.transparent,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Левая колонка: Дата и Количество блоков
+                          Expanded(
+                            flex: 4,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  GtFormatters.formatRuDate(plan.date),
+                                  style: theme.textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Блоков: ${plan.blocksCount} • Специалистов: $workersCount',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.onSurface
+                                        .withValues(alpha: 0.5),
+                                    fontSize: 12,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          // Правая колонка: Объект и Сумма плана
+                          Expanded(
+                            flex: 6,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  plan.objectName ?? 'Без названия',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 13,
+                                    height: 1.2,
+                                  ),
+                                  textAlign: TextAlign.right,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  GtFormatters.formatCurrency(plan.totalPlannedCost),
+                                  style: theme.textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.blue,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
