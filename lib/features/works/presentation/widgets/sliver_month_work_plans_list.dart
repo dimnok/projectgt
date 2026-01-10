@@ -149,7 +149,7 @@ class SliverMonthWorkPlansList extends ConsumerWidget {
                                 Row(
                                   children: [
                                     Icon(
-                                      CupertinoIcons.person_2,
+                                      CupertinoIcons.group,
                                       size: 12,
                                       color: theme.colorScheme.onSurface
                                           .withValues(alpha: 0.5),
