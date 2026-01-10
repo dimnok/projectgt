@@ -226,14 +226,17 @@ class _WorksMasterDetailScreenState
                     if (!hasOpenByUser)
                       Padding(
                         padding: const EdgeInsets.all(16.0),
-                        child: PermissionGuard(
-                          module: 'works',
-                          permission: 'create',
-                          child: GTPrimaryButton(
-                            onPressed: () => _showOpenShiftModal(context),
-                            icon: CupertinoIcons.add,
-                            text: 'Открыть смену',
-                            backgroundColor: Colors.green,
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: PermissionGuard(
+                            module: 'works',
+                            permission: 'create',
+                            child: GTPrimaryButton(
+                              onPressed: () => _showOpenShiftModal(context),
+                              icon: CupertinoIcons.add,
+                              text: 'Открыть смену',
+                              backgroundColor: Colors.green,
+                            ),
                           ),
                         ),
                       ),
@@ -255,15 +258,18 @@ class _WorksMasterDetailScreenState
                     if (!hasOpenByUser)
                       Padding(
                         padding: const EdgeInsets.all(16.0),
-                        child: PermissionGuard(
-                          module: 'work_plans',
-                          permission: 'create',
-                          child: GTPrimaryButton(
-                            onPressed: () =>
-                                _showCreateWorkPlanModal(context),
-                            icon: CupertinoIcons.add,
-                            text: 'Составить план',
-                            backgroundColor: Colors.blue,
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: PermissionGuard(
+                            module: 'work_plans',
+                            permission: 'create',
+                            child: GTPrimaryButton(
+                              onPressed: () =>
+                                  _showCreateWorkPlanModal(context),
+                              icon: CupertinoIcons.add,
+                              text: 'Составить план',
+                              backgroundColor: Colors.blue,
+                            ),
                           ),
                         ),
                       ),
@@ -409,14 +415,17 @@ class _WorksMasterDetailScreenState
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                child: PermissionGuard(
-                  module: 'works',
-                  permission: 'create',
-                  child: GTPrimaryButton(
-                    onPressed: () => _showOpenShiftModal(context),
-                    icon: CupertinoIcons.add,
-                    text: 'Открыть смену',
-                    backgroundColor: Colors.green,
+                child: SizedBox(
+                  width: double.infinity,
+                  child: PermissionGuard(
+                    module: 'works',
+                    permission: 'create',
+                    child: GTPrimaryButton(
+                      onPressed: () => _showOpenShiftModal(context),
+                      icon: CupertinoIcons.add,
+                      text: 'Открыть смену',
+                      backgroundColor: Colors.green,
+                    ),
                   ),
                 ),
               ),
@@ -512,26 +521,35 @@ class _WorksMasterDetailScreenState
               ),
           ],
 
-          // Кнопка составления плана для мобильных (внизу)
+          // Для мобильных: заполняем пространство и прижимаем кнопку вниз
           if (!isDesktop && !hasOpenByUser)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                child: PermissionGuard(
-                  module: 'work_plans',
-                  permission: 'create',
-                  child: GTPrimaryButton(
-                    onPressed: () => _showCreateWorkPlanModal(context),
-                    icon: CupertinoIcons.add,
-                    text: 'Составить план',
-                    backgroundColor: Colors.blue,
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: PermissionGuard(
+                        module: 'work_plans',
+                        permission: 'create',
+                        child: GTPrimaryButton(
+                          onPressed: () => _showCreateWorkPlanModal(context),
+                          icon: CupertinoIcons.add,
+                          text: 'Составить план',
+                          backgroundColor: Colors.blue,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
             ),
 
-          // Небольшой отступ внизу списка
-          if (isDesktop || hasOpenByUser)
+          // Небольшой отступ внизу списка (только для десктопа)
+          if (isDesktop)
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
         ],
       ),
