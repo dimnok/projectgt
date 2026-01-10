@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/domain/entities/work_plan.dart';
 import 'package:projectgt/features/work_plans/presentation/providers/work_plan_month_groups_provider.dart';
@@ -135,15 +136,24 @@ class SliverMonthWorkPlansList extends ConsumerWidget {
                                   ),
                                 ),
                                 const SizedBox(height: 6),
-                                Text(
-                                  'Специалистов: $workersCount',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.onSurface
-                                        .withValues(alpha: 0.5),
-                                    fontSize: 12,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                                Row(
+                                  children: [
+                                    Icon(
+                                      CupertinoIcons.person_2,
+                                      size: 12,
+                                      color: theme.colorScheme.onSurface
+                                          .withValues(alpha: 0.5),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      workersCount.toString(),
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                        color: theme.colorScheme.onSurface
+                                            .withValues(alpha: 0.5),
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
