@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:projectgt/domain/entities/work_plan.dart';
 import 'package:projectgt/features/work_plans/presentation/providers/work_plan_month_groups_provider.dart';
 import 'package:projectgt/core/utils/formatters.dart';
@@ -55,7 +56,13 @@ class SliverMonthWorkPlansList extends ConsumerWidget {
     return SliverList(
       delegate: SliverChildBuilderDelegate((context, index) {
         final plan = plans[index];
-        return _buildPlanCard(context, theme, plan, objectsState);
+        return _buildPlanCard(
+          context,
+          ref,
+          theme,
+          plan,
+          objectsState,
+        );
       }, childCount: plans.length),
     );
   }
@@ -63,6 +70,7 @@ class SliverMonthWorkPlansList extends ConsumerWidget {
   /// Строит карточку плана работ, аналогично карточке смены.
   Widget _buildPlanCard(
     BuildContext context,
+    WidgetRef ref,
     ThemeData theme,
     WorkPlan plan,
     ObjectState objectsState,
@@ -113,7 +121,15 @@ class SliverMonthWorkPlansList extends ConsumerWidget {
                 // Контент карточки
                 Expanded(
                   child: InkWell(
-                    onTap: () => onPlanSelected?.call(plan),
+                    onTap: () {
+                      if (plan.id != null) {
+                        context.pushNamed(
+                          'work_plan_details',
+                          pathParameters: {'workPlanId': plan.id!},
+                        );
+                      }
+                      onPlanSelected?.call(plan);
+                    },
                     hoverColor: Colors.transparent,
                     splashColor: Colors.transparent,
                     highlightColor: Colors.transparent,
@@ -147,11 +163,12 @@ class SliverMonthWorkPlansList extends ConsumerWidget {
                                     const SizedBox(width: 4),
                                     Text(
                                       workersCount.toString(),
-                                      style: theme.textTheme.bodySmall?.copyWith(
-                                        color: theme.colorScheme.onSurface
-                                            .withValues(alpha: 0.5),
-                                        fontSize: 12,
-                                      ),
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                            color: theme.colorScheme.onSurface
+                                                .withValues(alpha: 0.5),
+                                            fontSize: 12,
+                                          ),
                                     ),
                                   ],
                                 ),
