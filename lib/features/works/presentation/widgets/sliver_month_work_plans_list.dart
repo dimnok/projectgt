@@ -56,13 +56,7 @@ class SliverMonthWorkPlansList extends ConsumerWidget {
     return SliverList(
       delegate: SliverChildBuilderDelegate((context, index) {
         final plan = plans[index];
-        return _buildPlanCard(
-          context,
-          ref,
-          theme,
-          plan,
-          objectsState,
-        );
+        return _buildPlanCard(context, ref, theme, plan, objectsState);
       }, childCount: plans.length),
     );
   }

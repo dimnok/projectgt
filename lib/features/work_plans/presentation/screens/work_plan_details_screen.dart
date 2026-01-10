@@ -141,7 +141,9 @@ class _WorkPlanDetailsScreenState extends ConsumerState<WorkPlanDetailsScreen> {
               showThemeSwitch: false,
             )
           : null,
-      drawer: null,
+      drawer: widget.showAppBar
+          ? const AppDrawer(activeRoute: AppRoute.workPlans)
+          : null,
       body: Column(
         children: [
           // Отступ сверху для мастер-детейл режима (когда AppBar скрыт)
