@@ -3,12 +3,12 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/month_groups_provider.dart';
+import '../providers/work_provider.dart';
 import 'work_details_panel.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 import 'package:go_router/go_router.dart';
 import 'package:projectgt/features/works/domain/entities/work.dart';
-import 'package:projectgt/presentation/state/profile_state.dart';
 import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/core/utils/modal_utils.dart';
@@ -18,12 +18,21 @@ import '../widgets/sliver_month_works_list.dart';
 import '../widgets/mobile_month_works_list.dart';
 import '../widgets/sliver_month_work_plans_list.dart';
 import '../../data/models/month_group.dart';
+import 'package:projectgt/features/work_plans/data/models/work_plan_month_group.dart';
 import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
 import 'package:projectgt/features/work_plans/presentation/screens/work_plan_form_modal.dart';
+import 'package:projectgt/features/work_plans/presentation/screens/work_plan_details_screen.dart';
+import 'package:projectgt/domain/entities/work_plan.dart';
+import '../widgets/desktop_month_work_plans_list.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/features/work_plans/presentation/providers/work_plan_month_groups_provider.dart';
 import 'package:projectgt/core/utils/formatters.dart';
+import 'package:projectgt/presentation/state/profile_state.dart';
+import 'package:projectgt/features/roles/application/permission_service.dart';
+import 'package:projectgt/core/widgets/app_snackbar.dart';
+import 'package:projectgt/core/error/failure.dart';
+import 'package:projectgt/presentation/widgets/cupertino_dialog_widget.dart';
 
 /// Режим отображения: смены или планы.
 enum _DisplayMode { works, workPlans }
@@ -47,6 +56,7 @@ class _WorksMasterDetailScreenState
     extends ConsumerState<WorksMasterDetailScreen> {
   final _scrollController = ScrollController();
   Work? selectedWork;
+  WorkPlan? selectedWorkPlan;
   MonthGroup?
   selectedMonth; // Выбранная группа месяца для отображения в детальной панели
   _DisplayMode _displayMode = _DisplayMode.works; // Начальный режим - смены
@@ -68,7 +78,32 @@ class _WorksMasterDetailScreenState
   }
 
   /// Показывает модальную форму для открытия смены.
-  void _showOpenShiftModal(BuildContext context) {
+  Future<void> _showOpenShiftModal(BuildContext context) async {
+    // Проверяем наличие открытой смены перед открытием формы
+    // Используем .future, чтобы дождаться актуального значения из БД
+    final bool hasOpen = await ref.read(hasOpenWorkProvider.future);
+
+    if (!context.mounted) return;
+
+    if (hasOpen) {
+      showCupertinoDialog(
+        context: context,
+        builder: (context) => CupertinoAlertDialog(
+          title: const Text('Внимание'),
+          content: const Text(
+            'У вас уже есть открытая смена. Пожалуйста, закройте её перед открытием новой.',
+          ),
+          actions: [
+            CupertinoDialogAction(
+              child: const Text('ОК'),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
     ModalUtils.showWorkFormModal(context);
   }
 
@@ -105,6 +140,7 @@ class _WorksMasterDetailScreenState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDesktop = ResponsiveUtils.isDesktop(context);
 
     // [RBAC] Сбрасываем выбор при смене компании
     ref.listen(activeCompanyIdProvider, (previous, next) {
@@ -116,41 +152,92 @@ class _WorksMasterDetailScreenState
       }
     });
 
-    final monthGroupsState = ref.watch(monthGroupsProvider);
-    final profile = ref.watch(currentUserProfileProvider).profile;
-    final isDesktop = ResponsiveUtils.isDesktop(context);
-    final groups = monthGroupsState.groups;
-    final isLoading = monthGroupsState.isLoading;
+    // Слушаем ошибки провайдера смен
+    ref.listen<AsyncValue<List<MonthGroup>>>(monthGroupsProvider, (prev, next) {
+      next.whenOrNull(
+        error: (e, s) {
+          final failure = e is Failure ? e : Failure.fromException(e);
+          AppSnackBar.show(
+            context: context,
+            message: failure.message ?? 'Ошибка загрузки смен',
+            kind: AppSnackBarKind.error,
+          );
+        },
+      );
+    });
+
+    final monthGroupsAsync = ref.watch(monthGroupsProvider);
+    final groups = monthGroupsAsync.valueOrNull ?? [];
+    final workPlanMonthGroupsState = ref.watch(workPlanMonthGroupsProvider);
+    final workPlanGroups = workPlanMonthGroupsState.groups;
+
+    final isLoading = _displayMode == _DisplayMode.works
+        ? monthGroupsAsync.isLoading
+        : workPlanMonthGroupsState.isLoading;
+
+    // Права на удаление для десктопного AppBar
+    bool canDeleteSelected = false;
+    Work? currentWork;
+    if (isDesktop &&
+        _displayMode == _DisplayMode.works &&
+        selectedWork?.id != null) {
+      currentWork = ref.watch(workProvider(selectedWork!.id!)) ?? selectedWork;
+      if (currentWork != null) {
+        final permissionService = ref.watch(permissionServiceProvider);
+        final hasDeletePermission = permissionService.can('works', 'delete');
+        final currentProfile = ref.watch(currentUserProfileProvider).profile;
+        final isCompanyOwner = currentProfile?.systemRole == 'owner';
+        final isOwner =
+            currentProfile != null && currentWork.openedBy == currentProfile.id;
+        final isWorkClosed = currentWork.status.toLowerCase() == 'closed';
+
+        canDeleteSelected =
+            hasDeletePermission &&
+            ((isOwner && !isWorkClosed) || isCompanyOwner);
+      }
+    }
 
     // Актуализируем selectedMonth из groups, чтобы данные в панели обновлялись
     if (selectedMonth != null) {
       try {
-        selectedMonth = groups.firstWhere(
-          (g) => g.month == selectedMonth!.month,
-        );
+        if (_displayMode == _DisplayMode.works) {
+          selectedMonth = groups.firstWhere(
+            (g) => g.month == selectedMonth!.month,
+          );
+        }
       } catch (e) {
         // Если группа исчезла, сбрасываем выбор
         selectedMonth = null;
       }
     }
 
-    // Проверяем есть ли у пользователя открытая смена
-    bool hasOpenByUser = false;
-    for (final group in groups) {
-      if (group.works != null) {
-        hasOpenByUser = group.works!.any(
-          (w) =>
-              w.status.toLowerCase() == 'open' &&
-              w.openedBy == (profile?.id ?? ''),
-        );
-        if (hasOpenByUser) break;
-      }
-    }
-
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
       // На десктопе показываем AppBar в Scaffold, на мобильных - он будет в списке
-      appBar: isDesktop ? const AppBarWidget(title: 'Смены') : null,
+      appBar: isDesktop
+          ? AppBarWidget(
+              title: _displayMode == _DisplayMode.works
+                  ? (currentWork != null
+                        ? 'Смена: ${formatRuDate(currentWork.date)}'
+                        : 'Смены')
+                  : (selectedWorkPlan != null
+                        ? 'План: ${formatRuDate(selectedWorkPlan!.date)}'
+                        : 'Планы работ'),
+              actions: [
+                if (canDeleteSelected && currentWork != null)
+                  CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    onPressed: () =>
+                        _confirmDeleteWork(context, ref, currentWork!),
+                    child: const Icon(
+                      CupertinoIcons.delete,
+                      color: Colors.red,
+                      size: 22,
+                    ),
+                  ),
+              ],
+            )
+          : null,
       drawer: const AppDrawer(activeRoute: AppRoute.works),
       floatingActionButton: null,
       body: LayoutBuilder(
@@ -159,8 +246,8 @@ class _WorksMasterDetailScreenState
             return _buildDesktopLayout(
               isLoading: isLoading,
               groups: groups,
+              workPlanGroups: workPlanGroups,
               theme: theme,
-              hasOpenByUser: hasOpenByUser,
             );
           } else {
             // Для мобильных добавляем SafeArea, чтобы контент не залезал под статус-бар
@@ -178,12 +265,43 @@ class _WorksMasterDetailScreenState
     );
   }
 
+  /// Показывает диалог подтверждения удаления смены.
+  void _confirmDeleteWork(BuildContext context, WidgetRef ref, Work work) {
+    CupertinoDialogs.showDeleteConfirmDialog(
+      context: context,
+      title: 'Подтверждение удаления',
+      message:
+          'Вы действительно хотите удалить смену от ${formatRuDate(work.date)}?\n\nЭто действие удалит все связанные работы и часы сотрудников. Операция необратима.',
+      confirmButtonText: 'Удалить',
+      onConfirm: () async {
+        if (work.id == null) return;
+
+        await ref.read(worksProvider.notifier).deleteWork(work.id!);
+
+        // Обновляем список смен для немедленного отображения изменений
+        await ref.read(monthGroupsProvider.notifier).refresh();
+
+        setState(() {
+          selectedWork = null;
+        });
+
+        if (context.mounted) {
+          AppSnackBar.show(
+            context: context,
+            message: 'Смена успешно удалена',
+            kind: AppSnackBarKind.success,
+          );
+        }
+      },
+    );
+  }
+
   /// Строит десктопную версию интерфейса (Card-in-Card layout).
   Widget _buildDesktopLayout({
     required bool isLoading,
     required List<MonthGroup> groups,
+    required List<WorkPlanMonthGroup> workPlanGroups,
     required ThemeData theme,
-    required bool hasOpenByUser,
   }) {
     final isDark = theme.brightness == Brightness.dark;
 
@@ -210,7 +328,7 @@ class _WorksMasterDetailScreenState
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              // Левая панель - список смен (узкая)
+              // Левая панель - список (узкая)
               Container(
                 width: 350,
                 margin: const EdgeInsets.only(right: 16),
@@ -230,56 +348,90 @@ class _WorksMasterDetailScreenState
                 ),
                 child: Column(
                   children: [
-                    if (!hasOpenByUser)
-                      Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: SizedBox(
-                          width: double.infinity,
-                          child: PermissionGuard(
-                            module: 'works',
-                            permission: 'create',
-                            child: GTPrimaryButton(
-                              onPressed: () => _showOpenShiftModal(context),
-                              icon: CupertinoIcons.add,
-                              text: 'Открыть смену',
-                              backgroundColor: Colors.green,
-                            ),
-                          ),
+                    // Переключатель режимов на десктопе
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.grey[850] : Colors.grey[100],
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                      ),
-                    Expanded(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: _buildWorksList(
-                          isLoading: isLoading,
-                          groups: groups,
-                          theme: theme,
-                          isDesktop: true,
-                          // Цвет фона для прилипающего заголовка на десктопе
-                          stickyHeaderColor: isDark
-                              ? Colors.grey[900]
-                              : Colors.white,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: _buildModeTab(
+                                title: 'Смены',
+                                mode: _DisplayMode.works,
+                                activeColor: Colors.green,
+                                isDark: isDark,
+                              ),
+                            ),
+                            Expanded(
+                              child: _buildModeTab(
+                                title: 'Планы',
+                                mode: _DisplayMode.workPlans,
+                                activeColor: Colors.blue,
+                                isDark: isDark,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                    if (!hasOpenByUser)
-                      Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: SizedBox(
-                          width: double.infinity,
-                          child: PermissionGuard(
-                            module: 'work_plans',
-                            permission: 'create',
-                            child: GTPrimaryButton(
-                              onPressed: () =>
-                                  _showCreateWorkPlanModal(context),
-                              icon: CupertinoIcons.add,
-                              text: 'Составить план',
-                              backgroundColor: Colors.blue,
-                            ),
-                          ),
-                        ),
+
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: _displayMode == _DisplayMode.works
+                            ? PermissionGuard(
+                                module: 'works',
+                                permission: 'create',
+                                child: GTPrimaryButton(
+                                  onPressed: () => _showOpenShiftModal(context),
+                                  icon: CupertinoIcons.add,
+                                  text: 'Открыть смену',
+                                  backgroundColor: Colors.green,
+                                ),
+                              )
+                            : PermissionGuard(
+                                module: 'work_plans',
+                                permission: 'create',
+                                child: GTPrimaryButton(
+                                  onPressed: () =>
+                                      _showCreateWorkPlanModal(context),
+                                  icon: CupertinoIcons.add,
+                                  text: 'Составить план',
+                                  backgroundColor: Colors.blue,
+                                ),
+                              ),
                       ),
+                    ),
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: _displayMode == _DisplayMode.works
+                            ? _buildWorksList(
+                                isLoading: isLoading,
+                                groups: groups,
+                                theme: theme,
+                                isDesktop: true,
+                                // Цвет фона для прилипающего заголовка на десктопе
+                                stickyHeaderColor: isDark
+                                    ? Colors.grey[900]
+                                    : Colors.white,
+                              )
+                            : _buildDesktopWorkPlansList(
+                                isLoading: isLoading,
+                                groups: workPlanGroups,
+                                theme: theme,
+                                stickyHeaderColor: isDark
+                                    ? Colors.grey[900]
+                                    : Colors.white,
+                              ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -293,6 +445,113 @@ class _WorksMasterDetailScreenState
     );
   }
 
+  Widget _buildModeTab({
+    required String title,
+    required _DisplayMode mode,
+    required Color activeColor,
+    required bool isDark,
+  }) {
+    final isActive = _displayMode == mode;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _displayMode = mode;
+          // Сбрасываем выбор при смене режима
+          selectedWork = null;
+          selectedWorkPlan = null;
+          selectedMonth = null;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color: isActive
+              ? (isDark ? Colors.grey[800] : Colors.white)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: isActive
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Center(
+          child: Text(
+            title,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+              color: isActive
+                  ? activeColor
+                  : (isDark ? Colors.grey[400] : Colors.grey[600]),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Строит список планов работ для десктопа.
+  Widget _buildDesktopWorkPlansList({
+    required bool isLoading,
+    required List<WorkPlanMonthGroup> groups,
+    required ThemeData theme,
+    required Color? stickyHeaderColor,
+  }) {
+    if (isLoading) {
+      return const Center(child: CupertinoActivityIndicator());
+    }
+
+    if (groups.isEmpty) {
+      return const Center(child: Text('Планы не найдены'));
+    }
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        await ref.read(workPlanMonthGroupsProvider.notifier).refresh();
+      },
+      child: CustomScrollView(
+        slivers: [
+          for (final group in groups) ...[
+            SliverPersistentHeader(
+              key: ValueKey('plan_header_${group.month}'),
+              pinned: group.isExpanded,
+              delegate: _WorkPlanMonthGroupHeaderDelegate(
+                group: group,
+                backgroundColor: stickyHeaderColor,
+                onTap: () {
+                  ref
+                      .read(workPlanMonthGroupsProvider.notifier)
+                      .toggleMonth(group.month);
+                },
+              ),
+            ),
+            if (group.isExpanded)
+              DesktopMonthWorkPlansList(
+                key: ValueKey('plan_list_${group.month}'),
+                group: group,
+                selectedPlan: selectedWorkPlan,
+                onPlanSelected: (plan) {
+                  setState(() {
+                    selectedWorkPlan = plan;
+                    selectedWork = null;
+                    selectedMonth = null;
+                  });
+                },
+              )
+            else
+              const SliverToBoxAdapter(child: SizedBox.shrink()),
+          ],
+          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+        ],
+      ),
+    );
+  }
+
   /// Строит панель деталей (смена или месяц).
   Widget _buildDetailPanel(ThemeData theme, {bool isDesktop = false}) {
     // Если десктоп, не нужны отступы под AppBar, так как мы внутри контейнера
@@ -300,7 +559,7 @@ class _WorksMasterDetailScreenState
         ? 0.0
         : MediaQuery.of(context).viewPadding.top + kToolbarHeight + 24;
 
-    // Приоритет: месяц > смена > placeholder
+    // Приоритет: месяц > смена/план > placeholder
     if (selectedMonth != null) {
       return Column(
         children: [
@@ -308,7 +567,7 @@ class _WorksMasterDetailScreenState
           Expanded(child: MonthDetailsPanel(group: selectedMonth!)),
         ],
       );
-    } else if (selectedWork != null) {
+    } else if (selectedWork != null && _displayMode == _DisplayMode.works) {
       return selectedWork!.id != null
           ? Column(
               children: [
@@ -322,19 +581,38 @@ class _WorksMasterDetailScreenState
               ],
             )
           : const Center(child: Text('Ошибка: ID смены не задан'));
+    } else if (selectedWorkPlan != null &&
+        _displayMode == _DisplayMode.workPlans) {
+      return selectedWorkPlan!.id != null
+          ? Column(
+              children: [
+                if (!isDesktop) SizedBox(height: topPadding),
+                Expanded(
+                  child: WorkPlanDetailsScreen(
+                    workPlanId: selectedWorkPlan!.id!,
+                    showAppBar: false,
+                  ),
+                ),
+              ],
+            )
+          : const Center(child: Text('Ошибка: ID плана не задан'));
     } else {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              CupertinoIcons.doc_text_search,
+              _displayMode == _DisplayMode.works
+                  ? CupertinoIcons.doc_text_search
+                  : CupertinoIcons.doc_plaintext,
               size: 64,
               color: theme.colorScheme.outline.withValues(alpha: 0.5),
             ),
             const SizedBox(height: 16),
             Text(
-              'Выберите смену или месяц из списка',
+              _displayMode == _DisplayMode.works
+                  ? 'Выберите смену или месяц из списка'
+                  : 'Выберите план работ из списка',
               style: theme.textTheme.titleMedium?.copyWith(
                 color: theme.colorScheme.outline,
               ),
@@ -422,14 +700,13 @@ class _WorksMasterDetailScreenState
     }
 
     final isDesktop = ResponsiveUtils.isDesktop(context);
-    const hasOpenByUser = false; // Для планов всегда можно создать новый
 
     return RefreshIndicator(
+      key: key,
       onRefresh: () async {
         await ref.read(workPlanMonthGroupsProvider.notifier).refresh();
       },
       child: CustomScrollView(
-        key: key,
         slivers: [
           // AppBar для мобильных
           if (!isDesktop)
@@ -455,7 +732,7 @@ class _WorksMasterDetailScreenState
             ),
 
           // Верхняя кнопка для мобильных
-          if (!isDesktop && !hasOpenByUser)
+          if (!isDesktop)
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -514,7 +791,7 @@ class _WorksMasterDetailScreenState
           ],
 
           // Для мобильных: заполняем пространство и прижимаем кнопку вниз
-          if (!isDesktop && !hasOpenByUser)
+          if (!isDesktop)
             SliverFillRemaining(
               hasScrollBody: false,
               child: Column(
@@ -587,24 +864,10 @@ class _WorksMasterDetailScreenState
       return const Center(child: Text('Смены не найдены'));
     }
 
-    // Проверка на наличие открытой смены пользователем (для кнопки)
-    final profile = ref.watch(currentUserProfileProvider).profile;
-    bool hasOpenByUser = false;
-    for (final group in groups) {
-      if (group.works != null) {
-        hasOpenByUser = group.works!.any(
-          (w) =>
-              w.status.toLowerCase() == 'open' &&
-              w.openedBy == (profile?.id ?? ''),
-        );
-        if (hasOpenByUser) break;
-      }
-    }
-
     return RefreshIndicator(
+      key: key,
       onRefresh: _handleRefresh,
       child: CustomScrollView(
-        key: key,
         controller: _scrollController,
         slivers: [
           // AppBar для мобильных (внутри списка, чтобы уезжал)
@@ -632,7 +895,7 @@ class _WorksMasterDetailScreenState
             ),
 
           // Верхняя кнопка для мобильных
-          if (!isDesktop && !hasOpenByUser)
+          if (!isDesktop)
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -754,7 +1017,7 @@ class _WorksMasterDetailScreenState
           ],
 
           // Для мобильных: заполняем пространство и прижимаем кнопку вниз
-          if (!isDesktop && !hasOpenByUser)
+          if (!isDesktop)
             SliverFillRemaining(
               hasScrollBody: false,
               child: Column(

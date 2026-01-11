@@ -365,10 +365,12 @@ class _UsersListDesktopScreenState
                         builder: (context, ref, _) {
                           final rolesState = ref.watch(rolesNotifierProvider);
                           String getDisplayRole() {
-                            if (profile.system_role == 'owner')
+                            if (profile.systemRole == 'owner') {
                               return 'Владелец';
-                            if (profile.system_role == 'admin')
+                            }
+                            if (profile.systemRole == 'admin') {
                               return 'Администратор';
+                            }
 
                             final roleName = rolesState.valueOrNull
                                 ?.where((r) => r.id == profile.roleId)
@@ -392,7 +394,7 @@ class _UsersListDesktopScreenState
                                   ),
                                 ),
                                 if (profile.roleId != null ||
-                                    profile.system_role != null) ...[
+                                    profile.systemRole != null) ...[
                                   const SizedBox(width: 8),
                                   InkWell(
                                     onTap: () {

@@ -1,7 +1,9 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:projectgt/core/widgets/gt_dropdown.dart';
 import 'package:projectgt/domain/entities/employee.dart' as domain_employee;
 import 'package:projectgt/core/utils/formatters.dart';
+import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:projectgt/features/work_plans/presentation/widgets/work_block_state.dart';
 import 'package:projectgt/features/work_plans/presentation/widgets/work_selection_widget.dart';
@@ -137,36 +139,25 @@ class WorkBlockWidget extends StatelessWidget {
 
   /// Строит заголовок блока.
   Widget _buildBlockHeader(BuildContext context, ThemeData theme) {
+    final isDark = theme.brightness == Brightness.dark;
+    final headerColor = isDark
+        ? theme.colorScheme.primaryContainer.withValues(alpha: 0.7)
+        : const Color(0xFF97D699);
+    final textColor = isDark
+        ? theme.colorScheme.onPrimaryContainer
+        : theme.colorScheme.onSurface;
+    final subtextColor = isDark
+        ? theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.8)
+        : theme.colorScheme.onSurface.withValues(alpha: 0.7);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF97D699),
+        color: headerColor,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [
-          // Иконка блока
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: blockState.isComplete
-                  ? Colors.green.withValues(alpha: 0.1)
-                  : theme.colorScheme.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              blockState.isComplete
-                  ? Icons.check_circle_outline
-                  : Icons.work_outline,
-              color: blockState.isComplete
-                  ? Colors.green
-                  : theme.colorScheme.primary,
-              size: 20,
-            ),
-          ),
-
-          const SizedBox(width: 12),
-
           // Информация о блоке
           Expanded(
             child: Column(
@@ -199,7 +190,7 @@ class WorkBlockWidget extends StatelessWidget {
                   }(),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: theme.colorScheme.onSurface,
+                    color: textColor,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -207,21 +198,24 @@ class WorkBlockWidget extends StatelessWidget {
                   () {
                     if (blockState.selectedResponsible != null) {
                       final responsible = blockState.selectedResponsible!;
-                      final firstNameInitial = responsible.firstName.isNotEmpty
-                          ? responsible.firstName[0].toUpperCase()
-                          : '';
-                      final middleNameInitial =
-                          responsible.middleName != null &&
-                                  responsible.middleName!.isNotEmpty
-                              ? responsible.middleName![0].toUpperCase()
-                              : '';
-                      return 'Ответственный: ${responsible.lastName} $firstNameInitial${middleNameInitial.isNotEmpty ? '.$middleNameInitial.' : firstNameInitial.isNotEmpty ? '.' : ''}';
+                      final name = ResponsiveUtils.isDesktop(context)
+                          ? formatFullName(
+                            responsible.lastName,
+                            responsible.firstName,
+                            responsible.middleName,
+                          )
+                          : formatAbbreviatedName(
+                            responsible.lastName,
+                            responsible.firstName,
+                            responsible.middleName,
+                          );
+                      return 'Ответственный: $name';
                     }
 
                     return 'Ответственный не назначен';
                   }(),
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                    color: subtextColor,
                   ),
                 ),
                 if (blockState.selectedSystem != null) ...[
@@ -230,17 +224,15 @@ class WorkBlockWidget extends StatelessWidget {
                     children: [
                       if (blockState.worksCount > 0) ...[
                         Icon(
-                          Icons.construction,
+                          CupertinoIcons.hammer,
                           size: 14,
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.6),
+                          color: subtextColor.withValues(alpha: 0.8),
                         ),
                         const SizedBox(width: 4),
                         Text(
                           '${blockState.worksCount} работ',
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface
-                                .withValues(alpha: 0.6),
+                            color: subtextColor.withValues(alpha: 0.8),
                           ),
                         ),
                       ],
@@ -249,22 +241,19 @@ class WorkBlockWidget extends StatelessWidget {
                           Text(
                             ' • ',
                             style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurface
-                                  .withValues(alpha: 0.6),
+                              color: subtextColor.withValues(alpha: 0.8),
                             ),
                           ),
                         Icon(
-                          Icons.people_outline,
+                          CupertinoIcons.group,
                           size: 14,
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.6),
+                          color: subtextColor.withValues(alpha: 0.8),
                         ),
                         const SizedBox(width: 4),
                         Text(
                           '${blockState.workersCount} чел.',
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface
-                                .withValues(alpha: 0.6),
+                            color: subtextColor.withValues(alpha: 0.8),
                           ),
                         ),
                       ],
@@ -274,21 +263,18 @@ class WorkBlockWidget extends StatelessWidget {
                           Text(
                             ' • ',
                             style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurface
-                                  .withValues(alpha: 0.6),
+                              color: subtextColor.withValues(alpha: 0.8),
                             ),
                           ),
                         Icon(
-                          Icons.payments_outlined,
+                          CupertinoIcons.money_rubl,
                           size: 14,
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.6),
+                          color: subtextColor.withValues(alpha: 0.8),
                         ),
                         Text(
                           _formatCurrency(blockState.totalCost),
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface
-                                .withValues(alpha: 0.6),
+                            color: subtextColor.withValues(alpha: 0.8),
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -312,8 +298,9 @@ class WorkBlockWidget extends StatelessWidget {
                         blockIndex, !blockState.isCollapsed),
                 icon: Icon(
                   blockState.isCollapsed
-                      ? Icons.expand_more
-                      : Icons.expand_less,
+                      ? CupertinoIcons.chevron_down
+                      : CupertinoIcons.chevron_up,
+                  color: textColor,
                 ),
                 tooltip: blockState.isCollapsed ? 'Развернуть' : 'Свернуть',
               ),
@@ -322,10 +309,10 @@ class WorkBlockWidget extends StatelessWidget {
               if (canDelete && !isLoading)
                 IconButton(
                   onPressed: () => onDeleteBlock?.call(blockIndex),
-                  icon: const Icon(Icons.delete_outline),
+                  icon: const Icon(CupertinoIcons.trash),
                   iconSize: 20,
                   tooltip: 'Удалить блок',
-                  color: Colors.red.withValues(alpha: 0.7),
+                  color: isDark ? Colors.redAccent : Colors.red.withValues(alpha: 0.7),
                 ),
             ],
           ),
@@ -344,7 +331,17 @@ class WorkBlockWidget extends StatelessWidget {
         GTDropdown<domain_employee.Employee>(
           items: availableResponsibles,
           itemDisplayBuilder: (employee) =>
-              '${employee.lastName} ${employee.firstName}${employee.middleName != null ? ' ${employee.middleName}' : ''}',
+              ResponsiveUtils.isDesktop(context)
+                  ? formatFullName(
+                    employee.lastName,
+                    employee.firstName,
+                    employee.middleName,
+                  )
+                  : formatAbbreviatedName(
+                    employee.lastName,
+                    employee.firstName,
+                    employee.middleName,
+                  ),
           selectedItem: blockState.selectedResponsible,
           onSelectionChanged: isLoading
               ? (_) {}
@@ -365,7 +362,17 @@ class WorkBlockWidget extends StatelessWidget {
         GTDropdown<domain_employee.Employee>(
           items: availableWorkersForSelection,
           itemDisplayBuilder: (employee) =>
-              '${employee.lastName} ${employee.firstName}${employee.middleName != null ? ' ${employee.middleName}' : ''}',
+              ResponsiveUtils.isDesktop(context)
+                  ? formatFullName(
+                    employee.lastName,
+                    employee.firstName,
+                    employee.middleName,
+                  )
+                  : formatAbbreviatedName(
+                    employee.lastName,
+                    employee.firstName,
+                    employee.middleName,
+                  ),
           selectedItems: blockState.selectedWorkers,
           onSelectionChanged: (_) {
             // Пустой callback для одинарного выбора
@@ -500,8 +507,8 @@ class WorkBlockWidget extends StatelessWidget {
               children: [
                 Icon(
                   blockState.isComplete
-                      ? Icons.check_circle_outline
-                      : Icons.warning_outlined,
+                      ? CupertinoIcons.checkmark_circle
+                      : CupertinoIcons.exclamationmark_triangle,
                   color: blockState.isComplete ? Colors.green : Colors.orange,
                   size: 16,
                 ),

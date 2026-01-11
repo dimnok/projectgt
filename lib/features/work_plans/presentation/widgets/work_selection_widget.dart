@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:projectgt/core/widgets/gt_text_field.dart';
@@ -211,10 +212,10 @@ class _WorkSelectionWidgetState extends State<WorkSelectionWidget> {
               controller: _searchController,
               enabled: !widget.readOnly && !widget.isLoading,
               hintText: 'Поиск работ по названию...',
-              prefixIcon: Icons.search,
+              prefixIcon: CupertinoIcons.search,
               suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.clear),
+                      icon: const Icon(CupertinoIcons.clear),
                       onPressed: () {
                         _searchController.clear();
                         FocusScope.of(context).unfocus();
@@ -233,7 +234,7 @@ class _WorkSelectionWidgetState extends State<WorkSelectionWidget> {
                   child: Column(
                     children: [
                       Icon(
-                        Icons.search_off,
+                        CupertinoIcons.search,
                         size: 48,
                         color:
                             theme.colorScheme.onSurface.withValues(alpha: 0.5),
@@ -267,8 +268,14 @@ class _WorkSelectionWidgetState extends State<WorkSelectionWidget> {
                     final isSelected = _isWorkSelected(work);
                     // quantity отображение суммы удалено
 
+                    final isDark = theme.brightness == Brightness.dark;
                     return Card(
-                      color: isSelected ? Colors.green.shade50 : null,
+                      color: isSelected
+                          ? (isDark
+                              ? theme.colorScheme.primaryContainer
+                                  .withValues(alpha: 0.15)
+                              : Colors.green.shade50)
+                          : null,
                       elevation: isSelected ? 2 : 0,
                       margin: const EdgeInsets.symmetric(vertical: 4),
                       child: Theme(
@@ -291,14 +298,21 @@ class _WorkSelectionWidgetState extends State<WorkSelectionWidget> {
                             work.name,
                             style: theme.textTheme.bodyMedium?.copyWith(
                               fontWeight: FontWeight.w500,
-                              color: isSelected ? Colors.green.shade700 : null,
+                              color: isSelected
+                                  ? (isDark
+                                      ? theme.colorScheme.primary
+                                      : Colors.green.shade700)
+                                  : null,
                             ),
                           ),
                           subtitle: Text(
                             '${work.unit} • ${formatCurrency(work.price)}',
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: isSelected
-                                  ? Colors.green.shade600
+                                  ? (isDark
+                                      ? theme.colorScheme.primary
+                                          .withValues(alpha: 0.8)
+                                      : Colors.green.shade600)
                                   : theme.colorScheme.onSurface
                                       .withValues(alpha: 0.7),
                             ),

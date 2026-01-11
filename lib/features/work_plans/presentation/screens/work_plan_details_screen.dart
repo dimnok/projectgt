@@ -87,7 +87,7 @@ class _WorkPlanDetailsScreenState extends ConsumerState<WorkPlanDetailsScreen> {
         appBar:
             widget.showAppBar ? const AppBarWidget(title: 'План работ') : null,
         drawer: widget.showAppBar
-            ? const AppDrawer(activeRoute: AppRoute.workPlans)
+            ? const AppDrawer(activeRoute: AppRoute.works)
             : null,
         body: const Center(child: CircularProgressIndicator()),
       );
@@ -98,7 +98,7 @@ class _WorkPlanDetailsScreenState extends ConsumerState<WorkPlanDetailsScreen> {
         appBar:
             widget.showAppBar ? const AppBarWidget(title: 'План работ') : null,
         drawer: widget.showAppBar
-            ? const AppDrawer(activeRoute: AppRoute.workPlans)
+            ? const AppDrawer(activeRoute: AppRoute.works)
             : null,
         body: Center(
           child: Text(
@@ -134,6 +134,7 @@ class _WorkPlanDetailsScreenState extends ConsumerState<WorkPlanDetailsScreen> {
     );
 
     return Scaffold(
+      backgroundColor: widget.showAppBar ? null : Colors.transparent,
       appBar: widget.showAppBar
           ? AppBarWidget(
               title: _formatDate(workPlan.date),
@@ -143,12 +144,13 @@ class _WorkPlanDetailsScreenState extends ConsumerState<WorkPlanDetailsScreen> {
             )
           : null,
       drawer: widget.showAppBar
-          ? const AppDrawer(activeRoute: AppRoute.workPlans)
+          ? const AppDrawer(activeRoute: AppRoute.works)
           : null,
       body: Column(
         children: [
           // Отступ сверху для мастер-детейл режима (когда AppBar скрыт)
-          if (!widget.showAppBar)
+          // Только для мобильных, на десктопе мастер-детейл уже имеет свои отступы
+          if (!widget.showAppBar && ResponsiveUtils.isMobile(context))
             SizedBox(
               height:
                   MediaQuery.of(context).viewPadding.top + kToolbarHeight + 24,
@@ -167,21 +169,23 @@ class _WorkPlanDetailsScreenState extends ConsumerState<WorkPlanDetailsScreen> {
                     maxWidth: MediaQuery.of(context).size.width - 32,
                   )
                 : null,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              border: Border.all(
-                color: theme.colorScheme.outline.withValues(alpha: 0.2),
-                width: 0.5,
-              ),
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: theme.colorScheme.shadow.withValues(alpha: 0.05),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
+            decoration: ResponsiveUtils.isMobile(context)
+                ? BoxDecoration(
+                    color: theme.colorScheme.surface,
+                    border: Border.all(
+                      color: theme.colorScheme.outline.withValues(alpha: 0.2),
+                      width: 0.5,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: theme.colorScheme.shadow.withValues(alpha: 0.05),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  )
+                : null,
             child: Column(
               children: [
                 // Шапка с основной информацией
@@ -189,117 +193,63 @@ class _WorkPlanDetailsScreenState extends ConsumerState<WorkPlanDetailsScreen> {
                   padding: EdgeInsets.all(ResponsiveUtils.adaptiveValue(
                     context: context,
                     mobile: _contentPadding,
-                    desktop: _contentPadding * 1.5,
+                    desktop: _contentPadding * 1.2,
                   )),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Дата и объект
+                      // Объект и дата в одной строке
                       Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Иконка плана работ
-                          Container(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: theme.colorScheme.outline
-                                    .withValues(alpha: 0.3),
-                                width: 1,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: theme.colorScheme.shadow
-                                      .withValues(alpha: 0.1),
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: CircleAvatar(
-                              radius: ResponsiveUtils.adaptiveValue(
-                                context: context,
-                                mobile: 40.0,
-                                desktop: 50.0,
-                              ),
-                              backgroundColor: theme.colorScheme.primary
-                                  .withValues(alpha: 0.1),
-                              child: Icon(
-                                Icons.assignment_outlined,
-                                size: ResponsiveUtils.adaptiveValue(
+                          Expanded(
+                            child: Text(
+                              objectEntity?.name ??
+                                  workPlan.objectName ??
+                                  'Неизвестный объект',
+                              style: theme.textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                fontSize: ResponsiveUtils.adaptiveValue(
                                   context: context,
-                                  mobile: 32.0,
-                                  desktop: 40.0,
+                                  mobile: 18.0,
+                                  desktop: 20.0,
                                 ),
-                                color: theme.colorScheme.primary,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
-
-                          const SizedBox(width: 16),
-
-                          // Основная информация о плане работ
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Дата
-                                Text(
-                                  'План работ на ${_formatDate(workPlan.date)}',
-                                  style: theme.textTheme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: ResponsiveUtils.adaptiveValue(
-                                      context: context,
-                                      mobile: theme
-                                              .textTheme.titleLarge?.fontSize ??
-                                          22.0,
-                                      desktop: (theme.textTheme.titleLarge
-                                                  ?.fontSize ??
-                                              22.0) *
-                                          1.2,
-                                    ),
-                                  ),
-                                ),
-                                SizedBox(
-                                    height: ResponsiveUtils.adaptiveValue(
-                                  context: context,
-                                  mobile: 8.0,
-                                  desktop: 12.0,
-                                )),
-                                // Объект
-                                Text(
-                                  objectEntity?.name ??
-                                      workPlan.objectName ??
-                                      'Неизвестный объект',
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    fontSize: ResponsiveUtils.adaptiveValue(
-                                      context: context,
-                                      mobile: theme.textTheme.titleMedium
-                                              ?.fontSize ??
-                                          16.0,
-                                      desktop: (theme.textTheme.titleMedium
-                                                  ?.fontSize ??
-                                              16.0) *
-                                          1.1,
-                                    ),
-                                  ),
-                                ),
-                                if (objectEntity?.address != null) ...[
-                                  SizedBox(
-                                      height: ResponsiveUtils.adaptiveValue(
-                                    context: context,
-                                    mobile: 4.0,
-                                    desktop: 6.0,
-                                  )),
-                                  Text(
-                                    objectEntity!.address,
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      color: theme.colorScheme.onSurface
-                                          .withValues(alpha: 0.6),
-                                    ),
-                                  ),
-                                ],
-                              ],
+                          const SizedBox(width: 12),
+                          Text(
+                            _formatDate(workPlan.date),
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w500,
+                              color: theme.colorScheme.onSurface
+                                  .withValues(alpha: 0.7),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      // Статистика: Специалисты и Сумма
+                      Row(
+                        children: [
+                          Icon(
+                            CupertinoIcons.group,
+                            size: 20,
+                            color: theme.colorScheme.onSurface
+                                .withValues(alpha: 0.7),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '${workPlan.workBlocks.expand((b) => b.workerIds).toSet().length} специалистов',
+                            style: valueStyle,
+                          ),
+                          const Spacer(),
+                          Text(
+                            _formatCurrency(workPlan.totalPlannedCost),
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: theme.colorScheme.primary,
                             ),
                           ),
                         ],
@@ -423,7 +373,7 @@ class _WorkPlanDetailsScreenState extends ConsumerState<WorkPlanDetailsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Icon(
-                    Icons.person_outline,
+                    CupertinoIcons.person,
                     size: 16,
                     color: Colors.red,
                   ),
@@ -438,7 +388,11 @@ class _WorkPlanDetailsScreenState extends ConsumerState<WorkPlanDetailsScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      '${responsible.lastName} ${responsible.firstName}${responsible.middleName != null ? ' ${responsible.middleName}' : ''}',
+                      formatFullName(
+                        responsible.lastName,
+                        responsible.firstName,
+                        responsible.middleName,
+                      ),
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: Colors.red,
                         fontWeight: FontWeight.w600,
@@ -456,8 +410,7 @@ class _WorkPlanDetailsScreenState extends ConsumerState<WorkPlanDetailsScreen> {
                 theme,
                 'Работники:',
                 workers
-                    .map((w) =>
-                        '${w.lastName} ${w.firstName}${w.middleName != null ? ' ${w.middleName}' : ''}')
+                    .map((w) => formatFullName(w.lastName, w.firstName, w.middleName))
                     .join(', '),
                 CupertinoIcons.group,
               ),
@@ -469,7 +422,7 @@ class _WorkPlanDetailsScreenState extends ConsumerState<WorkPlanDetailsScreen> {
               Row(
                 children: [
                   Icon(
-                    Icons.construction,
+                    CupertinoIcons.hammer,
                     size: 16,
                     color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                   ),

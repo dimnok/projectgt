@@ -9,6 +9,8 @@ import 'package:projectgt/features/export/presentation/widgets/export_work_item_
 import 'package:projectgt/features/export/domain/entities/work_search_result.dart';
 import 'package:projectgt/features/works/domain/entities/work_hour.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
+import 'package:projectgt/core/widgets/gt_buttons.dart';
+import 'package:projectgt/core/widgets/modal_container_wrapper.dart';
 
 /// Утилитарный класс для работы с модальными окнами.
 ///
@@ -148,21 +150,18 @@ class ModalUtils {
     if (isDesktop) {
       return showDialog(
         context: context,
-        builder: (context) => const Center(child: WorkFormScreen()),
-      );
-    } else {
-      return showModalBottomSheet(
-        context: context,
-        useRootNavigator: true,
-        isScrollControlled: true,
-        useSafeArea: true,
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
         builder: (context) => const WorkFormScreen(),
       );
     }
+
+    return showModalBottomSheet(
+      context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const WorkFormScreen(),
+    );
   }
 
   /// Показывает модальное окно с формой добавления сотрудника в смену.
@@ -175,13 +174,23 @@ class ModalUtils {
     required String workId,
     WorkHour? initial,
   }) {
-    return _showFormModal(
+    final isDesktop = ResponsiveUtils.isDesktop(context);
+
+    if (isDesktop) {
+      return showDialog(
+        context: context,
+        builder: (context) =>
+            WorkHourFormModal(workId: workId, initial: initial),
+      );
+    }
+
+    return showModalBottomSheet(
       context: context,
-      formBuilder: (scrollController) => WorkHourFormModal(
-        workId: workId,
-        initial: initial,
-        scrollController: scrollController,
-      ),
+      useRootNavigator: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      useSafeArea: true,
+      builder: (context) => WorkHourFormModal(workId: workId, initial: initial),
     );
   }
 
@@ -199,12 +208,10 @@ class ModalUtils {
       return showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (dialogContext) => Center(
-          child: NewMaterialModal(
-            objectId: objectId,
-            system: system,
-            subsystem: subsystem,
-          ),
+        builder: (dialogContext) => NewMaterialModal(
+          objectId: objectId,
+          system: system,
+          subsystem: subsystem,
         ),
       );
     }
@@ -217,11 +224,6 @@ class ModalUtils {
       useSafeArea: true,
       isDismissible: false, // Запрет закрытия по тапу вне
       enableDrag: false, // Запрет закрытия свайпом вниз
-      constraints: BoxConstraints(
-        maxHeight:
-            MediaQuery.of(context).size.height -
-            MediaQuery.of(context).padding.top,
-      ),
       builder: (sheetContext) => NewMaterialModal(
         objectId: objectId,
         system: system,
@@ -355,29 +357,12 @@ class ModalUtils {
     required Widget Function(ScrollController scrollController) formBuilder,
     bool useDraggable = true,
   }) {
-    final theme = Theme.of(context);
-    final isDesktop = ResponsiveUtils.isDesktop(context);
-
     Widget buildContent(BuildContext context, ScrollController? controller) {
-      return Container(
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
-            ),
-          ],
+      return Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
         ),
-        child: Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-          ),
-          child: formBuilder(controller ?? ScrollController()),
-        ),
+        child: formBuilder(controller ?? ScrollController()),
       );
     }
 
@@ -396,17 +381,6 @@ class ModalUtils {
       modalContent = buildContent(context, null);
     }
 
-    // Для десктопов ограничиваем ширину, но сохраняем привязку к низу
-    if (isDesktop) {
-      modalContent = Align(
-        alignment: Alignment.bottomCenter,
-        child: SizedBox(
-          width: MediaQuery.of(context).size.width * 0.5,
-          child: modalContent,
-        ),
-      );
-    }
-
     return showModalBottomSheet(
       context: context,
       useRootNavigator: true,
@@ -420,7 +394,7 @@ class ModalUtils {
             MediaQuery.of(context).size.height -
             MediaQuery.of(context).padding.top,
       ),
-      builder: (context) => modalContent,
+      builder: (context) => ModalContainerWrapper(child: modalContent),
     );
   }
 }
@@ -453,52 +427,17 @@ class _FloatingFormButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = ResponsiveUtils.isMobile(context);
-    const buttonHeight = 44.0; // Стандартный размер для touch targets
-
     return Row(
       children: [
         Expanded(
-          child: OutlinedButton(
-            onPressed: onCancel,
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size.fromHeight(buttonHeight),
-              shape: const StadiumBorder(),
-              elevation: isMobile ? 2 : 0,
-              shadowColor: isMobile
-                  ? Colors.black.withValues(alpha: 0.2)
-                  : null,
-              textStyle: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            child: Text(cancelText),
-          ),
+          child: GTSecondaryButton(onPressed: onCancel, text: cancelText),
         ),
         const SizedBox(width: 16),
         Expanded(
-          child: ElevatedButton(
-            onPressed: isLoading ? null : onSave,
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size.fromHeight(buttonHeight),
-              shape: const StadiumBorder(),
-              elevation: isMobile ? 4 : 1,
-              shadowColor: isMobile
-                  ? Colors.black.withValues(alpha: 0.3)
-                  : null,
-              textStyle: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            child: isLoading
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CupertinoActivityIndicator(),
-                  )
-                : Text(saveText),
+          child: GTPrimaryButton(
+            onPressed: onSave,
+            isLoading: isLoading,
+            text: saveText,
           ),
         ),
       ],

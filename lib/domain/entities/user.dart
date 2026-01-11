@@ -27,7 +27,7 @@ abstract class User with _$User {
     String? roleId,
 
     /// Системная роль пользователя (owner, admin).
-    String? system_role,
+    String? systemRole,
   }) = _User;
 
   /// Приватный конструктор для расширения функциональности через методы.

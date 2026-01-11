@@ -55,9 +55,6 @@ enum AppRoute {
   /// Экран экспорта.
   export,
 
-  /// Экран плана работ.
-  workPlans,
-
   /// Экран управления версиями.
   versionManagement,
 
@@ -342,14 +339,6 @@ class AppDrawer extends ConsumerWidget {
                           ),
                           _buildMenuItem(
                             context: context,
-                            module: 'work_plans',
-                            title: 'План работ',
-                            icon: CupertinoIcons.calendar_today,
-                            route: AppRoute.workPlans,
-                            routeName: 'work_plans',
-                          ),
-                          _buildMenuItem(
-                            context: context,
                             module: 'materials',
                             title: 'Материал',
                             icon: CupertinoIcons.cube_box,
@@ -492,7 +481,7 @@ class _DrawerHeader extends ConsumerWidget {
     final photoUrl = profile?.photoUrl ?? user?.photoUrl;
     final displayName = profile?.shortName ?? user?.name ?? 'USER';
     final roleId = profile?.roleId ?? user?.roleId;
-    final systemRole = profile?.system_role ?? user?.system_role;
+    final systemRole = profile?.systemRole ?? user?.systemRole;
 
     return Container(
       height: 120,

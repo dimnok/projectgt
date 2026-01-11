@@ -42,10 +42,13 @@ class _MonthDetailsMobileScreenState
 
   @override
   Widget build(BuildContext context) {
-    final monthGroupsState = ref.watch(monthGroupsProvider);
+    final monthGroupsAsync = ref.watch(monthGroupsProvider);
 
-    final currentGroup = monthGroupsState.groups.firstWhere(
-      (group) => group.month == widget.initialGroup.month,
+    final currentGroup = monthGroupsAsync.maybeWhen(
+      data: (groups) => groups.firstWhere(
+        (group) => group.month == widget.initialGroup.month,
+        orElse: () => _resolvedGroup ?? widget.initialGroup,
+      ),
       orElse: () => _resolvedGroup ?? widget.initialGroup,
     );
 
@@ -61,8 +64,8 @@ class _MonthDetailsMobileScreenState
 
     final theme = Theme.of(context);
     final groupedBackgroundColor = theme.brightness == Brightness.light
-        ? const Color(0xFFF2F2F7)
-        : const Color(0xFF1C1C1E);
+        ? theme.colorScheme.surfaceContainerHigh
+        : theme.colorScheme.surfaceContainerLowest;
 
     return Scaffold(
       appBar: AppBarWidget(

@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 
-import 'package:projectgt/features/roles/presentation/providers/roles_provider.dart'
-    as local_roles_provider;
 import 'package:projectgt/presentation/state/profile_state.dart';
 import '../../../presentation/providers/work_hours_provider.dart'
     as local_hours_provider;
@@ -17,6 +15,9 @@ import 'package:projectgt/presentation/state/employee_state.dart'
 import 'package:projectgt/features/works/domain/entities/work_hour.dart';
 import 'package:projectgt/features/works/domain/entities/work.dart';
 import 'package:projectgt/core/utils/modal_utils.dart';
+import 'package:projectgt/core/utils/responsive_utils.dart';
+import 'package:projectgt/core/utils/formatters.dart';
+import 'package:projectgt/core/widgets/gt_text_field.dart';
 
 /// Вкладка "Сотрудники" для панели деталей смены.
 ///
@@ -59,23 +60,28 @@ class _WorkHoursTabState extends ConsumerState<WorkHoursTab> {
 
   TextEditingController _ensureHourController(String id, num initialHours) {
     if (_hourControllers[id] == null) {
-      _hourControllers[id] =
-          TextEditingController(text: initialHours.toString());
+      _hourControllers[id] = TextEditingController(
+        text: initialHours.toString(),
+      );
     }
     return _hourControllers[id]!;
   }
 
   // Предзагрузка имён сотрудников для снижения дёрганья при прокрутке
   Future<void> _prefetchEmployeeNames(
-      List<WorkHour> hours, WidgetRef ref) async {
+    List<WorkHour> hours,
+    WidgetRef ref,
+  ) async {
     bool changed = false;
     final employeesState = ref.read(employee_state.employeeProvider);
 
     // 1) Заполняем кэш из уже загруженных данных
+    final isDesktop = ResponsiveUtils.isDesktop(context);
     final existingById = {
       for (final e in employeesState.employees)
-        e.id:
-            '${e.lastName} ${e.firstName}${e.middleName != null && e.middleName!.isNotEmpty ? ' ${e.middleName}' : ''}'
+        e.id: isDesktop
+            ? formatFullName(e.lastName, e.firstName, e.middleName)
+            : formatAbbreviatedName(e.lastName, e.firstName, e.middleName),
     };
 
     final List<String> missingIds = [];
@@ -109,28 +115,35 @@ class _WorkHoursTabState extends ConsumerState<WorkHoursTab> {
     // 2) Параллельная подгрузка отсутствующих сотрудников
     _prefetchingEmployeeIds.addAll(missingIds);
     try {
-      await Future.wait(missingIds.map((id) async {
-        try {
-          await ref
-              .read(employee_state.employeeProvider.notifier)
-              .getEmployee(id);
-          final fetched = ref
-              .read(employee_state.employeeProvider)
-              .employees
-              .where((e) => e.id == id)
-              .toList();
-          if (fetched.isNotEmpty) {
-            final e = fetched.first;
-            _employeeNameCache[id] =
-                '${e.lastName} ${e.firstName}${e.middleName != null && e.middleName!.isNotEmpty ? ' ${e.middleName}' : ''}';
-            changed = true;
+      await Future.wait(
+        missingIds.map((id) async {
+          try {
+            await ref
+                .read(employee_state.employeeProvider.notifier)
+                .getEmployee(id);
+            final fetched = ref
+                .read(employee_state.employeeProvider)
+                .employees
+                .where((e) => e.id == id)
+                .toList();
+            if (fetched.isNotEmpty) {
+              final e = fetched.first;
+              _employeeNameCache[id] = isDesktop
+                  ? formatFullName(e.lastName, e.firstName, e.middleName)
+                  : formatAbbreviatedName(
+                      e.lastName,
+                      e.firstName,
+                      e.middleName,
+                    );
+              changed = true;
+            }
+          } catch (_) {
+            // глушим ошибки загрузки конкретного id, продолжаем остальные
+          } finally {
+            _prefetchingEmployeeIds.remove(id);
           }
-        } catch (_) {
-          // глушим ошибки загрузки конкретного id, продолжаем остальные
-        } finally {
-          _prefetchingEmployeeIds.remove(id);
-        }
-      }));
+        }),
+      );
     } finally {
       if (changed && mounted) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -160,20 +173,16 @@ class _WorkHoursTabState extends ConsumerState<WorkHoursTab> {
     final permissionService = ref.watch(permissionServiceProvider);
     final canUpdate = permissionService.can('works', 'update');
 
-    // Проверка на админа
-    final rolesState = ref.watch(local_roles_provider.rolesNotifierProvider);
+    // Проверка на владельца компании
     final userProfile = ref.watch(currentUserProfileProvider).profile;
-    final isAdmin = rolesState.valueOrNull?.any((r) =>
-            r.id == userProfile?.roleId &&
-            r.isSystem &&
-            (r.name == 'Супер-админ' || r.name == 'Админ')) ??
-        false;
+    final isCompanyOwner = userProfile?.systemRole == 'owner';
 
     // Проверка на владельца смены
     final isOwner =
         userProfile != null && workAsync?.openedBy == userProfile.id;
 
-    final bool canModify = ((isOwner && !isWorkClosed) || isAdmin) && canUpdate;
+    final bool canModify =
+        ((isOwner && !isWorkClosed) || isCompanyOwner) && canUpdate;
 
     return Stack(
       children: [
@@ -187,7 +196,9 @@ class _WorkHoursTabState extends ConsumerState<WorkHoursTab> {
                 return hours.isEmpty
                     ? const Center(
                         child: Text(
-                            'Нет сотрудников в смене. Добавьте сотрудника, нажав на "+"'))
+                          'Нет сотрудников в смене. Добавьте сотрудника, нажав на "+"',
+                        ),
+                      )
                     : ListView.builder(
                         keyboardDismissBehavior:
                             ScrollViewKeyboardDismissBehavior.onDrag,
@@ -197,9 +208,11 @@ class _WorkHoursTabState extends ConsumerState<WorkHoursTab> {
                           final hour = hours[i];
                           final employeeName =
                               _employeeNameCache[hour.employeeId] ??
-                                  'Сотрудник ID: ${hour.employeeId}';
-                          final hoursController =
-                              _ensureHourController(hour.id, hour.hours);
+                              'Сотрудник ID: ${hour.employeeId}';
+                          final hoursController = _ensureHourController(
+                            hour.id,
+                            hour.hours,
+                          );
 
                           return Dismissible(
                             key: Key(hour.id),
@@ -223,14 +236,19 @@ class _WorkHoursTabState extends ConsumerState<WorkHoursTab> {
                             confirmDismiss: canModify
                                 ? (direction) async {
                                     return await _showDeleteHourConfirmationDialog(
-                                        context, hour);
+                                      context,
+                                      hour,
+                                    );
                                   }
                                 : null,
                             onDismissed: canModify
                                 ? (direction) {
                                     ref
-                                        .read(_hoursProvider(widget.workId)
-                                            .notifier)
+                                        .read(
+                                          _hoursProvider(
+                                            widget.workId,
+                                          ).notifier,
+                                        )
                                         .delete(hour.id);
                                   }
                                 : null,
@@ -240,23 +258,22 @@ class _WorkHoursTabState extends ConsumerState<WorkHoursTab> {
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                                 side: BorderSide(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .outline
-                                      .withValues(alpha: 0.2),
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.outline.withValues(alpha: 0.2),
                                   width: 1,
                                 ),
                               ),
                               child: ListTile(
                                 contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 8),
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
                                 leading: Container(
                                   width: 32,
                                   height: 32,
                                   decoration: BoxDecoration(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .primary
+                                    color: Theme.of(context).colorScheme.primary
                                         .withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(16),
                                   ),
@@ -265,9 +282,9 @@ class _WorkHoursTabState extends ConsumerState<WorkHoursTab> {
                                       '${i + 1}',
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .primary,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
                                       ),
                                     ),
                                   ),
@@ -278,56 +295,63 @@ class _WorkHoursTabState extends ConsumerState<WorkHoursTab> {
                                       child: Text(
                                         employeeName,
                                         style: const TextStyle(
-                                            fontWeight: FontWeight.w600),
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
                                     ),
                                     if (_isMassEdit && canModify)
                                       SizedBox(
                                         width: 80,
-                                        child: TextField(
+                                        child: GTTextField(
                                           controller: hoursController,
                                           textAlign: TextAlign.center,
-                                          keyboardType: const TextInputType
-                                              .numberWithOptions(decimal: true),
+                                          keyboardType:
+                                              const TextInputType.numberWithOptions(
+                                                decimal: true,
+                                              ),
                                           inputFormatters: [
                                             FilteringTextInputFormatter.allow(
-                                                // ignore: deprecated_member_use
-                                                RegExp(r'[0-9.,]')),
+                                              // ignore: deprecated_member_use
+                                              RegExp(r'[0-9.,]'),
+                                            ),
                                           ],
-                                          decoration: const InputDecoration(
-                                            isDense: true,
-                                            contentPadding:
-                                                EdgeInsets.symmetric(
-                                                    horizontal: 8, vertical: 8),
-                                            border: OutlineInputBorder(),
-                                          ),
+                                          contentPadding:
+                                              const EdgeInsets.symmetric(
+                                                horizontal: 8,
+                                                vertical: 8,
+                                              ),
+                                          borderRadius: 8,
                                         ),
                                       )
                                     else
                                       Container(
                                         padding: const EdgeInsets.symmetric(
-                                            horizontal: 12, vertical: 4),
+                                          horizontal: 12,
+                                          vertical: 4,
+                                        ),
                                         decoration: BoxDecoration(
                                           color: Theme.of(context)
                                               .colorScheme
                                               .primary
                                               .withValues(alpha: 0.1),
-                                          borderRadius:
-                                              BorderRadius.circular(12),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
                                         ),
                                         child: Text(
                                           '${hour.hours} ч',
                                           style: TextStyle(
                                             fontWeight: FontWeight.bold,
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .primary,
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.primary,
                                           ),
                                         ),
                                       ),
                                   ],
                                 ),
-                                subtitle: hour.comment != null &&
+                                subtitle:
+                                    hour.comment != null &&
                                         hour.comment!.isNotEmpty
                                     ? Padding(
                                         padding: const EdgeInsets.only(top: 4),
@@ -335,9 +359,9 @@ class _WorkHoursTabState extends ConsumerState<WorkHoursTab> {
                                           'Комментарий: ${hour.comment}',
                                           style: TextStyle(
                                             fontSize: 12,
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .onSurfaceVariant,
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.onSurfaceVariant,
                                           ),
                                         ),
                                       )
@@ -376,8 +400,9 @@ class _WorkHoursTabState extends ConsumerState<WorkHoursTab> {
                   setState(() {
                     _isMassEdit = true;
                     // Заполнить контроллеры актуальными значениями при входе в режим
-                    final current =
-                        ref.read(_hoursProvider(widget.workId)).valueOrNull;
+                    final current = ref
+                        .read(_hoursProvider(widget.workId))
+                        .valueOrNull;
                     if (current != null) {
                       for (final h in current) {
                         final controller = _ensureHourController(h.id, h.hours);
@@ -389,8 +414,9 @@ class _WorkHoursTabState extends ConsumerState<WorkHoursTab> {
                   });
                 } else {
                   // Сохранение всех изменений одним действием
-                  final current =
-                      ref.read(_hoursProvider(widget.workId)).valueOrNull;
+                  final current = ref
+                      .read(_hoursProvider(widget.workId))
+                      .valueOrNull;
                   if (current != null) {
                     final List<WorkHour> updated = [];
                     for (final h in current) {
@@ -443,7 +469,7 @@ class _WorkHoursTabState extends ConsumerState<WorkHoursTab> {
 
   // Провайдер часов — поддержка альтернативного пути импорта
   StateNotifierProviderFamily<dynamic, AsyncValue<List<WorkHour>>, String>
-      get _hoursProvider {
+  get _hoursProvider {
     // Пробуем локальный импорт, иначе используем основной
     try {
       return local_hours_provider.workHoursProvider;
@@ -456,13 +482,16 @@ class _WorkHoursTabState extends ConsumerState<WorkHoursTab> {
 
   /// Подтверждение удаления сотрудника из смены
   Future<bool?> _showDeleteHourConfirmationDialog(
-      BuildContext context, WorkHour hour) async {
+    BuildContext context,
+    WorkHour hour,
+  ) async {
     return await showCupertinoModalPopup<bool>(
       context: context,
       builder: (BuildContext context) => CupertinoAlertDialog(
         title: const Text('Подтверждение'),
-        content:
-            const Text('Вы действительно хотите удалить сотрудника из смены?'),
+        content: const Text(
+          'Вы действительно хотите удалить сотрудника из смены?',
+        ),
         actions: <CupertinoDialogAction>[
           CupertinoDialogAction(
             isDefaultAction: true,

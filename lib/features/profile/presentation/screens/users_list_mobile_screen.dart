@@ -292,9 +292,9 @@ class _UserListTile extends ConsumerWidget {
 
     final rolesState = ref.watch(rolesNotifierProvider);
     final String displayRole;
-    if (profile.system_role == 'owner') {
+    if (profile.systemRole == 'owner') {
       displayRole = 'Владелец';
-    } else if (profile.system_role == 'admin') {
+    } else if (profile.systemRole == 'admin') {
       displayRole = 'Администратор';
     } else {
       displayRole =
@@ -390,7 +390,7 @@ class _UserListTile extends ConsumerWidget {
                             ),
                           ),
                           if (profile.roleId != null ||
-                              profile.system_role != null) ...[
+                              profile.systemRole != null) ...[
                             const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(

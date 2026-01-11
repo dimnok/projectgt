@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/work_material.dart';
 import '../providers/work_materials_provider.dart';
-import '../../../../features/company/presentation/providers/company_providers.dart';
+import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 import 'package:uuid/uuid.dart';
+import 'package:projectgt/core/widgets/gt_buttons.dart';
 
 /// Модальное окно для добавления или редактирования материала в смене.
 class WorkMaterialFormModal extends ConsumerStatefulWidget {
@@ -221,32 +222,16 @@ class _WorkMaterialFormModalState extends ConsumerState<WorkMaterialFormModal> {
                 Row(
                   children: [
                     Expanded(
-                      child: OutlinedButton(
+                      child: GTSecondaryButton(
                         onPressed: () => Navigator.pop(context),
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size.fromHeight(44),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          textStyle: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
-                        child: const Text('Отмена'),
+                        text: 'Отмена',
                       ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: ElevatedButton(
+                      child: GTPrimaryButton(
                         onPressed: _save,
-                        style: ElevatedButton.styleFrom(
-                          minimumSize: const Size.fromHeight(44),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          textStyle: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
-                        child: const Text('Сохранить'),
+                        text: 'Сохранить',
                       ),
                     ),
                   ],

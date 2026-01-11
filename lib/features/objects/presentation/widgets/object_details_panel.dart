@@ -108,10 +108,7 @@ class ObjectDetailsPanel extends ConsumerWidget {
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
-            child: ObjectDetailsSections(
-              object: object,
-              labelWidth: 200,
-            ),
+            child: ObjectDetailsSections(object: object, labelWidth: 200),
           ),
         ),
       ],

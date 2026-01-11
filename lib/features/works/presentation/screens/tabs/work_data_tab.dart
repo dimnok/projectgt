@@ -1,15 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:projectgt/presentation/widgets/cupertino_dialog_widget.dart';
 
 import 'package:projectgt/core/utils/responsive_utils.dart';
-import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/features/works/domain/entities/work.dart';
-import 'package:projectgt/features/works/domain/entities/work_item.dart';
-import 'package:projectgt/features/works/domain/entities/work_hour.dart';
 import 'package:projectgt/features/works/presentation/providers/work_items_provider.dart';
 import 'package:projectgt/features/works/presentation/providers/work_hours_provider.dart';
 import 'package:projectgt/features/works/presentation/providers/work_provider.dart';
@@ -19,14 +15,18 @@ import 'package:projectgt/features/works/presentation/utils/photo_upload_helper.
 import 'package:projectgt/core/notifications/notification_service.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
 import 'package:projectgt/core/di/providers.dart';
-import 'package:projectgt/core/utils/snackbar_utils.dart';
+import 'package:projectgt/core/error/failure.dart';
+import 'package:projectgt/core/widgets/gt_buttons.dart';
+import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/features/works/presentation/widgets/work_distribution_card.dart';
 import 'package:projectgt/features/works/presentation/providers/month_groups_provider.dart';
 import 'package:projectgt/core/utils/telegram_helper.dart';
 import 'package:projectgt/features/works/presentation/providers/repositories_providers.dart';
-import 'package:projectgt/features/roles/presentation/providers/roles_provider.dart';
 import 'package:projectgt/features/works/presentation/widgets/work_data_skeleton.dart';
-import 'package:flutter_animate/flutter_animate.dart'; // Added for internal skeleton
+import 'package:projectgt/features/works/presentation/widgets/work_stats_card.dart';
+import 'package:projectgt/features/works/presentation/widgets/work_validation_block.dart';
+import 'package:projectgt/features/works/presentation/utils/works_strings.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 /// Вкладка "Данные" со сводной информацией по смене
 class WorkDataTab extends ConsumerStatefulWidget {
@@ -47,9 +47,22 @@ class WorkDataTab extends ConsumerStatefulWidget {
 class _WorkDataTabState extends ConsumerState<WorkDataTab> {
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final isMobile = !ResponsiveUtils.isDesktop(context);
     final work = widget.work;
+
+    // Слушаем ошибки операций со сменами
+    ref.listen<AsyncValue<List<Work>>>(worksProvider, (prev, next) {
+      next.whenOrNull(
+        error: (e, s) {
+          final failure = e is Failure ? e : Failure.fromException(e);
+          AppSnackBar.show(
+            context: context,
+            message: failure.message ?? WorksStrings.operationError,
+            kind: AppSnackBarKind.error,
+          );
+        },
+      );
+    });
 
     return Consumer(
       builder: (context, ref, _) {
@@ -60,7 +73,6 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
         final hours = hoursAsync.valueOrNull;
 
         // Проверяем, есть ли данные для отображения статистики
-        // Либо они есть в самом объекте Work, либо загрузились списки
         final hasStatsData = (work.itemsCount != null &&
                 work.employeesCount != null &&
                 work.totalAmount != null) ||
@@ -71,7 +83,7 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
           return const WorkDataSkeleton();
         }
 
-        // Рассчитываем статистику (приоритет у полей Work, если null - считаем из списков)
+        // Рассчитываем статистику
         final worksCount = work.itemsCount ?? items?.length ?? 0;
         final uniqueEmployees = work.employeesCount ??
             hours?.map((h) => h.employeeId).toSet().length ??
@@ -84,299 +96,59 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
 
         final isWorkClosed = work.status.toLowerCase() == 'closed';
         final currentProfile = ref.watch(currentUserProfileProvider).profile;
-
-        // Проверка на супер-админа
-        final rolesState = ref.watch(rolesNotifierProvider);
-        final isSuperAdmin = rolesState.valueOrNull?.any((r) =>
-                r.id == currentProfile?.roleId &&
-                r.isSystem &&
-                r.name == 'Супер-админ') ??
-            false;
-
+        final isCompanyOwner = currentProfile?.systemRole == 'owner';
         final bool isOwner =
             currentProfile != null && work.openedBy == currentProfile.id;
-        final bool canModify = (isOwner && !isWorkClosed) || isSuperAdmin;
+        final bool canModify = (isOwner && !isWorkClosed) || isCompanyOwner;
 
-        if (!isMobile) {
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Блок закрытия смены / валидации
-                if (!isWorkClosed)
-                  _buildValidationOrLoading(
-                    context,
-                    theme,
-                    work,
-                    items,
-                    hours,
-                    canModify,
-                  ),
+        final content = Column(
+          crossAxisAlignment:
+              isMobile ? CrossAxisAlignment.stretch : CrossAxisAlignment.center,
+          children: [
+            // Блок закрытия смены / валидации
+            if (!isWorkClosed)
+              WorkValidationBlock(
+                work: work,
+                items: items,
+                hours: hours,
+                canModify: canModify,
+                onCloseWork: () => _showCloseWorkConfirmation(work),
+                onAddPhoto: () => _showEveningPhotoOptions(work),
+              ),
 
-                // Карточка показателей
-                _buildStatsCard(
-                  context,
-                  theme,
-                  worksCount,
-                  uniqueEmployees,
-                  totalAmount,
-                  productivityPerEmployee,
-                ),
-
-                if (items != null && items.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  WorkDistributionCard(items: items),
-                ] else if (items == null) ...[
-                  const SizedBox(height: 16),
-                  _buildDistributionSkeleton(context),
-                ],
-                const SizedBox(height: 16),
-                WorkPhotoView(work: work),
-                const SizedBox(height: 32),
-              ],
+            // Карточка показателей
+            WorkStatsCard(
+              worksCount: worksCount,
+              uniqueEmployees: uniqueEmployees,
+              totalAmount: totalAmount,
+              productivityPerEmployee: productivityPerEmployee,
             ),
-          );
-        }
+
+            if (items != null && items.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              WorkDistributionCard(items: items),
+            ] else if (items == null) ...[
+              const SizedBox(height: 16),
+              _buildDistributionSkeleton(context),
+            ],
+            const SizedBox(height: 16),
+            WorkPhotoView(work: work),
+            const SizedBox(height: 32),
+          ],
+        );
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 600),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Блок закрытия смены / валидации
-                  if (!isWorkClosed)
-                    _buildValidationOrLoading(
-                      context,
-                      theme,
-                      work,
-                      items,
-                      hours,
-                      canModify,
-                    ),
-
-                  // Карточка показателей
-                  _buildStatsCard(
-                    context,
-                    theme,
-                    worksCount,
-                    uniqueEmployees,
-                    totalAmount,
-                    productivityPerEmployee,
+          child: isMobile
+              ? Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 600),
+                    child: content,
                   ),
-
-                  if (items != null && items.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    WorkDistributionCard(items: items),
-                  ] else if (items == null) ...[
-                    const SizedBox(height: 16),
-                    _buildDistributionSkeleton(context),
-                  ],
-                  const SizedBox(height: 16),
-                  WorkPhotoView(work: work),
-                  const SizedBox(height: 32),
-                ],
-              ),
-            ),
-          ),
+                )
+              : content,
         );
       },
-    );
-  }
-
-  Widget _buildValidationOrLoading(
-    BuildContext context,
-    ThemeData theme,
-    Work work,
-    List<WorkItem>? items,
-    List<WorkHour>? hours,
-    bool canModify,
-  ) {
-    // Если списки еще грузятся, мы не можем проверить валидацию
-    if (items == null || hours == null) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 24),
-        child: Container(
-          height: 50,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest
-                .withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Center(child: CupertinoActivityIndicator()),
-        ),
-      );
-    }
-
-    final (canClose, message) = _canCloseWork(work, items, hours);
-
-    if (canClose) {
-      if (canModify) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 24),
-          child: ElevatedButton.icon(
-            onPressed: () => _showCloseWorkConfirmation(work),
-            icon: const Icon(Icons.lock_outline),
-            label: const Text('Закрыть смену'),
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size.fromHeight(48),
-              backgroundColor: theme.colorScheme.primary,
-              foregroundColor: theme.colorScheme.onPrimary,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-          ),
-        );
-      }
-      return const SizedBox.shrink();
-    } else {
-      return Container(
-        margin: const EdgeInsets.only(bottom: 24),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.error.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(12),
-          border:
-              Border.all(color: theme.colorScheme.error.withValues(alpha: 0.2)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.info_outline,
-                    color: theme.colorScheme.error, size: 20),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Для закрытия смены:',
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.error,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _buildCheckItem('Добавить работы', items.isNotEmpty),
-            _buildCheckItem('Добавить сотрудников', hours.isNotEmpty),
-            _buildCheckItem('Заполнить кол-во у работ',
-                items.isNotEmpty && !items.any((item) => item.quantity <= 0)),
-            _buildCheckItem('Заполнить часы сотрудников',
-                hours.isNotEmpty && !hours.any((hour) => hour.hours <= 0)),
-            _buildCheckItem(
-                'Загрузить вечернее фото',
-                work.eveningPhotoUrl != null &&
-                    work.eveningPhotoUrl!.isNotEmpty),
-            if (work.eveningPhotoUrl == null ||
-                work.eveningPhotoUrl!.isEmpty) ...[
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed:
-                      canModify ? () => _showEveningPhotoOptions(work) : null,
-                  icon: const Icon(Icons.camera_alt, size: 18),
-                  label: const Text('Добавить фото'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: theme.colorScheme.primary,
-                    side: BorderSide(
-                        color:
-                            theme.colorScheme.primary.withValues(alpha: 0.5)),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-              ),
-            ],
-            if (message != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                message,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.error,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-            ],
-          ],
-        ),
-      );
-    }
-  }
-
-  Widget _buildStatsCard(
-    BuildContext context,
-    ThemeData theme,
-    int worksCount,
-    int uniqueEmployees,
-    double totalAmount,
-    double productivityPerEmployee,
-  ) {
-    return Card(
-      elevation: 0,
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: theme.colorScheme.outline.withValues(alpha: 0.1),
-          width: 1,
-        ),
-      ),
-      color: theme.cardColor,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatItem(
-                    context,
-                    'Сотрудников',
-                    uniqueEmployees.toString(),
-                    Icons.people_outline,
-                  ),
-                ),
-                Container(
-                  width: 1,
-                  height: 40,
-                  color: theme.colorScheme.outline.withValues(alpha: 0.1),
-                ),
-                Expanded(
-                  child: _buildStatItem(
-                    context,
-                    'Работ',
-                    worksCount.toString(),
-                    Icons.handyman_outlined,
-                  ),
-                ),
-              ],
-            ),
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
-              child: Divider(height: 1),
-            ),
-            _buildStatRow(
-              context,
-              'Общая сумма',
-              formatCurrency(totalAmount),
-              isMain: true,
-            ),
-            const SizedBox(height: 12),
-            _buildStatRow(
-              context,
-              'Выработка на чел.',
-              formatCurrency(productivityPerEmployee),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -398,133 +170,6 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
           color: highlightColor,
           angle: -0.3,
         );
-  }
-
-  Widget _buildCheckItem(String text, bool isCompleted) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Icon(isCompleted ? Icons.check_circle : Icons.cancel,
-              color: isCompleted ? Colors.green : theme.colorScheme.error,
-              size: 20),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: isCompleted ? null : theme.colorScheme.error,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatItem(
-    BuildContext context,
-    String label,
-    String value,
-    IconData icon,
-  ) {
-    final theme = Theme.of(context);
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest
-                .withValues(alpha: 0.3),
-            shape: BoxShape.circle,
-          ),
-          child:
-              Icon(icon, color: theme.colorScheme.onSurfaceVariant, size: 20),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          value,
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: theme.colorScheme.onSurface,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatRow(
-    BuildContext context,
-    String label,
-    String value, {
-    bool isMain = false,
-  }) {
-    final theme = Theme.of(context);
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        Text(
-          value,
-          style: isMain
-              ? theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.primary,
-                )
-              : theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.onSurface,
-                ),
-        ),
-      ],
-    );
-  }
-
-  (bool, String?) _canCloseWork(
-      Work work, List<WorkItem> workItems, List<WorkHour> workHours) {
-    if (work.status.toLowerCase() == 'closed') {
-      return (false, 'Смена уже закрыта');
-    }
-    if (workItems.isEmpty) return (false, 'Невозможно закрыть смену без работ');
-    if (workHours.isEmpty) {
-      return (false, 'Невозможно закрыть смену без сотрудников');
-    }
-    final invalidWorkItems =
-        workItems.where((item) => item.quantity <= 0).toList();
-    if (invalidWorkItems.isNotEmpty) {
-      return (
-        false,
-        'У некоторых работ не указано количество. Необходимо заполнить все поля количества перед закрытием смены.'
-      );
-    }
-    final invalidWorkHours =
-        workHours.where((hour) => hour.hours <= 0).toList();
-    if (invalidWorkHours.isNotEmpty) {
-      return (
-        false,
-        'У некоторых сотрудников не указаны часы. Необходимо заполнить все поля часов перед закрытием смены.'
-      );
-    }
-    if (work.eveningPhotoUrl == null || work.eveningPhotoUrl!.isEmpty) {
-      return (
-        false,
-        'Необходимо добавить вечернее фото перед закрытием смены.'
-      );
-    }
-    return (true, null);
   }
 
   Future<void> _closeWork(Work work) async {
@@ -554,7 +199,11 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
 
       // Отправляем отчет в Telegram
       if (mounted) {
-        SnackBarUtils.showSuccess(context, 'Смена успешно закрыта');
+        AppSnackBar.show(
+          context: context,
+          message: WorksStrings.successWorkClosed,
+          kind: AppSnackBarKind.success,
+        );
         // Даём время на обновление UI
         await Future.delayed(const Duration(milliseconds: 500));
         if (!mounted) return;
@@ -567,12 +216,20 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
           ref.read(monthGroupsProvider.notifier).updateWorkInGroup(freshWork);
           await _sendTelegramReport(freshWork);
         } else {
-          SnackBarUtils.showError(context, 'Не удалось загрузить данные смены');
+          AppSnackBar.show(
+            context: context,
+            message: WorksStrings.loadWorkError,
+            kind: AppSnackBarKind.error,
+          );
         }
       }
     } catch (e) {
       if (mounted) {
-        SnackBarUtils.showError(context, 'Ошибка при закрытии смены: $e');
+        AppSnackBar.show(
+          context: context,
+          message: WorksStrings.closeWorkError(e),
+          kind: AppSnackBarKind.error,
+        );
       }
     }
   }
@@ -580,29 +237,24 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
   void _showCloseWorkConfirmation(Work work) {
     CupertinoDialogs.showConfirmDialog<bool>(
       context: context,
-      title: 'Подтверждение закрытия смены',
-      message: '''После закрытия смены будет невозможно:
-• Добавлять/удалять работы и сотрудников
-• Изменять количество работ и часы
-• Редактировать фотографии
-
-Вы уверены, что хотите закрыть смену?''',
-      confirmButtonText: 'Закрыть смену',
+      title: WorksStrings.confirmCloseTitle,
+      message: WorksStrings.confirmCloseMessage,
+      confirmButtonText: WorksStrings.closeWorkBtn,
       isDestructiveAction: true,
       onConfirm: () async => await _closeWork(work),
     );
   }
 
   void _showEveningPhotoOptions(Work work) {
+    final theme = Theme.of(context);
     showModalBottomSheet(
       context: context,
       useRootNavigator: true,
       backgroundColor: Theme.of(context).colorScheme.surface,
-      builder: (context) {
+      builder: (_) {
         return StatefulBuilder(
-          builder: (context, setBottomSheetState) {
-            final messenger = ScaffoldMessenger.of(context);
-            final navigator = Navigator.of(context, rootNavigator: true);
+          builder: (sheetContext, setBottomSheetState) {
+            final navigator = Navigator.of(sheetContext, rootNavigator: true);
 
             return Container(
               padding: const EdgeInsets.all(16),
@@ -610,8 +262,8 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Вечернее фото',
-                    style: Theme.of(context)
+                    WorksStrings.eveningPhotoDialogTitle,
+                    style: Theme.of(sheetContext)
                         .textTheme
                         .titleLarge
                         ?.copyWith(fontWeight: FontWeight.bold),
@@ -632,7 +284,7 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        TextButton.icon(
+                        GTTextButton(
                           onPressed: () async {
                             try {
                               final photoService =
@@ -653,23 +305,29 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
                                 _updateWorkInMonthGroups(updatedWork);
                                 Future.delayed(
                                   const Duration(milliseconds: 300),
-                                  () => SnackBarUtils.showSuccessByMessenger(
-                                    messenger,
-                                    'Вечернее фото удалено',
-                                  ),
+                                  () {
+                                    if (!mounted) return;
+                                    AppSnackBar.show(
+                                      context: context,
+                                      message: WorksStrings.successEveningPhotoDeleted,
+                                      kind: AppSnackBarKind.success,
+                                    );
+                                  },
                                 );
                               }
                             } catch (e) {
                               if (mounted) {
-                                SnackBarUtils.showErrorByMessenger(
-                                  messenger,
-                                  'Ошибка при удалении фото: $e',
+                                AppSnackBar.show(
+                                  context: context,
+                                  message: WorksStrings.deletePhotoError(e),
+                                  kind: AppSnackBarKind.error,
                                 );
                               }
                             }
                           },
-                          icon: const Icon(Icons.delete_outline),
-                          label: const Text('Удалить'),
+                          icon: Icons.delete_outline,
+                          text: WorksStrings.deleteBtn,
+                          color: theme.colorScheme.error,
                         ),
                       ],
                     ),
@@ -680,7 +338,7 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
                     children: [
                       _PhotoOptionButton(
                         icon: Icons.camera_alt,
-                        label: 'Камера',
+                        label: WorksStrings.cameraBtn,
                         onTap: () => _pickEveningPhoto(
                           ImageSource.camera,
                           work,
@@ -688,7 +346,7 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
                       ),
                       _PhotoOptionButton(
                         icon: Icons.image,
-                        label: 'Галерея',
+                        label: WorksStrings.galleryBtn,
                         onTap: () => _pickEveningPhoto(
                           ImageSource.gallery,
                           work,
@@ -699,9 +357,9 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
                   const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,
-                    child: TextButton(
+                    child: GTTextButton(
                       onPressed: () => navigator.pop(),
-                      child: const Text('Отмена'),
+                      text: WorksStrings.cancelBtn,
                     ),
                   ),
                 ],
@@ -749,8 +407,11 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
             _updateWorkInMonthGroups(updatedWork);
           } catch (e) {
             if (mounted) {
-              SnackBarUtils.showError(
-                  context, 'Ошибка при сохранении фото: $e');
+              AppSnackBar.show(
+                context: context,
+                message: WorksStrings.savePhotoError(e),
+                kind: AppSnackBarKind.error,
+              );
             }
           }
         },
@@ -758,13 +419,19 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
 
       if (uploadedUrl == null) return;
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
-      // ✅ После нажатия "Готово" просто закрываем галерею
-      Navigator.of(context, rootNavigator: true).pop();
+      // ✅ Вкладка данных не должна закрываться после загрузки фото,
+      // так как пользователь должен остаться на экране смены.
     } catch (e) {
       if (!mounted) return;
-      SnackBarUtils.showError(context, 'Ошибка при загрузке фото: $e');
+      AppSnackBar.show(
+        context: context,
+        message: WorksStrings.uploadPhotoError(e),
+        kind: AppSnackBarKind.error,
+      );
     }
   }
 
@@ -782,7 +449,11 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
   Future<void> _sendTelegramReport(Work work) async {
     if (work.id == null) {
       if (!mounted) return;
-      SnackBarUtils.showError(context, 'ID смены не найден');
+      AppSnackBar.show(
+        context: context,
+        message: WorksStrings.shiftIdNotFoundError,
+        kind: AppSnackBarKind.error,
+      );
       return;
     }
 
@@ -794,7 +465,11 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
       );
       if (!mounted) return;
       if (updateResult != null && updateResult['success'] == true) {
-        SnackBarUtils.showSuccess(context, 'Утреннее сообщение обновлено');
+        AppSnackBar.show(
+          context: context,
+          message: WorksStrings.successMorningReportUpdated,
+          kind: AppSnackBarKind.success,
+        );
       }
     }
 
@@ -803,11 +478,18 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
     if (!mounted) return;
 
     if (eveningResult != null && eveningResult['success'] == true) {
-      SnackBarUtils.showSuccess(context,
-          'Вечерний отчет отправлен!\nРабот: ${eveningResult['items_count']}');
+      AppSnackBar.show(
+        context: context,
+        message: WorksStrings.successEveningReportSent(eveningResult['items_count']),
+        kind: AppSnackBarKind.success,
+      );
     } else {
       final error = eveningResult?['error'] ?? 'Неизвестная ошибка';
-      SnackBarUtils.showError(context, 'Ошибка отправки: $error');
+      AppSnackBar.show(
+        context: context,
+        message: WorksStrings.telegramSendError(error),
+        kind: AppSnackBarKind.error,
+      );
     }
   }
 }

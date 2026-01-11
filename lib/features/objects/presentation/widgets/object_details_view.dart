@@ -24,11 +24,7 @@ class ObjectDetailsView extends StatelessWidget {
           Center(
             child: Column(
               children: [
-                ObjectAvatar(
-                  object: object,
-                  radius: 50,
-                  useHero: true,
-                ),
+                ObjectAvatar(object: object, radius: 50, useHero: true),
                 const SizedBox(height: 16),
                 Text(
                   object.name,

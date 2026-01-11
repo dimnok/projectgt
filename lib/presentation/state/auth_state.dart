@@ -187,8 +187,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
         photoUrl: currentUser.userMetadata?['photoUrl'] as String?,
       );
       
-      // Загружаем roleId и system_role из таблицы company_members
-      // (где хранится role_id и system_role активного члена компании)
+      // Загружаем roleId и systemRole из таблицы company_members
+      // (где хранится role_id и systemRole активного члена компании)
       try {
         // 1. Получаем last_company_id из profiles
         final profileResponse = await supa.Supabase.instance.client
@@ -201,7 +201,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         String? roleId;
         String? systemRole;
         
-        // 2. Получаем roleId и system_role из company_members (для активной компании пользователя)
+        // 2. Получаем roleId и systemRole из company_members (для активной компании пользователя)
         if (lastCompanyId != null) {
           try {
             final memberData = await supa.Supabase.instance.client
@@ -230,7 +230,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         
         user = user.copyWith(
           roleId: roleId,
-          system_role: systemRole,
+          systemRole: systemRole,
         );
         
         state = state.copyWith(

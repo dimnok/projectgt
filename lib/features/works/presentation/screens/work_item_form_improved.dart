@@ -5,9 +5,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
+import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
+import 'package:projectgt/core/widgets/gt_text_field.dart';
 import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
 import '../../domain/entities/work_item.dart';
 import '../providers/work_items_provider.dart';
@@ -168,11 +170,10 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
     } catch (e) {
       // В случае ошибки показываем сообщение
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Ошибка сохранения: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
+        AppSnackBar.show(
+          context: context,
+          message: 'Ошибка сохранения: $e',
+          kind: AppSnackBarKind.error,
         );
       }
     } finally {
@@ -572,24 +573,18 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
                   trailing: isSelected
                       ? SizedBox(
                           width: 80,
-                          child: TextField(
+                          child: GTTextField(
                             controller: _quantityControllers[estimate],
-                            decoration: const InputDecoration(
-                              hintText: 'Кол-во',
-                              border: OutlineInputBorder(),
-                              isDense: true,
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 8,
-                              ),
+                            hintText: 'Кол-во',
+                            borderRadius: 8,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 8,
                             ),
-                            style: TextStyle(
-                              color: isDark ? Colors.white : Colors.black,
-                            ),
+                            textAlign: TextAlign.center,
                             keyboardType: const TextInputType.numberWithOptions(
                               decimal: true,
                             ),
-                            textAlign: TextAlign.center,
                             inputFormatters: [
                               FilteringTextInputFormatter.allow(
                                 // ignore: deprecated_member_use
@@ -620,21 +615,18 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
           padding: const EdgeInsets.only(top: 8),
           child: Align(
             alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              icon: const Icon(CupertinoIcons.add),
-              label: const Text('Новый материал'),
+            child: GTTextButton(
+              icon: CupertinoIcons.add,
+              text: 'Новый материал',
               onPressed: () async {
                 if (_selectedSection == null ||
                     _selectedFloor == null ||
                     _selectedSystem == null ||
                     _selectedSubsystem == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text(
-                        'Сначала заполните участок, этаж, систему и подсистему',
-                      ),
-                      backgroundColor: Theme.of(context).colorScheme.error,
-                    ),
+                  AppSnackBar.show(
+                    context: context,
+                    message: 'Сначала заполните участок, этаж, систему и подсистему',
+                    kind: AppSnackBarKind.error,
                   );
                   return;
                 }

@@ -392,8 +392,13 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
 
       if (!mounted) return;
 
-      // ✅ После нажатия "Готово" просто закрываем окно
-      Navigator.of(context).pop();
+      // ✅ После нажатия "Готово" закрываем форму создания смены.
+      // Используем небольшую задержку, чтобы избежать конфликта с закрытием диалога успеха в PhotoUploadHelper.
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+      });
     } catch (e) {
       if (mounted) {
         AppSnackBar.show(
@@ -425,17 +430,21 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
         ? null
         : _buildFooter(context);
 
+    final dateStr = formatRuDate(DateTime.now());
+
     if (isMobile) {
       return MobileBottomSheetContent(
-        title: 'Открытие смены',
+        title: 'Открытие смены $dateStr',
         footer: footer,
         child: content,
       );
     } else {
-      return DesktopDialogContent(
-        title: 'Открытие смены',
-        footer: footer,
-        child: content,
+      return Center(
+        child: DesktopDialogContent(
+          title: 'Открытие смены $dateStr',
+          footer: footer,
+          child: content,
+        ),
       );
     }
   }
@@ -447,8 +456,6 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
     final objectsState = ref.watch(objectProvider);
     // Используем правильное имя провайдера, которое определено в employee_state.dart
     final employeesState = ref.watch(emp_state.employeeProvider);
-
-    final dateStr = formatRuDate(DateTime.now());
 
     // Показываем лоадер, если данные еще грузятся
     if (objectsState.status == ObjectStatus.loading ||
@@ -468,10 +475,6 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Дата
-          _buildDateSection(theme, dateStr),
-          const SizedBox(height: 24),
-
           // Выбор объекта
           _buildObjectSelector(availableObjects, theme),
           const SizedBox(height: 24),
@@ -522,25 +525,6 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
             text: 'Открыть',
             isLoading: _isLoadingOccupiedEmployees,
             onPressed: _isLoadingOccupiedEmployees ? null : _saveWork,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDateSection(ThemeData theme, String dateStr) {
-    return Row(
-      children: [
-        Icon(
-          CupertinoIcons.calendar,
-          size: 20,
-          color: theme.colorScheme.secondary,
-        ),
-        const SizedBox(width: 10),
-        Text(
-          dateStr,
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
           ),
         ),
       ],
@@ -920,24 +904,25 @@ class _EmployeeSelectionTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${employee.lastName} ${employee.firstName}',
+                    ResponsiveUtils.isDesktop(context)
+                        ? formatFullName(
+                          employee.lastName,
+                          employee.firstName,
+                          employee.middleName,
+                        )
+                        : formatAbbreviatedName(
+                          employee.lastName,
+                          employee.firstName,
+                          employee.middleName,
+                        ),
                     style: theme.textTheme.bodyLarge?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: isSelected
-                          ? (isDark ? Colors.black : Colors.white)
-                          : theme.colorScheme.onSurface,
+                      color:
+                          isSelected
+                              ? (isDark ? Colors.black : Colors.white)
+                              : theme.colorScheme.onSurface,
                     ),
                   ),
-                  if (employee.middleName != null &&
-                      employee.middleName!.isNotEmpty)
-                    Text(
-                      employee.middleName!,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: isSelected
-                            ? (isDark ? Colors.black54 : Colors.white70)
-                            : theme.colorScheme.secondary,
-                      ),
-                    ),
                 ],
               ),
             ),

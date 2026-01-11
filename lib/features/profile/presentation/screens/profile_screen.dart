@@ -190,6 +190,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     void onSave(String fullName, String phone, List<String> selectedObjectIds,
         String? employeeId, String? roleId) async {
+      final navigator = Navigator.of(context);
       final updatedProfile = ProfileUtils.prepareProfileForUpdate(
         originalProfile: profile,
         fullName: fullName,
@@ -206,8 +207,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
       await _updateProfile(updatedProfile, isOwn, newRoleId: changedRoleId);
 
-      if (context.mounted) {
-        Navigator.pop(context);
+      if (mounted) {
+        navigator.pop();
       }
     }
 
@@ -430,7 +431,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               title: 'Роль',
               trailing: RoleBadge(
                 roleId: profile?.roleId,
-                systemRole: profile?.system_role,
+                systemRole: profile?.systemRole,
                 fallbackRole: null,
               ),
             ),

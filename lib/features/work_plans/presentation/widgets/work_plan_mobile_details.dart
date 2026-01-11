@@ -411,7 +411,7 @@ class _WorkPlanMobileDetailsState extends ConsumerState<WorkPlanMobileDetails> {
                   Row(
                     children: [
                       const Icon(
-                        Icons.person_outline,
+                        CupertinoIcons.person,
                         size: 16,
                         color: Colors.red,
                       ),
@@ -426,7 +426,11 @@ class _WorkPlanMobileDetailsState extends ConsumerState<WorkPlanMobileDetails> {
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          '${responsible.lastName} ${responsible.firstName.isNotEmpty ? '${responsible.firstName[0]}.' : ''}${responsible.middleName != null && responsible.middleName!.isNotEmpty ? '${responsible.middleName![0]}.' : ''}',
+                          formatAbbreviatedName(
+                            responsible.lastName,
+                            responsible.firstName,
+                            responsible.middleName,
+                          ),
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: Colors.red,
                             fontWeight: FontWeight.w600,
@@ -490,7 +494,11 @@ class _WorkPlanMobileDetailsState extends ConsumerState<WorkPlanMobileDetails> {
                           ),
                         ),
                         child: Text(
-                          '${worker.lastName} ${worker.firstName.isNotEmpty ? '${worker.firstName[0]}.' : ''}${worker.middleName != null && worker.middleName!.isNotEmpty ? '${worker.middleName![0]}.' : ''}',
+                          formatAbbreviatedName(
+                            worker.lastName,
+                            worker.firstName,
+                            worker.middleName,
+                          ),
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.primary,
                             fontWeight: FontWeight.w500,

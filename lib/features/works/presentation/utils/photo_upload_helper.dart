@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/di/providers.dart';
-import 'package:projectgt/core/utils/snackbar_utils.dart';
+import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/features/works/presentation/widgets/photo_loading_dialog.dart';
 
 /// Вспомогательный класс для загрузки фото с единой логикой.
@@ -114,9 +114,10 @@ class PhotoUploadHelper {
         if (context.mounted) {
           Navigator.of(context, rootNavigator: true).pop();
           progressNotifier.dispose();
-          SnackBarUtils.showWarning(
-            context,
-            'Не удалось загрузить фото. Пожалуйста, попробуйте снова.',
+          AppSnackBar.show(
+            context: context,
+            message: 'Не удалось загрузить фото. Пожалуйста, попробуйте снова.',
+            kind: AppSnackBarKind.warning,
           );
         }
         return null;
@@ -142,7 +143,9 @@ class PhotoUploadHelper {
       progressNotifier.dispose();
 
       // ✅ Показываем диалог успеха
-      if (!context.mounted) return null;
+      if (!context.mounted) {
+        return null;
+      }
 
       // ✅ Используем Completer для ожидания нажатия кнопки "Готово"
       final successCompleter = Completer<void>();
@@ -175,7 +178,11 @@ class PhotoUploadHelper {
         Navigator.of(context, rootNavigator: true).pop();
       } catch (_) {}
 
-      SnackBarUtils.showError(context, 'Ошибка при загрузке фото: $e');
+      AppSnackBar.show(
+        context: context,
+        message: 'Ошибка при загрузке фото: $e',
+        kind: AppSnackBarKind.error,
+      );
       return null;
     }
   }

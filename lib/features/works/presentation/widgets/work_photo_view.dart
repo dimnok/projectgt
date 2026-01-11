@@ -10,9 +10,10 @@ import 'package:projectgt/core/di/providers.dart';
 import '../providers/work_provider.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:projectgt/core/utils/snackbar_utils.dart';
+import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/features/works/presentation/widgets/photo_loading_dialog.dart';
 import 'package:projectgt/features/works/presentation/utils/photo_upload_helper.dart';
+import 'package:projectgt/core/widgets/gt_buttons.dart';
 
 /// Извлекает время (HH:mm) из имени файла в URL фото смены.
 /// Ожидаемый формат имени: YYYY-MM-DD_HH-mm-ss_morning.jpg / ..._evening.jpg
@@ -430,8 +431,11 @@ class _FullscreenPhotoViewState extends ConsumerState<_FullscreenPhotoView> {
 
   Future<void> _replacePhoto() async {
     if (!_canModify) {
-      SnackBarUtils.showWarning(
-          context, 'Заменять фото может только автор открытой смены');
+      AppSnackBar.show(
+        context: context,
+        message: 'Заменять фото может только автор открытой смены',
+        kind: AppSnackBarKind.warning,
+      );
       return;
     }
 
@@ -474,9 +478,9 @@ class _FullscreenPhotoViewState extends ConsumerState<_FullscreenPhotoView> {
               ],
             ),
             const SizedBox(height: 16),
-            TextButton(
+            GTTextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Отмена'),
+              text: 'Отмена',
             ),
           ],
         ),
@@ -533,8 +537,11 @@ class _FullscreenPhotoViewState extends ConsumerState<_FullscreenPhotoView> {
             });
           } catch (e) {
             if (mounted) {
-              SnackBarUtils.showError(
-                  context, 'Ошибка при сохранении фото: $e');
+              AppSnackBar.show(
+                context: context,
+                message: 'Ошибка при сохранении фото: $e',
+                kind: AppSnackBarKind.error,
+              );
             }
           }
         },
@@ -542,13 +549,19 @@ class _FullscreenPhotoViewState extends ConsumerState<_FullscreenPhotoView> {
 
       if (uploadedUrl == null) return;
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
-      // ✅ После нажатия "Готово" просто закрываем галерею
-      Navigator.of(context, rootNavigator: true).pop();
+      // ✅ После замены фото остаемся в галерее, чтобы пользователь мог его увидеть.
+      // Старый вызов pop() вызывал ошибку !_debugLocked.
     } catch (e) {
       if (!mounted) return;
-      SnackBarUtils.showError(context, 'Ошибка при загрузке фото: $e');
+      AppSnackBar.show(
+        context: context,
+        message: 'Ошибка при загрузке фото: $e',
+        kind: AppSnackBarKind.error,
+      );
     }
   }
 

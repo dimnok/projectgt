@@ -7,7 +7,6 @@ import '../models/work_model.dart';
 import '../models/month_group.dart';
 import '../models/light_work_model.dart';
 import 'package:projectgt/core/services/photo_service.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Реализация репозитория для работы со сменами через источник данных [WorkDataSource].
 class WorkRepositoryImpl implements WorkRepository {
@@ -15,12 +14,10 @@ class WorkRepositoryImpl implements WorkRepository {
   final WorkDataSource dataSource;
 
   /// Сервис для работы с фото.
-  late final PhotoService _photoService;
+  final PhotoService photoService;
 
   /// Создаёт репозиторий для работы со сменами.
-  WorkRepositoryImpl(this.dataSource) {
-    _photoService = PhotoService(Supabase.instance.client);
-  }
+  WorkRepositoryImpl(this.dataSource, this.photoService);
 
   /// Возвращает список всех смен.
   @override
@@ -91,12 +88,12 @@ class WorkRepositoryImpl implements WorkRepository {
     if (work != null) {
       // Удаляем утреннее фото (если есть)
       if (work.photoUrl != null && work.photoUrl!.isNotEmpty) {
-        await _photoService.deleteWorkPhotoByUrl(work.photoUrl!);
+        await photoService.deleteWorkPhotoByUrl(work.photoUrl!);
       }
 
       // Удаляем вечернее фото (если есть)
       if (work.eveningPhotoUrl != null && work.eveningPhotoUrl!.isNotEmpty) {
-        await _photoService.deleteWorkPhotoByUrl(work.eveningPhotoUrl!);
+        await photoService.deleteWorkPhotoByUrl(work.eveningPhotoUrl!);
       }
     }
 
@@ -154,6 +151,12 @@ class WorkRepositoryImpl implements WorkRepository {
   @override
   Future<MonthEmployeesSummary> getTotalEmployees(DateTime month) async {
     return await dataSource.getTotalEmployees(month);
+  }
+
+  /// Проверяет, есть ли у пользователя открытая смена в данной компании.
+  @override
+  Future<bool> hasAnyOpenWork(String userId) async {
+    return await dataSource.hasOpenWork(userId);
   }
 
   /// Преобразует модель смены [WorkModel] в доменную сущность [Work].

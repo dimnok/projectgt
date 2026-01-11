@@ -86,16 +86,9 @@ class _ObjectFormModalState extends ConsumerState<ObjectFormModal> {
   Future<void> _handleSave() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // #region agent log
-    debugPrint('AGENT_LOG: {"location": "object_form_modal.dart:_handleSave", "message": "Entering _handleSave", "hypothesisId": "A"}');
-    // #endregion
-
     setState(() => _isLoading = true);
 
     final activeCompanyId = ref.read(activeCompanyIdProvider);
-    // #region agent log
-    debugPrint('AGENT_LOG: {"location": "object_form_modal.dart:_handleSave", "message": "activeCompanyId check", "data": {"activeCompanyId": "$activeCompanyId"}, "hypothesisId": "A"}');
-    // #endregion
     if (activeCompanyId == null) {
       if (mounted) {
         SnackBarUtils.showError(context, 'Активная компания не выбрана');

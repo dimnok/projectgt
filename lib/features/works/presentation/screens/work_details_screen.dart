@@ -9,11 +9,10 @@ import 'package:projectgt/presentation/widgets/app_drawer.dart';
 
 import 'package:projectgt/presentation/widgets/cupertino_dialog_widget.dart';
 import 'package:go_router/go_router.dart';
-import 'package:projectgt/core/utils/snackbar_utils.dart';
+import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'work_details_panel.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
-import 'package:projectgt/features/roles/presentation/providers/roles_provider.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
 import '../providers/repositories_providers.dart';
 import 'package:projectgt/core/utils/formatters.dart';
@@ -145,20 +144,15 @@ class _WorkDetailsScreenState extends ConsumerState<WorkDetailsScreen> {
     final permissionService = ref.watch(permissionServiceProvider);
     final hasDeletePermission = permissionService.can('works', 'delete');
 
-    final rolesState = ref.watch(rolesNotifierProvider);
     final currentProfile = ref.watch(currentUserProfileProvider).profile;
-    final isSuperAdmin = rolesState.valueOrNull?.any((r) =>
-            r.id == currentProfile?.roleId &&
-            r.isSystem &&
-            r.name == 'Супер-админ') ??
-        false;
+    final isCompanyOwner = currentProfile?.systemRole == 'owner';
 
     final isOwner =
         currentProfile != null && work.openedBy == currentProfile.id;
     final isWorkClosed = work.status.toLowerCase() == 'closed';
 
     final canDelete =
-        hasDeletePermission && ((isOwner && !isWorkClosed) || isSuperAdmin);
+        hasDeletePermission && ((isOwner && !isWorkClosed) || isCompanyOwner);
 
     return Scaffold(
       appBar: AppBarWidget(
@@ -166,10 +160,14 @@ class _WorkDetailsScreenState extends ConsumerState<WorkDetailsScreen> {
         leading: isMobile ? const BackButton() : null,
         actions: [
           if (canDelete)
-            IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
+            CupertinoButton(
+              padding: EdgeInsets.zero,
               onPressed: () => _confirmDeleteWork(context, ref, work),
-              tooltip: 'Удалить',
+              child: const Icon(
+                CupertinoIcons.delete,
+                color: Colors.red,
+                size: 22,
+              ),
             ),
         ],
         showThemeSwitch: !isMobile,
@@ -211,7 +209,11 @@ class _WorkDetailsScreenState extends ConsumerState<WorkDetailsScreen> {
 
         if (context.mounted) {
           context.goNamed('works');
-          SnackBarUtils.showSuccess(context, 'Смена успешно удалена');
+          AppSnackBar.show(
+            context: context,
+            message: 'Смена успешно удалена',
+            kind: AppSnackBarKind.success,
+          );
         }
       },
     );

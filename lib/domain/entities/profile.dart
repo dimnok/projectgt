@@ -36,7 +36,7 @@ abstract class Profile with _$Profile {
     String? roleId,
 
     /// Системная роль пользователя (owner, admin).
-    String? system_role,
+    String? systemRole,
 
     /// Статус профиля (активен/неактивен).
     @Default(true) bool status,

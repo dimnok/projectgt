@@ -86,9 +86,7 @@ class DatePickerField extends StatelessWidget {
           labelText: labelText,
           hintText: hintText,
           suffixIcon: const Icon(Icons.calendar_today),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
         ),
         child: Text(_formatDate(date)),
       ),
@@ -154,10 +152,7 @@ class FormTextField extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextFormField(
       controller: controller,
-      decoration: InputDecoration(
-        labelText: labelText,
-        hintText: hintText,
-      ),
+      decoration: InputDecoration(labelText: labelText, hintText: hintText),
       validator: validator,
       keyboardType: keyboardType,
       readOnly: readOnly,
@@ -204,10 +199,13 @@ class FormButtons extends StatelessWidget {
               minimumSize: Size.fromHeight(buttonHeight),
               shape: const StadiumBorder(),
               elevation: isMobile ? 2 : 0,
-              shadowColor:
-                  isMobile ? Colors.black.withValues(alpha: 0.2) : null,
-              textStyle:
-                  const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              shadowColor: isMobile
+                  ? Colors.black.withValues(alpha: 0.2)
+                  : null,
+              textStyle: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             child: const Text('Отмена'),
           ),
@@ -220,10 +218,13 @@ class FormButtons extends StatelessWidget {
               minimumSize: Size.fromHeight(buttonHeight),
               shape: const StadiumBorder(),
               elevation: isMobile ? 4 : 1,
-              shadowColor:
-                  isMobile ? Colors.black.withValues(alpha: 0.3) : null,
-              textStyle:
-                  const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              shadowColor: isMobile
+                  ? Colors.black.withValues(alpha: 0.3)
+                  : null,
+              textStyle: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             child: isLoading
                 ? const SizedBox(

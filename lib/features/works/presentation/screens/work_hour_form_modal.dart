@@ -7,10 +7,15 @@ import 'package:projectgt/presentation/state/employee_state.dart'
     as employee_state;
 import 'package:projectgt/domain/entities/employee.dart';
 import 'package:uuid/uuid.dart';
-import 'package:projectgt/core/utils/modal_utils.dart';
 import 'package:projectgt/core/widgets/gt_dropdown.dart';
+import 'package:projectgt/core/widgets/gt_text_field.dart';
+import 'package:projectgt/core/widgets/gt_buttons.dart';
+import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
+import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
 import '../providers/work_provider.dart';
 import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
+import 'package:projectgt/core/utils/responsive_utils.dart';
+import 'package:projectgt/core/utils/formatters.dart';
 
 /// Модальное окно для добавления или редактирования часов сотрудника в смене.
 class WorkHourFormModal extends ConsumerStatefulWidget {
@@ -105,7 +110,17 @@ class _WorkHourFormModalState extends ConsumerState<WorkHourFormModal> {
 
   /// Форматирует ФИО сотрудника для отображения в выпадающем списке.
   String _formatEmployeeName(Employee employee) {
-    return '${employee.lastName} ${employee.firstName}${employee.middleName != null && employee.middleName!.isNotEmpty ? ' ${employee.middleName}' : ''}';
+    return ResponsiveUtils.isDesktop(context)
+        ? formatFullName(
+            employee.lastName,
+            employee.firstName,
+            employee.middleName,
+          )
+        : formatAbbreviatedName(
+            employee.lastName,
+            employee.firstName,
+            employee.middleName,
+          );
   }
 
   @override
@@ -116,6 +131,7 @@ class _WorkHourFormModalState extends ConsumerState<WorkHourFormModal> {
     final workHoursAsync = ref.watch(workHoursProvider(widget.workId));
     final workAsync = ref.watch(workProvider(widget.workId));
     final theme = Theme.of(context);
+    final isDesktop = ResponsiveUtils.isDesktop(context);
 
     // Получаем список занятых сотрудников
     final busyEmployeeIds = workHoursAsync.maybeWhen(
@@ -182,255 +198,182 @@ class _WorkHourFormModalState extends ConsumerState<WorkHourFormModal> {
       return nameA.compareTo(nameB);
     });
 
-    return Material(
-      color: theme.colorScheme.surface,
-      child: _isLoading
-          ? const Center(child: CupertinoActivityIndicator())
-          : Stack(
-              children: [
-                // Основное содержимое
-                Column(
-                  children: [
-                    // Заголовок (закреплен сверху)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surface,
-                        border: Border(
-                          bottom: BorderSide(
-                            color: theme.colorScheme.outline.withValues(
-                              alpha: 0.2,
-                            ),
-                            width: 1,
-                          ),
-                        ),
-                      ),
-                      child: ModalUtils.buildModalHeader(
-                        title: widget.initial == null
-                            ? 'Добавить сотрудника'
-                            : 'Редактировать часы',
-                        onClose: () => Navigator.pop(context),
-                        theme: theme,
-                      ),
-                    ),
+    final title = widget.initial == null
+        ? 'Добавить сотрудника'
+        : 'Редактировать часы';
 
-                    // Прокручиваемое содержимое
-                    Expanded(
-                      child: SingleChildScrollView(
-                        controller: widget.scrollController,
-                        padding: EdgeInsets.fromLTRB(
-                          24.0,
-                          24.0,
-                          24.0,
-                          100.0 + MediaQuery.of(context).viewInsets.bottom,
-                        ),
-                        child: ModalUtils.buildAdaptiveFormContainer(
-                          context: context,
-                          child: Form(
-                            key: _formKey,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Подзаголовок с пояснением
-                                Text(
-                                  widget.initial == null
-                                      ? 'Выберите сотрудника и укажите количество часов'
-                                      : 'Измените количество часов или добавьте комментарий',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: theme.colorScheme.secondary,
-                                  ),
-                                ),
-                                const SizedBox(height: 24),
-
-                                // Отображение сотрудника (для редактирования) или выпадающий список (для добавления)
-                                if (widget.initial == null) ...[
-                                  // Выпадающий список сотрудников (только для добавления)
-                                  GTDropdown<Employee>(
-                                    items: availableEmployees,
-                                    itemDisplayBuilder: _formatEmployeeName,
-                                    selectedItem: _selectedEmployeeId != null
-                                        ? availableEmployees.firstWhere(
-                                            (employee) =>
-                                                employee.id ==
-                                                _selectedEmployeeId,
-                                            orElse: () =>
-                                                availableEmployees.isNotEmpty
-                                                ? availableEmployees.first
-                                                : Employee(
-                                                    id: '',
-                                                    companyId:
-                                                        activeCompanyId ?? '',
-                                                    firstName: '',
-                                                    lastName: '',
-                                                    middleName: null,
-                                                    position: '',
-                                                    phone: '',
-                                                    createdAt: DateTime.now(),
-                                                    updatedAt: DateTime.now(),
-                                                  ),
-                                          )
-                                        : null,
-                                    onSelectionChanged: (employee) {
-                                      setState(() {
-                                        _selectedEmployeeId = employee?.id;
-                                      });
-                                    },
-                                    labelText: 'Сотрудник',
-                                    hintText: 'Выберите сотрудника',
-                                    allowMultipleSelection: false,
-                                    allowCustomInput: false,
-                                    validator: (value) {
-                                      if (_selectedEmployeeId == null ||
-                                          _selectedEmployeeId!.isEmpty) {
-                                        return 'Пожалуйста, выберите сотрудника';
-                                      }
-                                      return null;
-                                    },
-                                  ),
-                                ] else ...[
-                                  // Отображение ФИО сотрудника (только для редактирования)
-                                  Container(
-                                    decoration: BoxDecoration(
-                                      border: Border.all(
-                                        color: theme.colorScheme.outline
-                                            .withValues(alpha: 0.3),
-                                        width: 1,
-                                      ),
-                                      borderRadius: const BorderRadius.all(
-                                        Radius.circular(4),
-                                      ),
-                                      color: theme
-                                          .colorScheme
-                                          .surfaceContainerHighest
-                                          .withValues(alpha: 0.3),
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 12,
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          Icons.person_outline,
-                                          color: theme.colorScheme.onSurface
-                                              .withValues(alpha: 0.6),
-                                          size: 20,
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Text(
-                                            _selectedEmployeeId != null
-                                                ? _formatEmployeeName(
-                                                    allEmployees.firstWhere(
-                                                      (employee) =>
-                                                          employee.id ==
-                                                          _selectedEmployeeId,
-                                                      orElse: () => Employee(
-                                                        id: '',
-                                                        companyId:
-                                                            activeCompanyId ??
-                                                            '',
-                                                        firstName: '',
-                                                        lastName: '',
-                                                        middleName: null,
-                                                        position: '',
-                                                        phone: '',
-                                                        createdAt:
-                                                            DateTime.now(),
-                                                        updatedAt:
-                                                            DateTime.now(),
-                                                      ),
-                                                    ),
-                                                  )
-                                                : '',
-                                            style: theme.textTheme.bodyLarge
-                                                ?.copyWith(
-                                                  color: theme
-                                                      .colorScheme
-                                                      .onSurface,
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                                const SizedBox(height: 16),
-
-                                // Поле ввода часов
-                                TextFormField(
-                                  controller: hoursController,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Часы',
-                                    border: OutlineInputBorder(),
-                                    prefixIcon: Icon(Icons.timer_outlined),
-                                    suffixText: 'ч',
-                                    hintText: '0',
-                                    helperText:
-                                        'Укажите количество отработанных часов',
-                                  ),
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  keyboardType: TextInputType.text,
-                                  textInputAction: TextInputAction.done,
-                                  validator: (value) {
-                                    if (value == null || value.isEmpty) {
-                                      return 'Пожалуйста, введите количество часов';
-                                    }
-                                    if (num.tryParse(value) == null) {
-                                      return 'Пожалуйста, введите корректное число';
-                                    }
-                                    return null;
-                                  },
-                                ),
-                                const SizedBox(height: 16),
-
-                                // Поле ввода комментария
-                                TextFormField(
-                                  controller: commentController,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Комментарий (необязательно)',
-                                    border: OutlineInputBorder(),
-                                    prefixIcon: Icon(Icons.comment_outlined),
-                                    hintText:
-                                        'Например: Работал в ночную смену',
-                                    helperText:
-                                        'Добавьте комментарий при необходимости',
-                                  ),
-                                  maxLines: 3,
-                                ),
-
-                                const SizedBox(
-                                  height: 100,
-                                ), // Место для плавающих кнопок
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                // Плавающие кнопки
-                ModalUtils.buildFloatingButtons(
-                  onSave: () {
-                    if (_selectedEmployeeId != null && !_isLoading) {
-                      _save();
-                    }
-                  },
-                  onCancel: () => Navigator.pop(context),
-                  isLoading: _isLoading,
-                  saveText: 'Сохранить',
-                ),
-              ],
+    final formContent = Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Подзаголовок с пояснением
+          Text(
+            widget.initial == null
+                ? 'Выберите сотрудника и укажите количество часов'
+                : 'Измените количество часов или добавьте комментарий',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
             ),
+          ),
+          const SizedBox(height: 24),
+
+          // Отображение сотрудника (для редактирования) или выпадающий список (для добавления)
+          if (widget.initial == null) ...[
+            // Выпадающий список сотрудников (только для добавления)
+            GTDropdown<Employee>(
+              items: availableEmployees,
+              itemDisplayBuilder: _formatEmployeeName,
+              selectedItem: _selectedEmployeeId != null
+                  ? availableEmployees
+                        .where((e) => e.id == _selectedEmployeeId)
+                        .firstOrNull
+                  : null,
+              onSelectionChanged: (employee) {
+                setState(() {
+                  _selectedEmployeeId = employee?.id;
+                });
+              },
+              labelText: 'Сотрудник',
+              hintText: 'Выберите сотрудника',
+              allowMultipleSelection: false,
+              allowCustomInput: false,
+              validator: (value) {
+                if (_selectedEmployeeId == null ||
+                    _selectedEmployeeId!.isEmpty) {
+                  return 'Пожалуйста, выберите сотрудника';
+                }
+                return null;
+              },
+            ),
+          ] else ...[
+            // Отображение ФИО сотрудника (только для редактирования)
+            Container(
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: theme.colorScheme.outline.withValues(alpha: 0.1),
+                  width: 1,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                color: theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.3,
+                ),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.person_outline,
+                    color: theme.colorScheme.primary,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      _selectedEmployeeId != null
+                          ? _formatEmployeeName(
+                              allEmployees.firstWhere(
+                                (employee) =>
+                                    employee.id == _selectedEmployeeId,
+                                orElse: () => Employee(
+                                  id: '',
+                                  companyId: activeCompanyId ?? '',
+                                  firstName: '',
+                                  lastName: '',
+                                  middleName: null,
+                                  position: '',
+                                  phone: '',
+                                  createdAt: DateTime.now(),
+                                  updatedAt: DateTime.now(),
+                                ),
+                              ),
+                            )
+                          : '',
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 20),
+
+          // Поле ввода часов
+          GTTextField(
+            controller: hoursController,
+            labelText: 'Часы',
+            hintText: '0',
+            suffixText: 'ч',
+            prefixIcon: Icons.timer_outlined,
+            helperText: 'Укажите количество отработанных часов',
+            textAlign: TextAlign.center,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Пожалуйста, введите количество часов';
+              }
+              final val = value.replaceAll(',', '.');
+              if (num.tryParse(val) == null) {
+                return 'Пожалуйста, введите корректное число';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 20),
+
+          // Поле ввода комментария
+          GTTextField(
+            controller: commentController,
+            labelText: 'Комментарий (необязательно)',
+            hintText: 'Например: Работал в ночную смену',
+            prefixIcon: Icons.comment_outlined,
+            helperText: 'Добавьте комментарий при необходимости',
+            maxLines: 3,
+          ),
+        ],
+      ),
     );
+
+    final footer = Row(
+      children: [
+        Expanded(
+          child: GTSecondaryButton(
+            onPressed: () => Navigator.pop(context),
+            text: 'Отмена',
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: GTPrimaryButton(
+            onPressed: _save,
+            isLoading: _isLoading,
+            text: 'Сохранить',
+          ),
+        ),
+      ],
+    );
+
+    if (_isLoading) {
+      return const Center(child: CupertinoActivityIndicator());
+    }
+
+    if (isDesktop) {
+      return Center(
+        child: DesktopDialogContent(
+          title: title,
+          footer: footer,
+          child: formContent,
+        ),
+      );
+    } else {
+      return MobileBottomSheetContent(
+        title: title,
+        footer: footer,
+        scrollController: widget.scrollController,
+        child: formContent,
+      );
+    }
   }
 }

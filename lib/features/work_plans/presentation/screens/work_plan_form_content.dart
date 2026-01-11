@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/gt_text_field.dart';
@@ -158,10 +159,10 @@ class WorkPlanFormContent extends StatelessWidget {
           },
           labelText: 'Дата плана работ',
           hintText: 'Выберите дату',
-          prefixIcon: Icons.calendar_today_rounded,
+          prefixIcon: CupertinoIcons.calendar,
           suffixIcon: IconButton(
             icon: Icon(
-              Icons.calendar_view_month_rounded,
+              CupertinoIcons.calendar_today,
               color: theme.colorScheme.primary,
             ),
             onPressed: () async {
@@ -222,7 +223,7 @@ class WorkPlanFormContent extends StatelessWidget {
             alignment: Alignment.centerRight,
             child: GTSecondaryButton(
               onPressed: onAddBlock,
-              icon: Icons.add,
+              icon: CupertinoIcons.add,
               text: 'Добавить блок',
             ),
           ),
@@ -246,7 +247,7 @@ class WorkPlanFormContent extends StatelessWidget {
               child: Column(
                 children: [
                   Icon(
-                    Icons.work_off_outlined,
+                    CupertinoIcons.briefcase,
                     color: theme.colorScheme.onSurfaceVariant,
                     size: 48,
                   ),

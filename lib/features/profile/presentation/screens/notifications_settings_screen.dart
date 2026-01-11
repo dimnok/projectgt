@@ -6,7 +6,7 @@ import 'package:projectgt/presentation/state/profile_state.dart';
 import 'package:projectgt/core/widgets/gt_dropdown.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/notifications/notification_service.dart';
-import 'package:projectgt/features/works/presentation/providers/work_provider.dart';
+import 'package:projectgt/features/works/presentation/providers/repositories_providers.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
 import 'package:projectgt/features/profile/presentation/widgets/content_constrained_box.dart';
 
@@ -134,12 +134,12 @@ class _NotificationsSettingsScreenState
       });
 
       // Обновляем напоминания немедленно: отменяем для всех открытых смен пользователя на сегодня
-      await ref.read(worksProvider.notifier).loadWorks();
-      final worksState = ref.read(worksProvider);
+      final repository = ref.read(workRepositoryProvider);
+      final works = await repository.getWorks();
       final today = DateTime.now();
       final dayStart = DateTime(today.year, today.month, today.day);
       final service = ref.read(notificationServiceProvider);
-      for (final w in worksState.works) {
+      for (final w in works) {
         if (w.openedBy == profile.id &&
             w.status.toLowerCase() == 'open' &&
             DateTime(w.date.year, w.date.month, w.date.day)
@@ -176,13 +176,13 @@ class _NotificationsSettingsScreenState
     // Профиль в провайдере уже обновлён; локальное состояние актуально
 
     // Немедленно пересоздаём напоминания для открытых смен пользователя на сегодня
-    await ref.read(worksProvider.notifier).loadWorks();
-    final worksState = ref.read(worksProvider);
+    final repository = ref.read(workRepositoryProvider);
+    final works = await repository.getWorks();
     final today = DateTime.now();
     final dayStart = DateTime(today.year, today.month, today.day);
     final service = ref.read(notificationServiceProvider);
 
-    for (final w in worksState.works) {
+    for (final w in works) {
       if (w.openedBy == profile.id &&
           w.status.toLowerCase() == 'open' &&
           DateTime(w.date.year, w.date.month, w.date.day)

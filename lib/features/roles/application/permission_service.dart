@@ -40,7 +40,7 @@ class PermissionService {
     if (_user == null) return false;
 
     // 0. Владелец имеет полный доступ ко всему (Бог системы)
-    if (_user.system_role == 'owner') return true;
+    if (_user.systemRole == 'owner') return true;
 
     // 1. Новая система (по role_id)
     if (_user.roleId != null) {

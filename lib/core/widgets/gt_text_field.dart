@@ -47,6 +47,21 @@ class GTTextField extends StatelessWidget {
   /// Callback при клике на поле.
   final VoidCallback? onTap;
 
+  /// Отступы внутри поля.
+  final EdgeInsets? contentPadding;
+
+  /// Радиус скругления границ.
+  final double borderRadius;
+
+  /// Выравнивание текста.
+  final TextAlign textAlign;
+
+  /// Текст в конце поля (например, единица измерения).
+  final String? suffixText;
+
+  /// Текст-подсказка под полем.
+  final String? helperText;
+
   /// Создаёт текстовое поле ввода в стиле проекта.
   ///
   /// - [controller] — контроллер для управления текстом.
@@ -54,6 +69,8 @@ class GTTextField extends StatelessWidget {
   /// - [hintText] — текст-подсказка, отображаемый при пустом поле.
   /// - [prefixIcon] — иконка в начале поля.
   /// - [suffixIcon] — виджет в конце поля (например, кнопка очистки).
+  /// - [suffixText] — текст в конце поля (например, "₽" или "кг").
+  /// - [helperText] — текст-подсказка под полем.
   /// - [enabled] — активность поля.
   /// - [validator] — функция проверки введенных данных.
   /// - [keyboardType] — тип вызываемой экранной клавиатуры.
@@ -63,6 +80,9 @@ class GTTextField extends StatelessWidget {
   /// - [onChanged] — вызов при каждом изменении текста.
   /// - [onSubmitted] — вызов при подтверждении ввода (Enter).
   /// - [onTap] — вызов при нажатии на область поля.
+  /// - [contentPadding] — пользовательские отступы.
+  /// - [borderRadius] — радиус скругления (по умолчанию 16).
+  /// - [textAlign] — выравнивание текста (по умолчанию start).
   const GTTextField({
     super.key,
     this.controller,
@@ -70,6 +90,8 @@ class GTTextField extends StatelessWidget {
     this.hintText,
     this.prefixIcon,
     this.suffixIcon,
+    this.suffixText,
+    this.helperText,
     this.enabled = true,
     this.validator,
     this.keyboardType,
@@ -79,6 +101,9 @@ class GTTextField extends StatelessWidget {
     this.onChanged,
     this.onSubmitted,
     this.onTap,
+    this.contentPadding,
+    this.borderRadius = 16,
+    this.textAlign = TextAlign.start,
   });
 
   @override
@@ -97,18 +122,21 @@ class GTTextField extends StatelessWidget {
       onChanged: onChanged,
       onFieldSubmitted: onSubmitted,
       onTap: onTap,
+      textAlign: textAlign,
       style: const TextStyle(fontSize: 15),
       decoration: InputDecoration(
         labelText: labelText,
         hintText: hintText,
+        helperText: helperText,
         prefixIcon: prefixIcon != null ? Icon(prefixIcon, size: 20) : null,
         suffixIcon: suffixIcon,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 12,
-        ),
+        suffixText: suffixText,
+        isDense: true,
+        contentPadding:
+            contentPadding ??
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(borderRadius),
           borderSide: BorderSide(
             color: isDark
                 ? Colors.white.withValues(alpha: 0.1)
@@ -116,7 +144,7 @@ class GTTextField extends StatelessWidget {
           ),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(borderRadius),
           borderSide: BorderSide(
             color: isDark
                 ? Colors.white.withValues(alpha: 0.1)
@@ -124,14 +152,14 @@ class GTTextField extends StatelessWidget {
           ),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(borderRadius),
           borderSide: BorderSide(
             color: isDark ? Colors.white : Colors.black,
             width: 1.5,
           ),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(borderRadius),
           borderSide: const BorderSide(color: Colors.redAccent),
         ),
         filled: true,

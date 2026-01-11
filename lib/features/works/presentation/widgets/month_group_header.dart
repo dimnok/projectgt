@@ -38,22 +38,7 @@ class MonthGroupHeader extends StatelessWidget {
     final isDesktop = ResponsiveUtils.isDesktop(context);
     final isMobile = ResponsiveUtils.isMobile(context);
 
-    // Формируем название месяца
-    const months = [
-      'Январь',
-      'Февраль',
-      'Март',
-      'Апрель',
-      'Май',
-      'Июнь',
-      'Июль',
-      'Август',
-      'Сентябрь',
-      'Октябрь',
-      'Ноябрь',
-      'Декабрь'
-    ];
-    final monthName = '${months[group.month.month - 1]} ${group.month.year}';
+    final monthName = group.monthName;
 
     // Анимация текста
     // Увеличение размера: 1.0 -> 1.15

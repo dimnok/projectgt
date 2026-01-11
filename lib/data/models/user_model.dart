@@ -41,7 +41,7 @@ abstract class UserModel with _$UserModel {
         name: user.name,
         photoUrl: user.photoUrl,
         roleId: user.roleId,
-        systemRole: user.system_role,
+        systemRole: user.systemRole,
       );
 
   /// Преобразует [UserModel] в доменную сущность [User].
@@ -51,6 +51,6 @@ abstract class UserModel with _$UserModel {
         name: name,
         photoUrl: photoUrl,
         roleId: roleId,
-        system_role: systemRole,
+        systemRole: systemRole,
       );
 }

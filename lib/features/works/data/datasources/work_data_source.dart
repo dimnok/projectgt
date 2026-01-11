@@ -30,6 +30,9 @@ abstract class WorkDataSource {
     int limit = 30,
   });
 
+  /// Проверяет, есть ли у пользователя открытая смена в данной компании.
+  Future<bool> hasOpenWork(String userId);
+
   /// Возвращает полные данные по выработке за месяц для графика.
   Future<List<LightWorkModel>> getMonthWorksForChart(DateTime month);
 

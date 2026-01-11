@@ -190,6 +190,26 @@ class WorkDataSourceImpl implements WorkDataSource {
     }
   }
 
+  /// Проверяет, есть ли у пользователя открытая смена в данной компании.
+  @override
+  Future<bool> hasOpenWork(String userId) async {
+    try {
+      final response = await client
+          .from(table)
+          .select('id')
+          .eq('company_id', activeCompanyId)
+          .eq('opened_by', userId)
+          .eq('status', 'open')
+          .limit(1)
+          .maybeSingle();
+
+      return response != null;
+    } catch (e) {
+      _logger.e('Ошибка проверки открытой смены: $e');
+      return false;
+    }
+  }
+
   /// Возвращает полные данные по выработке за месяц для графика.
   @override
   Future<List<LightWorkModel>> getMonthWorksForChart(DateTime month) async {

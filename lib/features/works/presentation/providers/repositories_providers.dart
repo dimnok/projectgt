@@ -14,8 +14,11 @@ import '../../../../features/company/presentation/providers/company_providers.da
 final workRepositoryProvider = Provider((ref) {
   final client = ref.watch(supabaseClientProvider);
   final activeCompanyId = ref.watch(activeCompanyIdProvider);
+  final photoService = ref.watch(photoServiceProvider);
   return WorkRepositoryImpl(
-      WorkDataSourceImpl(client, activeCompanyId ?? ''));
+    WorkDataSourceImpl(client, activeCompanyId ?? ''),
+    photoService,
+  );
 });
 
 /// Провайдер для репозитория работ в смене.
@@ -23,7 +26,8 @@ final workItemRepositoryProvider = Provider((ref) {
   final client = ref.watch(supabaseClientProvider);
   final activeCompanyId = ref.watch(activeCompanyIdProvider);
   return WorkItemRepositoryImpl(
-      WorkItemDataSourceImpl(client, activeCompanyId ?? ''));
+    WorkItemDataSourceImpl(client, activeCompanyId ?? ''),
+  );
 });
 
 /// Провайдер для репозитория материалов в смене.
@@ -31,7 +35,8 @@ final workMaterialRepositoryProvider = Provider((ref) {
   final client = ref.watch(supabaseClientProvider);
   final activeCompanyId = ref.watch(activeCompanyIdProvider);
   return WorkMaterialRepositoryImpl(
-      WorkMaterialDataSourceImpl(client, activeCompanyId ?? ''));
+    WorkMaterialDataSourceImpl(client, activeCompanyId ?? ''),
+  );
 });
 
 /// Провайдер для репозитория часов сотрудников в смене.
@@ -39,5 +44,6 @@ final workHourRepositoryProvider = Provider((ref) {
   final client = ref.watch(supabaseClientProvider);
   final activeCompanyId = ref.watch(activeCompanyIdProvider);
   return WorkHourRepositoryImpl(
-      WorkHourDataSourceImpl(client, activeCompanyId ?? ''));
+    WorkHourDataSourceImpl(client, activeCompanyId ?? ''),
+  );
 });

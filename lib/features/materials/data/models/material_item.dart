@@ -8,6 +8,9 @@ part 'material_item.g.dart';
 /// Поля соответствуют колонкам БД.
 @freezed
 abstract class MaterialItem with _$MaterialItem {
+  /// Основной конструктор [MaterialItem].
+  ///
+  /// Описывает поля материала из базы данных.
   @JsonSerializable(fieldRename: FieldRename.snake)
   const factory MaterialItem({
     /// Идентификатор записи (UUID)
@@ -47,6 +50,7 @@ abstract class MaterialItem with _$MaterialItem {
     String? fileUrl,
   }) = _MaterialItem;
 
+  /// Создаёт [MaterialItem] из JSON.
   factory MaterialItem.fromJson(Map<String, dynamic> json) =>
       _$MaterialItemFromJson(json);
 

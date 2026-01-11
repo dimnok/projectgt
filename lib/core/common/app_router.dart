@@ -31,9 +31,7 @@ import 'package:projectgt/features/works/presentation/screens/month_details_mobi
 import 'package:projectgt/features/timesheet/presentation/screens/timesheet_screen.dart';
 import 'package:projectgt/features/fot/presentation/screens/payroll_list_screen.dart';
 import 'package:projectgt/features/export/presentation/screens/export_screen.dart';
-import 'package:projectgt/features/work_plans/presentation/screens/work_plans_list_screen.dart';
 import 'package:projectgt/features/work_plans/presentation/screens/work_plan_details_screen.dart';
-import 'package:projectgt/features/work_plans/presentation/screens/work_plan_edit_screen.dart';
 import 'package:projectgt/features/materials/presentation/screens/material_screen.dart';
 import 'package:projectgt/features/materials/presentation/screens/materials_mapping_screen.dart';
 import 'package:projectgt/features/inventory/presentation/screens/inventory_screen.dart';
@@ -551,11 +549,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
         ],
       ),
-      // Маршрут для плана работ
+      // Маршрут для плана работ - перенаправляем в общий модуль работ
       GoRoute(
         path: AppRoutes.workPlans,
         name: 'work_plans',
-        builder: (context, state) => const WorkPlansListScreen(),
+        builder: (context, state) => const WorksMasterDetailScreen(),
       ),
       // Маршрут для деталей плана работ
       GoRoute(
@@ -564,15 +562,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final workPlanId = state.pathParameters['workPlanId']!;
           return WorkPlanDetailsScreen(workPlanId: workPlanId);
-        },
-      ),
-      // Маршрут для редактирования плана работ
-      GoRoute(
-        path: '${AppRoutes.workPlans}/:workPlanId/edit',
-        name: 'work_plan_edit',
-        builder: (context, state) {
-          final workPlanId = state.pathParameters['workPlanId']!;
-          return WorkPlanEditScreen(workPlanId: workPlanId);
         },
       ),
       // Маршрут для табеля рабочего времени

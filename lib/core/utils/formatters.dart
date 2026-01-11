@@ -22,6 +22,34 @@ class GtFormatters {
   static final _quantityFormat = NumberFormat('###,##0.###', 'ru_RU');
   static final _amountFormat = NumberFormat('#,##0.00', 'ru_RU');
 
+  /// Форматирует ФИО сотрудника сокращённо (Иванов И.И.).
+  /// Пример: ("Иванов", "Иван", "Иванович") -> "Иванов И.И."
+  static String formatAbbreviatedName(
+    String lastName,
+    String firstName, [
+    String? middleName,
+  ]) {
+    final firstInitial = firstName.isNotEmpty ? '${firstName[0]}.' : '';
+    final middleInitial = (middleName != null && middleName.isNotEmpty)
+        ? '${middleName[0]}.'
+        : '';
+    return '$lastName $firstInitial$middleInitial'.trim();
+  }
+
+  /// Форматирует полное ФИО сотрудника (Иванов Иван Иванович).
+  /// Пример: ("Иванов", "Иван", "Иванович") -> "Иванов Иван Иванович"
+  static String formatFullName(
+    String lastName,
+    String firstName, [
+    String? middleName,
+  ]) {
+    return [
+      lastName,
+      firstName,
+      if (middleName != null && middleName.isNotEmpty) middleName,
+    ].join(' ');
+  }
+
   /// Форматирует валюту в локали ru_RU с двумя знаками копеек и символом ₽.
   /// Пример: 123456 -> "123 456,00 ₽"
   static String formatCurrency(num value) => _currencyFormat.format(value);
@@ -188,6 +216,20 @@ class _PhoneInputFormatter extends TextInputFormatter {
 }
 
 // --- Глобальные алиасы для удобства использования в UI ---
+
+/// Алиас для форматирования ФИО сотрудника сокращённо (Иванов И.И.).
+String formatAbbreviatedName(
+  String lastName,
+  String firstName, [
+  String? middleName,
+]) => GtFormatters.formatAbbreviatedName(lastName, firstName, middleName);
+
+/// Алиас для форматирования полного ФИО сотрудника (Иванов Иван Иванович).
+String formatFullName(
+  String lastName,
+  String firstName, [
+  String? middleName,
+]) => GtFormatters.formatFullName(lastName, firstName, middleName);
 
 /// Алиас для форматирования валюты (ru_RU, ₽, 2 знака).
 String formatCurrency(num value) => GtFormatters.formatCurrency(value);

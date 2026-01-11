@@ -290,11 +290,13 @@ class _NewMaterialModalState extends ConsumerState<NewMaterialModal> {
     }
 
     if (isDesktop) {
-      return DesktopDialogContent(
-        title: 'Новый материал',
-        onClose: _isSaving ? null : () => Navigator.pop(context),
-        footer: buildFooterButtons(),
-        child: buildFormContent(),
+      return Center(
+        child: DesktopDialogContent(
+          title: 'Новый материал',
+          onClose: _isSaving ? null : () => Navigator.pop(context),
+          footer: buildFooterButtons(),
+          child: buildFormContent(),
+        ),
       );
     }
 

@@ -3,10 +3,10 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:projectgt/domain/entities/work_plan.dart';
-import 'package:projectgt/features/work_plans/presentation/providers/work_plan_month_groups_provider.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/features/objects/presentation/state/object_state.dart';
 import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/features/work_plans/data/models/work_plan_month_group.dart';
 
 /// Виджет для отображения списка планов в развёрнутой группе месяца.
 ///

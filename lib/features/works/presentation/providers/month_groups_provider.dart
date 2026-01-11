@@ -1,70 +1,42 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:projectgt/core/common/month_group_controller.dart';
+import 'package:projectgt/core/error/failure.dart';
 import 'package:projectgt/features/works/data/models/month_group.dart';
 import 'package:projectgt/features/works/domain/entities/work.dart';
 import 'package:projectgt/features/works/domain/repositories/work_repository.dart';
 import 'repositories_providers.dart';
 
-/// Состояние для управления группами месяцев смен.
-class MonthGroupsState {
-  /// Список групп месяцев.
-  final List<MonthGroup> groups;
-
-  /// Флаг загрузки.
-  final bool isLoading;
-
-  /// Сообщение об ошибке (если есть).
-  final String? error;
-
-  /// Создаёт состояние для групп месяцев.
-  const MonthGroupsState({
-    this.groups = const [],
-    this.isLoading = false,
-    this.error,
-  });
-
-  /// Создаёт копию состояния с изменёнными полями.
-  MonthGroupsState copyWith({
-    List<MonthGroup>? groups,
-    bool? isLoading,
-    String? error,
-  }) {
-    return MonthGroupsState(
-      groups: groups ?? this.groups,
-      isLoading: isLoading ?? this.isLoading,
-      error: error,
-    );
-  }
-}
-
-/// StateNotifier для управления группами месяцев смен.
+/// AsyncNotifier для управления группами месяцев смен.
 ///
 /// Управляет загрузкой групп месяцев, раскрытием/сворачиванием групп
 /// и ленивой загрузкой смен при раскрытии группы.
-class MonthGroupsNotifier extends StateNotifier<MonthGroupsState> {
-  /// Репозиторий для работы со сменами.
-  final WorkRepository _repository;
+class MonthGroupsNotifier extends AsyncNotifier<List<MonthGroup>>
+    with MonthGroupController<MonthGroup> {
+  @override
+  FutureOr<List<MonthGroup>> build() async {
+    // Автоматически загружаем месяцы при создании провайдера
+    return await _loadMonths();
+  }
 
-  /// Создаёт notifier для групп месяцев.
-  MonthGroupsNotifier(this._repository) : super(const MonthGroupsState());
+  WorkRepository get _repository => ref.read(workRepositoryProvider);
+
+  /// Внутренний метод для загрузки заголовков групп месяцев.
+  Future<List<MonthGroup>> _loadMonths() async {
+    return await _repository.getMonthsHeaders();
+  }
 
   /// Загружает заголовки групп месяцев.
   ///
   /// Загружает только сводку по месяцам без загрузки смен.
   /// Все группы свёрнуты, смены загружаются лениво при клике.
   Future<void> loadMonths() async {
-    state = state.copyWith(isLoading: true, error: null);
-
+    state = const AsyncLoading();
     try {
-      final groups = await _repository.getMonthsHeaders();
-
-      // Устанавливаем группы без автоматической загрузки смен
-      // Смены загружаются ТОЛЬКО при клике на месяц (expandMonth)
-      state = state.copyWith(groups: groups, isLoading: false);
-    } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: 'Ошибка загрузки групп: $e',
-      );
+      final groups = await _loadMonths();
+      state = AsyncData(groups);
+    } catch (e, stack) {
+      state = AsyncError(Failure.fromException(e), stack);
     }
   }
 
@@ -72,34 +44,24 @@ class MonthGroupsNotifier extends StateNotifier<MonthGroupsState> {
   ///
   /// [month] — дата начала месяца для раскрытия.
   Future<void> expandMonth(DateTime month) async {
-    // Находим группу
-    final groupIndex = state.groups.indexWhere((g) => g.month == month);
-    if (groupIndex == -1) return;
+    final groups = state.valueOrNull ?? [];
 
-    final group = state.groups[groupIndex];
+    final updatedGroups = expandInList(
+      groups,
+      month,
+      copyWith: (group, isExpanded) => group.copyWith(
+        isExpanded: isExpanded,
+        works: isExpanded ? group.works : null,
+      ),
+    );
 
-    // Если уже развёрнута, ничего не делаем
-    if (group.isExpanded) return;
+    if (updatedGroups == groups) return;
 
-    // Создаем обновленный список групп
-    final updatedGroups = List<MonthGroup>.from(state.groups);
+    state = AsyncData(updatedGroups);
 
-    // Сворачиваем все остальные группы
-    for (int i = 0; i < updatedGroups.length; i++) {
-      if (i != groupIndex && updatedGroups[i].isExpanded) {
-        updatedGroups[i] = updatedGroups[i].copyWith(
-          isExpanded: false,
-          works: null, // Освобождаем память свернутых групп
-        );
-      }
-    }
-
-    // Обновляем состояние: целевая группа развёрнута
-    updatedGroups[groupIndex] = group.copyWith(isExpanded: true);
-    state = state.copyWith(groups: updatedGroups);
-
-    // Если смены ещё не загружены, загружаем
-    if (group.works == null) {
+    // Если смены ещё не загружены в раскрытой группе, загружаем
+    final group = updatedGroups.firstWhere((g) => g.month == month);
+    if (group.isExpanded && group.works == null) {
       await _loadMonthWorks(month);
     }
   }
@@ -108,29 +70,24 @@ class MonthGroupsNotifier extends StateNotifier<MonthGroupsState> {
   ///
   /// [month] — дата начала месяца для сворачивания.
   void collapseMonth(DateTime month) {
-    final groupIndex = state.groups.indexWhere((g) => g.month == month);
-    if (groupIndex == -1) return;
+    final groups = state.valueOrNull ?? [];
 
-    final group = state.groups[groupIndex];
-
-    // Если уже свёрнута, ничего не делаем
-    if (!group.isExpanded) return;
-
-    // Обновляем состояние: группа свёрнута, смены очищены
-    final updatedGroups = List<MonthGroup>.from(state.groups);
-    updatedGroups[groupIndex] = group.copyWith(
-      isExpanded: false,
-      works: null, // Освобождаем память
+    final updatedGroups = collapseInList(
+      groups,
+      month,
+      copyWith: (group, isExpanded) =>
+          group.copyWith(isExpanded: isExpanded, works: null),
     );
-    state = state.copyWith(groups: updatedGroups);
+
+    if (updatedGroups == groups) return;
+    state = AsyncData(updatedGroups);
   }
 
   /// Переключает состояние группы (раскрыть/свернуть).
   ///
   /// [month] — дата начала месяца.
   Future<void> toggleMonth(DateTime month) async {
-    final group = state.groups.firstWhere((g) => g.month == month);
-    if (group.isExpanded) {
+    if (isMonthExpanded(month)) {
       collapseMonth(month);
     } else {
       await expandMonth(month);
@@ -139,12 +96,7 @@ class MonthGroupsNotifier extends StateNotifier<MonthGroupsState> {
 
   /// Проверяет, раскрыта ли группа месяца.
   bool isMonthExpanded(DateTime month) {
-    for (final group in state.groups) {
-      if (group.month == month) {
-        return group.isExpanded;
-      }
-    }
-    return false;
+    return isExpanded(state.valueOrNull ?? [], month);
   }
 
   /// Загружает смены конкретного месяца.
@@ -165,11 +117,12 @@ class MonthGroupsNotifier extends StateNotifier<MonthGroupsState> {
         limit: limit,
       );
 
+      final groups = state.valueOrNull ?? [];
       // Находим группу и обновляем её смены
-      final groupIndex = state.groups.indexWhere((g) => g.month == month);
+      final groupIndex = groups.indexWhere((g) => g.month == month);
       if (groupIndex == -1) return;
 
-      final updatedGroups = List<MonthGroup>.from(state.groups);
+      final updatedGroups = List<MonthGroup>.from(groups);
       final group = updatedGroups[groupIndex];
 
       // Если это первая загрузка, заменяем works
@@ -178,9 +131,9 @@ class MonthGroupsNotifier extends StateNotifier<MonthGroupsState> {
       final allWorks = offset == 0 ? works : [...existingWorks, ...works];
 
       updatedGroups[groupIndex] = group.copyWith(works: allWorks);
-      state = state.copyWith(groups: updatedGroups);
-    } catch (e) {
-      state = state.copyWith(error: 'Ошибка загрузки смен месяца: $e');
+      state = AsyncData(updatedGroups);
+    } catch (e, stack) {
+      state = AsyncError(Failure.fromException(e), stack);
     }
   }
 
@@ -188,23 +141,20 @@ class MonthGroupsNotifier extends StateNotifier<MonthGroupsState> {
   ///
   /// [month] — дата начала месяца.
   Future<void> loadMoreMonthWorks(DateTime month) async {
-    try {
-      final groupIndex = state.groups.indexWhere((g) => g.month == month);
-      if (groupIndex == -1) return;
+    final groups = state.valueOrNull ?? [];
+    final groupIndex = groups.indexWhere((g) => g.month == month);
+    if (groupIndex == -1) return;
 
-      final group = state.groups[groupIndex];
-      if (group.works == null) return;
+    final group = groups[groupIndex];
+    if (group.works == null) return;
 
-      // Проверяем, не загружены ли уже все смены месяца
-      if (group.works!.length >= group.worksCount) {
-        return; // Все смены уже загружены
-      }
-
-      final offset = group.works!.length;
-      await _loadMonthWorks(month, offset: offset);
-    } catch (e) {
-      state = state.copyWith(error: 'Ошибка подгрузки смен: $e');
+    // Проверяем, не загружены ли уже все смены месяца
+    if (group.works!.length >= group.worksCount) {
+      return; // Все смены уже загружены
     }
+
+    final offset = group.works!.length;
+    await _loadMonthWorks(month, offset: offset);
   }
 
   /// Перезагружает данные (pull-to-refresh).
@@ -217,14 +167,15 @@ class MonthGroupsNotifier extends StateNotifier<MonthGroupsState> {
   /// Находит месячную группу по ID работы и обновляет работу в ней.
   /// Это предотвращает временную потерю данных при инвалидации.
   void updateWorkInGroup(dynamic updatedWork) {
+    final groups = state.valueOrNull ?? [];
     // Ищем группу, содержащую эту работу
     int? groupIndex;
     int? workIndex;
 
-    for (int g = 0; g < state.groups.length; g++) {
-      if (state.groups[g].works != null) {
-        for (int w = 0; w < state.groups[g].works!.length; w++) {
-          if (state.groups[g].works![w].id == updatedWork.id) {
+    for (int g = 0; g < groups.length; g++) {
+      if (groups[g].works != null) {
+        for (int w = 0; w < groups[g].works!.length; w++) {
+          if (groups[g].works![w].id == updatedWork.id) {
             groupIndex = g;
             workIndex = w;
             break;
@@ -239,25 +190,18 @@ class MonthGroupsNotifier extends StateNotifier<MonthGroupsState> {
     }
 
     // Обновляем работу в группе
-    final updatedGroups = List<MonthGroup>.from(state.groups);
+    final updatedGroups = List<MonthGroup>.from(groups);
     final group = updatedGroups[groupIndex];
     final updatedWorks = List<Work>.from(group.works!);
     updatedWorks[workIndex] = updatedWork;
     updatedGroups[groupIndex] = group.copyWith(works: updatedWorks);
 
-    state = state.copyWith(groups: updatedGroups);
+    state = AsyncData(updatedGroups);
   }
 }
 
 /// Провайдер для управления группами месяцев смен.
 final monthGroupsProvider =
-    StateNotifierProvider<MonthGroupsNotifier, MonthGroupsState>((ref) {
-  final repository = ref.watch(workRepositoryProvider);
-  final notifier = MonthGroupsNotifier(repository);
-
-  // Автоматически загружаем месяцы при создании или пересоздании провайдера
-  // (например, при смене компании)
-  notifier.loadMonths();
-
-  return notifier;
-});
+    AsyncNotifierProvider<MonthGroupsNotifier, List<MonthGroup>>(() {
+      return MonthGroupsNotifier();
+    });
