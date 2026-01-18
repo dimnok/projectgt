@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/modal_utils.dart';
 import '../../../../core/utils/snackbar_utils.dart';
 import '../../../../core/widgets/gt_dropdown.dart';
@@ -468,7 +469,7 @@ class _ExportWorkItemEditModalState
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Дата: ${_formatDate(widget.initialData.workDate)}',
+                            'Дата: ${formatRuDate(widget.initialData.workDate)}',
                             style: theme.textTheme.bodyMedium,
                           ),
                           Text(
@@ -650,10 +651,5 @@ class _ExportWorkItemEditModalState
         ),
       ],
     );
-  }
-
-  /// Форматирует дату.
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
   }
 }

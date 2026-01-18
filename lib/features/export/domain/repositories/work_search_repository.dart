@@ -34,11 +34,17 @@ abstract class WorkSearchRepository {
   /// [objectId] — идентификатор объекта (обязательно)
   /// [startDate] — дата начала периода (опционально)
   /// [endDate] — дата окончания периода (опционально)
+  /// [systemFilters] — текущие фильтры по системам (для каскада)
+  /// [sectionFilters] — текущие фильтры по участкам (для каскада)
+  /// [searchQuery] — текущий поисковый запрос (для каскада)
   ///
   /// Возвращает уникальные значения фильтров [WorkSearchFilterValues].
   Future<WorkSearchFilterValues> getFilterValues({
     required String objectId,
     DateTime? startDate,
     DateTime? endDate,
+    List<String>? systemFilters,
+    List<String>? sectionFilters,
+    String? searchQuery,
   });
 }

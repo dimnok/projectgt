@@ -43,13 +43,17 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
   };
 
   // Динамические сегменты с контрастным текстом
-  Map<int, Widget> _buildTabSegments(bool isDark) {
+  Map<int, Widget> _buildTabSegments(bool isDark, bool isMobile) {
+    final verticalPadding = isMobile ? 4.0 : 8.0;
+    final fontSize = isMobile ? 12.0 : 14.0;
+
     return {
       0: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: verticalPadding),
         child: Text(
           'ФОТ',
           style: TextStyle(
+            fontSize: fontSize,
             color: _selectedTabIndex == 0
                 ? Colors
                       .black87 // Тёмный текст на белом thumb
@@ -58,10 +62,11 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
         ),
       ),
       1: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: verticalPadding),
         child: Text(
           'Премии',
           style: TextStyle(
+            fontSize: fontSize,
             color: _selectedTabIndex == 1
                 ? Colors
                       .white // Светлый текст на голубом thumb
@@ -70,10 +75,11 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
         ),
       ),
       2: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: verticalPadding),
         child: Text(
           'Штрафы',
           style: TextStyle(
+            fontSize: fontSize,
             color: _selectedTabIndex == 2
                 ? Colors
                       .white // Светлый текст на красном thumb
@@ -82,10 +88,11 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
         ),
       ),
       3: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: verticalPadding),
         child: Text(
           'Выплаты',
           style: TextStyle(
+            fontSize: fontSize,
             color: _selectedTabIndex == 3
                 ? Colors
                       .white // Светлый текст на зелёном thumb
@@ -198,6 +205,7 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final filterState = ref.watch(payrollFilterProvider);
+    final isMobile = ResponsiveUtils.isMobile(context);
 
     // Используем filteredPayrollsProvider для получения данных
     final payrollsAsync = ref.watch(filteredPayrollsProvider);
@@ -208,9 +216,11 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
         title:
             'ФОТ — ${monthNames[filterState.selectedMonth - 1]} ${filterState.selectedYear}',
         actions: [
-          const PayrollSearchAction(),
-          const SizedBox(width: 8),
-          if (_selectedTabIndex != 3) ...[
+          if (!isMobile) ...[
+            const PayrollSearchAction(),
+            const SizedBox(width: 8),
+          ],
+          if (!isMobile && _selectedTabIndex != 3) ...[
             // Кнопка экспорта в Excel
             PermissionGuard(
               module: 'payroll',
@@ -231,12 +241,12 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
         children: [
           // --- iOS-стиль с плавающим цветным переключателем ---
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 24.0,
-              vertical: 16.0,
+            padding: EdgeInsets.symmetric(
+              horizontal: isMobile ? 12.0 : 24.0,
+              vertical: isMobile ? 8.0 : 16.0,
             ),
             child: CupertinoSlidingSegmentedControl<int>(
-              children: _buildTabSegments(theme.brightness == Brightness.dark),
+              children: _buildTabSegments(theme.brightness == Brightness.dark, isMobile),
               groupValue: _selectedTabIndex,
               onValueChanged: (int? value) {
                 if (value != null) {

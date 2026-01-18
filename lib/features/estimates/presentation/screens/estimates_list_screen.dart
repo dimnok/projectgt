@@ -93,16 +93,21 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
       // Проходим по каждой группе и загружаем её элементы для экспорта
       for (final group in groups) {
         // Загружаем элементы для каждой группы
-        final items = await ref.read(estimateItemsProvider(EstimateDetailArgs(
-          estimateTitle: group.estimateTitle,
-          objectId: group.objectId,
-          contractId: group.contractId,
-        )).future);
+        final items = await ref.read(
+          estimateItemsProvider(
+            EstimateDetailArgs(
+              estimateTitle: group.estimateTitle,
+              objectId: group.objectId,
+              contractId: group.contractId,
+            ),
+          ).future,
+        );
 
         String objectName = '';
         if (group.objectId != null) {
-          final objectEntity =
-              objects.firstWhereOrNull((o) => o.id == group.objectId);
+          final objectEntity = objects.firstWhereOrNull(
+            (o) => o.id == group.objectId,
+          );
           if (objectEntity != null) {
             objectName = objectEntity.name;
           }
@@ -147,10 +152,7 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
         await file.writeAsBytes(bytes);
 
         await SharePlus.instance.share(
-          ShareParams(
-            files: [XFile(path)],
-            text: 'Экспорт смет',
-          ),
+          ShareParams(files: [XFile(path)], text: 'Экспорт смет'),
         );
       }
 
@@ -167,11 +169,15 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
 
     // Сначала загружаем элементы, чтобы узнать их ID для удаления
     try {
-      final items = await ref.read(estimateItemsProvider(EstimateDetailArgs(
-        estimateTitle: file.estimateTitle,
-        objectId: file.objectId,
-        contractId: file.contractId,
-      )).future);
+      final items = await ref.read(
+        estimateItemsProvider(
+          EstimateDetailArgs(
+            estimateTitle: file.estimateTitle,
+            objectId: file.objectId,
+            contractId: file.contractId,
+          ),
+        ).future,
+      );
 
       for (final item in items) {
         await notifier.deleteEstimate(item.id);
@@ -187,7 +193,9 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
       }
 
       SnackBarUtils.showSuccess(
-          context, 'Смета "${file.estimateTitle}" удалена');
+        context,
+        'Смета "${file.estimateTitle}" удалена',
+      );
     } catch (e) {
       if (!mounted) return;
       SnackBarUtils.showError(context, 'Ошибка удаления: $e');
@@ -201,10 +209,44 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
     final permissionService = ref.watch(permissionServiceProvider);
     final canDelete = permissionService.can('estimates', 'delete');
     final isDesktop = ResponsiveUtils.isDesktop(context);
+    final isSidebarVisible = ref.watch(estimateSidebarVisibleProvider);
 
     return Scaffold(
       appBar: AppBarWidget(
         title: 'Сметы',
+        leadingWidth: isDesktop ? 110 : null,
+        leading: isDesktop
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(width: 8),
+                  Builder(
+                    builder: (context) => CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      child: const Icon(
+                        Icons.menu,
+                        color: Colors.green,
+                      ),
+                      onPressed: () {
+                        Scaffold.of(context).openDrawer();
+                      },
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      isSidebarVisible
+                          ? CupertinoIcons.sidebar_left
+                          : CupertinoIcons.sidebar_right,
+                      color: Colors.green,
+                    ),
+                    onPressed: () => ref
+                        .read(estimateSidebarVisibleProvider.notifier)
+                        .update((state) => !state),
+                    tooltip: isSidebarVisible ? 'Скрыть панель' : 'Показать панель',
+                  ),
+                ],
+              )
+            : null,
         actions: [
           PermissionGuard(
             module: 'estimates',
@@ -242,10 +284,12 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
         data: (estimateFiles) {
           // Если выбранная смета исчезла (удалена), сбрасываем выбор
           if (selectedEstimateFile != null &&
-              !estimateFiles.any((f) =>
-                  f.estimateTitle == selectedEstimateFile!.estimateTitle &&
-                  f.objectId == selectedEstimateFile!.objectId &&
-                  f.contractId == selectedEstimateFile!.contractId)) {
+              !estimateFiles.any(
+                (f) =>
+                    f.estimateTitle == selectedEstimateFile!.estimateTitle &&
+                    f.objectId == selectedEstimateFile!.objectId &&
+                    f.contractId == selectedEstimateFile!.contractId,
+              )) {
             // Используем addPostFrameCallback, чтобы избежать ошибки во время build
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) {
@@ -261,11 +305,7 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
               if (isDesktop) {
                 return const EstimateDetailsScreen(showAppBar: false);
               } else {
-                return _buildMobileLayout(
-                  estimateFiles,
-                  objects,
-                  canDelete,
-                );
+                return _buildMobileLayout(estimateFiles, objects, canDelete);
               }
             },
           );
@@ -312,9 +352,11 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
 
     return Dismissible(
       key: Key(
-          '${file.estimateTitle}_${file.objectId ?? "null"}_${file.contractId ?? "null"}'),
-      direction:
-          canDelete ? DismissDirection.endToStart : DismissDirection.none,
+        '${file.estimateTitle}_${file.objectId ?? "null"}_${file.contractId ?? "null"}',
+      ),
+      direction: canDelete
+          ? DismissDirection.endToStart
+          : DismissDirection.none,
       confirmDismiss: (direction) async {
         return await CupertinoDialogs.showDeleteConfirmDialog<bool>(
           context: context,
@@ -331,10 +373,7 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20.0),
         color: Colors.red,
-        child: const Icon(
-          CupertinoIcons.trash,
-          color: Colors.white,
-        ),
+        child: const Icon(CupertinoIcons.trash, color: Colors.white),
       ),
       child: Card(
         margin: const EdgeInsets.symmetric(vertical: 6),
@@ -371,10 +410,7 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const AppBadge(
-                      text: 'Загружена',
-                      color: Colors.green,
-                    ),
+                    const AppBadge(text: 'Загружена', color: Colors.green),
                   ],
                 ),
                 const SizedBox(height: 8),

@@ -84,8 +84,9 @@ class _WorkPlanDetailsScreenState extends ConsumerState<WorkPlanDetailsScreen> {
 
     if (isLoading) {
       return Scaffold(
-        appBar:
-            widget.showAppBar ? const AppBarWidget(title: 'План работ') : null,
+        appBar: widget.showAppBar
+            ? const AppBarWidget(title: 'План работ')
+            : null,
         drawer: widget.showAppBar
             ? const AppDrawer(activeRoute: AppRoute.works)
             : null,
@@ -95,16 +96,14 @@ class _WorkPlanDetailsScreenState extends ConsumerState<WorkPlanDetailsScreen> {
 
     if (workPlan == null) {
       return Scaffold(
-        appBar:
-            widget.showAppBar ? const AppBarWidget(title: 'План работ') : null,
+        appBar: widget.showAppBar
+            ? const AppBarWidget(title: 'План работ')
+            : null,
         drawer: widget.showAppBar
             ? const AppDrawer(activeRoute: AppRoute.works)
             : null,
         body: Center(
-          child: Text(
-            'План работ не найден',
-            style: theme.textTheme.bodyLarge,
-          ),
+          child: Text('План работ не найден', style: theme.textTheme.bodyLarge),
         ),
       );
     }
@@ -123,14 +122,20 @@ class _WorkPlanDetailsScreenState extends ConsumerState<WorkPlanDetailsScreen> {
     final labelStyle = TextStyle(
       color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
       fontSize: ResponsiveUtils.adaptiveValue(
-          context: context, mobile: 14.0, desktop: 15.0),
+        context: context,
+        mobile: 14.0,
+        desktop: 15.0,
+      ),
     );
 
     // Общий стиль для значений
     final valueStyle = TextStyle(
       fontWeight: FontWeight.w500,
       fontSize: ResponsiveUtils.adaptiveValue(
-          context: context, mobile: 15.0, desktop: 16.0),
+        context: context,
+        mobile: 15.0,
+        desktop: 16.0,
+      ),
     );
 
     return Scaffold(
@@ -156,9 +161,7 @@ class _WorkPlanDetailsScreenState extends ConsumerState<WorkPlanDetailsScreen> {
                   MediaQuery.of(context).viewPadding.top + kToolbarHeight + 24,
             ),
           // Отступ сверху как в списке планов работ
-          SizedBox(
-            height: ResponsiveUtils.isMobile(context) ? 8 : 6,
-          ),
+          SizedBox(height: ResponsiveUtils.isMobile(context) ? 8 : 6),
           // Единый блок с информацией и табами
           Container(
             margin: EdgeInsets.symmetric(
@@ -190,11 +193,13 @@ class _WorkPlanDetailsScreenState extends ConsumerState<WorkPlanDetailsScreen> {
               children: [
                 // Шапка с основной информацией
                 Padding(
-                  padding: EdgeInsets.all(ResponsiveUtils.adaptiveValue(
-                    context: context,
-                    mobile: _contentPadding,
-                    desktop: _contentPadding * 1.2,
-                  )),
+                  padding: EdgeInsets.all(
+                    ResponsiveUtils.adaptiveValue(
+                      context: context,
+                      mobile: _contentPadding,
+                      desktop: _contentPadding * 1.2,
+                    ),
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -223,8 +228,9 @@ class _WorkPlanDetailsScreenState extends ConsumerState<WorkPlanDetailsScreen> {
                             _formatDate(workPlan.date),
                             style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w500,
-                              color: theme.colorScheme.onSurface
-                                  .withValues(alpha: 0.7),
+                              color: theme.colorScheme.onSurface.withValues(
+                                alpha: 0.7,
+                              ),
                             ),
                           ),
                         ],
@@ -236,8 +242,9 @@ class _WorkPlanDetailsScreenState extends ConsumerState<WorkPlanDetailsScreen> {
                           Icon(
                             CupertinoIcons.group,
                             size: 20,
-                            color: theme.colorScheme.onSurface
-                                .withValues(alpha: 0.7),
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.7,
+                            ),
                           ),
                           const SizedBox(width: 8),
                           Text(
@@ -263,8 +270,15 @@ class _WorkPlanDetailsScreenState extends ConsumerState<WorkPlanDetailsScreen> {
 
           // Содержимое с блоками работ
           Expanded(
-            child: _buildWorkBlocksTab(workPlan, objectState, employeeState,
-                theme, labelStyle, valueStyle, sectionTitleStyle),
+            child: _buildWorkBlocksTab(
+              workPlan,
+              objectState,
+              employeeState,
+              theme,
+              labelStyle,
+              valueStyle,
+              sectionTitleStyle,
+            ),
           ),
         ],
       ),
@@ -273,13 +287,14 @@ class _WorkPlanDetailsScreenState extends ConsumerState<WorkPlanDetailsScreen> {
 
   /// Строит вкладку с блоками работ
   Widget _buildWorkBlocksTab(
-      WorkPlan workPlan,
-      ObjectState objectState,
-      state.EmployeeState employeeState,
-      ThemeData theme,
-      TextStyle labelStyle,
-      TextStyle valueStyle,
-      TextStyle? sectionTitleStyle) {
+    WorkPlan workPlan,
+    ObjectState objectState,
+    state.EmployeeState employeeState,
+    ThemeData theme,
+    TextStyle labelStyle,
+    TextStyle valueStyle,
+    TextStyle? sectionTitleStyle,
+  ) {
     return ListView(
       padding: EdgeInsets.all(ResponsiveUtils.getAdaptivePadding(context)),
       children: [
@@ -294,20 +309,26 @@ class _WorkPlanDetailsScreenState extends ConsumerState<WorkPlanDetailsScreen> {
   }
 
   /// Строит карточку блока работ
-  Widget _buildWorkBlockCard(WorkBlock block, int index, ThemeData theme,
-      state.EmployeeState employeeState) {
+  Widget _buildWorkBlockCard(
+    WorkBlock block,
+    int index,
+    ThemeData theme,
+    state.EmployeeState employeeState,
+  ) {
     final responsible = block.responsibleId != null
         ? employeeState.employees
-            .where((emp) => emp.id == block.responsibleId)
-            .firstOrNull
+              .where((emp) => emp.id == block.responsibleId)
+              .firstOrNull
         : null;
 
     final workers = employeeState.employees
         .where((emp) => block.workerIds.contains(emp.id))
         .toList();
 
-    final totalCost = block.selectedWorks
-        .fold(0.0, (sum, work) => sum + work.totalPlannedCost);
+    final totalCost = block.selectedWorks.fold(
+      0.0,
+      (sum, work) => sum + work.totalPlannedCost,
+    );
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -354,8 +375,9 @@ class _WorkPlanDetailsScreenState extends ConsumerState<WorkPlanDetailsScreen> {
                         Text(
                           '${block.selectedWorks.length} работ • ${_formatCurrency(totalCost)}',
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface
-                                .withValues(alpha: 0.6),
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.6,
+                            ),
                           ),
                         ),
                       ],
@@ -410,7 +432,10 @@ class _WorkPlanDetailsScreenState extends ConsumerState<WorkPlanDetailsScreen> {
                 theme,
                 'Работники:',
                 workers
-                    .map((w) => formatFullName(w.lastName, w.firstName, w.middleName))
+                    .map(
+                      (w) =>
+                          formatFullName(w.lastName, w.firstName, w.middleName),
+                    )
                     .join(', '),
                 CupertinoIcons.group,
               ),
@@ -487,8 +512,9 @@ class _WorkPlanDetailsScreenState extends ConsumerState<WorkPlanDetailsScreen> {
                             Text(
                               '${work.plannedQuantity} ${work.unit}',
                               style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurface
-                                    .withValues(alpha: 0.6),
+                                color: theme.colorScheme.onSurface.withValues(
+                                  alpha: 0.6,
+                                ),
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -516,7 +542,11 @@ class _WorkPlanDetailsScreenState extends ConsumerState<WorkPlanDetailsScreen> {
 
   /// Строит строку информации с иконкой
   Widget _buildInfoRow(
-      ThemeData theme, String label, String value, IconData icon) {
+    ThemeData theme,
+    String label,
+    String value,
+    IconData icon,
+  ) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -534,12 +564,7 @@ class _WorkPlanDetailsScreenState extends ConsumerState<WorkPlanDetailsScreen> {
           ),
         ),
         const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            value,
-            style: theme.textTheme.bodyMedium,
-          ),
-        ),
+        Expanded(child: Text(value, style: theme.textTheme.bodyMedium)),
       ],
     );
   }

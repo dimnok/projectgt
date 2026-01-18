@@ -90,8 +90,7 @@ class SupabaseCompanyDataSource implements CompanyDataSource {
         .from('companies')
         .select('*')
         .eq('id', companyId)
-        .maybeSingle();
-    if (response == null) return null;
+        .single();
     return CompanyProfile.fromJson(response);
   }
 

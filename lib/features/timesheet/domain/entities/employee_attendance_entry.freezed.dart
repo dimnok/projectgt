@@ -19,7 +19,7 @@ mixin _$EmployeeAttendanceEntry {
 /// Уникальный идентификатор записи
  String get id;/// ID компании
  String get companyId;/// ID сотрудника
- String get employeeId;/// ID объекта (ЦОД Дубна, Офис, Склад и т.д.)
+ String get employeeId;/// ID объекта (например, ЦОД Дубна, Офис)
  String get objectId;/// Дата работы
  DateTime get date;/// Количество отработанных часов
  num get hours;/// Тип посещаемости
@@ -117,7 +117,7 @@ class _EmployeeAttendanceEntry implements EmployeeAttendanceEntry {
 @override final  String companyId;
 /// ID сотрудника
 @override final  String employeeId;
-/// ID объекта (ЦОД Дубна, Офис, Склад и т.д.)
+/// ID объекта (например, ЦОД Дубна, Офис)
 @override final  String objectId;
 /// Дата работы
 @override final  DateTime date;

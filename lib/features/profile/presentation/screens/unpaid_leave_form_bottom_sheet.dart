@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
+import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/domain/entities/profile.dart';
 import 'package:projectgt/features/profile/presentation/screens/pdf_preview_screen.dart';
@@ -14,10 +14,7 @@ class UnpaidLeaveForm extends ConsumerStatefulWidget {
   final Profile profile;
 
   /// Создаёт форму заявления на отпуск за свой счёт.
-  const UnpaidLeaveForm({
-    super.key,
-    required this.profile,
-  });
+  const UnpaidLeaveForm({super.key, required this.profile});
 
   @override
   ConsumerState<UnpaidLeaveForm> createState() => _UnpaidLeaveFormState();
@@ -115,7 +112,7 @@ class _UnpaidLeaveFormState extends ConsumerState<UnpaidLeaveForm> {
 
   void _openPdfPreview() {
     final fullName = widget.profile.fullName ?? 'Сотрудник';
-    final startDateStr = DateFormat('dd.MM.yyyy').format(_startDate);
+    final startDateStr = formatRuDate(_startDate);
 
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -184,8 +181,9 @@ class _UnpaidLeaveFormState extends ConsumerState<UnpaidLeaveForm> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest
-                  .withValues(alpha: 0.5),
+              color: theme.colorScheme.surfaceContainerHighest.withValues(
+                alpha: 0.5,
+              ),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
@@ -223,8 +221,10 @@ class _UnpaidLeaveFormState extends ConsumerState<UnpaidLeaveForm> {
             ),
             child: Row(
               children: [
-                Icon(CupertinoIcons.info_circle,
-                    color: theme.colorScheme.onSecondaryContainer),
+                Icon(
+                  CupertinoIcons.info_circle,
+                  color: theme.colorScheme.onSecondaryContainer,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(

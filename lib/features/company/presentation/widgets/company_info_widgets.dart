@@ -38,55 +38,47 @@ class CompanyInfoCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: theme.colorScheme.shadow.withValues(alpha: 0.05),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
+        borderRadius: const BorderRadius.all(Radius.circular(12)),
         border: Border.all(
-          color: theme.colorScheme.outline.withValues(alpha: 0.08),
+          color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
+          width: 1,
         ),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: const BorderRadius.all(Radius.circular(12)),
         child: IntrinsicHeight(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Акцентная линия слева
-              Container(
-                width: 4,
-                color: color.withValues(alpha: 0.7),
-              ),
+              // Акцентная линия слева (теперь тоньше и строже)
+              Container(width: 3, color: color),
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.all(20.0),
+                  padding: const EdgeInsets.all(16.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
                           if (icon != null) ...[
-                            Icon(icon, size: 20, color: color),
-                            const SizedBox(width: 10),
+                            Icon(icon, size: 18, color: color),
+                            const SizedBox(width: 8),
                           ],
                           Expanded(
                             child: Text(
                               title.toUpperCase(),
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1.1,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.2,
                                 color: color,
+                                fontSize: 10,
                               ),
                             ),
                           ),
                           if (action != null) action!,
                         ],
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       ...children,
                     ],
                   ),
@@ -106,7 +98,7 @@ class CompanyInfoRow extends StatelessWidget {
   final String label;
 
   /// Значение поля.
-  final String value;
+  final String? value;
 
   /// Иконка поля.
   final IconData? icon;
@@ -133,7 +125,7 @@ class CompanyInfoRow extends StatelessWidget {
   const CompanyInfoRow({
     super.key,
     required this.label,
-    this.value = '—',
+    this.value,
     this.icon,
     this.canCopy = false,
     this.onAction,
@@ -144,7 +136,8 @@ class CompanyInfoRow extends StatelessWidget {
   });
 
   void _copyToClipboard(BuildContext context) {
-    Clipboard.setData(ClipboardData(text: value));
+    if (value == null) return;
+    Clipboard.setData(ClipboardData(text: value!));
     AppSnackBar.show(
       context: context,
       message: 'Скопировано: $value',
@@ -155,9 +148,10 @@ class CompanyInfoRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final displayValue = (value == null || value!.isEmpty) ? '—' : value!;
 
     return Padding(
-      padding: EdgeInsets.only(bottom: isLast ? 0 : 16.0),
+      padding: EdgeInsets.only(bottom: isLast ? 0 : 12.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -166,11 +160,11 @@ class CompanyInfoRow extends StatelessWidget {
               padding: const EdgeInsets.only(top: 2),
               child: Icon(
                 icon,
-                size: 16,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                size: 14,
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
           ],
           Expanded(
             child: Column(
@@ -178,86 +172,97 @@ class CompanyInfoRow extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                    fontWeight: FontWeight.w500,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 10,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Flexible(
+                    Expanded(
                       child: SelectableText(
-                        value,
+                        displayValue,
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
                         ),
                       ),
                     ),
-                    if (canCopy && value != '—') ...[
-                      const SizedBox(width: 8),
-                      IconButton(
-                        onPressed: () => _copyToClipboard(context),
-                        icon: Icon(
-                          Icons.copy_rounded,
-                          size: 18,
-                          color:
-                              theme.colorScheme.primary.withValues(alpha: 0.6),
-                        ),
-                        visualDensity: VisualDensity.compact,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        tooltip: 'Копировать',
-                      ),
-                    ],
-                    if (onAction != null &&
-                        actionIcon != null &&
-                        value != '—') ...[
-                      const SizedBox(width: 8),
-                      IconButton(
-                        onPressed: onAction,
-                        icon: Icon(
-                          actionIcon,
-                          size: 18,
-                          color:
-                              theme.colorScheme.primary.withValues(alpha: 0.8),
-                        ),
-                        visualDensity: VisualDensity.compact,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
-                    ],
-                    if (onEdit != null) ...[
-                      const SizedBox(width: 8),
-                      IconButton(
-                        onPressed: onEdit,
-                        icon: Icon(
-                          CupertinoIcons.pencil,
-                          size: 18,
-                          color:
-                              theme.colorScheme.primary.withValues(alpha: 0.6),
-                        ),
-                        visualDensity: VisualDensity.compact,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        tooltip: 'Редактировать',
-                      ),
-                    ],
-                    if (onDelete != null) ...[
-                      const SizedBox(width: 8),
-                      IconButton(
-                        onPressed: onDelete,
-                        icon: Icon(
-                          CupertinoIcons.trash,
-                          size: 18,
-                          color: theme.colorScheme.error.withValues(alpha: 0.6),
-                        ),
-                        visualDensity: VisualDensity.compact,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        tooltip: 'Удалить',
-                      ),
-                    ],
+                    const SizedBox(width: 8),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (canCopy && displayValue != '—') ...[
+                          IconButton(
+                            onPressed: () => _copyToClipboard(context),
+                            icon: Icon(
+                              Icons.copy_rounded,
+                              size: 14,
+                              color: theme.colorScheme.onSurface.withValues(
+                                alpha: 0.4,
+                              ),
+                            ),
+                            visualDensity: VisualDensity.compact,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            tooltip: 'Копировать',
+                          ),
+                        ],
+                        if (onAction != null &&
+                            actionIcon != null &&
+                            displayValue != '—') ...[
+                          const SizedBox(width: 8),
+                          IconButton(
+                            onPressed: onAction,
+                            icon: Icon(
+                              actionIcon,
+                              size: 16,
+                              color: theme.colorScheme.primary,
+                            ),
+                            visualDensity: VisualDensity.compact,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                        ],
+                        if (onEdit != null) ...[
+                          const SizedBox(width: 8),
+                          IconButton(
+                            onPressed: onEdit,
+                            icon: Icon(
+                              CupertinoIcons.pencil,
+                              size: 16,
+                              color: theme.colorScheme.primary.withValues(
+                                alpha: 0.7,
+                              ),
+                            ),
+                            visualDensity: VisualDensity.compact,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            tooltip: 'Редактировать',
+                          ),
+                        ],
+                        if (onDelete != null) ...[
+                          const SizedBox(width: 8),
+                          IconButton(
+                            onPressed: onDelete,
+                            icon: Icon(
+                              CupertinoIcons.trash,
+                              size: 16,
+                              color: theme.colorScheme.error.withValues(
+                                alpha: 0.7,
+                              ),
+                            ),
+                            visualDensity: VisualDensity.compact,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            tooltip: 'Удалить',
+                          ),
+                        ],
+                      ],
+                    ),
                   ],
                 ),
               ],

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
+import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/gt_text_field.dart';
 import 'package:projectgt/core/widgets/app_snackbar.dart';
@@ -24,20 +25,35 @@ class CompanyDocumentEditDialog extends ConsumerStatefulWidget {
     this.document,
   });
 
-  /// Показывает диалог.
+  /// Показывает диалог адаптивно (Dialog на Desktop, BottomSheet на Mobile).
   static void show(BuildContext context, String companyId,
       {CompanyDocument? document}) {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
+    final isDesktop = MediaQuery.of(context).size.width >= 800;
+
+    if (isDesktop) {
+      showDialog(
+        context: context,
+        builder: (context) => Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(24),
+          child: CompanyDocumentEditDialog(
+            companyId: companyId,
+            document: document,
+          ),
+        ),
+      );
+    } else {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
         backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.all(24),
-        child: CompanyDocumentEditDialog(
+        builder: (context) => CompanyDocumentEditDialog(
           companyId: companyId,
           document: document,
         ),
-      ),
-    );
+      );
+    }
   }
 
   @override
@@ -138,74 +154,89 @@ class _CompanyDocumentEditDialogState
 
   @override
   Widget build(BuildContext context) {
-    return DesktopDialogContent(
-      title: widget.document == null
-          ? 'Добавление документа'
-          : 'Редактирование документа',
-      footer: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
+    final isDesktop = MediaQuery.of(context).size.width >= 800;
+    final title = widget.document == null
+        ? 'Добавление документа'
+        : 'Редактирование документа';
+
+    final content = Form(
+      key: _formKey,
+      child: Column(
         children: [
-          GTSecondaryButton(
-            text: 'Отмена',
-            onPressed: () => Navigator.pop(context),
+          GTTextField(
+            controller: _titleController,
+            labelText: 'Название документа',
+            prefixIcon: CupertinoIcons.doc_text,
+            enabled: !_isLoading,
+            validator: (v) =>
+                v == null || v.isEmpty ? 'Введите название' : null,
           ),
-          const SizedBox(width: 16),
-          GTPrimaryButton(
-            text: 'Сохранить',
-            isLoading: _isLoading,
-            onPressed: _save,
+          const SizedBox(height: 16),
+          GTTextField(
+            controller: _numberController,
+            labelText: 'Номер документа',
+            prefixIcon: CupertinoIcons.number,
+            enabled: !_isLoading,
+          ),
+          const SizedBox(height: 16),
+          GTTextField(
+            controller: _typeController,
+            labelText: 'Тип (Лицензия, СРО и т.д.)',
+            prefixIcon: CupertinoIcons.tag,
+            enabled: !_isLoading,
+          ),
+          const SizedBox(height: 16),
+          InkWell(
+            onTap: _isLoading ? null : _selectDate,
+            borderRadius: BorderRadius.circular(16),
+            child: InputDecorator(
+              decoration: InputDecoration(
+                labelText: 'Дата выдачи',
+                prefixIcon: const Icon(CupertinoIcons.calendar, size: 20),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              child: Text(
+                _issueDate == null ? 'Не выбрана' : formatRuDate(_issueDate!),
+              ),
+            ),
           ),
         ],
       ),
-      child: Form(
-        key: _formKey,
-        child: Column(
+    );
+
+    if (isDesktop) {
+      return DesktopDialogContent(
+        title: title,
+        footer: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            GTTextField(
-              controller: _titleController,
-              labelText: 'Название документа',
-              prefixIcon: CupertinoIcons.doc_text,
-              enabled: !_isLoading,
-              validator: (v) =>
-                  v == null || v.isEmpty ? 'Введите название' : null,
+            GTSecondaryButton(
+              text: 'Отмена',
+              onPressed: () => Navigator.pop(context),
             ),
-            const SizedBox(height: 16),
-            GTTextField(
-              controller: _numberController,
-              labelText: 'Номер документа',
-              prefixIcon: CupertinoIcons.number,
-              enabled: !_isLoading,
-            ),
-            const SizedBox(height: 16),
-            GTTextField(
-              controller: _typeController,
-              labelText: 'Тип (Лицензия, СРО и т.д.)',
-              prefixIcon: CupertinoIcons.tag,
-              enabled: !_isLoading,
-            ),
-            const SizedBox(height: 16),
-            InkWell(
-              onTap: _isLoading ? null : _selectDate,
-              borderRadius: BorderRadius.circular(16),
-              child: InputDecorator(
-                decoration: InputDecoration(
-                  labelText: 'Дата выдачи',
-                  prefixIcon: const Icon(CupertinoIcons.calendar, size: 20),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                child: Text(
-                  _issueDate == null
-                      ? 'Не выбрана'
-                      : formatRuDate(_issueDate!),
-                ),
-              ),
+            const SizedBox(width: 16),
+            GTPrimaryButton(
+              text: 'Сохранить',
+              isLoading: _isLoading,
+              onPressed: _save,
             ),
           ],
         ),
-      ),
-    );
+        child: content,
+      );
+    } else {
+      return MobileBottomSheetContent(
+        title: title,
+        footer: GTPrimaryButton(
+          text: 'Сохранить',
+          isLoading: _isLoading,
+          onPressed: _save,
+        ),
+        child: content,
+      );
+    }
   }
 }
 

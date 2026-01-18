@@ -45,7 +45,7 @@ abstract class EmployeeAttendanceEntry with _$EmployeeAttendanceEntry {
     /// ID сотрудника
     required String employeeId,
 
-    /// ID объекта (ЦОД Дубна, Офис, Склад и т.д.)
+    /// ID объекта (например, ЦОД Дубна, Офис)
     required String objectId,
 
     /// Дата работы

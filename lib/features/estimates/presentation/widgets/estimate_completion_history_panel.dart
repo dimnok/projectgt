@@ -83,8 +83,6 @@ class _EstimateCompletionHistoryPanelState
     final isDark = theme.brightness == Brightness.dark;
 
     return Container(
-      width: 350,
-      margin: const EdgeInsets.only(right: 16),
       decoration: BoxDecoration(
         color: isDark ? Colors.grey[900] : Colors.white,
         borderRadius: BorderRadius.circular(16),

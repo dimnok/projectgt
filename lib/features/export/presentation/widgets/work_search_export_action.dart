@@ -112,8 +112,16 @@ class _WorkSearchExportActionState
 
       if (!mounted) return;
 
-      // Показываем результат
-      _showExportDialog(result);
+      // Если пользователь отменил выбор файла на Desktop, ничего не показываем
+      if (result.filePath == 'cancelled') return;
+
+      // Показываем сообщение об успехе
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Файл "${result.filename}" успешно экспортирован'),
+          backgroundColor: Colors.green,
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -128,34 +136,5 @@ class _WorkSearchExportActionState
         setState(() => _isExporting = false);
       }
     }
-  }
-
-  /// Показывает диалог с результатом экспорта
-  void _showExportDialog(ExportResult result) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Результат экспорта'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Статус: ${result.success ? "✅ Успешно" : "❌ Ошибка"}'),
-            const SizedBox(height: 8),
-            Text('Файл: ${result.filename}'),
-            const SizedBox(height: 8),
-            Text('Строк: ${result.rowsCount}'),
-            const SizedBox(height: 12),
-            Text(result.message),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Закрыть'),
-          ),
-        ],
-      ),
-    );
   }
 }

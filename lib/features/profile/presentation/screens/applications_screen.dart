@@ -17,11 +17,6 @@ import 'package:projectgt/features/profile/presentation/screens/unpaid_leave_for
 /// Предоставляет доступ к различным типам заявлений:
 /// - Заявление на отпуск (ежегодный оплачиваемый)
 /// - Заявление на отпуск без сохранения заработной платы
-/// - Заявление на увольнение по собственному желанию
-/// - Заявление на перевод на другую должность
-/// - Заявление на материальную помощь
-/// - Заявление на командировку
-/// - Заявление на изменение графика работы
 class ApplicationsScreen extends ConsumerStatefulWidget {
   /// Создаёт экран заявлений.
   const ApplicationsScreen({super.key});
@@ -39,10 +34,7 @@ class _ApplicationsScreenState extends ConsumerState<ApplicationsScreen> {
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: const AppBarWidget(
-        title: 'Заявления',
-        leading: BackButton(),
-      ),
+      appBar: const AppBarWidget(title: 'Заявления', leading: BackButton()),
       body: ContentConstrainedBox(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -78,36 +70,6 @@ class _ApplicationsScreenState extends ConsumerState<ApplicationsScreen> {
                     subtitle:
                         'Заявление на отпуск без сохранения заработной платы',
                     onTap: () => _showUnpaidLeaveForm(context, profile),
-                  ),
-                  const AppleMenuItem(
-                    icon: CupertinoIcons.square_arrow_right,
-                    iconColor: CupertinoColors.systemRed,
-                    title: 'Увольнение',
-                    subtitle: 'Заявление на увольнение по собственному желанию',
-                  ),
-                  const AppleMenuItem(
-                    icon: CupertinoIcons.arrow_right_arrow_left,
-                    iconColor: CupertinoColors.systemGreen,
-                    title: 'Перевод на другую должность',
-                    subtitle: 'Заявление на перевод на другую должность',
-                  ),
-                  const AppleMenuItem(
-                    icon: CupertinoIcons.money_dollar,
-                    iconColor: CupertinoColors.systemOrange,
-                    title: 'Материальная помощь',
-                    subtitle: 'Заявление на получение материальной помощи',
-                  ),
-                  const AppleMenuItem(
-                    icon: CupertinoIcons.airplane,
-                    iconColor: CupertinoColors.systemTeal,
-                    title: 'Командировка',
-                    subtitle: 'Заявление на служебную командировку',
-                  ),
-                  const AppleMenuItem(
-                    icon: CupertinoIcons.clock,
-                    iconColor: CupertinoColors.systemIndigo,
-                    title: 'Изменение графика работы',
-                    subtitle: 'Заявление на изменение графика работы',
                   ),
                 ],
               ),
@@ -148,7 +110,7 @@ class _ApplicationsScreenState extends ConsumerState<ApplicationsScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Все заявления будут автоматически направляться на согласование руководителю. Заявления в разработке по одному будут добавляться функциональностью.',
+                        'Все заявления будут автоматически направляться на согласование руководителю.',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurface,
                           height: 1.4,
@@ -176,7 +138,8 @@ class _ApplicationsScreenState extends ConsumerState<ApplicationsScreen> {
       return;
     }
 
-    final isDesktop = kIsWeb ||
+    final isDesktop =
+        kIsWeb ||
         defaultTargetPlatform == TargetPlatform.macOS ||
         defaultTargetPlatform == TargetPlatform.windows ||
         defaultTargetPlatform == TargetPlatform.linux;
@@ -218,7 +181,8 @@ class _ApplicationsScreenState extends ConsumerState<ApplicationsScreen> {
       return;
     }
 
-    final isDesktop = kIsWeb ||
+    final isDesktop =
+        kIsWeb ||
         defaultTargetPlatform == TargetPlatform.macOS ||
         defaultTargetPlatform == TargetPlatform.windows ||
         defaultTargetPlatform == TargetPlatform.linux;

@@ -48,6 +48,7 @@ class PayrollPenaltyTableWidget extends ConsumerWidget {
     final monthDate =
         DateTime(filterState.selectedYear, filterState.selectedMonth);
     final isDesktop = ResponsiveUtils.isDesktop(context);
+    final isMobile = ResponsiveUtils.isMobile(context);
 
     final tableTitle = isPeriodFiltered
         ? 'Штрафы за ${DateFormat.yMMMM('ru').format(monthDate)}'
@@ -56,68 +57,98 @@ class PayrollPenaltyTableWidget extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Text(
-              tableTitle,
-              style: theme.textTheme.headlineSmall,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            if (isDesktop) ...[
-              const SizedBox(width: 16),
-              GTMonthPicker(
-                selectedDate: monthDate,
-                onPrevious: () {
-                  final prev = DateTime(monthDate.year, monthDate.month - 1);
-                  ref.read(payrollFilterProvider.notifier).setYearAndMonth(prev.year, prev.month);
-                },
-                onNext: () {
-                  final next = DateTime(monthDate.year, monthDate.month + 1);
-                  ref.read(payrollFilterProvider.notifier).setYearAndMonth(next.year, next.month);
-                },
-                onTap: () => PayrollFilterHelpers.showMonthSelection(context, ref, monthDate),
+        if (!isMobile) ...[
+          Row(
+            children: [
+              Text(
+                tableTitle,
+                style: theme.textTheme.headlineSmall,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(width: 8),
-              GTObjectPicker(
-                objectName: PayrollFilterHelpers.getObjectName(ref, filterState.selectedObjectIds),
-                onPrevious: () => PayrollFilterHelpers.handleObjectSwitch(ref, filterState.selectedObjectIds, -1),
-                onNext: () => PayrollFilterHelpers.handleObjectSwitch(ref, filterState.selectedObjectIds, 1),
-                onTap: () => PayrollFilterHelpers.showObjectSelection(context, ref),
+              if (isDesktop) ...[
+                const SizedBox(width: 16),
+                GTMonthPicker(
+                  selectedDate: monthDate,
+                  onPrevious: () {
+                    final prev = DateTime(monthDate.year, monthDate.month - 1);
+                    ref.read(payrollFilterProvider.notifier).setYearAndMonth(prev.year, prev.month);
+                  },
+                  onNext: () {
+                    final next = DateTime(monthDate.year, monthDate.month + 1);
+                    ref.read(payrollFilterProvider.notifier).setYearAndMonth(next.year, next.month);
+                  },
+                  onTap: () => PayrollFilterHelpers.showMonthSelection(context, ref, monthDate),
+                ),
+                const SizedBox(width: 8),
+                GTObjectPicker(
+                  objectName: PayrollFilterHelpers.getObjectName(ref, filterState.selectedObjectIds),
+                  onPrevious: () => PayrollFilterHelpers.handleObjectSwitch(ref, filterState.selectedObjectIds, -1),
+                  onNext: () => PayrollFilterHelpers.handleObjectSwitch(ref, filterState.selectedObjectIds, 1),
+                  onTap: () => PayrollFilterHelpers.showObjectSelection(context, ref),
+                ),
+              ],
+              const Spacer(),
+              PermissionGuard(
+                module: 'payroll',
+                permission: 'create',
+                child: GTTextButton(
+                  text: 'Добавить',
+                  icon: Icons.add_circle_outline,
+                  onPressed: () {
+                    final isDesktop = ResponsiveUtils.isDesktop(context);
+                    if (isDesktop) {
+                      showDialog(
+                        context: context,
+                        builder: (ctx) => const PayrollTransactionFormModal(
+                          transactionType: PayrollTransactionType.penalty,
+                        ),
+                      );
+                    } else {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (ctx) => const PayrollTransactionFormModal(
+                          transactionType: PayrollTransactionType.penalty,
+                        ),
+                      );
+                    }
+                  },
+                ),
               ),
             ],
-            const Spacer(),
-            PermissionGuard(
-              module: 'payroll',
-              permission: 'create',
-              child: GTTextButton(
-                text: 'Добавить',
-                icon: Icons.add_circle_outline,
-                onPressed: () {
-                  final isDesktop = ResponsiveUtils.isDesktop(context);
-                  if (isDesktop) {
-                    showDialog(
-                      context: context,
-                      builder: (ctx) => const PayrollTransactionFormModal(
-                        transactionType: PayrollTransactionType.penalty,
-                      ),
-                    );
-                  } else {
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (ctx) => const PayrollTransactionFormModal(
-                        transactionType: PayrollTransactionType.penalty,
-                      ),
-                    );
-                  }
-                },
-              ),
+          ),
+          const SizedBox(height: 16),
+        ],
+        if (isMobile) ...[
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                PermissionGuard(
+                  module: 'payroll',
+                  permission: 'create',
+                  child: GTTextButton(
+                    text: 'Добавить',
+                    icon: Icons.add_circle_outline,
+                    onPressed: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (ctx) => const PayrollTransactionFormModal(
+                          transactionType: PayrollTransactionType.penalty,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-        const SizedBox(height: 16),
+          ),
+        ],
         Expanded(
           child: penalties.isEmpty
               ? Center(

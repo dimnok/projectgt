@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/features/auth/presentation/widgets/onboarding/onboarding_desktop_view.dart';
 import 'package:projectgt/features/auth/presentation/widgets/onboarding/onboarding_mobile_view.dart';
-import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 import 'package:projectgt/features/company/presentation/widgets/company_create_dialog.dart';
+import 'package:projectgt/features/company/presentation/widgets/company_join_dialog.dart';
 import 'package:projectgt/presentation/state/auth_state.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 
@@ -26,24 +26,21 @@ class OnboardingScreen extends ConsumerStatefulWidget {
   /// Создает экземпляр [OnboardingScreen].
   ///
   /// Принимает необязательный параметр [showLogout] для управления видимостью кнопки логаута.
-  const OnboardingScreen({
-    super.key,
-    this.showLogout = true,
-  });
+  const OnboardingScreen({super.key, this.showLogout = true});
 
   @override
   ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
-  bool _isLoading = false;
+  final bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final size = MediaQuery.of(context).size;
     final isDesktop = size.width > 600;
-    final contentWidth = isDesktop ? 500.0 : double.infinity;
+    final contentWidth = isDesktop ? 750.0 : double.infinity;
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
@@ -78,8 +75,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       Text(
                         'Для начала работы необходимо создать новую организацию или вступить в существующую',
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color:
-                              theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.6,
+                          ),
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -120,9 +118,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           if (_isLoading)
             Container(
               color: Colors.black26,
-              child: const Center(
-                child: CircularProgressIndicator(),
-              ),
+              child: const Center(child: CircularProgressIndicator()),
             ),
         ],
       ),
@@ -138,53 +134,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   void _showJoinCompanyDialog() {
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Вступление'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            labelText: 'Код приглашения',
-            hintText: 'AB12CD',
-          ),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Отмена'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final code = controller.text.trim();
-              if (code.isEmpty) return;
-              Navigator.pop(context);
-              _handleJoinCompany(code);
-            },
-            child: const Text('Вступить'),
-          ),
-        ],
-      ),
+    CompanyJoinDialog.show(
+      context,
+      onSuccess: () =>
+          ref.read(authProvider.notifier).checkAuthStatus(force: true),
     );
   }
-
-  Future<void> _handleJoinCompany(String code) async {
-    setState(() => _isLoading = true);
-    try {
-      await ref.read(joinCompanyUseCaseProvider).execute(invitationCode: code);
-      // После вступления принудительно проверяем статус
-      await ref.read(authProvider.notifier).checkAuthStatus(force: true);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка: ${e.toString()}')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
 }
-

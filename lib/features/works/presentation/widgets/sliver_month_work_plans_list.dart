@@ -156,7 +156,7 @@ class SliverMonthWorkPlansList extends ConsumerWidget {
                                     ),
                                     const SizedBox(width: 4),
                                     Text(
-                                      workersCount.toString(),
+                                      '$workersCount ${_pluralizeSpecialists(workersCount)}',
                                       style: theme.textTheme.bodySmall
                                           ?.copyWith(
                                             color: theme.colorScheme.onSurface
@@ -212,5 +212,17 @@ class SliverMonthWorkPlansList extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  /// Возвращает правильную форму слова "специалист" в зависимости от количества.
+  String _pluralizeSpecialists(int count) {
+    if (count % 10 == 1 && count % 100 != 11) {
+      return 'специалист';
+    } else if ([2, 3, 4].contains(count % 10) &&
+        ![12, 13, 14].contains(count % 100)) {
+      return 'специалиста';
+    } else {
+      return 'специалистов';
+    }
   }
 }

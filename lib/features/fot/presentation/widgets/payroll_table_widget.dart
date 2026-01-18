@@ -74,6 +74,7 @@ class PayrollTableWidget extends ConsumerWidget {
     final aggregatedBalance = aggregatedBalanceAsync.asData?.value ?? {};
 
     final isDesktop = ResponsiveUtils.isDesktop(context);
+    final isMobile = ResponsiveUtils.isMobile(context);
 
     if (payrolls.isEmpty && employees.isEmpty) {
       return Center(
@@ -111,64 +112,66 @@ class PayrollTableWidget extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Text(
-              'ФОТ ${DateFormat.yMMMM('ru').format(monthDate)}',
-              style: theme.textTheme.headlineSmall,
-            ),
-            if (isDesktop) ...[
-              const SizedBox(width: 16),
-              GTMonthPicker(
-                selectedDate: monthDate,
-                onPrevious: () {
-                  final prev = DateTime(monthDate.year, monthDate.month - 1);
-                  ref
-                      .read(payrollFilterProvider.notifier)
-                      .setYearAndMonth(prev.year, prev.month);
-                },
-                onNext: () {
-                  final next = DateTime(monthDate.year, monthDate.month + 1);
-                  ref
-                      .read(payrollFilterProvider.notifier)
-                      .setYearAndMonth(next.year, next.month);
-                },
-                onTap: () => PayrollFilterHelpers.showMonthSelection(
-                  context,
-                  ref,
-                  monthDate,
-                ),
+        if (!isMobile) ...[
+          Row(
+            children: [
+              Text(
+                'ФОТ ${DateFormat.yMMMM('ru').format(monthDate)}',
+                style: theme.textTheme.headlineSmall,
               ),
-              const SizedBox(width: 8),
-              GTObjectPicker(
-                objectName: PayrollFilterHelpers.getObjectName(
-                  ref,
-                  filterState.selectedObjectIds,
+              if (isDesktop) ...[
+                const SizedBox(width: 16),
+                GTMonthPicker(
+                  selectedDate: monthDate,
+                  onPrevious: () {
+                    final prev = DateTime(monthDate.year, monthDate.month - 1);
+                    ref
+                        .read(payrollFilterProvider.notifier)
+                        .setYearAndMonth(prev.year, prev.month);
+                  },
+                  onNext: () {
+                    final next = DateTime(monthDate.year, monthDate.month + 1);
+                    ref
+                        .read(payrollFilterProvider.notifier)
+                        .setYearAndMonth(next.year, next.month);
+                  },
+                  onTap: () => PayrollFilterHelpers.showMonthSelection(
+                    context,
+                    ref,
+                    monthDate,
+                  ),
                 ),
-                onPrevious: () => PayrollFilterHelpers.handleObjectSwitch(
-                  ref,
-                  filterState.selectedObjectIds,
-                  -1,
+                const SizedBox(width: 8),
+                GTObjectPicker(
+                  objectName: PayrollFilterHelpers.getObjectName(
+                    ref,
+                    filterState.selectedObjectIds,
+                  ),
+                  onPrevious: () => PayrollFilterHelpers.handleObjectSwitch(
+                    ref,
+                    filterState.selectedObjectIds,
+                    -1,
+                  ),
+                  onNext: () => PayrollFilterHelpers.handleObjectSwitch(
+                    ref,
+                    filterState.selectedObjectIds,
+                    1,
+                  ),
+                  onTap: () =>
+                      PayrollFilterHelpers.showObjectSelection(context, ref),
                 ),
-                onNext: () => PayrollFilterHelpers.handleObjectSwitch(
-                  ref,
-                  filterState.selectedObjectIds,
-                  1,
-                ),
-                onTap: () =>
-                    PayrollFilterHelpers.showObjectSelection(context, ref),
-              ),
+              ],
             ],
-          ],
-        ),
-        const SizedBox(height: 16),
+          ),
+          const SizedBox(height: 16),
+        ],
         Expanded(
           child: PayrollTableView(
             payrolls: payrolls,
             employees: employees,
             payoutsByEmployee: payoutsByEmployee,
             aggregatedBalance: aggregatedBalance,
-            isMobile: ResponsiveUtils.isMobile(context),
+            isMobile: isMobile,
             isTablet: ResponsiveUtils.isTablet(context),
             isDesktop: isDesktop,
           ),

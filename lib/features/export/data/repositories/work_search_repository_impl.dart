@@ -43,12 +43,18 @@ class WorkSearchRepositoryImpl implements WorkSearchRepository {
     required String objectId,
     DateTime? startDate,
     DateTime? endDate,
+    List<String>? systemFilters,
+    List<String>? sectionFilters,
+    String? searchQuery,
   }) async {
     try {
       return await dataSource.getFilterValues(
         objectId: objectId,
         startDate: startDate,
         endDate: endDate,
+        systemFilters: systemFilters,
+        sectionFilters: sectionFilters,
+        searchQuery: searchQuery,
       );
     } catch (e) {
       throw Exception('Ошибка получения значений фильтров в репозитории: $e');

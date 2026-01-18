@@ -47,6 +47,6 @@ class SimilarEstimate {
 
   @override
   String toString() {
-    return 'SimilarEstimate(id: $id, name: $name, system: $system, subsystem: $subsystem, similarity: ${(similarityScore * 100).toStringAsFixed(0)}%)';
+    return 'SimilarEstimate(id: $id, name: $name, system: $system, subsystem: $subsystem, similarity: ${(similarityScore * 100).round()}%)';
   }
 }

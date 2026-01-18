@@ -8,6 +8,12 @@ class WorkSearchPaginatedResult {
   /// Общее количество результатов.
   final int totalCount;
 
+  /// Общее количество (сумма по всем страницам).
+  final num totalQuantity;
+
+  /// Общая сумма (сумма по всем страницам).
+  final double? totalSum;
+
   /// Текущая страница (начинается с 1).
   final int currentPage;
 
@@ -21,6 +27,8 @@ class WorkSearchPaginatedResult {
   const WorkSearchPaginatedResult({
     required this.results,
     required this.totalCount,
+    required this.totalQuantity,
+    this.totalSum,
     required this.currentPage,
     required this.pageSize,
   });
@@ -79,11 +87,17 @@ abstract class WorkSearchDataSource {
   /// [objectId] — идентификатор объекта (обязательно)
   /// [startDate] — дата начала периода (опционально)
   /// [endDate] — дата окончания периода (опционально)
+  /// [systemFilters] — текущие фильтры по системам (для каскада)
+  /// [sectionFilters] — текущие фильтры по участкам (для каскада)
+  /// [searchQuery] — текущий поисковый запрос (для каскада)
   ///
   /// Возвращает уникальные значения фильтров [WorkSearchFilterValues].
   Future<WorkSearchFilterValues> getFilterValues({
     required String objectId,
     DateTime? startDate,
     DateTime? endDate,
+    List<String>? systemFilters,
+    List<String>? sectionFilters,
+    String? searchQuery,
   });
 }

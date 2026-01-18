@@ -4,9 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/presentation/state/auth_state.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
 import 'package:projectgt/core/di/providers.dart';
-import 'package:projectgt/core/widgets/snowfall_widget.dart';
-import 'package:projectgt/core/widgets/garland_widget.dart';
-import 'package:projectgt/core/widgets/christmas_tree_widget.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 import 'package:projectgt/features/home/presentation/widgets/contract_progress_widget.dart';
@@ -109,184 +106,168 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       backgroundColor: theme.colorScheme.surface,
       appBar: const AppBarWidget(title: 'Главная'),
       drawer: const AppDrawer(activeRoute: AppRoute.home),
-      body: SnowfallWidget(
-        child: Stack(
-          children: [
-            // Фоновая ёлка
-            const Positioned(
-              bottom: -20,
-              right: -30,
-              child: ChristmasTreeWidget(
-                height: 350,
-                opacity: 0.12, // Делаем её ненавязчивой, но заметной
+      body: SafeArea(
+        child: SingleChildScrollView(
+          controller: _scrollController,
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Приветствие
+              _GreetingHeader(
+                title: fullGreeting,
+                subtitle: timeBasedSubtitle,
+                hour: hour,
               ),
-            ),
-            SafeArea(
-              child: SingleChildScrollView(
-                controller: _scrollController,
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Приветствие
-                    _GreetingHeader(
-                      title: fullGreeting,
-                      subtitle: timeBasedSubtitle,
-                      hour: hour,
-                    ),
-                    const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-                    // Объединённый контейнер: свайп между календарём смен и прогрессом договора
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final width = constraints.maxWidth;
-                        int crossAxisCount = 1;
-                        if (width >= 1100) {
-                          crossAxisCount = 4;
-                        } else if (width >= 800) {
-                          crossAxisCount = 3;
-                        } else if (width >= 560) {
-                          crossAxisCount = 2;
-                        }
-                        const double crossAxisSpacing = 16;
-                        final double cardWidth =
-                            (width - (crossAxisCount - 1) * crossAxisSpacing) /
-                            crossAxisCount;
+              // Объединённый контейнер: свайп между календарём смен и прогрессом договора
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final width = constraints.maxWidth;
+                  int crossAxisCount = 1;
+                  if (width >= 1100) {
+                    crossAxisCount = 4;
+                  } else if (width >= 800) {
+                    crossAxisCount = 3;
+                  } else if (width >= 560) {
+                    crossAxisCount = 2;
+                  }
+                  const double crossAxisSpacing = 16;
+                  final double cardWidth =
+                      (width - (crossAxisCount - 1) * crossAxisSpacing) /
+                      crossAxisCount;
 
-                        // Desktop: карточки рядом
-                        if (width >= 1100) {
-                          return Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Container(
-                                width: cardWidth,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(
-                                    color: theme.colorScheme.outline.withValues(
-                                      alpha: 0.18,
-                                    ),
-                                  ),
-                                ),
-                                child: const Padding(
-                                  padding: EdgeInsets.all(16),
-                                  child: SizedBox(
-                                    height: 300,
-                                    child: ShiftsCalendarFlipCard(),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Container(
-                                width: cardWidth,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(
-                                    color: theme.colorScheme.outline.withValues(
-                                      alpha: 0.18,
-                                    ),
-                                  ),
-                                ),
-                                child: const Padding(
-                                  padding: EdgeInsets.all(16),
-                                  child: SizedBox(
-                                    height: 300,
-                                    child: ContractProgressWidget(),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Container(
-                                width: cardWidth,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(
-                                    color: theme.colorScheme.outline.withValues(
-                                      alpha: 0.18,
-                                    ),
-                                  ),
-                                ),
-                                child: const Padding(
-                                  padding: EdgeInsets.all(16),
-                                  child: SizedBox(
-                                    height: 300,
-                                    child: WorkPlanSummaryWidget(),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          );
-                        }
-
-                        // Mobile/Tablet: свайп между календарём и прогрессом в одном контейнере
-                        return Align(
-                          alignment: Alignment.centerLeft,
-                          child: Container(
-                            width: cardWidth,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                color: theme.colorScheme.outline.withValues(
-                                  alpha: 0.18,
-                                ),
-                              ),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  SizedBox(
-                                    height: 300,
-                                    child: PageView(
-                                      controller: _mainCardsPageController,
-                                      onPageChanged: (i) => setState(
-                                        () => _mainCardsPageIndex = i,
-                                      ),
-                                      children: const [
-                                        // Страница 1: Календарь смен
-                                        ShiftsCalendarFlipCard(),
-                                        // Страница 2: Прогресс договора
-                                        ContractProgressWidget(),
-                                        // Страница 3: План работ
-                                        WorkPlanSummaryWidget(),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      _buildDot(
-                                        theme,
-                                        _mainCardsPageIndex == 0,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      _buildDot(
-                                        theme,
-                                        _mainCardsPageIndex == 1,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      _buildDot(
-                                        theme,
-                                        _mainCardsPageIndex == 2,
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                  // Desktop: карточки рядом
+                  if (width >= 1100) {
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: cardWidth,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: theme.colorScheme.outline.withValues(
+                                alpha: 0.18,
                               ),
                             ),
                           ),
-                        );
-                      },
+                          child: const Padding(
+                            padding: EdgeInsets.all(16),
+                            child: SizedBox(
+                              height: 300,
+                              child: ShiftsCalendarFlipCard(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Container(
+                          width: cardWidth,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: theme.colorScheme.outline.withValues(
+                                alpha: 0.18,
+                              ),
+                            ),
+                          ),
+                          child: const Padding(
+                            padding: EdgeInsets.all(16),
+                            child: SizedBox(
+                              height: 300,
+                              child: ContractProgressWidget(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Container(
+                          width: cardWidth,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: theme.colorScheme.outline.withValues(
+                                alpha: 0.18,
+                              ),
+                            ),
+                          ),
+                          child: const Padding(
+                            padding: EdgeInsets.all(16),
+                            child: SizedBox(
+                              height: 300,
+                              child: WorkPlanSummaryWidget(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+
+                  // Mobile/Tablet: свайп между календарём и прогрессом в одном контейнере
+                  return Align(
+                    alignment: Alignment.centerLeft,
+                    child: Container(
+                      width: cardWidth,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: theme.colorScheme.outline.withValues(
+                            alpha: 0.18,
+                          ),
+                        ),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              height: 300,
+                              child: PageView(
+                                controller: _mainCardsPageController,
+                                onPageChanged: (i) => setState(
+                                  () => _mainCardsPageIndex = i,
+                                ),
+                                children: const [
+                                  // Страница 1: Календарь смен
+                                  ShiftsCalendarFlipCard(),
+                                  // Страница 2: Прогресс договора
+                                  ContractProgressWidget(),
+                                  // Страница 3: План работ
+                                  WorkPlanSummaryWidget(),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                _buildDot(
+                                  theme,
+                                  _mainCardsPageIndex == 0,
+                                ),
+                                const SizedBox(width: 6),
+                                _buildDot(
+                                  theme,
+                                  _mainCardsPageIndex == 1,
+                                ),
+                                const SizedBox(width: 6),
+                                _buildDot(
+                                  theme,
+                                  _mainCardsPageIndex == 2,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                    const SizedBox(height: 24),
-                  ],
-                ),
+                  );
+                },
               ),
-            ),
-            const Positioned(top: 0, left: 0, right: 0, child: GarlandWidget()),
-          ],
+              const SizedBox(height: 24),
+            ],
+          ),
         ),
       ),
     );
@@ -378,15 +359,6 @@ class _GreetingHeader extends StatelessWidget {
               iconData,
               color: baseColor.withValues(alpha: 0.1),
               size: 100,
-            ),
-          ),
-          // Шапка Деда Мороза
-          Positioned(
-            left: 10,
-            top: -15,
-            child: Transform.rotate(
-              angle: -0.2,
-              child: const Text('🎅', style: TextStyle(fontSize: 32)),
             ),
           ),
           Padding(

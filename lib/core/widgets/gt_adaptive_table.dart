@@ -38,6 +38,9 @@ class GTColumnConfig<T> {
   /// Дополнительная ширина для учета иконок или контейнеров.
   final double extraWidth;
 
+  /// Виджет фильтра в заголовке.
+  final Widget? headerFilter;
+
   /// Создаёт экземпляр [GTColumnConfig].
   const GTColumnConfig({
     required this.title,
@@ -51,6 +54,7 @@ class GTColumnConfig<T> {
     this.measureText,
     this.measureTotal,
     this.extraWidth = 0,
+    this.headerFilter,
   });
 }
 
@@ -97,6 +101,10 @@ class GTAdaptiveTable<T> extends StatefulWidget {
   /// Цвет подсветки выделенной строки.
   final Color? highlightedRowColor;
 
+  /// Построитель дополнительных строк для элемента (например, вложенные данные).
+  final List<TableRow> Function(T item, int index, ThemeData theme)?
+  additionalRowsBuilder;
+
   /// Создаёт экземпляр [GTAdaptiveTable].
   const GTAdaptiveTable({
     super.key,
@@ -113,6 +121,7 @@ class GTAdaptiveTable<T> extends StatefulWidget {
     this.onRowSecondaryTapDown,
     this.highlightedItem,
     this.highlightedRowColor,
+    this.additionalRowsBuilder,
   });
 
   @override
@@ -178,6 +187,7 @@ class _GTAdaptiveTableState<T> extends State<GTAdaptiveTable<T>> {
               minWidth: math.max(availableWidth, totalTableWidth),
             ),
             child: Table(
+              key: ValueKey('table_body_${rows.length}'),
               defaultVerticalAlignment: TableCellVerticalAlignment.middle,
               border: TableBorder(
                 top: BorderSide(color: dividerColor, width: 1),
@@ -194,6 +204,7 @@ class _GTAdaptiveTableState<T> extends State<GTAdaptiveTable<T>> {
         }
 
         final headerRow = _buildHeaderRow(theme);
+        final filterRow = _buildFilterRow(theme);
         final bodyRows = _buildBodyRows(theme);
 
         return Column(
@@ -205,7 +216,10 @@ class _GTAdaptiveTableState<T> extends State<GTAdaptiveTable<T>> {
                 controller: _headerHorizontalController,
                 physics: const NeverScrollableScrollPhysics(),
                 scrollDirection: Axis.horizontal,
-                child: buildTable([headerRow]),
+                child: buildTable([
+                  headerRow,
+                  if (filterRow != null) filterRow,
+                ]),
               ),
             ),
             // Тело таблицы
@@ -244,8 +258,44 @@ class _GTAdaptiveTableState<T> extends State<GTAdaptiveTable<T>> {
     );
   }
 
+  TableRow? _buildFilterRow(ThemeData theme) {
+    final hasFilters = widget.columns.any((c) => c.headerFilter != null);
+    if (!hasFilters) return null;
+
+    return TableRow(
+      children: [
+        for (final config in widget.columns)
+          _filterCell(theme, config.headerFilter),
+      ],
+    );
+  }
+
   List<TableRow> _buildBodyRows(ThemeData theme) {
     final rows = <TableRow>[];
+
+    if (widget.items.isEmpty) {
+      rows.add(
+        TableRow(
+          children: [
+            for (var i = 0; i < widget.columns.length; i++)
+              _bodyCell(
+                theme,
+                null,
+                i == 0
+                    ? const Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Text(
+                          'Нет данных',
+                          style: TextStyle(fontStyle: FontStyle.italic),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+          ],
+        ),
+      );
+      return rows;
+    }
 
     for (var i = 0; i < widget.items.length; i++) {
       final item = widget.items[i];
@@ -274,6 +324,10 @@ class _GTAdaptiveTableState<T> extends State<GTAdaptiveTable<T>> {
           ],
         ),
       );
+
+      if (widget.additionalRowsBuilder != null) {
+        rows.addAll(widget.additionalRowsBuilder!(item, i, theme));
+      }
     }
 
     if (widget.showTotalRow && widget.items.isNotEmpty) {
@@ -322,6 +376,14 @@ class _GTAdaptiveTableState<T> extends State<GTAdaptiveTable<T>> {
           fontSize: 11,
         ),
       ),
+    );
+  }
+
+  Widget _filterCell(ThemeData theme, Widget? filter) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      alignment: Alignment.center,
+      child: filter ?? const SizedBox.shrink(),
     );
   }
 

@@ -33,12 +33,7 @@ class AuthGate extends ConsumerWidget {
 
       case AuthStatus.authenticated:
         final profile = profileState.profile;
-        if (profileState.status == ProfileStatus.loading) {
-          child = const Scaffold(
-            key: ValueKey('loading_profile'),
-            body: Center(child: CircularProgressIndicator()),
-          );
-        } else if (profileState.status == ProfileStatus.error || profile == null) {
+        if (profileState.status == ProfileStatus.error || profile == null) {
           // Если ошибка загрузки профиля или профиль не найден
           child = Scaffold(
             key: const ValueKey('error_profile'),
@@ -83,7 +78,7 @@ class AuthGate extends ConsumerWidget {
 
       case AuthStatus.onboarding:
         final profile = profileState.profile;
-        if (profile == null || profileState.status == ProfileStatus.loading) {
+        if (profile == null) {
           child = const Scaffold(
             key: ValueKey('loading_onboarding'),
             body: Center(child: CircularProgressIndicator()),
@@ -97,7 +92,7 @@ class AuthGate extends ConsumerWidget {
 
       case AuthStatus.pendingApproval:
         final profile = profileState.profile;
-        if (profile == null || profileState.status == ProfileStatus.loading) {
+        if (profile == null) {
           child = const Scaffold(
             key: ValueKey('loading_pending'),
             body: Center(child: CircularProgressIndicator()),

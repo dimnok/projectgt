@@ -14,6 +14,9 @@ class AppBarWidget extends ConsumerWidget implements PreferredSizeWidget {
   /// Кастомный leading-виджет (например, кнопка меню).
   final Widget? leading;
 
+  /// Ширина leading-виджета.
+  final double? leadingWidth;
+
   /// Показывать ли переключатель темы.
   final bool showThemeSwitch;
 
@@ -38,6 +41,7 @@ class AppBarWidget extends ConsumerWidget implements PreferredSizeWidget {
     required this.title,
     this.actions,
     this.leading,
+    this.leadingWidth,
     this.showThemeSwitch = true,
     this.centerTitle = true,
     this.showSearchField = false,
@@ -109,6 +113,7 @@ class AppBarWidget extends ConsumerWidget implements PreferredSizeWidget {
                 ),
               ),
               centerTitle: centerTitle,
+              leadingWidth: leadingWidth,
               leading: leading ??
                   Builder(
                     builder: (context) => CupertinoButton(

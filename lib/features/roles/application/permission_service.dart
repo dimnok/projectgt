@@ -34,7 +34,7 @@ class PermissionService {
 
   /// Проверяет наличие права на выполнение действия.
   ///
-  /// [module] — код модуля (например, 'inventory').
+  /// [module] — код модуля (например, 'works').
   /// [permission] — код разрешения (например, 'create').
   bool can(String module, String permission) {
     if (_user == null) return false;

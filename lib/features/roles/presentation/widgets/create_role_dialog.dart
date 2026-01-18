@@ -170,7 +170,7 @@ class _CreateRoleDialogState extends State<CreateRoleDialog>
                                   textCapitalization: TextCapitalization.words,
                                   decoration: InputDecoration(
                                     labelText: 'Название роли',
-                                    hintText: 'Например: Менеджер склада',
+                                    hintText: 'Например: Бригадир',
                                     filled: true,
                                     fillColor: isDark
                                         ? Colors.grey[850]

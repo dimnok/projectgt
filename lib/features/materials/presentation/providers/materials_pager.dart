@@ -1,10 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/di/providers.dart';
 import '../../../../features/company/presentation/providers/company_providers.dart';
 import '../../data/models/material_item.dart';
 import 'materials_providers.dart';
-import '../widgets/materials_search.dart';
 
 /// Пагинатор списка материалов с серверной фильтрацией и поиском.
 class MaterialsPager extends StateNotifier<AsyncValue<List<MaterialItem>>> {
@@ -16,7 +16,7 @@ class MaterialsPager extends StateNotifier<AsyncValue<List<MaterialItem>>> {
 
   /// Номер договора для фильтрации.
   final String? contractNumber;
-  String _query = '';
+  Map<String, String> _columnFilters = {};
   bool _isLoading = false;
   int _offset = 0;
 
@@ -27,38 +27,26 @@ class MaterialsPager extends StateNotifier<AsyncValue<List<MaterialItem>>> {
   /// Создаёт пагинатор материалов.
   MaterialsPager(this._client, this._activeCompanyId,
       {this.pageSize = 50, this.contractNumber})
-      : super(const AsyncValue.loading()) {
-    // Автоинициализация первой страницы сразу после создания
-    Future.microtask(() => loadInitial());
-  }
+      : super(const AsyncValue.loading());
 
   /// Загружает первую страницу данных.
   Future<void> loadInitial() async {
     if (_initialized) return;
     _initialized = true;
-    if (!mounted) return;
-    state = const AsyncValue.loading();
-    _offset = 0;
-    hasMore = true;
     await _loadPage(reset: true);
   }
 
   /// Перезагружает данные с обнулением пагинации.
   Future<void> refresh() async {
     _initialized = false;
-    await loadInitial();
+    await _loadPage(reset: true);
   }
 
-  /// Обновляет поисковый запрос и перезагружает первую страницу.
-  void updateQuery(String q) {
-    final next = q;
-    if (_query == next) return;
-    _query = next;
-    // Мягкая перезагрузка первой страницы без мигания loading
-    _offset = 0;
-    hasMore = true;
+  /// Обновляет фильтры по колонкам и перезагружает первую страницу.
+  void updateColumnFilters(Map<String, String> filters) {
+    if (mapEquals(_columnFilters, filters) && _initialized) return;
+    _columnFilters = Map.from(filters);
     _initialized = true;
-    // ignore: discarded_futures
     _loadPage(reset: true);
   }
 
@@ -69,28 +57,24 @@ class MaterialsPager extends StateNotifier<AsyncValue<List<MaterialItem>>> {
   }
 
   Future<void> _loadPage({required bool reset}) async {
+    if (reset) {
+      _offset = 0;
+      hasMore = true;
+    }
+
     _isLoading = true;
     try {
       final from = _offset;
-      final to = _offset + pageSize - 1;
 
-      var builder = _client
-          .from('v_materials_with_usage')
-          .select()
-          .eq('company_id', _activeCompanyId);
-
-      if (contractNumber != null && contractNumber!.trim().isNotEmpty) {
-        builder = builder.eq('contract_number', contractNumber!.trim());
-      }
-      if (_query.trim().isNotEmpty) {
-        final q = '%${_query.trim()}%';
-        builder = builder
-            .or('name.ilike."$q",unit.ilike."$q",receipt_number.ilike."$q"');
-      }
-      final rows = await builder
-          .order('receipt_date', ascending: false)
-          .order('name', ascending: true)
-          .range(from, to);
+      final rows = await _client.rpc('get_materials_with_usage_v3', params: {
+        'p_company_id': _activeCompanyId,
+        'p_contract_number': contractNumber,
+        'p_search_name': _columnFilters['name'],
+        'p_search_unit': _columnFilters['unit'],
+        'p_search_receipt_number': _columnFilters['receipt_number'],
+        'p_limit': pageSize,
+        'p_offset': from,
+      });
 
       final page = (rows as List<dynamic>)
           .map((e) => MaterialItem.fromJson(e as Map<String, dynamic>))
@@ -99,11 +83,14 @@ class MaterialsPager extends StateNotifier<AsyncValue<List<MaterialItem>>> {
       if (!mounted) return;
       hasMore = page.length == pageSize;
 
-      List<MaterialItem> next =
-          reset ? <MaterialItem>[] : (state.value ?? <MaterialItem>[]);
-      next = [...next, ...page];
-      state = AsyncValue.data(next);
-      _offset += page.length;
+      if (reset) {
+        state = AsyncValue.data(page);
+        _offset = page.length;
+      } else {
+        final current = state.value ?? [];
+        state = AsyncValue.data([...current, ...page]);
+        _offset += page.length;
+      }
     } catch (e, st) {
       if (!mounted) return;
       state = AsyncValue.error(e, st);
@@ -123,11 +110,11 @@ final materialsPagerProvider =
   final activeId = ref.watch(activeCompanyIdProvider);
   final contract = ref.watch(selectedContractNumberProvider);
   final pager = MaterialsPager(client, activeId ?? '', contractNumber: contract);
-  // Живое обновление при наборе
-  ref.listen<String>(materialsSearchQueryProvider('materials'), (prev, next) {
-    pager.updateQuery(next);
+  // Живое обновление фильтров по колонкам
+  ref.listen<Map<String, String>>(materialsColumnFiltersProvider, (prev, next) {
+    pager.updateColumnFilters(next);
   });
   // Стартовое применение
-  pager.updateQuery(ref.read(materialsSearchQueryProvider('materials')));
+  pager.updateColumnFilters(ref.read(materialsColumnFiltersProvider));
   return pager;
 });

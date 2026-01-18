@@ -47,8 +47,9 @@ class EstimateFile {
 
 /// Провайдер групп смет (для списков и Sidebar).
 /// Использует SQL функцию get_estimate_groups для быстрой загрузки.
-final estimateGroupsProvider =
-    FutureProvider.autoDispose<List<EstimateFile>>((ref) async {
+final estimateGroupsProvider = FutureProvider.autoDispose<List<EstimateFile>>((
+  ref,
+) async {
   final repository = ref.watch(estimateRepositoryProvider);
   if (repository is EstimateRepositoryImpl) {
     final rawGroups = await repository.getEstimateGroups();
@@ -66,6 +67,35 @@ final estimateGroupsProvider =
   }
   return [];
 });
+
+/// Провайдер сгруппированных смет для десктопного Sidebar.
+/// Группирует по объекту и по договору.
+final groupedEstimateFilesProvider =
+    Provider.autoDispose<
+      AsyncValue<Map<String, Map<String, List<EstimateFile>>>>
+    >((ref) {
+      final groupsAsync = ref.watch(estimateGroupsProvider);
+      final objects = ref.watch(objectProvider).objects;
+
+      return groupsAsync.whenData((estimateFiles) {
+        final Map<String, Map<String, List<EstimateFile>>> grouped = {};
+
+        for (final file in estimateFiles) {
+          final object = objects.firstWhereOrNull((o) => o.id == file.objectId);
+          final objectName = object?.name ?? 'Без объекта';
+          final contractNumber = file.contractNumber ?? 'Без договора';
+
+          grouped.putIfAbsent(objectName, () => {});
+          grouped[objectName]!.putIfAbsent(contractNumber, () => []);
+          grouped[objectName]![contractNumber]!.add(file);
+        }
+
+      return grouped;
+    });
+  });
+
+/// Провайдер состояния видимости боковой панели (Sidebar) в десктопной версии.
+final estimateSidebarVisibleProvider = StateProvider.autoDispose<bool>((ref) => true);
 
 /// Аргументы для загрузки деталей сметы.
 class EstimateDetailArgs {
@@ -103,16 +133,16 @@ class EstimateDetailArgs {
 /// Загружает только элементы выбранной сметы.
 final estimateItemsProvider = FutureProvider.autoDispose
     .family<List<Estimate>, EstimateDetailArgs>((ref, args) async {
-  final repository = ref.watch(estimateRepositoryProvider);
-  if (repository is EstimateRepositoryImpl) {
-    return repository.getEstimatesByFile(
-      estimateTitle: args.estimateTitle,
-      objectId: args.objectId,
-      contractId: args.contractId,
-    );
-  }
-  return [];
-});
+      final repository = ref.watch(estimateRepositoryProvider);
+      if (repository is EstimateRepositoryImpl) {
+        return repository.getEstimatesByFile(
+          estimateTitle: args.estimateTitle,
+          objectId: args.objectId,
+          contractId: args.contractId,
+        );
+      }
+      return [];
+    });
 
 /// Обертка для списка ID с корректным сравнением (чтобы избежать лишних ребилдов).
 class EstimateIds {
@@ -135,17 +165,23 @@ class EstimateIds {
 /// Загружает данные о выполнении только для переданных ID.
 final estimateCompletionByIdsProvider = FutureProvider.autoDispose
     .family<List<EstimateCompletionModel>, EstimateIds>((ref, args) async {
-  final repository = ref.watch(estimateRepositoryProvider);
-  if (repository is EstimateRepositoryImpl) {
-    return repository.getEstimateCompletionByIds(args.ids);
-  }
-  return [];
-});
+      final repository = ref.watch(estimateRepositoryProvider);
+      if (repository is EstimateRepositoryImpl) {
+        return repository.getEstimateCompletionByIds(args.ids);
+      }
+      return [];
+    });
 
 /// Провайдер истории выполнения конкретной позиции.
 final estimateCompletionHistoryProvider = FutureProvider.autoDispose
     .family<List<EstimateCompletionHistory>, String>((ref, estimateId) async {
-  final repository = ref.watch(estimateRepositoryProvider);
-  return repository.getEstimateCompletionHistory(estimateId);
-});
+      final repository = ref.watch(estimateRepositoryProvider);
+      return repository.getEstimateCompletionHistory(estimateId);
+    });
 
+/// Провайдер конкретной сметной позиции.
+final estimateProvider = FutureProvider.autoDispose
+    .family<Estimate?, String>((ref, id) async {
+  final repository = ref.watch(estimateRepositoryProvider);
+  return repository.getEstimate(id);
+});

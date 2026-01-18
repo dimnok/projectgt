@@ -1,20 +1,27 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:projectgt/core/common/app_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/materials_providers.dart';
 
-/// Действие AppBar: переход к экрану сопоставления материалов (алиасы → сметные позиции).
+/// Действие AppBar: переключение между М-15 и сопоставлением материалов.
 ///
-/// Кнопка-шестерёнка открывает отдельный экран настройки/просмотра сопоставлений.
-class MaterialsMappingAction extends StatelessWidget {
-  /// Конструктор действия перехода к экрану сопоставления материалов.
+/// Кнопка-шестерёнка переключает режим отображения на текущем экране.
+class MaterialsMappingAction extends ConsumerWidget {
+  /// Конструктор действия переключения режима материалов.
   const MaterialsMappingAction({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final viewMode = ref.watch(materialsViewModeProvider);
+    final isMapping = viewMode == MaterialsViewMode.mapping;
+
     return IconButton(
-      tooltip: 'Сопоставление материалов',
-      icon: const Icon(Icons.settings_outlined),
-      onPressed: () => context.push(AppRoutes.materialMapping),
+      tooltip: isMapping ? 'К материалам М-15' : 'Сопоставление материалов',
+      icon: Icon(isMapping ? Icons.list_alt : Icons.settings_outlined),
+      onPressed: () {
+        ref.read(materialsViewModeProvider.notifier).state = isMapping
+            ? MaterialsViewMode.m15
+            : MaterialsViewMode.mapping;
+      },
     );
   }
 }

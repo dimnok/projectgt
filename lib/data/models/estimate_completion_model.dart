@@ -34,6 +34,12 @@ abstract class EstimateCompletionModel with _$EstimateCompletionModel {
     @JsonKey(name: 'remaining_quantity', fromJson: _parseDouble)
     @Default(0.0)
     final double remainingQuantity,
+    @JsonKey(name: 'material_received', fromJson: _parseDouble)
+    @Default(0.0)
+    final double materialReceived,
+    @JsonKey(name: 'material_remaining', fromJson: _parseDouble)
+    @Default(0.0)
+    final double materialRemaining,
   }) = _EstimateCompletionModel;
 
   /// Создаёт модель из JSON

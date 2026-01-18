@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/domain/entities/employee.dart';
 import 'package:projectgt/presentation/state/employee_state.dart';
 import 'package:projectgt/features/profile/presentation/widgets/profile_employee_link_edit_field.dart';
+import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
 
 /// Виджет, отображающий информацию о привязанном сотруднике.
 ///
@@ -188,39 +189,24 @@ class ProfileLinkedEmployeeInfo extends ConsumerWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-          left: 16,
-          right: 16,
-          top: 16,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Изменить привязку',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 16),
-            Consumer(
-              builder: (context, ref, _) {
-                return ProfileEmployeeLinkEditField(
-                  initialEmployeeId: currentEmployee.id,
-                  onChanged: (newEmployeeId) async {
-                    if (newEmployeeId != null) {
-                      // Получаем ID профиля через провайдер (предполагаем, что редактируем текущий или переданный)
-                      // В данном контексте это может быть сложно без ID профиля
-                      // Поэтому пока просто закрываем
-                      Navigator.pop(context);
-                    }
-                  },
-                );
+      useSafeArea: true,
+      constraints: const BoxConstraints(maxWidth: 640),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => MobileBottomSheetContent(
+        title: 'Изменить привязку',
+        child: Consumer(
+          builder: (context, ref, _) {
+            return ProfileEmployeeLinkEditField(
+              initialEmployeeId: currentEmployee.id,
+              onChanged: (newEmployeeId) async {
+                if (newEmployeeId != null) {
+                  Navigator.pop(context);
+                }
               },
-            ),
-            const SizedBox(height: 32),
-          ],
+            );
+          },
         ),
       ),
     );

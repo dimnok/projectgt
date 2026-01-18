@@ -1,13 +1,12 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-
-// Импорты для мобильных платформ
-import 'dart:io' as io;
+import '../../../../core/utils/formatters.dart';
+import 'package:file_saver/file_saver.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart' as path_provider;
-
-// Для Web
-import 'package:universal_html/html.dart' as html;
+import 'package:file_picker/file_picker.dart';
+import 'dart:io';
 
 /// Сервис экспорта результатов поиска на сервер
 class WorkSearchExportServerService {
@@ -34,8 +33,12 @@ class WorkSearchExportServerService {
         body: {
           'objectId': objectId,
           'searchQuery': searchQuery,
-          'startDate': startDate?.toIso8601String().split('T')[0],
-          'endDate': endDate?.toIso8601String().split('T')[0],
+          'startDate': startDate != null
+              ? GtFormatters.formatDateForApi(startDate)
+              : null,
+          'endDate': endDate != null
+              ? GtFormatters.formatDateForApi(endDate)
+              : null,
           'systemFilters': systemFilters,
           'sectionFilters': sectionFilters,
           'floorFilters': floorFilters,
@@ -68,7 +71,8 @@ class WorkSearchExportServerService {
           data = Map<String, dynamic>.from(responseData);
         } else {
           throw Exception(
-              'Неизвестный формат ответа: ${responseData.runtimeType}');
+            'Неизвестный формат ответа: ${responseData.runtimeType}',
+          );
         }
       } catch (e) {
         throw Exception('Ошибка парсинга ответа: $e');
@@ -137,7 +141,8 @@ class WorkSearchExportServerService {
           data = Map<String, dynamic>.from(responseData);
         } else {
           throw Exception(
-              'Неизвестный формат ответа: ${responseData.runtimeType}');
+            'Неизвестный формат ответа: ${responseData.runtimeType}',
+          );
         }
       } catch (e) {
         throw Exception('Ошибка парсинга ответа: $e');
@@ -182,45 +187,45 @@ class WorkSearchExportServerService {
       // Декодируем base64 в bytes
       final fileBytes = base64Decode(base64);
 
-      // Проверяем платформу
       if (kIsWeb) {
-        // На Web - просто скачиваем
-        await _downloadFileOnWeb(fileBytes, filename);
-        return 'downloaded';
-      } else {
-        // На мобильных - сохраняем локально
-        final directory =
-            await path_provider.getApplicationDocumentsDirectory();
-        final filePath = '${directory.path}/$filename';
+        // На Web используем FileSaver
+        return await FileSaver.instance.saveFile(
+          name: filename.replaceAll('.xlsx', ''),
+          bytes: Uint8List.fromList(fileBytes),
+          ext: 'xlsx',
+          mimeType: MimeType.microsoftExcel,
+        );
+      } else if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
+        // На Desktop (macOS, Windows, Linux) даем выбрать папку и имя
+        String? outputFile = await FilePicker.platform.saveFile(
+          dialogTitle: 'Выберите место для сохранения Excel файла',
+          fileName: filename,
+          type: FileType.custom,
+          allowedExtensions: ['xlsx'],
+        );
 
-        // Сохраняем файл
-        final file = io.File(filePath);
+        if (outputFile == null) {
+          return 'cancelled';
+        }
+
+        final file = File(outputFile);
         await file.writeAsBytes(fileBytes);
+        return outputFile;
+      } else {
+        // На мобильных платформах (iOS, Android)
+        final directory = await path_provider.getTemporaryDirectory();
+        final filePath = '${directory.path}/$filename';
+        final file = File(filePath);
+        await file.writeAsBytes(fileBytes);
+
+        await SharePlus.instance.share(
+          ShareParams(files: [XFile(filePath)], text: 'Экспорт: $filename'),
+        );
 
         return filePath;
       }
     } catch (e) {
       throw Exception('Ошибка сохранения файла: $e');
-    }
-  }
-
-  /// Скачивает файл на Web
-  Future<void> _downloadFileOnWeb(List<int> fileBytes, String filename) async {
-    try {
-      // Создаём Blob и скачиваем файл
-      final blob = html.Blob(
-        [Uint8List.fromList(fileBytes)],
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      );
-      final url = html.Url.createObjectUrlFromBlob(blob);
-
-      html.AnchorElement(href: url)
-        ..setAttribute('download', filename)
-        ..click();
-
-      html.Url.revokeObjectUrl(url);
-    } catch (e) {
-      throw Exception('Ошибка скачивания файла: $e');
     }
   }
 }

@@ -7,7 +7,7 @@ import 'package:projectgt/features/roles/application/permission_service.dart';
 /// Отображает [child], если у пользователя есть право [permission] в модуле [module].
 /// Иначе отображает [fallback] (по умолчанию пустой виджет).
 class PermissionGuard extends ConsumerWidget {
-  /// Код модуля (например, 'inventory').
+  /// Код модуля (например, 'works').
   final String module;
 
   /// Код разрешения (например, 'create', 'read', 'update', 'delete').

@@ -62,6 +62,9 @@ class GTTextField extends StatelessWidget {
   /// Текст-подсказка под полем.
   final String? helperText;
 
+  /// Тип капитализации текста.
+  final TextCapitalization textCapitalization;
+
   /// Создаёт текстовое поле ввода в стиле проекта.
   ///
   /// - [controller] — контроллер для управления текстом.
@@ -74,6 +77,7 @@ class GTTextField extends StatelessWidget {
   /// - [enabled] — активность поля.
   /// - [validator] — функция проверки введенных данных.
   /// - [keyboardType] — тип вызываемой экранной клавиатуры.
+  /// - [textCapitalization] — тип капитализации текста (по умолчанию none).
   /// - [maxLines] — максимальное количество строк (по умолчанию 1).
   /// - [readOnly] — запрет на ручной ввод текста.
   /// - [inputFormatters] — список форматтеров (например, для масок ввода).
@@ -95,6 +99,7 @@ class GTTextField extends StatelessWidget {
     this.enabled = true,
     this.validator,
     this.keyboardType,
+    this.textCapitalization = TextCapitalization.none,
     this.maxLines = 1,
     this.readOnly = false,
     this.inputFormatters,
@@ -116,6 +121,7 @@ class GTTextField extends StatelessWidget {
       enabled: enabled,
       validator: validator,
       keyboardType: keyboardType,
+      textCapitalization: textCapitalization,
       maxLines: maxLines,
       readOnly: readOnly,
       inputFormatters: inputFormatters,

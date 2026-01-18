@@ -16,7 +16,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$EstimateCompletionModel {
 
-@JsonKey(name: 'estimate_id', fromJson: _parseString) String get estimateId;@JsonKey(name: 'object_id', fromJson: _parseString) String get objectId;@JsonKey(name: 'contract_id', fromJson: _parseString) String get contractId; String get system; String get subsystem; String get number; String get name; String get unit;@JsonKey(fromJson: _parseDouble) double get quantity;@JsonKey(fromJson: _parseDouble) double get total;@JsonKey(name: 'completed_quantity', fromJson: _parseDouble) double get completedQuantity;@JsonKey(name: 'completed_total', fromJson: _parseDouble) double get completedTotal;@JsonKey(fromJson: _parseDouble) double get percentage;@JsonKey(name: 'remaining_quantity', fromJson: _parseDouble) double get remainingQuantity;
+@JsonKey(name: 'estimate_id', fromJson: _parseString) String get estimateId;@JsonKey(name: 'object_id', fromJson: _parseString) String get objectId;@JsonKey(name: 'contract_id', fromJson: _parseString) String get contractId; String get system; String get subsystem; String get number; String get name; String get unit;@JsonKey(fromJson: _parseDouble) double get quantity;@JsonKey(fromJson: _parseDouble) double get total;@JsonKey(name: 'completed_quantity', fromJson: _parseDouble) double get completedQuantity;@JsonKey(name: 'completed_total', fromJson: _parseDouble) double get completedTotal;@JsonKey(fromJson: _parseDouble) double get percentage;@JsonKey(name: 'remaining_quantity', fromJson: _parseDouble) double get remainingQuantity;@JsonKey(name: 'material_received', fromJson: _parseDouble) double get materialReceived;@JsonKey(name: 'material_remaining', fromJson: _parseDouble) double get materialRemaining;
 /// Create a copy of EstimateCompletionModel
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -29,16 +29,16 @@ $EstimateCompletionModelCopyWith<EstimateCompletionModel> get copyWith => _$Esti
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is EstimateCompletionModel&&(identical(other.estimateId, estimateId) || other.estimateId == estimateId)&&(identical(other.objectId, objectId) || other.objectId == objectId)&&(identical(other.contractId, contractId) || other.contractId == contractId)&&(identical(other.system, system) || other.system == system)&&(identical(other.subsystem, subsystem) || other.subsystem == subsystem)&&(identical(other.number, number) || other.number == number)&&(identical(other.name, name) || other.name == name)&&(identical(other.unit, unit) || other.unit == unit)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.total, total) || other.total == total)&&(identical(other.completedQuantity, completedQuantity) || other.completedQuantity == completedQuantity)&&(identical(other.completedTotal, completedTotal) || other.completedTotal == completedTotal)&&(identical(other.percentage, percentage) || other.percentage == percentage)&&(identical(other.remainingQuantity, remainingQuantity) || other.remainingQuantity == remainingQuantity));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is EstimateCompletionModel&&(identical(other.estimateId, estimateId) || other.estimateId == estimateId)&&(identical(other.objectId, objectId) || other.objectId == objectId)&&(identical(other.contractId, contractId) || other.contractId == contractId)&&(identical(other.system, system) || other.system == system)&&(identical(other.subsystem, subsystem) || other.subsystem == subsystem)&&(identical(other.number, number) || other.number == number)&&(identical(other.name, name) || other.name == name)&&(identical(other.unit, unit) || other.unit == unit)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.total, total) || other.total == total)&&(identical(other.completedQuantity, completedQuantity) || other.completedQuantity == completedQuantity)&&(identical(other.completedTotal, completedTotal) || other.completedTotal == completedTotal)&&(identical(other.percentage, percentage) || other.percentage == percentage)&&(identical(other.remainingQuantity, remainingQuantity) || other.remainingQuantity == remainingQuantity)&&(identical(other.materialReceived, materialReceived) || other.materialReceived == materialReceived)&&(identical(other.materialRemaining, materialRemaining) || other.materialRemaining == materialRemaining));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,estimateId,objectId,contractId,system,subsystem,number,name,unit,quantity,total,completedQuantity,completedTotal,percentage,remainingQuantity);
+int get hashCode => Object.hash(runtimeType,estimateId,objectId,contractId,system,subsystem,number,name,unit,quantity,total,completedQuantity,completedTotal,percentage,remainingQuantity,materialReceived,materialRemaining);
 
 @override
 String toString() {
-  return 'EstimateCompletionModel(estimateId: $estimateId, objectId: $objectId, contractId: $contractId, system: $system, subsystem: $subsystem, number: $number, name: $name, unit: $unit, quantity: $quantity, total: $total, completedQuantity: $completedQuantity, completedTotal: $completedTotal, percentage: $percentage, remainingQuantity: $remainingQuantity)';
+  return 'EstimateCompletionModel(estimateId: $estimateId, objectId: $objectId, contractId: $contractId, system: $system, subsystem: $subsystem, number: $number, name: $name, unit: $unit, quantity: $quantity, total: $total, completedQuantity: $completedQuantity, completedTotal: $completedTotal, percentage: $percentage, remainingQuantity: $remainingQuantity, materialReceived: $materialReceived, materialRemaining: $materialRemaining)';
 }
 
 
@@ -49,7 +49,7 @@ abstract mixin class $EstimateCompletionModelCopyWith<$Res>  {
   factory $EstimateCompletionModelCopyWith(EstimateCompletionModel value, $Res Function(EstimateCompletionModel) _then) = _$EstimateCompletionModelCopyWithImpl;
 @useResult
 $Res call({
-@JsonKey(name: 'estimate_id', fromJson: _parseString) String estimateId,@JsonKey(name: 'object_id', fromJson: _parseString) String objectId,@JsonKey(name: 'contract_id', fromJson: _parseString) String contractId, String system, String subsystem, String number, String name, String unit,@JsonKey(fromJson: _parseDouble) double quantity,@JsonKey(fromJson: _parseDouble) double total,@JsonKey(name: 'completed_quantity', fromJson: _parseDouble) double completedQuantity,@JsonKey(name: 'completed_total', fromJson: _parseDouble) double completedTotal,@JsonKey(fromJson: _parseDouble) double percentage,@JsonKey(name: 'remaining_quantity', fromJson: _parseDouble) double remainingQuantity
+@JsonKey(name: 'estimate_id', fromJson: _parseString) String estimateId,@JsonKey(name: 'object_id', fromJson: _parseString) String objectId,@JsonKey(name: 'contract_id', fromJson: _parseString) String contractId, String system, String subsystem, String number, String name, String unit,@JsonKey(fromJson: _parseDouble) double quantity,@JsonKey(fromJson: _parseDouble) double total,@JsonKey(name: 'completed_quantity', fromJson: _parseDouble) double completedQuantity,@JsonKey(name: 'completed_total', fromJson: _parseDouble) double completedTotal,@JsonKey(fromJson: _parseDouble) double percentage,@JsonKey(name: 'remaining_quantity', fromJson: _parseDouble) double remainingQuantity,@JsonKey(name: 'material_received', fromJson: _parseDouble) double materialReceived,@JsonKey(name: 'material_remaining', fromJson: _parseDouble) double materialRemaining
 });
 
 
@@ -66,7 +66,7 @@ class _$EstimateCompletionModelCopyWithImpl<$Res>
 
 /// Create a copy of EstimateCompletionModel
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? estimateId = null,Object? objectId = null,Object? contractId = null,Object? system = null,Object? subsystem = null,Object? number = null,Object? name = null,Object? unit = null,Object? quantity = null,Object? total = null,Object? completedQuantity = null,Object? completedTotal = null,Object? percentage = null,Object? remainingQuantity = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? estimateId = null,Object? objectId = null,Object? contractId = null,Object? system = null,Object? subsystem = null,Object? number = null,Object? name = null,Object? unit = null,Object? quantity = null,Object? total = null,Object? completedQuantity = null,Object? completedTotal = null,Object? percentage = null,Object? remainingQuantity = null,Object? materialReceived = null,Object? materialRemaining = null,}) {
   return _then(_self.copyWith(
 estimateId: null == estimateId ? _self.estimateId : estimateId // ignore: cast_nullable_to_non_nullable
 as String,objectId: null == objectId ? _self.objectId : objectId // ignore: cast_nullable_to_non_nullable
@@ -82,6 +82,8 @@ as double,completedQuantity: null == completedQuantity ? _self.completedQuantity
 as double,completedTotal: null == completedTotal ? _self.completedTotal : completedTotal // ignore: cast_nullable_to_non_nullable
 as double,percentage: null == percentage ? _self.percentage : percentage // ignore: cast_nullable_to_non_nullable
 as double,remainingQuantity: null == remainingQuantity ? _self.remainingQuantity : remainingQuantity // ignore: cast_nullable_to_non_nullable
+as double,materialReceived: null == materialReceived ? _self.materialReceived : materialReceived // ignore: cast_nullable_to_non_nullable
+as double,materialRemaining: null == materialRemaining ? _self.materialRemaining : materialRemaining // ignore: cast_nullable_to_non_nullable
 as double,
   ));
 }
@@ -93,7 +95,7 @@ as double,
 @JsonSerializable()
 
 class _EstimateCompletionModel implements EstimateCompletionModel {
-  const _EstimateCompletionModel({@JsonKey(name: 'estimate_id', fromJson: _parseString) this.estimateId = '', @JsonKey(name: 'object_id', fromJson: _parseString) this.objectId = '', @JsonKey(name: 'contract_id', fromJson: _parseString) this.contractId = '', this.system = '', this.subsystem = '', this.number = '', this.name = '', this.unit = '', @JsonKey(fromJson: _parseDouble) this.quantity = 0.0, @JsonKey(fromJson: _parseDouble) this.total = 0.0, @JsonKey(name: 'completed_quantity', fromJson: _parseDouble) this.completedQuantity = 0.0, @JsonKey(name: 'completed_total', fromJson: _parseDouble) this.completedTotal = 0.0, @JsonKey(fromJson: _parseDouble) this.percentage = 0.0, @JsonKey(name: 'remaining_quantity', fromJson: _parseDouble) this.remainingQuantity = 0.0});
+  const _EstimateCompletionModel({@JsonKey(name: 'estimate_id', fromJson: _parseString) this.estimateId = '', @JsonKey(name: 'object_id', fromJson: _parseString) this.objectId = '', @JsonKey(name: 'contract_id', fromJson: _parseString) this.contractId = '', this.system = '', this.subsystem = '', this.number = '', this.name = '', this.unit = '', @JsonKey(fromJson: _parseDouble) this.quantity = 0.0, @JsonKey(fromJson: _parseDouble) this.total = 0.0, @JsonKey(name: 'completed_quantity', fromJson: _parseDouble) this.completedQuantity = 0.0, @JsonKey(name: 'completed_total', fromJson: _parseDouble) this.completedTotal = 0.0, @JsonKey(fromJson: _parseDouble) this.percentage = 0.0, @JsonKey(name: 'remaining_quantity', fromJson: _parseDouble) this.remainingQuantity = 0.0, @JsonKey(name: 'material_received', fromJson: _parseDouble) this.materialReceived = 0.0, @JsonKey(name: 'material_remaining', fromJson: _parseDouble) this.materialRemaining = 0.0});
   factory _EstimateCompletionModel.fromJson(Map<String, dynamic> json) => _$EstimateCompletionModelFromJson(json);
 
 @override@JsonKey(name: 'estimate_id', fromJson: _parseString) final  String estimateId;
@@ -110,6 +112,8 @@ class _EstimateCompletionModel implements EstimateCompletionModel {
 @override@JsonKey(name: 'completed_total', fromJson: _parseDouble) final  double completedTotal;
 @override@JsonKey(fromJson: _parseDouble) final  double percentage;
 @override@JsonKey(name: 'remaining_quantity', fromJson: _parseDouble) final  double remainingQuantity;
+@override@JsonKey(name: 'material_received', fromJson: _parseDouble) final  double materialReceived;
+@override@JsonKey(name: 'material_remaining', fromJson: _parseDouble) final  double materialRemaining;
 
 /// Create a copy of EstimateCompletionModel
 /// with the given fields replaced by the non-null parameter values.
@@ -124,16 +128,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _EstimateCompletionModel&&(identical(other.estimateId, estimateId) || other.estimateId == estimateId)&&(identical(other.objectId, objectId) || other.objectId == objectId)&&(identical(other.contractId, contractId) || other.contractId == contractId)&&(identical(other.system, system) || other.system == system)&&(identical(other.subsystem, subsystem) || other.subsystem == subsystem)&&(identical(other.number, number) || other.number == number)&&(identical(other.name, name) || other.name == name)&&(identical(other.unit, unit) || other.unit == unit)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.total, total) || other.total == total)&&(identical(other.completedQuantity, completedQuantity) || other.completedQuantity == completedQuantity)&&(identical(other.completedTotal, completedTotal) || other.completedTotal == completedTotal)&&(identical(other.percentage, percentage) || other.percentage == percentage)&&(identical(other.remainingQuantity, remainingQuantity) || other.remainingQuantity == remainingQuantity));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _EstimateCompletionModel&&(identical(other.estimateId, estimateId) || other.estimateId == estimateId)&&(identical(other.objectId, objectId) || other.objectId == objectId)&&(identical(other.contractId, contractId) || other.contractId == contractId)&&(identical(other.system, system) || other.system == system)&&(identical(other.subsystem, subsystem) || other.subsystem == subsystem)&&(identical(other.number, number) || other.number == number)&&(identical(other.name, name) || other.name == name)&&(identical(other.unit, unit) || other.unit == unit)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.total, total) || other.total == total)&&(identical(other.completedQuantity, completedQuantity) || other.completedQuantity == completedQuantity)&&(identical(other.completedTotal, completedTotal) || other.completedTotal == completedTotal)&&(identical(other.percentage, percentage) || other.percentage == percentage)&&(identical(other.remainingQuantity, remainingQuantity) || other.remainingQuantity == remainingQuantity)&&(identical(other.materialReceived, materialReceived) || other.materialReceived == materialReceived)&&(identical(other.materialRemaining, materialRemaining) || other.materialRemaining == materialRemaining));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,estimateId,objectId,contractId,system,subsystem,number,name,unit,quantity,total,completedQuantity,completedTotal,percentage,remainingQuantity);
+int get hashCode => Object.hash(runtimeType,estimateId,objectId,contractId,system,subsystem,number,name,unit,quantity,total,completedQuantity,completedTotal,percentage,remainingQuantity,materialReceived,materialRemaining);
 
 @override
 String toString() {
-  return 'EstimateCompletionModel(estimateId: $estimateId, objectId: $objectId, contractId: $contractId, system: $system, subsystem: $subsystem, number: $number, name: $name, unit: $unit, quantity: $quantity, total: $total, completedQuantity: $completedQuantity, completedTotal: $completedTotal, percentage: $percentage, remainingQuantity: $remainingQuantity)';
+  return 'EstimateCompletionModel(estimateId: $estimateId, objectId: $objectId, contractId: $contractId, system: $system, subsystem: $subsystem, number: $number, name: $name, unit: $unit, quantity: $quantity, total: $total, completedQuantity: $completedQuantity, completedTotal: $completedTotal, percentage: $percentage, remainingQuantity: $remainingQuantity, materialReceived: $materialReceived, materialRemaining: $materialRemaining)';
 }
 
 
@@ -144,7 +148,7 @@ abstract mixin class _$EstimateCompletionModelCopyWith<$Res> implements $Estimat
   factory _$EstimateCompletionModelCopyWith(_EstimateCompletionModel value, $Res Function(_EstimateCompletionModel) _then) = __$EstimateCompletionModelCopyWithImpl;
 @override @useResult
 $Res call({
-@JsonKey(name: 'estimate_id', fromJson: _parseString) String estimateId,@JsonKey(name: 'object_id', fromJson: _parseString) String objectId,@JsonKey(name: 'contract_id', fromJson: _parseString) String contractId, String system, String subsystem, String number, String name, String unit,@JsonKey(fromJson: _parseDouble) double quantity,@JsonKey(fromJson: _parseDouble) double total,@JsonKey(name: 'completed_quantity', fromJson: _parseDouble) double completedQuantity,@JsonKey(name: 'completed_total', fromJson: _parseDouble) double completedTotal,@JsonKey(fromJson: _parseDouble) double percentage,@JsonKey(name: 'remaining_quantity', fromJson: _parseDouble) double remainingQuantity
+@JsonKey(name: 'estimate_id', fromJson: _parseString) String estimateId,@JsonKey(name: 'object_id', fromJson: _parseString) String objectId,@JsonKey(name: 'contract_id', fromJson: _parseString) String contractId, String system, String subsystem, String number, String name, String unit,@JsonKey(fromJson: _parseDouble) double quantity,@JsonKey(fromJson: _parseDouble) double total,@JsonKey(name: 'completed_quantity', fromJson: _parseDouble) double completedQuantity,@JsonKey(name: 'completed_total', fromJson: _parseDouble) double completedTotal,@JsonKey(fromJson: _parseDouble) double percentage,@JsonKey(name: 'remaining_quantity', fromJson: _parseDouble) double remainingQuantity,@JsonKey(name: 'material_received', fromJson: _parseDouble) double materialReceived,@JsonKey(name: 'material_remaining', fromJson: _parseDouble) double materialRemaining
 });
 
 
@@ -161,7 +165,7 @@ class __$EstimateCompletionModelCopyWithImpl<$Res>
 
 /// Create a copy of EstimateCompletionModel
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? estimateId = null,Object? objectId = null,Object? contractId = null,Object? system = null,Object? subsystem = null,Object? number = null,Object? name = null,Object? unit = null,Object? quantity = null,Object? total = null,Object? completedQuantity = null,Object? completedTotal = null,Object? percentage = null,Object? remainingQuantity = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? estimateId = null,Object? objectId = null,Object? contractId = null,Object? system = null,Object? subsystem = null,Object? number = null,Object? name = null,Object? unit = null,Object? quantity = null,Object? total = null,Object? completedQuantity = null,Object? completedTotal = null,Object? percentage = null,Object? remainingQuantity = null,Object? materialReceived = null,Object? materialRemaining = null,}) {
   return _then(_EstimateCompletionModel(
 estimateId: null == estimateId ? _self.estimateId : estimateId // ignore: cast_nullable_to_non_nullable
 as String,objectId: null == objectId ? _self.objectId : objectId // ignore: cast_nullable_to_non_nullable
@@ -177,6 +181,8 @@ as double,completedQuantity: null == completedQuantity ? _self.completedQuantity
 as double,completedTotal: null == completedTotal ? _self.completedTotal : completedTotal // ignore: cast_nullable_to_non_nullable
 as double,percentage: null == percentage ? _self.percentage : percentage // ignore: cast_nullable_to_non_nullable
 as double,remainingQuantity: null == remainingQuantity ? _self.remainingQuantity : remainingQuantity // ignore: cast_nullable_to_non_nullable
+as double,materialReceived: null == materialReceived ? _self.materialReceived : materialReceived // ignore: cast_nullable_to_non_nullable
+as double,materialRemaining: null == materialRemaining ? _self.materialRemaining : materialRemaining // ignore: cast_nullable_to_non_nullable
 as double,
   ));
 }

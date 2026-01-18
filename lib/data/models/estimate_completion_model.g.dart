@@ -35,6 +35,12 @@ _EstimateCompletionModel _$EstimateCompletionModelFromJson(
   remainingQuantity: json['remaining_quantity'] == null
       ? 0.0
       : _parseDouble(json['remaining_quantity']),
+  materialReceived: json['material_received'] == null
+      ? 0.0
+      : _parseDouble(json['material_received']),
+  materialRemaining: json['material_remaining'] == null
+      ? 0.0
+      : _parseDouble(json['material_remaining']),
 );
 
 Map<String, dynamic> _$EstimateCompletionModelToJson(
@@ -54,4 +60,6 @@ Map<String, dynamic> _$EstimateCompletionModelToJson(
   'completed_total': instance.completedTotal,
   'percentage': instance.percentage,
   'remaining_quantity': instance.remainingQuantity,
+  'material_received': instance.materialReceived,
+  'material_remaining': instance.materialRemaining,
 };

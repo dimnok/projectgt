@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/di/providers.dart';
 import '../providers/work_search_provider.dart';
-import '../../domain/entities/work_search_result.dart';
+import '../providers/work_search_date_provider.dart';
 import '../../data/datasources/work_search_data_source.dart';
 import 'export_search_action.dart';
 import '../providers/repositories_providers.dart';
@@ -28,6 +28,9 @@ final objectsWithWorksProvider = FutureProvider<Set<String>>((ref) async {
 final workSearchFilterValuesProvider =
     FutureProvider.autoDispose<WorkSearchFilterValues?>((ref) async {
   final selectedObjectId = ref.watch(exportSelectedObjectIdProvider);
+  final filters = ref.watch(exportSearchFilterProvider);
+  final searchQuery = ref.watch(exportSearchQueryProvider);
+  final dateRange = ref.watch(workSearchDateRangeProvider);
 
   if (selectedObjectId == null || selectedObjectId.isEmpty) {
     return null;
@@ -38,6 +41,11 @@ final workSearchFilterValuesProvider =
   try {
     return await repository.getFilterValues(
       objectId: selectedObjectId,
+      startDate: dateRange?.start,
+      endDate: dateRange?.end,
+      systemFilters: filters['system']?.toList(),
+      sectionFilters: filters['section']?.toList(),
+      searchQuery: searchQuery,
     );
   } catch (e) {
     debugPrint('Ошибка загрузки фильтров: $e');
@@ -46,45 +54,9 @@ final workSearchFilterValuesProvider =
 });
 
 /// Виджет чипов фильтров для результатов поиска.
-/// Показывает доступные значения систем, участков и этажей из результатов поиска.
-/// Чипы обновляются динамически при выборе фильтров.
 class ExportSearchFilterChips extends ConsumerWidget {
   /// Конструктор виджета чипов фильтров.
   const ExportSearchFilterChips({super.key});
-
-  /// Фильтрует результаты по системам для извлечения доступных значений участков.
-  List<WorkSearchResult> _getFilteredResultsForSection(
-      List<WorkSearchResult> results, Map<String, Set<String>> filters) {
-    return results.where((result) {
-      // Фильтр по системе
-      if (filters['system']?.isNotEmpty ?? false) {
-        if (!filters['system']!.contains(result.system)) {
-          return false;
-        }
-      }
-      return true;
-    }).toList();
-  }
-
-  /// Фильтрует результаты по системам и участкам для извлечения доступных значений этажей.
-  List<WorkSearchResult> _getFilteredResultsForFloor(
-      List<WorkSearchResult> results, Map<String, Set<String>> filters) {
-    return results.where((result) {
-      // Фильтр по системе
-      if (filters['system']?.isNotEmpty ?? false) {
-        if (!filters['system']!.contains(result.system)) {
-          return false;
-        }
-      }
-      // Фильтр по участку
-      if (filters['section']?.isNotEmpty ?? false) {
-        if (!filters['section']!.contains(result.section)) {
-          return false;
-        }
-      }
-      return true;
-    }).toList();
-  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -113,11 +85,7 @@ class ExportSearchFilterChips extends ConsumerWidget {
           }
 
           return Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
@@ -131,64 +99,26 @@ class ExportSearchFilterChips extends ConsumerWidget {
                   const SizedBox(width: 8),
                   ...filteredObjects.map((object) {
                     final isSelected = selectedObjectId == object.id;
-                    final isLightTheme = theme.brightness == Brightness.light;
-                    final checkmarkColor = isLightTheme && isSelected
-                        ? Colors.green
-                        : theme.colorScheme.onPrimaryContainer;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 6),
-                      child: FilterChip(
-                        label: Text(object.name),
-                        selected: isSelected,
-                        onSelected: (selected) {
-                          final newObjectId = selected ? object.id : null;
-                          ref
-                              .read(exportSelectedObjectIdProvider.notifier)
-                              .state = newObjectId;
-                          ref.read(exportSearchQueryProvider.notifier).state =
-                              '';
+                    return _FilterChipItem(
+                      label: object.name,
+                      isSelected: isSelected,
+                      onSelected: (selected) {
+                        final newObjectId = selected ? object.id : null;
+                        ref
+                            .read(exportSelectedObjectIdProvider.notifier)
+                            .state = newObjectId;
+                        ref.read(exportSearchQueryProvider.notifier).state = '';
 
-                          // При отмене выбора объекта сбрасываем все фильтры
-                          if (newObjectId == null) {
-                            ref
-                                .read(exportSearchFilterProvider.notifier)
-                                .state = {
-                              'system': <String>{},
-                              'section': <String>{},
-                              'floor': <String>{},
-                            };
-                          }
+                        if (newObjectId == null) {
+                          ref.read(exportSearchFilterProvider.notifier).state = {
+                            'system': <String>{},
+                            'section': <String>{},
+                            'floor': <String>{},
+                          };
+                        }
 
-                          ref.read(workSearchProvider.notifier).searchMaterials(
-                                objectId: newObjectId,
-                                searchQuery: null,
-                                systemFilters: newObjectId == null
-                                    ? null
-                                    : filters['system']?.toList(),
-                                sectionFilters: newObjectId == null
-                                    ? null
-                                    : filters['section']?.toList(),
-                                floorFilters: newObjectId == null
-                                    ? null
-                                    : filters['floor']?.toList(),
-                              );
-                        },
-                        selectedColor: theme.colorScheme.primaryContainer,
-                        checkmarkColor: checkmarkColor,
-                        side: isLightTheme && isSelected
-                            ? const BorderSide(color: Colors.green, width: 1)
-                            : null,
-                        labelStyle: TextStyle(
-                          color: isSelected
-                              ? (isLightTheme
-                                  ? Colors.green
-                                  : theme.colorScheme.onPrimaryContainer)
-                              : theme.colorScheme.onSurface,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                      ),
+                        _reloadSearch(ref, ref.read(exportSearchFilterProvider));
+                      },
                     );
                   }),
                 ],
@@ -201,57 +131,13 @@ class ExportSearchFilterChips extends ConsumerWidget {
       );
     }
 
-    // Используем значения фильтров из провайдера (все данные объекта)
-    // или из результатов поиска как fallback
     final filterValues = filterValuesAsync.valueOrNull;
-    final systems = filterValues?.systems ??
-        searchState.results
-            .map((r) => r.system)
-            .where((s) => s.isNotEmpty)
-            .toSet()
-            .toList()
-      ..sort();
-
-    // Для участков и этажей применяем каскадную фильтрацию
-    final filteredForSection =
-        _getFilteredResultsForSection(searchState.results, filters);
-    final sections = filterValues != null
-        ? _applyCascadeFilter(
-            filterValues.sections,
-            filters,
-            'section',
-            (r) => r.section,
-            filteredForSection,
-          )
-        : filteredForSection
-            .map((r) => r.section)
-            .where((s) => s.isNotEmpty)
-            .toSet()
-            .toList()
-      ..sort();
-
-    final filteredForFloor =
-        _getFilteredResultsForFloor(searchState.results, filters);
-    final floors = filterValues != null
-        ? _applyCascadeFilter(
-            filterValues.floors,
-            filters,
-            'floor',
-            (r) => r.floor,
-            filteredForFloor,
-          )
-        : filteredForFloor
-            .map((r) => r.floor)
-            .where((s) => s.isNotEmpty)
-            .toSet()
-            .toList()
-      ..sort();
+    final systems = filterValues?.systems ?? [];
+    final sections = filterValues?.sections ?? [];
+    final floors = filterValues?.floors ?? [];
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
@@ -263,92 +149,47 @@ class ExportSearchFilterChips extends ConsumerWidget {
                     .where((object) => objectsWithWorks.contains(object.id))
                     .toList();
 
-                if (filteredObjects.isEmpty) {
-                  return const SizedBox.shrink();
-                }
+                if (filteredObjects.isEmpty) return const SizedBox.shrink();
 
                 return Row(
                   children: [
                     Text(
                       'Объект:',
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color:
-                            theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                       ),
                     ),
                     const SizedBox(width: 8),
                     ...filteredObjects.map((object) {
                       final isSelected = selectedObjectId == object.id;
-                      final isLightTheme = theme.brightness == Brightness.light;
-                      final checkmarkColor = isLightTheme && isSelected
-                          ? Colors.green
-                          : theme.colorScheme.onPrimaryContainer;
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: FilterChip(
-                          label: Text(object.name),
-                          selected: isSelected,
-                          onSelected: (selected) {
-                            final newObjectId = selected ? object.id : null;
-                            ref
-                                .read(exportSelectedObjectIdProvider.notifier)
-                                .state = newObjectId;
-                            ref.read(exportSearchQueryProvider.notifier).state =
-                                '';
+                      return _FilterChipItem(
+                        label: object.name,
+                        isSelected: isSelected,
+                        onSelected: (selected) {
+                          final newObjectId = selected ? object.id : null;
+                          ref.read(exportSelectedObjectIdProvider.notifier).state = newObjectId;
+                          ref.read(exportSearchQueryProvider.notifier).state = '';
 
-                            // При отмене выбора объекта сбрасываем все фильтры
-                            if (newObjectId == null) {
-                              ref
-                                  .read(exportSearchFilterProvider.notifier)
-                                  .state = {
-                                'system': <String>{},
-                                'section': <String>{},
-                                'floor': <String>{},
-                              };
-                            }
-
-                            ref
-                                .read(workSearchProvider.notifier)
-                                .searchMaterials(
-                                  objectId: newObjectId,
-                                  searchQuery: null,
-                                  systemFilters: newObjectId == null
-                                      ? null
-                                      : filters['system']?.toList(),
-                                  sectionFilters: newObjectId == null
-                                      ? null
-                                      : filters['section']?.toList(),
-                                  floorFilters: newObjectId == null
-                                      ? null
-                                      : filters['floor']?.toList(),
-                                );
-                          },
-                          selectedColor: theme.colorScheme.primaryContainer,
-                          checkmarkColor: checkmarkColor,
-                          side: isLightTheme && isSelected
-                              ? const BorderSide(color: Colors.green, width: 1)
-                              : null,
-                          labelStyle: TextStyle(
-                            color: isSelected
-                                ? (isLightTheme
-                                    ? Colors.green
-                                    : theme.colorScheme.onPrimaryContainer)
-                                : theme.colorScheme.onSurface,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                        ),
+                          if (newObjectId == null) {
+                            ref.read(exportSearchFilterProvider.notifier).state = {
+                              'system': <String>{},
+                              'section': <String>{},
+                              'floor': <String>{},
+                            };
+                          }
+                          _reloadSearch(ref, ref.read(exportSearchFilterProvider));
+                        },
                       );
                     }),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 12),
                   ],
                 );
               },
               loading: () => const SizedBox.shrink(),
               error: (_, __) => const SizedBox.shrink(),
             ),
-            // Остальные фильтры
+            
+            // Фильтры
             if (systems.isNotEmpty) ...[
               _buildFilterChipGroup(
                 context,
@@ -365,17 +206,15 @@ class ExportSearchFilterChips extends ConsumerWidget {
                     newSet.add(value);
                   }
                   newFilters['system'] = newSet;
-                  // Очищаем фильтры, которые зависят от системы
-                  newFilters['section'] = <String>{};
-                  newFilters['floor'] = <String>{};
-                  ref.read(exportSearchFilterProvider.notifier).state =
-                      newFilters;
-                  // Перезагружаем поиск с новыми фильтрами
+                  // При Multi-select не очищаем участки автоматически, 
+                  // чтобы пользователь мог добавить вторую систему к уже выбранным участкам
+                  ref.read(exportSearchFilterProvider.notifier).state = newFilters;
                   _reloadSearch(ref, newFilters);
                 },
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
             ],
+            
             if (sections.isNotEmpty) ...[
               _buildFilterChipGroup(
                 context,
@@ -392,14 +231,13 @@ class ExportSearchFilterChips extends ConsumerWidget {
                     newSet.add(value);
                   }
                   newFilters['section'] = newSet;
-                  ref.read(exportSearchFilterProvider.notifier).state =
-                      newFilters;
-                  // Перезагружаем поиск с новыми фильтрами
+                  ref.read(exportSearchFilterProvider.notifier).state = newFilters;
                   _reloadSearch(ref, newFilters);
                 },
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
             ],
+            
             if (floors.isNotEmpty) ...[
               _buildFilterChipGroup(
                 context,
@@ -416,19 +254,18 @@ class ExportSearchFilterChips extends ConsumerWidget {
                     newSet.add(value);
                   }
                   newFilters['floor'] = newSet;
-                  ref.read(exportSearchFilterProvider.notifier).state =
-                      newFilters;
-                  // Перезагружаем поиск с новыми фильтрами
+                  ref.read(exportSearchFilterProvider.notifier).state = newFilters;
                   _reloadSearch(ref, newFilters);
                 },
               ),
             ],
-            // Кнопка сброса фильтров
+            
+            // Кнопка сброса
             if (filters.values.any((set) => set.isNotEmpty)) ...[
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
               ActionChip(
-                avatar: const Icon(Icons.close, size: 18),
-                label: const Text('Сбросить'),
+                avatar: const Icon(Icons.close, size: 14),
+                label: const Text('Сбросить всё'),
                 onPressed: () {
                   ref.read(exportSearchFilterProvider.notifier).state = {
                     'system': <String>{},
@@ -436,23 +273,21 @@ class ExportSearchFilterChips extends ConsumerWidget {
                     'floor': <String>{},
                   };
                   ref.read(exportSearchQueryProvider.notifier).state = '';
-                  // Объект не сбрасываем, используем текущий выбранный
-                  final currentObjectId =
-                      ref.read(exportSelectedObjectIdProvider);
-                  ref.read(workSearchProvider.notifier).searchMaterials(
-                        objectId: currentObjectId,
-                        searchQuery: null,
-                        systemFilters: null,
-                        sectionFilters: null,
-                        floorFilters: null,
-                      );
+                  _reloadSearch(ref, {
+                    'system': <String>{},
+                    'section': <String>{},
+                    'floor': <String>{},
+                  });
                 },
                 backgroundColor: theme.colorScheme.errorContainer,
-                labelStyle:
-                    TextStyle(color: theme.colorScheme.onErrorContainer),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
+                labelStyle: TextStyle(
+                  color: theme.colorScheme.onErrorContainer,
+                  fontSize: 13,
                 ),
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20)),
               ),
             ],
           ],
@@ -461,38 +296,15 @@ class ExportSearchFilterChips extends ConsumerWidget {
     );
   }
 
-  /// Применяет каскадную фильтрацию к списку значений.
-  /// Показывает только те значения, которые есть в отфильтрованных результатах.
-  List<String> _applyCascadeFilter(
-    List<String> allValues,
-    Map<String, Set<String>> filters,
-    String filterKey,
-    String Function(WorkSearchResult) getValue,
-    List<WorkSearchResult> filteredResults,
-  ) {
-    // Если нет фильтров выше по иерархии, показываем все значения
-    final hasUpperFilters = filters.entries
-        .where((e) => e.key != filterKey)
-        .any((e) => e.value.isNotEmpty);
-
-    if (!hasUpperFilters) {
-      return allValues;
-    }
-
-    // Иначе показываем только те, что есть в отфильтрованных результатах
-    final availableValues =
-        filteredResults.map(getValue).where((s) => s.isNotEmpty).toSet();
-
-    return allValues.where((v) => availableValues.contains(v)).toList()..sort();
-  }
-
-  /// Перезагружает поиск с учетом текущих фильтров.
   void _reloadSearch(WidgetRef ref, Map<String, Set<String>> filters) {
     final selectedObjectId = ref.read(exportSelectedObjectIdProvider);
+    final dateRange = ref.read(workSearchDateRangeProvider);
     if (selectedObjectId == null || selectedObjectId.isEmpty) return;
 
     ref.read(workSearchProvider.notifier).searchMaterials(
           objectId: selectedObjectId,
+          startDate: dateRange?.start,
+          endDate: dateRange?.end,
           searchQuery: ref.read(exportSearchQueryProvider),
           systemFilters: filters['system']?.toList(),
           sectionFilters: filters['section']?.toList(),
@@ -517,37 +329,60 @@ class ExportSearchFilterChips extends ConsumerWidget {
           ),
         ),
         const SizedBox(width: 8),
-        ...values.map((value) {
-          final isSelected = selected.contains(value);
-          final isLightTheme = theme.brightness == Brightness.light;
-          final checkmarkColor = isLightTheme && isSelected
-              ? Colors.green
-              : theme.colorScheme.onPrimaryContainer;
-          return Padding(
-            padding: const EdgeInsets.only(right: 6),
-            child: FilterChip(
-              label: Text(value),
-              selected: isSelected,
-              onSelected: (_) => onToggle(value),
-              selectedColor: theme.colorScheme.primaryContainer,
-              checkmarkColor: checkmarkColor,
-              side: isLightTheme && isSelected
-                  ? const BorderSide(color: Colors.green, width: 1)
-                  : null,
-              labelStyle: TextStyle(
-                color: isSelected
-                    ? (isLightTheme
-                        ? Colors.green
-                        : theme.colorScheme.onPrimaryContainer)
-                    : theme.colorScheme.onSurface,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-            ),
-          );
-        }),
+        ...values.map((value) => Padding(
+          padding: const EdgeInsets.only(right: 6),
+          child: _FilterChipItem(
+            label: value,
+            isSelected: selected.contains(value),
+            onSelected: (_) => onToggle(value),
+          ),
+        )),
       ],
+    );
+  }
+}
+
+class _FilterChipItem extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final ValueChanged<bool> onSelected;
+
+  const _FilterChipItem({
+    required this.label,
+    required this.isSelected,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isLightTheme = theme.brightness == Brightness.light;
+    
+    return FilterChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: onSelected,
+      selectedColor: theme.colorScheme.primaryContainer,
+      checkmarkColor: isLightTheme && isSelected
+          ? Colors.green
+          : theme.colorScheme.onPrimaryContainer,
+      side: isLightTheme && isSelected
+          ? const BorderSide(color: Colors.green, width: 1)
+          : null,
+      labelStyle: TextStyle(
+        fontSize: 13,
+        color: isSelected
+            ? (isLightTheme
+                ? Colors.green
+                : theme.colorScheme.onPrimaryContainer)
+            : theme.colorScheme.onSurface,
+      ),
+      showCheckmark: false,
+      visualDensity: VisualDensity.compact,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     );
   }
 }

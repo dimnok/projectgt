@@ -23,6 +23,12 @@ class WorkSearchState {
   /// Общее количество результатов.
   final int totalCount;
 
+  /// Общее количество (сумма по всем страницам).
+  final num totalQuantity;
+
+  /// Общая сумма (сумма по всем страницам).
+  final double? totalSum;
+
   /// Общее количество страниц.
   int get totalPages => (totalCount / pageSize).ceil();
 
@@ -34,6 +40,8 @@ class WorkSearchState {
     this.currentPage = 1,
     this.pageSize = 250,
     this.totalCount = 0,
+    this.totalQuantity = 0,
+    this.totalSum,
   });
 
   /// Возвращает копию состояния с обновлёнными полями.
@@ -44,6 +52,8 @@ class WorkSearchState {
     int? currentPage,
     int? pageSize,
     int? totalCount,
+    num? totalQuantity,
+    double? totalSum,
   }) {
     return WorkSearchState(
       results: results ?? this.results,
@@ -52,6 +62,8 @@ class WorkSearchState {
       currentPage: currentPage ?? this.currentPage,
       pageSize: pageSize ?? this.pageSize,
       totalCount: totalCount ?? this.totalCount,
+      totalQuantity: totalQuantity ?? this.totalQuantity,
+      totalSum: totalSum ?? this.totalSum,
     );
   }
 }
@@ -121,6 +133,8 @@ class WorkSearchNotifier extends StateNotifier<WorkSearchState> {
         isLoading: false,
         currentPage: result.currentPage,
         totalCount: result.totalCount,
+        totalQuantity: result.totalQuantity,
+        totalSum: result.totalSum,
       );
     } catch (e) {
       state = state.copyWith(

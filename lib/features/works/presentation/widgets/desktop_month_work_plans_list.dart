@@ -84,6 +84,10 @@ class DesktopMonthWorkPlansList extends ConsumerWidget {
       } catch (_) {}
     }
 
+    // Подсчитываем количество специалистов
+    final specialistCount =
+        plan.workBlocks.expand((block) => block.workerIds).toSet().length;
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       elevation: 0,
@@ -161,7 +165,7 @@ class DesktopMonthWorkPlansList extends ConsumerWidget {
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                '${plan.workBlocks.length} блоков',
+                                '$specialistCount ${_pluralizeSpecialists(specialistCount)}',
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: selected
                                       ? Colors.blue
@@ -193,5 +197,17 @@ class DesktopMonthWorkPlansList extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  /// Возвращает правильную форму слова "специалист" в зависимости от количества.
+  String _pluralizeSpecialists(int count) {
+    if (count % 10 == 1 && count % 100 != 11) {
+      return 'специалист';
+    } else if ([2, 3, 4].contains(count % 10) &&
+        ![12, 13, 14].contains(count % 100)) {
+      return 'специалиста';
+    } else {
+      return 'специалистов';
+    }
   }
 }

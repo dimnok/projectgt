@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
+import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/gt_text_field.dart';
 import 'package:projectgt/core/widgets/app_snackbar.dart';
@@ -23,23 +24,38 @@ class CompanyBankAccountEditDialog extends ConsumerStatefulWidget {
     this.account,
   });
 
-  /// Показывает диалог.
+  /// Показывает диалог адаптивно (Dialog на Desktop, BottomSheet на Mobile).
   static void show(
     BuildContext context,
     String companyId, {
     CompanyBankAccount? account,
   }) {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
+    final isDesktop = MediaQuery.of(context).size.width >= 800;
+
+    if (isDesktop) {
+      showDialog(
+        context: context,
+        builder: (context) => Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(24),
+          child: CompanyBankAccountEditDialog(
+            companyId: companyId,
+            account: account,
+          ),
+        ),
+      );
+    } else {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
         backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.all(24),
-        child: CompanyBankAccountEditDialog(
+        builder: (context) => CompanyBankAccountEditDialog(
           companyId: companyId,
           account: account,
         ),
-      ),
-    );
+      );
+    }
   }
 
   @override
@@ -154,7 +170,6 @@ class _CompanyBankAccountEditDialogState
           backgroundColor: Colors.transparent,
           child: DesktopDialogContent(
             title: 'Смена основного счета',
-            width: 400,
             footer: Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
@@ -196,98 +211,114 @@ class _CompanyBankAccountEditDialogState
 
   @override
   Widget build(BuildContext context) {
-    return DesktopDialogContent(
-      title: widget.account == null
-          ? 'Добавление счета'
-          : 'Редактирование счета',
-      footer: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
+    final isDesktop = MediaQuery.of(context).size.width >= 800;
+    final title =
+        widget.account == null ? 'Добавление счета' : 'Редактирование счета';
+
+    final content = Form(
+      key: _formKey,
+      child: Column(
         children: [
-          GTSecondaryButton(
-            text: 'Отмена',
-            onPressed: () => Navigator.pop(context),
+          GTTextField(
+            controller: _bankNameController,
+            labelText: 'Наименование банка',
+            prefixIcon: CupertinoIcons.house,
+            enabled: !_isLoading,
+            validator: (v) =>
+                v == null || v.isEmpty ? 'Введите название банка' : null,
           ),
-          const SizedBox(width: 16),
-          GTPrimaryButton(
-            text: 'Сохранить',
-            isLoading: _isLoading,
-            onPressed: _save,
+          const SizedBox(height: 16),
+          GTTextField(
+            controller: _bankCityController,
+            labelText: 'Город банка',
+            prefixIcon: CupertinoIcons.location,
+            enabled: !_isLoading,
+          ),
+          const SizedBox(height: 16),
+          GTTextField(
+            controller: _accountNumberController,
+            labelText: 'Расчетный счет',
+            prefixIcon: CupertinoIcons.number,
+            enabled: !_isLoading,
+            keyboardType: TextInputType.number,
+            validator: (v) =>
+                v == null || v.isEmpty ? 'Введите расчетный счет' : null,
+          ),
+          const SizedBox(height: 16),
+          GTTextField(
+            controller: _corrAccountController,
+            labelText: 'Корреспондентский счет',
+            prefixIcon: CupertinoIcons.number,
+            enabled: !_isLoading,
+            keyboardType: TextInputType.number,
+          ),
+          const SizedBox(height: 16),
+          GTTextField(
+            controller: _bikController,
+            labelText: 'БИК',
+            prefixIcon: CupertinoIcons.number,
+            enabled: !_isLoading,
+            keyboardType: TextInputType.number,
+          ),
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: _isOnlyAccount ? null : () => _togglePrimary(null),
+            splashColor: Colors.transparent,
+            highlightColor: Colors.transparent,
+            hoverColor: Colors.transparent,
+            child: Opacity(
+              opacity: _isOnlyAccount ? 0.6 : 1.0,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Основной счет',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ),
+                  Switch.adaptive(
+                    value: _isPrimary,
+                    onChanged: _isOnlyAccount ? null : _togglePrimary,
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
-      child: Form(
-        key: _formKey,
-        child: Column(
+    );
+
+    if (isDesktop) {
+      return DesktopDialogContent(
+        title: title,
+        footer: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            GTTextField(
-              controller: _bankNameController,
-              labelText: 'Наименование банка',
-              prefixIcon: CupertinoIcons.house,
-              enabled: !_isLoading,
-              validator: (v) =>
-                  v == null || v.isEmpty ? 'Введите название банка' : null,
+            GTSecondaryButton(
+              text: 'Отмена',
+              onPressed: () => Navigator.pop(context),
             ),
-            const SizedBox(height: 16),
-            GTTextField(
-              controller: _bankCityController,
-              labelText: 'Город банка',
-              prefixIcon: CupertinoIcons.location,
-              enabled: !_isLoading,
-            ),
-            const SizedBox(height: 16),
-            GTTextField(
-              controller: _accountNumberController,
-              labelText: 'Расчетный счет',
-              prefixIcon: CupertinoIcons.number,
-              enabled: !_isLoading,
-              keyboardType: TextInputType.number,
-              validator: (v) =>
-                  v == null || v.isEmpty ? 'Введите расчетный счет' : null,
-            ),
-            const SizedBox(height: 16),
-            GTTextField(
-              controller: _corrAccountController,
-              labelText: 'Корреспондентский счет',
-              prefixIcon: CupertinoIcons.number,
-              enabled: !_isLoading,
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 16),
-            GTTextField(
-              controller: _bikController,
-              labelText: 'БИК',
-              prefixIcon: CupertinoIcons.number,
-              enabled: !_isLoading,
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 8),
-            InkWell(
-              onTap: _isOnlyAccount ? null : () => _togglePrimary(null),
-              splashColor: Colors.transparent,
-              highlightColor: Colors.transparent,
-              hoverColor: Colors.transparent,
-              child: Opacity(
-                opacity: _isOnlyAccount ? 0.6 : 1.0,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Основной счет',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                    ),
-                    Switch.adaptive(
-                      value: _isPrimary,
-                      onChanged: _isOnlyAccount ? null : _togglePrimary,
-                    ),
-                  ],
-                ),
-              ),
+            const SizedBox(width: 16),
+            GTPrimaryButton(
+              text: 'Сохранить',
+              isLoading: _isLoading,
+              onPressed: _save,
             ),
           ],
         ),
-      ),
-    );
+        child: content,
+      );
+    } else {
+      return MobileBottomSheetContent(
+        title: title,
+        footer: GTPrimaryButton(
+          text: 'Сохранить',
+          isLoading: _isLoading,
+          onPressed: _save,
+        ),
+        child: content,
+      );
+    }
   }
 }

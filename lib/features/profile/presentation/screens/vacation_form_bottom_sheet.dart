@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
+import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/domain/entities/profile.dart';
 import 'package:projectgt/features/profile/presentation/screens/pdf_preview_screen.dart';
@@ -14,10 +14,7 @@ class VacationForm extends ConsumerStatefulWidget {
   final Profile profile;
 
   /// Создаёт форму заявления на отпуск.
-  const VacationForm({
-    super.key,
-    required this.profile,
-  });
+  const VacationForm({super.key, required this.profile});
 
   @override
   ConsumerState<VacationForm> createState() => _VacationFormState();
@@ -94,7 +91,7 @@ class _VacationFormState extends ConsumerState<VacationForm> {
 
   void _openPdfPreview() {
     final fullName = widget.profile.fullName ?? 'Сотрудник';
-    final startDateStr = DateFormat('dd.MM.yyyy').format(_startDate);
+    final startDateStr = formatRuDate(_startDate);
 
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -117,7 +114,6 @@ class _VacationFormState extends ConsumerState<VacationForm> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final dateFormat = DateFormat('dd.MM.yyyy');
 
     return Form(
       key: _formKey,
@@ -144,11 +140,13 @@ class _VacationFormState extends ConsumerState<VacationForm> {
               ),
               child: Row(
                 children: [
-                  Icon(CupertinoIcons.calendar,
-                      color: theme.colorScheme.primary),
+                  Icon(
+                    CupertinoIcons.calendar,
+                    color: theme.colorScheme.primary,
+                  ),
                   const SizedBox(width: 12),
                   Text(
-                    dateFormat.format(_startDate),
+                    formatRuDate(_startDate),
                     style: theme.textTheme.titleLarge,
                   ),
                   const Spacer(),
@@ -203,8 +201,9 @@ class _VacationFormState extends ConsumerState<VacationForm> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest
-                  .withValues(alpha: 0.5),
+              color: theme.colorScheme.surfaceContainerHighest.withValues(
+                alpha: 0.5,
+              ),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
@@ -240,13 +239,16 @@ class _VacationFormState extends ConsumerState<VacationForm> {
               color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.2)),
+                color: theme.colorScheme.primary.withValues(alpha: 0.2),
+              ),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(CupertinoIcons.info_circle,
-                    color: theme.colorScheme.primary),
+                Icon(
+                  CupertinoIcons.info_circle,
+                  color: theme.colorScheme.primary,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -260,17 +262,18 @@ class _VacationFormState extends ConsumerState<VacationForm> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'с ${dateFormat.format(_startDate)} по ${dateFormat.format(_endDate)}',
+                        'с ${formatRuDate(_startDate)} по ${formatRuDate(_endDate)}',
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'На работу: ${dateFormat.format(_endDate.add(const Duration(days: 1)))}',
+                        'На работу: ${formatRuDate(_endDate.add(const Duration(days: 1)))}',
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.6),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.6,
+                          ),
                         ),
                       ),
                     ],

@@ -11,6 +11,8 @@ import 'package:projectgt/features/profile/presentation/widgets/profile_status_s
 import 'package:projectgt/features/roles/application/permission_service.dart';
 import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
 import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
+import 'package:projectgt/core/utils/formatters.dart';
+import 'package:projectgt/features/profile/utils/profile_utils.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
 import 'package:projectgt/features/profile/presentation/widgets/content_constrained_box.dart';
 import 'package:projectgt/features/roles/presentation/providers/roles_provider.dart';
@@ -201,19 +203,33 @@ class _UsersListMobileScreenState extends ConsumerState<UsersListMobileScreen> {
             initialEmployeeId: profile.object?['employee_id'] as String?,
             initialRoleId: profile.roleId,
             onSave: (fullName, phone, selectedObjectIds, employeeId, roleId) async {
-              // [RBAC v3] В списке пользователей админ обновляет только данные в company_members
-              // Мы НЕ вызываем updateProfile, так как это заблокировано RLS для чужих профилей
-              if (profile.lastCompanyId != null) {
-                try {
-                  await ref
-                      .read(profileProvider.notifier)
-                      .updateMember(
+              // [RBAC v3] Обновляем данные профиля
+              final updatedProfile = ProfileUtils.prepareProfileForUpdate(
+                originalProfile: profile,
+                fullName: fullName,
+                phone: phone,
+                selectedObjectIds: selectedObjectIds,
+                employeeId: employeeId,
+                roleId: roleId,
+                isAdmin: isAdmin,
+              );
+
+              try {
+                // 1. Обновляем основные данные в таблице profiles
+                await ref
+                    .read(profileProvider.notifier)
+                    .updateProfile(updatedProfile);
+
+                // 2. Обновляем роль в company_members, если она изменилась
+                if (profile.lastCompanyId != null && roleId != profile.roleId) {
+                  await ref.read(profileProvider.notifier).updateMember(
                         userId: profile.id,
                         companyId: profile.lastCompanyId!,
                         roleId: roleId,
                       );
+                }
 
-                  // Проверяем состояние после обновления
+                // Проверяем состояние после обновления
                   final state = ref.read(profileProvider);
                   if (state.status == ProfileStatus.error && context.mounted) {
                     AppSnackBar.show(
@@ -231,7 +247,6 @@ class _UsersListMobileScreenState extends ConsumerState<UsersListMobileScreen> {
                     );
                   }
                 }
-              }
             },
             onSuccess: () {
               Navigator.of(context).pop();
@@ -416,7 +431,7 @@ class _UserListTile extends ConsumerWidget {
                       Text(
                         [
                           profile.email,
-                          if (profile.phone != null) profile.phone,
+                          if (profile.phone != null) formatPhone(profile.phone),
                         ].join(' • '),
                         style: textTheme.bodySmall?.copyWith(
                           color: subtitleColor,

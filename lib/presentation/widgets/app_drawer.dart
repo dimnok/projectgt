@@ -8,7 +8,7 @@ import 'package:projectgt/presentation/state/profile_state.dart';
 import 'package:projectgt/presentation/widgets/drawer_item_widget.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
-import 'package:projectgt/features/company/presentation/widgets/company_create_dialog.dart';
+import 'package:projectgt/features/company/presentation/widgets/company_add_selection_dialog.dart';
 import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
 import 'package:projectgt/features/roles/presentation/widgets/role_badge.dart';
@@ -58,17 +58,8 @@ enum AppRoute {
   /// Экран управления версиями.
   versionManagement,
 
-  /// Экран складского учёта.
-  inventory,
-
   /// Экран управления ролями.
   roles,
-
-  /// Экран заявок.
-  procurement,
-
-  /// Экран настроек заявок.
-  procurementSettings,
 
   /// Экран модуля Cash Flow (Движение денежных средств).
   cashFlow,
@@ -300,7 +291,7 @@ class AppDrawer extends ConsumerWidget {
                       child: ListView(
                         padding: EdgeInsets.zero,
                         children: [
-                          const _CompanySwitcher(),
+                          _CompanySwitcher(activeRoute: activeRoute),
                           const SizedBox(height: 8),
                           DrawerItemWidget(
                             icon: CupertinoIcons.home,
@@ -323,14 +314,6 @@ class AppDrawer extends ConsumerWidget {
                           ),
                           _buildMenuItem(
                             context: context,
-                            module: 'company',
-                            title: 'Компания',
-                            icon: CupertinoIcons.briefcase,
-                            route: AppRoute.company,
-                            routeName: 'company',
-                          ),
-                          _buildMenuItem(
-                            context: context,
                             module: 'works',
                             title: 'Работы',
                             icon: CupertinoIcons.wrench,
@@ -344,14 +327,6 @@ class AppDrawer extends ConsumerWidget {
                             icon: CupertinoIcons.cube_box,
                             route: AppRoute.material,
                             routeName: 'material',
-                          ),
-                          _buildMenuItem(
-                            context: context,
-                            module: 'inventory',
-                            title: 'Склад',
-                            icon: CupertinoIcons.archivebox,
-                            route: AppRoute.inventory,
-                            routeName: 'inventory',
                           ),
                           _buildMenuItem(
                             context: context,
@@ -385,14 +360,6 @@ class AppDrawer extends ConsumerWidget {
                             icon: CupertinoIcons.creditcard,
                             route: AppRoute.payrolls,
                             routeName: 'payrolls',
-                          ),
-                          _buildMenuItem(
-                            context: context,
-                            module: 'procurement',
-                            title: 'Заявки',
-                            icon: CupertinoIcons.cart,
-                            route: AppRoute.procurement,
-                            routeName: 'procurement',
                           ),
                           _buildMenuItem(
                             context: context,
@@ -600,7 +567,8 @@ class _DrawerHeader extends ConsumerWidget {
 
 /// Виджет для переключения между компаниями пользователя в боковом меню.
 class _CompanySwitcher extends ConsumerWidget {
-  const _CompanySwitcher();
+  final AppRoute activeRoute;
+  const _CompanySwitcher({required this.activeRoute});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -616,22 +584,28 @@ class _CompanySwitcher extends ConsumerWidget {
             companies.firstWhereOrNull((c) => c.id == activeCompanyId) ??
             companies.first;
 
+        final isCompanyActive = activeRoute == AppRoute.company;
+
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
           child: _CollapsibleSection(
             headerBuilder: (context, isExpanded, rotation) {
-              final headerColor = isExpanded
+              final headerColor = isExpanded || isCompanyActive
                   ? Colors.green
                   : theme.colorScheme.onSurface;
 
               return Container(
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.04),
+                  color: theme.colorScheme.onSurface.withValues(
+                    alpha: isCompanyActive ? 0.08 : 0.04,
+                  ),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: theme.colorScheme.onSurface.withValues(
-                      alpha: isExpanded ? 0.1 : 0.05,
-                    ),
+                    color: isCompanyActive
+                        ? Colors.green.withValues(alpha: 0.3)
+                        : theme.colorScheme.onSurface.withValues(
+                            alpha: isExpanded ? 0.1 : 0.05,
+                          ),
                   ),
                 ),
                 child: Padding(
@@ -652,6 +626,7 @@ class _CompanySwitcher extends ConsumerWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      const SizedBox(width: 8),
                       RotationTransition(
                         turns: rotation,
                         child: Icon(
@@ -668,6 +643,22 @@ class _CompanySwitcher extends ConsumerWidget {
             content: Column(
               children: [
                 const SizedBox(height: 4),
+                // Пункт "О компании" (вместо отдельного меню)
+                DrawerItemWidget(
+                  title: 'О компании',
+                  icon: CupertinoIcons.info_circle,
+                  iconSize: 16,
+                  fontSize: 12,
+                  leadingPadding: 32,
+                  isSelected: isCompanyActive,
+                  onTap: () => _navigateTo(
+                    context,
+                    'company',
+                    AppRoute.company,
+                    activeRoute,
+                  ),
+                ),
+                // Список других компаний
                 ...companies.where((c) => c.id != activeCompany.id).map((
                   company,
                 ) {
@@ -685,6 +676,7 @@ class _CompanySwitcher extends ConsumerWidget {
                     },
                   );
                 }),
+                // Пункт добавления новой компании
                 DrawerItemWidget(
                   title: 'Добавить компанию',
                   icon: CupertinoIcons.plus_circle,
@@ -692,8 +684,8 @@ class _CompanySwitcher extends ConsumerWidget {
                   fontSize: 12,
                   leadingPadding: 32,
                   onTap: () {
-                    context.pop();
-                    CompanyCreateDialog.show(context);
+                    context.pop(); // Закрываем Drawer
+                    CompanyAddSelectionDialog.show(context);
                   },
                 ),
               ],

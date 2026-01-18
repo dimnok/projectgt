@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../domain/entities/work_search_result.dart';
 import 'work_search_data_source.dart';
 
@@ -29,202 +30,116 @@ class WorkSearchDataSourceImpl implements WorkSearchDataSource {
         return WorkSearchPaginatedResult(
           results: const [],
           totalCount: 0,
+          totalQuantity: 0,
           currentPage: page,
           pageSize: pageSize,
         );
       }
 
-      // Шаг 1: Получаем все смены объекта с серверной сортировкой по дате (новые сверху)
-      // Используем индекс idx_works_date_desc для оптимизации
-      var worksQuery = client
-          .from('works')
-          .select('*, objects(name)')
-          .eq('object_id', objectId);
+      final from = (page - 1) * pageSize;
+      final to = from + pageSize - 1;
 
-      // Применяем фильтры по дате
-      if (startDate != null) {
-        worksQuery =
-            worksQuery.gte('date', startDate.toIso8601String().split('T')[0]);
-      }
-      if (endDate != null) {
-        worksQuery =
-            worksQuery.lte('date', endDate.toIso8601String().split('T')[0]);
-      }
+      // Параметры для RPC и запросов
+      final startDateStr = startDate != null
+          ? GtFormatters.formatDateForApi(startDate)
+          : null;
+      final endDateStr = endDate != null
+          ? GtFormatters.formatDateForApi(endDate)
+          : null;
 
-      // Серверная сортировка по дате (использует индекс idx_works_date_desc)
-      final worksResponse = await worksQuery.order('date', ascending: false);
+      // Шаг 1: Получаем агрегаты (общее кол-во, количество материалов и сумму) через RPC
+      final aggregatesResponse = await client.rpc(
+        'get_work_items_aggregates',
+        params: {
+          'p_object_id': objectId,
+          'p_start_date': startDateStr,
+          'p_end_date': endDateStr,
+          'p_system_filters': (systemFilters?.isEmpty ?? true)
+              ? null
+              : systemFilters,
+          'p_section_filters': (sectionFilters?.isEmpty ?? true)
+              ? null
+              : sectionFilters,
+          'p_floor_filters': (floorFilters?.isEmpty ?? true)
+              ? null
+              : floorFilters,
+          'p_search_query': searchQuery,
+        },
+      );
 
-      debugPrint(
-          '🔍 [WorkSearch] Найдено смен (works): ${worksResponse.length}');
+      final List<dynamic> aggList = aggregatesResponse as List<dynamic>;
+      final int totalCount = aggList.isNotEmpty
+          ? (aggList[0]['total_count'] as num? ?? 0).toInt()
+          : 0;
+      final num totalQuantity = aggList.isNotEmpty
+          ? (aggList[0]['total_quantity'] as num? ?? 0)
+          : 0;
+      final double totalSum = aggList.isNotEmpty
+          ? (aggList[0]['total_sum'] as num? ?? 0).toDouble()
+          : 0.0;
 
-      if (worksResponse.isEmpty) {
-        debugPrint('⚠️ [WorkSearch] Нет смен для объекта: $objectId');
-        return WorkSearchPaginatedResult(
-          results: const [],
-          totalCount: 0,
-          currentPage: page,
-          pageSize: pageSize,
+      // Шаг 2: Получаем пагинированные данные через новый RPC для корректной сортировки
+      final dataResponse = await client.rpc(
+        'search_work_items_paginated',
+        params: {
+          'p_object_id': objectId,
+          'p_start_date': startDateStr,
+          'p_end_date': endDateStr,
+          'p_system_filters': (systemFilters?.isEmpty ?? true)
+              ? null
+              : systemFilters,
+          'p_section_filters': (sectionFilters?.isEmpty ?? true)
+              ? null
+              : sectionFilters,
+          'p_floor_filters': (floorFilters?.isEmpty ?? true)
+              ? null
+              : floorFilters,
+          'p_search_query': searchQuery,
+          'p_from': from,
+          'p_to': to,
+        },
+      );
+
+      final List<dynamic> data = dataResponse as List<dynamic>;
+
+      final results = data.map((item) {
+        final price = item['price'] as num?;
+        final quantity = item['quantity'] as num? ?? 0;
+        final total = price != null ? (price * quantity).toDouble() : null;
+
+        return WorkSearchResult(
+          workDate: DateTime.parse(item['work_date'] as String),
+          objectName: item['object_name'] as String? ?? 'Неизвестный объект',
+          system: item['system'] as String? ?? '',
+          subsystem: item['subsystem'] as String? ?? '',
+          section: item['section'] as String? ?? '',
+          floor: item['floor'] as String? ?? '',
+          workName: item['work_name'] as String? ?? '',
+          materialName: item['work_name'] as String? ?? '',
+          unit: item['unit'] as String? ?? '',
+          quantity: quantity,
+          workItemId: item['work_item_id'] as String?,
+          workId: item['work_id'] as String?,
+          objectId: item['object_id'] as String?,
+          workStatus: item['work_status'] as String?,
+          estimateId: item['estimate_id'] as String?,
+          price: price?.toDouble(),
+          total: total,
+          positionNumber: item['position_number'] as String?,
+          contractNumber: item['contract_number'] as String?,
         );
-      }
-
-      // Создаем мапу works для быстрого доступа (уже отсортирована по дате)
-      final worksMap = <String, Map<String, dynamic>>{};
-      final sortedWorkIds = <String>[];
-
-      for (final work in worksResponse) {
-        final workId = work['id'] as String;
-        worksMap[workId] = work;
-        sortedWorkIds.add(workId);
-      }
-
-      debugPrint('🔍 [WorkSearch] WorkIds для поиска: ${sortedWorkIds.length}');
-
-      // Шаг 2: Загружаем все work_items с пагинацией (Supabase лимит 1000)
-      // Для правильной сортировки по дате смены нужно загрузить все и отсортировать
-      if (searchQuery != null && searchQuery.trim().isNotEmpty) {
-        debugPrint('🔍 [WorkSearch] Поиск по запросу: "$searchQuery"');
-      }
-
-      final allWorkItems = <Map<String, dynamic>>[];
-      int workItemsOffset = 0;
-      const int supabaseLimit = 1000;
-      bool hasMoreWorkItems = true;
-      int pageNum = 1;
-
-      while (hasMoreWorkItems) {
-        var pageQuery = client
-            .from('work_items')
-            .select('*, estimates(price, number, contracts(number))')
-            .inFilter('work_id', sortedWorkIds);
-
-        if (searchQuery != null && searchQuery.trim().isNotEmpty) {
-          pageQuery = pageQuery.ilike('name', '%${searchQuery.trim()}%');
-        }
-
-        // Применяем фильтры на сервере
-        if (systemFilters != null && systemFilters.isNotEmpty) {
-          pageQuery = pageQuery.inFilter('system', systemFilters);
-        }
-
-        if (sectionFilters != null && sectionFilters.isNotEmpty) {
-          pageQuery = pageQuery.inFilter('section', sectionFilters);
-        }
-
-        if (floorFilters != null && floorFilters.isNotEmpty) {
-          pageQuery = pageQuery.inFilter('floor', floorFilters);
-        }
-
-        final pageData = await pageQuery.range(
-            workItemsOffset, workItemsOffset + supabaseLimit - 1);
-
-        debugPrint(
-            '📄 [WorkSearch] WorkItems страница $pageNum: offset=$workItemsOffset, получено ${pageData.length}');
-
-        if (pageData.isEmpty) {
-          hasMoreWorkItems = false;
-        } else {
-          allWorkItems.addAll(pageData.cast<Map<String, dynamic>>());
-          workItemsOffset += pageData.length;
-
-          if (pageData.length < supabaseLimit) {
-            hasMoreWorkItems = false;
-          } else {
-            pageNum++;
-          }
-        }
-      }
-
-      final totalCount = allWorkItems.length;
-      debugPrint('🔍 [WorkSearch] Всего загружено work_items: $totalCount');
-
-      if (totalCount == 0) {
-        return WorkSearchPaginatedResult(
-          results: [],
-          totalCount: 0,
-          currentPage: page,
-          pageSize: pageSize,
-        );
-      }
-
-      // Шаг 3: Формируем все результаты с сохранением порядка из works (уже отсортированы)
-      // Группируем work_items по work_id для сохранения порядка дат
-      final workItemsByWorkId = <String, List<Map<String, dynamic>>>{};
-      for (final workItem in allWorkItems) {
-        final workId = workItem['work_id'] as String;
-        workItemsByWorkId.putIfAbsent(workId, () => []).add(workItem);
-      }
-
-      final results = <WorkSearchResult>[];
-
-      // Проходим по works в отсортированном порядке (новые сверху)
-      for (final workId in sortedWorkIds) {
-        final work = worksMap[workId];
-        if (work == null) continue;
-
-        final workItems = workItemsByWorkId[workId];
-        if (workItems == null || workItems.isEmpty) continue;
-
-        final workDate = DateTime.parse(work['date'] as String);
-        final object = work['objects'] as Map<String, dynamic>?;
-
-        // Добавляем все work_items для этой смены
-        for (final workItem in workItems) {
-          // Извлекаем данные из связанного estimate
-          final estimateData = workItem['estimates'] as Map<String, dynamic>?;
-          final price = estimateData?['price'] as num?;
-          final positionNumber = estimateData?['number'] as String?;
-
-          // Получаем номер договора через estimate -> contracts
-          final contractData =
-              estimateData?['contracts'] as Map<String, dynamic>?;
-          final contractNumber = contractData?['number'] as String?;
-
-          final quantity = workItem['quantity'] as num? ?? 0;
-          final total = price != null ? (price * quantity).toDouble() : null;
-
-          results.add(WorkSearchResult(
-            workDate: workDate,
-            objectName: object?['name'] as String? ?? 'Неизвестный объект',
-            system: workItem['system'] as String? ?? '',
-            subsystem: workItem['subsystem'] as String? ?? '',
-            section: workItem['section'] as String? ?? '',
-            floor: workItem['floor'] as String? ?? '',
-            workName: workItem['name'] as String? ?? '',
-            materialName: workItem['name'] as String? ?? '',
-            unit: workItem['unit'] as String? ?? '',
-            quantity: quantity,
-            workItemId: workItem['id'] as String?,
-            workId: workId,
-            objectId: work['object_id'] as String?,
-            workStatus: work['status'] as String?,
-            estimateId: workItem['estimate_id'] as String?,
-            price: price?.toDouble(),
-            total: total,
-            positionNumber: positionNumber,
-            contractNumber: contractNumber,
-          ));
-        }
-      }
-
-      // Результаты уже отсортированы по дате смены (используется порядок из sortedWorkIds)
-
-      // Шаг 4: Применяем пагинацию к отсортированным результатам
-      final offset = (page - 1) * pageSize;
-      final end = (offset + pageSize).clamp(0, results.length);
-      final paginatedResults = offset < results.length
-          ? results.sublist(offset.clamp(0, results.length), end)
-          : <WorkSearchResult>[];
-
-      debugPrint(
-          '✅ [WorkSearch] Сформировано результатов для страницы $page: ${paginatedResults.length} из $totalCount');
+      }).toList();
 
       return WorkSearchPaginatedResult(
-        results: paginatedResults,
+        results: results,
         totalCount: totalCount,
+        totalQuantity: totalQuantity,
+        totalSum: totalSum,
         currentPage: page,
         pageSize: pageSize,
       );
     } catch (e) {
+      debugPrint('❌ [WorkSearch] Ошибка поиска работ: $e');
       throw Exception('Ошибка поиска работ: $e');
     }
   }
@@ -234,6 +149,9 @@ class WorkSearchDataSourceImpl implements WorkSearchDataSource {
     required String objectId,
     DateTime? startDate,
     DateTime? endDate,
+    List<String>? systemFilters,
+    List<String>? sectionFilters,
+    String? searchQuery,
   }) async {
     try {
       if (objectId.isEmpty) {
@@ -244,23 +162,28 @@ class WorkSearchDataSourceImpl implements WorkSearchDataSource {
         );
       }
 
-      // Получаем все смены объекта с фильтрами по дате
-      var worksQuery =
-          client.from('works').select('id').eq('object_id', objectId);
+      // Используем новый RPC для получения доступных фильтров с учетом каскада
+      final response = await client.rpc(
+        'get_work_items_available_filters',
+        params: {
+          'p_object_id': objectId,
+          'p_start_date': startDate != null
+              ? GtFormatters.formatDateForApi(startDate)
+              : null,
+          'p_end_date': endDate != null
+              ? GtFormatters.formatDateForApi(endDate)
+              : null,
+          'p_system_filters': (systemFilters?.isEmpty ?? true)
+              ? null
+              : systemFilters,
+          'p_section_filters': (sectionFilters?.isEmpty ?? true)
+              ? null
+              : sectionFilters,
+          'p_search_query': searchQuery,
+        },
+      );
 
-      if (startDate != null) {
-        worksQuery =
-            worksQuery.gte('date', startDate.toIso8601String().split('T')[0]);
-      }
-      if (endDate != null) {
-        worksQuery =
-            worksQuery.lte('date', endDate.toIso8601String().split('T')[0]);
-      }
-
-      final worksResponse = await worksQuery;
-      final workIds = worksResponse.map((w) => w['id'] as String).toList();
-
-      if (workIds.isEmpty) {
+      if ((response as List).isEmpty) {
         return const WorkSearchFilterValues(
           systems: [],
           sections: [],
@@ -268,56 +191,16 @@ class WorkSearchDataSourceImpl implements WorkSearchDataSource {
         );
       }
 
-      // Загружаем все work_items для получения уникальных значений
-      // Используем пагинацию для обхода лимита Supabase
-      final allWorkItems = <Map<String, dynamic>>[];
-      int offset = 0;
-      const int supabaseLimit = 1000;
-      bool hasMore = true;
+      final data = response[0] as Map<String, dynamic>;
 
-      while (hasMore) {
-        final pageData = await client
-            .from('work_items')
-            .select('system, section, floor')
-            .inFilter('work_id', workIds)
-            .range(offset, offset + supabaseLimit - 1);
+      final systems = (data['systems'] as List?)?.cast<String>() ?? [];
+      final sections = (data['sections'] as List?)?.cast<String>() ?? [];
+      final floors = (data['floors'] as List?)?.cast<String>() ?? [];
 
-        if (pageData.isEmpty) {
-          hasMore = false;
-        } else {
-          allWorkItems.addAll(pageData.cast<Map<String, dynamic>>());
-          offset += pageData.length;
-
-          if (pageData.length < supabaseLimit) {
-            hasMore = false;
-          }
-        }
-      }
-
-      // Извлекаем уникальные значения
-      final systems = allWorkItems
-          .map((item) => item['system'] as String? ?? '')
-          .where((s) => s.isNotEmpty)
-          .toSet()
-          .toList()
-        ..sort();
-
-      final sections = allWorkItems
-          .map((item) => item['section'] as String? ?? '')
-          .where((s) => s.isNotEmpty)
-          .toSet()
-          .toList()
-        ..sort();
-
-      final floors = allWorkItems
-          .map((item) => item['floor'] as String? ?? '')
-          .where((s) => s.isNotEmpty)
-          .toSet()
-          .toList()
-        ..sort();
-
-      debugPrint(
-          '🔍 [WorkSearch] Загружено фильтров: систем=${systems.length}, участков=${sections.length}, этажей=${floors.length}');
+      // Сортируем результаты для удобства
+      systems.sort();
+      sections.sort();
+      floors.sort();
 
       return WorkSearchFilterValues(
         systems: systems,
@@ -325,6 +208,7 @@ class WorkSearchDataSourceImpl implements WorkSearchDataSource {
         floors: floors,
       );
     } catch (e) {
+      debugPrint('❌ [WorkSearch] Ошибка получения значений фильтров: $e');
       throw Exception('Ошибка получения значений фильтров: $e');
     }
   }

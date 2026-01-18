@@ -2,15 +2,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/domain/entities/user.dart';
+import 'package:projectgt/domain/entities/profile.dart' as entity;
 import 'package:projectgt/presentation/state/profile_state.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supa;
 import 'package:universal_html/html.dart' as web;
 
 /// Перечисление возможных статусов аутентификации пользователя.
-///
-/// Используется для управления состоянием авторизации в приложении.
 enum AuthStatus {
-  /// Начальное состояние (не определено).
+  /// Начальное состояние при запуске приложения.
   initial,
 
   /// Пользователь успешно аутентифицирован.
@@ -19,44 +18,37 @@ enum AuthStatus {
   /// Пользователь не аутентифицирован.
   unauthenticated,
 
-  /// Выполняется операция (загрузка, проверка и т.д.).
+  /// Процесс загрузки или проверки данных.
   loading,
 
-  /// Произошла ошибка аутентификации.
+  /// Произошла ошибка в процессе аутентификации.
   error,
 
-  /// Ожидает одобрения администратором (профиль status=false при первой авторизации).
+  /// Регистрация успешна, ожидается одобрение администратором.
   pendingApproval,
 
-  /// Доступ отключён администратором (профиль status=false при активной сессии).
+  /// Аккаунт пользователя заблокирован.
   disabled,
 
-  /// Пользователь аутентифицирован, но ещё не выбрал или не создал компанию.
+  /// Пользователь вошел, но еще не завершил настройку профиля/компании.
   onboarding,
 }
 
 /// Состояние аутентификации пользователя.
-///
-/// Хранит текущий статус, пользователя и сообщение об ошибке (если есть).
 class AuthState {
-  /// Текущий статус аутентификации ([AuthStatus]).
+  /// Текущий статус аутентификации.
   final AuthStatus status;
 
-  /// Текущий пользователь ([User]), если аутентифицирован.
+  /// Данные текущего пользователя (если есть).
   final User? user;
 
-  /// Сообщение об ошибке (если есть).
+  /// Сообщение об ошибке (если статус [AuthStatus.error]).
   final String? errorMessage;
 
-  /// Токен верификации для телефонного OTP.
+  /// Временный токен для верификации OTP.
   final String? verificationToken;
 
-  /// Создаёт новое состояние аутентификации.
-  ///
-  /// [status] — статус аутентификации.
-  /// [user] — текущий пользователь (опционально).
-  /// [errorMessage] — сообщение об ошибке (опционально).
-  /// [verificationToken] — токен верификации (опционально).
+  /// Конструктор [AuthState].
   AuthState({
     required this.status,
     this.user,
@@ -64,22 +56,10 @@ class AuthState {
     this.verificationToken,
   });
 
-  /// Возвращает начальное состояние ([AuthStatus.initial]).
-  factory AuthState.initial() {
-    return AuthState(status: AuthStatus.initial);
-  }
+  /// Создает начальное состояние.
+  factory AuthState.initial() => AuthState(status: AuthStatus.initial);
 
-  /// Создаёт копию состояния с изменёнными полями.
-  ///
-  /// [status] — новый статус (опционально).
-  /// [user] — новый пользователь (опционально).
-  /// [errorMessage] — новое сообщение об ошибке (опционально).
-  /// [verificationToken] — новый токен верификации (опционально).
-  ///
-  /// Пример:
-  /// ```dart
-  /// state = state.copyWith(status: AuthStatus.authenticated, user: user);
-  /// ```
+  /// Создает копию состояния с измененными полями.
   AuthState copyWith({
     AuthStatus? status,
     User? user,
@@ -96,41 +76,35 @@ class AuthState {
 }
 
 /// StateNotifier для управления состоянием аутентификации пользователя.
-///
-/// Использует use case-ы для входа, регистрации, выхода и проверки статуса пользователя.
 class AuthNotifier extends StateNotifier<AuthState> {
-  /// Провайдер use case для выхода.
-  final logoutUseCase = logoutUseCaseProvider;
+  final Ref _ref;
 
-  /// Провайдер use case для получения текущего пользователя.
-  final getCurrentUserUseCase = getCurrentUserUseCaseProvider;
-
-  /// Провайдер use case для отправки 6-значного кода на телефон.
-  final requestPhoneOtpUseCase = requestPhoneOtpUseCaseProvider;
-
-  /// Провайдер use case для подтверждения 6-значного кода на телефоне.
-  final verifyPhoneOtpUseCase = verifyPhoneOtpUseCaseProvider;
-
-  /// Флаг для отслеживания состояния проверки аутентификации.
+  // Флаги состояния
   bool _isCheckingAuth = false;
+  bool _isManualVerifying = false;
 
-  /// Создаёт [AuthNotifier] и инициализирует состояние.
-  AuthNotifier(Ref ref)
-      : _ref = ref,
-        super(AuthState.initial()) {
+  /// Указывает, выполняется ли сейчас ручная верификация (login).
+  bool get isManualVerifying => _isManualVerifying;
+
+  /// Конструктор [AuthNotifier].
+  AuthNotifier(this._ref) : super(AuthState.initial()) {
+    _initAuthListener();
     checkAuthStatus();
+  }
 
-    // Слушаем изменения сессии Supabase, чтобы гарантированно подхватывать вход без перезагрузки
+  void _initAuthListener() {
     try {
       supa.Supabase.instance.client.auth.onAuthStateChange.listen((_) {
-        checkAuthStatus();
+        if (!_isManualVerifying) {
+          checkAuthStatus();
+        }
       });
     } catch (_) {}
   }
 
-  final Ref _ref;
+  // --- Методы управления состоянием ---
 
-  /// Сбрасывает состояние ошибки, если оно активно.
+  /// Сбрасывает ошибку в состоянии.
   void resetError() {
     if (state.status == AuthStatus.error) {
       state = state.copyWith(
@@ -140,169 +114,154 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  /// Проверяет текущий статус аутентификации пользователя.
-  ///
-  /// Если пользователь аутентифицирован — обновляет состояние, иначе переводит в unauthenticated.
-  /// В случае ошибки — состояние становится error с сообщением.
-  /// Также проверяет новые Telegram авторизации из localStorage.
+  /// Проверяет текущий статус аутентификации.
+  /// Делает легкую проверку сессии. Тяжелые данные загружает только при необходимости.
   Future<void> checkAuthStatus({bool force = false}) async {
-    
-    if (!force && (state.status == AuthStatus.pendingApproval || state.status == AuthStatus.disabled)) {
+    // Защита от повторных вызовов
+    if (!force &&
+        (state.status == AuthStatus.pendingApproval ||
+            state.status == AuthStatus.disabled)) {
       return;
     }
     if (_isCheckingAuth) return;
+    if (_isManualVerifying && !force) return;
 
     _isCheckingAuth = true;
-    
-    // ВАЖНО: Не ставим статус loading, если уже есть пользователь, 
-    // чтобы избежать лишних перерисовок экрана загрузки
+
+    // Показываем лоадер только если у нас точно нет пользователя
     if (state.user == null) {
       state = state.copyWith(status: AuthStatus.loading);
     }
 
     try {
-      // 1) Проверяем наличие сессии (Web hash обработка остается)
+      // 1. Обработка Web URL (OAuth callback)
       if (kIsWeb) {
         final hash = web.window.location.hash;
         if (hash.contains('access_token')) {
           final fixedHref = web.window.location.href.replaceFirst('#/#', '#');
-          await supa.Supabase.instance.client.auth.getSessionFromUrl(Uri.parse(fixedHref));
+          await supa.Supabase.instance.client.auth.getSessionFromUrl(
+            Uri.parse(fixedHref),
+          );
         }
       }
 
-      // 2) Получаем текущего пользователя из Auth SDK (без запросов к таблицам профилей)
+      // 2. Проверка сессии Supabase (локальная, быстрая)
       final currentUser = supa.Supabase.instance.client.auth.currentUser;
-      
+
       if (currentUser == null) {
         state = state.copyWith(status: AuthStatus.unauthenticated, user: null);
         return;
       }
 
-      // Конвертируем Supabase User в нашу сущность User (UserModel)
-      // Базовую информацию берем из Auth metadata
+      // 3. Формируем базовую модель пользователя
       var user = User(
         id: currentUser.id,
         email: currentUser.email ?? '',
         name: currentUser.userMetadata?['name'] as String?,
         photoUrl: currentUser.userMetadata?['photoUrl'] as String?,
       );
-      
-      // Загружаем roleId и systemRole из таблицы company_members
-      // (где хранится role_id и systemRole активного члена компании)
-      try {
-        // 1. Получаем last_company_id из profiles
-        final profileResponse = await supa.Supabase.instance.client
-            .from('profiles')
-            .select('last_company_id')
-            .eq('id', currentUser.id)
-            .single();
-        
-        var lastCompanyId = profileResponse['last_company_id'] as String?;
-        String? roleId;
-        String? systemRole;
-        
-        // 2. Получаем roleId и systemRole из company_members (для активной компании пользователя)
-        if (lastCompanyId != null) {
-          try {
-            final memberData = await supa.Supabase.instance.client
-                .from('company_members')
-                .select('role_id, system_role')
-                .eq('user_id', currentUser.id)
-                .eq('company_id', lastCompanyId)
-                .eq('is_active', true)
-                .single();
-            roleId = memberData['role_id'] as String?;
-            systemRole = memberData['system_role'] as String?;
-          } catch (_) {
-            // Если не найдена роль в последней компании, пробуем получить первую активную
-            final memberData = await supa.Supabase.instance.client
-                .from('company_members')
-                .select('role_id, system_role, company_id')
-                .eq('user_id', currentUser.id)
-                .eq('is_active', true)
-                .limit(1)
-                .single();
-            roleId = memberData['role_id'] as String?;
-            systemRole = memberData['system_role'] as String?;
-            lastCompanyId = memberData['company_id'] as String?;
-          }
-        }
-        
-        user = user.copyWith(
-          roleId: roleId,
-          systemRole: systemRole,
-        );
-        
+
+      // 4. Если мы не заставляем (force), пытаемся взять роли из текущего состояния
+      // (чтобы не дергать базу при каждом чихе, например при onAuthStateChange)
+      if (!force && state.user?.id == user.id && state.user?.roleId != null) {
         state = state.copyWith(
           status: AuthStatus.authenticated,
-          user: user,
+          user: state.user,
         );
-      } catch (e) {
-        // Fallback: используем базового пользователя без roleId
-        state = state.copyWith(
-          status: AuthStatus.authenticated,
-          user: user,
-        );
+        return;
       }
+
+      // 5. Если нужно (при старте или force) - загружаем полный контекст.
+      // Чтобы избежать лоадера в AuthGate, дожидаемся загрузки данных профиля через UseCase.
+      final profileFuture = _ref.read(getProfileUseCaseProvider).call(user.id);
+      final enrichedUserFuture = _fetchUserContext(user);
+
+      final results = await Future.wait([profileFuture, enrichedUserFuture]);
+      final enrichedUser = results[1] as User;
+
+      state = state.copyWith(
+        status: AuthStatus.authenticated,
+        user: enrichedUser,
+      );
     } catch (e) {
-      state = state.copyWith(status: AuthStatus.error, errorMessage: e.toString());
+      state = state.copyWith(
+        status: AuthStatus.error,
+        errorMessage: e.toString(),
+      );
     } finally {
       _isCheckingAuth = false;
     }
   }
 
-  /// Вспомогательный метод для проверки статуса профиля и наличия компаний.
-  Future<void> _checkProfileAndCompanyStatus(User user) async {
+  /// Универсальный метод для загрузки контекста пользователя (Профиль + Роли + Статус).
+  /// Возвращает enriched User с roleId, systemRole и правильным AuthStatus.
+  Future<User> _fetchUserContext(User baseUser) async {
     try {
-      // 1. Проверяем статус профиля (активен/заблокирован)
-      final profile = await supa.Supabase.instance.client
+      final client = supa.Supabase.instance.client;
+
+      // 1. Получаем профиль (статус, approved_at, last_company_id)
+      final profileData = await client
           .from('profiles')
-          .select('status, approved_at')
-          .eq('id', user.id)
+          .select('status, approved_at, last_company_id')
+          .eq('id', baseUser.id)
           .single();
 
-      final bool statusFlag = (profile['status'] as bool?) ?? true;
-      final bool everApproved = profile['approved_at'] != null;
+      final bool statusFlag = (profileData['status'] as bool?) ?? true;
+      final bool everApproved = profileData['approved_at'] != null;
+      final String? lastCompanyId = profileData['last_company_id'] as String?;
 
+      // 2. Проверяем блокировку
       if (!statusFlag) {
-        state = state.copyWith(
-          status: everApproved ? AuthStatus.disabled : AuthStatus.pendingApproval,
-          user: user,
-        );
-        return;
+        final newStatus = everApproved
+            ? AuthStatus.disabled
+            : AuthStatus.pendingApproval;
+        // Важно: обновляем глобальный статус сразу, так как метод может вызываться из разных мест
+        if (state.status != newStatus) {
+          state = state.copyWith(status: newStatus, user: baseUser);
+        }
+        return baseUser; // Возвращаем базового юзера, роли ему не нужны
       }
 
-      // 2. Проверяем наличие компаний у пользователя
-      final companyCountResponse = await supa.Supabase.instance.client
-          .from('company_members')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('is_active', true);
+      // 3. Загружаем роль (roleId, systemRole) из активной компании
+      String? roleId;
+      String? systemRole;
 
-      final int companyCount = (companyCountResponse as List).length;
-
-      if (companyCount == 0) {
-        state = state.copyWith(
-          status: AuthStatus.onboarding,
-          user: user,
-        );
-      } else {
-        state = state.copyWith(
-          status: AuthStatus.authenticated,
-          user: user,
-        );
+      if (lastCompanyId != null) {
+        try {
+          final memberData = await client
+              .from('company_members')
+              .select('role_id, system_role')
+              .eq('user_id', baseUser.id)
+              .eq('company_id', lastCompanyId)
+              .eq('is_active', true)
+              .single();
+          roleId = memberData['role_id'] as String?;
+          systemRole = memberData['system_role'] as String?;
+        } catch (_) {
+          // Fallback: если последняя компания не найдена или неактивна, берем любую активную
+          try {
+            final memberData = await client
+                .from('company_members')
+                .select('role_id, system_role, company_id')
+                .eq('user_id', baseUser.id)
+                .eq('is_active', true)
+                .limit(1)
+                .single();
+            roleId = memberData['role_id'] as String?;
+            systemRole = memberData['system_role'] as String?;
+            // Можно обновить last_company_id здесь, если нужно
+          } catch (_) {}
+        }
       }
+
+      return baseUser.copyWith(roleId: roleId, systemRole: systemRole);
     } catch (e) {
-      // Если профиль ещё не создан или произошла ошибка — по умолчанию считаем authenticated,
-      // так как RLS и другие механизмы всё равно защитят данные.
-      state = state.copyWith(
-        status: AuthStatus.authenticated,
-        user: user,
-      );
+      // При ошибке базы возвращаем базового юзера, чтобы не ломать вход
+      return baseUser;
     }
   }
 
-  /// Отправляет 6-значный код на телефон
+  /// Отправляет код на телефон
   Future<void> requestPhoneOtp(String phone) async {
     try {
       final token = await _ref
@@ -310,44 +269,122 @@ class AuthNotifier extends StateNotifier<AuthState> {
           .execute(phone: phone);
       state = state.copyWith(verificationToken: token, errorMessage: null);
     } catch (e) {
-      state =
-          state.copyWith(status: AuthStatus.error, errorMessage: e.toString());
+      String message = e.toString();
+      if (message.contains('FunctionException')) {
+        message = 'Ошибка отправки кода. Попробуйте позже.';
+      }
+      state = state.copyWith(
+        status: AuthStatus.unauthenticated,
+        errorMessage: message,
+      );
+      rethrow;
     }
   }
 
-  /// Подтверждает 6-значный код с телефона и аутентифицирует пользователя
+  /// Подтверждает код и запускает процесс входа
   Future<void> verifyPhoneOtp(String phone, String code) async {
     if (state.verificationToken == null) {
+      const err = 'Токен верификации отсутствует';
       state = state.copyWith(
-          status: AuthStatus.error, errorMessage: 'Токен верификации отсутствует');
-      return;
+        status: AuthStatus.unauthenticated,
+        errorMessage: err,
+      );
+      throw Exception(err);
     }
 
-    state = state.copyWith(status: AuthStatus.loading);
+    _isManualVerifying = true;
+
     try {
-      final user = await _ref.read(verifyPhoneOtpUseCaseProvider).execute(
-            phone: phone,
-            code: code,
-            token: state.verificationToken!,
-          );
-      await _checkProfileAndCompanyStatus(user);
+      // 1. Верификация самого кода (быстро)
+      final user = await _ref
+          .read(verifyPhoneOtpUseCaseProvider)
+          .execute(phone: phone, code: code, token: state.verificationToken!);
+
+      // 2. Сразу обновляем User, чтобы UI показал успех (анимация), статус оставляем старым
+      state = state.copyWith(user: user, errorMessage: null);
+
+      // 3. Запускаем фоновую загрузку данных и переход
+      _finalizeAuthWithDelay(user);
     } catch (e) {
-      state =
-          state.copyWith(status: AuthStatus.error, errorMessage: e.toString());
+      _isManualVerifying = false;
+      String message = e.toString();
+      if (message.contains('Invalid or expired code')) {
+        message = 'Неверный или просроченный код';
+      } else if (message.contains('otp-notisend')) {
+        message = 'Ошибка службы отправки кода';
+      }
+
+      state = state.copyWith(
+        status: AuthStatus.unauthenticated,
+        errorMessage: message,
+      );
+      rethrow;
     }
   }
 
-  /// Выполняет выход пользователя из системы.
-  ///
-  /// В случае успеха — состояние становится unauthenticated, иначе — error.
+  /// Фоновый процесс: подгрузка профиля + задержка для анимации + редирект
+  Future<void> _finalizeAuthWithDelay(User user) async {
+    try {
+      // 1. Запускаем параллельно: таймер 1.5 сек и загрузку профиля через UseCase.
+      // Мы НЕ используем currentUserProfileProvider напрямую здесь, чтобы избежать круговой зависимости.
+      // CurrentUserProfileNotifier сам подхватит загрузку, так как он слушает изменения authProvider.
+
+      final profileFuture = _ref.read(getProfileUseCaseProvider).call(user.id);
+      final timerFuture = Future.delayed(const Duration(milliseconds: 1500));
+
+      // Ждем завершения обоих задач (минимум 1.5 сек)
+      final results = await Future.wait([profileFuture, timerFuture]);
+      final profile = results[0] as entity.Profile?;
+
+      if (profile == null) {
+        state = state.copyWith(
+          status: AuthStatus.error,
+          errorMessage: 'Профиль не найден',
+        );
+        _isManualVerifying = false;
+        return;
+      }
+
+      // 3. Определяем финальный статус на основе профиля.
+      if (!profile.status) {
+        await _fetchUserContext(user);
+        _isManualVerifying = false;
+        return;
+      }
+
+      final finalStatus = profile.lastCompanyId == null
+          ? AuthStatus.onboarding
+          : AuthStatus.authenticated;
+
+      state = state.copyWith(
+        status: finalStatus,
+        user: user.copyWith(
+          roleId: profile.roleId,
+          systemRole: profile.systemRole,
+        ),
+      );
+
+      // 4. Снимаем блокировку авто-чека с небольшой задержкой
+      Future.delayed(const Duration(milliseconds: 500), () {
+        _isManualVerifying = false;
+      });
+    } catch (e) {
+      if (mounted) {
+        state = state.copyWith(
+          status: AuthStatus.error,
+          errorMessage: e.toString(),
+        );
+        _isManualVerifying = false;
+      }
+    }
+  }
+
+  /// Выход из системы
   Future<void> logout() async {
     state = state.copyWith(status: AuthStatus.loading);
     try {
       await _ref.read(logoutUseCaseProvider).execute();
-      state = state.copyWith(
-        status: AuthStatus.unauthenticated,
-        user: null,
-      );
+      state = state.copyWith(status: AuthStatus.unauthenticated, user: null);
     } catch (e) {
       state = state.copyWith(
         status: AuthStatus.error,
@@ -356,7 +393,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  /// Переключает активную компанию пользователя.
+  /// Переключение компании
   Future<void> switchCompany(String companyId) async {
     final user = state.user;
     if (user == null) return;
@@ -367,11 +404,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
           .from('profiles')
           .update({'last_company_id': companyId})
           .eq('id', user.id);
-      
-      // [RBAC] Принудительно обновляем профиль текущего пользователя, чтобы подхватить новый last_company_id
-      await _ref.read(currentUserProfileProvider.notifier).refreshCurrentUserProfile(user.id);
-      
-      // Обновляем состояние аутентификации
+
+      // Обновляем профиль в другом провайдере
+      await _ref
+          .read(currentUserProfileProvider.notifier)
+          .refreshCurrentUserProfile(user.id);
+
+      // Перечитываем статус Auth с учетом новой компании (force)
       await checkAuthStatus(force: true);
     } catch (e) {
       state = state.copyWith(
@@ -382,9 +421,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 }
 
-/// Провайдер состояния аутентификации пользователя.
-///
-/// Используется для доступа к [AuthNotifier] и [AuthState] во всём приложении через Riverpod.
+/// Провайдер для управления состоянием аутентификации.
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   return AuthNotifier(ref);
 });

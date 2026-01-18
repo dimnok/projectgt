@@ -43,22 +43,6 @@
 - payroll_penalty ✅ (есть company_id)
 - receipts ✅ (есть company_id)
 
-Модуль Инвентаризация (Inventory)
-- inventory_breakdowns ❌ (НЕТ company_id)
-- inventory_categories ❌ (НЕТ company_id)
-- inventory_inventory ❌ (НЕТ company_id)
-- inventory_inventory_items ❌ (НЕТ company_id)
-- inventory_items ❌ (НЕТ company_id)
-- inventory_movements ❌ (НЕТ company_id)
-- inventory_receipt_items ❌ (НЕТ company_id)
-- inventory_receipts ❌ (НЕТ company_id)
-
-Модуль Закупки (Procurement)
-- procurement_applications ❌ (НЕТ company_id)
-- procurement_approval_config ❌ (НЕТ company_id)
-- procurement_history ❌ (НЕТ company_id)
-- procurement_requests ❌ (НЕТ company_id)
-
 Модуль Система и Доступы
 - companies ❌ (НЕТ company_id - корневая таблица)
 - company_members ✅ (есть company_id)

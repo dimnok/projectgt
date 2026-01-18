@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
+import 'package:projectgt/core/widgets/gt_text_field.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
 
 /// Форма для заполнения данных профиля (ФИО).
@@ -77,34 +78,13 @@ class _ProfileCompletionFormState extends ConsumerState<ProfileCompletionForm>
     return null;
   }
 
-  void _onFullNameChanged(String value) {
-    final capitalized = _capitalizeWords(value);
-    if (capitalized != value) {
-      _fullNameController.value = TextEditingValue(
-        text: capitalized,
-        selection: TextSelection.collapsed(offset: capitalized.length),
-      );
-    }
-  }
-
-  String _capitalizeWords(String text) {
-    if (text.isEmpty) return text;
-    return text
-        .split(' ')
-        .map((word) {
-          if (word.isEmpty) return word;
-          return word[0].toUpperCase() + word.substring(1).toLowerCase();
-        })
-        .join(' ');
-  }
-
   Future<void> _completeProfile() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     setState(() => _isLoading = true);
 
     try {
-      final fullName = _capitalizeWords(_fullNameController.text.trim());
+      final fullName = _fullNameController.text.trim();
       final currentProfile = ref.read(currentUserProfileProvider).profile;
 
       if (currentProfile == null) throw Exception('Профиль не найден');
@@ -156,19 +136,15 @@ class _ProfileCompletionFormState extends ConsumerState<ProfileCompletionForm>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              TextFormField(
+              GTTextField(
                 controller: _fullNameController,
-                decoration: const InputDecoration(
-                  labelText: 'Фамилия Имя',
-                  hintText: 'Иванов Иван',
-                  prefixIcon: Icon(CupertinoIcons.person),
-                ),
+                labelText: 'Фамилия Имя',
+                hintText: 'Иванов Иван',
+                prefixIcon: CupertinoIcons.person,
                 validator: _validateFullName,
                 textCapitalization: TextCapitalization.words,
-                onChanged: _onFullNameChanged,
                 enabled: !_isLoading,
-                textInputAction: TextInputAction.done,
-                onFieldSubmitted: (_) => _completeProfile(),
+                onSubmitted: (_) => _completeProfile(),
               ),
               const SizedBox(height: 32),
               GTPrimaryButton(

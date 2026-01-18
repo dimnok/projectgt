@@ -1,3 +1,4 @@
+import 'package:projectgt/core/utils/formatters.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../parsers/receipts_remote_parser.dart';
 
@@ -20,7 +21,7 @@ class MaterialsImportRepository {
       final rd = r.receiptDate;
       final cn = r.contractNumber;
       if (rn.isEmpty || rd == null) continue;
-      final dateStr = rd.toIso8601String().split('T').first;
+      final dateStr = GtFormatters.formatDateForApi(rd);
       files.add({
         'fileName': r.fileName,
         'receiptNumber': rn,

@@ -14,8 +14,9 @@ import 'package:projectgt/features/company/domain/entities/company_document.dart
 import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:projectgt/core/utils/formatters.dart';
+import 'package:projectgt/core/utils/ui_utils.dart';
+import 'package:projectgt/features/company/presentation/screens/company_screen_mobile.dart';
 
 /// Экран модуля "Компания".
 ///
@@ -23,13 +24,6 @@ import 'package:projectgt/core/utils/formatters.dart';
 class CompanyScreen extends ConsumerWidget {
   /// Создаёт экран "Компания".
   const CompanyScreen({super.key});
-
-  Future<void> _launchUrl(String url) async {
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    }
-  }
 
   void _showBankAccountsDialog(BuildContext context, WidgetRef ref,
       List<CompanyBankAccount> accounts, String companyId) {
@@ -75,7 +69,6 @@ class CompanyScreen extends ConsumerWidget {
                               backgroundColor: Colors.transparent,
                               child: DesktopDialogContent(
                                 title: 'Удаление счета',
-                                width: 400,
                                 footer: Row(
                                   mainAxisAlignment: MainAxisAlignment.end,
                                   children: [
@@ -166,7 +159,6 @@ class CompanyScreen extends ConsumerWidget {
                               backgroundColor: Colors.transparent,
                               child: DesktopDialogContent(
                                 title: 'Удаление документа',
-                                width: 400,
                                 footer: Row(
                                   mainAxisAlignment: MainAxisAlignment.end,
                                   children: [
@@ -225,6 +217,13 @@ class CompanyScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final size = MediaQuery.of(context).size;
+    final isMobile = size.width < 800;
+
+    if (isMobile) {
+      return const CompanyScreenMobile();
+    }
+
     final profileAsync = ref.watch(companyProfileProvider);
     final bankAccountsAsync = ref.watch(companyBankAccountsProvider);
     final documentsAsync = ref.watch(companyDocumentsProvider);
@@ -281,7 +280,8 @@ class CompanyScreen extends ConsumerWidget {
                                     value: profile.website ?? '—',
                                     icon: CupertinoIcons.globe,
                                     onAction: profile.website != null
-                                        ? () => _launchUrl(profile.website!)
+                                        ? () => UIUtils.launchExternalUrl(
+                                            profile.website!)
                                         : null,
                                     actionIcon:
                                         CupertinoIcons.arrow_up_right_circle,
@@ -293,7 +293,7 @@ class CompanyScreen extends ConsumerWidget {
                                     value: profile.email ?? '—',
                                     icon: CupertinoIcons.mail,
                                     onAction: profile.email != null
-                                        ? () => _launchUrl(
+                                        ? () => UIUtils.launchExternalUrl(
                                             'mailto:${profile.email}')
                                         : null,
                                     actionIcon: CupertinoIcons.mail,
@@ -305,8 +305,8 @@ class CompanyScreen extends ConsumerWidget {
                                     value: profile.phone ?? '—',
                                     icon: CupertinoIcons.phone,
                                     onAction: profile.phone != null
-                                        ? () =>
-                                            _launchUrl('tel:${profile.phone}')
+                                        ? () => UIUtils.launchExternalUrl(
+                                            'tel:${profile.phone}')
                                         : null,
                                     actionIcon: CupertinoIcons.phone,
                                   ),
@@ -343,7 +343,7 @@ class CompanyScreen extends ConsumerWidget {
                                         : null,
                                     canCopy: profile.directorPhone != null,
                                     onAction: profile.directorPhone != null
-                                        ? () => _launchUrl(
+                                        ? () => UIUtils.launchExternalUrl(
                                             'tel:${profile.directorPhone}')
                                         : null,
                                     actionIcon: CupertinoIcons.phone,
@@ -374,7 +374,7 @@ class CompanyScreen extends ConsumerWidget {
                                         profile.chiefAccountantPhone != null,
                                     onAction: profile.chiefAccountantPhone !=
                                             null
-                                        ? () => _launchUrl(
+                                        ? () => UIUtils.launchExternalUrl(
                                             'tel:${profile.chiefAccountantPhone}')
                                         : null,
                                     actionIcon: CupertinoIcons.phone,
@@ -696,13 +696,10 @@ class _CompanyHeaderSection extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surface,
                   shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                      blurRadius: 20,
-                      spreadRadius: 2,
-                    ),
-                  ],
+                  border: Border.all(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                    width: 2,
+                  ),
                 ),
                 child: CircleAvatar(
                   radius: 40,

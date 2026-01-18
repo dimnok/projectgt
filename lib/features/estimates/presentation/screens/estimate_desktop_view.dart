@@ -1,4 +1,3 @@
-import 'package:collection/collection.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -44,6 +43,10 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
   EstimateStatusFilter _statusFilter = EstimateStatusFilter.none;
   Estimate? _selectedHistoryEstimate;
 
+  // Состояние свернутых групп
+  final Map<String, bool> _expandedObjects = {};
+  final Map<String, bool> _expandedContracts = {};
+
   @override
   EstimateDetailArgs? get currentEstimateArgs {
     if (_selectedEstimateFile == null) return null;
@@ -58,7 +61,8 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final groupsAsync = ref.watch(estimateGroupsProvider);
+    final groupsAsync = ref.watch(groupedEstimateFilesProvider);
+    final isSidebarVisible = ref.watch(estimateSidebarVisibleProvider);
     // contracts больше не нужны для поиска номера договора, так как он есть в EstimateFile
     final objects = ref.watch(objectProvider).objects;
     final permissionService = ref.watch(permissionServiceProvider);
@@ -85,114 +89,223 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
               ),
             ],
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: Stack(
               children: [
-                if (_selectedHistoryEstimate != null)
-                  EstimateCompletionHistoryPanel(
-                    estimate: _selectedHistoryEstimate!,
-                    completedQuantity:
-                        _displayedCompletion?[_selectedHistoryEstimate!.id]
-                            ?.completedQuantity,
-                    onClose: () =>
-                        setState(() => _selectedHistoryEstimate = null),
-                  )
-                else
-                Container(
-                  width: 350,
-                  margin: const EdgeInsets.only(right: 16),
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.grey[900] : Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: isDark ? Colors.grey[800]! : Colors.grey[300]!,
+                // 1. Слой фона основного контейнера
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? const Color.fromRGBO(38, 40, 42, 1)
+                          : const Color.fromRGBO(248, 249, 250, 1),
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: PermissionGuard(
-                          module: 'estimates',
-                          permission: 'import',
-                          child: SizedBox(
-                            width: double.infinity,
-                            child: GTPrimaryButton(
-                              text: 'Импорт сметы',
-                              icon: CupertinoIcons.arrow_up_doc,
-                              onPressed: () =>
-                                  _showImportEstimateBottomSheet(context),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: groupsAsync.when(
-                          data: (estimateFiles) {
-                            if (estimateFiles.isEmpty) {
-                              return const Center(
-                                  child: Text('Сметы не найдены'));
-                            }
-                            return ClipRRect(
-                              borderRadius: BorderRadius.circular(16),
-                              child: ListView.separated(
-                                itemCount: estimateFiles.length,
-                                separatorBuilder: (context, index) => Divider(
-                                  height: 1,
-                                  indent: 16,
-                                  endIndent: 16,
-                                  color: theme.colorScheme.outlineVariant
-                                      .withValues(alpha: 0.5),
-                                ),
-                                itemBuilder: (context, index) {
-                                  final file = estimateFiles[index];
-                                  final isSelected =
-                                      _selectedEstimateFile?.estimateTitle ==
-                                              file.estimateTitle &&
-                                          _selectedEstimateFile?.objectId ==
-                                              file.objectId &&
-                                          _selectedEstimateFile?.contractId ==
-                                              file.contractId;
-
-                                  return _EstimateListTile(
-                                    file: file,
-                                    objects: objects,
-                                    isSelected: isSelected,
-                                    canDelete: canDelete,
-                                    onTap: () {
-                                        setState(() {
-                                          _selectedEstimateFile = file;
-                                          _selectedHistoryEstimate = null;
-                                        });
-                                    },
-                                    onDelete: () => _deleteEstimateFile(file),
-                                  );
-                                },
-                              ),
-                            );
-                          },
-                            loading: () => const Center(
-                                child: CupertinoActivityIndicator()),
-                          error: (e, s) =>
-                              Center(child: Text('Ошибка списка: $e')),
-                        ),
-                      ),
-                    ],
                   ),
                 ),
-                Expanded(
-                  child: _selectedEstimateFile == null
-                      ? _EmptyDesktopSelection(theme: theme)
-                      : _buildDetailPanel(context, _selectedEstimateFile!),
+
+                // 2. Левая панель (Задний план) - всегда на 16px от края
+                Positioned(
+                  left: 16,
+                  top: 16,
+                  bottom: 16,
+                  width: 350,
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 400),
+                    opacity: isSidebarVisible ? 1.0 : 0.0,
+                    curve: Curves.easeInOut,
+                    child: AnimatedScale(
+                      duration: const Duration(milliseconds: 400),
+                      scale: isSidebarVisible ? 1.0 : 0.95,
+                      curve: Curves.easeInOut,
+                      child: _selectedHistoryEstimate != null
+                          ? EstimateCompletionHistoryPanel(
+                              estimate: _selectedHistoryEstimate!,
+                              completedQuantity: _displayedCompletion?[
+                                      _selectedHistoryEstimate!.id]
+                                  ?.completedQuantity,
+                              onClose: () => setState(
+                                  () => _selectedHistoryEstimate = null),
+                            )
+                          : Container(
+                              decoration: BoxDecoration(
+                                color: isDark ? Colors.grey[900] : Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: isDark
+                                      ? Colors.grey[800]!
+                                      : Colors.grey[300]!,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.08),
+                                    blurRadius: 20,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.all(16.0),
+                                    child: PermissionGuard(
+                                      module: 'estimates',
+                                      permission: 'import',
+                                      child: SizedBox(
+                                        width: double.infinity,
+                                        child: GTPrimaryButton(
+                                          text: 'Импорт сметы',
+                                          icon: CupertinoIcons.arrow_up_doc,
+                                          onPressed: () =>
+                                              _showImportEstimateBottomSheet(
+                                                  context),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: groupsAsync.when(
+                                      data: (groupedEstimates) {
+                                        if (groupedEstimates.isEmpty) {
+                                          return const Center(
+                                              child: Text('Сметы не найдены'));
+                                        }
+                                        return ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                          child: ListView(
+                                            children: [
+                                              for (final objectEntry
+                                                  in groupedEstimates
+                                                      .entries) ...[
+                                                _ObjectGroupHeader(
+                                                  name: objectEntry.key,
+                                                  total: objectEntry
+                                                      .value.values
+                                                      .expand((files) => files)
+                                                      .fold(
+                                                          0.0,
+                                                          (sum, file) =>
+                                                              sum + file.total),
+                                                  isExpanded: _expandedObjects[
+                                                          objectEntry.key] ??
+                                                      false,
+                                                  onTap: () => setState(() {
+                                                    _expandedObjects[objectEntry
+                                                            .key] =
+                                                        !(_expandedObjects[
+                                                                objectEntry
+                                                                    .key] ??
+                                                            false);
+                                                  }),
+                                                ),
+                                                if (_expandedObjects[
+                                                        objectEntry.key] ??
+                                                    false)
+                                                  for (final contractEntry
+                                                      in objectEntry
+                                                          .value.entries) ...[
+                                                    _ContractGroupHeader(
+                                                      number: contractEntry.key,
+                                                      total: contractEntry.value
+                                                          .fold(
+                                                              0.0,
+                                                              (sum, file) =>
+                                                                  sum +
+                                                                  file.total),
+                                                      isExpanded: _expandedContracts[
+                                                              '${objectEntry.key}_${contractEntry.key}'] ??
+                                                          false,
+                                                      onTap: () => setState(() {
+                                                        _expandedContracts[
+                                                                '${objectEntry.key}_${contractEntry.key}'] =
+                                                            !(_expandedContracts[
+                                                                    '${objectEntry.key}_${contractEntry.key}'] ??
+                                                                false);
+                                                      }),
+                                                    ),
+                                                    if (_expandedContracts[
+                                                            '${objectEntry.key}_${contractEntry.key}'] ??
+                                                        false)
+                                                      ...contractEntry.value
+                                                          .map((file) {
+                                                        final isSelected =
+                                                            _selectedEstimateFile
+                                                                        ?.estimateTitle ==
+                                                                    file.estimateTitle &&
+                                                                _selectedEstimateFile
+                                                                        ?.objectId ==
+                                                                    file.objectId &&
+                                                                _selectedEstimateFile
+                                                                        ?.contractId ==
+                                                                    file.contractId;
+
+                                                        return _EstimateListTile(
+                                                          file: file,
+                                                          objects: objects,
+                                                          isSelected:
+                                                              isSelected,
+                                                          canDelete: canDelete,
+                                                          onTap: () {
+                                                            setState(() {
+                                                              _selectedEstimateFile =
+                                                                  file;
+                                                              _selectedHistoryEstimate =
+                                                                  null;
+                                                            });
+                                                          },
+                                                          onDelete: () =>
+                                                              _deleteEstimateFile(
+                                                                  file),
+                                                        );
+                                                      }),
+                                                  ],
+                                              ],
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                      loading: () => const Center(
+                                          child: CupertinoActivityIndicator()),
+                                      error: (e, s) => Center(
+                                          child: Text('Ошибка списка: $e')),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                    ),
+                  ),
+                ),
+
+                // 3. Основная область (Таблица) - наезжает сверху
+                AnimatedPositioned(
+                  duration: const Duration(milliseconds: 400),
+                  curve: Curves.easeInOutCubic,
+                  left: isSidebarVisible
+                      ? 382
+                      : 16, // 16 (край) или 16+350+16 (после списка)
+                  right: 16,
+                  top: 16,
+                  bottom: 16,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: isSidebarVisible
+                          ? null
+                          : [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.1),
+                                blurRadius: 12,
+                                offset: const Offset(-4, 0),
+                              ),
+                            ],
+                    ),
+                    child: _selectedEstimateFile == null
+                        ? _EmptyDesktopSelection(theme: theme)
+                        : _buildDetailPanel(context, _selectedEstimateFile!),
+                  ),
                 ),
               ],
             ),
@@ -352,8 +465,13 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
             viewMode: _viewMode,
             selectedId: _selectedHistoryEstimate?.id,
             onRowTap: _viewMode == EstimateViewMode.execution
-                ? (estimate) =>
-                    setState(() => _selectedHistoryEstimate = estimate)
+                ? (estimate) => setState(() {
+                      if (_selectedHistoryEstimate?.id == estimate.id) {
+                        _selectedHistoryEstimate = null;
+                      } else {
+                        _selectedHistoryEstimate = estimate;
+                      }
+                    })
                 : null,
             onEdit: (estimate) => openEditDialog(
               context,
@@ -364,6 +482,7 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
             ),
             onDuplicate: (estimate) => duplicateEstimateItem(context, estimate),
             onDelete: (id) => deleteEstimateItem(context, id),
+            contractNumber: file.contractNumber,
           ),
           if (overlayMessage != null)
             _TableLoadingOverlay(message: overlayMessage),
@@ -610,6 +729,148 @@ class _ErrorState extends StatelessWidget {
   }
 }
 
+class _ObjectGroupHeader extends StatelessWidget {
+  final String name;
+  final double total;
+  final bool isExpanded;
+  final VoidCallback onTap;
+
+  const _ObjectGroupHeader({
+    required this.name,
+    required this.total,
+    required this.isExpanded,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.black.withValues(alpha: 0.3) : Colors.grey[200],
+          border: Border(
+            bottom: BorderSide(
+              color: isDark ? Colors.grey[800]! : Colors.grey[300]!,
+              width: 0.5,
+            ),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              isExpanded
+                  ? CupertinoIcons.chevron_down
+                  : CupertinoIcons.chevron_right,
+              size: 14,
+              color: theme.colorScheme.primary,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                name.toUpperCase(),
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.2,
+                  color: theme.colorScheme.primary,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              formatCurrency(total),
+              style: theme.textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.primary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ContractGroupHeader extends StatelessWidget {
+  final String number;
+  final double total;
+  final bool isExpanded;
+  final VoidCallback onTap;
+
+  const _ContractGroupHeader({
+    required this.number,
+    required this.total,
+    required this.isExpanded,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: isDark ? Colors.grey[800]! : Colors.grey[300]!,
+              width: 0.5,
+            ),
+          ),
+        ),
+        child: Row(
+          children: [
+            const SizedBox(width: 16), // Extra indentation
+            Icon(
+              isExpanded
+                  ? CupertinoIcons.chevron_down
+                  : CupertinoIcons.chevron_right,
+              size: 12,
+              color: theme.colorScheme.outline,
+            ),
+            const SizedBox(width: 8),
+            Icon(
+              CupertinoIcons.doc_text,
+              size: 14,
+              color: theme.colorScheme.outline,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Договор: $number',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              formatCurrency(total),
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.onSurfaceVariant,
+                fontSize: 10,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _EstimateListTile extends StatelessWidget {
   final EstimateFile file;
   final List<ObjectEntity> objects;
@@ -630,16 +891,18 @@ class _EstimateListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final contractNumber = file.contractNumber ?? '—';
-    final object = objects.firstWhereOrNull((o) => o.id == file.objectId);
-    final objectName = object?.name ?? '—';
 
     return Material(
       color: isSelected ? theme.colorScheme.primary : Colors.transparent,
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          padding: const EdgeInsets.only(
+            left: 48.0, // Indentation for grouping (Object -> Contract -> Estimate)
+            right: 16.0,
+            top: 8.0,
+            bottom: 8.0,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -651,6 +914,7 @@ class _EstimateListTile extends StatelessWidget {
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: isSelected ? theme.colorScheme.onPrimary : null,
+                        fontSize: 14,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -660,7 +924,7 @@ class _EstimateListTile extends StatelessWidget {
                     IconButton(
                       icon: Icon(
                         CupertinoIcons.trash,
-                        size: 20,
+                        size: 18,
                         color: isSelected
                             ? theme.colorScheme.onPrimary
                             : theme.colorScheme.error,
@@ -671,34 +935,25 @@ class _EstimateListTile extends StatelessWidget {
                     ),
                 ],
               ),
-              const SizedBox(height: 2),
-              Text(
-                'Договор: $contractNumber',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: isSelected
-                      ? theme.colorScheme.onPrimary.withValues(alpha: 0.8)
-                      : theme.colorScheme.onSurfaceVariant,
-                  fontSize: 11,
-                ),
-              ),
-              Text(
-                'Объект: $objectName',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: isSelected
-                      ? theme.colorScheme.onPrimary.withValues(alpha: 0.8)
-                      : theme.colorScheme.onSurfaceVariant,
-                  fontSize: 11,
-                ),
-              ),
               const SizedBox(height: 4),
               Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  Text(
+                    'Позиций: ${file.itemsCount}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: isSelected
+                          ? theme.colorScheme.onPrimary.withValues(alpha: 0.7)
+                          : theme.colorScheme.onSurfaceVariant,
+                      fontSize: 11,
+                    ),
+                  ),
                   Text(
                     formatCurrency(file.total),
                     style: theme.textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: isSelected ? theme.colorScheme.onPrimary : null,
+                      fontSize: 13,
                     ),
                   ),
                 ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
+import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/features/company/domain/entities/company_profile.dart';
@@ -15,16 +16,28 @@ class CompanyProfileEditDialog extends ConsumerStatefulWidget {
   /// Создаёт диалог редактирования профиля.
   const CompanyProfileEditDialog({super.key, required this.profile});
 
-  /// Показывает диалог редактирования профиля.
+  /// Показывает диалог редактирования профиля адаптивно.
   static void show(BuildContext context, CompanyProfile profile) {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
+    final isDesktop = MediaQuery.of(context).size.width >= 800;
+
+    if (isDesktop) {
+      showDialog(
+        context: context,
+        builder: (context) => Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(24),
+          child: CompanyProfileEditDialog(profile: profile),
+        ),
+      );
+    } else {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
         backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.all(24),
-        child: CompanyProfileEditDialog(profile: profile),
-      ),
-    );
+        builder: (context) => CompanyProfileEditDialog(profile: profile),
+      );
+    }
   }
 
   @override
@@ -185,59 +198,73 @@ class _CompanyProfileEditDialogState
   Widget build(BuildContext context) {
     final isDesktop = MediaQuery.of(context).size.width >= 800;
 
-    return DesktopDialogContent(
-      title: 'Редактирование данных компании',
-      onClose: _isLoading ? () {} : null,
-      footer: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          GTSecondaryButton(
-            text: 'Отмена',
-            onPressed: _isLoading ? null : () => Navigator.pop(context),
-          ),
-          const SizedBox(width: 16),
-          GTPrimaryButton(
-            text: 'Сохранить',
-            isLoading: _isLoading,
-            onPressed: _save,
-          ),
-        ],
-      ),
-      child: Form(
-        key: _formKey,
-        child: CompanyFormContent(
-          isDesktop: isDesktop,
-          isLoading: _isLoading,
-          isSearching:
-              false, // В режиме редактирования поиск обычно не нужен, но можно добавить если требуется
-          nameFullController: _nameFullController,
-          nameShortController: _nameShortController,
-          innController: _innController,
-          kppController: _kppController,
-          ogrnController: _ogrnController,
-          okpoController: _okpoController,
-          legalAddressController: _legalAddressController,
-          actualAddressController: _actualAddressController,
-          directorNameController: _directorNameController,
-          directorPositionController: _directorPositionController,
-          directorBasisController: _directorBasisController,
-          directorPhoneController: _directorPhoneController,
-          chiefAccountantNameController: _chiefAccountantNameController,
-          chiefAccountantPhoneController: _chiefAccountantPhoneController,
-          contactPersonController: _contactPersonController,
-          websiteController: _websiteController,
-          emailController: _emailController,
-          phoneController: _phoneController,
-          activityDescriptionController: _activityDescriptionController,
-          taxationSystemController: _taxationSystemController,
-          vatRateController: _vatRateController,
-          isVatPayer: _isVatPayer,
-          onVatPayerChanged: (v) => setState(() => _isVatPayer = v),
-          onTaxationSystemChanged: (v) => setState(() {}),
-          onSearchByInn: () {}, // Можно добавить логику поиска если нужно
-        ),
+    final content = Form(
+      key: _formKey,
+      child: CompanyFormContent(
+        isDesktop: isDesktop,
+        isLoading: _isLoading,
+        isSearching:
+            false, // В режиме редактирования поиск обычно не нужен, но можно добавить если требуется
+        nameFullController: _nameFullController,
+        nameShortController: _nameShortController,
+        innController: _innController,
+        kppController: _kppController,
+        ogrnController: _ogrnController,
+        okpoController: _okpoController,
+        legalAddressController: _legalAddressController,
+        actualAddressController: _actualAddressController,
+        directorNameController: _directorNameController,
+        directorPositionController: _directorPositionController,
+        directorBasisController: _directorBasisController,
+        directorPhoneController: _directorPhoneController,
+        chiefAccountantNameController: _chiefAccountantNameController,
+        chiefAccountantPhoneController: _chiefAccountantPhoneController,
+        contactPersonController: _contactPersonController,
+        websiteController: _websiteController,
+        emailController: _emailController,
+        phoneController: _phoneController,
+        activityDescriptionController: _activityDescriptionController,
+        taxationSystemController: _taxationSystemController,
+        vatRateController: _vatRateController,
+        isVatPayer: _isVatPayer,
+        onVatPayerChanged: (v) => setState(() => _isVatPayer = v),
+        onTaxationSystemChanged: (v) => setState(() {}),
+        onSearchByInn: () {}, // Можно добавить логику поиска если нужно
       ),
     );
+
+    if (isDesktop) {
+      return DesktopDialogContent(
+        title: 'Редактирование данных компании',
+        onClose: _isLoading ? () {} : null,
+        footer: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            GTSecondaryButton(
+              text: 'Отмена',
+              onPressed: _isLoading ? null : () => Navigator.pop(context),
+            ),
+            const SizedBox(width: 16),
+            GTPrimaryButton(
+              text: 'Сохранить',
+              isLoading: _isLoading,
+              onPressed: _save,
+            ),
+          ],
+        ),
+        child: content,
+      );
+    } else {
+      return MobileBottomSheetContent(
+        title: 'Данные компании',
+        footer: GTPrimaryButton(
+          text: 'Сохранить',
+          isLoading: _isLoading,
+          onPressed: _save,
+        ),
+        child: content,
+      );
+    }
   }
 }
 

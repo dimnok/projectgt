@@ -37,7 +37,7 @@ class _CompanyOnboardingScreenState extends ConsumerState<CompanyOnboardingScree
         child: Center(
           child: SingleChildScrollView(
             child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: isDesktop ? 450 : double.infinity),
+              constraints: BoxConstraints(maxWidth: isDesktop ? 750 : double.infinity),
               child: Padding(
                 padding: const EdgeInsets.all(24.0),
                 child: Column(
@@ -171,17 +171,10 @@ class _CompanyOnboardingScreenState extends ConsumerState<CompanyOnboardingScree
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: theme.colorScheme.shadow.withValues(alpha: 0.05),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

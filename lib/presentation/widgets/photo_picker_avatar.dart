@@ -52,6 +52,12 @@ class PhotoPickerAvatar extends ConsumerWidget {
   /// Радиус аватара (по умолчанию 48).
   final double radius;
 
+  /// Радиус скругления (для квадратного аватара).
+  final double borderRadius;
+
+  /// Флаг квадратного аватара.
+  final bool isSquare;
+
   /// Иконка-заглушка, если фото отсутствует.
   final IconData placeholderIcon;
 
@@ -60,6 +66,9 @@ class PhotoPickerAvatar extends ConsumerWidget {
 
   /// Разрешить удаление фото (по умолчанию true).
   final bool allowDelete;
+
+  /// Показывать иконку камеры поверх аватара (iOS style).
+  final bool showCameraOverlay;
 
   /// Создаёт [PhotoPickerAvatar].
   ///
@@ -72,9 +81,12 @@ class PhotoPickerAvatar extends ConsumerWidget {
   /// [displayName] — имя сущности.
   /// [onPhotoChanged] — колбэк при выборе/замене.
   /// [radius] — радиус аватара.
+  /// [borderRadius] — радиус скругления (для квадратного аватара).
+  /// [isSquare] — флаг квадратного аватара.
   /// [placeholderIcon] — иконка-заглушка.
   /// [allowCamera] — разрешить камеру.
   /// [allowDelete] — разрешить удаление.
+  /// [showCameraOverlay] — показывать иконку камеры поверх.
   const PhotoPickerAvatar({
     super.key,
     required this.imageUrl,
@@ -86,39 +98,113 @@ class PhotoPickerAvatar extends ConsumerWidget {
     required this.displayName,
     required this.onPhotoChanged,
     this.radius = 48,
+    this.borderRadius = 16,
+    this.isSquare = false,
     this.placeholderIcon = Icons.person,
     this.allowCamera = true,
     this.allowDelete = true,
+    this.showCameraOverlay = false,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+
+    final imageProvider = localFile != null
+        ? FileImage(localFile!) as ImageProvider<Object>?
+        : (imageUrl != null && imageUrl!.isNotEmpty)
+            ? CachedNetworkImageProvider(imageUrl!) as ImageProvider<Object>?
+            : null;
+
+    Widget avatar = isSquare
+        ? Container(
+            width: radius * 2,
+            height: radius * 2,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(borderRadius),
+              image: imageProvider != null
+                  ? DecorationImage(
+                      image: imageProvider,
+                      fit: BoxFit.cover,
+                    )
+                  : null,
+            ),
+            child: imageProvider == null
+                ? Icon(placeholderIcon,
+                    size: radius, color: theme.colorScheme.primary)
+                : null,
+          )
+        : CircleAvatar(
+            radius: radius,
+            backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.08),
+            backgroundImage: imageProvider,
+            child: imageProvider == null
+                ? Icon(placeholderIcon,
+                    size: radius, color: theme.colorScheme.primary)
+                : null,
+          );
+
     return Column(
       children: [
-        Material(
-          color: Colors.transparent,
-          shape: const CircleBorder(),
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            onTap: isLoading ? null : () => _showPhotoOptions(context, ref),
-            child: CircleAvatar(
-              radius: radius,
-              backgroundColor:
-                  theme.colorScheme.primary.withValues(alpha: 0.08),
-              backgroundImage: localFile != null
-                  ? FileImage(localFile!) as ImageProvider<Object>?
-                  : (imageUrl != null && imageUrl!.isNotEmpty)
-                      ? CachedNetworkImageProvider(imageUrl!)
-                          as ImageProvider<Object>?
-                      : null,
-              child:
-                  (localFile == null && (imageUrl == null || imageUrl!.isEmpty))
-                      ? Icon(placeholderIcon,
-                          size: radius, color: theme.colorScheme.primary)
-                      : null,
+        Stack(
+          children: [
+            Material(
+              color: Colors.transparent,
+              shape: isSquare
+                  ? RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(borderRadius))
+                  : const CircleBorder(),
+              child: InkWell(
+                customBorder: isSquare
+                    ? RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(borderRadius))
+                    : const CircleBorder(),
+                onTap: isLoading ? null : () => _showPhotoOptions(context, ref),
+                child: avatar,
+              ),
             ),
-          ),
+            if (showCameraOverlay && !isLoading)
+              Positioned(
+                top: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.pinkAccent,
+                    borderRadius: BorderRadius.circular(6),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.photo_camera,
+                    size: 14,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            if (isLoading)
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(
+                        isSquare ? borderRadius : radius),
+                  ),
+                  child: const Center(
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
         if (label.isNotEmpty) ...[
           const SizedBox(height: 8),

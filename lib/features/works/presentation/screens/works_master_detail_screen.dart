@@ -177,6 +177,7 @@ class _WorksMasterDetailScreenState
 
     // Права на удаление для десктопного AppBar
     bool canDeleteSelected = false;
+    bool canEditSelectedPlan = false;
     Work? currentWork;
     if (isDesktop &&
         _displayMode == _DisplayMode.works &&
@@ -195,6 +196,17 @@ class _WorksMasterDetailScreenState
             hasDeletePermission &&
             ((isOwner && !isWorkClosed) || isCompanyOwner);
       }
+    } else if (isDesktop &&
+        _displayMode == _DisplayMode.workPlans &&
+        selectedWorkPlan != null) {
+      final permissionService = ref.watch(permissionServiceProvider);
+      final currentProfile = ref.watch(currentUserProfileProvider).profile;
+      final isCompanyOwner = currentProfile?.systemRole == 'owner';
+
+      canEditSelectedPlan =
+          permissionService.can('work_plans', 'update') || isCompanyOwner;
+      canDeleteSelected =
+          permissionService.can('work_plans', 'delete') || isCompanyOwner;
     }
 
     // Актуализируем selectedMonth из groups, чтобы данные в панели обновлялись
@@ -224,7 +236,9 @@ class _WorksMasterDetailScreenState
                         ? 'План: ${formatRuDate(selectedWorkPlan!.date)}'
                         : 'Планы работ'),
               actions: [
-                if (canDeleteSelected && currentWork != null)
+                if (canDeleteSelected &&
+                    _displayMode == _DisplayMode.works &&
+                    currentWork != null)
                   CupertinoButton(
                     padding: EdgeInsets.zero,
                     onPressed: () =>
@@ -235,6 +249,34 @@ class _WorksMasterDetailScreenState
                       size: 22,
                     ),
                   ),
+                if (_displayMode == _DisplayMode.workPlans &&
+                    selectedWorkPlan != null) ...[
+                  if (canEditSelectedPlan)
+                    CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      onPressed: () =>
+                          _showEditWorkPlanModal(context, selectedWorkPlan!),
+                      child: const Icon(
+                        CupertinoIcons.pencil,
+                        color: Colors.amber,
+                        size: 22,
+                      ),
+                    ),
+                  if (canDeleteSelected)
+                    CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      onPressed: () => _confirmDeleteWorkPlan(
+                        context,
+                        ref,
+                        selectedWorkPlan!,
+                      ),
+                      child: const Icon(
+                        CupertinoIcons.delete,
+                        color: Colors.red,
+                        size: 22,
+                      ),
+                    ),
+                ],
               ],
             )
           : null,
@@ -289,6 +331,64 @@ class _WorksMasterDetailScreenState
           AppSnackBar.show(
             context: context,
             message: 'Смена успешно удалена',
+            kind: AppSnackBarKind.success,
+          );
+        }
+      },
+    );
+  }
+
+  /// Показывает модальное окно редактирования плана работ.
+  void _showEditWorkPlanModal(BuildContext context, WorkPlan plan) {
+    if (ResponsiveUtils.isDesktop(context)) {
+      showDialog(
+        context: context,
+        builder: (context) => Dialog(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          child: WorkPlanFormModal(
+            workPlan: plan,
+            onSuccess: (isNew) {
+              ref.read(workPlanNotifierProvider.notifier).loadWorkPlans();
+              // Обновляем группы, чтобы изменения (дата, сумма) отразились в списке
+              ref.read(workPlanMonthGroupsProvider.notifier).refresh();
+            },
+          ),
+        ),
+      );
+    }
+  }
+
+  /// Показывает диалог подтверждения удаления плана работ.
+  void _confirmDeleteWorkPlan(
+    BuildContext context,
+    WidgetRef ref,
+    WorkPlan plan,
+  ) {
+    CupertinoDialogs.showDeleteConfirmDialog(
+      context: context,
+      title: 'Подтверждение удаления',
+      message:
+          'Вы действительно хотите удалить план от ${formatRuDate(plan.date)}?\n\nЭто действие удалит все блоки работ в плане. Операция необратима.',
+      confirmButtonText: 'Удалить',
+      onConfirm: () async {
+        if (plan.id == null) return;
+
+        await ref
+            .read(workPlanNotifierProvider.notifier)
+            .deleteWorkPlan(plan.id!);
+
+        // Обновляем список планов
+        await ref.read(workPlanMonthGroupsProvider.notifier).refresh();
+
+        setState(() {
+          selectedWorkPlan = null;
+        });
+
+        if (context.mounted) {
+          AppSnackBar.show(
+            context: context,
+            message: 'План работ успешно удален',
             kind: AppSnackBarKind.success,
           );
         }

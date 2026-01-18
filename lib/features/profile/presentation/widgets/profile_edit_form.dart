@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:projectgt/core/utils/formatters.dart';
+import 'package:projectgt/core/widgets/gt_text_field.dart';
 import 'package:projectgt/core/widgets/gt_dropdown.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/domain/entities/profile.dart';
@@ -83,27 +85,6 @@ class ProfileEditFormState extends ConsumerState<ProfileEditForm> {
   String? _selectedRoleId;
   List<role_entity.Role> _roles = [];
 
-  /// Капитализирует каждое слово в строке (делает первую букву заглавной).
-  String _capitalizeWords(String text) {
-    if (text.isEmpty) return text;
-
-    return text.split(' ').map((word) {
-      if (word.isEmpty) return word;
-      return word[0].toUpperCase() + word.substring(1).toLowerCase();
-    }).join(' ');
-  }
-
-  /// Обрабатывает изменение текста в поле ФИО.
-  void _onFullNameChanged(String value) {
-    final capitalized = _capitalizeWords(value);
-    if (capitalized != value) {
-      _fullNameController.value = TextEditingValue(
-        text: capitalized,
-        selection: TextSelection.collapsed(offset: capitalized.length),
-      );
-    }
-  }
-
   /// Отправляет форму на валидацию и сохранение.
   ///
   /// Должна вызываться извне, если [widget.showButtons] == false.
@@ -175,13 +156,10 @@ class ProfileEditFormState extends ConsumerState<ProfileEditForm> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          TextFormField(
+          GTTextField(
             controller: _fullNameController,
-            decoration: const InputDecoration(
-              labelText: 'ФИО',
-              prefixIcon: Icon(CupertinoIcons.person),
-            ),
-            onChanged: _onFullNameChanged,
+            labelText: 'ФИО',
+            prefixIcon: CupertinoIcons.person,
             textCapitalization: TextCapitalization.words,
             validator: (value) {
               if (value == null || value.isEmpty) {
@@ -191,14 +169,13 @@ class ProfileEditFormState extends ConsumerState<ProfileEditForm> {
             },
           ),
           const SizedBox(height: 16),
-          TextFormField(
+          GTTextField(
             controller: _phoneController,
-            decoration: const InputDecoration(
-              labelText: 'Телефон',
-              prefixIcon: Icon(CupertinoIcons.phone),
-              hintText: '+7-(XXX)-XXX-XXXX',
-            ),
+            labelText: 'Телефон',
+            prefixIcon: CupertinoIcons.phone,
+            hintText: '+7 (XXX) XXX ####',
             keyboardType: TextInputType.phone,
+            inputFormatters: [GtFormatters.phoneFormatter()],
           ),
           const SizedBox(height: 16),
           if (widget.isAdmin) ...[

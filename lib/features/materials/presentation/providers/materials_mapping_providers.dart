@@ -4,7 +4,6 @@ import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'materials_providers.dart';
-import '../widgets/materials_search.dart';
 
 /// Строка таблицы сопоставления: позиция сметы + количество алиасов (+ предзагруженные алиасы)
 class EstimateMappingRow {
@@ -80,6 +79,10 @@ class MaterialAliasRow {
 final expandedEstimatesProvider =
     StateProvider<Set<String>>((ref) => <String>{});
 
+/// Фильтры по колонкам для таблицы сопоставления материалов
+final materialsMappingColumnFiltersProvider =
+    StateProvider<Map<String, String>>((ref) => {});
+
 /// Пагинация списка сметных позиций с предзагруженными алиасами
 class EstimatesMappingPager
     extends StateNotifier<AsyncValue<List<EstimateMappingRow>>> {
@@ -97,7 +100,7 @@ class EstimatesMappingPager
 
   /// Отфильтрованный номер договора.
   final String? contractNumber;
-  String _query = '';
+  Map<String, String> _columnFilters = {};
 
   /// Создаёт пагинатор сопоставления смет с алиасами.
   EstimatesMappingPager(this._client, this._activeCompanyId,
@@ -124,6 +127,16 @@ class EstimatesMappingPager
   Future<void> refresh() async {
     _initialized = false;
     await loadInitial();
+  }
+
+  /// Обновляет фильтры по колонкам и перезагружает первую страницу.
+  void updateColumnFilters(Map<String, String> filters) {
+    _columnFilters = Map.from(filters);
+    _offset = 0;
+    hasMore = true;
+    _initialized = true;
+    // ignore: discarded_futures
+    _loadPage(reset: true);
   }
 
   Future<void> _loadPage({required bool reset}) async {
@@ -159,14 +172,17 @@ class EstimatesMappingPager
       if (contractId != null) {
         builder = builder.eq('contract_id', contractId);
       }
-      if (_query.trim().isNotEmpty) {
-        final term = _query.trim();
-        // ignore: deprecated_member_use
-        final normalized = term.replaceAll(RegExp('\\s+'), ' ');
-        final escaped = normalized.replaceAll('"', '""');
-        final pattern = '%$escaped%';
-        builder = builder.or('name.ilike."$pattern",unit.ilike."$pattern"');
-      }
+
+      // Применяем фильтры по колонкам
+      _columnFilters.forEach((key, value) {
+        if (value.trim().isNotEmpty) {
+          final val = '%${value.trim()}%';
+          if (['name', 'unit', 'number'].contains(key)) {
+            builder = builder.ilike(key, val);
+          }
+        }
+      });
+
       final estimates =
           await builder.order('name', ascending: true).range(from, to);
 
@@ -281,17 +297,12 @@ final estimatesMappingPagerProvider = StateNotifierProvider<
   final contractNumber = ref.watch(selectedContractNumberProvider);
   final pager = EstimatesMappingPager(client, activeCompanyId ?? '',
       contractNumber: contractNumber);
-  ref.listen<String>(materialsSearchQueryProvider('mapping'), (prev, next) {
-    // Сброс пагинации и мягкая перезагрузка
-    pager
-      .._query = next
-      .._offset = 0
-      ..hasMore = true
-      .._initialized = true;
-    // ignore: discarded_futures
-    pager._loadPage(reset: true);
+  // Живое обновление фильтров по колонкам
+  ref.listen<Map<String, String>>(materialsMappingColumnFiltersProvider,
+      (prev, next) {
+    pager.updateColumnFilters(next);
   });
-  pager._query = ref.read(materialsSearchQueryProvider('mapping'));
+  pager._columnFilters = ref.read(materialsMappingColumnFiltersProvider);
   // стартовая загрузка произойдет при первом вызове loadInitial снаружи
   return pager;
 });

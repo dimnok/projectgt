@@ -255,7 +255,7 @@ class _ImportPreviewDialogState extends ConsumerState<_ImportPreviewDialog> {
           map[i] = false;
           continue;
         }
-        final dateStr = rd.toIso8601String().split('T').first;
+        final dateStr = GtFormatters.formatDateForApi(rd);
         try {
           final ex = await client
               .from('receipts')
@@ -385,7 +385,7 @@ class _ImportPreviewDialogState extends ConsumerState<_ImportPreviewDialog> {
       final rn = (r.receiptNumber ?? '').trim();
       final rd = r.receiptDate;
       if (rn.isEmpty || rd == null) continue;
-      final dateStr = rd.toIso8601String().split('T').first;
+      final dateStr = GtFormatters.formatDateForApi(rd);
       final cn = (r.contractNumber ?? '').trim();
       try {
         final res = await client.functions.invoke(

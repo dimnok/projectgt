@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:intl/intl.dart';
+import 'package:projectgt/core/utils/formatters.dart';
 
 /// Чип для выбора длительности (например, 7, 14, 28 дней).
 class ApplicationDurationChip extends StatelessWidget {
@@ -72,7 +72,6 @@ class ApplicationDateSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final dateFormat = DateFormat('dd.MM.yyyy');
 
     return InkWell(
       onTap: onTap,
@@ -102,7 +101,7 @@ class ApplicationDateSelector extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  dateFormat.format(date),
+                  formatRuDate(date),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),

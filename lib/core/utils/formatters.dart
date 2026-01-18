@@ -111,8 +111,35 @@ class GtFormatters {
   }
 
   /// Форматирует номер телефона в реальном времени.
-  /// Маска: +7 (###) ### ####
+  /// Маска: +7 XXX XXX XX XX
   static TextInputFormatter phoneFormatter() => _PhoneInputFormatter();
+
+  /// Форматирует номер телефона для отображения.
+  /// Пример: "79610092141" -> "+7 961 009 21 41"
+  static String formatPhone(String? phone) {
+    if (phone == null || phone.isEmpty) return 'Не указан';
+
+    // Очищаем от всего, кроме цифр
+    String digits = phone.replaceAll(RegExp(r'\D'), '');
+
+    // Если это российский номер (11 цифр, начинается с 7 или 8), берем последние 10 цифр
+    if (digits.length == 11 &&
+        (digits.startsWith('7') || digits.startsWith('8'))) {
+      digits = digits.substring(1);
+    }
+
+    // Если у нас ровно 10 цифр (код + номер), форматируем по стандарту +7 XXX XXX XX XX
+    if (digits.length == 10) {
+      return '+7 ${digits.substring(0, 3)} ${digits.substring(3, 6)} ${digits.substring(6, 8)} ${digits.substring(8, 10)}';
+    }
+
+    // Если цифр меньше 10 или это не российский номер, возвращаем с префиксом + если это похоже на номер
+    if (digits.isNotEmpty) {
+      return phone.startsWith('+') ? phone : '+$digits';
+    }
+
+    return phone;
+  }
 
   /// Форматирует сумму с разделением тысяч пробелом в реальном времени.
   /// Пример: 1234567.89 -> "1 234 567.89"
@@ -194,17 +221,16 @@ class _PhoneInputFormatter extends TextInputFormatter {
     String formatted = '+7 ';
 
     if (digits.isNotEmpty) {
-      formatted += '(';
       if (digits.length <= 3) {
         formatted += digits;
+      } else if (digits.length <= 6) {
+        formatted += '${digits.substring(0, 3)} ${digits.substring(3)}';
+      } else if (digits.length <= 8) {
+        formatted +=
+            '${digits.substring(0, 3)} ${digits.substring(3, 6)} ${digits.substring(6)}';
       } else {
-        formatted += '${digits.substring(0, 3)}) ';
-        if (digits.length <= 6) {
-          formatted += digits.substring(3);
-        } else {
-          formatted += '${digits.substring(3, 6)} ';
-          formatted += digits.substring(6, min(digits.length, 10));
-        }
+        formatted +=
+            '${digits.substring(0, 3)} ${digits.substring(3, 6)} ${digits.substring(6, 8)} ${digits.substring(8, min(digits.length, 10))}';
       }
     }
 
@@ -255,3 +281,6 @@ double? parseAmount(String? text) => GtFormatters.parseAmount(text);
 /// Алиас для парсинга даты из строки.
 DateTime? parseDate(String? text, String format) =>
     GtFormatters.parseDate(text, format);
+
+/// Алиас для форматирования номера телефона для отображения (+7 XXX XXX XX XX).
+String formatPhone(String? phone) => GtFormatters.formatPhone(phone);

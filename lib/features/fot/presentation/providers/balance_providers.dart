@@ -35,8 +35,28 @@ final employeeAggregatedBalanceProvider =
 
     return balance;
   } catch (e) {
-    // Возвращаем пустой результат при ошибке
     return <String, double>{};
+  }
+});
+
+/// Провайдер баланса конкретного сотрудника.
+///
+/// **ОПТИМИЗАЦИЯ:** Используется на экране профиля, чтобы не грузить балансы всех сотрудников компании.
+final singleEmployeeBalanceProvider =
+    FutureProvider.family<double, String>((ref, employeeId) async {
+  final client = ref.read(supabaseClientProvider);
+  final activeCompanyId = ref.watch(activeCompanyIdProvider);
+
+  if (activeCompanyId == null) return 0.0;
+
+  try {
+    final response = await client.rpc('calculate_single_employee_balance', params: {
+      'p_employee_id': employeeId,
+      'p_company_id': activeCompanyId,
+    });
+    return (response as num?)?.toDouble() ?? 0.0;
+  } catch (e) {
+    return 0.0;
   }
 });
 

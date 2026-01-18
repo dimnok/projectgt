@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
+import '../providers/work_search_date_provider.dart';
 import '../providers/work_search_provider.dart';
 
 /// Провайдер запроса поиска для таба поиска.
@@ -61,6 +62,7 @@ class _ExportSearchActionState extends ConsumerState<ExportSearchAction> {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: _debounceDelayMs), () {
       final selectedObjectId = ref.read(exportSelectedObjectIdProvider);
+      final dateRange = ref.read(workSearchDateRangeProvider);
 
       if (query.trim().isEmpty) {
         // Если запрос пустой, но есть выбранный объект - загружаем его работы
@@ -68,6 +70,8 @@ class _ExportSearchActionState extends ConsumerState<ExportSearchAction> {
           final filters = ref.read(exportSearchFilterProvider);
           ref.read(workSearchProvider.notifier).searchMaterials(
                 objectId: selectedObjectId,
+                startDate: dateRange?.start,
+                endDate: dateRange?.end,
                 searchQuery: null,
                 systemFilters: filters['system']?.toList(),
                 sectionFilters: filters['section']?.toList(),
@@ -80,6 +84,8 @@ class _ExportSearchActionState extends ConsumerState<ExportSearchAction> {
         final filters = ref.read(exportSearchFilterProvider);
         ref.read(workSearchProvider.notifier).searchMaterials(
               objectId: selectedObjectId,
+              startDate: dateRange?.start,
+              endDate: dateRange?.end,
               searchQuery: query.trim(),
               systemFilters: filters['system']?.toList(),
               sectionFilters: filters['section']?.toList(),
@@ -164,10 +170,13 @@ class _ExportSearchActionState extends ConsumerState<ExportSearchAction> {
               ref.read(exportSearchQueryProvider.notifier).state = '';
               // Если есть выбранный объект, загружаем его работы
               final selectedObjectId = ref.read(exportSelectedObjectIdProvider);
+              final dateRange = ref.read(workSearchDateRangeProvider);
               if (selectedObjectId != null) {
                 final filters = ref.read(exportSearchFilterProvider);
                 ref.read(workSearchProvider.notifier).searchMaterials(
                       objectId: selectedObjectId,
+                      startDate: dateRange?.start,
+                      endDate: dateRange?.end,
                       searchQuery: null,
                       systemFilters: filters['system']?.toList(),
                       sectionFilters: filters['section']?.toList(),

@@ -47,8 +47,9 @@ class ProfileUtils {
     }
 
     // Если пользователь НЕ админ - используем оригинальные значения для критических полей
-    final objectIdsToSave =
-        isAdmin ? selectedObjectIds : originalProfile.objectIds ?? [];
+    final objectIdsToSave = isAdmin
+        ? selectedObjectIds
+        : originalProfile.objectIds ?? [];
     final roleIdToSave = isAdmin ? roleId : originalProfile.roleId;
 
     return originalProfile.copyWith(

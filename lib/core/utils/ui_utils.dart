@@ -1,7 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Утилиты для работы с UI элементами
 class UIUtils {
+  /// Запускает URL во внешнем приложении (браузер, почта, телефон)
+  static Future<void> launchExternalUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
+  }
+
   /// Создает стандартную декорацию для полей ввода
   static InputDecoration createInputDecoration({
     required String labelText,

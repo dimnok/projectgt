@@ -33,16 +33,6 @@ import 'package:projectgt/features/fot/presentation/screens/payroll_list_screen.
 import 'package:projectgt/features/export/presentation/screens/export_screen.dart';
 import 'package:projectgt/features/work_plans/presentation/screens/work_plan_details_screen.dart';
 import 'package:projectgt/features/materials/presentation/screens/material_screen.dart';
-import 'package:projectgt/features/materials/presentation/screens/materials_mapping_screen.dart';
-import 'package:projectgt/features/inventory/presentation/screens/inventory_screen.dart';
-import 'package:projectgt/features/inventory/presentation/screens/inventory_receipt_screen.dart';
-import 'package:projectgt/features/inventory/presentation/screens/inventory_item_details_screen.dart';
-import 'package:projectgt/features/inventory/presentation/screens/inventory_transfer_screen.dart';
-import 'package:projectgt/features/inventory/presentation/screens/inventory_breakdowns_screen.dart';
-import 'package:projectgt/features/inventory/presentation/screens/inventory_inventory_screen.dart';
-import 'package:projectgt/features/inventory/presentation/screens/inventory_categories_reference_screen.dart';
-import 'package:projectgt/features/procurement/presentation/screens/procurement_list_screen.dart';
-import 'package:projectgt/features/procurement/presentation/screens/procurement_settings_screen.dart';
 import 'package:projectgt/features/cash_flow/presentation/screens/cash_flow_list_screen.dart';
 // Telegram moderation экраны удалены
 import 'package:projectgt/core/widgets/auth_gate.dart';
@@ -610,69 +600,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const MaterialScreen(),
       ),
 
-      // Экран сопоставления материалов
-      GoRoute(
-        path: AppRoutes.materialMapping,
-        name: 'material_mapping',
-        builder: (context, state) => const MaterialsMappingScreen(),
-      ),
-
-      // Маршрут для складского учёта
-      GoRoute(
-        path: AppRoutes.inventory,
-        name: 'inventory',
-        builder: (context, state) => const InventoryScreen(),
-        routes: [
-          // Маршрут для прихода ТМЦ
-          GoRoute(
-            path: 'receipt',
-            name: 'inventory_receipt',
-            builder: (context, state) => const InventoryReceiptScreen(),
-          ),
-          // Маршрут для добавления ТМЦ без накладной (редирект на receipt с переключателем)
-          GoRoute(
-            path: 'add',
-            name: 'inventory_item_add',
-            builder: (context, state) =>
-                const InventoryReceiptScreen(hasReceipt: false),
-          ),
-          // Маршрут для карточки ТМЦ
-          GoRoute(
-            path: 'item/:itemId',
-            name: 'inventory_item_details',
-            builder: (context, state) {
-              final itemId = state.pathParameters['itemId']!;
-              return InventoryItemDetailsScreen(itemId: itemId);
-            },
-          ),
-          // Маршрут для передачи/выдачи ТМЦ
-          GoRoute(
-            path: 'transfer',
-            name: 'inventory_transfer',
-            builder: (context, state) => const InventoryTransferScreen(),
-          ),
-          // Маршрут для поломок/утрат
-          GoRoute(
-            path: 'breakdowns',
-            name: 'inventory_breakdowns',
-            builder: (context, state) => const InventoryBreakdownsScreen(),
-          ),
-          // Маршрут для инвентаризации
-          GoRoute(
-            path: 'check',
-            name: 'inventory_inventory',
-            builder: (context, state) => const InventoryInventoryScreen(),
-          ),
-          // Маршрут для справочника категорий ТМЦ
-          GoRoute(
-            path: 'categories',
-            name: 'inventory_categories_reference',
-            builder: (context, state) =>
-                const InventoryCategoriesReferenceScreen(),
-          ),
-        ],
-      ),
-
       // Маршрут для экрана принудительного обновления
       GoRoute(
         path: AppRoutes.forceUpdate,
@@ -713,41 +640,6 @@ final routerProvider = Provider<GoRouter>((ref) {
             },
           );
         },
-      ),
-
-      // Маршрут для заявок
-      GoRoute(
-        path: AppRoutes.procurement,
-        name: 'procurement',
-        builder: (context, state) {
-          return Consumer(
-            builder: (context, ref, child) {
-              final service = ref.watch(permissionServiceProvider);
-              if (service.can('procurement', 'read')) {
-                return const ProcurementListScreen();
-              }
-              return _buildAccessDeniedScreen();
-            },
-          );
-        },
-        routes: [
-          GoRoute(
-            path: 'settings',
-            name: 'procurement_settings',
-            builder: (context, state) {
-              return Consumer(
-                builder: (context, ref, child) {
-                  // Проверка прав на настройки (можно добавить отдельное право 'procurement.settings')
-                  final service = ref.watch(permissionServiceProvider);
-                  if (service.can('procurement', 'update')) {
-                    return const ProcurementSettingsScreen();
-                  }
-                  return _buildAccessDeniedScreen();
-                },
-              );
-            },
-          ),
-        ],
       ),
 
       GoRoute(
@@ -833,12 +725,6 @@ class AppRoutes {
   /// Маршрут для страницы Материал
   static const String material = '/material';
 
-  /// Маршрут для экрана сопоставления материалов
-  static const String materialMapping = '/material/mapping';
-
-  /// Маршрут для складского учёта
-  static const String inventory = '/inventory';
-
   /// Маршрут для экрана принудительного обновления
   static const String forceUpdate = '/force-update';
 
@@ -847,9 +733,6 @@ class AppRoutes {
 
   /// Маршрут для управления ролями (админ)
   static const String roles = '/roles';
-
-  /// Маршрут для заявок
-  static const String procurement = '/procurement';
 
   /// Маршрут для модуля Cash Flow (Движение денежных средств)
   static const String cashFlow = '/cash_flow';

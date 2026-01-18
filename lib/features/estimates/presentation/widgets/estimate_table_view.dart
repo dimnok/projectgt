@@ -5,6 +5,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:projectgt/core/widgets/gt_context_menu.dart';
+import '../widgets/material_from_receipts_picker.dart';
+import '../widgets/estimate_item_details_dialog.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../data/models/estimate_completion_model.dart';
 import '../../../../domain/entities/estimate.dart';
@@ -32,11 +35,15 @@ class EstimateTableView extends ConsumerStatefulWidget {
     this.onRowTap,
     this.completionData,
     this.selectedId,
+    this.contractNumber,
     this.viewMode = EstimateViewMode.planning,
   });
 
   /// Список позиций сметы.
   final List<Estimate> items;
+
+  /// Номер договора для фильтрации материалов.
+  final String? contractNumber;
 
   /// Данные о выполнении позиций сметы.
   final Map<String, EstimateCompletionModel>? completionData;
@@ -72,6 +79,9 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
   final ScrollController _horizontalController = ScrollController();
   final ScrollController _headerHorizontalController = ScrollController();
   bool _isSyncingScroll = false;
+
+  /// ID позиции, для которой открыто контекстное меню (для подсветки).
+  String? _contextMenuSelectedId;
 
   bool get _isPlanning => widget.viewMode == EstimateViewMode.planning;
   bool get _isExecution => widget.viewMode == EstimateViewMode.execution;
@@ -179,13 +189,7 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
           ),
         );
 
-        return Column(
-          children: [
-            header,
-            const SizedBox(height: 4),
-            body,
-          ],
-        );
+        return Column(children: [header, const SizedBox(height: 4), body]);
       },
     );
   }
@@ -232,20 +236,20 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
       alternate = !alternate;
       final completion = widget.completionData?[estimate.id];
       final isSelected = widget.selectedId == estimate.id;
+      final isContextMenuSelected = _contextMenuSelectedId == estimate.id;
 
       rows.add(
         TableRow(
           decoration: BoxDecoration(
-            color: isSelected
-                ? theme.colorScheme.primaryContainer
-                : (alternate
-                ? theme.colorScheme.primary.withValues(alpha: 0.08)
-                    : Colors.transparent),
+            color: isContextMenuSelected
+                ? theme.colorScheme.primary.withValues(alpha: 0.15)
+                : (isSelected
+                      ? theme.colorScheme.primaryContainer
+                      : (alternate
+                            ? theme.colorScheme.primary.withValues(alpha: 0.08)
+                            : Colors.transparent)),
             border: isSelected
-                ? Border.all(
-                    color: theme.colorScheme.primary,
-                    width: 2,
-                  )
+                ? Border.all(color: theme.colorScheme.primary, width: 2)
                 : null,
           ),
           children: [
@@ -257,6 +261,13 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
                 isSelected: isSelected,
                 onTap: widget.onRowTap != null
                     ? () => widget.onRowTap!(estimate)
+                    : null,
+                onSecondaryTapDown: _isExecution
+                    ? (details) => _showContextMenu(
+                        context,
+                        estimate,
+                        details.globalPosition,
+                      )
                     : null,
               ),
           ],
@@ -307,11 +318,8 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
         isFlexible: true,
         minWidth: 220,
         measureText: (estimate, _) => estimate.name,
-        builder: (estimate, _, __) => Text(
-          estimate.name,
-          maxLines: 3,
-          overflow: TextOverflow.ellipsis,
-        ),
+        builder: (estimate, _, __) =>
+            Text(estimate.name, maxLines: 3, overflow: TextOverflow.ellipsis),
       ),
     ];
 
@@ -354,9 +362,8 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
         cellAlignment: Alignment.center,
         flex: 0.8,
         minWidth: 70,
-          measureText: (estimate, _) => formatQuantity(estimate.quantity),
-        builder: (estimate, _, __) =>
-              Text(formatQuantity(estimate.quantity)),
+        measureText: (estimate, _) => formatQuantity(estimate.quantity),
+        builder: (estimate, _, __) => Text(formatQuantity(estimate.quantity)),
       ),
     ]);
 
@@ -371,9 +378,7 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
           measureText: (estimate, _) => formatCurrency(estimate.price),
           builder: (estimate, _, theme) => Text(
             formatCurrency(estimate.price),
-            style: TextStyle(
-              color: theme.colorScheme.primary,
-            ),
+            style: TextStyle(color: theme.colorScheme.primary),
           ),
         ),
       ]);
@@ -403,24 +408,9 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
           minWidth: 80,
           measureText: (_, completion) =>
               formatQuantity(completion?.completedQuantity ?? 0),
-          builder: (estimate, completion, __) => Text(
-            formatQuantity(completion?.completedQuantity ?? 0),
-          ),
+          builder: (estimate, completion, __) =>
+              Text(formatQuantity(completion?.completedQuantity ?? 0)),
         ),
-        /*
-        _EstimateColumnConfig(
-          title: 'Сумма вып.',
-          headerAlign: TextAlign.center,
-          cellAlignment: Alignment.centerRight,
-          flex: 1.2,
-          minWidth: 110,
-          measureText: (_, completion) =>
-              formatCurrency(completion?.completedTotal ?? 0),
-          builder: (estimate, completion, __) => Text(
-            formatCurrency(completion?.completedTotal ?? 0),
-          ),
-        ),
-        */
         _EstimateColumnConfig(
           title: 'Остаток',
           headerAlign: TextAlign.center,
@@ -428,11 +418,10 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
           flex: 1.0,
           minWidth: 90,
           measureText: (estimate, completion) => formatQuantity(
-              completion?.remainingQuantity ?? estimate.quantity),
+            completion?.remainingQuantity ?? estimate.quantity,
+          ),
           builder: (estimate, completion, __) => Text(
-            formatQuantity(
-              completion?.remainingQuantity ?? estimate.quantity,
-            ),
+            formatQuantity(completion?.remainingQuantity ?? estimate.quantity),
           ),
         ),
         _EstimateColumnConfig(
@@ -453,12 +442,35 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
             }
             return Text(
               '${percent.toStringAsFixed(0)}%',
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(color: color, fontWeight: FontWeight.w600),
             );
           },
+        ),
+        _EstimateColumnConfig(
+          title: 'Мат. получ.',
+          headerAlign: TextAlign.center,
+          cellAlignment: Alignment.center,
+          flex: 1.0,
+          minWidth: 80,
+          measureText: (_, completion) =>
+              formatQuantity(completion?.materialReceived ?? 0),
+          builder: (estimate, completion, __) => Text(
+            formatQuantity(completion?.materialReceived ?? 0),
+            style: const TextStyle(fontWeight: FontWeight.w500),
+          ),
+        ),
+        _EstimateColumnConfig(
+          title: 'Мат. ост.',
+          headerAlign: TextAlign.center,
+          cellAlignment: Alignment.center,
+          flex: 1.0,
+          minWidth: 80,
+          measureText: (_, completion) =>
+              formatQuantity(completion?.materialRemaining ?? 0),
+          builder: (estimate, completion, __) => Text(
+            formatQuantity(completion?.materialRemaining ?? 0),
+            style: const TextStyle(fontWeight: FontWeight.w500),
+          ),
         ),
       ]);
     }
@@ -488,8 +500,11 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
     return configs;
   }
 
-  Widget _headerCell(ThemeData theme, String title,
-      {TextAlign align = TextAlign.left}) {
+  Widget _headerCell(
+    ThemeData theme,
+    String title, {
+    TextAlign align = TextAlign.left,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       alignment: _alignmentFromTextAlign(align),
@@ -499,7 +514,8 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
         softWrap: true,
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
-        style: theme.textTheme.labelMedium?.copyWith(
+        style:
+            theme.textTheme.labelMedium?.copyWith(
               fontWeight: FontWeight.w600,
               fontSize: 10,
             ) ??
@@ -513,28 +529,83 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
     Widget child, {
     Alignment align = Alignment.centerLeft,
     VoidCallback? onTap,
+    void Function(TapDownDetails)? onSecondaryTapDown,
     bool isSelected = false,
   }) {
     return GestureDetector(
       onTap: onTap,
+      onSecondaryTapDown: onSecondaryTapDown,
       behavior: HitTestBehavior.opaque,
       child: Container(
-      padding: const EdgeInsets.symmetric(
-            horizontal: _kCellHorizontalPadding,
-            vertical: _kCellVerticalPadding),
-      constraints: const BoxConstraints(minHeight: 30),
-      alignment: align,
-      child: DefaultTextStyle.merge(
-          style: theme.textTheme.bodySmall?.copyWith(
+        padding: const EdgeInsets.symmetric(
+          horizontal: _kCellHorizontalPadding,
+          vertical: _kCellVerticalPadding,
+        ),
+        constraints: const BoxConstraints(minHeight: 30),
+        alignment: align,
+        child: DefaultTextStyle.merge(
+          style:
+              theme.textTheme.bodySmall?.copyWith(
                 fontSize: 12,
                 height: 1.0,
                 fontWeight: isSelected ? FontWeight.bold : null,
                 color: isSelected ? theme.colorScheme.onPrimaryContainer : null,
               ) ??
-            const TextStyle(fontSize: 12, height: 1.0),
-        child: child,
+              const TextStyle(fontSize: 12, height: 1.0),
+          child: child,
         ),
       ),
+    );
+  }
+
+  void _showContextMenu(
+    BuildContext context,
+    Estimate estimate,
+    Offset position,
+  ) {
+    setState(() => _contextMenuSelectedId = estimate.id);
+
+    GTContextMenu.show(
+      context: context,
+      tapPosition: position,
+      onDismiss: () => setState(() => _contextMenuSelectedId = null),
+      items: [
+        GTContextMenuItem(
+          icon: CupertinoIcons.info,
+          label: 'Детали',
+          onTap: () => EstimateItemDetailsDialog.show(
+            context,
+            estimate: estimate,
+            completion: widget.completionData?[estimate.id],
+          ),
+        ),
+        GTContextMenuItem(
+          icon: CupertinoIcons.minus_circle,
+          label: 'Списать',
+          onTap: () => MaterialFromReceiptsPicker.show(
+            context,
+            estimateId: estimate.id,
+            estimateName: estimate.name,
+            contractNumber: widget.contractNumber,
+          ),
+        ),
+        const Divider(height: 1),
+        GTContextMenuItem(
+          icon: CupertinoIcons.pencil,
+          label: 'Редактировать',
+          onTap: () {
+            // Пока без действий
+          },
+        ),
+        GTContextMenuItem(
+          icon: CupertinoIcons.trash,
+          label: 'Удалить',
+          isDestructive: true,
+          onTap: () {
+            // Пока без действий
+          },
+        ),
+      ],
     );
   }
 
@@ -558,14 +629,15 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
     final fixedWidths = <int, double>{};
     double totalFixed = 0;
 
-    final headerStyle = theme.textTheme.labelMedium?.copyWith(
+    final headerStyle =
+        theme.textTheme.labelMedium?.copyWith(
           fontWeight: FontWeight.w600,
           fontSize: 11,
         ) ??
         const TextStyle(fontWeight: FontWeight.w600, fontSize: 11);
     final bodyStyle =
         theme.textTheme.bodySmall?.copyWith(fontSize: 12, height: 1.0) ??
-            const TextStyle(fontSize: 12, height: 1.0);
+        const TextStyle(fontSize: 12, height: 1.0);
 
     const paddingWidth = _kCellHorizontalPadding * 2;
 
@@ -594,15 +666,19 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
         columnWidth = math.max(columnWidth, headerWidth);
       }
 
-      columnWidth =
-          math.max(columnWidth, config.minWidth ?? _kDefaultMinColumnWidth);
+      columnWidth = math.max(
+        columnWidth,
+        config.minWidth ?? _kDefaultMinColumnWidth,
+      );
 
       fixedWidths[i] = columnWidth;
       totalFixed += columnWidth;
     }
 
-    double remainingWidth =
-        math.max(availableWidth - totalFixed, configs.length * 40);
+    double remainingWidth = math.max(
+      availableWidth - totalFixed,
+      configs.length * 40,
+    );
     final flexibleIndexes = <int>[];
     for (var i = 0; i < configs.length; i++) {
       final config = configs[i];
@@ -661,14 +737,18 @@ class _EstimateColumnConfig {
     Estimate estimate,
     EstimateCompletionModel? completion,
     ThemeData theme,
-  ) builder;
+  )
+  builder;
   final TextAlign headerAlign;
   final Alignment cellAlignment;
   final double flex;
   final double? minWidth;
   final bool isFlexible;
   final String? Function(
-      Estimate estimate, EstimateCompletionModel? completion)? measureText;
+    Estimate estimate,
+    EstimateCompletionModel? completion,
+  )?
+  measureText;
 }
 
 enum _RowAction { edit, duplicate, delete }
@@ -709,12 +789,8 @@ class _ActionsMenu extends StatelessWidget {
         iconButtonTheme: IconButtonThemeData(
           style: ButtonStyle(
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            minimumSize: WidgetStateProperty.all<Size>(
-              const Size(28, 28),
-            ),
-            overlayColor: WidgetStateProperty.all<Color>(
-              Colors.transparent,
-            ),
+            minimumSize: WidgetStateProperty.all<Size>(const Size(28, 28)),
+            overlayColor: WidgetStateProperty.all<Color>(Colors.transparent),
             splashFactory: NoSplash.splashFactory,
           ),
         ),

@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
@@ -426,7 +427,7 @@ class _MaterialsListDialogState extends ConsumerState<_MaterialsListDialog> {
                 child: Column(
                   children: [
                     Icon(
-                      Icons.inventory_2_outlined,
+                      Icons.category_outlined,
                       size: 48,
                       color: Colors.grey,
                     ),
@@ -971,7 +972,7 @@ class _MaterialsListDialogState extends ConsumerState<_MaterialsListDialog> {
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  'Схожесть: ${(estimate.similarityScore * 100).toStringAsFixed(0)}%',
+                                  'Схожесть: ${formatQuantity((estimate.similarityScore * 100).round())}%',
                                   style: theme.textTheme.bodySmall?.copyWith(
                                     color: theme.colorScheme.secondary,
                                   ),
