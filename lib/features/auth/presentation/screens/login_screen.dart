@@ -20,7 +20,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 /// Состояние для экрана [LoginScreen].
 class _LoginScreenState extends ConsumerState<LoginScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   // Состояние шага авторизации
   bool _isOtpStep = false;
 
@@ -54,6 +54,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Инициализация OTP полей
     _otpController = TextEditingController();
     _otpFocusNode = FocusNode();
@@ -105,6 +106,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _phoneController.dispose();
     _timer?.cancel();
     _errorHideTimer?.cancel();
@@ -310,6 +312,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     }
 
     setState(() {}); // Обновляем визуальные ячейки
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _isOtpStep) {
+      // При возврате в приложение на этапе OTP принудительно обновляем фокус,
+      // так как Android мог скрыть клавиатуру, хотя FocusNode считает, что он в фокусе.
+      _otpFocusNode.unfocus();
+      Future.delayed(const Duration(milliseconds: 150), () {
+        if (mounted && _isOtpStep) {
+          _otpFocusNode.requestFocus();
+        }
+      });
+    }
   }
 
   @override
@@ -594,9 +610,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () {
-                  if (!_otpFocusNode.hasFocus) {
-                    _otpFocusNode.requestFocus();
-                  }
+                  // Принудительно запрашиваем фокус при нажатии на ячейки
+                  _otpFocusNode.requestFocus();
                 },
                 child: Row(
                   key: const ValueKey('otp_row_base'),

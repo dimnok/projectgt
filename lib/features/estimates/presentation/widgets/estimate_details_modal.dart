@@ -95,7 +95,7 @@ class EstimateDetailsModal extends ConsumerWidget {
           ),
           _buildInfoRow(
             'Процент выполнения',
-            '${(completion?.percentage ?? 0).toStringAsFixed(1)}%',
+            formatPercentage(completion?.percentage ?? 0, decimalDigits: 1),
             isBold: true,
             valueColor: _getPercentageColor(completion?.percentage ?? 0),
           ),

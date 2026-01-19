@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'dart:math' as math;
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:projectgt/presentation/state/auth_state.dart';
@@ -231,6 +233,7 @@ class AppDrawer extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
     final double drawerWidth = screenWidth >= 800
         ? 360.0
         : screenWidth >= 600
@@ -304,14 +307,16 @@ class AppDrawer extends ConsumerWidget {
                               activeRoute,
                             ),
                           ),
-                          _buildMenuItem(
-                            context: context,
-                            module: 'cash_flow',
-                            title: 'CASH FLOW',
-                            icon: CupertinoIcons.money_rubl_circle,
-                            route: AppRoute.cashFlow,
-                            routeName: 'cash_flow',
-                          ),
+                          // TODO: Добавить мобильный вид для модуля Cash Flow
+                          if (!isMobile)
+                            _buildMenuItem(
+                              context: context,
+                              module: 'cash_flow',
+                              title: 'CASH FLOW',
+                              icon: CupertinoIcons.money_rubl_circle,
+                              route: AppRoute.cashFlow,
+                              routeName: 'cash_flow',
+                            ),
                           _buildMenuItem(
                             context: context,
                             module: 'works',
@@ -320,14 +325,16 @@ class AppDrawer extends ConsumerWidget {
                             route: AppRoute.works,
                             routeName: 'works',
                           ),
-                          _buildMenuItem(
-                            context: context,
-                            module: 'materials',
-                            title: 'Материал',
-                            icon: CupertinoIcons.cube_box,
-                            route: AppRoute.material,
-                            routeName: 'material',
-                          ),
+                          // TODO: Добавить мобильный вид для модуля Материалы
+                          if (!isMobile)
+                            _buildMenuItem(
+                              context: context,
+                              module: 'materials',
+                              title: 'Материал',
+                              icon: CupertinoIcons.cube_box,
+                              route: AppRoute.material,
+                              routeName: 'material',
+                            ),
                           _buildMenuItem(
                             context: context,
                             module: 'timesheet',
@@ -361,14 +368,16 @@ class AppDrawer extends ConsumerWidget {
                             route: AppRoute.payrolls,
                             routeName: 'payrolls',
                           ),
-                          _buildMenuItem(
-                            context: context,
-                            module: 'export',
-                            title: 'Выгрузка',
-                            icon: CupertinoIcons.tray_arrow_down,
-                            route: AppRoute.export,
-                            routeName: 'export',
-                          ),
+                          // TODO: Добавить мобильный вид для модуля Выгрузка
+                          if (!isMobile)
+                            _buildMenuItem(
+                              context: context,
+                              module: 'export',
+                              title: 'Выгрузка',
+                              icon: CupertinoIcons.tray_arrow_down,
+                              route: AppRoute.export,
+                              routeName: 'export',
+                            ),
                           _buildMenuItem(
                             context: context,
                             module: 'users',

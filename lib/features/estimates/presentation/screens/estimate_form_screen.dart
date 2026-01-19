@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/di/providers.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../domain/entities/estimate.dart';
 import '../../../../core/widgets/gt_buttons.dart';
 import '../../../../features/company/presentation/providers/company_providers.dart';
@@ -95,15 +96,9 @@ class _EstimateFormScreenState extends ConsumerState<EstimateFormScreen> {
       article: _articleController.text.trim(),
       manufacturer: _manufacturerController.text.trim(),
       unit: _unitController.text.trim(),
-      quantity: double.tryParse(
-              _quantityController.text.trim().replaceAll(',', '.')) ??
-          0,
-      price:
-          double.tryParse(_priceController.text.trim().replaceAll(',', '.')) ??
-              0,
-      total:
-          double.tryParse(_totalController.text.trim().replaceAll(',', '.')) ??
-              0,
+      quantity: parseAmount(_quantityController.text.trim()) ?? 0,
+      price: parseAmount(_priceController.text.trim()) ?? 0,
+      total: parseAmount(_totalController.text.trim()) ?? 0,
       estimateTitle: _titleController.text.trim(),
     );
     if (widget.estimateId == null) {
@@ -176,17 +171,20 @@ class _EstimateFormScreenState extends ConsumerState<EstimateFormScreen> {
                       controller: _quantityController,
                       decoration:
                           const InputDecoration(labelText: 'Количество'),
-                      keyboardType: TextInputType.number,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [quantityFormatter()],
                     ),
                     TextFormField(
                       controller: _priceController,
                       decoration: const InputDecoration(labelText: 'Цена'),
-                      keyboardType: TextInputType.number,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [amountFormatter()],
                     ),
                     TextFormField(
                       controller: _totalController,
                       decoration: const InputDecoration(labelText: 'Сумма'),
-                      keyboardType: TextInputType.number,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [amountFormatter()],
                     ),
                     const SizedBox(height: 24),
                     GTPrimaryButton(

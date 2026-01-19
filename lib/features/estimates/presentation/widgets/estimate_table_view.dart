@@ -262,13 +262,8 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
                 onTap: widget.onRowTap != null
                     ? () => widget.onRowTap!(estimate)
                     : null,
-                onSecondaryTapDown: _isExecution
-                    ? (details) => _showContextMenu(
-                        context,
-                        estimate,
-                        details.globalPosition,
-                      )
-                    : null,
+                onSecondaryTapDown: (details) =>
+                    _showContextMenu(context, estimate, details.globalPosition),
               ),
           ],
         ),
@@ -431,7 +426,7 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
           flex: 0.7,
           minWidth: 60,
           measureText: (_, completion) =>
-              '${(completion?.percentage ?? 0).toStringAsFixed(0)}%',
+              formatPercentage(completion?.percentage ?? 0),
           builder: (estimate, completion, theme) {
             final percent = (completion?.percentage ?? 0).toDouble();
             Color color = theme.colorScheme.onSurface;
@@ -441,7 +436,7 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
               color = Colors.green;
             }
             return Text(
-              '${percent.toStringAsFixed(0)}%',
+              formatPercentage(percent),
               style: TextStyle(color: color, fontWeight: FontWeight.w600),
             );
           },
@@ -473,28 +468,6 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
           ),
         ),
       ]);
-    }
-
-    if (!_isExecution) {
-      configs.add(
-        _EstimateColumnConfig(
-          title: '',
-          headerAlign: TextAlign.center,
-          cellAlignment: Alignment.center,
-          minWidth: 36,
-          measureText: (_, __) => '⋮',
-          builder: (estimate, _, theme) => _ActionsMenu(
-            theme: theme,
-            estimate: estimate,
-            canEdit: canUpdate,
-            canDuplicate: canCreate,
-            canDelete: canDelete,
-            onEdit: widget.onEdit,
-            onDuplicate: widget.onDuplicate,
-            onDelete: widget.onDelete,
-          ),
-        ),
-      );
     }
 
     return configs;
@@ -593,17 +566,13 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
         GTContextMenuItem(
           icon: CupertinoIcons.pencil,
           label: 'Редактировать',
-          onTap: () {
-            // Пока без действий
-          },
+          onTap: () => widget.onEdit(estimate),
         ),
         GTContextMenuItem(
           icon: CupertinoIcons.trash,
           label: 'Удалить',
           isDestructive: true,
-          onTap: () {
-            // Пока без действий
-          },
+          onTap: () => widget.onDelete(estimate.id),
         ),
       ],
     );

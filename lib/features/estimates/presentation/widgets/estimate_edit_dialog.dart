@@ -3,15 +3,16 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
-import 'package:flutter_typeahead/flutter_typeahead.dart';
 
 import '../../../../domain/entities/estimate.dart';
 import '../../../../core/di/providers.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/mobile_bottom_sheet_content.dart';
 import '../../../../core/widgets/desktop_dialog_content.dart';
 import '../../../../core/widgets/gt_buttons.dart';
+import '../../../../core/widgets/gt_text_field.dart';
+import '../../../../core/widgets/gt_dropdown.dart';
 import '../../../../core/widgets/app_snackbar.dart';
-import '../providers/estimate_providers.dart';
 import '../../../../features/company/presentation/providers/company_providers.dart';
 
 /// Диалоговое окно для создания или редактирования позиции сметы.
@@ -40,15 +41,17 @@ class EstimateEditDialog extends ConsumerStatefulWidget {
   /// Показывает диалог редактирования/создания позиции.
   ///
   /// Адаптируется под размер экрана (Dialog для Desktop, BottomSheet для Mobile).
-  static void show(BuildContext context,
-      {Estimate? estimate,
-      String? estimateTitle,
-      String? objectId,
-      String? contractId}) {
+  static Future<void> show(
+    BuildContext context, {
+    Estimate? estimate,
+    String? estimateTitle,
+    String? objectId,
+    String? contractId,
+  }) async {
     final isLargeScreen = MediaQuery.of(context).size.width > 900;
 
     if (isLargeScreen) {
-      showDialog(
+      await showDialog(
         context: context,
         builder: (context) => Dialog(
           backgroundColor: Colors.transparent,
@@ -62,7 +65,7 @@ class EstimateEditDialog extends ConsumerStatefulWidget {
         ),
       );
     } else {
-      showModalBottomSheet(
+      await showModalBottomSheet(
         context: context,
         isScrollControlled: true,
         useSafeArea: true,
@@ -118,8 +121,14 @@ class _EstimateEditDialogState extends ConsumerState<EstimateEditDialog> {
     if (e != null) {
       initialNumber = e.number;
     } else {
-      // При создании новой позиции вычисляем следующий номер
-      initialNumber = _calculateNextNumber();
+      // При создании новой позиции вычисляем следующий номер через нотификатор
+      initialNumber = ref
+          .read(estimateNotifierProvider.notifier)
+          .calculateNextNumber(
+            estimateTitle: widget.estimateTitle,
+            objectId: widget.objectId,
+            contractId: widget.contractId,
+          );
     }
 
     _systemController = TextEditingController(text: e?.system ?? '');
@@ -127,95 +136,17 @@ class _EstimateEditDialogState extends ConsumerState<EstimateEditDialog> {
     _numberController = TextEditingController(text: initialNumber);
     _nameController = TextEditingController(text: e?.name ?? '');
     _articleController = TextEditingController(text: e?.article ?? '');
-    _manufacturerController =
-        TextEditingController(text: e?.manufacturer ?? '');
+    _manufacturerController = TextEditingController(
+      text: e?.manufacturer ?? '',
+    );
     _unitController = TextEditingController(text: e?.unit ?? '');
-    _quantityController =
-        TextEditingController(text: e?.quantity.toString() ?? '');
+    _quantityController = TextEditingController(
+      text: e?.quantity.toString() ?? '',
+    );
     _priceController = TextEditingController(text: e?.price.toString() ?? '');
   }
 
-  String _calculateNextNumber() {
-    try {
-      List<Estimate> currentContextEstimates = [];
-
-      // 1. Пытаемся получить актуальные данные из estimateItemsProvider
-      // Это основной источник данных для экрана сметы
-      if (widget.estimateTitle != null) {
-        final args = EstimateDetailArgs(
-          estimateTitle: widget.estimateTitle!,
-          objectId: widget.objectId,
-          contractId: widget.contractId,
-        );
-        // Используем read для получения текущего значения без подписки (так как мы в initState)
-        final asyncValue = ref.read(estimateItemsProvider(args));
-        currentContextEstimates = asyncValue.valueOrNull ?? [];
-      }
-
-      // 2. Если данных нет (например, провайдер не был инициализирован или пуст),
-      // пробуем fallback на estimateNotifierProvider
-      if (currentContextEstimates.isEmpty) {
-        final allEstimates = ref.read(estimateNotifierProvider).estimates;
-        currentContextEstimates = allEstimates.where((est) {
-          bool matches = true;
-          if (widget.estimateTitle != null) {
-            matches = matches && est.estimateTitle == widget.estimateTitle;
-          }
-          if (widget.objectId != null) {
-            matches = matches && est.objectId == widget.objectId;
-          }
-          if (widget.contractId != null) {
-            matches = matches && est.contractId == widget.contractId;
-          }
-          return matches;
-        }).toList();
-      }
-
-      if (currentContextEstimates.isEmpty) return '1';
-
-      int maxNumber = 0;
-      bool hasDPrefix = false;
-
-      // Анализируем номера на наличие префикса "д-"
-      for (final est in currentContextEstimates) {
-        final numStr = est.number.trim();
-        // Проверяем формат "д-<число>" (регистронезависимо, допускаем D латинскую)
-        // Пример: д-1, Д-5, d-10
-        // ignore: deprecated_member_use
-        final match = RegExp(r'^[дДdD]\s*-\s*(\d+)$').firstMatch(numStr);
-        if (match != null) {
-          hasDPrefix = true;
-          final num = int.tryParse(match.group(1) ?? '0') ?? 0;
-          if (num > maxNumber) {
-            maxNumber = num;
-          }
-        }
-      }
-
-      // Если нашли номера с префиксом "д-", генерируем следующий в том же формате
-      if (hasDPrefix) {
-        return 'д-${maxNumber + 1}';
-      }
-
-      // Если префикса "д-" не было, ищем максимум среди обычных целых чисел
-      maxNumber = 0;
-      for (final est in currentContextEstimates) {
-        final numStr = est.number.trim();
-        // ignore: deprecated_member_use
-        if (RegExp(r'^\d+$').hasMatch(numStr)) {
-          final num = int.tryParse(numStr);
-          if (num != null && num > maxNumber) {
-            maxNumber = num;
-          }
-        }
-      }
-
-      return (maxNumber + 1).toString();
-    } catch (e) {
-      debugPrint('Error calculating next number: $e');
-      return '';
-    }
-  }
+  // Метод _calculateNextNumber удален, логика перенесена в EstimateNotifier
 
   @override
   void dispose() {
@@ -240,12 +171,15 @@ class _EstimateEditDialogState extends ConsumerState<EstimateEditDialog> {
 
     try {
       final estimateRepo = ref.read(estimateRepositoryProvider);
-      final systems =
-          await estimateRepo.getSystems(estimateTitle: widget.estimateTitle);
-      final subsystems =
-          await estimateRepo.getSubsystems(estimateTitle: widget.estimateTitle);
-      final units =
-          await estimateRepo.getUnits(estimateTitle: widget.estimateTitle);
+      final systems = await estimateRepo.getSystems(
+        estimateTitle: widget.estimateTitle,
+      );
+      final subsystems = await estimateRepo.getSubsystems(
+        estimateTitle: widget.estimateTitle,
+      );
+      final units = await estimateRepo.getUnits(
+        estimateTitle: widget.estimateTitle,
+      );
 
       if (!mounted) return;
 
@@ -269,10 +203,8 @@ class _EstimateEditDialogState extends ConsumerState<EstimateEditDialog> {
 
   Future<void> _save() async {
     if (_formKey.currentState!.validate()) {
-      final quantity =
-          double.tryParse(_quantityController.text.replaceAll(',', '.')) ?? 0.0;
-      final price =
-          double.tryParse(_priceController.text.replaceAll(',', '.')) ?? 0.0;
+      final quantity = parseAmount(_quantityController.text) ?? 0.0;
+      final price = parseAmount(_priceController.text) ?? 0.0;
 
       String? objectId = widget.estimate?.objectId ?? widget.objectId;
       String? contractId = widget.estimate?.contractId ?? widget.contractId;
@@ -323,17 +255,6 @@ class _EstimateEditDialogState extends ConsumerState<EstimateEditDialog> {
           await notifier.updateEstimate(updatedEstimate);
 
           if (!mounted) return;
-
-          // Проверяем ошибку, так как updateEstimate не пробрасывает её
-          final error = ref.read(estimateNotifierProvider).error;
-          if (error != null) {
-            AppSnackBar.show(
-              context: context,
-              message: 'Ошибка обновления: $error',
-              kind: AppSnackBarKind.error,
-            );
-            return;
-          }
 
           AppSnackBar.show(
             context: context,
@@ -436,46 +357,47 @@ class _EstimateEditDialogState extends ConsumerState<EstimateEditDialog> {
     return [
       Text(
         'Основная информация',
-        style:
-            theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-      ),
-      const SizedBox(height: 16),
-      _buildTypeAhead(
-        controller: _systemController,
-        label: 'Система *',
-        hint: 'Выберите или введите систему',
-        items: _systems,
-        isLoading: _systemsLoading,
-        required: true,
-      ),
-      const SizedBox(height: 16),
-      _buildTypeAhead(
-        controller: _subsystemController,
-        label: 'Подсистема *',
-        hint: 'Выберите или введите подсистему',
-        items: _subsystems,
-        isLoading: _subsystemsLoading,
-        required: true,
-      ),
-      const SizedBox(height: 16),
-      TextFormField(
-        controller: _numberController,
-        decoration: const InputDecoration(
-          labelText: 'Номер *',
-          hintText: 'Введите порядковый номер',
-          border: OutlineInputBorder(),
+        style: theme.textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.bold,
         ),
+      ),
+      const SizedBox(height: 16),
+      GTStringDropdown(
+        items: _systems,
+        labelText: 'Система *',
+        hintText: 'Выберите или введите систему',
+        selectedItem: _systemController.text,
+        isLoading: _systemsLoading,
+        onSelectionChanged: (val) =>
+            setState(() => _systemController.text = val ?? ''),
         validator: (v) =>
             v == null || v.trim().isEmpty ? 'Обязательное поле' : null,
       ),
       const SizedBox(height: 16),
-      TextFormField(
+      GTStringDropdown(
+        items: _subsystems,
+        labelText: 'Подсистема *',
+        hintText: 'Выберите или введите подсистему',
+        selectedItem: _subsystemController.text,
+        isLoading: _subsystemsLoading,
+        onSelectionChanged: (val) =>
+            setState(() => _subsystemController.text = val ?? ''),
+        validator: (v) =>
+            v == null || v.trim().isEmpty ? 'Обязательное поле' : null,
+      ),
+      const SizedBox(height: 16),
+      GTTextField(
+        controller: _numberController,
+        labelText: 'Номер *',
+        hintText: 'Введите порядковый номер',
+        validator: (v) =>
+            v == null || v.trim().isEmpty ? 'Обязательное поле' : null,
+      ),
+      const SizedBox(height: 16),
+      GTTextField(
         controller: _nameController,
-        decoration: const InputDecoration(
-          labelText: 'Наименование *',
-          hintText: 'Введите наименование позиции',
-          border: OutlineInputBorder(),
-        ),
+        labelText: 'Наименование *',
+        hintText: 'Введите наименование позиции',
         validator: (v) =>
             v == null || v.trim().isEmpty ? 'Обязательное поле' : null,
         maxLines: null,
@@ -483,134 +405,65 @@ class _EstimateEditDialogState extends ConsumerState<EstimateEditDialog> {
       const SizedBox(height: 24),
       Text(
         'Техническая информация',
-        style:
-            theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+        style: theme.textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.bold,
+        ),
       ),
       const SizedBox(height: 16),
-      TextFormField(
+      GTTextField(
         controller: _articleController,
-        decoration: const InputDecoration(
-          labelText: 'Артикул',
-          hintText: 'Введите артикул',
-          border: OutlineInputBorder(),
-        ),
+        labelText: 'Артикул',
+        hintText: 'Введите артикул',
       ),
       const SizedBox(height: 16),
-      TextFormField(
+      GTTextField(
         controller: _manufacturerController,
-        decoration: const InputDecoration(
-          labelText: 'Производитель',
-          hintText: 'Введите производителя',
-          border: OutlineInputBorder(),
-        ),
+        labelText: 'Производитель',
+        hintText: 'Введите производителя',
       ),
       const SizedBox(height: 16),
-      _buildTypeAhead(
-        controller: _unitController,
-        label: 'Единица измерения *',
-        hint: 'Выберите или введите единицу измерения',
+      GTStringDropdown(
         items: _units,
+        labelText: 'Единица измерения *',
+        hintText: 'Выберите или введите единицу измерения',
+        selectedItem: _unitController.text,
         isLoading: _unitsLoading,
-        required: true,
+        onSelectionChanged: (val) =>
+            setState(() => _unitController.text = val ?? ''),
+        validator: (v) =>
+            v == null || v.trim().isEmpty ? 'Обязательное поле' : null,
       ),
       const SizedBox(height: 24),
       Text(
         'Ценовая информация',
-        style:
-            theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+        style: theme.textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.bold,
+        ),
       ),
       const SizedBox(height: 16),
-      TextFormField(
+      GTTextField(
         controller: _quantityController,
-        decoration: const InputDecoration(
-          labelText: 'Количество',
-          hintText: 'Введите количество',
-          border: OutlineInputBorder(),
-        ),
+        labelText: 'Количество',
+        hintText: 'Введите количество',
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        inputFormatters: [quantityFormatter()],
         validator: _numberValidator,
       ),
       const SizedBox(height: 16),
-      TextFormField(
+      GTTextField(
         controller: _priceController,
-        decoration: const InputDecoration(
-          labelText: 'Цена за единицу',
-          hintText: 'Введите цену',
-          border: OutlineInputBorder(),
-        ),
+        labelText: 'Цена за единицу',
+        hintText: 'Введите цену',
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        inputFormatters: [amountFormatter()],
         validator: _numberValidator,
       ),
     ];
   }
 
-  Widget _buildTypeAhead({
-    required TextEditingController controller,
-    required String label,
-    required String hint,
-    required List<String> items,
-    required bool isLoading,
-    bool required = false,
-  }) {
-    if (isLoading) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 16),
-        child: Center(child: CupertinoActivityIndicator()),
-      );
-    }
-    return TypeAheadField<String>(
-      controller: controller,
-      suggestionsCallback: (pattern) {
-        return items
-            .where((s) => s.toLowerCase().contains(pattern.toLowerCase()))
-            .toList();
-      },
-      builder: (context, controller, focusNode) {
-        return TextFormField(
-          controller: controller,
-          focusNode: focusNode,
-          decoration: InputDecoration(
-            labelText: label,
-            hintText: hint,
-            border: const OutlineInputBorder(),
-          ),
-          validator: required
-              ? (v) =>
-                  v == null || v.trim().isEmpty ? 'Обязательное поле' : null
-              : null,
-        );
-      },
-      itemBuilder: (context, suggestion) {
-        return ListTile(
-          title: Text(suggestion),
-        );
-      },
-      onSelected: (suggestion) {
-        setState(() {
-          controller.text = suggestion;
-        });
-      },
-      emptyBuilder: (context) {
-        final input = controller.text.trim();
-        if (input.isEmpty) return const SizedBox();
-        return ListTile(
-          title: Text('Добавить: "$input"'),
-          onTap: () {
-            setState(() {
-              controller.text = input;
-            });
-            FocusScope.of(context).unfocus();
-          },
-        );
-      },
-    );
-  }
-
   String? _numberValidator(String? v) {
     if (v == null || v.trim().isEmpty) return null;
-    try {
-      double.parse(v.replaceAll(',', '.'));
-    } catch (e) {
+    if (parseAmount(v) == null) {
       return 'Введите число';
     }
     return null;

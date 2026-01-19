@@ -88,6 +88,13 @@ class GtFormatters {
   /// Пример: 1234.5 -> "1 234,5".
   static String formatQuantity(num value) => _quantityFormat.format(value);
 
+  /// Форматирует процент.
+  /// [decimalDigits] — количество знаков после запятой.
+  /// Пример: 95.5 -> "95,5%"
+  static String formatPercentage(num value, {int decimalDigits = 0}) {
+    return '${value.toStringAsFixed(decimalDigits).replaceAll('.', ',')}%';
+  }
+
   /// Парсит строку с числом, очищая её от пробелов и заменяя запятую на точку.
   /// Поддерживает форматы "1 000,50", "1,000.50", "1000.50".
   static double? parseAmount(String? text) {
@@ -144,6 +151,9 @@ class GtFormatters {
   /// Форматирует сумму с разделением тысяч пробелом в реальном времени.
   /// Пример: 1234567.89 -> "1 234 567.89"
   static TextInputFormatter amountFormatter() => _AmountInputFormatter();
+
+  /// Форматирует количество в реальном времени (до 3 знаков после запятой).
+  static TextInputFormatter quantityFormatter() => _QuantityInputFormatter();
 }
 
 class _AmountInputFormatter extends TextInputFormatter {
@@ -191,6 +201,54 @@ class _AmountInputFormatter extends TextInputFormatter {
       result += ',${decimalPart.substring(0, min(decimalPart.length, 2))}';
     } else if (digitsOnly.endsWith(',')) {
       // Сохраняем запятую в конце, если пользователь её только что ввёл
+      result += ',';
+    }
+
+    return TextEditingValue(
+      text: result,
+      selection: TextSelection.collapsed(offset: result.length),
+    );
+  }
+}
+
+class _QuantityInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.isEmpty) {
+      return newValue;
+    }
+
+    final String cleanText = newValue.text.replaceAll('.', ',');
+    String digitsOnly = cleanText.replaceAll(RegExp(r'[^0-9,]'), '');
+
+    final commas = RegExp(r',').allMatches(digitsOnly).toList();
+    if (commas.length > 1) {
+      final firstCommaIndex = digitsOnly.indexOf(',');
+      digitsOnly =
+          digitsOnly.substring(0, firstCommaIndex + 1) +
+          digitsOnly.substring(firstCommaIndex + 1).replaceAll(',', '');
+    }
+
+    final parts = digitsOnly.split(',');
+    String integerPart = parts[0];
+    String? decimalPart = parts.length > 1 ? parts[1] : null;
+
+    final StringBuffer formattedInteger = StringBuffer();
+    for (int i = 0; i < integerPart.length; i++) {
+      if (i > 0 && (integerPart.length - i) % 3 == 0) {
+        formattedInteger.write(' ');
+      }
+      formattedInteger.write(integerPart[i]);
+    }
+
+    String result = formattedInteger.toString();
+    if (decimalPart != null) {
+      // Для количества допускаем до 3-х знаков
+      result += ',${decimalPart.substring(0, min(decimalPart.length, 3))}';
+    } else if (digitsOnly.endsWith(',')) {
       result += ',';
     }
 
@@ -272,8 +330,15 @@ String formatMonthYear(DateTime date) => GtFormatters.formatMonthYear(date);
 /// Алиас для форматирования количества.
 String formatQuantity(num value) => GtFormatters.formatQuantity(value);
 
+/// Алиас для форматирования процента.
+String formatPercentage(num value, {int decimalDigits = 0}) =>
+    GtFormatters.formatPercentage(value, decimalDigits: decimalDigits);
+
 /// Алиас для получения форматтера сумм (разделение тысяч пробелом).
 TextInputFormatter amountFormatter() => GtFormatters.amountFormatter();
+
+/// Алиас для получения форматтера количества (до 3 знаков после запятой).
+TextInputFormatter quantityFormatter() => GtFormatters.quantityFormatter();
 
 /// Алиас для парсинга сумм из строк.
 double? parseAmount(String? text) => GtFormatters.parseAmount(text);

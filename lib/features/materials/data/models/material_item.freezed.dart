@@ -28,7 +28,8 @@ mixin _$MaterialItem {
  DateTime? get receiptDate;/// Использовано
  double? get used;/// Остаток
  double? get remaining;/// URL файла (накладная/скан)
- String? get fileUrl;
+ String? get fileUrl;/// Список ID сметных позиций, к которым привязан материал
+ List<String> get estimateIds;
 /// Create a copy of MaterialItem
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -41,16 +42,16 @@ $MaterialItemCopyWith<MaterialItem> get copyWith => _$MaterialItemCopyWithImpl<M
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is MaterialItem&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.companyId, companyId) || other.companyId == companyId)&&(identical(other.unit, unit) || other.unit == unit)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.price, price) || other.price == price)&&(identical(other.total, total) || other.total == total)&&(identical(other.receiptNumber, receiptNumber) || other.receiptNumber == receiptNumber)&&(identical(other.receiptDate, receiptDate) || other.receiptDate == receiptDate)&&(identical(other.used, used) || other.used == used)&&(identical(other.remaining, remaining) || other.remaining == remaining)&&(identical(other.fileUrl, fileUrl) || other.fileUrl == fileUrl));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is MaterialItem&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.companyId, companyId) || other.companyId == companyId)&&(identical(other.unit, unit) || other.unit == unit)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.price, price) || other.price == price)&&(identical(other.total, total) || other.total == total)&&(identical(other.receiptNumber, receiptNumber) || other.receiptNumber == receiptNumber)&&(identical(other.receiptDate, receiptDate) || other.receiptDate == receiptDate)&&(identical(other.used, used) || other.used == used)&&(identical(other.remaining, remaining) || other.remaining == remaining)&&(identical(other.fileUrl, fileUrl) || other.fileUrl == fileUrl)&&const DeepCollectionEquality().equals(other.estimateIds, estimateIds));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,companyId,unit,quantity,price,total,receiptNumber,receiptDate,used,remaining,fileUrl);
+int get hashCode => Object.hash(runtimeType,id,name,companyId,unit,quantity,price,total,receiptNumber,receiptDate,used,remaining,fileUrl,const DeepCollectionEquality().hash(estimateIds));
 
 @override
 String toString() {
-  return 'MaterialItem(id: $id, name: $name, companyId: $companyId, unit: $unit, quantity: $quantity, price: $price, total: $total, receiptNumber: $receiptNumber, receiptDate: $receiptDate, used: $used, remaining: $remaining, fileUrl: $fileUrl)';
+  return 'MaterialItem(id: $id, name: $name, companyId: $companyId, unit: $unit, quantity: $quantity, price: $price, total: $total, receiptNumber: $receiptNumber, receiptDate: $receiptDate, used: $used, remaining: $remaining, fileUrl: $fileUrl, estimateIds: $estimateIds)';
 }
 
 
@@ -61,7 +62,7 @@ abstract mixin class $MaterialItemCopyWith<$Res>  {
   factory $MaterialItemCopyWith(MaterialItem value, $Res Function(MaterialItem) _then) = _$MaterialItemCopyWithImpl;
 @useResult
 $Res call({
- String id, String name, String companyId, String? unit, double? quantity, double? price, double? total, String? receiptNumber, DateTime? receiptDate, double? used, double? remaining, String? fileUrl
+ String id, String name, String companyId, String? unit, double? quantity, double? price, double? total, String? receiptNumber, DateTime? receiptDate, double? used, double? remaining, String? fileUrl, List<String> estimateIds
 });
 
 
@@ -78,7 +79,7 @@ class _$MaterialItemCopyWithImpl<$Res>
 
 /// Create a copy of MaterialItem
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? companyId = null,Object? unit = freezed,Object? quantity = freezed,Object? price = freezed,Object? total = freezed,Object? receiptNumber = freezed,Object? receiptDate = freezed,Object? used = freezed,Object? remaining = freezed,Object? fileUrl = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? companyId = null,Object? unit = freezed,Object? quantity = freezed,Object? price = freezed,Object? total = freezed,Object? receiptNumber = freezed,Object? receiptDate = freezed,Object? used = freezed,Object? remaining = freezed,Object? fileUrl = freezed,Object? estimateIds = null,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -92,7 +93,8 @@ as String?,receiptDate: freezed == receiptDate ? _self.receiptDate : receiptDate
 as DateTime?,used: freezed == used ? _self.used : used // ignore: cast_nullable_to_non_nullable
 as double?,remaining: freezed == remaining ? _self.remaining : remaining // ignore: cast_nullable_to_non_nullable
 as double?,fileUrl: freezed == fileUrl ? _self.fileUrl : fileUrl // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,estimateIds: null == estimateIds ? _self.estimateIds : estimateIds // ignore: cast_nullable_to_non_nullable
+as List<String>,
   ));
 }
 
@@ -103,7 +105,7 @@ as String?,
 
 @JsonSerializable(fieldRename: FieldRename.snake)
 class _MaterialItem implements MaterialItem {
-  const _MaterialItem({required this.id, required this.name, required this.companyId, this.unit, this.quantity, this.price, this.total, this.receiptNumber, this.receiptDate, this.used, this.remaining, this.fileUrl});
+  const _MaterialItem({required this.id, required this.name, required this.companyId, this.unit, this.quantity, this.price, this.total, this.receiptNumber, this.receiptDate, this.used, this.remaining, this.fileUrl, final  List<String> estimateIds = const []}): _estimateIds = estimateIds;
   factory _MaterialItem.fromJson(Map<String, dynamic> json) => _$MaterialItemFromJson(json);
 
 /// Идентификатор записи (UUID)
@@ -130,6 +132,15 @@ class _MaterialItem implements MaterialItem {
 @override final  double? remaining;
 /// URL файла (накладная/скан)
 @override final  String? fileUrl;
+/// Список ID сметных позиций, к которым привязан материал
+ final  List<String> _estimateIds;
+/// Список ID сметных позиций, к которым привязан материал
+@override@JsonKey() List<String> get estimateIds {
+  if (_estimateIds is EqualUnmodifiableListView) return _estimateIds;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_estimateIds);
+}
+
 
 /// Create a copy of MaterialItem
 /// with the given fields replaced by the non-null parameter values.
@@ -144,16 +155,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _MaterialItem&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.companyId, companyId) || other.companyId == companyId)&&(identical(other.unit, unit) || other.unit == unit)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.price, price) || other.price == price)&&(identical(other.total, total) || other.total == total)&&(identical(other.receiptNumber, receiptNumber) || other.receiptNumber == receiptNumber)&&(identical(other.receiptDate, receiptDate) || other.receiptDate == receiptDate)&&(identical(other.used, used) || other.used == used)&&(identical(other.remaining, remaining) || other.remaining == remaining)&&(identical(other.fileUrl, fileUrl) || other.fileUrl == fileUrl));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _MaterialItem&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.companyId, companyId) || other.companyId == companyId)&&(identical(other.unit, unit) || other.unit == unit)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.price, price) || other.price == price)&&(identical(other.total, total) || other.total == total)&&(identical(other.receiptNumber, receiptNumber) || other.receiptNumber == receiptNumber)&&(identical(other.receiptDate, receiptDate) || other.receiptDate == receiptDate)&&(identical(other.used, used) || other.used == used)&&(identical(other.remaining, remaining) || other.remaining == remaining)&&(identical(other.fileUrl, fileUrl) || other.fileUrl == fileUrl)&&const DeepCollectionEquality().equals(other._estimateIds, _estimateIds));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,companyId,unit,quantity,price,total,receiptNumber,receiptDate,used,remaining,fileUrl);
+int get hashCode => Object.hash(runtimeType,id,name,companyId,unit,quantity,price,total,receiptNumber,receiptDate,used,remaining,fileUrl,const DeepCollectionEquality().hash(_estimateIds));
 
 @override
 String toString() {
-  return 'MaterialItem(id: $id, name: $name, companyId: $companyId, unit: $unit, quantity: $quantity, price: $price, total: $total, receiptNumber: $receiptNumber, receiptDate: $receiptDate, used: $used, remaining: $remaining, fileUrl: $fileUrl)';
+  return 'MaterialItem(id: $id, name: $name, companyId: $companyId, unit: $unit, quantity: $quantity, price: $price, total: $total, receiptNumber: $receiptNumber, receiptDate: $receiptDate, used: $used, remaining: $remaining, fileUrl: $fileUrl, estimateIds: $estimateIds)';
 }
 
 
@@ -164,7 +175,7 @@ abstract mixin class _$MaterialItemCopyWith<$Res> implements $MaterialItemCopyWi
   factory _$MaterialItemCopyWith(_MaterialItem value, $Res Function(_MaterialItem) _then) = __$MaterialItemCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String name, String companyId, String? unit, double? quantity, double? price, double? total, String? receiptNumber, DateTime? receiptDate, double? used, double? remaining, String? fileUrl
+ String id, String name, String companyId, String? unit, double? quantity, double? price, double? total, String? receiptNumber, DateTime? receiptDate, double? used, double? remaining, String? fileUrl, List<String> estimateIds
 });
 
 
@@ -181,7 +192,7 @@ class __$MaterialItemCopyWithImpl<$Res>
 
 /// Create a copy of MaterialItem
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? companyId = null,Object? unit = freezed,Object? quantity = freezed,Object? price = freezed,Object? total = freezed,Object? receiptNumber = freezed,Object? receiptDate = freezed,Object? used = freezed,Object? remaining = freezed,Object? fileUrl = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? companyId = null,Object? unit = freezed,Object? quantity = freezed,Object? price = freezed,Object? total = freezed,Object? receiptNumber = freezed,Object? receiptDate = freezed,Object? used = freezed,Object? remaining = freezed,Object? fileUrl = freezed,Object? estimateIds = null,}) {
   return _then(_MaterialItem(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -195,7 +206,8 @@ as String?,receiptDate: freezed == receiptDate ? _self.receiptDate : receiptDate
 as DateTime?,used: freezed == used ? _self.used : used // ignore: cast_nullable_to_non_nullable
 as double?,remaining: freezed == remaining ? _self.remaining : remaining // ignore: cast_nullable_to_non_nullable
 as double?,fileUrl: freezed == fileUrl ? _self.fileUrl : fileUrl // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,estimateIds: null == estimateIds ? _self._estimateIds : estimateIds // ignore: cast_nullable_to_non_nullable
+as List<String>,
   ));
 }
 

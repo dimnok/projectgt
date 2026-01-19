@@ -121,7 +121,10 @@ class EstimateItemDetailsDialog extends ConsumerWidget {
                 ),
                 CompanyInfoRow(
                   label: 'Процент выполнения',
-                  value: '${completion!.percentage.toStringAsFixed(1)}%',
+                  value: formatPercentage(
+                    completion!.percentage,
+                    decimalDigits: 1,
+                  ),
                 ),
                 CompanyInfoRow(
                   label: 'Материал получен',
@@ -250,6 +253,16 @@ class EstimateItemDetailsDialog extends ConsumerWidget {
                             formatQuantity(m.quantity ?? 0),
                             align: TextAlign.right,
                             isBold: true,
+                            suffix: m.estimateIds.length > 1
+                                ? const Padding(
+                                    padding: EdgeInsets.only(left: 4),
+                                    child: Icon(
+                                      Icons.link_rounded,
+                                      size: 14,
+                                      color: Colors.blue,
+                                    ),
+                                  )
+                                : null,
                           ),
                         ],
                       ),
@@ -303,16 +316,29 @@ class EstimateItemDetailsDialog extends ConsumerWidget {
     String text, {
     TextAlign align = TextAlign.left,
     bool isBold = false,
+    Widget? suffix,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 14.0),
-      child: Text(
-        text,
-        textAlign: align,
-        style: theme.textTheme.bodyMedium?.copyWith(
-          fontWeight: isBold ? FontWeight.bold : null,
-          fontSize: 13,
-        ),
+      child: Row(
+        mainAxisAlignment: align == TextAlign.right
+            ? MainAxisAlignment.end
+            : (align == TextAlign.center
+                  ? MainAxisAlignment.center
+                  : MainAxisAlignment.start),
+        children: [
+          Flexible(
+            child: Text(
+              text,
+              textAlign: align,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: isBold ? FontWeight.bold : null,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          if (suffix != null) suffix,
+        ],
       ),
     );
   }

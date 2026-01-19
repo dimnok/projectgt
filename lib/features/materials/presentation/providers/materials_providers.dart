@@ -6,19 +6,6 @@ import '../../data/models/material_binding_model.dart';
 import '../../../../core/di/providers.dart';
 import '../../../../features/company/presentation/providers/company_providers.dart';
 
-/// Режим отображения материалов: М-15 или Сопоставление.
-enum MaterialsViewMode {
-  /// Таблица "Материал по М-15"
-  m15,
-
-  /// Таблица "Сопоставление материалов"
-  mapping
-}
-
-/// Провайдер текущего режима отображения в модуле материалов.
-final materialsViewModeProvider =
-    StateProvider<MaterialsViewMode>((ref) => MaterialsViewMode.m15);
-
 /// Провайдер режима группировки по смете (для режима M15)
 final isMaterialsGroupedProvider = StateProvider<bool>((ref) => false);
 

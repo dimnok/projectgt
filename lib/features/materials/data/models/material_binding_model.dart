@@ -16,6 +16,10 @@ enum MaterialBindingStatus {
   /// Материал занят другой сметной позицией в рамках договора.
   @JsonValue('conflict')
   conflict,
+
+  /// Материал привязан к другим позициям, но доступен для совместного использования.
+  @JsonValue('shared')
+  shared,
 }
 
 /// Модель материала с информацией о его статусе привязки к смете.
@@ -37,8 +41,11 @@ abstract class MaterialBindingModel with _$MaterialBindingModel {
     /// Текущий статус привязки в рамках договора
     required MaterialBindingStatus bindingStatus,
 
-    /// Название сметной позиции, к которой уже привязан материал (при конфликте)
+    /// Название сметных позиций, к которым привязан материал (строкой)
     String? linkedEstimateName,
+
+    /// Список названий сметных позиций, к которым привязан материал
+    @Default([]) List<String> linkedEstimateNames,
 
     /// ID сметной позиции, к которой уже привязан материал
     String? linkedEstimateId,

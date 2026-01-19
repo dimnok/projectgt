@@ -48,6 +48,9 @@ abstract class MaterialItem with _$MaterialItem {
 
     /// URL файла (накладная/скан)
     String? fileUrl,
+
+    /// Список ID сметных позиций, к которым привязан материал
+    @Default([]) List<String> estimateIds,
   }) = _MaterialItem;
 
   /// Создаёт [MaterialItem] из JSON.

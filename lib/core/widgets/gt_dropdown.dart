@@ -979,6 +979,9 @@ class GTStringDropdown extends StatelessWidget {
   /// Поле только для чтения.
   final bool readOnly;
 
+  /// Показывать ли индикатор загрузки.
+  final bool isLoading;
+
   /// Отступы внутри поля.
   final EdgeInsets? contentPadding;
 
@@ -1013,6 +1016,7 @@ class GTStringDropdown extends StatelessWidget {
     this.allowClear = true,
     this.validator,
     this.readOnly = false,
+    this.isLoading = false,
     this.contentPadding,
     this.isDense = false,
     this.style,
@@ -1037,6 +1041,7 @@ class GTStringDropdown extends StatelessWidget {
       customInputBuilder: (input) => input,
       validator: validator,
       readOnly: readOnly,
+      isLoading: isLoading,
       contentPadding: contentPadding,
       isDense: isDense,
       style: style,

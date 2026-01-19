@@ -101,6 +101,7 @@ class EstimateNotifier extends StateNotifier<EstimateState> {
       await loadEstimates();
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
+      rethrow;
     }
   }
 
@@ -112,6 +113,7 @@ class EstimateNotifier extends StateNotifier<EstimateState> {
       await loadEstimates();
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
+      rethrow;
     }
   }
 
@@ -123,6 +125,69 @@ class EstimateNotifier extends StateNotifier<EstimateState> {
       state = state.copyWith(selectedEstimate: estimate, isLoading: false);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
+  /// Вычисляет следующий номер для позиции сметы на основе текущего контекста.
+  String calculateNextNumber({
+    String? estimateTitle,
+    String? objectId,
+    String? contractId,
+  }) {
+    try {
+      final currentContextEstimates = state.estimates.where((est) {
+        bool matches = true;
+        if (estimateTitle != null) {
+          matches = matches && est.estimateTitle == estimateTitle;
+        }
+        if (objectId != null) {
+          matches = matches && est.objectId == objectId;
+        }
+        if (contractId != null) {
+          matches = matches && est.contractId == contractId;
+        }
+        return matches;
+      }).toList();
+
+      if (currentContextEstimates.isEmpty) return '1';
+
+      int maxNumber = 0;
+      bool hasDPrefix = false;
+
+      // Анализируем номера на наличие префикса "д-"
+      for (final est in currentContextEstimates) {
+        final numStr = est.number.trim();
+        // ignore: deprecated_member_use
+        final match = RegExp(r'^[дДdD]\s*-\s*(\d+)$').firstMatch(numStr);
+        if (match != null) {
+          hasDPrefix = true;
+          final num = int.tryParse(match.group(1) ?? '0') ?? 0;
+          if (num > maxNumber) {
+            maxNumber = num;
+          }
+        }
+      }
+
+      if (hasDPrefix) {
+        return 'д-${maxNumber + 1}';
+      }
+
+      maxNumber = 0;
+      for (final est in currentContextEstimates) {
+        final numStr = est.number.trim();
+        // ignore: deprecated_member_use
+        if (RegExp(r'^\d+$').hasMatch(numStr)) {
+          final num = int.tryParse(numStr);
+          if (num != null && num > maxNumber) {
+            maxNumber = num;
+          }
+        }
+      }
+
+      return (maxNumber + 1).toString();
+    } catch (e) {
+      // В случае ошибки возвращаем пустую строку, чтобы пользователь ввел вручную
+      return '';
     }
   }
 }

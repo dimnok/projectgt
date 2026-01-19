@@ -21,25 +21,27 @@ mixin EstimateActionsMixin<T extends ConsumerStatefulWidget> on ConsumerState<T>
   EstimateDetailArgs? get currentEstimateArgs;
 
   /// Открытие диалога редактирования/создания позиции.
-  void openEditDialog(
+  Future<void> openEditDialog(
     BuildContext context, {
     Estimate? estimate,
     required String? estimateTitle,
     String? objectId,
     String? contractId,
-  }) {
+  }) async {
     // Если передан estimate, берем ID из него, иначе используем переданные параметры (или параметры текущего контекста)
     final targetObjectId = estimate?.objectId ?? objectId ?? currentEstimateArgs?.objectId;
     final targetContractId = estimate?.contractId ?? contractId ?? currentEstimateArgs?.contractId;
     final targetTitle = estimateTitle ?? currentEstimateArgs?.estimateTitle;
 
-    EstimateEditDialog.show(
+    await EstimateEditDialog.show(
       context,
       estimate: estimate,
       estimateTitle: targetTitle,
       objectId: targetObjectId,
       contractId: targetContractId,
     );
+
+    _invalidateCurrentList();
   }
 
   /// Удаление позиции сметы.
@@ -107,5 +109,7 @@ mixin EstimateActionsMixin<T extends ConsumerStatefulWidget> on ConsumerState<T>
     if (currentEstimateArgs != null) {
       ref.invalidate(estimateItemsProvider(currentEstimateArgs!));
     }
+    // Сбрасываем кэш групп смет, так как суммы и количество позиций могли измениться
+    ref.invalidate(estimateGroupsProvider);
   }
 }

@@ -3,7 +3,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:projectgt/core/di/providers.dart';
-import 'package:flutter_typeahead/flutter_typeahead.dart';
+import 'package:projectgt/core/widgets/gt_dropdown.dart';
+import 'package:projectgt/features/objects/domain/entities/object.dart';
+import 'package:projectgt/domain/entities/contract.dart';
 import 'package:excel/excel.dart' as excel;
 import 'dart:typed_data';
 import 'package:projectgt/data/models/estimate_model.dart';
@@ -40,8 +42,11 @@ class ImportEstimateFormModal extends ConsumerStatefulWidget {
   /// Показывает модальное окно импорта.
   ///
   /// Адаптируется под размер экрана (Dialog для Desktop, BottomSheet для Mobile).
-  static void show(BuildContext context, WidgetRef ref,
-      {required VoidCallback onSuccess}) {
+  static void show(
+    BuildContext context,
+    WidgetRef ref, {
+    required VoidCallback onSuccess,
+  }) {
     final isLargeScreen = MediaQuery.of(context).size.width > 900;
 
     if (isLargeScreen) {
@@ -156,23 +161,6 @@ class _ImportEstimateFormModalState
       }
     }
     _filteredEstimateTitles = filteredTitles.toList()..sort();
-  }
-
-  List<String> _getFilteredContracts(String pattern) {
-    final contractState = ref.read(contractProvider);
-    final searchPattern = pattern.toLowerCase().trim();
-
-    return contractState.contracts
-        .where((c) {
-          // Если выбран объект, показываем только его договоры
-          if (selectedObjectId != null && c.objectId != selectedObjectId) {
-            return false;
-          }
-          return c.number.toLowerCase().contains(searchPattern);
-        })
-        .map((c) => c.number)
-        .toSet()
-        .toList();
   }
 
   void _resetContractSelection() {
@@ -299,7 +287,9 @@ class _ImportEstimateFormModalState
         _validationResult != null &&
         _validationResult!.errors.isNotEmpty) {
       SnackBarUtils.showError(
-          context, 'Невозможно импортировать файл с ошибками структуры');
+        context,
+        'Невозможно импортировать файл с ошибками структуры',
+      );
       return;
     }
 
@@ -430,36 +420,37 @@ class _ImportEstimateFormModalState
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: isActive ? theme.colorScheme.primary : Colors.transparent,
-              border: Border.all(
-                color: color,
-                width: 2,
-              ),
+              border: Border.all(color: color, width: 2),
             ),
             child: isCompleted
-                ? Icon(CupertinoIcons.checkmark_alt,
-                    size: 16, color: theme.colorScheme.primary)
+                ? Icon(
+                    CupertinoIcons.checkmark_alt,
+                    size: 16,
+                    color: theme.colorScheme.primary,
+                  )
                 : isActive
-                    ? Center(
-                        child: Text(
-                          '${step + 1}',
-                          style: TextStyle(
-                            color: theme.colorScheme.onPrimary,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      )
-                    : Center(
-                        child: Text(
-                          '${step + 1}',
-                          style: TextStyle(
-                            color: theme.colorScheme.onSurface
-                                .withValues(alpha: 0.5),
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                ? Center(
+                    child: Text(
+                      '${step + 1}',
+                      style: TextStyle(
+                        color: theme.colorScheme.onPrimary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
                       ),
+                    ),
+                  )
+                : Center(
+                    child: Text(
+                      '${step + 1}',
+                      style: TextStyle(
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.5,
+                        ),
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
           ),
           const SizedBox(height: 4),
           Text(
@@ -526,9 +517,12 @@ class _ImportEstimateFormModalState
         if (pickedFile != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 16),
-            child: Text('Файл: ${pickedFile!.name}',
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(fontWeight: FontWeight.bold)),
+            child: Text(
+              'Файл: ${pickedFile!.name}',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         if (_showPreview && _validationResult != null) ...[
           Container(
@@ -559,10 +553,13 @@ class _ImportEstimateFormModalState
           ),
           const SizedBox(height: 16),
           if (_validationResult!.errors.isNotEmpty) ...[
-            Text('Ошибки:',
-                style: TextStyle(
-                    color: theme.colorScheme.error,
-                    fontWeight: FontWeight.bold)),
+            Text(
+              'Ошибки:',
+              style: TextStyle(
+                color: theme.colorScheme.error,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             ...buildErrorsList(_validationResult!.errors),
             const SizedBox(height: 8),
           ],
@@ -570,27 +567,33 @@ class _ImportEstimateFormModalState
             Text('Строк: ${_previewData?.rowCount ?? 0}'),
             Text('Сумма: ${formatCurrency(_previewData?.totalAmount ?? 0)}'),
             const SizedBox(height: 16),
-            const Text('Системы в смете:',
-                style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text(
+              'Системы в смете:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 8),
             if (_previewData?.systems.isNotEmpty ?? false)
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: _previewData!.systems
-                    .map((s) => Chip(
-                          label: Text(s, style: const TextStyle(fontSize: 12)),
-                          backgroundColor:
-                              theme.colorScheme.surfaceContainerHighest,
-                          side: BorderSide.none,
-                          padding: EdgeInsets.zero,
-                          visualDensity: VisualDensity.compact,
-                        ))
+                    .map(
+                      (s) => Chip(
+                        label: Text(s, style: const TextStyle(fontSize: 12)),
+                        backgroundColor:
+                            theme.colorScheme.surfaceContainerHighest,
+                        side: BorderSide.none,
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    )
                     .toList(),
               )
             else
-              Text('Системы не найдены',
-                  style: TextStyle(color: theme.colorScheme.outline)),
+              Text(
+                'Системы не найдены',
+                style: TextStyle(color: theme.colorScheme.outline),
+              ),
           ],
         ],
       ],
@@ -621,16 +624,18 @@ class _ImportEstimateFormModalState
 
   List<Widget> buildErrorsList(List<String> messages) {
     return messages
-        .map((message) => Padding(
-              padding: const EdgeInsets.only(left: 8.0, top: 4.0),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('• '),
-                  Expanded(child: Text(message)),
-                ],
-              ),
-            ))
+        .map(
+          (message) => Padding(
+            padding: const EdgeInsets.only(left: 8.0, top: 4.0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('• '),
+                Expanded(child: Text(message)),
+              ],
+            ),
+          ),
+        )
         .toList();
   }
 
@@ -643,120 +648,70 @@ class _ImportEstimateFormModalState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TypeAheadField<String>(
-            controller: _objectController,
-            suggestionsCallback: (pattern) => objectState.objects
-                .where(
-                    (o) => o.name.toLowerCase().contains(pattern.toLowerCase()))
-                .map((o) => o.name)
-                .toList(),
-            itemBuilder: (context, suggestion) =>
-                ListTile(title: Text(suggestion)),
-            onSelected: (suggestion) {
-              final obj =
-                  objectState.objects.firstWhere((o) => o.name == suggestion);
+          GTDropdown<ObjectEntity>(
+            items: objectState.objects,
+            itemDisplayBuilder: (o) => o.name,
+            selectedItem: selectedObjectId == null
+                ? null
+                : objectState.objects.firstWhere(
+                    (o) => o.id == selectedObjectId,
+                  ),
+            onSelectionChanged: (obj) {
               setState(() {
-                if (selectedObjectId != obj.id) _resetContractSelection();
-                selectedObjectId = obj.id;
-                _objectController.text = obj.name;
+                if (selectedObjectId != obj?.id) _resetContractSelection();
+                selectedObjectId = obj?.id;
+                _objectController.text = obj?.name ?? '';
                 _updateFilteredEstimates();
               });
             },
-            builder: (context, controller, focusNode) => TextFormField(
-              controller: controller,
-              focusNode: focusNode,
-              decoration: const InputDecoration(
-                labelText: 'Объект *',
-                hintText: 'Выберите объект',
-                border: OutlineInputBorder(),
-              ),
-              validator: (v) =>
-                  selectedObjectId == null ? 'Выберите объект' : null,
-            ),
+            labelText: 'Объект *',
+            hintText: 'Выберите объект',
+            validator: (v) =>
+                selectedObjectId == null ? 'Выберите объект' : null,
           ),
           const SizedBox(height: 16),
-          TypeAheadField<String>(
+          GTDropdown<Contract>(
             key: ValueKey('contract_$selectedObjectId'),
-            controller: _contractController,
-            suggestionsCallback: (pattern) => _getFilteredContracts(pattern),
-            itemBuilder: (context, suggestion) {
-              // Ищем договор, соответствующий номеру и выбранному объекту
-              final contract = contractState.contracts.firstWhere(
-                (c) =>
-                    c.number == suggestion &&
-                    (selectedObjectId == null ||
-                        c.objectId == selectedObjectId),
-                orElse: () => contractState.contracts
-                    .firstWhere((c) => c.number == suggestion),
-              );
-              return ListTile(
-                title: Text(suggestion),
-                subtitle: Text(contract.contractorName ?? "Без контрагента"),
-              );
-            },
-            onSelected: (suggestion) {
-              final contract = contractState.contracts.firstWhere(
-                (c) =>
-                    c.number == suggestion &&
-                    (selectedObjectId == null ||
-                        c.objectId == selectedObjectId),
-                orElse: () => contractState.contracts
-                    .firstWhere((c) => c.number == suggestion),
-              );
+            items: contractState.contracts.where((c) {
+              if (selectedObjectId != null && c.objectId != selectedObjectId) {
+                return false;
+              }
+              return true;
+            }).toList(),
+            itemDisplayBuilder: (c) => c.number,
+            selectedItem: selectedContractId == null
+                ? null
+                : contractState.contracts.firstWhere(
+                    (c) => c.id == selectedContractId,
+                  ),
+            onSelectionChanged: (contract) {
               setState(() {
-                selectedContractId = contract.id;
-                _contractController.text = contract.number;
+                selectedContractId = contract?.id;
+                _contractController.text = contract?.number ?? '';
                 _updateFilteredEstimates();
               });
             },
-            builder: (context, controller, focusNode) => TextFormField(
-              controller: controller,
-              focusNode: focusNode,
-              decoration: InputDecoration(
-                labelText: 'Договор *',
-                hintText: selectedObjectId == null
-                    ? 'Сначала выберите объект'
-                    : 'Выберите договор',
-                border: const OutlineInputBorder(),
-                enabled: selectedObjectId != null,
-              ),
-              validator: (v) =>
-                  selectedContractId == null ? 'Выберите договор' : null,
-            ),
+            labelText: 'Договор *',
+            hintText: selectedObjectId == null
+                ? 'Сначала выберите объект'
+                : 'Выберите договор',
+            readOnly: selectedObjectId == null,
+            validator: (v) =>
+                selectedContractId == null ? 'Выберите договор' : null,
           ),
           const SizedBox(height: 16),
-          TypeAheadField<String>(
-            controller: _estimateNameController,
-            suggestionsCallback: (pattern) => _filteredEstimateTitles
-                .where((t) => t.toLowerCase().contains(pattern.toLowerCase()))
-                .toList(),
-            itemBuilder: (context, suggestion) =>
-                ListTile(title: Text(suggestion)),
-            onSelected: (suggestion) {
-              setState(() => _estimateNameController.text = suggestion);
-              _updateEstimateInfo(suggestion);
+          GTStringDropdown(
+            items: _filteredEstimateTitles,
+            selectedItem: _estimateNameController.text,
+            onSelectionChanged: (val) {
+              setState(() => _estimateNameController.text = val ?? '');
+              _updateEstimateInfo(val ?? '');
             },
-            builder: (context, controller, focusNode) => TextFormField(
-              controller: controller,
-              focusNode: focusNode,
-              decoration: InputDecoration(
-                labelText: 'Название сметы *',
-                hintText: 'Выберите или введите новую',
-                border: const OutlineInputBorder(),
-                suffixIcon: _loadingEstimateTitles
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: Padding(
-                          padding: EdgeInsets.all(8.0),
-                          child: CupertinoActivityIndicator(),
-                        ),
-                      )
-                    : null,
-              ),
-              validator: (v) =>
-                  (v == null || v.isEmpty) ? 'Введите название' : null,
-            ),
+            labelText: 'Название сметы *',
+            hintText: 'Выберите или введите новую',
+            isLoading: _loadingEstimateTitles,
+            validator: (v) =>
+                (v == null || v.isEmpty) ? 'Введите название' : null,
           ),
         ],
       ),
@@ -796,10 +751,7 @@ class _ImportEstimateFormModalState
 
     final content = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _buildStepIndicator(theme),
-        _buildStepContent(theme),
-      ],
+      children: [_buildStepIndicator(theme), _buildStepContent(theme)],
     );
 
     // Actions

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/utils/responsive_utils.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/desktop_dialog_content.dart';
 import '../../../../core/widgets/gt_buttons.dart';
 import '../../../../core/widgets/gt_text_field.dart';
@@ -280,11 +281,12 @@ class _MaterialFromReceiptsPickerState
                   final isSelected =
                       _selectedMaterial?.name == item.name &&
                       _selectedMaterial?.unit == item.unit;
-                  final isConflict =
+                  final isShared =
+                      item.bindingStatus == MaterialBindingStatus.shared ||
                       item.bindingStatus == MaterialBindingStatus.conflict;
                   final isCurrent =
                       item.bindingStatus == MaterialBindingStatus.current;
-                  final bool isDisabled = isConflict || isCurrent;
+                  final bool isDisabled = isCurrent;
 
                   // Логика нормализации для сравнения единиц измерения
                   String normalize(String? unit) {
@@ -348,9 +350,6 @@ class _MaterialFromReceiptsPickerState
                                         color: isDisabled
                                             ? theme.disabledColor
                                             : null,
-                                        decoration: isConflict
-                                            ? TextDecoration.lineThrough
-                                            : null,
                                       ),
                                     ),
                                     const SizedBox(height: 6),
@@ -370,16 +369,30 @@ class _MaterialFromReceiptsPickerState
                                           ),
                                         ],
                                         const Spacer(),
-                                        if (isConflict)
-                                          Text(
-                                            item.linkedEstimateName ?? 'Занят',
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              color: Colors.orange.shade800,
-                                              fontWeight: FontWeight.w600,
+                                        if (isShared)
+                                          Tooltip(
+                                            message:
+                                                'Также используется в:\n${item.linkedEstimateNames.join('\n')}',
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  Icons.link_rounded,
+                                                  size: 12,
+                                                  color: Colors.blue.shade700,
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  'ОБЩИЙ',
+                                                  style: TextStyle(
+                                                    fontSize: 9,
+                                                    color: Colors.blue.shade700,
+                                                    fontWeight: FontWeight.w900,
+                                                    letterSpacing: 0.5,
+                                                  ),
+                                                ),
+                                              ],
                                             ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
                                           )
                                         else if (isCurrent)
                                           Text(
@@ -455,6 +468,7 @@ class _MaterialFromReceiptsPickerState
                                         const TextInputType.numberWithOptions(
                                           decimal: true,
                                         ),
+                                    inputFormatters: [quantityFormatter()],
                                     textAlign: TextAlign.center,
                                     style: const TextStyle(
                                       fontSize: 14,
@@ -551,9 +565,7 @@ class _MaterialFromReceiptsPickerState
 
   Future<void> _handleLink() async {
     if (_selectedMaterial == null) return;
-    final multiplierText = _multiplierController.text;
-    final multiplier =
-        double.tryParse(multiplierText.replaceAll(',', '.')) ?? 1.0;
+    final multiplier = parseAmount(_multiplierController.text) ?? 1.0;
 
     setState(() => _isLinking = true);
     try {

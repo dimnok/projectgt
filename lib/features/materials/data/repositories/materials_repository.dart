@@ -153,6 +153,8 @@ class MaterialsRepository {
               name: e['name'],
               unit: e['unit'],
               quantity: (e['quantity'] as num?)?.toDouble(),
+              remaining: (e['remaining_for_estimate'] as num?)?.toDouble(),
+              estimateIds: (e['estimate_ids'] as List?)?.map((id) => id.toString()).toList() ?? [],
               receiptNumber: e['receipt_number'],
               receiptDate: e['receipt_date'] != null 
                   ? DateTime.parse(e['receipt_date']) 

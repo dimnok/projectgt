@@ -64,23 +64,27 @@ class _NewMaterialModalState extends ConsumerState<NewMaterialModal> {
     'л',
     'м²',
     'м³',
-    'компл.'
+    'компл.',
   ];
 
   @override
   void initState() {
     super.initState();
     final all = ref.read(estimateNotifierProvider).estimates;
-    _availableEstimateTitles = all
-        .where((e) =>
-            e.objectId == widget.objectId &&
-            e.system == widget.system &&
-            e.subsystem == widget.subsystem &&
-            (e.estimateTitle != null && e.estimateTitle!.trim().isNotEmpty))
-        .map((e) => e.estimateTitle!)
-        .toSet()
-        .toList()
-      ..sort();
+    _availableEstimateTitles =
+        all
+            .where(
+              (e) =>
+                  e.objectId == widget.objectId &&
+                  e.system == widget.system &&
+                  e.subsystem == widget.subsystem &&
+                  (e.estimateTitle != null &&
+                      e.estimateTitle!.trim().isNotEmpty),
+            )
+            .map((e) => e.estimateTitle!)
+            .toSet()
+            .toList()
+          ..sort();
     if (_availableEstimateTitles.isNotEmpty) {
       _selectedEstimateTitle = _availableEstimateTitles.first;
     }
@@ -119,8 +123,10 @@ class _NewMaterialModalState extends ConsumerState<NewMaterialModal> {
               e.subsystem == widget.subsystem &&
               e.estimateTitle == _selectedEstimateTitle) {
             // ignore: deprecated_member_use
-            final match = RegExp(r'^д-(\d+)$', caseSensitive: false)
-                .firstMatch(e.number.trim());
+            final match = RegExp(
+              r'^д-(\d+)$',
+              caseSensitive: false,
+            ).firstMatch(e.number.trim());
             if (match != null) {
               final n = int.tryParse(match.group(1) ?? '0') ?? 0;
               if (n > maxNum) maxNum = n;
@@ -168,14 +174,12 @@ class _NewMaterialModalState extends ConsumerState<NewMaterialModal> {
         position: AppSnackBarPosition.top,
         kind: AppSnackBarKind.success,
       );
-      Navigator.pop(context, {
-        'name': estimate.name,
-        'unit': estimate.unit,
-      });
+      Navigator.pop(context, {'name': estimate.name, 'unit': estimate.unit});
     } catch (e) {
       if (!mounted) return;
       final raw = e.toString();
-      final isPermissionError = raw.contains('permission') ||
+      final isPermissionError =
+          raw.contains('permission') ||
           raw.contains('row-level security') ||
           raw.contains('42501');
       final message = isPermissionError
@@ -235,16 +239,12 @@ class _NewMaterialModalState extends ConsumerState<NewMaterialModal> {
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _articleController,
-                  decoration: const InputDecoration(
-                    labelText: 'Артикул',
-                  ),
+                  decoration: const InputDecoration(labelText: 'Артикул'),
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _manufacturerController,
-                  decoration: const InputDecoration(
-                    labelText: 'Производитель',
-                  ),
+                  decoration: const InputDecoration(labelText: 'Производитель'),
                 ),
                 const SizedBox(height: 12),
                 GTStringDropdown(
