@@ -127,6 +127,7 @@ class WorkSearchDataSourceImpl implements WorkSearchDataSource {
           total: total,
           positionNumber: item['position_number'] as String?,
           contractNumber: item['contract_number'] as String?,
+          m15Name: item['m15_name'] as String?,
         );
       }).toList();
 

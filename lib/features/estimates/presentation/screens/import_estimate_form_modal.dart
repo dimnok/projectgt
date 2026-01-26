@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:collection/collection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:projectgt/core/di/providers.dart';
@@ -32,11 +33,16 @@ class ImportEstimateFormModal extends ConsumerStatefulWidget {
   /// Коллбек, вызываемый при отмене или закрытии окна.
   final VoidCallback onCancel;
 
+  /// Нужно ли оборачивать в DesktopDialogContent/MobileBottomSheetContent.
+  /// По умолчанию true.
+  final bool useWrapper;
+
   /// Создаёт модальное окно импорта сметы.
   const ImportEstimateFormModal({
     super.key,
     required this.onSuccess,
     required this.onCancel,
+    this.useWrapper = true,
   });
 
   /// Показывает модальное окно импорта.
@@ -50,15 +56,15 @@ class ImportEstimateFormModal extends ConsumerStatefulWidget {
     final isLargeScreen = MediaQuery.of(context).size.width > 900;
 
     if (isLargeScreen) {
-      showDialog(
-        context: context,
-        builder: (context) => Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.all(24),
-          child: ImportEstimateFormModal(
-            onSuccess: onSuccess,
-            onCancel: () => context.pop(),
-          ),
+      DesktopDialogContent.show(
+        context,
+        title: 'Импорт сметы',
+        width: 750,
+        onClose: () => Navigator.of(context).pop(),
+        child: ImportEstimateFormModal(
+          onSuccess: onSuccess,
+          onCancel: () => Navigator.of(context).pop(),
+          useWrapper: false,
         ),
       );
     } else {
@@ -94,7 +100,7 @@ class _ImportEstimateFormModalState
 
   List<String> _existingEstimateTitles = [];
   List<String> _filteredEstimateTitles = [];
-  bool _loadingEstimateTitles = false;
+  final bool _loadingEstimateTitles = false;
 
   bool _showPreview = false;
   ExcelPreviewResult? _previewData;
@@ -112,7 +118,13 @@ class _ImportEstimateFormModalState
     _objectController = TextEditingController();
     _contractController = TextEditingController();
     _estimateNameController = TextEditingController();
-    _loadExistingEstimateTitles();
+    
+    // Инициируем загрузку смет при открытии
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(estimateNotifierProvider.notifier).loadEstimates();
+      }
+    });
   }
 
   @override
@@ -121,27 +133,6 @@ class _ImportEstimateFormModalState
     _contractController.dispose();
     _estimateNameController.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadExistingEstimateTitles() async {
-    setState(() => _loadingEstimateTitles = true);
-    try {
-      final estimates = ref.read(estimateNotifierProvider).estimates;
-      final titles = <String>{};
-      for (final estimate in estimates) {
-        if (estimate.estimateTitle != null &&
-            estimate.estimateTitle!.isNotEmpty) {
-          titles.add(estimate.estimateTitle!);
-        }
-      }
-      setState(() {
-        _existingEstimateTitles = titles.toList()..sort();
-        _filteredEstimateTitles = _existingEstimateTitles;
-        _loadingEstimateTitles = false;
-      });
-    } catch (e) {
-      setState(() => _loadingEstimateTitles = false);
-    }
   }
 
   void _updateFilteredEstimates() {
@@ -170,10 +161,14 @@ class _ImportEstimateFormModalState
 
   void _updateEstimateInfo(String title) {
     final estimates = ref.read(estimateNotifierProvider).estimates;
-    final selectedEstimate = estimates.firstWhere(
+    if (estimates.isEmpty) return;
+
+    final selectedEstimate = estimates.firstWhereOrNull(
       (e) => e.estimateTitle == title,
-      orElse: () => estimates.first,
     );
+    
+    if (selectedEstimate == null) return;
+    
     final objectId = selectedEstimate.objectId;
     final contractId = selectedEstimate.contractId;
 
@@ -642,6 +637,34 @@ class _ImportEstimateFormModalState
   Widget _buildDataForm() {
     final objectState = ref.watch(objectProvider);
     final contractState = ref.watch(contractProvider);
+    final estimateState = ref.watch(estimateNotifierProvider);
+
+    // Обновляем список названий смет при изменении состояния провайдера
+    final titles = <String>{};
+    for (final estimate in estimateState.estimates) {
+      if (estimate.estimateTitle != null &&
+          estimate.estimateTitle!.isNotEmpty) {
+        titles.add(estimate.estimateTitle!);
+      }
+    }
+    _existingEstimateTitles = titles.toList()..sort();
+
+    // Обновляем отфильтрованный список
+    if (selectedObjectId == null) {
+      _filteredEstimateTitles = _existingEstimateTitles;
+    } else {
+      final filteredTitles = <String>{};
+      for (final estimate in estimateState.estimates) {
+        if (estimate.estimateTitle != null &&
+            estimate.estimateTitle!.isNotEmpty &&
+            estimate.objectId == selectedObjectId &&
+            (selectedContractId == null ||
+                estimate.contractId == selectedContractId)) {
+          filteredTitles.add(estimate.estimateTitle!);
+        }
+      }
+      _filteredEstimateTitles = filteredTitles.toList()..sort();
+    }
 
     return Form(
       key: formKey,
@@ -705,11 +728,15 @@ class _ImportEstimateFormModalState
             selectedItem: _estimateNameController.text,
             onSelectionChanged: (val) {
               setState(() => _estimateNameController.text = val ?? '');
-              _updateEstimateInfo(val ?? '');
+              if (val != null && val.isNotEmpty) {
+                _updateEstimateInfo(val);
+              }
             },
             labelText: 'Название сметы *',
             hintText: 'Выберите или введите новую',
             isLoading: _loadingEstimateTitles,
+            allowCustomInput: true,
+            showAddNewOption: true,
             validator: (v) =>
                 (v == null || v.isEmpty) ? 'Введите название' : null,
           ),
@@ -775,6 +802,17 @@ class _ImportEstimateFormModalState
         ),
       ],
     );
+
+    if (!widget.useWrapper) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          content,
+          const SizedBox(height: 24),
+          actions,
+        ],
+      );
+    }
 
     if (isLargeScreen) {
       return DesktopDialogContent(

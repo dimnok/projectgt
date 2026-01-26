@@ -514,18 +514,33 @@ final allPayoutsProvider =
   }
 });
 
+/// Результат FIFO распределения выплат для сотрудника за год.
+class PayrollEmployeeFIFOData {
+  /// Выплаты по месяцам (1-12).
+  final Map<int, double> payouts;
+
+  /// Балансы на конец месяца (1-12) с учетом FIFO выплат.
+  final Map<int, double> balances;
+
+  /// Конструктор [PayrollEmployeeFIFOData].
+  PayrollEmployeeFIFOData({
+    required this.payouts,
+    required this.balances,
+  });
+}
+
 /// Провайдер FIFO распределения выплат по месяцам.
-/// Возвращает Map<employeeId, Map<month, amountForMonth>>
+/// Возвращает Map<employeeId, PayrollEmployeeFIFOData>
 /// где month = 1-12 (январь-декабрь выбранного года).
 final payoutsByEmployeeAndMonthFIFOProvider =
-    FutureProvider.family<Map<String, Map<int, double>>, int>((ref, year) async {
+    FutureProvider.family<Map<String, PayrollEmployeeFIFOData>, int>((ref, year) async {
   final client = ref.watch(supabaseClientProvider);
-  final allPayouts = ref.watch(allPayoutsProvider).asData?.value ?? [];
+  final allPayouts = await ref.watch(allPayoutsProvider.future);
   final activeCompanyId = ref.watch(activeCompanyIdProvider);
 
   if (activeCompanyId == null) return {};
 
-  final result = <String, Map<int, double>>{};
+  final result = <String, PayrollEmployeeFIFOData>{};
   final startOfSelectedYear = DateTime(year, 1, 1).toIso8601String();
 
   // 1️⃣ Получаем сумму всех начислений ДО начала выбранного года одним запросом
@@ -533,7 +548,7 @@ final payoutsByEmployeeAndMonthFIFOProvider =
   try {
     final historicalAccrualsResponse = await client.rpc('calculate_employee_balances_before_date', params: {
       'p_before_date': startOfSelectedYear,
-      'p_company_id': activeCompanyId, // Добавим и сюда p_company_id (предполагая, что она тоже обновлена или будет обновлена)
+      'p_company_id': activeCompanyId,
     });
     
     for (final row in (historicalAccrualsResponse as List)) {
@@ -552,49 +567,60 @@ final payoutsByEmployeeAndMonthFIFOProvider =
     payoutsByEmployee.putIfAbsent(payout.employeeId, () => []).add(payout);
   }
 
-  // 3️⃣ Получаем начисления за месяцы ВЫБРАННОГО года
+  // 3️⃣ Получаем начисления за месяцы ВЫБРАННОГО года ПАРАЛЛЕЛЬНО
   final payrollsByEmployeeAndMonth = <String, Map<int, double>>{};
   
-  // Проходим по всем месяцам года
-  for (int month = 1; month <= 12; month++) {
-    try {
-      final response = await client.rpc('calculate_payroll_for_month', params: {
-        'p_year': year,
-        'p_month': month,
-        'p_company_id': activeCompanyId,
-      });
+  final monthFutures = List.generate(12, (index) {
+    final month = index + 1;
+    return client.rpc('calculate_payroll_for_month', params: {
+      'p_year': year,
+      'p_month': month,
+      'p_company_id': activeCompanyId,
+    }).then((response) => MapEntry(month, response as List));
+  });
 
-      for (final row in response) {
-        final empId = row['employee_id'] as String;
-        final netSalary = (row['net_salary'] as num).toDouble();
-        
-        payrollsByEmployeeAndMonth.putIfAbsent(empId, () => {});
-        payrollsByEmployeeAndMonth[empId]![month] = netSalary;
-      }
-    } catch (e) {
-      // Игнорируем ошибки для отдельных месяцев
+  final results = await Future.wait(monthFutures);
+
+  for (final entry in results) {
+    final month = entry.key;
+    final monthRows = entry.value;
+
+    for (final row in monthRows) {
+      final empId = row['employee_id'] as String;
+      final netSalary = (row['net_salary'] as num).toDouble();
+      
+      payrollsByEmployeeAndMonth.putIfAbsent(empId, () => {});
+      payrollsByEmployeeAndMonth[empId]![month] = netSalary;
     }
   }
 
   // 4️⃣ FIFO распределение с учетом исторического долга
-  for (final employeeId in payoutsByEmployee.keys) {
-    final employeePayouts = payoutsByEmployee[employeeId]!;
+  // Для корректного расчета баланса нам нужны ВСЕ сотрудники, у которых были начисления или выплаты
+  final allEmployeeIds = {
+    ...accrualsBeforeYear.keys,
+    ...payoutsByEmployee.keys,
+    ...payrollsByEmployeeAndMonth.keys,
+  };
+
+  for (final employeeId in allEmployeeIds) {
+    final employeePayouts = payoutsByEmployee[employeeId] ?? [];
     final employeePayrolls = payrollsByEmployeeAndMonth[employeeId] ?? {};
     
     // Начальный исторический долг (начисления до начала года)
-    var historicalDebt = accrualsBeforeYear[employeeId] ?? 0.0;
+    var remainingHistoricalDebt = accrualsBeforeYear[employeeId] ?? 0.0;
     
     final payoutsForMonth = <int, double>{};
 
+    // 4.1. Сначала распределяем ВСЕ выплаты (FIFO)
     for (final payout in employeePayouts) {
       var remainingPayout = payout.amount.toDouble();
 
       // Сначала гасим исторический долг начислениями до этого года
-      if (historicalDebt > 0) {
-        final toApplyToHistory = remainingPayout > historicalDebt 
-            ? historicalDebt 
+      if (remainingHistoricalDebt > 0) {
+        final toApplyToHistory = remainingPayout > remainingHistoricalDebt 
+            ? remainingHistoricalDebt 
             : remainingPayout;
-        historicalDebt -= toApplyToHistory;
+        remainingHistoricalDebt -= toApplyToHistory;
         remainingPayout -= toApplyToHistory;
       }
 
@@ -619,7 +645,24 @@ final payoutsByEmployeeAndMonthFIFOProvider =
       }
     }
 
-    result[employeeId] = payoutsForMonth;
+    // 4.2. Теперь рассчитываем кумулятивный баланс на конец каждого месяца
+    // Баланс(М) = Баланс_начала_года + Сумма(Начисления_до_М) - Сумма(Выплаты_до_М_по_FIFO)
+    // Что эквивалентно: Баланс(М) = Баланс(М-1) + Начисление(М) - Выплата_FIFO(М)
+    final balancesForMonth = <int, double>{};
+    var currentRunningBalance = remainingHistoricalDebt; // Остаток долга с прошлых лет после всех выплат
+
+    for (int month = 1; month <= 12; month++) {
+      final accrual = employeePayrolls[month] ?? 0.0;
+      final payoutFIFO = payoutsForMonth[month] ?? 0.0;
+      
+      currentRunningBalance += (accrual - payoutFIFO);
+      balancesForMonth[month] = currentRunningBalance;
+    }
+
+    result[employeeId] = PayrollEmployeeFIFOData(
+      payouts: payoutsForMonth,
+      balances: balancesForMonth,
+    );
   }
 
   return result;

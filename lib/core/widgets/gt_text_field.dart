@@ -65,6 +65,9 @@ class GTTextField extends StatelessWidget {
   /// Тип капитализации текста.
   final TextCapitalization textCapitalization;
 
+  /// Автофокус на поле.
+  final bool autofocus;
+
   /// Создаёт текстовое поле ввода в стиле проекта.
   ///
   /// - [controller] — контроллер для управления текстом.
@@ -87,6 +90,7 @@ class GTTextField extends StatelessWidget {
   /// - [contentPadding] — пользовательские отступы.
   /// - [borderRadius] — радиус скругления (по умолчанию 16).
   /// - [textAlign] — выравнивание текста (по умолчанию start).
+  /// - [autofocus] — автоматический фокус при появлении поля.
   const GTTextField({
     super.key,
     this.controller,
@@ -109,6 +113,7 @@ class GTTextField extends StatelessWidget {
     this.contentPadding,
     this.borderRadius = 16,
     this.textAlign = TextAlign.start,
+    this.autofocus = false,
   });
 
   @override
@@ -124,6 +129,7 @@ class GTTextField extends StatelessWidget {
       textCapitalization: textCapitalization,
       maxLines: maxLines,
       readOnly: readOnly,
+      autofocus: autofocus,
       inputFormatters: inputFormatters,
       onChanged: onChanged,
       onFieldSubmitted: onSubmitted,

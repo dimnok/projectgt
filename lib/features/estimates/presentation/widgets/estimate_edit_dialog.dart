@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
@@ -13,6 +12,7 @@ import '../../../../core/widgets/gt_buttons.dart';
 import '../../../../core/widgets/gt_text_field.dart';
 import '../../../../core/widgets/gt_dropdown.dart';
 import '../../../../core/widgets/app_snackbar.dart';
+import '../../../../features/roles/application/permission_service.dart';
 import '../../../../features/company/presentation/providers/company_providers.dart';
 
 /// Диалоговое окно для создания или редактирования позиции сметы.
@@ -29,6 +29,10 @@ class EstimateEditDialog extends ConsumerStatefulWidget {
   /// Идентификатор договора (для контекста новой позиции).
   final String? contractId;
 
+  /// Нужно ли оборачивать в DesktopDialogContent/MobileBottomSheetContent.
+  /// По умолчанию true.
+  final bool useWrapper;
+
   /// Создаёт диалог редактирования позиции.
   const EstimateEditDialog({
     super.key,
@@ -36,6 +40,7 @@ class EstimateEditDialog extends ConsumerStatefulWidget {
     this.estimateTitle,
     this.objectId,
     this.contractId,
+    this.useWrapper = true,
   });
 
   /// Показывает диалог редактирования/создания позиции.
@@ -49,19 +54,19 @@ class EstimateEditDialog extends ConsumerStatefulWidget {
     String? contractId,
   }) async {
     final isLargeScreen = MediaQuery.of(context).size.width > 900;
+    final title = estimate != null ? 'Редактирование позиции' : 'Добавление позиции';
 
     if (isLargeScreen) {
-      await showDialog(
-        context: context,
-        builder: (context) => Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.all(24),
-          child: EstimateEditDialog(
-            estimate: estimate,
-            estimateTitle: estimateTitle,
-            objectId: objectId,
-            contractId: contractId,
-          ),
+      await DesktopDialogContent.show(
+        context,
+        title: title,
+        width: 750,
+        child: EstimateEditDialog(
+          estimate: estimate,
+          estimateTitle: estimateTitle,
+          objectId: objectId,
+          contractId: contractId,
+          useWrapper: false,
         ),
       );
     } else {
@@ -292,35 +297,53 @@ class _EstimateEditDialogState extends ConsumerState<EstimateEditDialog> {
     final title = isEditing ? 'Редактирование позиции' : 'Добавление позиции';
     final theme = Theme.of(context);
 
+    final permissionService = ref.watch(permissionServiceProvider);
+    final canEdit = permissionService.can('estimates', 'update');
+
+    final formContent = Form(
+      key: _formKey,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: _buildFormFields(theme, canEdit),
+      ),
+    );
+
+    final footer = Row(
+      children: [
+        Expanded(
+          child: GTSecondaryButton(
+            text: 'Отмена',
+            onPressed: () => context.pop(),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: GTPrimaryButton(
+            text: isEditing ? 'Сохранить' : 'Добавить',
+            onPressed: canEdit ? _save : null,
+          ),
+        ),
+      ],
+    );
+
+    if (!widget.useWrapper) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          formContent,
+          const SizedBox(height: 24),
+          footer,
+        ],
+      );
+    }
+
     if (isLargeScreen) {
       return DesktopDialogContent(
         title: title,
         width: 750,
-        footer: Row(
-          children: [
-            Expanded(
-              child: GTSecondaryButton(
-                text: 'Отмена',
-                onPressed: () => context.pop(),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: GTPrimaryButton(
-                text: isEditing ? 'Сохранить' : 'Добавить',
-                onPressed: _save,
-              ),
-            ),
-          ],
-        ),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: _buildFormFields(theme),
-          ),
-        ),
+        footer: footer,
+        child: formContent,
       );
     }
 
@@ -338,7 +361,7 @@ class _EstimateEditDialogState extends ConsumerState<EstimateEditDialog> {
           Expanded(
             child: GTPrimaryButton(
               text: isEditing ? 'Сохранить' : 'Добавить',
-              onPressed: _save,
+              onPressed: canEdit ? _save : null,
             ),
           ),
         ],
@@ -347,13 +370,13 @@ class _EstimateEditDialogState extends ConsumerState<EstimateEditDialog> {
         key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: _buildFormFields(theme),
+          children: _buildFormFields(theme, canEdit),
         ),
       ),
     );
   }
 
-  List<Widget> _buildFormFields(ThemeData theme) {
+  List<Widget> _buildFormFields(ThemeData theme, bool canEdit) {
     return [
       Text(
         'Основная информация',
@@ -368,8 +391,10 @@ class _EstimateEditDialogState extends ConsumerState<EstimateEditDialog> {
         hintText: 'Выберите или введите систему',
         selectedItem: _systemController.text,
         isLoading: _systemsLoading,
-        onSelectionChanged: (val) =>
-            setState(() => _systemController.text = val ?? ''),
+        showAddNewOption: true,
+        onSelectionChanged: canEdit
+            ? (val) => setState(() => _systemController.text = val ?? '')
+            : null,
         validator: (v) =>
             v == null || v.trim().isEmpty ? 'Обязательное поле' : null,
       ),
@@ -380,8 +405,10 @@ class _EstimateEditDialogState extends ConsumerState<EstimateEditDialog> {
         hintText: 'Выберите или введите подсистему',
         selectedItem: _subsystemController.text,
         isLoading: _subsystemsLoading,
-        onSelectionChanged: (val) =>
-            setState(() => _subsystemController.text = val ?? ''),
+        showAddNewOption: true,
+        onSelectionChanged: canEdit
+            ? (val) => setState(() => _subsystemController.text = val ?? '')
+            : null,
         validator: (v) =>
             v == null || v.trim().isEmpty ? 'Обязательное поле' : null,
       ),
@@ -390,6 +417,7 @@ class _EstimateEditDialogState extends ConsumerState<EstimateEditDialog> {
         controller: _numberController,
         labelText: 'Номер *',
         hintText: 'Введите порядковый номер',
+        readOnly: !canEdit,
         validator: (v) =>
             v == null || v.trim().isEmpty ? 'Обязательное поле' : null,
       ),
@@ -398,6 +426,7 @@ class _EstimateEditDialogState extends ConsumerState<EstimateEditDialog> {
         controller: _nameController,
         labelText: 'Наименование *',
         hintText: 'Введите наименование позиции',
+        readOnly: !canEdit,
         validator: (v) =>
             v == null || v.trim().isEmpty ? 'Обязательное поле' : null,
         maxLines: null,
@@ -410,28 +439,83 @@ class _EstimateEditDialogState extends ConsumerState<EstimateEditDialog> {
         ),
       ),
       const SizedBox(height: 16),
-      GTTextField(
-        controller: _articleController,
-        labelText: 'Артикул',
-        hintText: 'Введите артикул',
-      ),
-      const SizedBox(height: 16),
-      GTTextField(
-        controller: _manufacturerController,
-        labelText: 'Производитель',
-        hintText: 'Введите производителя',
-      ),
-      const SizedBox(height: 16),
-      GTStringDropdown(
-        items: _units,
-        labelText: 'Единица измерения *',
-        hintText: 'Выберите или введите единицу измерения',
-        selectedItem: _unitController.text,
-        isLoading: _unitsLoading,
-        onSelectionChanged: (val) =>
-            setState(() => _unitController.text = val ?? ''),
-        validator: (v) =>
-            v == null || v.trim().isEmpty ? 'Обязательное поле' : null,
+      LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth > 500;
+          if (isWide) {
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: GTTextField(
+                    controller: _articleController,
+                    labelText: 'Артикул',
+                    hintText: 'Введите артикул',
+                    readOnly: !canEdit,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: GTTextField(
+                    controller: _manufacturerController,
+                    labelText: 'Производитель',
+                    hintText: 'Введите производителя',
+                    readOnly: !canEdit,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: GTStringDropdown(
+                    items: _units,
+                    labelText: 'Ед. измерения *',
+                    hintText: 'Выберите или введите',
+                    selectedItem: _unitController.text,
+                    isLoading: _unitsLoading,
+                    showAddNewOption: true,
+                    onSelectionChanged: canEdit
+                        ? (val) =>
+                            setState(() => _unitController.text = val ?? '')
+                        : null,
+                    validator: (v) => v == null || v.trim().isEmpty
+                        ? 'Обязательное поле'
+                        : null,
+                  ),
+                ),
+              ],
+            );
+          }
+          return Column(
+            children: [
+              GTTextField(
+                controller: _articleController,
+                labelText: 'Артикул',
+                hintText: 'Введите артикул',
+                readOnly: !canEdit,
+              ),
+              const SizedBox(height: 16),
+              GTTextField(
+                controller: _manufacturerController,
+                labelText: 'Производитель',
+                hintText: 'Введите производителя',
+                readOnly: !canEdit,
+              ),
+              const SizedBox(height: 16),
+              GTStringDropdown(
+                items: _units,
+                labelText: 'Ед. измерения *',
+                hintText: 'Выберите или введите единицу измерения',
+                selectedItem: _unitController.text,
+                isLoading: _unitsLoading,
+                showAddNewOption: true,
+                onSelectionChanged: canEdit
+                    ? (val) => setState(() => _unitController.text = val ?? '')
+                    : null,
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? 'Обязательное поле' : null,
+              ),
+            ],
+          );
+        },
       ),
       const SizedBox(height: 24),
       Text(
@@ -441,22 +525,67 @@ class _EstimateEditDialogState extends ConsumerState<EstimateEditDialog> {
         ),
       ),
       const SizedBox(height: 16),
-      GTTextField(
-        controller: _quantityController,
-        labelText: 'Количество',
-        hintText: 'Введите количество',
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        inputFormatters: [quantityFormatter()],
-        validator: _numberValidator,
-      ),
-      const SizedBox(height: 16),
-      GTTextField(
-        controller: _priceController,
-        labelText: 'Цена за единицу',
-        hintText: 'Введите цену',
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        inputFormatters: [amountFormatter()],
-        validator: _numberValidator,
+      LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth > 500;
+          if (isWide) {
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: GTTextField(
+                    controller: _quantityController,
+                    labelText: 'Количество',
+                    hintText: 'Введите количество',
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [quantityFormatter()],
+                    validator: _numberValidator,
+                    readOnly: !canEdit,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: GTTextField(
+                    controller: _priceController,
+                    labelText: 'Цена за единицу',
+                    hintText: 'Введите цену',
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [amountFormatter()],
+                    validator: _numberValidator,
+                    readOnly: !canEdit,
+                  ),
+                ),
+              ],
+            );
+          }
+          return Column(
+            children: [
+              GTTextField(
+                controller: _quantityController,
+                labelText: 'Количество',
+                hintText: 'Введите количество',
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [quantityFormatter()],
+                validator: _numberValidator,
+                readOnly: !canEdit,
+              ),
+              const SizedBox(height: 16),
+              GTTextField(
+                controller: _priceController,
+                labelText: 'Цена за единицу',
+                hintText: 'Введите цену',
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [amountFormatter()],
+                validator: _numberValidator,
+                readOnly: !canEdit,
+              ),
+            ],
+          );
+        },
       ),
     ];
   }

@@ -8,8 +8,8 @@ import '../widgets/payroll_table_widget.dart';
 import '../widgets/payroll_search_action.dart';
 import '../providers/payroll_providers.dart';
 import '../providers/payroll_filter_providers.dart';
-import '../providers/payroll_export_providers.dart';
-import '../providers/balance_providers.dart';
+import '../../../../features/export/presentation/providers/repositories_providers.dart';
+import '../../../../features/company/presentation/providers/company_providers.dart';
 import '../../../../core/di/providers.dart';
 import '../../../../presentation/state/employee_state.dart';
 import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
@@ -145,59 +145,74 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
     }
   }
 
-  /// Экспортирует данные ФОТ в Excel
+  /// Экспортирует данные ФОТ в Excel через сервер
   Future<void> _exportToExcel() async {
     try {
       final filterState = ref.read(payrollFilterProvider);
-      final payrolls = ref.read(filteredPayrollsProvider).asData?.value ?? [];
-      final payoutsMapAsync =
-          ref
-              .read(
-                payoutsByEmployeeAndMonthFIFOProvider(filterState.selectedYear),
-              )
-              .asData
-              ?.value ??
-          {};
-      final balanceAsync =
-          ref.read(employeeAggregatedBalanceProvider).asData?.value ?? {};
+      final activeCompanyId = ref.read(activeCompanyIdProvider);
 
-      if (payrolls.isEmpty) {
+      if (activeCompanyId == null) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Нет данных для экспорта')),
+          const SnackBar(content: Text('Ошибка: компания не выбрана')),
         );
         return;
       }
 
-      // Формируем маппы как в таблице (FIFO распределение)
-      final payoutsByEmployee = <String, double>{};
-      final currentMonth = filterState.selectedMonth;
+      // Показываем индикатор загрузки
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 16),
+              Text('Подготовка Excel на сервере...'),
+            ],
+          ),
+          duration: Duration(seconds: 2),
+        ),
+      );
 
-      for (final empId in payoutsMapAsync.keys) {
-        final payoutsForAllMonths = payoutsMapAsync[empId] ?? {};
-        payoutsByEmployee[empId] = payoutsForAllMonths[currentMonth] ?? 0;
-      }
+      final exportService = ref.read(workSearchExportServerServiceProvider);
 
-      // Вызываем экспорт через провайдер
-      await ref.read(
-        exportPayrollToExcelProvider({
-          'payrolls': payrolls,
-          'payoutsByEmployee': payoutsByEmployee,
-          'aggregatedBalance': balanceAsync,
-          'year': filterState.selectedYear,
-          'month': filterState.selectedMonth,
-        }).future,
+      final result = await exportService.exportPayroll(
+        year: filterState.selectedYear,
+        month: filterState.selectedMonth,
+        companyId: activeCompanyId,
       );
 
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('✅ ФОТ выгружена в Excel')));
+
+      if (result.success) {
+        if (result.filePath == 'cancelled') return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ ФОТ успешно выгружена: ${result.filename}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Ошибка: ${result.message}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('❌ Ошибка экспорта: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Ошибка экспорта: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 

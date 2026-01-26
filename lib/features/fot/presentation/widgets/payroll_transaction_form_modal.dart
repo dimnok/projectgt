@@ -14,6 +14,7 @@ import '../providers/bonus_providers.dart';
 import '../providers/penalty_providers.dart';
 import '../providers/balance_providers.dart';
 import '../providers/payroll_providers.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/snackbar_utils.dart';
 import '../../../../core/widgets/gt_buttons.dart';
 import '../../../../core/widgets/gt_text_field.dart';
@@ -155,7 +156,7 @@ class _PayrollTransactionFormModalState
 
     try {
       const uuid = Uuid();
-      final amount = num.parse(_amountController.text.replaceAll(',', '.'));
+      final amount = parseAmount(_amountController.text) ?? 0.0;
       final reason =
           _noteController.text.isNotEmpty ? _noteController.text : null;
       final date = _selectedDate ?? DateTime.now();
@@ -396,7 +397,7 @@ class _PayrollTransactionFormModalState
       prefixIcon: Icons.currency_ruble,
       validator: (value) {
         if (value == null || value.isEmpty) return 'Введите сумму';
-        final num? n = num.tryParse(value.replaceAll(',', '.'));
+        final n = parseAmount(value);
         if (n == null || n <= 0) return 'Некорректная сумма';
         return null;
       },

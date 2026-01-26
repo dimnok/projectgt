@@ -34,17 +34,7 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
     final isDesktop = MediaQuery.of(context).size.width > 800;
 
     if (isDesktop) {
-      await showDialog(
-        context: context,
-        builder: (context) => Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.symmetric(
-            horizontal: 24,
-            vertical: 24,
-          ),
-          child: ContractFormModal(contract: contract),
-        ),
-      );
+      await ContractFormModal.show(context, contract: contract);
     } else {
       await showModalBottomSheet(
         context: context,
@@ -113,6 +103,8 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
             )
           : ContractsListDesktopView(
               filteredContracts: filteredContracts,
+              searchQuery: _searchQuery,
+              onSearch: _onSearch,
               isLoading: isLoading,
               isError: isError,
               errorMessage: state.errorMessage,

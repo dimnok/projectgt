@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/domain/entities/contract.dart';
 import 'contract_form_content.dart';
@@ -7,12 +6,14 @@ import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/features/contractors/presentation/state/contractor_state.dart';
 import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
+import 'package:projectgt/core/utils/formatters.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 import 'package:projectgt/data/models/contract_model.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
 import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
 import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
+import 'package:projectgt/core/widgets/gt_buttons.dart';
 
 /// Экран для создания или редактирования договора.
 ///
@@ -68,15 +69,15 @@ class _ContractFormScreenState extends ConsumerState<ContractFormScreen> {
       _vatRateController.text = c.vatRate.toStringAsFixed(2);
       _vatAmountController.text = c.vatAmount.toStringAsFixed(2);
       _advanceAmountController.text = c.advanceAmount.toStringAsFixed(2);
-      _warrantyRetentionAmountController.text =
-          c.warrantyRetentionAmount.toStringAsFixed(2);
-      _warrantyRetentionRateController.text =
-          c.warrantyRetentionRate.toStringAsFixed(2);
+      _warrantyRetentionAmountController.text = c.warrantyRetentionAmount
+          .toStringAsFixed(2);
+      _warrantyRetentionRateController.text = c.warrantyRetentionRate
+          .toStringAsFixed(2);
       _warrantyPeriodMonthsController.text = c.warrantyPeriodMonths.toString();
-      _generalContractorFeeAmountController.text =
-          c.generalContractorFeeAmount.toStringAsFixed(2);
-      _generalContractorFeeRateController.text =
-          c.generalContractorFeeRate.toStringAsFixed(2);
+      _generalContractorFeeAmountController.text = c.generalContractorFeeAmount
+          .toStringAsFixed(2);
+      _generalContractorFeeRateController.text = c.generalContractorFeeRate
+          .toStringAsFixed(2);
 
       // Заполняем реквизиты
       _contractorLegalNameController.text = c.contractorOrgName ?? '';
@@ -124,10 +125,8 @@ class _ContractFormScreenState extends ConsumerState<ContractFormScreen> {
   }
 
   void _calculateVat() {
-    final amount =
-        double.tryParse(_amountController.text.replaceAll(',', '.')) ?? 0.0;
-    final rate =
-        double.tryParse(_vatRateController.text.replaceAll(',', '.')) ?? 0.0;
+    final amount = parseAmount(_amountController.text) ?? 0.0;
+    final rate = parseAmount(_vatRateController.text) ?? 0.0;
 
     if (rate == 0) {
       _vatAmountController.text = '0.00';
@@ -174,31 +173,21 @@ class _ContractFormScreenState extends ConsumerState<ContractFormScreen> {
       endDate: _endDate,
       contractorId: _selectedContractorId!,
       contractorName: null, // будет подтянуто при отображении
-      amount: double.parse(_amountController.text.replaceAll(',', '.')),
-      vatRate:
-          double.tryParse(_vatRateController.text.replaceAll(',', '.')) ?? 0.0,
+      amount: parseAmount(_amountController.text) ?? 0.0,
+      vatRate: parseAmount(_vatRateController.text) ?? 0.0,
       isVatIncluded: _isVatIncluded,
-      vatAmount:
-          double.tryParse(_vatAmountController.text.replaceAll(',', '.')) ??
-              0.0,
-      advanceAmount:
-          double.tryParse(_advanceAmountController.text.replaceAll(',', '.')) ??
-              0.0,
-      warrantyRetentionAmount: double.tryParse(
-              _warrantyRetentionAmountController.text.replaceAll(',', '.')) ??
-          0.0,
-      warrantyRetentionRate: double.tryParse(
-              _warrantyRetentionRateController.text.replaceAll(',', '.')) ??
-          0.0,
+      vatAmount: parseAmount(_vatAmountController.text) ?? 0.0,
+      advanceAmount: parseAmount(_advanceAmountController.text) ?? 0.0,
+      warrantyRetentionAmount:
+          parseAmount(_warrantyRetentionAmountController.text) ?? 0.0,
+      warrantyRetentionRate:
+          parseAmount(_warrantyRetentionRateController.text) ?? 0.0,
       warrantyPeriodMonths:
           int.tryParse(_warrantyPeriodMonthsController.text) ?? 0,
-      generalContractorFeeAmount: double.tryParse(
-              _generalContractorFeeAmountController.text
-                  .replaceAll(',', '.')) ??
-          0.0,
-      generalContractorFeeRate: double.tryParse(
-              _generalContractorFeeRateController.text.replaceAll(',', '.')) ??
-          0.0,
+      generalContractorFeeAmount:
+          parseAmount(_generalContractorFeeAmountController.text) ?? 0.0,
+      generalContractorFeeRate:
+          parseAmount(_generalContractorFeeRateController.text) ?? 0.0,
       objectId: _selectedObjectId!,
       objectName: null, // будет подтянуто при отображении
       status: _status,
@@ -227,7 +216,8 @@ class _ContractFormScreenState extends ConsumerState<ContractFormScreen> {
       updatedAt: DateTime.now(),
     );
     debugPrint(
-        '[CONTRACTS][FORM] contract: \\${ContractModel.fromDomain(contract).toJson()}');
+      '[CONTRACTS][FORM] contract: \\${ContractModel.fromDomain(contract).toJson()}',
+    );
     try {
       if (isNew) {
         await notifier.addContract(contract);
@@ -263,9 +253,11 @@ class _ContractFormScreenState extends ConsumerState<ContractFormScreen> {
     final isNew = widget.contract == null;
 
     final Map<String, String> contractorItems = {
-      for (final c in contractorState.contractors) c.id: c.fullName
+      for (final c in contractorState.contractors) c.id: c.fullName,
     };
-    final Map<String, String> objectItems = {for (final o in objectState.objects) o.id: o.name};
+    final Map<String, String> objectItems = {
+      for (final o in objectState.objects) o.id: o.name,
+    };
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
@@ -274,58 +266,59 @@ class _ContractFormScreenState extends ConsumerState<ContractFormScreen> {
         leading: BackButton(onPressed: _handleCancel),
         showThemeSwitch: true,
       ),
-      body: ContractFormContent(
-        isNew: isNew,
-        isLoading: _isLoading,
-        showHeader: false, // Заголовок уже есть в AppBarWidget
-        numberController: _numberController,
-        amountController: _amountController,
-        vatRateController: _vatRateController,
-        isVatIncluded: _isVatIncluded,
-        vatAmountController: _vatAmountController,
-        advanceAmountController: _advanceAmountController,
-        warrantyRetentionAmountController: _warrantyRetentionAmountController,
-        warrantyRetentionRateController: _warrantyRetentionRateController,
-        warrantyPeriodMonthsController: _warrantyPeriodMonthsController,
-        generalContractorFeeAmountController:
-            _generalContractorFeeAmountController,
-        generalContractorFeeRateController: _generalContractorFeeRateController,
-        contractorLegalNameController: _contractorLegalNameController,
-        contractorPositionController: _contractorPositionController,
-        contractorSignerController: _contractorSignerController,
-        customerLegalNameController: _customerLegalNameController,
-        customerPositionController: _customerPositionController,
-        customerSignerController: _customerSignerController,
-        date: _date,
-        endDate: _endDate,
-        selectedContractorId: _selectedContractorId,
-        selectedObjectId: _selectedObjectId,
-        status: _status,
-        formKey: _formKey,
-        onSave: _handleSave,
-        onCancel: _handleCancel,
-        onDateChanged: (d) => setState(() => _date = d),
-        onEndDateChanged: (d) => setState(() => _endDate = d),
-        onContractorChanged: (id) => setState(() => _selectedContractorId = id),
-        onObjectChanged: (id) => setState(() => _selectedObjectId = id),
-        onStatusChanged: (s) =>
-            setState(() => _status = s ?? ContractStatus.active),
-        onVatIncludedChanged: (v) {
-          setState(() {
-            _isVatIncluded = v;
-            _calculateVat();
-          });
-        },
-        contractorItems: contractorItems,
-        objectItems: objectItems,
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: ContractFormContent(
+          isNew: isNew,
+          isLoading: _isLoading,
+          showHeader: false, // Заголовок уже есть в AppBarWidget
+          numberController: _numberController,
+          amountController: _amountController,
+          vatRateController: _vatRateController,
+          isVatIncluded: _isVatIncluded,
+          vatAmountController: _vatAmountController,
+          advanceAmountController: _advanceAmountController,
+          warrantyRetentionAmountController: _warrantyRetentionAmountController,
+          warrantyRetentionRateController: _warrantyRetentionRateController,
+          warrantyPeriodMonthsController: _warrantyPeriodMonthsController,
+          generalContractorFeeAmountController:
+              _generalContractorFeeAmountController,
+          generalContractorFeeRateController:
+              _generalContractorFeeRateController,
+          contractorLegalNameController: _contractorLegalNameController,
+          contractorPositionController: _contractorPositionController,
+          contractorSignerController: _contractorSignerController,
+          customerLegalNameController: _customerLegalNameController,
+          customerPositionController: _customerPositionController,
+          customerSignerController: _customerSignerController,
+          date: _date,
+          endDate: _endDate,
+          selectedContractorId: _selectedContractorId,
+          selectedObjectId: _selectedObjectId,
+          status: _status,
+          formKey: _formKey,
+          onSave: _handleSave,
+          onCancel: _handleCancel,
+          onDateChanged: (d) => setState(() => _date = d),
+          onEndDateChanged: (d) => setState(() => _endDate = d),
+          onContractorChanged: (id) =>
+              setState(() => _selectedContractorId = id),
+          onObjectChanged: (id) => setState(() => _selectedObjectId = id),
+          onStatusChanged: (s) =>
+              setState(() => _status = s ?? ContractStatus.active),
+          onVatIncludedChanged: (v) {
+            setState(() {
+              _isVatIncluded = v;
+              _calculateVat();
+            });
+          },
+          contractorItems: contractorItems,
+          objectItems: objectItems,
+        ),
       ),
     );
   }
 }
-
-// ContractFormModal (если он используется) тоже нужно обновить, но я пока сосредоточился на главном экране.
-// Если нужно, я обновлю и модал.
-// В текущем файле есть ContractFormModal, который тоже нужно обновить, чтобы не было ошибок компиляции.
 
 /// Модальное окно с формой договора.
 ///
@@ -334,14 +327,44 @@ class ContractFormModal extends ConsumerStatefulWidget {
   /// Договор для редактирования. Если null — создаётся новый договор.
   final Contract? contract;
 
+  /// Нужно ли оборачивать в DesktopDialogContent/MobileBottomSheetContent.
+  /// По умолчанию true.
+  final bool useWrapper;
+
   /// Создаёт модальное окно с формой договора.
-  const ContractFormModal({super.key, this.contract});
+  const ContractFormModal({
+    super.key,
+    this.contract,
+    this.useWrapper = true,
+  });
+
+  /// Отображает модальное окно с формой договора с анимацией.
+  static Future<void> show(
+    BuildContext context, {
+    Contract? contract,
+  }) async {
+    // Используем addPostFrameCallback для предотвращения MouseTracker error на десктопе
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final isNew = contract == null;
+      DesktopDialogContent.show(
+        context,
+        title: isNew ? 'Новый договор' : 'Редактировать договор',
+        width: 800,
+        scrollable: true,
+        // Мы передаем форму без обертки, так как DesktopDialogContent.show сам создаст обертку.
+        child: ContractFormModal(
+          contract: contract,
+          useWrapper: false,
+        ),
+      );
+    });
+  }
+
   @override
   ConsumerState<ContractFormModal> createState() => _ContractFormModalState();
 }
 
 class _ContractFormModalState extends ConsumerState<ContractFormModal> {
-  // ... (копирую логику из главного экрана для согласованности)
   final _formKey = GlobalKey<FormState>();
   final _numberController = TextEditingController();
   final _amountController = TextEditingController();
@@ -379,15 +402,15 @@ class _ContractFormModalState extends ConsumerState<ContractFormModal> {
       _vatRateController.text = c.vatRate.toStringAsFixed(2);
       _vatAmountController.text = c.vatAmount.toStringAsFixed(2);
       _advanceAmountController.text = c.advanceAmount.toStringAsFixed(2);
-      _warrantyRetentionAmountController.text =
-          c.warrantyRetentionAmount.toStringAsFixed(2);
-      _warrantyRetentionRateController.text =
-          c.warrantyRetentionRate.toStringAsFixed(2);
+      _warrantyRetentionAmountController.text = c.warrantyRetentionAmount
+          .toStringAsFixed(2);
+      _warrantyRetentionRateController.text = c.warrantyRetentionRate
+          .toStringAsFixed(2);
       _warrantyPeriodMonthsController.text = c.warrantyPeriodMonths.toString();
-      _generalContractorFeeAmountController.text =
-          c.generalContractorFeeAmount.toStringAsFixed(2);
-      _generalContractorFeeRateController.text =
-          c.generalContractorFeeRate.toStringAsFixed(2);
+      _generalContractorFeeAmountController.text = c.generalContractorFeeAmount
+          .toStringAsFixed(2);
+      _generalContractorFeeRateController.text = c.generalContractorFeeRate
+          .toStringAsFixed(2);
 
       _contractorLegalNameController.text = c.contractorOrgName ?? '';
       _contractorPositionController.text = c.contractorPosition ?? '';
@@ -431,11 +454,8 @@ class _ContractFormModalState extends ConsumerState<ContractFormModal> {
   }
 
   void _calculateVat() {
-    // ... same logic
-    final amount =
-        double.tryParse(_amountController.text.replaceAll(',', '.')) ?? 0.0;
-    final rate =
-        double.tryParse(_vatRateController.text.replaceAll(',', '.')) ?? 0.0;
+    final amount = parseAmount(_amountController.text) ?? 0.0;
+    final rate = parseAmount(_vatRateController.text) ?? 0.0;
     if (rate == 0) {
       _vatAmountController.text = '0.00';
       return;
@@ -479,31 +499,21 @@ class _ContractFormModalState extends ConsumerState<ContractFormModal> {
       endDate: _endDate,
       contractorId: _selectedContractorId!,
       contractorName: null,
-      amount: double.parse(_amountController.text.replaceAll(',', '.')),
-      vatRate:
-          double.tryParse(_vatRateController.text.replaceAll(',', '.')) ?? 0.0,
+      amount: parseAmount(_amountController.text) ?? 0.0,
+      vatRate: parseAmount(_vatRateController.text) ?? 0.0,
       isVatIncluded: _isVatIncluded,
-      vatAmount:
-          double.tryParse(_vatAmountController.text.replaceAll(',', '.')) ??
-              0.0,
-      advanceAmount:
-          double.tryParse(_advanceAmountController.text.replaceAll(',', '.')) ??
-              0.0,
-      warrantyRetentionAmount: double.tryParse(
-              _warrantyRetentionAmountController.text.replaceAll(',', '.')) ??
-          0.0,
-      warrantyRetentionRate: double.tryParse(
-              _warrantyRetentionRateController.text.replaceAll(',', '.')) ??
-          0.0,
+      vatAmount: parseAmount(_vatAmountController.text) ?? 0.0,
+      advanceAmount: parseAmount(_advanceAmountController.text) ?? 0.0,
+      warrantyRetentionAmount:
+          parseAmount(_warrantyRetentionAmountController.text) ?? 0.0,
+      warrantyRetentionRate:
+          parseAmount(_warrantyRetentionRateController.text) ?? 0.0,
       warrantyPeriodMonths:
           int.tryParse(_warrantyPeriodMonthsController.text) ?? 0,
-      generalContractorFeeAmount: double.tryParse(
-              _generalContractorFeeAmountController.text
-                  .replaceAll(',', '.')) ??
-          0.0,
-      generalContractorFeeRate: double.tryParse(
-              _generalContractorFeeRateController.text.replaceAll(',', '.')) ??
-          0.0,
+      generalContractorFeeAmount:
+          parseAmount(_generalContractorFeeAmountController.text) ?? 0.0,
+      generalContractorFeeRate:
+          parseAmount(_generalContractorFeeRateController.text) ?? 0.0,
       objectId: _selectedObjectId!,
       objectName: null,
       status: _status,
@@ -558,9 +568,11 @@ class _ContractFormModalState extends ConsumerState<ContractFormModal> {
     final objectState = ref.watch(objectProvider);
     final isNew = widget.contract == null;
     final Map<String, String> contractorItems = {
-      for (final c in contractorState.contractors) c.id: c.fullName
+      for (final c in contractorState.contractors) c.id: c.fullName,
     };
-    final Map<String, String> objectItems = {for (final o in objectState.objects) o.id: o.name};
+    final Map<String, String> objectItems = {
+      for (final o in objectState.objects) o.id: o.name,
+    };
 
     final isDesktop = MediaQuery.of(context).size.width > 800;
     final title = isNew ? 'Новый договор' : 'Редактировать договор';
@@ -568,34 +580,14 @@ class _ContractFormModalState extends ConsumerState<ContractFormModal> {
     Widget footer = Row(
       children: [
         Expanded(
-          child: OutlinedButton(
-            onPressed: _handleCancel,
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size.fromHeight(48),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-              ),
-            ),
-            child: const Text('Отмена'),
-          ),
+          child: GTSecondaryButton(text: 'Отмена', onPressed: _handleCancel),
         ),
         const SizedBox(width: 16),
         Expanded(
-          child: ElevatedButton(
+          child: GTPrimaryButton(
+            text: isNew ? 'Создать' : 'Сохранить',
             onPressed: _isLoading ? null : _handleSave,
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size.fromHeight(48),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-              ),
-            ),
-            child: _isLoading
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CupertinoActivityIndicator(),
-                  )
-                : Text(isNew ? 'Создать' : 'Сохранить'),
+            isLoading: _isLoading,
           ),
         ),
       ],
@@ -604,8 +596,8 @@ class _ContractFormModalState extends ConsumerState<ContractFormModal> {
     Widget content = ContractFormContent(
       isNew: isNew,
       isLoading: _isLoading,
-      showHeader: false, // Заголовок будет в DesktopDialogContent / MobileBottomSheetContent
-      showFooter: false, // Футер будет в DesktopDialogContent / MobileBottomSheetContent
+      showHeader: false,
+      showFooter: !widget.useWrapper,
       numberController: _numberController,
       amountController: _amountController,
       vatRateController: _vatRateController,
@@ -648,11 +640,14 @@ class _ContractFormModalState extends ConsumerState<ContractFormModal> {
       objectItems: objectItems,
     );
 
+    if (!widget.useWrapper) return content;
+
     if (isDesktop) {
       return DesktopDialogContent(
         title: title,
         footer: footer,
-        scrollable: false, // ContractFormContent уже содержит скролл
+        scrollable: true,
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
         child: content,
       );
     }
@@ -660,7 +655,7 @@ class _ContractFormModalState extends ConsumerState<ContractFormModal> {
     return MobileBottomSheetContent(
       title: title,
       footer: footer,
-      scrollable: false, // ContractFormContent уже содержит скролл
+      scrollable: true,
       child: content,
     );
   }

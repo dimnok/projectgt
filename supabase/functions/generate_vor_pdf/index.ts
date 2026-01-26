@@ -121,7 +121,6 @@ serve(async (req) => {
     }
 
     // 1.2 Получение работ (с пагинацией) + Лимиты и История
-    // Добавляем новые поля в запрос к contracts и estimates
     let query = supabase
       .from("work_items")
       .select(`
@@ -135,6 +134,9 @@ serve(async (req) => {
           id,
           number,
           quantity, 
+          material_aliases (
+            alias_raw
+          ),
           contracts (
             id,
             number,
@@ -185,15 +187,11 @@ serve(async (req) => {
     console.log(`Fetched ${allItems.length} items total.`);
 
     // 1.3 Fetch historical usage (volumes BEFORE this period)
-    console.log("Fetching historical usage...");
-    // We need to sum quantities for the same estimate_ids, but before dateFrom
-    // To do this efficiently, we'll first get the list of unique estimate IDs involved
     const estimateIds = [...new Set(allItems.map(i => i.estimates?.id).filter(id => !!id))];
     
-    const historicalUsageMap = new Map(); // estimate_id -> total_used_before
+    const historicalUsageMap = new Map();
     
     if (estimateIds.length > 0) {
-        // We'll fetch in chunks to avoid URL length limits
         const chunkSize = 100;
         for (let i = 0; i < estimateIds.length; i += chunkSize) {
              const chunk = estimateIds.slice(i, i + chunkSize);
@@ -201,11 +199,10 @@ serve(async (req) => {
                 .from("work_items")
                 .select(`estimate_id, quantity, works!inner(date)`)
                 .in("estimate_id", chunk)
-                .lt("works.date", dateFrom); // Strictly less than start date
+                .lt("works.date", dateFrom);
              
              if (historyError) {
                  console.error("Error fetching history:", historyError);
-                 // Non-critical, assume 0 usage if fails? Or throw? Better throw to ensure data integrity.
                  throw historyError;
              }
              
@@ -229,14 +226,12 @@ serve(async (req) => {
         
         let contractKey = "no_contract";
         let contractLabel = "Без договора";
-        let contractDateStr = "";
         let contractSignatories = null;
 
         if (contract) {
           contractKey = contract.id || `${contract.number}_${contract.date}`;
           const cDate = contract.date ? new Date(contract.date).toLocaleDateString("ru-RU") : "";
           contractLabel = `№ ${contract.number || "б/н"} от ${cDate}`;
-          contractDateStr = contract.date || "";
           
           contractSignatories = {
             contractor: {
@@ -266,7 +261,6 @@ serve(async (req) => {
     }
 
     // --- 2. Подготовка шрифтов ---
-    console.log("Loading fonts...");
     const fontUrls = {
       regular: "https://raw.githubusercontent.com/google/fonts/main/ofl/ptserif/PTSerif-Regular.ttf",
       bold: "https://raw.githubusercontent.com/google/fonts/main/ofl/ptserif/PTSerif-Bold.ttf"
@@ -280,7 +274,6 @@ serve(async (req) => {
         loadFontToBase64(fontUrls.regular),
         loadFontToBase64(fontUrls.bold)
       ]);
-      console.log("Fonts loaded successfully.");
       
       vfs = pdfMake.vfs || {};
       vfs["PTSerif-Regular.ttf"] = fontRegularBase64;
@@ -311,8 +304,6 @@ serve(async (req) => {
     pdfMake.fonts = fontConfig;
 
     // --- 3. Генерация PDF (Multidoc) ---
-    console.log("Generating PDF content...");
-
     const fontName = fontConfig['PTSerif'] ? 'PTSerif' : 'Roboto';
     const sortedContractKeys = Array.from(contractsMap.keys());
     const formatDate = (dateStr: string) => {
@@ -325,7 +316,6 @@ serve(async (req) => {
       };
     const periodText = `${formatDate(dateFrom)} - ${formatDate(dateTo)}`;
 
-    // Helper to generate PDF buffer
     const generatePdfBuffer = (docDefinition: any) => {
       const pdfDocGenerator = pdfMake.createPdf(docDefinition);
       return new Promise<Uint8Array>((resolve, reject) => {
@@ -337,7 +327,6 @@ serve(async (req) => {
 
     const pdfBuffers: Uint8Array[] = [];
 
-    // Генерируем отдельный PDF для каждого договора
     for (const key of sortedContractKeys) {
         const contractGroup = contractsMap.get(key);
         const groupItems = contractGroup.items;
@@ -351,27 +340,27 @@ serve(async (req) => {
             return `____________________ /${signer}/`;
         };
 
-        // --- Data Aggregation Logic with Overrun Splitting ---
-        
-        // 1. Group raw items by unique Work Key (to handle multiple work_items for same task)
-        // But we need to keep track of estimate_id to check limits.
-        const groupedData = new Map(); // key -> { quantity, ...info, limit, usedBefore }
+        const groupedData = new Map();
         
         groupItems.forEach((item: any) => {
             const lsrNumber = item.estimates?.number || "—";
             const estimateId = item.estimates?.id;
-            const itemKey = `${item.system}_${item.name}_${item.unit}_${lsrNumber}`; // Simple key
+            const itemKey = `${item.system}_${item.name}_${item.unit}_${lsrNumber}`;
             
             if (!groupedData.has(itemKey)) {
+                // Собираем уникальные алиасы материалов из накладных
+                const rawAliases = item.estimates?.material_aliases || [];
+                const aliases = [...new Set(rawAliases.map((a: any) => a.alias_raw))].join(', ');
+
                 groupedData.set(itemKey, {
-                    itemKey: itemKey,
                     lsrNumber: lsrNumber,
                     section: item.system,
                     name: item.name,
+                    relatedMaterials: aliases,
                     unit: item.unit,
                     estimateId: estimateId,
-                    limit: Number(item.estimates?.quantity) || 0, // Estimate limit
-                    usedBefore: historicalUsageMap.get(estimateId) || 0, // Used before this period
+                    limit: Number(item.estimates?.quantity) || 0,
+                    usedBefore: historicalUsageMap.get(estimateId) || 0,
                     currentTotal: 0,
                 });
             }
@@ -380,36 +369,21 @@ serve(async (req) => {
             if (!isNaN(qty)) groupedData.get(itemKey).currentTotal += qty;
         });
 
-        // 2. Process limits and split into Normal and Overrun
         const normalRows: any[] = [];
         const overrunRows: any[] = [];
 
         groupedData.forEach((data) => {
-            // Logic:
-            // Limit = 100
-            // UsedBefore = 80
-            // Remaining = 20
-            // CurrentTotal = 50
-            // -> Normal: 20
-            // -> Overrun: 30
-
-            // If no limit (e.g. extra work without estimate link?), treat as overrun or normal? 
-            // If estimate exists but limit is 0/null -> assume all overrun? Or unlimited?
-            // Usually estimate quantity > 0.
-            
             const limit = data.limit;
             const usedBefore = data.usedBefore;
             const remaining = Math.max(0, limit - usedBefore);
             const current = data.currentTotal;
 
-            if (current <= 0) return; // Skip zero/negative
+            if (current <= 0) return;
 
             if (data.estimateId && limit > 0) {
                 if (current <= remaining) {
-                    // All fits
                     normalRows.push({ ...data, displayQuantity: current });
                 } else {
-                    // Split
                     if (remaining > 0) {
                         normalRows.push({ ...data, displayQuantity: remaining });
                     }
@@ -417,13 +391,10 @@ serve(async (req) => {
                     overrunRows.push({ ...data, displayQuantity: overrun });
                 }
             } else {
-                // If no estimate or no limit defined, OR limit is 0, put everything in OVERRUN.
-                // Assuming if limit is 0 or undefined, it means this work was not planned in the contract.
                 overrunRows.push({ ...data, displayQuantity: current });
             }
         });
 
-        // 3. Sort both lists
         const sortFn = (a: any, b: any) => {
             const sectionCompare = a.section.localeCompare(b.section);
             if (sectionCompare !== 0) return sectionCompare;
@@ -435,14 +406,13 @@ serve(async (req) => {
         normalRows.sort(sortFn);
         overrunRows.sort(sortFn);
 
-        // -- Build Table Body --
         const tableBody = [
-            // Header
             [
             { text: '№ п/п', style: 'tableHeader' },
             { text: '№ по ЛСР', style: 'tableHeader' },
             { text: 'Раздел', style: 'tableHeader' },
             { text: 'Наименование работ', style: 'tableHeader' },
+            { text: 'Материал (накладная)', style: 'tableHeader' },
             { text: 'Ед. изм.', style: 'tableHeader' },
             { text: 'Кол-во', style: 'tableHeader' }
             ]
@@ -450,7 +420,6 @@ serve(async (req) => {
 
         let rowCounter = 1;
 
-        // 1. Normal Rows
         if (normalRows.length > 0) {
             normalRows.forEach((row: any) => {
                 tableBody.push([
@@ -458,28 +427,27 @@ serve(async (req) => {
                     { text: row.lsrNumber.toString(), style: 'tableCell', alignment: 'center' },
                     { text: row.section, style: 'tableCell', alignment: 'left' },
                     { text: row.name, style: 'tableCell', alignment: 'left' },
+                    { text: row.relatedMaterials || '—', style: 'tableCell', alignment: 'left', fontStyle: 'italic', color: '#555555' },
                     { text: row.unit, style: 'tableCell', alignment: 'center' },
                     { text: Number(row.displayQuantity.toFixed(3)).toString(), style: 'tableCell', alignment: 'right' }
                 ]);
             });
         } else if (overrunRows.length === 0) {
              tableBody.push([
-                { text: 'Нет данных', colSpan: 6, alignment: 'center', style: 'tableCell' }, {}, {}, {}, {}, {}
+                { text: 'Нет данных', colSpan: 7, alignment: 'center', style: 'tableCell' }, {}, {}, {}, {}, {}, {}
             ]);
         }
 
-        // 2. Overrun Rows (Separator + Items)
         if (overrunRows.length > 0) {
-            // Separator Row
             tableBody.push([
                 { 
                     text: 'ПРЕВЫШЕНИЕ ОБЪЕМОВ И ДОПОЛНИТЕЛЬНЫЕ РАБОТЫ, ТРЕБУЮЩИЕ ДОП. СОГЛАШЕНИЯ', 
-                    colSpan: 6, 
+                    colSpan: 7, 
                     alignment: 'center', 
                     style: 'separatorRow',
                     fillColor: '#eeeeee'
                 }, 
-                {}, {}, {}, {}, {}
+                {}, {}, {}, {}, {}, {}
             ]);
 
             overrunRows.forEach((row: any) => {
@@ -488,15 +456,14 @@ serve(async (req) => {
                     { text: row.lsrNumber.toString(), style: 'tableCell', alignment: 'center' },
                     { text: row.section, style: 'tableCell', alignment: 'left' },
                     { text: row.name, style: 'tableCell', alignment: 'left' },
+                    { text: row.relatedMaterials || '—', style: 'tableCell', alignment: 'left', fontStyle: 'italic', color: '#555555' },
                     { text: row.unit, style: 'tableCell', alignment: 'center' },
                     { text: Number(row.displayQuantity.toFixed(3)).toString(), style: 'tableCell', alignment: 'right' }
                 ]);
             });
         }
 
-        // Контент одного документа
         const content = [
-             // Инфо-блок
             {
             columns: [
                 { width: 'auto', text: 'Объект:', style: 'label' },
@@ -528,11 +495,10 @@ serve(async (req) => {
 
             { text: 'ВЕДОМОСТЬ ОБЪЁМОВ РАБОТ', style: 'header', alignment: 'center', margin: [0, 0, 0, 20] },
             
-            // Таблица
             {
             table: {
                 headerRows: 1, 
-                widths: [37, 37, 37, '*', 37, 37], 
+                widths: [25, 30, 40, '*', '*', 30, 30], 
                 body: tableBody
             },
             layout: {
@@ -556,7 +522,6 @@ serve(async (req) => {
                 stack: [
                   {
                     columns: [
-                      // Слева: Подрядчик
                       {
                         width: '*',
                         stack: [
@@ -566,7 +531,6 @@ serve(async (req) => {
                         ],
                         alignment: 'left'
                       },
-                      // Справа: Заказчик
                       {
                         width: '*',
                         stack: [
@@ -578,7 +542,6 @@ serve(async (req) => {
                       }
                     ]
                   },
-                  // Номер страницы (локальный для договора)
                   {
                     text: `стр. ${currentPage} из ${pageCount}`,
                     fontSize: 6,
@@ -615,7 +578,6 @@ serve(async (req) => {
     } else if (pdfBuffers.length === 1) {
         finalPdfBuffer = pdfBuffers[0];
     } else {
-        console.log("Merging multiple PDFs...");
         const { PDFDocument } = await import("https://esm.sh/pdf-lib@1.17.1");
         const mergedPdf = await PDFDocument.create();
         
@@ -627,9 +589,7 @@ serve(async (req) => {
         finalPdfBuffer = await mergedPdf.save();
     }
     
-    console.log("PDF generated. Encoding...");
     const base64Pdf = encode(finalPdfBuffer);
-    console.log("Done.");
 
     return new Response(JSON.stringify({ 
       file: base64Pdf,

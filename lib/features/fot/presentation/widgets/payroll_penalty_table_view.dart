@@ -34,10 +34,12 @@ class PayrollPenaltyTableView extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<PayrollPenaltyTableView> createState() => _PayrollPenaltyTableViewState();
+  ConsumerState<PayrollPenaltyTableView> createState() =>
+      _PayrollPenaltyTableViewState();
 }
 
-class _PayrollPenaltyTableViewState extends ConsumerState<PayrollPenaltyTableView> {
+class _PayrollPenaltyTableViewState
+    extends ConsumerState<PayrollPenaltyTableView> {
   /// Текущий выбранный штраф для подсветки строки.
   PayrollTransaction? _highlightedPenalty;
 
@@ -60,11 +62,16 @@ class _PayrollPenaltyTableViewState extends ConsumerState<PayrollPenaltyTableVie
       objects: widget.objects,
       type: FOTTransactionTableType.penalty,
       highlightedItem: _highlightedPenalty,
-      onRowTap: (penalty, position) => _showContextMenu(context, penalty, position),
+      onRowTap: (penalty, position) =>
+          _showContextMenu(context, penalty, position),
     );
   }
 
-  void _showContextMenu(BuildContext context, PayrollTransaction penalty, Offset position) {
+  void _showContextMenu(
+    BuildContext context,
+    PayrollTransaction penalty,
+    Offset position,
+  ) {
     setState(() => _highlightedPenalty = penalty);
 
     GTContextMenu.show(
@@ -87,7 +94,6 @@ class _PayrollPenaltyTableViewState extends ConsumerState<PayrollPenaltyTableVie
       ],
     );
   }
-
 
   void _showEditForm(BuildContext context, PayrollTransaction penalty) {
     final isDesktop = ResponsiveUtils.isDesktop(context);
@@ -143,4 +149,3 @@ class _PayrollPenaltyTableViewState extends ConsumerState<PayrollPenaltyTableVie
     }
   }
 }
-

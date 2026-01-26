@@ -1,9 +1,11 @@
 import '../../domain/entities/estimate.dart';
 import '../../domain/entities/estimate_completion_history.dart';
+import '../../domain/entities/ks6a_period.dart' as entity;
 import '../../domain/repositories/estimate_repository.dart';
 import '../datasources/estimate_data_source.dart';
 import '../models/estimate_model.dart';
 import '../models/estimate_completion_model.dart';
+import '../models/ks6a_model.dart';
 
 /// Реализация репозитория EstimateRepository для работы со сметами через data source.
 class EstimateRepositoryImpl implements EstimateRepository {
@@ -122,5 +124,66 @@ class EstimateRepositoryImpl implements EstimateRepository {
     history.sort((a, b) => b.date.compareTo(a.date));
     
     return history;
+  }
+
+  @override
+  Future<List<Estimate>> getEstimatesByContract(String contractId) async {
+    final models = await dataSource.getEstimatesByContract(contractId);
+    return models.map((e) => e.toDomain()).toList();
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getContractCompletionHistory(String contractId) async {
+    return dataSource.getContractCompletionHistory(contractId);
+  }
+
+  @override
+  Future<String> createKs6aPeriod({
+    required String contractId,
+    required DateTime startDate,
+    required DateTime endDate,
+    String? title,
+  }) async {
+    return dataSource.createKs6aPeriod(
+      contractId: contractId,
+      startDate: startDate,
+      endDate: endDate,
+      title: title,
+    );
+  }
+
+  @override
+  Future<void> refreshKs6aPeriod(String periodId) async {
+    await dataSource.refreshKs6aPeriod(periodId);
+  }
+
+  @override
+  Future<void> approveKs6aPeriod(String periodId) async {
+    await dataSource.approveKs6aPeriod(periodId);
+  }
+
+  @override
+  Future<entity.Ks6aContractData> getKs6aContractData(String contractId) async {
+    final rawData = await dataSource.getKs6aContractData(contractId);
+    final model = Ks6aContractData.fromJson(rawData);
+    
+    return entity.Ks6aContractData(
+      periods: model.periods.map((p) => entity.Ks6aPeriod(
+        id: p.id,
+        startDate: p.startDate,
+        endDate: p.endDate,
+        status: p.status,
+        title: p.title,
+        totalAmount: p.totalAmount,
+      )).toList(),
+      items: model.items.map((i) => entity.Ks6aPeriodItem(
+        id: i.id,
+        periodId: i.periodId,
+        estimateId: i.estimateId,
+        quantity: i.quantity,
+        priceSnapshot: i.priceSnapshot,
+        amount: i.amount,
+      )).toList(),
+    );
   }
 }

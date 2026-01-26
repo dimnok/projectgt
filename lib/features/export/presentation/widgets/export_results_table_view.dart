@@ -313,9 +313,11 @@ class _ExportResultsTableViewState extends ConsumerState<ExportResultsTableView>
         _bodyCell(theme, const SizedBox.shrink()),
         // 6: Материал
         _bodyCell(theme, const SizedBox.shrink()),
-        // 7: Ед. изм.
+        // 7: Наименование по М-15
         _bodyCell(theme, const SizedBox.shrink()),
-        // 8: Кол-во
+        // 8: Ед. изм.
+        _bodyCell(theme, const SizedBox.shrink()),
+        // 9: Кол-во
         _bodyCell(
           theme,
           Text(
@@ -328,9 +330,9 @@ class _ExportResultsTableViewState extends ConsumerState<ExportResultsTableView>
           ),
           align: Alignment.center,
         ),
-        // 9: Цена
+        // 10: Цена
         _bodyCell(theme, const SizedBox.shrink()),
-        // 10: Сумма
+        // 11: Сумма
         _bodyCell(
           theme,
           Text(
@@ -409,6 +411,21 @@ class _ExportResultsTableViewState extends ConsumerState<ExportResultsTableView>
           splashColor: Colors.transparent,
           highlightColor: Colors.transparent,
           child: Text(res.materialName),
+        ),
+      ),
+      _ExportColumnConfig(
+        title: 'Наименование по М-15',
+        headerAlign: TextAlign.center,
+        flex: 0.8,
+        isFlexible: true,
+        minWidth: 150,
+        measureText: (res) => res.m15Name ?? '',
+        builder: (res, theme) => Text(
+          res.m15Name ?? '—',
+          style: theme.textTheme.bodySmall?.copyWith(
+            fontStyle: FontStyle.italic,
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+          ),
         ),
       ),
       _ExportColumnConfig(
@@ -536,11 +553,11 @@ class _ExportResultsTableViewState extends ConsumerState<ExportResultsTableView>
       }
 
       // Дополнительно измеряем итоговые значения в футере для соответствующих колонок
-      if (i == 8) { // Кол-во
+      if (i == 9) { // Кол-во
         final footerText = formatQuantity(widget.totalQuantity);
         final width = _measureText(footerText, bodyStyle.copyWith(fontWeight: FontWeight.bold)) + paddingWidth;
         columnWidth = math.max(columnWidth, width);
-      } else if (i == 10) { // Сумма
+      } else if (i == 11) { // Сумма
         if (widget.totalSum != null) {
           final footerText = formatCurrency(widget.totalSum!);
           final width = _measureText(footerText, bodyStyle.copyWith(fontWeight: FontWeight.bold)) + paddingWidth;

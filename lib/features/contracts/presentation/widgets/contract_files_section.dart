@@ -13,6 +13,8 @@ import 'package:projectgt/features/contracts/presentation/providers/contract_fil
 import 'package:projectgt/core/utils/snackbar_utils.dart';
 import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
+import 'package:projectgt/core/widgets/gt_text_field.dart';
+import 'package:projectgt/core/widgets/gt_confirmation_dialog.dart';
 import 'contract_list_shared.dart';
 
 /// Раздел управления файлами договора.
@@ -52,6 +54,7 @@ class ContractFilesSection extends ConsumerWidget {
             insetPadding: const EdgeInsets.all(24),
             child: DesktopDialogContent(
               title: 'Загрузка файла',
+              width: 500,
               footer: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
@@ -74,19 +77,15 @@ class ContractFilesSection extends ConsumerWidget {
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   const Text('Укажите название для загружаемого файла:'),
                   const SizedBox(height: 16),
-                  TextField(
+                  GTTextField(
                     controller: controller,
                     autofocus: true,
-                    decoration: InputDecoration(
-                      hintText: 'Название файла',
-                      suffixText: '.$extension',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
+                    hintText: 'Название файла',
+                    suffixText: '.$extension',
                   ),
                 ],
               ),
@@ -162,56 +161,32 @@ class ContractFilesSection extends ConsumerWidget {
     WidgetRef ref,
     ContractFile file,
   ) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.all(24),
-        child: DesktopDialogContent(
-          title: 'Удаление файла',
-          footer: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              GTSecondaryButton(
-                text: 'Отмена',
-                onPressed: () => Navigator.pop(context, false),
-              ),
-              const SizedBox(width: 16),
-              GTPrimaryButton(
-                text: 'Удалить',
-                onPressed: () => Navigator.pop(context, true),
-                backgroundColor: Colors.red,
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Вы уверены, что хотите удалить файл "${file.name}"?'),
-              const SizedBox(height: 8),
-              const Text(
-                'Это действие нельзя будет отменить.',
-                style: TextStyle(color: Colors.grey, fontSize: 13),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    // Используем addPostFrameCallback для предотвращения MouseTracker error на десктопе
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!context.mounted) return;
+      final confirmed = await GTConfirmationDialog.show(
+        context: context,
+        title: 'Удаление файла',
+        message:
+            'Вы уверены, что хотите удалить файл "${file.name}"?\nЭто действие нельзя будет отменить.',
+        confirmText: 'Удалить',
+        cancelText: 'Отмена',
+        type: GTConfirmationType.danger,
+      );
 
-    if (confirmed == true) {
-      try {
-        await ref
-            .read(contractFilesProvider(contract.id).notifier)
-            .deleteFile(file.id, file.filePath);
-        if (!context.mounted) return;
-        SnackBarUtils.showSuccess(context, 'Файл удален');
-      } catch (e) {
-        if (!context.mounted) return;
-        SnackBarUtils.showError(context, 'Ошибка при удалении: $e');
+      if (confirmed == true) {
+        try {
+          await ref
+              .read(contractFilesProvider(contract.id).notifier)
+              .deleteFile(file.id, file.filePath);
+          if (!context.mounted) return;
+          SnackBarUtils.showSuccess(context, 'Файл удален');
+        } catch (e) {
+          if (!context.mounted) return;
+          SnackBarUtils.showError(context, 'Ошибка при удалении: $e');
+        }
       }
-    }
+    });
   }
 
   @override
@@ -378,7 +353,6 @@ class ContractFilesSection extends ConsumerWidget {
         return CupertinoIcons.table;
       case 'jpg':
       case 'jpeg':
-      case 'png':
         return CupertinoIcons.photo;
       default:
         return CupertinoIcons.doc;

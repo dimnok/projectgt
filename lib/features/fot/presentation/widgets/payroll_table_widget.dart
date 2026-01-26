@@ -6,7 +6,6 @@ import '../../../../presentation/state/employee_state.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import '../providers/payroll_providers.dart';
 import '../providers/payroll_filter_providers.dart';
-import '../providers/balance_providers.dart';
 import 'package:projectgt/core/widgets/gt_month_picker.dart';
 import 'package:projectgt/core/widgets/gt_object_picker.dart';
 import '../utils/payroll_filter_helpers.dart';
@@ -41,11 +40,6 @@ class PayrollTableWidget extends ConsumerWidget {
       filterState.selectedYear,
       filterState.selectedMonth,
     );
-    final lastDayOfMonth = DateTime(
-      filterState.selectedYear,
-      filterState.selectedMonth + 1,
-      0,
-    );
 
     // Получаем список сотрудников
     final allEmployees = ref.watch(employeeProvider.select((s) => s.employees));
@@ -54,24 +48,39 @@ class PayrollTableWidget extends ConsumerWidget {
     // Фильтруем сотрудников по поисковому запросу
     final employees = filterEmployeesBySearchQuery(allEmployees, searchQuery);
 
-    // Получаем выплаты по сотрудникам (FIFO)
-    final payoutsMapAsync = ref.watch(
+    // Получаем выплаты и балансы по сотрудникам (FIFO)
+    final fifoDataAsync = ref.watch(
       payoutsByEmployeeAndMonthFIFOProvider(filterState.selectedYear),
     );
-    final payoutsMap = payoutsMapAsync.asData?.value ?? {};
+    
+    // Если данные FIFO еще грузятся — показываем индикатор
+    if (fifoDataAsync.isLoading) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(
+              'Расчет выплат и балансов...',
+              style: theme.textTheme.bodyMedium,
+            ),
+          ],
+        ),
+      );
+    }
+
+    final fifoData = fifoDataAsync.asData?.value ?? {};
     final currentMonth = filterState.selectedMonth; // int (1-12)
 
     final payoutsByEmployee = <String, double>{};
-    for (final empId in payoutsMap.keys) {
-      final payoutsForAllMonths = payoutsMap[empId] ?? {};
-      payoutsByEmployee[empId] = payoutsForAllMonths[currentMonth] ?? 0;
-    }
+    final aggregatedBalance = <String, double>{};
 
-    // Получаем агрегированный баланс на конец выбранного месяца
-    final aggregatedBalanceAsync = ref.watch(
-      employeeBalanceAtDateProvider(lastDayOfMonth),
-    );
-    final aggregatedBalance = aggregatedBalanceAsync.asData?.value ?? {};
+    for (final empId in fifoData.keys) {
+      final employeeFIFO = fifoData[empId]!;
+      payoutsByEmployee[empId] = employeeFIFO.payouts[currentMonth] ?? 0;
+      aggregatedBalance[empId] = employeeFIFO.balances[currentMonth] ?? 0;
+    }
 
     final isDesktop = ResponsiveUtils.isDesktop(context);
     final isMobile = ResponsiveUtils.isMobile(context);

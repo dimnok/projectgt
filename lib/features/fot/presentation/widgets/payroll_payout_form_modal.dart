@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../providers/payroll_providers.dart';
 import '../providers/balance_providers.dart';
 import '../../data/models/payroll_payout_model.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/snackbar_utils.dart';
 import '../../../../core/widgets/gt_dropdown.dart';
 import '../../../../core/widgets/gt_buttons.dart';
@@ -247,7 +248,7 @@ class _PayrollPayoutFormModalState
     _isSaving.value = true;
 
     try {
-      final amount = double.parse(_amountController.text.replaceAll(',', '.'));
+      final amount = parseAmount(_amountController.text) ?? 0.0;
       final activeCompanyId = ref.read(activeCompanyIdProvider);
 
       if (activeCompanyId == null) {
@@ -507,7 +508,7 @@ class _PayrollPayoutFormModalState
       prefixIcon: Icons.currency_ruble,
       validator: (value) {
         if (value == null || value.isEmpty) return 'Введите сумму';
-        final num? n = num.tryParse(value.replaceAll(',', '.'));
+        final n = parseAmount(value);
         if (n == null || n <= 0) return 'Некорректная сумма';
         return null;
       },

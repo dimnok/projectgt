@@ -9,16 +9,17 @@ import '../../../../core/utils/snackbar_utils.dart';
 import '../../../../core/widgets/gt_buttons.dart';
 import '../../../../data/models/estimate_completion_model.dart';
 import '../../../../domain/entities/estimate.dart';
-import 'package:projectgt/features/objects/domain/entities/object.dart';
 import '../../../../features/estimates/presentation/screens/import_estimate_form_modal.dart';
 import '../../../../features/roles/application/permission_service.dart';
 import '../../../../features/roles/presentation/widgets/permission_guard.dart';
 import '../../../../presentation/widgets/cupertino_dialog_widget.dart';
 import '../mixins/estimate_actions_mixin.dart';
+import '../../../../data/models/ks6a_model.dart' show Ks6aStatus;
 import '../providers/estimate_providers.dart';
 import '../widgets/estimate_search_field.dart';
 import '../widgets/estimate_filter_buttons.dart';
 import '../widgets/estimate_table_view.dart';
+import '../widgets/ks6a_table_view.dart';
 import '../widgets/estimate_completion_history_panel.dart';
 
 /// Виджет для отображения списка смет и детальной информации (таблицы) в десктопном режиме.
@@ -35,6 +36,9 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
     with EstimateActionsMixin {
   EstimateFile? _selectedEstimateFile;
   EstimateViewMode _viewMode = EstimateViewMode.planning;
+  bool _isKs6aMode = false;
+  String? _selectedContractNumber;
+  String? _selectedContractId;
   List<Estimate>? _displayedItems;
   String? _displayedFileKey;
   Map<String, EstimateCompletionModel>? _displayedCompletion;
@@ -63,8 +67,6 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
     final isDark = theme.brightness == Brightness.dark;
     final groupsAsync = ref.watch(groupedEstimateFilesProvider);
     final isSidebarVisible = ref.watch(estimateSidebarVisibleProvider);
-    // contracts больше не нужны для поиска номера договора, так как он есть в EstimateFile
-    final objects = ref.watch(objectProvider).objects;
     final permissionService = ref.watch(permissionServiceProvider);
     final canDelete = permissionService.can('estimates', 'delete');
 
@@ -93,18 +95,16 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
             borderRadius: BorderRadius.circular(24),
             child: Stack(
               children: [
-                // 1. Слой фона основного контейнера
+                // 1. Основной фон
                 Positioned.fill(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? const Color.fromRGBO(38, 40, 42, 1)
-                          : const Color.fromRGBO(248, 249, 250, 1),
-                    ),
+                  child: ColoredBox(
+                    color: isDark
+                        ? const Color.fromRGBO(38, 40, 42, 1)
+                        : const Color.fromRGBO(248, 249, 250, 1),
                   ),
                 ),
 
-                // 2. Левая панель (Задний план) - всегда на 16px от края
+                // 2. Левая панель (Список)
                 Positioned(
                   left: 16,
                   top: 16,
@@ -168,7 +168,8 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
                                       data: (groupedEstimates) {
                                         if (groupedEstimates.isEmpty) {
                                           return const Center(
-                                              child: Text('Сметы не найдены'));
+                                            child: Text('Сметы не найдены'),
+                                          );
                                         }
                                         return ClipRRect(
                                           borderRadius:
@@ -184,9 +185,10 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
                                                       .value.values
                                                       .expand((files) => files)
                                                       .fold(
-                                                          0.0,
-                                                          (sum, file) =>
-                                                              sum + file.total),
+                                                        0.0,
+                                                        (sum, file) =>
+                                                            sum + file.total,
+                                                      ),
                                                   isExpanded: _expandedObjects[
                                                           objectEntry.key] ??
                                                       false,
@@ -209,10 +211,10 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
                                                       number: contractEntry.key,
                                                       total: contractEntry.value
                                                           .fold(
-                                                              0.0,
-                                                              (sum, file) =>
-                                                                  sum +
-                                                                  file.total),
+                                                        0.0,
+                                                        (sum, file) =>
+                                                            sum + file.total,
+                                                      ),
                                                       isExpanded: _expandedContracts[
                                                               '${objectEntry.key}_${contractEntry.key}'] ??
                                                           false,
@@ -222,6 +224,15 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
                                                             !(_expandedContracts[
                                                                     '${objectEntry.key}_${contractEntry.key}'] ??
                                                                 false);
+                                                      }),
+                                                      onKs6aTap: () => setState(() {
+                                                        _isKs6aMode = true;
+                                                        _selectedContractNumber =
+                                                            contractEntry.key;
+                                                        _selectedContractId = 
+                                                            contractEntry.value.firstOrNull?.contractId;
+                                                        _selectedEstimateFile =
+                                                            null;
                                                       }),
                                                     ),
                                                     if (_expandedContracts[
@@ -242,7 +253,6 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
 
                                                         return _EstimateListTile(
                                                           file: file,
-                                                          objects: objects,
                                                           isSelected:
                                                               isSelected,
                                                           canDelete: canDelete,
@@ -252,6 +262,8 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
                                                                   file;
                                                               _selectedHistoryEstimate =
                                                                   null;
+                                                              _isKs6aMode = false;
+                                                              _selectedContractNumber = null;
                                                             });
                                                           },
                                                           onDelete: () =>
@@ -266,9 +278,11 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
                                         );
                                       },
                                       loading: () => const Center(
-                                          child: CupertinoActivityIndicator()),
+                                        child: CupertinoActivityIndicator(),
+                                      ),
                                       error: (e, s) => Center(
-                                          child: Text('Ошибка списка: $e')),
+                                        child: Text('Ошибка списка: $e'),
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -278,13 +292,11 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
                   ),
                 ),
 
-                // 3. Основная область (Таблица) - наезжает сверху
+                // 3. Основная область (Таблица)
                 AnimatedPositioned(
                   duration: const Duration(milliseconds: 400),
                   curve: Curves.easeInOutCubic,
-                  left: isSidebarVisible
-                      ? 382
-                      : 16, // 16 (край) или 16+350+16 (после списка)
+                  left: isSidebarVisible ? 382 : 16,
                   right: 16,
                   top: 16,
                   bottom: 16,
@@ -302,9 +314,11 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
                               ),
                             ],
                     ),
-                    child: _selectedEstimateFile == null
-                        ? _EmptyDesktopSelection(theme: theme)
-                        : _buildDetailPanel(context, _selectedEstimateFile!),
+                    child: _isKs6aMode
+                        ? _buildKs6aPanel(context)
+                        : (_selectedEstimateFile == null
+                            ? _EmptyDesktopSelection(theme: theme)
+                            : _buildDetailPanel(context, _selectedEstimateFile!)),
                   ),
                 ),
               ],
@@ -325,6 +339,149 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
         ref.invalidate(estimateGroupsProvider);
       },
     );
+  }
+
+  Widget _buildKs6aPanel(BuildContext context) {
+    final theme = Theme.of(context);
+    final contractId = _selectedContractId;
+
+    if (contractId == null) {
+      return const Center(child: Text('Ошибка: ID договора не найден'));
+    }
+
+    final ks6aDataAsync = ref.watch(ks6aDataProvider(contractId));
+
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Журнал КС-6а',
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      if (_selectedContractNumber != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'Договор № $_selectedContractNumber',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurface
+                                .withValues(alpha: 0.6),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                ks6aDataAsync.when(
+                  data: (ks6aData) {
+                    final hasDraft =
+                        ks6aData.periods.any((p) => p.status == Ks6aStatus.draft);
+                    return Row(
+                      children: [
+                        GTPrimaryButton(
+                          text: 'Сформировать период',
+                          onPressed: () => _onCreatePeriodForKs6a(contractId),
+                          icon: CupertinoIcons.add,
+                        ),
+                        if (hasDraft) ...[
+                          const SizedBox(width: 8),
+                          GTSecondaryButton(
+                            text: 'Обновить',
+                            icon: CupertinoIcons.refresh,
+                            onPressed: () {
+                              final draft = ks6aData.periods.firstWhere(
+                                (p) => p.status == Ks6aStatus.draft,
+                              );
+                              ref
+                                  .read(ks6aActionsProvider)
+                                  .refreshPeriod(contractId, draft.id);
+                            },
+                          ),
+                          const SizedBox(width: 8),
+                          GTPrimaryButton(
+                            text: 'Согласовать',
+                            icon: CupertinoIcons.check_mark_circled,
+                            backgroundColor: Colors.green[700],
+                            onPressed: () {
+                              final draft = ks6aData.periods.firstWhere(
+                                (p) => p.status == Ks6aStatus.draft,
+                              );
+                              ref
+                                  .read(ks6aActionsProvider)
+                                  .approvePeriod(contractId, draft.id);
+                            },
+                          ),
+                        ],
+                      ],
+                    );
+                  },
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, __) => const SizedBox.shrink(),
+                ),
+                const SizedBox(width: 16),
+                GTSecondaryButton(
+                  icon: CupertinoIcons.xmark,
+                  text: 'Закрыть',
+                  onPressed: () => setState(() {
+                    _isKs6aMode = false;
+                    _selectedContractNumber = null;
+                    _selectedContractId = null;
+                  }),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Ks6aTableView(contractId: contractId),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _onCreatePeriodForKs6a(String contractId) async {
+    final dates = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+      helpText: 'Выберите период для КС-6а',
+    );
+
+    if (dates != null) {
+      try {
+        final actions = ref.read(ks6aActionsProvider);
+        await actions.createPeriod(
+          contractId: contractId,
+          startDate: dates.start,
+          endDate: dates.end,
+        );
+        if (mounted) {
+          SnackBarUtils.showSuccess(context, 'Черновик периода создан');
+        }
+      } catch (e) {
+        if (mounted) {
+          SnackBarUtils.showError(context, 'Ошибка: $e');
+        }
+      }
+    }
   }
 
   Widget _buildDetailPanel(BuildContext context, EstimateFile file) {
@@ -567,7 +724,7 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
                 ),
                 PermissionGuard(
                   module: 'estimates',
-                  permission: 'manual_edit',
+                  permission: 'create',
                   child: GTPrimaryButton(
                     icon: CupertinoIcons.add,
                     text: 'Добавить позицию',
@@ -803,12 +960,14 @@ class _ContractGroupHeader extends StatelessWidget {
   final double total;
   final bool isExpanded;
   final VoidCallback onTap;
+  final VoidCallback onKs6aTap;
 
   const _ContractGroupHeader({
     required this.number,
     required this.total,
     required this.isExpanded,
     required this.onTap,
+    required this.onKs6aTap,
   });
 
   @override
@@ -820,48 +979,72 @@ class _ContractGroupHeader extends StatelessWidget {
       onTap: onTap,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        margin: const EdgeInsets.only(top: 8, left: 8, right: 8),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: isDark ? Colors.grey[800]! : Colors.grey[300]!,
-              width: 0.5,
-            ),
+          color: isExpanded
+              ? (isDark ? Colors.white10 : Colors.grey[100])
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isExpanded
+                ? theme.colorScheme.primary.withValues(alpha: 0.3)
+                : (isDark ? Colors.grey[800]! : Colors.grey[300]!),
+            width: isExpanded ? 1.5 : 1,
           ),
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(width: 16), // Extra indentation
-            Icon(
-              isExpanded
-                  ? CupertinoIcons.chevron_down
-                  : CupertinoIcons.chevron_right,
-              size: 12,
-              color: theme.colorScheme.outline,
-            ),
-            const SizedBox(width: 8),
-            Icon(
-              CupertinoIcons.doc_text,
-              size: 14,
-              color: theme.colorScheme.outline,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Договор: $number',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.onSurfaceVariant,
+            Row(
+              children: [
+                Icon(
+                  isExpanded
+                      ? CupertinoIcons.chevron_down
+                      : CupertinoIcons.chevron_right,
+                  size: 14,
+                  color: theme.colorScheme.primary,
                 ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Договор: $number',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Сумма: ${formatCurrency(total)}',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.primary,
               ),
             ),
-            const SizedBox(width: 8),
-            Text(
-              formatCurrency(total),
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: theme.colorScheme.onSurfaceVariant,
-                fontSize: 10,
+            const SizedBox(height: 12),
+            InkWell(
+              onTap: onKs6aTap,
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Center(
+                  child: Text(
+                    'Журнал КС-6а',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.onPrimary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
               ),
             ),
           ],
@@ -873,7 +1056,6 @@ class _ContractGroupHeader extends StatelessWidget {
 
 class _EstimateListTile extends StatelessWidget {
   final EstimateFile file;
-  final List<ObjectEntity> objects;
   final bool isSelected;
   final bool canDelete;
   final VoidCallback onTap;
@@ -881,7 +1063,6 @@ class _EstimateListTile extends StatelessWidget {
 
   const _EstimateListTile({
     required this.file,
-    required this.objects,
     required this.isSelected,
     required this.canDelete,
     required this.onTap,
@@ -892,73 +1073,78 @@ class _EstimateListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Material(
-      color: isSelected ? theme.colorScheme.primary : Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.only(
-            left: 48.0, // Indentation for grouping (Object -> Contract -> Estimate)
-            right: 16.0,
-            top: 8.0,
-            bottom: 8.0,
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      decoration: BoxDecoration(
+        border: Border(
+          left: BorderSide(
+            color: theme.colorScheme.primary.withValues(alpha: 0.3),
+            width: 2,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      file.estimateTitle,
-                      style: theme.textTheme.titleMedium?.copyWith(
+        ),
+      ),
+      child: Material(
+        color: isSelected
+            ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
+            : Colors.transparent,
+        borderRadius: const BorderRadius.only(
+          topRight: Radius.circular(8),
+          bottomRight: Radius.circular(8),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: const BorderRadius.only(
+            topRight: Radius.circular(8),
+            bottomRight: Radius.circular(8),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        file.estimateTitle,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight:
+                              isSelected ? FontWeight.bold : FontWeight.w500,
+                          fontSize: 13,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (canDelete)
+                      IconButton(
+                        icon: Icon(CupertinoIcons.trash,
+                            size: 16, color: theme.colorScheme.error),
+                        onPressed: onDelete,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '${file.itemsCount} поз.',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    Text(
+                      formatCurrency(file.total),
+                      style: theme.textTheme.bodySmall?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: isSelected ? theme.colorScheme.onPrimary : null,
-                        fontSize: 14,
+                        color: theme.colorScheme.primary,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  if (canDelete)
-                    IconButton(
-                      icon: Icon(
-                        CupertinoIcons.trash,
-                        size: 18,
-                        color: isSelected
-                            ? theme.colorScheme.onPrimary
-                            : theme.colorScheme.error,
-                      ),
-                      onPressed: onDelete,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Позиций: ${file.itemsCount}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: isSelected
-                          ? theme.colorScheme.onPrimary.withValues(alpha: 0.7)
-                          : theme.colorScheme.onSurfaceVariant,
-                      fontSize: 11,
-                    ),
-                  ),
-                  Text(
-                    formatCurrency(file.total),
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: isSelected ? theme.colorScheme.onPrimary : null,
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),

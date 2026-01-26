@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../../../../core/di/providers.dart'; // Добавлен для estimateNotifierProvider
 import '../../../../domain/entities/estimate.dart';
 import '../../../../presentation/widgets/cupertino_dialog_widget.dart';
+import '../../../../features/roles/application/permission_service.dart';
 import '../providers/estimate_providers.dart';
 import '../widgets/estimate_edit_dialog.dart';
 
@@ -28,6 +29,12 @@ mixin EstimateActionsMixin<T extends ConsumerStatefulWidget> on ConsumerState<T>
     String? objectId,
     String? contractId,
   }) async {
+    // Проверка прав доступа (используем ref.watch для актуальных данных)
+    final permissionService = ref.watch(permissionServiceProvider);
+    if (!permissionService.can('estimates', 'update')) {
+      return;
+    }
+
     // Если передан estimate, берем ID из него, иначе используем переданные параметры (или параметры текущего контекста)
     final targetObjectId = estimate?.objectId ?? objectId ?? currentEstimateArgs?.objectId;
     final targetContractId = estimate?.contractId ?? contractId ?? currentEstimateArgs?.contractId;
@@ -46,6 +53,12 @@ mixin EstimateActionsMixin<T extends ConsumerStatefulWidget> on ConsumerState<T>
 
   /// Удаление позиции сметы.
   Future<void> deleteEstimateItem(BuildContext context, String id) async {
+    // Проверка прав доступа (используем ref.watch для актуальных данных)
+    final permissionService = ref.watch(permissionServiceProvider);
+    if (!permissionService.can('estimates', 'delete')) {
+      return;
+    }
+
     final confirmed = await CupertinoDialogs.showDeleteConfirmDialog<bool>(
       context: context,
       title: 'Удаление позиции',
@@ -61,6 +74,12 @@ mixin EstimateActionsMixin<T extends ConsumerStatefulWidget> on ConsumerState<T>
 
   /// Дублирование позиции сметы.
   Future<void> duplicateEstimateItem(BuildContext context, Estimate estimate, {bool isSwipe = false}) async {
+    // Проверка прав доступа (используем ref.watch для актуальных данных)
+    final permissionService = ref.watch(permissionServiceProvider);
+    if (!permissionService.can('estimates', 'update')) {
+      return;
+    }
+
     if (isSwipe) {
       await _createDuplicate(estimate);
       return;

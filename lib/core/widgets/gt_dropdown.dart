@@ -480,7 +480,7 @@ class _GTDropdownState<T> extends State<GTDropdown<T>> {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'Добавить новый элемент',
+                'Добавить',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.primary,
                   fontWeight: FontWeight.w500,
@@ -510,7 +510,7 @@ class _GTDropdownState<T> extends State<GTDropdown<T>> {
         ),
         title: Center(
           child: Text(
-            'Добавить новый элемент',
+            'Добавить',
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.bold,
             ),

@@ -13,14 +13,13 @@ import '../../domain/entities/payroll_transaction.dart';
 import '../../../../domain/entities/employee.dart';
 import '../utils/balance_utils.dart';
 import '../services/payroll_pdf_service.dart';
+import '../services/employee_financial_report_service.dart';
 import '../providers/payroll_filter_providers.dart';
-import '../../../../core/di/providers.dart';
-import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
+import '../providers/payroll_providers.dart';
 import 'payroll_transaction_form_modal.dart';
 import 'payroll_payout_form_modal.dart';
 import 'payroll_card.dart';
 import 'payroll_mobile_view.dart';
-import '../../data/models/payroll_payout_model.dart';
 
 /// Константы для таблицы ФОТ (Фонд оплаты труда).
 class PayrollTableConstants {
@@ -587,187 +586,35 @@ class _PayrollTableViewState extends ConsumerState<PayrollTableView> {
     SnackBarUtils.showInfo(context, 'Формирование отчета за $year год...');
 
     try {
-      final client = ref.read(supabaseClientProvider);
-      final List<MonthlyReportData> monthlyReportData = [];
+      // 1. Получаем данные FIFO для корректного расчета балансов
+      final fifoDataMap = await ref.read(
+        payoutsByEmployeeAndMonthFIFOProvider(year).future,
+      );
+      final employeeFIFO = fifoDataMap[employeeId];
 
-      final startDate = DateTime(year, 1, 1);
-      final endDate = DateTime(year, 12, 31, 23, 59, 59);
-
-      // 1. Получаем историю ставок сотрудника
-      final ratesResponse = await client
-          .from('employee_rates')
-          .select()
-          .eq('employee_id', employeeId)
-          .order('valid_from');
-
-      final List<Map<String, dynamic>> rates = List<Map<String, dynamic>>.from(
-        ratesResponse,
+      // 2. Используем сервис для сбора всех необходимых данных
+      final reportService = ref.read(employeeFinancialReportServiceProvider);
+      final monthlyData = await reportService.getYearlyReportData(
+        employeeId: employeeId,
+        year: year,
+        fifoData: employeeFIFO,
       );
 
-      // 2. Получаем все отработанные часы за год (смены + ручной ввод)
-      final workHoursResponse = await client
-          .from('work_hours')
-          .select('''
-            hours,
-            works!inner(date, status)
-          ''')
-          .eq('employee_id', employeeId)
-          .eq('works.status', 'closed')
-          .gte('works.date', startDate.toIso8601String())
-          .lte('works.date', endDate.toIso8601String());
-
-      final attendanceResponse = await client
-          .from('employee_attendance')
-          .select('hours, date')
-          .eq('employee_id', employeeId)
-          .gte('date', startDate.toIso8601String())
-          .lte('date', endDate.toIso8601String());
-
-      final allWorkEntries = [
-        ...(workHoursResponse as List).map(
-          (row) => {
-            'hours': (row['hours'] as num).toDouble(),
-            'date': DateTime.parse(row['works']['date']),
-          },
-        ),
-        ...(attendanceResponse as List).map(
-          (row) => {
-            'hours': (row['hours'] as num).toDouble(),
-            'date': DateTime.parse(row['date']),
-          },
-        ),
-      ];
-
-      // 3. Получаем все выплаты сотрудника за выбранный год
-      final payoutsResponse = await client
-          .from('payroll_payout')
-          .select()
-          .eq('employee_id', employeeId)
-          .gte('payout_date', startDate.toIso8601String())
-          .lte('payout_date', endDate.toIso8601String())
-          .order('payout_date');
-
-      final allPayouts = (payoutsResponse as List)
-          .map((json) => PayrollPayoutModel.fromJson(json))
-          .toList();
-
-      // 4. Получаем расчеты ФОТ за каждый месяц через RPC
-      final List<Future<dynamic>> payrollFutures = [];
-      final activeCompanyId = ref.read(activeCompanyIdProvider);
-      
-      for (int month = 1; month <= 12; month++) {
-        payrollFutures.add(
-          client.rpc(
-            'calculate_payroll_for_month',
-            params: {
-              'p_year': year, 
-              'p_month': month,
-              'p_company_id': activeCompanyId,
-            },
-          ),
-        );
-      }
-
-      final results = await Future.wait(payrollFutures);
-
-      // 5. Формируем помесячную детализацию
-      for (int i = 0; i < 12; i++) {
-        final month = i + 1;
-        final monthResults = results[i] as List;
-
-        final monthRow = monthResults.firstWhereOrNull(
-          (row) => row['employee_id'] == employeeId,
-        );
-
-        PayrollCalculation? calc;
-        if (monthRow != null) {
-          calc = PayrollCalculation(
-            employeeId: employeeId,
-            periodMonth: DateTime(year, month, 1),
-            hoursWorked: (monthRow['total_hours'] as num).toDouble(),
-            hourlyRate: (monthRow['current_hourly_rate'] as num).toDouble(),
-            baseSalary: (monthRow['base_salary'] as num).toDouble(),
-            bonusesTotal: (monthRow['bonuses_total'] as num).toDouble(),
-            penaltiesTotal: (monthRow['penalties_total'] as num).toDouble(),
-            businessTripTotal: (monthRow['business_trip_total'] as num)
-                .toDouble(),
-            netSalary: (monthRow['net_salary'] as num).toDouble(),
-          );
-        }
-
-        // Детализация по ставкам для этого месяца
-        final Map<double, double> rateHoursMap = {};
-        final monthEntries = allWorkEntries.where((e) {
-          final date = e['date'] as DateTime;
-          return date.year == year && date.month == month;
-        });
-
-        for (final entry in monthEntries) {
-          final date = entry['date'] as DateTime;
-          final hours = entry['hours'] as double;
-
-          // Ищем ставку на эту дату
-          double activeRate = 0;
-          for (final rate in rates) {
-            final validFrom = DateTime.parse(rate['valid_from']);
-            final validTo = rate['valid_to'] != null
-                ? DateTime.parse(rate['valid_to'])
-                : null;
-
-            if ((date.isAfter(validFrom) || date.isAtSameMomentAs(validFrom)) &&
-                (validTo == null ||
-                    date.isBefore(validTo) ||
-                    date.isAtSameMomentAs(validTo))) {
-              activeRate = (rate['hourly_rate'] as num).toDouble();
-              break;
-            }
-          }
-
-          if (activeRate > 0) {
-            rateHoursMap[activeRate] = (rateHoursMap[activeRate] ?? 0) + hours;
-          }
-        }
-
-        final List<RateBreakdown> breakdowns = rateHoursMap.entries
-            .map(
-              (entry) => RateBreakdown(
-                rate: entry.key,
-                hours: entry.value,
-                amount: entry.key * entry.value,
-              ),
-            )
-            .toList();
-
-        final monthPayouts = allPayouts.where((p) {
-          return p.payoutDate.year == year && p.payoutDate.month == month;
-        }).toList();
-
-        if (calc != null || monthPayouts.isNotEmpty) {
-          monthlyReportData.add(
-            MonthlyReportData(
-              month: month,
-              year: year,
-              calculation: calc,
-              payouts: monthPayouts,
-              rateBreakdowns: breakdowns,
-            ),
-          );
-        }
-      }
-
-      if (monthlyReportData.isEmpty) {
+      if (monthlyData.isEmpty) {
         if (context.mounted) {
           SnackBarUtils.showWarning(context, 'Нет данных за $year год');
         }
         return;
       }
 
-      // 3. Генерируем и показываем через системный просмотрщик
+      if (!context.mounted) return;
+
+      // 3. Генерируем и показываем PDF
       final pdfService = PayrollPdfService();
       await pdfService.generateEmployeeYearlyReport(
         employee: employee as Employee,
         year: year,
-        monthlyData: monthlyReportData,
+        monthlyData: monthlyData,
       );
     } catch (e) {
       if (context.mounted) {

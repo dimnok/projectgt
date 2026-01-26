@@ -5,6 +5,7 @@ import 'package:projectgt/features/company/presentation/providers/company_provid
 import 'package:projectgt/features/fot/domain/entities/payroll_calculation.dart';
 import 'package:projectgt/features/fot/data/models/payroll_payout_model.dart';
 import 'package:projectgt/features/fot/presentation/services/payroll_pdf_service.dart';
+import 'package:projectgt/features/fot/presentation/providers/payroll_providers.dart';
 import 'package:collection/collection.dart';
 
 /// Сервис для формирования данных финансового отчета по конкретному сотруднику.
@@ -25,6 +26,7 @@ class EmployeeFinancialReportService {
   Future<List<MonthlyReportData>> getYearlyReportData({
     required String employeeId,
     required int year,
+    PayrollEmployeeFIFOData? fifoData,
   }) async {
     final startDate = DateTime(year, 1, 1);
     final endDate = DateTime(year, 12, 31, 23, 59, 59);
@@ -141,7 +143,25 @@ class EmployeeFinancialReportService {
               ))
           .toList();
 
-      final monthPayouts = allPayouts.where((p) => p.payoutDate.year == year && p.payoutDate.month == month).toList();
+      // Если переданы данные FIFO — берем выплаты и баланс оттуда
+      List<PayrollPayoutModel> monthPayouts;
+      double monthBalance = 0;
+
+      if (fifoData != null) {
+        final fifoAmount = fifoData.payouts[month] ?? 0.0;
+        monthBalance = fifoData.balances[month] ?? 0.0;
+        
+        // Для детального отчета нам все равно нужны объекты PayrollPayoutModel
+        // Но мы берем только те, что фактически относятся к этому месяцу по дате,
+        // ИЛИ (более корректно для PDF) показываем все выплаты, но помечаем их.
+        // Пока оставим фильтрацию по дате для списка транзакций, но баланс будет из FIFO.
+        monthPayouts = allPayouts.where((p) => p.payoutDate.year == year && p.payoutDate.month == month).toList();
+      } else {
+        monthPayouts = allPayouts.where((p) => p.payoutDate.year == year && p.payoutDate.month == month).toList();
+        final monthEarned = calc?.netSalary ?? 0;
+        final monthPaid = monthPayouts.fold<double>(0, (sum, p) => sum + p.amount);
+        monthBalance = monthEarned - monthPaid;
+      }
 
       if (calc != null || monthPayouts.isNotEmpty) {
         monthlyReportData.add(MonthlyReportData(
@@ -150,6 +170,7 @@ class EmployeeFinancialReportService {
           calculation: calc,
           payouts: monthPayouts,
           rateBreakdowns: breakdowns,
+          balance: monthBalance,
         ));
       }
     }

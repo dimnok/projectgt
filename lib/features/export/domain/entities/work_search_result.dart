@@ -81,5 +81,8 @@ abstract class WorkSearchResult with _$WorkSearchResult {
 
     /// Номер договора.
     String? contractNumber,
+
+    /// Наименование по М-15 (из накладных).
+    String? m15Name,
   }) = _WorkSearchResult;
 }

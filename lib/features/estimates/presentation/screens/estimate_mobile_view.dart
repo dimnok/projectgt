@@ -128,7 +128,7 @@ class _EstimateMobileViewState extends ConsumerState<EstimateMobileView>
             ),
             floatingActionButton: PermissionGuard(
               module: 'estimates',
-              permission: 'manual_edit',
+              permission: 'create',
               child: FloatingActionButton(
                 heroTag: 'addItem',
                 backgroundColor: Theme.of(context).colorScheme.primary,
@@ -225,7 +225,7 @@ class _EstimateMobileViewState extends ConsumerState<EstimateMobileView>
             if (title != null)
               PermissionGuard(
                 module: 'estimates',
-                permission: 'manual_edit',
+                permission: 'create',
                 child: GTPrimaryButton(
                   icon: CupertinoIcons.add,
                   text: 'Добавить позицию',
@@ -261,16 +261,16 @@ class _EstimateMobileViewState extends ConsumerState<EstimateMobileView>
               final completion = completionMap[item.id];
 
               final permissionService = ref.watch(permissionServiceProvider);
-              // Используем manual_edit для проверки прав на ручное редактирование в UI
-              final canManualEdit =
-                  permissionService.can('estimates', 'manual_edit');
+              // Используем стандартные права для проверки доступа
+              final canUpdate = permissionService.can('estimates', 'update');
+              final canDelete = permissionService.can('estimates', 'delete');
 
               return EstimateItemCard(
                 item: item,
                 completion: completion,
-                canEdit: canManualEdit,
-                canDelete: canManualEdit,
-                canDuplicate: canManualEdit,
+                canEdit: canUpdate,
+                canDelete: canDelete,
+                canDuplicate: canUpdate,
                 onEdit: (estimate) => openEditDialog(context,
                     estimate: estimate, estimateTitle: title),
                 onDuplicate: (estimate) =>

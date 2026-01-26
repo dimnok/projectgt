@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:projectgt/domain/entities/contract.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
 import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
+import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
 import 'package:projectgt/features/contracts/presentation/widgets/contract_costs_info.dart';
 import 'package:projectgt/features/contracts/presentation/widgets/contract_files_section.dart';
 import 'package:projectgt/presentation/widgets/app_badge.dart';
+import 'package:projectgt/core/widgets/gt_buttons.dart';
+import 'package:projectgt/core/widgets/gt_confirmation_dialog.dart';
+import 'package:projectgt/features/company/presentation/widgets/company_info_widgets.dart';
+import 'package:projectgt/core/widgets/gt_section_title.dart';
 import 'contract_list_shared.dart';
 
 /// Панель детальной информации о договоре.
@@ -30,39 +36,65 @@ class ContractDetailsPanel extends ConsumerWidget {
     required this.onEdit,
   });
 
-  Future<void> _handleDelete(BuildContext context, WidgetRef ref) async {
-    final confirmed = await showCupertinoDialog<bool>(
-      context: context,
-      builder: (BuildContext context) => CupertinoAlertDialog(
-        title: const Text('Удалить договор?'),
-        content: Text(
-          'Вы уверены, что хотите удалить договор № ${contract.number}?',
+  /// Показывает диалоговое окно с деталями договора.
+  static Future<void> show(
+    BuildContext context, {
+    required Contract contract,
+    required VoidCallback onEdit,
+  }) async {
+    // Используем addPostFrameCallback для предотвращения MouseTracker error на десктопе
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!context.mounted) return;
+      DesktopDialogContent.show(
+        context,
+        title: 'Детали договора',
+        width: 900,
+        scrollable: false, // ContractDetailsPanel сам управляет скроллом
+        padding: EdgeInsets.zero, // Отступы управляются внутри панели
+        footer: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            GTPrimaryButton(
+              text: 'Закрыть',
+              onPressed: () => Navigator.pop(context),
+            ),
+          ],
         ),
-        actions: [
-          CupertinoDialogAction(
-            isDefaultAction: true,
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Отмена'),
-          ),
-          CupertinoDialogAction(
-            isDestructiveAction: true,
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Удалить'),
-          ),
-        ],
-      ),
-    );
+        child: ContractDetailsPanel(
+          contract: contract,
+          onEdit: () {
+            Navigator.pop(context);
+            onEdit();
+          },
+        ),
+      );
+    });
+  }
 
-    if (confirmed == true) {
-      try {
-        await ref.read(contractProvider.notifier).deleteContract(contract.id);
-        if (!context.mounted) return;
-        SnackBarUtils.showSuccess(context, 'Договор удален');
-      } catch (e) {
-        if (!context.mounted) return;
-        SnackBarUtils.showError(context, 'Ошибка при удалении: $e');
+  Future<void> _handleDelete(BuildContext context, WidgetRef ref) async {
+    // Используем addPostFrameCallback для предотвращения MouseTracker error на десктопе
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!context.mounted) return;
+      final confirmed = await GTConfirmationDialog.show(
+        context: context,
+        title: 'Удалить договор?',
+        message: 'Вы уверены, что хотите удалить договор № ${contract.number}?',
+        confirmText: 'Удалить',
+        cancelText: 'Отмена',
+        type: GTConfirmationType.danger,
+      );
+
+      if (confirmed == true) {
+        try {
+          await ref.read(contractProvider.notifier).deleteContract(contract.id);
+          if (!context.mounted) return;
+          SnackBarUtils.showSuccess(context, 'Договор удален');
+        } catch (e) {
+          if (!context.mounted) return;
+          SnackBarUtils.showError(context, 'Ошибка при удалении: $e');
+        }
       }
-    }
+    });
   }
 
   @override
@@ -92,7 +124,7 @@ class ContractDetailsPanel extends ConsumerWidget {
                         size: 32,
                         color: theme.colorScheme.primary,
                       ),
-                    ),
+                    ).animate().scale(delay: 100.ms, duration: 400.ms, curve: Curves.easeOutBack),
                     const SizedBox(width: 16),
                     Expanded(
                       child: Column(
@@ -103,14 +135,14 @@ class ContractDetailsPanel extends ConsumerWidget {
                             style: theme.textTheme.headlineSmall?.copyWith(
                               fontWeight: FontWeight.w600,
                             ),
-                          ),
+                          ).animate().fade(delay: 200.ms).slideX(begin: 0.1),
                           const SizedBox(height: 4),
                           Text(
                             contract.contractorName ?? 'Без контрагента',
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: theme.textTheme.bodySmall?.color,
                             ),
-                          ),
+                          ).animate().fade(delay: 250.ms).slideX(begin: 0.1),
                           const SizedBox(height: 8),
                           AppBadge(
                             text: ContractStatusHelper.getStatusInfo(
@@ -121,7 +153,7 @@ class ContractDetailsPanel extends ConsumerWidget {
                               contract.status,
                               theme,
                             ).$2,
-                          ),
+                          ).animate().fade(delay: 300.ms).scale(begin: const Offset(0.8, 0.8)),
                         ],
                       ),
                     ),
@@ -130,6 +162,14 @@ class ContractDetailsPanel extends ConsumerWidget {
               ),
               Row(
                 children: [
+                  if (MediaQuery.sizeOf(context).width > 900)
+                    GTPrimaryButton(
+                      text: 'Журнал КС-6А',
+                      onPressed: () {
+                        // TODO: Реализовать переход к журналу КС-6А
+                      },
+                    ).animate().fade(delay: 350.ms).scale(),
+                  const SizedBox(width: 12),
                   PermissionGuard(
                     module: 'contracts',
                     permission: 'update',
@@ -142,7 +182,7 @@ class ContractDetailsPanel extends ConsumerWidget {
                         color: Colors.amber,
                       ),
                     ),
-                  ),
+                  ).animate().fade(delay: 400.ms).scale(),
                   PermissionGuard(
                     module: 'contracts',
                     permission: 'delete',
@@ -155,7 +195,7 @@ class ContractDetailsPanel extends ConsumerWidget {
                         color: theme.colorScheme.error,
                       ),
                     ),
-                  ),
+                  ).animate().fade(delay: 450.ms).scale(),
                 ],
               ),
             ],
@@ -169,89 +209,108 @@ class ContractDetailsPanel extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildCashFlowSection(theme),
-                const SizedBox(height: 24),
-                _buildSectionTitle('Основная информация', theme),
-                const SizedBox(height: 8),
-                _buildDataRow(
-                  'Объект',
-                  contract.objectName ?? '',
-                  theme,
-                  icon: CupertinoIcons.building_2_fill,
-                ),
-                _buildDataRow(
-                  'Статус',
-                  ContractStatusHelper.getStatusInfo(contract.status, theme).$1,
-                  theme,
+                _buildCashFlowSection(theme)
+                    .animate()
+                    .fade(delay: 400.ms, duration: 500.ms)
+                    .slideY(begin: 0.05, curve: Curves.easeOut),
+                const SizedBox(height: 32),
+                CompanyInfoCard(
+                  title: 'Основная информация',
                   icon: CupertinoIcons.info_circle,
-                ),
-                _buildDataRow(
-                  'Дата начала',
-                  formatRuDate(contract.date),
-                  theme,
-                  icon: CupertinoIcons.calendar,
-                ),
-                _buildDataRow(
-                  'Дата окончания',
-                  contract.endDate != null
-                      ? formatRuDate(contract.endDate!)
-                      : '',
-                  theme,
-                  icon: CupertinoIcons.calendar_badge_minus,
-                ),
+                  children: [
+                    CompanyInfoRow(
+                      label: 'Объект',
+                      value: contract.objectName,
+                      icon: CupertinoIcons.building_2_fill,
+                    ),
+                    CompanyInfoRow(
+                      label: 'Статус',
+                      value: ContractStatusHelper.getStatusInfo(contract.status, theme).$1,
+                      icon: CupertinoIcons.info_circle,
+                    ),
+                    CompanyInfoRow(
+                      label: 'Дата начала',
+                      value: formatRuDate(contract.date),
+                      icon: CupertinoIcons.calendar,
+                    ),
+                    CompanyInfoRow(
+                      label: 'Дата окончания',
+                      value: contract.endDate != null ? formatRuDate(contract.endDate!) : null,
+                      icon: CupertinoIcons.calendar_badge_minus,
+                      isLast: true,
+                    ),
+                  ],
+                ).animate()
+                    .fade(delay: 500.ms, duration: 500.ms)
+                    .slideY(begin: 0.05, curve: Curves.easeOut),
                 const SizedBox(height: 24),
-                _buildSectionTitle('Финансовые условия', theme),
-                const SizedBox(height: 8),
-                _buildDataRow(
-                  'Сумма договора',
-                  formatCurrency(contract.amount),
-                  theme,
-                  icon: CupertinoIcons.money_rubl,
-                ),
-                _buildDataRow(
-                  contract.isVatIncluded
-                      ? 'НДС ${contract.vatRate.toStringAsFixed(0)}% (вкл.)'
-                      : 'НДС ${contract.vatRate.toStringAsFixed(0)}% (сверху)',
-                  formatCurrency(contract.vatAmount),
-                  theme,
-                  icon: CupertinoIcons.percent,
-                ),
-                _buildDataRow(
-                  'Аванс',
-                  formatCurrency(contract.advanceAmount),
-                  theme,
+                CompanyInfoCard(
+                  title: 'Финансовые условия',
                   icon: CupertinoIcons.money_rubl_circle,
-                ),
-                _buildDataRow(
-                  contract.warrantyPeriodMonths > 0
-                      ? 'Гарантийные ${contract.warrantyRetentionRate.toStringAsFixed(0)}% (${contract.warrantyPeriodMonths} мес.)'
-                      : 'Гарантийные',
-                  formatCurrency(contract.warrantyRetentionAmount),
-                  theme,
-                  icon: CupertinoIcons.shield,
-                ),
-                _buildDataRow(
-                  contract.generalContractorFeeRate > 0
-                      ? 'Генподрядные ${contract.generalContractorFeeRate.toStringAsFixed(0)}%'
-                      : 'Генподрядные',
-                  formatCurrency(contract.generalContractorFeeAmount),
-                  theme,
-                  icon: CupertinoIcons.briefcase,
-                ),
-                const SizedBox(height: 24),
-                ContractFilesSection(contract: contract),
-                const SizedBox(height: 24),
-                _buildAddendumsSection(theme),
-                const SizedBox(height: 24),
-                _buildActsSection(theme),
-                const SizedBox(height: 24),
-                _buildSectionTitle('Выполнение и остатки', theme),
+                  children: [
+                    CompanyInfoRow(
+                      label: 'Сумма договора',
+                      value: formatCurrency(contract.amount),
+                      icon: CupertinoIcons.money_rubl,
+                    ),
+                    CompanyInfoRow(
+                      label: contract.isVatIncluded
+                          ? 'НДС ${contract.vatRate.toStringAsFixed(0)}% (включен)'
+                          : 'НДС ${contract.vatRate.toStringAsFixed(0)}% (сверху)',
+                      value: formatCurrency(contract.vatAmount),
+                      icon: CupertinoIcons.percent,
+                    ),
+                    CompanyInfoRow(
+                      label: 'Аванс',
+                      value: formatCurrency(contract.advanceAmount),
+                      icon: CupertinoIcons.money_rubl_circle,
+                    ),
+                    CompanyInfoRow(
+                      label: contract.warrantyPeriodMonths > 0
+                          ? 'Гарантийные удержания (${contract.warrantyRetentionRate.toStringAsFixed(0)}%, ${contract.warrantyPeriodMonths} мес.)'
+                          : 'Гарантийные удержания',
+                      value: formatCurrency(contract.warrantyRetentionAmount),
+                      icon: CupertinoIcons.shield,
+                    ),
+                    CompanyInfoRow(
+                      label: contract.generalContractorFeeRate > 0
+                          ? 'Генподрядные (${contract.generalContractorFeeRate.toStringAsFixed(0)}%)'
+                          : 'Генподрядные',
+                      value: formatCurrency(contract.generalContractorFeeAmount),
+                      icon: CupertinoIcons.briefcase,
+                      isLast: true,
+                    ),
+                  ],
+                ).animate()
+                    .fade(delay: 600.ms, duration: 500.ms)
+                    .slideY(begin: 0.05, curve: Curves.easeOut),
+                const SizedBox(height: 32),
+                ContractFilesSection(contract: contract)
+                    .animate()
+                    .fade(delay: 700.ms, duration: 500.ms)
+                    .slideY(begin: 0.05, curve: Curves.easeOut),
+                const SizedBox(height: 32),
+                _buildAddendumsSection(theme)
+                    .animate()
+                    .fade(delay: 800.ms, duration: 500.ms)
+                    .slideY(begin: 0.05, curve: Curves.easeOut),
+                const SizedBox(height: 32),
+                _buildActsSection(theme)
+                    .animate()
+                    .fade(delay: 900.ms, duration: 500.ms)
+                    .slideY(begin: 0.05, curve: Curves.easeOut),
+                const SizedBox(height: 32),
+                const GTSectionTitle(title: 'Выполнение и остатки')
+                    .animate()
+                    .fade(delay: 1000.ms, duration: 500.ms),
                 const SizedBox(height: 16),
                 ContractCostsInfo(
                   contractId: contract.id,
                   objectId: contract.objectId,
                   contractAmount: contract.amount,
-                ),
+                ).animate()
+                    .fade(delay: 1100.ms, duration: 500.ms)
+                    .slideY(begin: 0.05, curve: Curves.easeOut),
               ],
             ),
           ),
@@ -316,7 +375,7 @@ class ContractDetailsPanel extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle('Движение денежных средств (Cash Flow)', theme),
+        const GTSectionTitle(title: 'Движение денежных средств (Cash Flow)'),
         const SizedBox(height: 16),
         Container(
           decoration: BoxDecoration(
@@ -524,8 +583,8 @@ class ContractDetailsPanel extends ConsumerWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Expanded(
-              child: _buildSectionTitle('Дополнительные соглашения', theme),
+            const Expanded(
+              child: GTSectionTitle(title: 'Дополнительные соглашения'),
             ),
             PermissionGuard(
               module: 'contracts',
@@ -687,7 +746,7 @@ class ContractDetailsPanel extends ConsumerWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Expanded(child: _buildSectionTitle('Акты КС-2', theme)),
+            const Expanded(child: GTSectionTitle(title: 'Акты КС-2')),
             PermissionGuard(
               module: 'contracts',
               permission: 'update',
@@ -864,65 +923,6 @@ class ContractDetailsPanel extends ConsumerWidget {
           height: 1,
           thickness: 0.5,
           indent: 40,
-          endIndent: 12,
-          color: theme.colorScheme.outline.withValues(alpha: 0.08),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSectionTitle(String title, ThemeData theme) {
-    return ContractSectionTitle(title: title);
-  }
-
-  Widget _buildDataRow(
-    String label,
-    String value,
-    ThemeData theme, {
-    IconData? icon,
-  }) {
-    final displayValue = value.isEmpty ? '—' : value;
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (icon != null) ...[
-                Icon(
-                  icon,
-                  size: 16,
-                  color: theme.colorScheme.primary.withValues(alpha: 0.5),
-                ),
-                const SizedBox(width: 12),
-              ],
-              SizedBox(
-                width: 250,
-                child: Text(
-                  label,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 24),
-              Expanded(
-                child: SelectableText(
-                  displayValue,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Divider(
-          height: 1,
-          thickness: 0.5,
-          indent: icon != null ? 40 : 12,
           endIndent: 12,
           color: theme.colorScheme.outline.withValues(alpha: 0.08),
         ),

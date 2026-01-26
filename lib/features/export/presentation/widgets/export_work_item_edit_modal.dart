@@ -304,8 +304,7 @@ class _ExportWorkItemEditModalState
       );
 
       // Парсим количество
-      final quantityText = _quantityController.text.replaceAll(',', '.');
-      final quantity = double.tryParse(quantityText) ?? 0;
+      final quantity = parseAmount(_quantityController.text) ?? 0;
 
       if (quantity <= 0) {
         if (mounted) {
@@ -480,6 +479,17 @@ class _ExportWorkItemEditModalState
                             'Подсистема: ${widget.initialData.subsystem}',
                             style: theme.textTheme.bodyMedium,
                           ),
+                          if (widget.initialData.m15Name != null) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              'М-15: ${widget.initialData.m15Name}',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                fontStyle: FontStyle.italic,
+                                color: theme.colorScheme.onSurface
+                                    .withValues(alpha: 0.7),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -577,8 +587,7 @@ class _ExportWorkItemEditModalState
             if (value == null || value.isEmpty) {
               return 'Введите количество';
             }
-            final normalized = value.replaceAll(',', '.');
-            final parsed = double.tryParse(normalized);
+            final parsed = parseAmount(value);
             if (parsed == null || parsed <= 0) {
               return 'Введите корректное количество';
             }

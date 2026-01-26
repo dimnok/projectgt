@@ -23,12 +23,17 @@ class MaterialFromReceiptsPicker extends ConsumerStatefulWidget {
   /// Название сметной позиции.
   final String estimateName;
 
+  /// Нужно ли оборачивать в DesktopDialogContent/MobileBottomSheetContent.
+  /// По умолчанию true.
+  final bool useWrapper;
+
   /// Создает экземпляр виджета.
   const MaterialFromReceiptsPicker({
     super.key,
     required this.estimateId,
     required this.estimateName,
     this.contractNumber,
+    this.useWrapper = true,
   });
 
   /// Показывает модальное окно выбора материала.
@@ -42,12 +47,16 @@ class MaterialFromReceiptsPicker extends ConsumerStatefulWidget {
   }) async {
     final isDesktop = ResponsiveUtils.isDesktop(context);
     if (isDesktop) {
-      return showDialog(
-        context: context,
-        builder: (context) => MaterialFromReceiptsPicker(
+      return DesktopDialogContent.show(
+        context,
+        title: 'Выбор материала из накладных',
+        scrollable: false,
+        padding: EdgeInsets.zero,
+        child: MaterialFromReceiptsPicker(
           estimateId: estimateId,
           estimateName: estimateName,
           contractNumber: contractNumber,
+          useWrapper: false,
         ),
       );
     } else {
@@ -538,6 +547,19 @@ class _MaterialFromReceiptsPickerState
         ),
       ],
     );
+
+    if (!widget.useWrapper) {
+      return Column(
+        children: [
+          Expanded(child: content),
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: footer,
+          ),
+        ],
+      );
+    }
 
     if (isDesktop) {
       return Dialog(

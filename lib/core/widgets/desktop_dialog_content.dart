@@ -80,6 +80,60 @@ class DesktopDialogContent extends StatelessWidget {
     this.showDividers = true,
   });
 
+  /// Отображает диалоговое окно с плавной анимацией появления.
+  ///
+  /// Использует [showGeneralDialog] для реализации кастомной анимации (fade + scale).
+  static Future<T?> show<T>(
+    BuildContext context, {
+    required String title,
+    required Widget child,
+    Widget? footer,
+    double width = 750,
+    double? height,
+    EdgeInsetsGeometry padding = const EdgeInsets.all(24),
+    bool scrollable = true,
+    bool showDividers = true,
+    bool barrierDismissible = true,
+    VoidCallback? onClose,
+  }) {
+    return showGeneralDialog<T>(
+      context: context,
+      barrierDismissible: barrierDismissible,
+      barrierLabel: title,
+      barrierColor: Colors.black.withValues(alpha: 0.4),
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return Center(
+          child: Dialog(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            child: DesktopDialogContent(
+              title: title,
+              footer: footer,
+              width: width,
+              height: height,
+              padding: padding,
+              scrollable: scrollable,
+              showDividers: showDividers,
+              onClose: onClose,
+              child: child,
+            ),
+          ),
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        final curvedValue = Curves.easeOutCubic.transform(animation.value);
+        return FadeTransition(
+          opacity: animation,
+          child: Transform.scale(
+            scale: 0.95 + (0.05 * curvedValue),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);

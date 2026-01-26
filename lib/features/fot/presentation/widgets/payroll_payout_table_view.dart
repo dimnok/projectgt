@@ -29,10 +29,12 @@ class PayrollPayoutTableView extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<PayrollPayoutTableView> createState() => _PayrollPayoutTableViewState();
+  ConsumerState<PayrollPayoutTableView> createState() =>
+      _PayrollPayoutTableViewState();
 }
 
-class _PayrollPayoutTableViewState extends ConsumerState<PayrollPayoutTableView> {
+class _PayrollPayoutTableViewState
+    extends ConsumerState<PayrollPayoutTableView> {
   /// Текущая выбранная выплата для подсветки строки.
   PayrollPayoutModel? _highlightedPayout;
 
@@ -51,11 +53,16 @@ class _PayrollPayoutTableViewState extends ConsumerState<PayrollPayoutTableView>
       payouts: widget.payouts,
       employees: widget.employees,
       highlightedItem: _highlightedPayout,
-      onRowTap: (payout, position) => _showContextMenu(context, payout, position),
+      onRowTap: (payout, position) =>
+          _showContextMenu(context, payout, position),
     );
   }
 
-  void _showContextMenu(BuildContext context, PayrollPayoutModel payout, Offset position) {
+  void _showContextMenu(
+    BuildContext context,
+    PayrollPayoutModel payout,
+    Offset position,
+  ) {
     setState(() => _highlightedPayout = payout);
 
     GTContextMenu.show(
@@ -78,7 +85,6 @@ class _PayrollPayoutTableViewState extends ConsumerState<PayrollPayoutTableView>
       ],
     );
   }
-
 
   void _showEditForm(BuildContext context, PayrollPayoutModel payout) {
     final isDesktop = ResponsiveUtils.isDesktop(context);
@@ -126,4 +132,3 @@ class _PayrollPayoutTableViewState extends ConsumerState<PayrollPayoutTableView>
     }
   }
 }
-

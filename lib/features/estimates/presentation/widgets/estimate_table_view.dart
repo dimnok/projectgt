@@ -113,11 +113,10 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final permissionService = ref.watch(permissionServiceProvider);
-    // Используем специальное право 'manual_edit' для UI-элементов ручного управления (кнопки, меню действий).
-    // Стандартные права (update, create, delete) остаются для технического доступа к БД (RLS).
-    final canUpdate = permissionService.can('estimates', 'manual_edit');
-    final canCreate = permissionService.can('estimates', 'manual_edit');
-    final canDelete = permissionService.can('estimates', 'manual_edit');
+    // Используем стандартные права для UI-элементов управления.
+    final canUpdate = permissionService.can('estimates', 'update');
+    final canCreate = permissionService.can('estimates', 'create');
+    final canDelete = permissionService.can('estimates', 'delete');
 
     final configs = _buildColumnConfigs(
       canUpdate: canUpdate,
@@ -538,43 +537,67 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
   ) {
     setState(() => _contextMenuSelectedId = estimate.id);
 
-    GTContextMenu.show(
-      context: context,
-      tapPosition: position,
-      onDismiss: () => setState(() => _contextMenuSelectedId = null),
-      items: [
-        GTContextMenuItem(
-          icon: CupertinoIcons.info,
-          label: 'Детали',
-          onTap: () => EstimateItemDetailsDialog.show(
-            context,
-            estimate: estimate,
-            completion: widget.completionData?[estimate.id],
-          ),
+    // Используем ref.watch для получения актуальных прав в момент открытия меню
+    final permissionService = ref.watch(permissionServiceProvider);
+    final canUpdate = permissionService.can('estimates', 'update');
+    final canDelete = permissionService.can('estimates', 'delete');
+
+    final menuItems = [
+      GTContextMenuItem(
+        icon: CupertinoIcons.info,
+        label: 'Детали',
+        onTap: () => EstimateItemDetailsDialog.show(
+          context,
+          estimate: estimate,
+          completion: widget.completionData?[estimate.id],
         ),
-        GTContextMenuItem(
-          icon: CupertinoIcons.minus_circle,
-          label: 'Списать',
-          onTap: () => MaterialFromReceiptsPicker.show(
-            context,
-            estimateId: estimate.id,
-            estimateName: estimate.name,
-            contractNumber: widget.contractNumber,
-          ),
+      ),
+      GTContextMenuItem(
+        icon: CupertinoIcons.minus_circle,
+        label: 'Списать',
+        onTap: () => MaterialFromReceiptsPicker.show(
+          context,
+          estimateId: estimate.id,
+          estimateName: estimate.name,
+          contractNumber: widget.contractNumber,
         ),
-        const Divider(height: 1),
+      ),
+      const Divider(height: 1),
+    ];
+
+    // Добавляем пункты редактирования и дублирования, если есть право на обновление
+    if (canUpdate) {
+      menuItems.addAll([
         GTContextMenuItem(
           icon: CupertinoIcons.pencil,
           label: 'Редактировать',
           onTap: () => widget.onEdit(estimate),
         ),
         GTContextMenuItem(
+          icon: CupertinoIcons.doc_on_doc,
+          label: 'Дублировать',
+          onTap: () => widget.onDuplicate(estimate),
+        ),
+      ]);
+    }
+
+    // Добавляем пункт удаления, если есть право на удаление
+    if (canDelete) {
+      menuItems.add(
+        GTContextMenuItem(
           icon: CupertinoIcons.trash,
           label: 'Удалить',
           isDestructive: true,
           onTap: () => widget.onDelete(estimate.id),
         ),
-      ],
+      );
+    }
+
+    GTContextMenu.show(
+      context: context,
+      tapPosition: position,
+      onDismiss: () => setState(() => _contextMenuSelectedId = null),
+      items: menuItems,
     );
   }
 
@@ -718,133 +741,4 @@ class _EstimateColumnConfig {
     EstimateCompletionModel? completion,
   )?
   measureText;
-}
-
-enum _RowAction { edit, duplicate, delete }
-
-class _ActionsMenu extends StatelessWidget {
-  const _ActionsMenu({
-    required this.theme,
-    required this.estimate,
-    required this.canEdit,
-    required this.canDuplicate,
-    required this.canDelete,
-    required this.onEdit,
-    required this.onDuplicate,
-    required this.onDelete,
-  });
-
-  final ThemeData theme;
-  final Estimate estimate;
-  final bool canEdit;
-  final bool canDuplicate;
-  final bool canDelete;
-  final void Function(Estimate) onEdit;
-  final void Function(Estimate) onDuplicate;
-  final void Function(String) onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    if (!canEdit && !canDuplicate && !canDelete) {
-      return const SizedBox.shrink();
-    }
-
-    return Theme(
-      data: theme.copyWith(
-        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        hoverColor: Colors.transparent,
-        highlightColor: Colors.transparent,
-        splashColor: Colors.transparent,
-        iconButtonTheme: IconButtonThemeData(
-          style: ButtonStyle(
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            minimumSize: WidgetStateProperty.all<Size>(const Size(28, 28)),
-            overlayColor: WidgetStateProperty.all<Color>(Colors.transparent),
-            splashFactory: NoSplash.splashFactory,
-          ),
-        ),
-      ),
-      child: PopupMenuButton<_RowAction>(
-        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-        tooltip: 'Действия',
-        padding: EdgeInsets.zero,
-        icon: Icon(
-          CupertinoIcons.ellipsis_vertical,
-          size: 16,
-          color: theme.colorScheme.onSurface,
-        ),
-        onSelected: (action) {
-          switch (action) {
-            case _RowAction.edit:
-              onEdit(estimate);
-              break;
-            case _RowAction.duplicate:
-              onDuplicate(estimate);
-              break;
-            case _RowAction.delete:
-              onDelete(estimate.id);
-              break;
-          }
-        },
-        itemBuilder: (context) => [
-          if (canEdit)
-            PopupMenuItem(
-              value: _RowAction.edit,
-              child: _MenuRow(
-                icon: CupertinoIcons.pencil,
-                color: theme.colorScheme.primary,
-                label: 'Редактировать',
-              ),
-            ),
-          if (canDuplicate)
-            PopupMenuItem(
-              value: _RowAction.duplicate,
-              child: _MenuRow(
-                icon: CupertinoIcons.doc_on_doc,
-                color: theme.colorScheme.secondary,
-                label: 'Дублировать',
-              ),
-            ),
-          if (canDelete)
-            PopupMenuItem(
-              value: _RowAction.delete,
-              child: _MenuRow(
-                icon: CupertinoIcons.trash,
-                color: theme.colorScheme.error,
-                label: 'Удалить',
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MenuRow extends StatelessWidget {
-  const _MenuRow({
-    required this.icon,
-    required this.color,
-    required this.label,
-  });
-
-  final IconData icon;
-  final Color color;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Row(
-      children: [
-        Icon(icon, size: 16, color: color),
-        const SizedBox(width: 8),
-        Text(
-          label,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurface,
-          ),
-        ),
-      ],
-    );
-  }
 }

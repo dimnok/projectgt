@@ -422,8 +422,7 @@ class _WorkHoursTabState extends ConsumerState<WorkHoursTab> {
                     for (final h in current) {
                       final controller = _hourControllers[h.id];
                       if (controller == null) continue;
-                      final raw = controller.text.replaceAll(',', '.');
-                      final parsed = num.tryParse(raw);
+                      final parsed = parseAmount(controller.text);
                       if (parsed == null) continue;
                       if (parsed != h.hours && parsed >= 0) {
                         updated.add(

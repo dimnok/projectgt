@@ -51,6 +51,9 @@ class MonthlyReportData {
   /// Детализация по ставкам (если за месяц были изменения ставок)
   final List<RateBreakdown> rateBreakdowns;
 
+  /// Кумулятивный баланс на конец месяца (FIFO)
+  final double balance;
+
   /// Создает данные для ежемесячного отчета
   MonthlyReportData({
     required this.month,
@@ -58,6 +61,7 @@ class MonthlyReportData {
     this.calculation,
     required this.payouts,
     this.rateBreakdowns = const [],
+    this.balance = 0,
   });
 }
 
@@ -99,6 +103,11 @@ class PayrollPdfService {
     // Считаем общие итоги
     double totalEarned = 0;
     double totalReceived = 0;
+    double finalBalance = 0;
+
+    if (monthlyData.isNotEmpty) {
+      finalBalance = monthlyData.last.balance;
+    }
 
     for (final data in monthlyData) {
       totalEarned += data.calculation?.netSalary ?? 0;
@@ -222,6 +231,30 @@ class PayrollPdfService {
                   ),
                 ],
                 pw.SizedBox(height: 5),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('ОСТАТОК К ВЫПЛАТЕ на конец месяца:',
+                        style: pw.TextStyle(
+                            fontWeight: pw.FontWeight.bold,
+                            fontSize: 10,
+                            color: data.balance > 0
+                                ? PdfColors.green700
+                                : (data.balance < 0
+                                    ? PdfColors.red700
+                                    : PdfColors.black))),
+                    pw.Text(_cleanCurrency(formatCurrency(data.balance)),
+                        style: pw.TextStyle(
+                            fontWeight: pw.FontWeight.bold,
+                            fontSize: 10,
+                            color: data.balance > 0
+                                ? PdfColors.green700
+                                : (data.balance < 0
+                                    ? PdfColors.red700
+                                    : PdfColors.black))),
+                  ],
+                ),
+                pw.SizedBox(height: 5),
                 pw.Divider(color: PdfColors.grey300, thickness: 0.5),
               ],
             );
@@ -247,14 +280,12 @@ class PayrollPdfService {
                     fontBold),
                 pw.Divider(),
                 _buildTotalRow(
-                  'ОСТАТОК К ВЫПЛАТЕ:',
-                  _cleanCurrency(formatCurrency(totalEarned - totalReceived)),
+                  'ОБЩИЙ ОСТАТОК К ВЫПЛАТЕ:',
+                  _cleanCurrency(formatCurrency(finalBalance)),
                   fontBold,
-                  color: (totalEarned - totalReceived) > 0
+                  color: finalBalance > 0
                       ? PdfColors.green700
-                      : ((totalEarned - totalReceived) < 0
-                          ? PdfColors.red700
-                          : PdfColors.black),
+                      : (finalBalance < 0 ? PdfColors.red700 : PdfColors.black),
                 ),
               ],
             ),

@@ -7,6 +7,7 @@ import 'package:projectgt/features/company/presentation/providers/company_provid
 import '../providers/payroll_providers.dart';
 import '../providers/balance_providers.dart';
 import '../../data/models/payroll_payout_model.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/snackbar_utils.dart';
 import '../../../../core/widgets/gt_buttons.dart';
 import '../../../../core/widgets/gt_text_field.dart';
@@ -83,8 +84,7 @@ class _PayrollPayoutAmountModalState
   void _updateTotal() {
     double total = 0.0;
     for (final controller in _amountControllers.values) {
-      final text = controller.text.replaceAll(',', '.');
-      final amount = double.tryParse(text) ?? 0.0;
+      final amount = parseAmount(controller.text) ?? 0.0;
       total += amount;
     }
     _totalAmount.value = total;
@@ -132,7 +132,7 @@ class _PayrollPayoutAmountModalState
       for (final employee in _currentEmployees) {
         final amountText = _amountControllers[employee.id]?.text ?? '';
         if (amountText.isNotEmpty) {
-          final amount = double.parse(amountText.replaceAll(',', '.'));
+          final amount = parseAmount(amountText) ?? 0.0;
           if (amount > 0) {
             final payout = PayrollPayoutModel(
               id: const Uuid().v4(),

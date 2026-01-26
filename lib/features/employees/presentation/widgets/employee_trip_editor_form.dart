@@ -5,6 +5,7 @@ import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/domain/entities/business_trip_rate.dart';
 import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:projectgt/domain/entities/employee.dart';
+import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
 import 'package:projectgt/core/widgets/gt_dropdown.dart';
 import 'package:uuid/uuid.dart';
@@ -92,8 +93,8 @@ class _EmployeeTripEditorFormState
         id: widget.existingRate?.id ?? const Uuid().v4(),
         objectId: _selectedObject!.id,
         employeeId: widget.employee.id,
-        rate: double.parse(_rateController.text),
-        minimumHours: double.parse(_minimumHoursController.text),
+        rate: parseAmount(_rateController.text) ?? 0.0,
+        minimumHours: parseAmount(_minimumHoursController.text) ?? 0.0,
         validFrom: _validFrom,
         validTo: _validTo,
       );
@@ -235,7 +236,7 @@ class _EmployeeTripEditorFormState
                           if (value == null || value.trim().isEmpty) {
                             return 'Введите сумму';
                           }
-                          final number = double.tryParse(value);
+                          final number = parseAmount(value);
                           if (number == null || number < 0) {
                             return 'Введите корректную сумму';
                           }
@@ -260,7 +261,7 @@ class _EmployeeTripEditorFormState
                           if (value == null || value.trim().isEmpty) {
                             return 'Введите минимальное количество часов';
                           }
-                          final number = double.tryParse(value);
+                          final number = parseAmount(value);
                           if (number == null || number < 0) {
                             return 'Введите корректное значение';
                           }

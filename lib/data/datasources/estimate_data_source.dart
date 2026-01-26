@@ -40,6 +40,39 @@ abstract class EstimateDataSource {
 
   /// Получает список уникальных единиц измерения из всех смет.
   Future<List<String>> getUnits({String? estimateTitle});
+
+  /// Получает все сметные позиции по договору.
+  Future<List<EstimateModel>> getEstimatesByContract(String contractId);
+
+  /// Получает историю выполнения для всех смет договора.
+  Future<List<Map<String, dynamic>>> getContractCompletionHistory(String contractId);
+
+  /// Инициирует создание нового периода в Журнале КС-6а.
+  /// 
+  /// Вызывает RPC `initialize_ks6a_period`, который создает заголовок 
+  /// и автоматически заполняет строки данными из отчетов за [startDate]-[endDate].
+  Future<String> createKs6aPeriod({
+    required String contractId,
+    required DateTime startDate,
+    required DateTime endDate,
+    String? title,
+  });
+
+  /// Синхронизирует данные черновика периода с актуальными отчетами.
+  /// 
+  /// Вызывает RPC `refresh_ks6a_period`. Полезно, если после формирования черновика
+  /// были внесены изменения в ежедневные отчеты.
+  Future<void> refreshKs6aPeriod(String periodId);
+
+  /// Утверждает период КС-6а, переводя его в статус 'approved'.
+  /// 
+  /// Вызывает RPC `approve_ks6a_period`. После этого изменения в периоде невозможны.
+  Future<void> approveKs6aPeriod(String periodId);
+
+  /// Получает все данные КС-6а для конкретного договора.
+  /// 
+  /// Возвращает Map с ключами 'periods' и 'items'.
+  Future<Map<String, dynamic>> getKs6aContractData(String contractId);
 }
 
 /// Реализация EstimateDataSource через Supabase/PostgreSQL.
@@ -180,45 +213,17 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
   }
 
   /// Получает сгруппированный список смет (заголовки).
+  /// 
+  /// ВАЖНО: Фильтрация по объектам пользователя выполняется на уровне БД 
+  /// через RPC функцию get_estimate_groups. Fallback удалён для безопасности,
+  /// так как он обходил проверку прав на уровне объектов.
   Future<List<Map<String, dynamic>>> getEstimateGroups() async {
-    try {
-      // Вызываем RPC для получения легкого списка групп
-      final response = await client.rpc('get_estimate_groups', params: {
-        'p_company_id': activeCompanyId,
-      });
-      return (response as List).cast<Map<String, dynamic>>();
-    } catch (e) {
-      // Fallback: Если RPC недоступен, выполняем группировку на клиенте (старый метод)
-      // Но это не оптимально, поэтому лучше убедиться что миграция применена
-      // В качестве fallback можно попробовать получить уникальные записи через distinct
-      // Но Supabase JS SDK не поддерживает DISTINCT ON легко без RPC.
-      // Поэтому здесь мы просто пробрасываем ошибку или возвращаем пустой список,
-      // или (в крайнем случае) грузим всё (чего мы хотим избежать).
-      // Решение: загрузим только нужные поля для группировки
-      final response = await client
-          .from(view)
-          .select('estimate_title, object_id, contract_id, contract_number, total')
-          .eq('company_id', activeCompanyId);
-      
-      // Группируем на клиенте (Fallback)
-      final groups = <String, Map<String, dynamic>>{};
-      for (final item in response) {
-        final key = '${item['estimate_title']}_${item['object_id']}_${item['contract_id']}';
-        if (!groups.containsKey(key)) {
-          groups[key] = {
-            'estimate_title': item['estimate_title'],
-            'object_id': item['object_id'],
-            'contract_id': item['contract_id'],
-            'contract_number': item['contract_number'],
-            'items_count': 0,
-            'total_amount': 0.0,
-          };
-        }
-        groups[key]!['items_count'] = (groups[key]!['items_count'] as int) + 1;
-        groups[key]!['total_amount'] = (groups[key]!['total_amount'] as double) + (item['total'] as num).toDouble();
-      }
-      return groups.values.toList();
-    }
+    // Вызываем RPC для получения легкого списка групп
+    // Функция содержит полную логику фильтрации по правам и объектам
+    final response = await client.rpc('get_estimate_groups', params: {
+      'p_company_id': activeCompanyId,
+    });
+    return (response as List).cast<Map<String, dynamic>>();
   }
 
   /// Получает позиции сметы по фильтру (заголовок + объект + договор).
@@ -420,6 +425,71 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
       }
     }
     return units.toList()..sort();
+  }
+
+  @override
+  Future<List<EstimateModel>> getEstimatesByContract(String contractId) async {
+    final response = await client
+        .from(view)
+        .select('*')
+        .eq('contract_id', contractId)
+        .eq('company_id', activeCompanyId)
+        .order('system')
+        .order('number');
+    
+    return (response as List).map((json) => EstimateModel.fromJson(json)).toList();
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getContractCompletionHistory(String contractId) async {
+    final response = await client
+        .from('work_items')
+        .select('estimate_id, quantity, works!inner(date)')
+        .eq('company_id', activeCompanyId)
+        .eq('estimate_id.contract_id', contractId) // Используем foreign key relation
+        .order('date', referencedTable: 'works', ascending: true);
+    
+    return (response as List).cast<Map<String, dynamic>>();
+  }
+
+  @override
+  Future<String> createKs6aPeriod({
+    required String contractId,
+    required DateTime startDate,
+    required DateTime endDate,
+    String? title,
+  }) async {
+    final response = await client.rpc('initialize_ks6a_period', params: {
+      'p_company_id': activeCompanyId,
+      'p_contract_id': contractId,
+      'p_start_date': startDate.toIso8601String(),
+      'p_end_date': endDate.toIso8601String(),
+      'p_title': title,
+    });
+    return response as String;
+  }
+
+  @override
+  Future<void> refreshKs6aPeriod(String periodId) async {
+    await client.rpc('refresh_ks6a_period', params: {
+      'p_period_id': periodId,
+    });
+  }
+
+  @override
+  Future<void> approveKs6aPeriod(String periodId) async {
+    await client.rpc('approve_ks6a_period', params: {
+      'p_period_id': periodId,
+    });
+  }
+
+  @override
+  Future<Map<String, dynamic>> getKs6aContractData(String contractId) async {
+    final response = await client.rpc('get_contract_ks6a_data', params: {
+      'p_company_id': activeCompanyId,
+      'p_contract_id': contractId,
+    });
+    return response as Map<String, dynamic>;
   }
 
   /// Получает ячейку безопасно по индексу

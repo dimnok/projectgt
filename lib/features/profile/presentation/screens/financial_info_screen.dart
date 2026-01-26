@@ -905,7 +905,9 @@ final _financialInfoProvider =
       final fifoData = await ref.watch(
         payoutsByEmployeeAndMonthFIFOProvider(monthStart.year).future,
       );
-      final monthPaid = fifoData[employeeId]?[monthStart.month] ?? 0.0;
+      final employeeFIFO = fifoData[employeeId];
+      final monthPaid = employeeFIFO?.payouts[monthStart.month] ?? 0.0;
+      final monthBalance = employeeFIFO?.balances[monthStart.month] ?? 0.0;
 
       // 4. Формируем итоги (Totals) через RPC для точности
       final totalsResponse = await client.rpc(
@@ -992,7 +994,7 @@ final _financialInfoProvider =
               (monthRow?['business_trip_total'] as num?)?.toDouble() ?? 0,
           netSalary: netSalary,
           paid: monthPaid,
-          balance: netSalary - monthPaid,
+          balance: monthBalance,
         ),
         totals: _FinancialTotals(
           totalEarned: (totalRow?['accruals_sum'] as num?)?.toDouble() ?? 0,

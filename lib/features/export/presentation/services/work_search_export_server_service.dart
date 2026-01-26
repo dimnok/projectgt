@@ -121,12 +121,10 @@ class WorkSearchExportServerService {
       late final Map<String, dynamic> data;
 
       try {
-        // FunctionResponse имеет свойство .data
         dynamic responseData;
         if (response is Map) {
           responseData = response;
         } else {
-          // Пытаемся получить .data из FunctionResponse
           try {
             responseData = response.data;
           } catch (e) {
@@ -134,7 +132,6 @@ class WorkSearchExportServerService {
           }
         }
 
-        // Парсим данные
         if (responseData is String) {
           data = jsonDecode(responseData) as Map<String, dynamic>;
         } else if (responseData is Map) {
@@ -157,6 +154,88 @@ class WorkSearchExportServerService {
 
       final filename = data['filename'] as String? ?? 'export.xlsx';
       final rowsCount = data['rows'] as int? ?? results.length;
+      final message = data['message'] as String? ?? 'Экспорт успешен';
+
+      // Получаем base64 файл
+      String? base64 = data['base64'] as String?;
+      String? filePath;
+
+      if (base64 != null && base64.isNotEmpty) {
+        filePath = await _saveExcelFile(base64, filename);
+      }
+
+      return ExportResult(
+        success: true,
+        filename: filename,
+        rowsCount: rowsCount,
+        message: message,
+        filePath: filePath,
+      );
+    } on FunctionException catch (e) {
+      throw Exception('Ошибка вызова функции: $e');
+    } catch (e) {
+      throw Exception('Ошибка экспорта: $e');
+    }
+  }
+
+  /// Экспортирует данные ФОТ за указанный период
+  Future<ExportResult> exportPayroll({
+    required int year,
+    required int month,
+    required String companyId,
+  }) async {
+    try {
+      final response = await client.functions.invoke(
+        'export-payroll',
+        body: {
+          'year': year,
+          'month': month,
+          'companyId': companyId,
+        },
+        headers: {
+          'Authorization':
+              'Bearer ${client.auth.currentSession?.accessToken ?? ''}',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      // Парсим ответ
+      late final Map<String, dynamic> data;
+
+      try {
+        dynamic responseData;
+        if (response is Map) {
+          responseData = response;
+        } else {
+          try {
+            responseData = response.data;
+          } catch (e) {
+            responseData = response.toString();
+          }
+        }
+
+        if (responseData is String) {
+          data = jsonDecode(responseData) as Map<String, dynamic>;
+        } else if (responseData is Map) {
+          data = Map<String, dynamic>.from(responseData);
+        } else {
+          throw Exception(
+            'Неизвестный формат ответа: ${responseData.runtimeType}',
+          );
+        }
+      } catch (e) {
+        throw Exception('Ошибка парсинга ответа: $e');
+      }
+
+      final success = data['success'] as bool?;
+
+      if (success != true) {
+        final errMsg = data['message'] ?? 'Ошибка экспорта на сервере';
+        throw Exception(errMsg);
+      }
+
+      final filename = data['filename'] as String? ?? 'payroll_export.xlsx';
+      final rowsCount = data['rows'] as int? ?? 0;
       final message = data['message'] as String? ?? 'Экспорт успешен';
 
       // Получаем base64 файл

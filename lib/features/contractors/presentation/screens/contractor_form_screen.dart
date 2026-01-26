@@ -10,6 +10,7 @@ import 'package:projectgt/presentation/widgets/photo_picker_avatar.dart';
 import 'package:projectgt/core/widgets/gt_dropdown.dart';
 import 'package:projectgt/core/widgets/gt_text_field.dart';
 import 'package:projectgt/core/widgets/gt_section_title.dart';
+import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
@@ -633,7 +634,7 @@ class _ContractorFormScreenState extends ConsumerState<ContractorFormScreen> {
       website: _websiteController.text.trim(),
       taxationSystem: _taxationSystemController.text.trim(),
       isVatPayer: _isVatPayer,
-      vatRate: double.tryParse(_vatRateController.text) ?? 0,
+      vatRate: parseAmount(_vatRateController.text) ?? 0,
       type: _type,
     );
     try {

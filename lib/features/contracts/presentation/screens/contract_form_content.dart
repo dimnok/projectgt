@@ -2,21 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:projectgt/domain/entities/contract.dart';
 import 'package:projectgt/core/widgets/gt_dropdown.dart';
+import 'package:projectgt/core/widgets/gt_text_field.dart';
+import 'package:projectgt/core/widgets/gt_buttons.dart';
+import 'package:projectgt/core/utils/formatters.dart';
+import 'package:projectgt/core/widgets/gt_section_title.dart';
 
 /// Контент формы создания/редактирования договора.
 ///
 /// Используется для отображения, валидации и управления всеми полями договора, включая выбор контрагента, объекта, дат, суммы и статуса.
 /// Позволяет переиспользовать UI для создания и редактирования договоров.
-///
-/// Пример использования:
-/// ```dart
-/// ContractFormContent(
-///   isNew: true,
-///   isLoading: false,
-///   numberController: ..., // инициализированный TextEditingController
-///   ...
-/// )
-/// ```
 class ContractFormContent extends StatelessWidget {
   /// Является ли форма созданием нового договора (`true`) или редактированием (`false`).
   final bool isNew;
@@ -56,8 +50,6 @@ class ContractFormContent extends StatelessWidget {
 
   /// Контроллер для поля "Процент генподрядных".
   final TextEditingController generalContractorFeeRateController;
-
-  // --- Новые контроллеры для подписантов ---
 
   /// Контроллер для поля "Наименование организации" подрядчика.
   final TextEditingController contractorLegalNameController;
@@ -147,8 +139,6 @@ class ContractFormContent extends StatelessWidget {
     required this.warrantyPeriodMonthsController,
     required this.generalContractorFeeAmountController,
     required this.generalContractorFeeRateController,
-
-    // Новые контроллеры
     required this.contractorLegalNameController,
     required this.contractorPositionController,
     required this.contractorSignerController,
@@ -178,490 +168,426 @@ class ContractFormContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return SingleChildScrollView(
-      physics: const ClampingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
-      child: Form(
-        key: formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (showHeader) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16.0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        isNew ? 'Новый договор' : 'Редактировать договор',
-                        style: theme.textTheme.titleLarge
-                            ?.copyWith(fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      style: IconButton.styleFrom(foregroundColor: Colors.red),
-                      onPressed: onCancel,
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(),
-            ],
-            Text('Данные договора',
-                style: theme.textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            // Номер договора
-            TextFormField(
-              controller: numberController,
-              decoration: const InputDecoration(
-                labelText: 'Номер договора *',
-                hintText: 'Введите номер',
-              ),
-              validator: (v) =>
-                  v == null || v.trim().isEmpty ? 'Введите номер' : null,
-              enabled: !isLoading,
-            ),
-            const SizedBox(height: 16),
-            // Дата договора
-            Row(
-              children: [
-                Expanded(
-                  child: InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: 'Дата договора *',
-                    ),
-                    child: InkWell(
-                      onTap: isLoading
-                          ? null
-                          : () async {
-                              final picked = await showDatePicker(
-                                context: context,
-                                initialDate: date ?? DateTime.now(),
-                                firstDate: DateTime(2000),
-                                lastDate: DateTime(2100),
-                              );
-                              if (picked != null) {
-                                onDateChanged(picked);
-                              }
-                            },
-                      child: Text(
-                        date != null ? _formatDate(date!) : 'Выбрать дату',
-                        style: theme.textTheme.bodyLarge,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: 'Дата окончания',
-                    ),
-                    child: InkWell(
-                      onTap: isLoading
-                          ? null
-                          : () async {
-                              final picked = await showDatePicker(
-                                context: context,
-                                initialDate: endDate ?? date ?? DateTime.now(),
-                                firstDate: DateTime(2000),
-                                lastDate: DateTime(2100),
-                              );
-                              onEndDateChanged(picked);
-                            },
-                      child: Text(
-                        endDate != null
-                            ? _formatDate(endDate!)
-                            : 'Выбрать дату',
-                        style: theme.textTheme.bodyLarge,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            // Контрагент
-            GTDropdown<MapEntry<String, String>>(
-              items: contractorItems.entries.toList(),
-              itemDisplayBuilder: (entry) => entry.value,
-              selectedItem: selectedContractorId != null &&
-                      contractorItems.containsKey(selectedContractorId)
-                  ? MapEntry(selectedContractorId!,
-                      contractorItems[selectedContractorId]!)
-                  : null,
-              onSelectionChanged: (entry) => onContractorChanged(entry?.key),
-              labelText: 'Контрагент *',
-              hintText: 'Выберите контрагента',
-              allowClear: false,
-              readOnly: isLoading,
-              validator: (v) =>
-                  selectedContractorId == null || selectedContractorId!.isEmpty
-                      ? 'Выберите контрагента'
-                      : null,
-            ),
-            const SizedBox(height: 16),
-            // Объект
-            GTDropdown<MapEntry<String, String>>(
-              items: objectItems.entries.toList(),
-              itemDisplayBuilder: (entry) => entry.value,
-              selectedItem: selectedObjectId != null &&
-                      objectItems.containsKey(selectedObjectId)
-                  ? MapEntry(selectedObjectId!, objectItems[selectedObjectId]!)
-                  : null,
-              onSelectionChanged: (entry) => onObjectChanged(entry?.key),
-              labelText: 'Объект *',
-              hintText: 'Выберите объект',
-              allowClear: false,
-              readOnly: isLoading,
-              validator: (v) =>
-                  selectedObjectId == null || selectedObjectId!.isEmpty
-                      ? 'Выберите объект'
-                      : null,
-            ),
-            const SizedBox(height: 16),
-            // Сумма
-            TextFormField(
-              controller: amountController,
-              decoration: const InputDecoration(
-                labelText: 'Сумма *',
-                hintText: 'Введите сумму',
-              ),
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              validator: (v) {
-                if (v == null || v.trim().isEmpty) {
-                  return 'Введите сумму';
-                }
-                final value = double.tryParse(v.replaceAll(',', '.'));
-                if (value == null || value < 0) {
-                  return 'Некорректная сумма';
-                }
-                return null;
-              },
-              enabled: !isLoading,
-            ),
-            const SizedBox(height: 16),
-            // НДС
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: vatRateController,
-                    decoration: const InputDecoration(
-                      labelText: 'Ставка НДС (%)',
-                      hintText: '20',
-                    ),
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    enabled: !isLoading,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: TextFormField(
-                    controller: vatAmountController,
-                    decoration: const InputDecoration(
-                      labelText: 'Сумма НДС',
-                      hintText: '0.00',
-                    ),
-                    readOnly: true, // Рассчитывается автоматически
-                    enabled: !isLoading,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            InkWell(
-              onTap: isLoading
-                  ? null
-                  : () => onVatIncludedChanged(!isVatIncluded),
-              splashColor: Colors.transparent,
-              highlightColor: Colors.transparent,
-              hoverColor: Colors.transparent,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'НДС включен в стоимость',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                    ),
-                    Switch.adaptive(
-                      value: isVatIncluded,
-                      onChanged: isLoading ? null : onVatIncludedChanged,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            // Аванс
-            TextFormField(
-              controller: advanceAmountController,
-              decoration: const InputDecoration(
-                labelText: 'Сумма аванса',
-                hintText: '0.00',
-              ),
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              enabled: !isLoading,
-            ),
-            const SizedBox(height: 16),
-            // Гарантийные удержания
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: warrantyRetentionRateController,
-                    decoration: const InputDecoration(
-                      labelText: 'Гарантийные удержания (%)',
-                      hintText: '5',
-                    ),
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    enabled: !isLoading,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: TextFormField(
-                    controller: warrantyPeriodMonthsController,
-                    decoration: const InputDecoration(
-                      labelText: 'Срок гарантии (мес.)',
-                      hintText: '12',
-                    ),
-                    keyboardType: const TextInputType.numberWithOptions(),
-                    enabled: !isLoading,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: TextFormField(
-                    controller: warrantyRetentionAmountController,
-                    decoration: const InputDecoration(
-                      labelText: 'Сумма удержания',
-                      hintText: '0.00',
-                    ),
-                    readOnly: true, // Только для отображения
-                    enabled: !isLoading,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            // Генподрядные
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: generalContractorFeeRateController,
-                    decoration: const InputDecoration(
-                      labelText: 'Генподрядные (%)',
-                      hintText: '3',
-                    ),
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    enabled: !isLoading,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: TextFormField(
-                    controller: generalContractorFeeAmountController,
-                    decoration: const InputDecoration(
-                      labelText: 'Сумма генподрядных',
-                      hintText: '0.00',
-                    ),
-                    readOnly: true, // Только для отображения
-                    enabled: !isLoading,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            // Статус
-            GTDropdown<ContractStatus>(
-              items: const [
-                ContractStatus.active,
-                ContractStatus.suspended,
-                ContractStatus.completed,
-              ],
-              itemDisplayBuilder: (status) {
-                switch (status) {
-                  case ContractStatus.active:
-                    return 'В работе';
-                  case ContractStatus.suspended:
-                    return 'Приостановлен';
-                  case ContractStatus.completed:
-                    return 'Завершен';
-                }
-              },
-              selectedItem: status,
-              onSelectionChanged: onStatusChanged,
-              labelText: 'Статус *',
-              hintText: 'Выберите статус',
-              allowClear: false,
-              readOnly: isLoading,
-            ),
-            const SizedBox(height: 32),
-
-            const Divider(),
-            Text('Реквизиты и Подписанты',
-                style: theme.textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-
-            // Блок Подрядчика
-            Text('Подрядчик (Мы)',
-                style: theme.textTheme.titleSmall
-                    ?.copyWith(color: theme.colorScheme.primary)),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: contractorLegalNameController,
-              decoration: const InputDecoration(
-                labelText: 'Наименование организации',
-                hintText: 'ООО "ГТ-Строй"',
-              ),
-              enabled: !isLoading,
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: TextFormField(
-                    controller: contractorPositionController,
-                    decoration: const InputDecoration(
-                      labelText: 'Должность',
-                      hintText: 'Генеральный директор',
-                    ),
-                    enabled: !isLoading,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  flex: 3,
-                  child: TextFormField(
-                    controller: contractorSignerController,
-                    decoration: const InputDecoration(
-                      labelText: 'ФИО Подписанта',
-                      hintText: 'Иванов И.И.',
-                    ),
-                    enabled: !isLoading,
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-
-            // Блок Заказчика
-            Text('Заказчик (Клиент)',
-                style: theme.textTheme.titleSmall
-                    ?.copyWith(color: theme.colorScheme.primary)),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: customerLegalNameController,
-              decoration: const InputDecoration(
-                labelText: 'Наименование организации',
-                hintText: 'АО "Заказчик-Групп"',
-              ),
-              enabled: !isLoading,
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: TextFormField(
-                    controller: customerPositionController,
-                    decoration: const InputDecoration(
-                      labelText: 'Должность',
-                      hintText: 'Технический директор',
-                    ),
-                    enabled: !isLoading,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  flex: 3,
-                  child: TextFormField(
-                    controller: customerSignerController,
-                    decoration: const InputDecoration(
-                      labelText: 'ФИО Подписанта',
-                      hintText: 'Петров П.П.',
-                    ),
-                    enabled: !isLoading,
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 32),
-
-            if (showFooter)
-              Row(
+    return Form(
+      key: formKey,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (showHeader) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16.0),
+              child: Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton(
-                      onPressed: onCancel,
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(44),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(22),
-                        ),
-                        textStyle: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                      child: const Text('Отмена'),
+                    child: Text(
+                      isNew ? 'Новый договор' : 'Редактировать договор',
+                      style: theme.textTheme.titleLarge
+                          ?.copyWith(fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: isLoading ? null : onSave,
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(44),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(22),
-                        ),
-                        textStyle: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                      child: isLoading
-                          ? const SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CupertinoActivityIndicator(),
-                            )
-                          : Text(isNew ? 'Создать' : 'Сохранить'),
-                    ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    style: IconButton.styleFrom(foregroundColor: Colors.red),
+                    onPressed: onCancel,
                   ),
                 ],
               ),
-            const SizedBox(height: 32),
+            ),
+            const Divider(),
           ],
-        ),
+          const GTSectionTitle(title: 'Данные договора'),
+          const SizedBox(height: 16),
+          // Номер договора
+          GTTextField(
+            controller: numberController,
+            labelText: 'Номер договора *',
+            hintText: 'Введите номер',
+            prefixIcon: CupertinoIcons.doc_text,
+            validator: (v) =>
+                v == null || v.trim().isEmpty ? 'Введите номер' : null,
+            enabled: !isLoading,
+          ),
+          const SizedBox(height: 16),
+          // Даты договора
+          Row(
+            children: [
+              Expanded(
+                child: GTTextField(
+                  labelText: 'Дата заключения *',
+                  hintText: 'Выберите дату',
+                  readOnly: true,
+                  onTap: isLoading
+                      ? null
+                      : () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: date ?? DateTime.now(),
+                            firstDate: DateTime(2000),
+                            lastDate: DateTime(2100),
+                          );
+                          if (picked != null) {
+                            onDateChanged(picked);
+                          }
+                        },
+                  controller: TextEditingController(
+                    text: date != null ? formatRuDate(date!) : '',
+                  ),
+                  prefixIcon: CupertinoIcons.calendar,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: GTTextField(
+                  labelText: 'Дата окончания',
+                  hintText: 'Выберите дату',
+                  readOnly: true,
+                  onTap: isLoading
+                      ? null
+                      : () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: endDate ?? date ?? DateTime.now(),
+                            firstDate: DateTime(2000),
+                            lastDate: DateTime(2100),
+                          );
+                          onEndDateChanged(picked);
+                        },
+                  controller: TextEditingController(
+                    text: endDate != null ? formatRuDate(endDate!) : '',
+                  ),
+                  prefixIcon: CupertinoIcons.calendar_today,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Контрагент
+          GTDropdown<MapEntry<String, String>>(
+            items: contractorItems.entries.toList(),
+            itemDisplayBuilder: (entry) => entry.value,
+            selectedItem: selectedContractorId != null &&
+                    contractorItems.containsKey(selectedContractorId)
+                ? MapEntry(selectedContractorId!,
+                    contractorItems[selectedContractorId]!)
+                : null,
+            onSelectionChanged: (entry) => onContractorChanged(entry?.key),
+            labelText: 'Контрагент *',
+            hintText: 'Выберите контрагента',
+            prefixIcon: CupertinoIcons.person_2,
+            allowClear: false,
+            readOnly: isLoading,
+            validator: (v) =>
+                selectedContractorId == null || selectedContractorId!.isEmpty
+                    ? 'Выберите контрагента'
+                    : null,
+          ),
+          const SizedBox(height: 16),
+          // Объект
+          GTDropdown<MapEntry<String, String>>(
+            items: objectItems.entries.toList(),
+            itemDisplayBuilder: (entry) => entry.value,
+            selectedItem: selectedObjectId != null &&
+                    objectItems.containsKey(selectedObjectId)
+                ? MapEntry(selectedObjectId!, objectItems[selectedObjectId]!)
+                : null,
+            onSelectionChanged: (entry) => onObjectChanged(entry?.key),
+            labelText: 'Объект *',
+            hintText: 'Выберите объект',
+            prefixIcon: CupertinoIcons.building_2_fill,
+            allowClear: false,
+            readOnly: isLoading,
+            validator: (v) =>
+                selectedObjectId == null || selectedObjectId!.isEmpty
+                    ? 'Выберите объект'
+                    : null,
+          ),
+          const SizedBox(height: 16),
+          // Сумма
+          GTTextField(
+            controller: amountController,
+            labelText: 'Сумма договора *',
+            hintText: '0.00',
+            suffixText: '₽',
+            prefixIcon: CupertinoIcons.money_rubl,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [amountFormatter()],
+            validator: (v) {
+              if (v == null || v.trim().isEmpty) {
+                return 'Введите сумму';
+              }
+              final value = parseAmount(v);
+              if (value == null || value < 0) {
+                return 'Некорректная сумма';
+              }
+              return null;
+            },
+            enabled: !isLoading,
+          ),
+          const SizedBox(height: 16),
+          // НДС
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: GTTextField(
+                  controller: vatRateController,
+                  labelText: 'Ставка НДС (%)',
+                  hintText: '20',
+                  prefixIcon: CupertinoIcons.percent,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  enabled: !isLoading,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: GTTextField(
+                  controller: vatAmountController,
+                  labelText: 'Сумма НДС',
+                  hintText: '0.00',
+                  suffixText: '₽',
+                  readOnly: true, // Рассчитывается автоматически
+                  enabled: !isLoading,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: isLoading ? null : () => onVatIncludedChanged(!isVatIncluded),
+            splashColor: Colors.transparent,
+            highlightColor: Colors.transparent,
+            hoverColor: Colors.transparent,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'НДС включен в стоимость',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  ),
+                  Switch.adaptive(
+                    value: isVatIncluded,
+                    onChanged: isLoading ? null : onVatIncludedChanged,
+                    activeColor: theme.colorScheme.primary,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Аванс
+          GTTextField(
+            controller: advanceAmountController,
+            labelText: 'Сумма аванса',
+            hintText: '0.00',
+            suffixText: '₽',
+            prefixIcon: CupertinoIcons.creditcard,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [amountFormatter()],
+            enabled: !isLoading,
+          ),
+          const SizedBox(height: 16),
+          // Гарантийные удержания
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: GTTextField(
+                  controller: warrantyRetentionRateController,
+                  labelText: 'Удержания (%)',
+                  hintText: '5',
+                  prefixIcon: CupertinoIcons.shield,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  enabled: !isLoading,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: GTTextField(
+                  controller: warrantyPeriodMonthsController,
+                  labelText: 'Срок (мес.)',
+                  hintText: '12',
+                  keyboardType: const TextInputType.numberWithOptions(),
+                  enabled: !isLoading,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: GTTextField(
+                  controller: warrantyRetentionAmountController,
+                  labelText: 'Сумма',
+                  hintText: '0.00',
+                  suffixText: '₽',
+                  readOnly: true, // Только для отображения
+                  enabled: !isLoading,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Генподрядные
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: GTTextField(
+                  controller: generalContractorFeeRateController,
+                  labelText: 'Генподрядные (%)',
+                  hintText: '3',
+                  prefixIcon: CupertinoIcons.briefcase,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  enabled: !isLoading,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: GTTextField(
+                  controller: generalContractorFeeAmountController,
+                  labelText: 'Сумма генподрядных',
+                  hintText: '0.00',
+                  suffixText: '₽',
+                  readOnly: true, // Только для отображения
+                  enabled: !isLoading,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Статус
+          GTDropdown<ContractStatus>(
+            items: const [
+              ContractStatus.active,
+              ContractStatus.suspended,
+              ContractStatus.completed,
+            ],
+            itemDisplayBuilder: (status) {
+              switch (status) {
+                case ContractStatus.active:
+                  return 'В работе';
+                case ContractStatus.suspended:
+                  return 'Приостановлен';
+                case ContractStatus.completed:
+                  return 'Завершен';
+              }
+            },
+            selectedItem: status,
+            onSelectionChanged: onStatusChanged,
+            labelText: 'Статус *',
+            hintText: 'Выберите статус',
+            prefixIcon: CupertinoIcons.info,
+            allowClear: false,
+            readOnly: isLoading,
+          ),
+          const SizedBox(height: 24),
+
+          const GTSectionTitle(title: 'Подрядчик (Исполнитель)'),
+          const SizedBox(height: 16),
+          GTTextField(
+            controller: contractorLegalNameController,
+            labelText: 'Наименование организации',
+            hintText: 'ООО "ГТ-Строй"',
+            prefixIcon: CupertinoIcons.house,
+            enabled: !isLoading,
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: GTTextField(
+                  controller: contractorPositionController,
+                  labelText: 'Должность',
+                  hintText: 'Генеральный директор',
+                  prefixIcon: CupertinoIcons.person_badge_plus,
+                  enabled: !isLoading,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                flex: 3,
+                child: GTTextField(
+                  controller: contractorSignerController,
+                  labelText: 'ФИО Подписанта',
+                  hintText: 'Иванов И.И.',
+                  prefixIcon: CupertinoIcons.person,
+                  enabled: !isLoading,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 24),
+
+          const GTSectionTitle(title: 'Заказчик (Клиент)'),
+          const SizedBox(height: 16),
+          GTTextField(
+            controller: customerLegalNameController,
+            labelText: 'Наименование организации',
+            hintText: 'АО "Заказчик-Групп"',
+            prefixIcon: CupertinoIcons.house_alt,
+            enabled: !isLoading,
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: GTTextField(
+                  controller: customerPositionController,
+                  labelText: 'Должность',
+                  hintText: 'Технический директор',
+                  prefixIcon: CupertinoIcons.person_badge_plus,
+                  enabled: !isLoading,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                flex: 3,
+                child: GTTextField(
+                  controller: customerSignerController,
+                  labelText: 'ФИО Подписанта',
+                  hintText: 'Петров П.П.',
+                  prefixIcon: CupertinoIcons.person,
+                  enabled: !isLoading,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 32),
+
+          if (showFooter) ...[
+            const Divider(),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: GTSecondaryButton(
+                    text: 'Отмена',
+                    onPressed: onCancel,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: GTPrimaryButton(
+                    text: isNew ? 'Создать' : 'Сохранить',
+                    onPressed: isLoading ? null : onSave,
+                    isLoading: isLoading,
+                  ),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 32),
+        ],
       ),
     );
-  }
-
-  /// Форматирует дату в строку вида ДД.ММ.ГГГГ для отображения в UI.
-  ///
-  /// [date] — дата для форматирования.
-  ///
-  /// Возвращает строку в формате "дд.мм.гггг".
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
   }
 }

@@ -5,6 +5,9 @@ import '../../../../data/models/estimate_completion_model.dart';
 import '../../../../data/repositories/estimate_repository_impl.dart';
 import '../../../../domain/entities/estimate.dart';
 import '../../../../domain/entities/estimate_completion_history.dart';
+import '../../../../domain/entities/ks6a_period.dart' as entity;
+import '../../../../domain/repositories/estimate_repository.dart';
+import '../../../company/presentation/providers/company_providers.dart';
 
 // --- Модели для UI ---
 
@@ -185,3 +188,140 @@ final estimateProvider = FutureProvider.autoDispose
   final repository = ref.watch(estimateRepositoryProvider);
   return repository.getEstimate(id);
 });
+
+/// Модель данных для периода в КС-6а.
+class Ks6aPeriodData {
+  /// Месяц и год периода.
+  final DateTime month;
+  
+  /// Данные по сметам: estimateId -> {quantity, amount}.
+  final Map<String, ({double quantity, double amount})> values;
+
+  const Ks6aPeriodData({required this.month, required this.values});
+}
+
+/// Провайдер истории выполнения по всему договору, сгруппированный по периодам.
+final contractCompletionByPeriodsProvider = FutureProvider.autoDispose
+    .family<List<Ks6aPeriodData>, String>((ref, contractId) async {
+  final repository = ref.watch(estimateRepositoryProvider);
+  final estimates = await repository.getEstimatesByContract(contractId);
+  final history = await repository.getContractCompletionHistory(contractId);
+  
+  if (history.isEmpty) return [];
+
+  final Map<String, double> priceMap = {
+    for (final e in estimates) e.id: e.price
+  };
+
+  // Группируем по месяцам
+  final Map<DateTime, Map<String, ({double quantity, double amount})>> grouped = {};
+  
+  for (final row in history) {
+    final estimateId = row['estimate_id'] as String;
+    final quantity = (row['quantity'] as num).toDouble();
+    final date = DateTime.parse(row['works']['date'] as String);
+    final monthKey = DateTime(date.year, date.month, 1);
+    final price = priceMap[estimateId] ?? 0.0;
+    
+    grouped.putIfAbsent(monthKey, () => {});
+    final periodValues = grouped[monthKey]!;
+    
+    final current = periodValues[estimateId] ?? (quantity: 0.0, amount: 0.0);
+    periodValues[estimateId] = (
+      quantity: current.quantity + quantity,
+      amount: current.amount + (quantity * price),
+    );
+  }
+
+  // Сортируем месяцы
+  final sortedMonths = grouped.keys.toList()..sort();
+  
+  // Берем последние 8 месяцев (или сколько есть)
+  final lastMonths = sortedMonths.length > 8 
+      ? sortedMonths.sublist(sortedMonths.length - 8) 
+      : sortedMonths;
+
+  return lastMonths.map((m) => Ks6aPeriodData(
+    month: m,
+    values: grouped[m]!,
+  )).toList();
+});
+
+/// Провайдер всех сметных позиций по договору.
+/// Используется для левой части таблицы (базовые данные сметы).
+final contractEstimatesProvider = FutureProvider.autoDispose
+    .family<List<Estimate>, String>((ref, contractId) async {
+  final repository = ref.watch(estimateRepositoryProvider);
+  return repository.getEstimatesByContract(contractId);
+});
+
+/// Провайдер данных Журнала КС-6а (периоды и их выполнение).
+/// Возвращает агрегированный объект с периодами и детальными строками.
+final ks6aDataProvider = FutureProvider.autoDispose
+    .family<entity.Ks6aContractData, String>((ref, contractId) async {
+  final repository = ref.watch(estimateRepositoryProvider);
+  return repository.getKs6aContractData(contractId);
+});
+
+/// Провайдер действий для работы с журналом КС-6а.
+/// Позволяет создавать, обновлять и согласовывать периоды.
+final ks6aActionsProvider = Provider.autoDispose((ref) {
+  final repository = ref.watch(estimateRepositoryProvider);
+  final activeCompanyId = ref.watch(activeCompanyIdProvider);
+
+  return Ks6aActions(ref, repository, activeCompanyId);
+});
+
+/// Класс, инкапсулирующий логику действий над периодами КС-6а.
+class Ks6aActions {
+  /// Контекст провайдеров для инвалидации кэша.
+  final Ref ref;
+
+  /// Репозиторий для выполнения операций в БД.
+  final EstimateRepository repository;
+
+  /// Идентификатор активной компании.
+  final String? activeCompanyId;
+
+  Ks6aActions(this.ref, this.repository, this.activeCompanyId);
+
+  /// Инициирует создание нового черновика периода за указанный диапазон дат.
+  /// 
+  /// [contractId] — идентификатор договора.
+  /// [startDate], [endDate] — диапазон дат.
+  /// [title] — опциональное название периода.
+  Future<String> createPeriod({
+    required String contractId,
+    required DateTime startDate,
+    required DateTime endDate,
+    String? title,
+  }) async {
+    if (activeCompanyId == null) throw Exception('Компания не выбрана');
+    final id = await repository.createKs6aPeriod(
+      contractId: contractId,
+      startDate: startDate,
+      endDate: endDate,
+      title: title,
+    );
+    ref.invalidate(ks6aDataProvider(contractId));
+    return id;
+  }
+
+  /// Обновляет данные черновика периода на основе актуальных отчетов о выполнении.
+  /// 
+  /// [contractId] — для обновления UI.
+  /// [periodId] — идентификатор периода для синхронизации.
+  Future<void> refreshPeriod(String contractId, String periodId) async {
+    await repository.refreshKs6aPeriod(periodId);
+    ref.invalidate(ks6aDataProvider(contractId));
+  }
+
+  /// Фиксирует (согласовывает) период, делая его неизменяемым.
+  /// 
+  /// [contractId] — для обновления UI.
+  /// [periodId] — идентификатор периода для утверждения.
+  Future<void> approvePeriod(String contractId, String periodId) async {
+    await repository.approveKs6aPeriod(periodId);
+    ref.invalidate(ks6aDataProvider(contractId));
+  }
+}

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
 import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
@@ -163,7 +164,7 @@ class _CompanyProfileEditDialogState
         actualAddress: _actualAddressController.text,
         taxationSystem: _taxationSystemController.text,
         isVatPayer: _isVatPayer,
-        vatRate: double.tryParse(_vatRateController.text) ?? 0,
+        vatRate: parseAmount(_vatRateController.text) ?? 0,
       );
 
       await ref
