@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/di/providers.dart'; // Добавлен для провайдеров
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/snackbar_utils.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/gt_buttons.dart';
 import '../../../../data/models/estimate_completion_model.dart';
 import '../../../../domain/entities/estimate.dart';
@@ -14,12 +15,14 @@ import '../../../../features/roles/application/permission_service.dart';
 import '../../../../features/roles/presentation/widgets/permission_guard.dart';
 import '../../../../presentation/widgets/cupertino_dialog_widget.dart';
 import '../mixins/estimate_actions_mixin.dart';
-import '../../../../data/models/ks6a_model.dart' show Ks6aStatus;
 import '../providers/estimate_providers.dart';
+import '../../../../features/company/presentation/providers/company_providers.dart';
 import '../widgets/estimate_search_field.dart';
 import '../widgets/estimate_filter_buttons.dart';
 import '../widgets/estimate_table_view.dart';
-import '../widgets/ks6a_table_view.dart';
+import '../widgets/acts_table_view.dart';
+import '../widgets/vor_tab_table_view.dart';
+import '../widgets/vor_list_dialog.dart';
 import '../widgets/estimate_completion_history_panel.dart';
 
 /// Виджет для отображения списка смет и детальной информации (таблицы) в десктопном режиме.
@@ -32,12 +35,18 @@ class EstimateDesktopView extends ConsumerStatefulWidget {
       _EstimateDesktopViewState();
 }
 
+/// Режимы просмотра данных по договору.
+enum ContractViewMode {
+  /// Акты КС-2 (реестр актов).
+  acts,
+}
+
 class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
     with EstimateActionsMixin {
   EstimateFile? _selectedEstimateFile;
   EstimateViewMode _viewMode = EstimateViewMode.planning;
-  bool _isKs6aMode = false;
-  String? _selectedContractNumber;
+  bool _isContractDetailMode = false;
+  ContractViewMode _contractViewMode = ContractViewMode.acts;
   String? _selectedContractId;
   List<Estimate>? _displayedItems;
   String? _displayedFileKey;
@@ -121,11 +130,13 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
                       child: _selectedHistoryEstimate != null
                           ? EstimateCompletionHistoryPanel(
                               estimate: _selectedHistoryEstimate!,
-                              completedQuantity: _displayedCompletion?[
-                                      _selectedHistoryEstimate!.id]
-                                  ?.completedQuantity,
+                              completedQuantity:
+                                  _displayedCompletion?[_selectedHistoryEstimate!
+                                          .id]
+                                      ?.completedQuantity,
                               onClose: () => setState(
-                                  () => _selectedHistoryEstimate = null),
+                                () => _selectedHistoryEstimate = null,
+                              ),
                             )
                           : Container(
                               decoration: BoxDecoration(
@@ -158,7 +169,8 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
                                           icon: CupertinoIcons.arrow_up_doc,
                                           onPressed: () =>
                                               _showImportEstimateBottomSheet(
-                                                  context),
+                                                context,
+                                              ),
                                         ),
                                       ),
                                     ),
@@ -172,8 +184,9 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
                                           );
                                         }
                                         return ClipRRect(
-                                          borderRadius:
-                                              BorderRadius.circular(16),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
                                           child: ListView(
                                             children: [
                                               for (final objectEntry
@@ -182,74 +195,81 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
                                                 _ObjectGroupHeader(
                                                   name: objectEntry.key,
                                                   total: objectEntry
-                                                      .value.values
+                                                      .value
+                                                      .values
                                                       .expand((files) => files)
                                                       .fold(
                                                         0.0,
                                                         (sum, file) =>
                                                             sum + file.total,
                                                       ),
-                                                  isExpanded: _expandedObjects[
-                                                          objectEntry.key] ??
+                                                  isExpanded:
+                                                      _expandedObjects[objectEntry
+                                                          .key] ??
                                                       false,
                                                   onTap: () => setState(() {
                                                     _expandedObjects[objectEntry
                                                             .key] =
-                                                        !(_expandedObjects[
-                                                                objectEntry
-                                                                    .key] ??
+                                                        !(_expandedObjects[objectEntry
+                                                                .key] ??
                                                             false);
                                                   }),
                                                 ),
-                                                if (_expandedObjects[
-                                                        objectEntry.key] ??
+                                                if (_expandedObjects[objectEntry
+                                                        .key] ??
                                                     false)
                                                   for (final contractEntry
                                                       in objectEntry
-                                                          .value.entries) ...[
+                                                          .value
+                                                          .entries) ...[
                                                     _ContractGroupHeader(
                                                       number: contractEntry.key,
                                                       total: contractEntry.value
                                                           .fold(
-                                                        0.0,
-                                                        (sum, file) =>
-                                                            sum + file.total,
-                                                      ),
-                                                      isExpanded: _expandedContracts[
-                                                              '${objectEntry.key}_${contractEntry.key}'] ??
+                                                            0.0,
+                                                            (sum, file) =>
+                                                                sum +
+                                                                file.total,
+                                                          ),
+                                                      isExpanded:
+                                                          _expandedContracts['${objectEntry.key}_${contractEntry.key}'] ??
                                                           false,
                                                       onTap: () => setState(() {
-                                                        _expandedContracts[
-                                                                '${objectEntry.key}_${contractEntry.key}'] =
-                                                            !(_expandedContracts[
-                                                                    '${objectEntry.key}_${contractEntry.key}'] ??
+                                                        _expandedContracts['${objectEntry.key}_${contractEntry.key}'] =
+                                                            !(_expandedContracts['${objectEntry.key}_${contractEntry.key}'] ??
                                                                 false);
                                                       }),
-                                                      onKs6aTap: () => setState(() {
-                                                        _isKs6aMode = true;
-                                                        _selectedContractNumber =
-                                                            contractEntry.key;
-                                                        _selectedContractId = 
-                                                            contractEntry.value.firstOrNull?.contractId;
-                                                        _selectedEstimateFile =
-                                                            null;
-                                                      }),
+                                                      onActsTap: () => setState(
+                                                        () {
+                                                          _isContractDetailMode = true;
+                                                          _contractViewMode =
+                                                              ContractViewMode
+                                                                  .acts;
+                                                          _selectedContractId =
+                                                              contractEntry
+                                                                  .value
+                                                                  .firstOrNull
+                                                                  ?.contractId;
+                                                          _selectedEstimateFile =
+                                                              null;
+                                                        },
+                                                      ),
                                                     ),
-                                                    if (_expandedContracts[
-                                                            '${objectEntry.key}_${contractEntry.key}'] ??
+                                                    if (_expandedContracts['${objectEntry.key}_${contractEntry.key}'] ??
                                                         false)
-                                                      ...contractEntry.value
-                                                          .map((file) {
+                                                      ...contractEntry.value.map((
+                                                        file,
+                                                      ) {
                                                         final isSelected =
                                                             _selectedEstimateFile
-                                                                        ?.estimateTitle ==
-                                                                    file.estimateTitle &&
-                                                                _selectedEstimateFile
-                                                                        ?.objectId ==
-                                                                    file.objectId &&
-                                                                _selectedEstimateFile
-                                                                        ?.contractId ==
-                                                                    file.contractId;
+                                                                    ?.estimateTitle ==
+                                                                file.estimateTitle &&
+                                                            _selectedEstimateFile
+                                                                    ?.objectId ==
+                                                                file.objectId &&
+                                                            _selectedEstimateFile
+                                                                    ?.contractId ==
+                                                                file.contractId;
 
                                                         return _EstimateListTile(
                                                           file: file,
@@ -262,13 +282,14 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
                                                                   file;
                                                               _selectedHistoryEstimate =
                                                                   null;
-                                                              _isKs6aMode = false;
-                                                              _selectedContractNumber = null;
+                                                              _isContractDetailMode =
+                                                                  false;
                                                             });
                                                           },
                                                           onDelete: () =>
                                                               _deleteEstimateFile(
-                                                                  file),
+                                                                file,
+                                                              ),
                                                         );
                                                       }),
                                                   ],
@@ -314,11 +335,14 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
                               ),
                             ],
                     ),
-                    child: _isKs6aMode
-                        ? _buildKs6aPanel(context)
+                    child: _isContractDetailMode
+                        ? _buildContractDetailPanel(context)
                         : (_selectedEstimateFile == null
-                            ? _EmptyDesktopSelection(theme: theme)
-                            : _buildDetailPanel(context, _selectedEstimateFile!)),
+                              ? _EmptyDesktopSelection(theme: theme)
+                              : _buildDetailPanel(
+                                  context,
+                                  _selectedEstimateFile!,
+                                )),
                   ),
                 ),
               ],
@@ -341,7 +365,7 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
     );
   }
 
-  Widget _buildKs6aPanel(BuildContext context) {
+  Widget _buildContractDetailPanel(BuildContext context) {
     final theme = Theme.of(context);
     final contractId = _selectedContractId;
 
@@ -349,7 +373,12 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
       return const Center(child: Text('Ошибка: ID договора не найден'));
     }
 
-    final ks6aDataAsync = ref.watch(ks6aDataProvider(contractId));
+    String title;
+    switch (_contractViewMode) {
+      case ContractViewMode.acts:
+        title = 'Реестр актов';
+        break;
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -366,81 +395,32 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        'Журнал КС-6а',
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      if (_selectedContractNumber != null) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          'Договор № $_selectedContractNumber',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurface
-                                .withValues(alpha: 0.6),
+                      Row(
+                        children: [
+                          Text(
+                            title,
+                            style: theme.textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ],
                   ),
                 ),
-                ks6aDataAsync.when(
-                  data: (ks6aData) {
-                    final hasDraft =
-                        ks6aData.periods.any((p) => p.status == Ks6aStatus.draft);
-                    return Row(
-                      children: [
-                        GTPrimaryButton(
-                          text: 'Сформировать период',
-                          onPressed: () => _onCreatePeriodForKs6a(contractId),
-                          icon: CupertinoIcons.add,
-                        ),
-                        if (hasDraft) ...[
-                          const SizedBox(width: 8),
-                          GTSecondaryButton(
-                            text: 'Обновить',
-                            icon: CupertinoIcons.refresh,
-                            onPressed: () {
-                              final draft = ks6aData.periods.firstWhere(
-                                (p) => p.status == Ks6aStatus.draft,
-                              );
-                              ref
-                                  .read(ks6aActionsProvider)
-                                  .refreshPeriod(contractId, draft.id);
-                            },
-                          ),
-                          const SizedBox(width: 8),
-                          GTPrimaryButton(
-                            text: 'Согласовать',
-                            icon: CupertinoIcons.check_mark_circled,
-                            backgroundColor: Colors.green[700],
-                            onPressed: () {
-                              final draft = ks6aData.periods.firstWhere(
-                                (p) => p.status == Ks6aStatus.draft,
-                              );
-                              ref
-                                  .read(ks6aActionsProvider)
-                                  .approvePeriod(contractId, draft.id);
-                            },
-                          ),
-                        ],
-                      ],
-                    );
-                  },
-                  loading: () => const SizedBox.shrink(),
-                  error: (_, __) => const SizedBox.shrink(),
-                ),
-                const SizedBox(width: 16),
-                GTSecondaryButton(
-                  icon: CupertinoIcons.xmark,
-                  text: 'Закрыть',
-                  onPressed: () => setState(() {
-                    _isKs6aMode = false;
-                    _selectedContractNumber = null;
-                    _selectedContractId = null;
-                  }),
+                const SizedBox(width: 32),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GTSecondaryButton(
+                      icon: CupertinoIcons.doc_text,
+                      text: 'Ведомости ВОР',
+                      onPressed: () =>
+                          VorListDialog.show(context, contractId),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -449,7 +429,7 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
-              child: Ks6aTableView(contractId: contractId),
+              child: _buildContractViewContent(context, contractId),
             ),
           ),
         ],
@@ -457,30 +437,13 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
     );
   }
 
-  Future<void> _onCreatePeriodForKs6a(String contractId) async {
-    final dates = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2030),
-      helpText: 'Выберите период для КС-6а',
-    );
-
-    if (dates != null) {
-      try {
-        final actions = ref.read(ks6aActionsProvider);
-        await actions.createPeriod(
+  Widget _buildContractViewContent(BuildContext context, String contractId) {
+    switch (_contractViewMode) {
+      case ContractViewMode.acts:
+        return ActsTableView(
           contractId: contractId,
-          startDate: dates.start,
-          endDate: dates.end,
+          searchQuery: _searchQuery,
         );
-        if (mounted) {
-          SnackBarUtils.showSuccess(context, 'Черновик периода создан');
-        }
-      } catch (e) {
-        if (mounted) {
-          SnackBarUtils.showError(context, 'Ошибка: $e');
-        }
-      }
     }
   }
 
@@ -504,6 +467,47 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
       effectiveItems = _displayedItems;
     }
 
+    // Загружаем данные выполнения для расчета общего процента (всегда, если есть позиции)
+    final completionAsyncValue =
+        effectiveItems != null && effectiveItems.isNotEmpty
+        ? ref.watch(
+            estimateCompletionByIdsProvider(
+              EstimateIds(effectiveItems.map((e) => e.id).toList()),
+            ),
+          )
+        : const AsyncValue<List<EstimateCompletionModel>>.data([]);
+
+    final completionData = completionAsyncValue.valueOrNull;
+    Map<String, EstimateCompletionModel> completionMap = {};
+
+    if (completionData != null) {
+      completionMap = {
+        for (final item in completionData) item.estimateId: item,
+      };
+      _displayedCompletion = completionMap;
+      _displayedCompletionKey = fileCacheKey;
+    } else if (_displayedCompletionKey == fileCacheKey &&
+        _displayedCompletion != null) {
+      completionMap = _displayedCompletion!;
+    }
+
+    // Расчет общего процента выполнения по объему
+    double totalPercent = 0.0;
+    if (effectiveItems != null && effectiveItems.isNotEmpty) {
+      final totalPlannedQty = effectiveItems.fold(
+        0.0,
+        (sum, item) => sum + item.quantity,
+      );
+      final totalExecutedQty = effectiveItems.fold(0.0, (sum, item) {
+        final completion = completionMap[item.id];
+        return sum + (completion?.completedQuantity ?? 0.0);
+      });
+
+      if (totalPlannedQty > 0) {
+        totalPercent = (totalExecutedQty / totalPlannedQty) * 100;
+      }
+    }
+
     Widget buildTableSection() {
       final itemsToDisplay = effectiveItems;
       final isSameFileAsDisplayed = _displayedFileKey == fileCacheKey;
@@ -523,45 +527,18 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
 
       final nonNullItems = itemsToDisplay;
 
-      final shouldLoadCompletion =
-          _viewMode == EstimateViewMode.execution && nonNullItems.isNotEmpty;
-
-      final completionProvider = shouldLoadCompletion
-          ? estimateCompletionByIdsProvider(
-              EstimateIds(nonNullItems.map((e) => e.id).toList()),
-            )
-          : null;
-
-      final completionAsyncValue =
-          shouldLoadCompletion && completionProvider != null
-              ? ref.watch(completionProvider)
-              : const AsyncValue<List<EstimateCompletionModel>>.data(
-                  <EstimateCompletionModel>[]);
-
-      if (shouldLoadCompletion &&
-          completionAsyncValue.hasError &&
+      if (completionAsyncValue.hasError &&
           completionAsyncValue.valueOrNull == null) {
         return _ErrorState(
           message: 'Ошибка загрузки выполнения: ${completionAsyncValue.error}',
           onRetry: () {
-            if (completionProvider != null) {
-              ref.invalidate(completionProvider);
-            }
+            ref.invalidate(
+              estimateCompletionByIdsProvider(
+                EstimateIds(nonNullItems.map((e) => e.id).toList()),
+              ),
+            );
           },
         );
-      }
-
-      Map<String, EstimateCompletionModel> completionMap = {};
-      final completionData = completionAsyncValue.valueOrNull;
-      if (completionData != null) {
-        completionMap = {
-          for (final item in completionData) item.estimateId: item
-        };
-        _displayedCompletion = completionMap;
-        _displayedCompletionKey = fileCacheKey;
-      } else if (_displayedCompletionKey == fileCacheKey &&
-          _displayedCompletion != null) {
-        completionMap = _displayedCompletion!;
       }
 
       final filteredItems = nonNullItems.where((item) {
@@ -602,8 +579,7 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
         return const Center(child: Text('Нет позиций'));
       }
 
-      final isCompletionLoading =
-          shouldLoadCompletion && completionAsyncValue.isLoading;
+      final isCompletionLoading = completionAsyncValue.isLoading;
 
       String? overlayMessage;
       if (isShowingStaleData) {
@@ -616,31 +592,40 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
 
       return Stack(
         children: [
-          EstimateTableView(
-            items: filteredItems,
-            completionData: completionMap,
-            viewMode: _viewMode,
-            selectedId: _selectedHistoryEstimate?.id,
-            onRowTap: _viewMode == EstimateViewMode.execution
-                ? (estimate) => setState(() {
+          if (_viewMode == EstimateViewMode.vor)
+            (file.contractId == null
+                ? const Center(child: Text('ВОР недоступен: не найден договор'))
+                : VorTabTableView(
+                    items: filteredItems,
+                    contractId: file.contractId!,
+                    searchQuery: _searchQuery,
+                  ))
+          else
+            EstimateTableView(
+              items: filteredItems,
+              completionData: completionMap,
+              viewMode: _viewMode,
+              selectedId: _selectedHistoryEstimate?.id,
+              onRowTap: _viewMode == EstimateViewMode.execution
+                  ? (estimate) => setState(() {
                       if (_selectedHistoryEstimate?.id == estimate.id) {
                         _selectedHistoryEstimate = null;
                       } else {
                         _selectedHistoryEstimate = estimate;
                       }
                     })
-                : null,
-            onEdit: (estimate) => openEditDialog(
-              context,
-              estimate: estimate,
-              estimateTitle: file.estimateTitle,
-              objectId: file.objectId,
-              contractId: file.contractId,
+                  : null,
+              onEdit: (estimate) => openEditDialog(
+                context,
+                estimate: estimate,
+                estimateTitle: file.estimateTitle,
+                objectId: file.objectId,
+                contractId: file.contractId,
+              ),
+              onDuplicate: (estimate) => duplicateEstimateItem(context, estimate),
+              onDelete: (id) => deleteEstimateItem(context, id),
+              contractNumber: file.contractNumber,
             ),
-            onDuplicate: (estimate) => duplicateEstimateItem(context, estimate),
-            onDelete: (id) => deleteEstimateItem(context, id),
-            contractNumber: file.contractNumber,
-          ),
           if (overlayMessage != null)
             _TableLoadingOverlay(message: overlayMessage),
         ],
@@ -663,41 +648,92 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        file.estimateTitle,
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              file.estimateTitle,
+                              style: theme.textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (effectiveItems != null &&
+                              effectiveItems.isNotEmpty) ...[
+                            const SizedBox(width: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.primary.withValues(
+                                  alpha: 0.1,
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: theme.colorScheme.primary.withValues(
+                                    alpha: 0.2,
+                                  ),
+                                ),
+                              ),
+                              child: Text(
+                                '${totalPercent.toStringAsFixed(1)}%',
+                                style: theme.textTheme.labelLarge?.copyWith(
+                                  color: theme.colorScheme.primary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                          if (_viewMode == EstimateViewMode.vor &&
+                              file.contractId != null) ...[
+                            const SizedBox(width: 16),
+                            _CompactVorButton(contractId: file.contractId!),
+                            const SizedBox(width: 8),
+                            _ExportCumulativeVorButton(contractId: file.contractId!),
+                          ],
+                        ],
                       ),
                       const SizedBox(height: 8),
                       Row(
                         children: [
                           ConstrainedBox(
                             constraints: const BoxConstraints(maxWidth: 400),
-                            child: CupertinoSlidingSegmentedControl<
-                                EstimateViewMode>(
-                              groupValue: _viewMode,
-                              children: const {
-                                EstimateViewMode.planning: Text(
-                                  'Смета',
-                                  style: TextStyle(fontSize: 14),
-                                ),
-                                EstimateViewMode.execution: Text(
-                                  'Выполнение',
-                                  style: TextStyle(fontSize: 14),
-                                ),
-                              },
-                              onValueChanged: (value) {
-                                if (value != null) {
-                                  setState(() {
-                                    _viewMode = value;
-                                    if (value == EstimateViewMode.planning) {
-                                      _statusFilter = EstimateStatusFilter.none;
+                            child:
+                                CupertinoSlidingSegmentedControl<
+                                  EstimateViewMode
+                                >(
+                                  groupValue: _viewMode,
+                                  children: const {
+                                    EstimateViewMode.planning: Text(
+                                      'Смета',
+                                      style: TextStyle(fontSize: 14),
+                                    ),
+                                    EstimateViewMode.execution: Text(
+                                      'Выполнение',
+                                      style: TextStyle(fontSize: 14),
+                                    ),
+                                    EstimateViewMode.vor: Text(
+                                      'ВОР',
+                                      style: TextStyle(fontSize: 14),
+                                    ),
+                                  },
+                                  onValueChanged: (value) {
+                                    if (value != null) {
+                                      setState(() {
+                                        _viewMode = value;
+                                        if (value ==
+                                            EstimateViewMode.planning) {
+                                          _statusFilter =
+                                              EstimateStatusFilter.none;
+                                        }
+                                      });
                                     }
-                                  });
-                                }
-                              },
-                            ),
+                                  },
+                                ),
                           ),
                           const SizedBox(width: 16),
                           EstimateSearchField(
@@ -722,20 +758,21 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
                     ],
                   ),
                 ),
-                PermissionGuard(
-                  module: 'estimates',
-                  permission: 'create',
-                  child: GTPrimaryButton(
-                    icon: CupertinoIcons.add,
-                    text: 'Добавить позицию',
-                    onPressed: () => openEditDialog(
-                      context,
-                      estimateTitle: file.estimateTitle,
-                      objectId: file.objectId,
-                      contractId: file.contractId,
+                if (_viewMode == EstimateViewMode.planning)
+                  PermissionGuard(
+                    module: 'estimates',
+                    permission: 'create',
+                    child: GTPrimaryButton(
+                      icon: CupertinoIcons.add,
+                      text: 'Добавить позицию',
+                      onPressed: () => openEditDialog(
+                        context,
+                        estimateTitle: file.estimateTitle,
+                        objectId: file.objectId,
+                        contractId: file.contractId,
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
           ),
@@ -761,11 +798,15 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
     );
 
     if (confirmed == true) {
-      final items = await ref.read(estimateItemsProvider(EstimateDetailArgs(
-        estimateTitle: file.estimateTitle,
-        objectId: file.objectId,
-        contractId: file.contractId,
-      )).future);
+      final items = await ref.read(
+        estimateItemsProvider(
+          EstimateDetailArgs(
+            estimateTitle: file.estimateTitle,
+            objectId: file.objectId,
+            contractId: file.contractId,
+          ),
+        ).future,
+      );
 
       final notifier = ref.read(estimateNotifierProvider.notifier);
       for (final item in items) {
@@ -823,8 +864,9 @@ class _EstimateTableSkeleton extends StatelessWidget {
       itemBuilder: (_, index) => Container(
         height: 48,
         decoration: BoxDecoration(
-          color:
-              theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+          color: theme.colorScheme.surfaceContainerHighest.withValues(
+            alpha: 0.5,
+          ),
           borderRadius: BorderRadius.circular(8),
         ),
       ),
@@ -851,8 +893,9 @@ class _TableLoadingOverlay extends StatelessWidget {
               const SizedBox(height: 12),
               Text(
                 message,
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(color: theme.colorScheme.onSurface),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface,
+                ),
               ),
             ],
           ),
@@ -876,13 +919,162 @@ class _ErrorState extends StatelessWidget {
         children: [
           Text(message, textAlign: TextAlign.center),
           const SizedBox(height: 12),
-          GTPrimaryButton(
-            text: 'Повторить',
-            onPressed: onRetry,
-          ),
+          GTPrimaryButton(text: 'Повторить', onPressed: onRetry),
         ],
       ),
     );
+  }
+}
+
+/// Компактная кнопка для вызова списка ведомостей ВОР.
+class _CompactVorButton extends StatelessWidget {
+  final String contractId;
+
+  const _CompactVorButton({required this.contractId});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: theme.colorScheme.surface,
+      borderRadius: BorderRadius.circular(6),
+      child: InkWell(
+        onTap: () => VorListDialog.show(context, contractId),
+        borderRadius: BorderRadius.circular(6),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: theme.colorScheme.outline.withValues(alpha: 0.3),
+            ),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                CupertinoIcons.doc_text,
+                size: 14,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Ведомости ВОР',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ExportCumulativeVorButton extends ConsumerStatefulWidget {
+  final String contractId;
+
+  const _ExportCumulativeVorButton({required this.contractId});
+
+  @override
+  ConsumerState<_ExportCumulativeVorButton> createState() =>
+      _ExportCumulativeVorButtonState();
+}
+
+class _ExportCumulativeVorButtonState
+    extends ConsumerState<_ExportCumulativeVorButton> {
+  bool _isLoading = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: theme.colorScheme.surface,
+      borderRadius: BorderRadius.circular(6),
+      child: InkWell(
+        onTap: _isLoading ? null : _handleExport,
+        borderRadius: BorderRadius.circular(6),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: theme.colorScheme.outline.withValues(alpha: 0.3),
+            ),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_isLoading)
+                const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CupertinoActivityIndicator(radius: 7),
+                )
+              else
+                Icon(
+                  CupertinoIcons.arrow_down_doc,
+                  size: 14,
+                  color: theme.colorScheme.primary,
+                ),
+              const SizedBox(width: 6),
+              Text(
+                'Экспорт (накопительная)',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleExport() async {
+    final companyId = ref.read(activeCompanyIdProvider);
+    if (companyId == null) {
+      AppSnackBar.show(
+        context: context,
+        message: 'Ошибка: компания не выбрана',
+        kind: AppSnackBarKind.error,
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      await ref
+          .read(vorCumulativeExportServiceProvider)
+          .exportCumulativeVorToExcel(
+            contractId: widget.contractId,
+            companyId: companyId,
+          );
+      if (mounted) {
+        AppSnackBar.show(
+          context: context,
+          message: 'Файл успешно сформирован',
+          kind: AppSnackBarKind.success,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        AppSnackBar.show(
+          context: context,
+          message: 'Ошибка экспорта: $e',
+          kind: AppSnackBarKind.error,
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 }
 
@@ -910,7 +1102,9 @@ class _ObjectGroupHeader extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: isDark ? Colors.black.withValues(alpha: 0.3) : Colors.grey[200],
+          color: isDark
+              ? Colors.black.withValues(alpha: 0.3)
+              : Colors.grey[200],
           border: Border(
             bottom: BorderSide(
               color: isDark ? Colors.grey[800]! : Colors.grey[300]!,
@@ -960,14 +1154,14 @@ class _ContractGroupHeader extends StatelessWidget {
   final double total;
   final bool isExpanded;
   final VoidCallback onTap;
-  final VoidCallback onKs6aTap;
+  final VoidCallback onActsTap;
 
   const _ContractGroupHeader({
     required this.number,
     required this.total,
     required this.isExpanded,
     required this.onTap,
-    required this.onKs6aTap,
+    required this.onActsTap,
   });
 
   @override
@@ -1026,28 +1220,57 @@ class _ContractGroupHeader extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            InkWell(
-              onTap: onKs6aTap,
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Center(
-                  child: Text(
-                    'Журнал КС-6а',
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: theme.colorScheme.onPrimary,
-                      fontWeight: FontWeight.bold,
-                    ),
+            Row(
+              children: [
+                Expanded(
+                  child: _ContractActionButton(
+                    label: 'Акты',
+                    onTap: onActsTap,
+                    theme: theme,
                   ),
                 ),
-              ),
+              ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ContractActionButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  final ThemeData theme;
+
+  const _ContractActionButton({
+    required this.label,
+    required this.onTap,
+    required this.theme,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.primary,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onPrimary,
+              fontWeight: FontWeight.bold,
+              fontSize: 9,
+            ),
+          ),
         ),
       ),
     );
@@ -1108,8 +1331,9 @@ class _EstimateListTile extends StatelessWidget {
                       child: Text(
                         file.estimateTitle,
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight:
-                              isSelected ? FontWeight.bold : FontWeight.w500,
+                          fontWeight: isSelected
+                              ? FontWeight.bold
+                              : FontWeight.w500,
                           fontSize: 13,
                         ),
                         maxLines: 2,
@@ -1118,8 +1342,11 @@ class _EstimateListTile extends StatelessWidget {
                     ),
                     if (canDelete)
                       IconButton(
-                        icon: Icon(CupertinoIcons.trash,
-                            size: 16, color: theme.colorScheme.error),
+                        icon: Icon(
+                          CupertinoIcons.trash,
+                          size: 16,
+                          color: theme.colorScheme.error,
+                        ),
                         onPressed: onDelete,
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),

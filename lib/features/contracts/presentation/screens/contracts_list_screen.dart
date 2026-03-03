@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/presentation/state/contract_state.dart';
 import 'package:projectgt/domain/entities/contract.dart';
 import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/core/refresh/refresh_models.dart';
+import 'package:projectgt/core/refresh/app_focus_refresh_coordinator.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 import 'contract_form_screen.dart';
@@ -23,6 +25,34 @@ class ContractsListScreen extends ConsumerStatefulWidget {
 
 class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
   String _searchQuery = '';
+  late final AppFocusRefreshCoordinator _refreshCoordinator;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshCoordinator = ref.read(appFocusRefreshProvider.notifier);
+
+    // Регистрация цели автоматического обновления для модуля договоров
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _refreshCoordinator.registerTarget(
+          RefreshTarget(
+            id: 'contracts',
+            callback: (ref) async {
+              // Игнорируем лодинг, чтобы обновление было тихим
+              await ref.read(contractProvider.notifier).loadContracts(quiet: true);
+            },
+          ),
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshCoordinator.unregisterTarget('contracts');
+    super.dispose();
+  }
 
   void _onSearch(String query) {
     setState(() {

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:projectgt/core/refresh/refresh_models.dart';
+import 'package:projectgt/core/refresh/app_focus_refresh_coordinator.dart';
+import 'package:projectgt/features/cash_flow/presentation/state/cash_flow_state.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 import 'package:projectgt/core/widgets/edge_to_edge_scaffold.dart';
@@ -18,6 +21,35 @@ class CashFlowListScreen extends ConsumerStatefulWidget {
 }
 
 class _CashFlowListScreenState extends ConsumerState<CashFlowListScreen> {
+  late final AppFocusRefreshCoordinator _refreshCoordinator;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshCoordinator = ref.read(appFocusRefreshProvider.notifier);
+
+    // Регистрация цели автоматического обновления для модуля Cash Flow
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _refreshCoordinator.registerTarget(
+          RefreshTarget(
+            id: 'cash_flow',
+            callback: (ref) async {
+              // Тихая перезагрузка данных Cash Flow
+              await ref.read(cashFlowProvider.notifier).loadAllData(quiet: true);
+            },
+          ),
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshCoordinator.unregisterTarget('cash_flow');
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;

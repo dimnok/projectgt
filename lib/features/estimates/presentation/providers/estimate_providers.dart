@@ -1,13 +1,17 @@
+import 'dart:async';
 import 'package:collection/collection.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/di/providers.dart';
 import '../../../../data/models/estimate_completion_model.dart';
 import '../../../../data/repositories/estimate_repository_impl.dart';
 import '../../../../domain/entities/estimate.dart';
 import '../../../../domain/entities/estimate_completion_history.dart';
-import '../../../../domain/entities/ks6a_period.dart' as entity;
+import '../../../../domain/entities/vor.dart';
 import '../../../../domain/repositories/estimate_repository.dart';
-import '../../../company/presentation/providers/company_providers.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/vor_export_service.dart';
+import '../services/vor_cumulative_export_service.dart';
 
 // --- Модели для UI ---
 
@@ -93,12 +97,14 @@ final groupedEstimateFilesProvider =
           grouped[objectName]![contractNumber]!.add(file);
         }
 
-      return grouped;
+        return grouped;
+      });
     });
-  });
 
 /// Провайдер состояния видимости боковой панели (Sidebar) в десктопной версии.
-final estimateSidebarVisibleProvider = StateProvider.autoDispose<bool>((ref) => true);
+final estimateSidebarVisibleProvider = StateProvider.autoDispose<bool>(
+  (ref) => true,
+);
 
 /// Аргументы для загрузки деталей сметы.
 class EstimateDetailArgs {
@@ -183,145 +189,224 @@ final estimateCompletionHistoryProvider = FutureProvider.autoDispose
     });
 
 /// Провайдер конкретной сметной позиции.
-final estimateProvider = FutureProvider.autoDispose
-    .family<Estimate?, String>((ref, id) async {
+final estimateProvider = FutureProvider.autoDispose.family<Estimate?, String>((
+  ref,
+  id,
+) async {
   final repository = ref.watch(estimateRepositoryProvider);
   return repository.getEstimate(id);
-});
-
-/// Модель данных для периода в КС-6а.
-class Ks6aPeriodData {
-  /// Месяц и год периода.
-  final DateTime month;
-  
-  /// Данные по сметам: estimateId -> {quantity, amount}.
-  final Map<String, ({double quantity, double amount})> values;
-
-  const Ks6aPeriodData({required this.month, required this.values});
-}
-
-/// Провайдер истории выполнения по всему договору, сгруппированный по периодам.
-final contractCompletionByPeriodsProvider = FutureProvider.autoDispose
-    .family<List<Ks6aPeriodData>, String>((ref, contractId) async {
-  final repository = ref.watch(estimateRepositoryProvider);
-  final estimates = await repository.getEstimatesByContract(contractId);
-  final history = await repository.getContractCompletionHistory(contractId);
-  
-  if (history.isEmpty) return [];
-
-  final Map<String, double> priceMap = {
-    for (final e in estimates) e.id: e.price
-  };
-
-  // Группируем по месяцам
-  final Map<DateTime, Map<String, ({double quantity, double amount})>> grouped = {};
-  
-  for (final row in history) {
-    final estimateId = row['estimate_id'] as String;
-    final quantity = (row['quantity'] as num).toDouble();
-    final date = DateTime.parse(row['works']['date'] as String);
-    final monthKey = DateTime(date.year, date.month, 1);
-    final price = priceMap[estimateId] ?? 0.0;
-    
-    grouped.putIfAbsent(monthKey, () => {});
-    final periodValues = grouped[monthKey]!;
-    
-    final current = periodValues[estimateId] ?? (quantity: 0.0, amount: 0.0);
-    periodValues[estimateId] = (
-      quantity: current.quantity + quantity,
-      amount: current.amount + (quantity * price),
-    );
-  }
-
-  // Сортируем месяцы
-  final sortedMonths = grouped.keys.toList()..sort();
-  
-  // Берем последние 8 месяцев (или сколько есть)
-  final lastMonths = sortedMonths.length > 8 
-      ? sortedMonths.sublist(sortedMonths.length - 8) 
-      : sortedMonths;
-
-  return lastMonths.map((m) => Ks6aPeriodData(
-    month: m,
-    values: grouped[m]!,
-  )).toList();
 });
 
 /// Провайдер всех сметных позиций по договору.
 /// Используется для левой части таблицы (базовые данные сметы).
 final contractEstimatesProvider = FutureProvider.autoDispose
     .family<List<Estimate>, String>((ref, contractId) async {
+      final repository = ref.watch(estimateRepositoryProvider);
+      return repository.getEstimatesByContract(contractId);
+    });
+
+/// Провайдер уникальных названий систем по договору.
+final contractSystemsProvider = FutureProvider.autoDispose
+    .family<List<String>, String>((ref, contractId) async {
+      final estimates = await ref.watch(
+        contractEstimatesProvider(contractId).future,
+      );
+      return estimates
+          .map((e) => e.system)
+          .where((s) => s.isNotEmpty)
+          .toSet()
+          .toList()
+        ..sort();
+    });
+
+/// Модель данных для выполнения ВОР по договору.
+class ContractVorCompletionData {
+  /// Список сметных позиций.
+  final List<Estimate> estimates;
+
+  /// Список ведомостей ВОР (периодов).
+  final List<Vor> vors;
+
+  /// Мапа выполнения: estimateId -> { vorId -> quantity }.
+  final Map<String, Map<String, double>> completionMap;
+
+  /// Создает экземпляр [ContractVorCompletionData].
+  const ContractVorCompletionData({
+    required this.estimates,
+    required this.vors,
+    required this.completionMap,
+  });
+}
+
+/// Провайдер агрегированных данных о выполнении ВОР по договору.
+final contractVorCompletionProvider = FutureProvider.autoDispose
+    .family<ContractVorCompletionData, String>((ref, contractId) async {
+      // Кэшируем данные на 5 минут после того, как все слушатели отпишутся,
+      // чтобы избежать повторной загрузки при переключении таба ВОР.
+      final link = ref.keepAlive();
+      Timer? timer;
+      ref.onDispose(() => timer?.cancel());
+      ref.onCancel(() {
+        timer = Timer(const Duration(minutes: 5), () {
+          link.close();
+        });
+      });
+      ref.onResume(() {
+        timer?.cancel();
+      });
+
+      final repository = ref.watch(estimateRepositoryProvider);
+      final client = ref.watch(supabaseClientProvider);
+
+      // 1. Загружаем сметы и ВОРы параллельно
+      final results = await Future.wait([
+        repository.getEstimatesByContract(contractId),
+        repository.getVors(contractId),
+      ]);
+
+      final estimates = results[0] as List<Estimate>;
+      final vors = results[1] as List<Vor>;
+
+      // Сортируем ВОРы по дате начала (startDate), чтобы они шли последовательно
+      vors.sort((a, b) => a.startDate.compareTo(b.startDate));
+
+      if (vors.isEmpty) {
+        return ContractVorCompletionData(
+          estimates: estimates,
+          vors: [],
+          completionMap: {},
+        );
+      }
+
+      // 2. Загружаем все vor_items для этих ВОР
+      final vorIds = vors.map((v) => v.id).toList();
+      final vorItemsResponse = await client
+          .from('vor_items')
+          .select('estimate_item_id, vor_id, quantity')
+          .filter('vor_id', 'in', vorIds);
+
+      final Map<String, Map<String, double>> completionMap = {};
+
+      for (final item in vorItemsResponse) {
+        final estimateId = item['estimate_item_id'] as String;
+        final vorId = item['vor_id'] as String;
+        final quantity = (item['quantity'] as num).toDouble();
+
+        completionMap.putIfAbsent(estimateId, () => {});
+        final currentQty = completionMap[estimateId]![vorId] ?? 0.0;
+        completionMap[estimateId]![vorId] = currentQty + quantity;
+      }
+
+      return ContractVorCompletionData(
+        estimates: estimates,
+        vors: vors,
+        completionMap: completionMap,
+      );
+    });
+
+/// Провайдер списка ВОР по договору.
+final vorsProvider = FutureProvider.autoDispose.family<List<Vor>, String>((
+  ref,
+  contractId,
+) async {
   final repository = ref.watch(estimateRepositoryProvider);
-  return repository.getEstimatesByContract(contractId);
+  return repository.getVors(contractId);
 });
 
-/// Провайдер данных Журнала КС-6а (периоды и их выполнение).
-/// Возвращает агрегированный объект с периодами и детальными строками.
-final ks6aDataProvider = FutureProvider.autoDispose
-    .family<entity.Ks6aContractData, String>((ref, contractId) async {
+/// Провайдер действий для работы с ВОР.
+final vorActionsProvider = Provider.autoDispose((ref) {
   final repository = ref.watch(estimateRepositoryProvider);
-  return repository.getKs6aContractData(contractId);
+  return VorActions(ref, repository);
 });
 
-/// Провайдер действий для работы с журналом КС-6а.
-/// Позволяет создавать, обновлять и согласовывать периоды.
-final ks6aActionsProvider = Provider.autoDispose((ref) {
-  final repository = ref.watch(estimateRepositoryProvider);
-  final activeCompanyId = ref.watch(activeCompanyIdProvider);
-
-  return Ks6aActions(ref, repository, activeCompanyId);
+/// Провайдер сервиса экспорта ВОР.
+final vorExportServiceProvider = Provider.autoDispose((ref) {
+  final client = Supabase.instance.client;
+  return VorExportService(client);
 });
 
-/// Класс, инкапсулирующий логику действий над периодами КС-6а.
-class Ks6aActions {
-  /// Контекст провайдеров для инвалидации кэша.
+/// Провайдер сервиса накопительного экспорта ВОР.
+final vorCumulativeExportServiceProvider = Provider.autoDispose((ref) {
+  final client = Supabase.instance.client;
+  return VorCumulativeExportService(client);
+});
+
+/// Класс, инкапсулирующий логику действий над ВОР.
+class VorActions {
+  /// Контекст провайдеров.
   final Ref ref;
 
-  /// Репозиторий для выполнения операций в БД.
+  /// Репозиторий смет.
   final EstimateRepository repository;
 
-  /// Идентификатор активной компании.
-  final String? activeCompanyId;
+  /// Создает экземпляр [VorActions].
+  VorActions(this.ref, this.repository);
 
-  Ks6aActions(this.ref, this.repository, this.activeCompanyId);
-
-  /// Инициирует создание нового черновика периода за указанный диапазон дат.
-  /// 
-  /// [contractId] — идентификатор договора.
-  /// [startDate], [endDate] — диапазон дат.
-  /// [title] — опциональное название периода.
-  Future<String> createPeriod({
+  /// Создает новую ведомость ВОР.
+  Future<String> createVor({
     required String contractId,
     required DateTime startDate,
     required DateTime endDate,
-    String? title,
+    required List<String> systems,
   }) async {
-    if (activeCompanyId == null) throw Exception('Компания не выбрана');
-    final id = await repository.createKs6aPeriod(
+    final id = await repository.createVor(
       contractId: contractId,
       startDate: startDate,
       endDate: endDate,
-      title: title,
+      systems: systems,
     );
-    ref.invalidate(ks6aDataProvider(contractId));
+
+    // Сразу наполняем ВОР данными из журналов работ
+    await repository.populateVorItems(id);
+
+    ref.invalidate(vorsProvider(contractId));
+    ref.invalidate(contractVorCompletionProvider(contractId));
     return id;
   }
 
-  /// Обновляет данные черновика периода на основе актуальных отчетов о выполнении.
-  /// 
-  /// [contractId] — для обновления UI.
-  /// [periodId] — идентификатор периода для синхронизации.
-  Future<void> refreshPeriod(String contractId, String periodId) async {
-    await repository.refreshKs6aPeriod(periodId);
-    ref.invalidate(ks6aDataProvider(contractId));
+  /// Обновляет статус ВОР.
+  Future<void> updateStatus(
+    String contractId,
+    String vorId,
+    VorStatus status, {
+    String? comment,
+  }) async {
+    await repository.updateVorStatus(vorId, status, comment: comment);
+    ref.invalidate(vorsProvider(contractId));
+    ref.invalidate(contractVorCompletionProvider(contractId));
   }
 
-  /// Фиксирует (согласовывает) период, делая его неизменяемым.
-  /// 
-  /// [contractId] — для обновления UI.
-  /// [periodId] — идентификатор периода для утверждения.
-  Future<void> approvePeriod(String contractId, String periodId) async {
-    await repository.approveKs6aPeriod(periodId);
-    ref.invalidate(ks6aDataProvider(contractId));
+  /// Удаляет ВОР.
+  Future<void> deleteVor(String contractId, String vorId) async {
+    try {
+      // 1. Сначала получаем путь к файлу, чтобы удалить его из Storage
+      final vorData = await ref
+          .read(supabaseClientProvider)
+          .from('vors')
+          .select('excel_url')
+          .eq('id', vorId)
+          .maybeSingle();
+
+      final String? excelUrl = vorData?['excel_url'];
+
+      // 2. Удаляем запись из БД (каскадное удаление должно быть настроено в БД)
+      await repository.deleteVor(vorId);
+
+      // 3. Если файл был в Storage, удаляем его
+      if (excelUrl != null && excelUrl.isNotEmpty) {
+        debugPrint('🗑️ [VorActions] Удаление файла из Storage: $excelUrl');
+        await ref
+            .read(supabaseClientProvider)
+            .storage
+            .from('vor_documents')
+            .remove([excelUrl]);
+      }
+
+      ref.invalidate(vorsProvider(contractId));
+      ref.invalidate(contractVorCompletionProvider(contractId));
+    } catch (e) {
+      debugPrint('❌ [VorActions] Ошибка при удалении ВОР: $e');
+      rethrow;
+    }
   }
 }

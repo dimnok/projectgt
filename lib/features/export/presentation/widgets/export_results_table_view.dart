@@ -296,7 +296,7 @@ class _ExportResultsTableViewState extends ConsumerState<ExportResultsTableView>
             style: TextStyle(
               fontWeight: FontWeight.bold,
               color: totalTextColor,
-              fontSize: 14,
+              fontSize: 12,
             ),
           ),
           align: Alignment.center,
@@ -325,7 +325,7 @@ class _ExportResultsTableViewState extends ConsumerState<ExportResultsTableView>
             style: TextStyle(
               fontWeight: FontWeight.bold,
               color: totalTextColor,
-              fontSize: 14,
+              fontSize: 12,
             ),
           ),
           align: Alignment.center,
@@ -340,7 +340,7 @@ class _ExportResultsTableViewState extends ConsumerState<ExportResultsTableView>
             style: TextStyle(
               fontWeight: FontWeight.bold,
               color: totalTextColor,
-              fontSize: 14,
+              fontSize: 12,
             ),
           ),
           align: Alignment.centerRight,
@@ -470,9 +470,9 @@ class _ExportResultsTableViewState extends ConsumerState<ExportResultsTableView>
       child: Text(
         title,
         textAlign: align,
-        style: theme.textTheme.labelLarge?.copyWith(
+        style: theme.textTheme.labelMedium?.copyWith(
           fontWeight: FontWeight.w600,
-          fontSize: 13,
+          fontSize: 10,
         ),
       ),
     );
@@ -496,8 +496,8 @@ class _ExportResultsTableViewState extends ConsumerState<ExportResultsTableView>
         constraints: const BoxConstraints(minHeight: 32),
         alignment: align,
         child: DefaultTextStyle.merge(
-          style: theme.textTheme.bodyMedium?.copyWith(
-            fontSize: 14,
+          style: theme.textTheme.bodySmall?.copyWith(
+            fontSize: 12,
             fontWeight: isSelected ? FontWeight.bold : null,
           ),
           child: child,
@@ -526,13 +526,13 @@ class _ExportResultsTableViewState extends ConsumerState<ExportResultsTableView>
     final fixedWidths = <int, double>{};
     double totalFixed = 0;
 
-    final headerStyle = theme.textTheme.labelLarge?.copyWith(
+    final headerStyle = theme.textTheme.labelMedium?.copyWith(
           fontWeight: FontWeight.w600,
-          fontSize: 13,
+          fontSize: 10,
         ) ??
-        const TextStyle(fontWeight: FontWeight.w600, fontSize: 13);
-    final bodyStyle = theme.textTheme.bodyMedium?.copyWith(fontSize: 14) ??
-        const TextStyle(fontSize: 14);
+        const TextStyle(fontWeight: FontWeight.w600, fontSize: 10);
+    final bodyStyle = theme.textTheme.bodySmall?.copyWith(fontSize: 12) ??
+        const TextStyle(fontSize: 12);
 
     const paddingWidth = _kCellHorizontalPadding * 2;
 

@@ -114,29 +114,13 @@ class _NewMaterialModalState extends ConsumerState<NewMaterialModal> {
         orElse: () => all.isNotEmpty ? all.first : all.first,
       );
 
-      // Генерируем следующий номер в формате "д-<N>" для выбранной сметы
-      String generateNextNumber() {
-        int maxNum = 0;
-        for (final e in all) {
-          if (e.objectId == widget.objectId &&
-              e.system == widget.system &&
-              e.subsystem == widget.subsystem &&
-              e.estimateTitle == _selectedEstimateTitle) {
-            // ignore: deprecated_member_use
-            final match = RegExp(
-              r'^д-(\d+)$',
-              caseSensitive: false,
-            ).firstMatch(e.number.trim());
-            if (match != null) {
-              final n = int.tryParse(match.group(1) ?? '0') ?? 0;
-              if (n > maxNum) maxNum = n;
-            }
-          }
-        }
-        return 'д-${maxNum + 1}';
-      }
-
-      final nextNumber = generateNextNumber();
+      // Генерируем следующий номер через централизованную логику
+      final nextNumber = ref
+          .read(estimateNotifierProvider.notifier)
+          .calculateNextNumber(
+            estimateTitle: _selectedEstimateTitle,
+            objectId: widget.objectId,
+          );
       final activeCompanyId = ref.read(activeCompanyIdProvider);
 
       final estimate = Estimate(

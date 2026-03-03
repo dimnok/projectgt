@@ -232,7 +232,32 @@ class _BankStatementEntryRowState
                 label: 'Удалить',
                 isDestructive: true,
                 onTap: () {
-                  // Удаление
+                  showDialog(
+                    context: context,
+                    builder: (context) => CupertinoAlertDialog(
+                      title: const Text('Удалить запись?'),
+                      content: const Text(
+                        'Эта запись будет удалена из списка банковской выписки. Это действие нельзя отменить.',
+                      ),
+                      actions: [
+                        CupertinoDialogAction(
+                          child: const Text('Отмена'),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                        CupertinoDialogAction(
+                          isDestructiveAction: true,
+                          onPressed: () async {
+                            Navigator.pop(context); // Закрыть диалог
+
+                            await ref
+                                .read(cashFlowProvider.notifier)
+                                .deleteBankStatementEntry(widget.entry.id);
+                          },
+                          child: const Text('Удалить'),
+                        ),
+                      ],
+                    ),
+                  );
                 },
               ),
             ],

@@ -63,6 +63,13 @@ class _EstimateFormScreenState extends ConsumerState<EstimateFormScreen> {
           _totalController.text = estimate.total.toString();
         }
       });
+    } else {
+      // При создании новой позиции генерируем следующий номер
+      Future.microtask(() {
+        _numberController.text = ref
+            .read(estimateNotifierProvider.notifier)
+            .calculateNextNumber();
+      });
     }
   }
 

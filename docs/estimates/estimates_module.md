@@ -1,56 +1,71 @@
 # Модуль Сметы (Estimates)
 
-**Дата актуализации:** 25 января 2026 года (Перенос управления периодами КС-6а в заголовок, удаление ручного ввода, финальная стилизация)
-**Статус:** Актуально (Strict Multi-tenancy, RBAC, Material Integration, Animated UI UX, KS-6a with Period Management, Pixel-perfect Header Sync)
+**Дата актуализации:** 3 марта 2026 года (удаление накопительной ведомости, оптимизация ВОР)
+**Статус:** Актуально (Strict Multi-tenancy, RBAC, VOR Automated Engine, Cloud Storage Integration, VOR Tab Over-limit Highlighting, Auto-refresh TTL 5m)
 
 ---
 
 ## ⚠️ Важное замечание
-- **Владение:** Модуль полностью владеет таблицей `public.estimates`.
+- **Владение:** Модуль полностью владеет таблицей `public.estimates` и `public.vors`.
 - **Зависимости:** Критически зависит от модуля «Объекты» (фильтрация по `object_ids`) и «Склад» (расчет остатков материалов через `material_aliases`).
-- **Безопасность:** Доступ к данным реализован через `SECURITY DEFINER` RPC-функции, что исключает утечку данных при прямых клиентских запросах. Сметы без привязки к объекту (`object_id IS NULL`) доступны **только** Владельцам компании.
-- **UI/UX:** Все модальные окна на Desktop переведены на единый стандарт `DesktopDialogContent.show()` с плавной анимацией (`fade` + `scale`).
+- **Безопасность:** Доступ к данным реализован через `SECURITY DEFINER` RPC-функции. Для ВОР реализована интеграция с Supabase Storage через Edge Functions с использованием `service_role` для записи и `authenticated` политик для чтения.
+- **UI/UX:** Все модальные окна на Desktop переведены на единый стандарт `DesktopDialogContent.show()`. Экспорт общего списка смет в Excel удален в пользу более точных отчетов по ВОР.
+- **Refresh:** Модуль подключен к глобальной системе обновления при фокусе (TTL 5 минут).
 
 ---
 
 ## 📂 Описание модуля
-Модуль **Сметы** отвечает за управление стоимостными и количественными показателями строительных работ. Он объединяет плановые показатели (из импортированных смет) с фактическим выполнением и складскими остатками.
+Модуль **Сметы** отвечает за управление стоимостными и количественными показателями строительных работ. Он объединяет плановые показатели (из импортированных смет) с фактическим выполнением.
 
 **Ключевые функции:**
 - **Импорт из Excel:** Поддержка форматов `.xls` и `.xlsx` с автоматическим парсимгом через Edge Functions.
+- **Global On Focus Refresh:** Автоматическое фоновое обновление данных при возврате в приложение, если с последнего обновления прошло более 5 минут.
 - **Strict Access Control:** Сотрудники видят только те сметы, объекты которых закреплены за их профилем.
-- **Интеграция со Складом:** Автоматическое отображение количества полученных и оставшихся материалов по каждой сметной позиции.
+- **Визуальное выделение превышений:** Работы, превышающие сметные лимиты, выделяются оранжевым фоном и акцентированным текстом.
+- **Интеграция со Складом:** Автоматическое отображение количества полученных и оставшихся материалов.
 - **Гибридный расчет выполнения:** Данные агрегируются из таблицы `work_items` в реальном времени.
-- **Журнал КС-6а:** Специализированный вид таблицы для отслеживания накопленного выполнения по периодам и итоговых показателей. Реализован с поддержкой сложных объединенных заголовков, адаптивной версткой и **фиксированными левыми колонками** (Sticky Columns) для сохранения контекста при горизонтальном скролле.
-- **Асинхронная загрузка материалов:** Использование скелетонов (shimmer) для плавного отображения привязанных материалов без блокировки интерфейса.
-- **Анимированный UX:** Использование пакета `flutter_animate` для каскадного появления контента в деталях позиций и плавного открытия окон.
+- **Третий таб в деталях сметы (`ВОР`):** Отдельная таблица с динамическими колонками `ВОР-*`. Реализовано **визуальное выделение красным цветом** строк, у которых суммарное количество по всем ВОР (`ИТОГО`) превышает плановое сметное количество (`Кол-во`).
+- **Сортировка ВОР по номеру:** Колонки `ВОР-*` в табе строятся по возрастанию номера ведомости.
+- **Экспорт отчетов:** Поддерживается генерация Excel для ведомостей ВОР, отчетов по материалам и **накопительной ведомости ВОР**. Накопительный экспорт включает два листа (Объемы и Финансы), динамические колонки `ВОР-*`, итоговые строки по сметам, группировку и шрифтовое оформление (Times New Roman). Общий экспорт списка смет отключен.
 
 ---
 
 ## 🧱 Архитектура и структура
-Модуль следует принципам **Clean Architecture**, однако слои Data и Domain частично вынесены в общие папки проекта для обеспечения кросс-модульных связей.
+Модуль следует принципам **Clean Architecture**.
 
 ### Слой Presentation (UI)
-- `lib/features/estimates/presentation/screens/estimates_list_screen.dart` — Реестр сметных файлов с группировкой по объектам.
-- `lib/features/estimates/presentation/screens/estimate_desktop_view.dart` — Основной экран работы со сметой на десктопе. Включает боковую панель со списком договоров и логику переключения между просмотром сметы и журналом КС-6а.
-- `lib/features/estimates/presentation/screens/estimate_details_screen.dart` — Основной экран работы со сметой (адаптивная обертка).
-- `lib/features/estimates/presentation/widgets/estimate_table_view.dart` — Кастомная высокопроизводительная таблица с синхронизированным скроллом и контекстным меню.
-- `lib/features/estimates/presentation/widgets/ks6a_table_view.dart` — Таблица журнала КС-6а. Поддерживает произвольные периоды, статусы (Черновик/Согласовано). Управление периодами вынесено в заголовок `estimate_desktop_view.dart`. Реализована пиксельная синхронизация высоты строк и заголовков между фиксированной и скроллируемой частями. Подробнее см. [docs/estimates/ks6a_journal.md](ks6a_journal.md).
-- `lib/features/estimates/presentation/utils/ks6a_processor.dart` — Высокопроизводительный процессор данных КС-6а. Выполняет предварительную группировку, сортировку и расчет итогов по периодам.
-- `lib/features/estimates/presentation/widgets/estimate_edit_dialog.dart` — Адаптивная форма редактирования позиции. Открывается через `DesktopDialogContent.show()` с плавной анимацией.
-- `lib/features/estimates/presentation/widgets/estimate_item_details_dialog.dart` — Окно деталей позиции с анимированным каскадным отображением и **оптимизированным блоком материалов** (shimmer-загрузка, обработка пустых состояний).
-- `lib/features/estimates/presentation/screens/import_estimate_form_modal.dart` — Пошаговый мастер импорта смет, интегрированный в анимированную систему диалогов.
-- `lib/features/estimates/presentation/providers/estimate_providers.dart` — Набор провайдеров (Riverpod), включая `estimateGroupsProvider` и `estimateCompletionByIdsProvider`.
+- `lib/features/estimates/presentation/screens/estimates_list_screen.dart` — Реестр смет. Точка регистрации `RefreshTarget` для модуля. При возврате в фокус инвалидирует `estimateGroupsProvider`.
+- `lib/features/estimates/presentation/screens/estimate_desktop_view.dart` — Основной экран.
+- `lib/features/estimates/presentation/widgets/vor_list_dialog.dart` — Реестр ведомостей ВОР с карточной системой отображения, эффектами парения и логикой «одна открытая панель».
+- `lib/features/estimates/presentation/widgets/vor_card_details.dart` — Детальная информация о ВОР. Включает секцию «Файлы» с возможностью мгновенного скачивания сгенерированных документов.
+- `lib/features/estimates/presentation/widgets/vor_create_dialog.dart` — Пошаговый мастер создания ВОР. На этапе «Далее» инициирует фоновую генерацию и сохранение файла в Storage.
+- `lib/features/estimates/presentation/services/vor_export_service.dart` — Сервис управления файлами конкретных ВОР.
+- `lib/features/estimates/presentation/services/vor_cumulative_export_service.dart` — Сервис для генерации накопительного Excel отчета (Объемы + Финансы) по всем ВОР договора.
+- `lib/features/estimates/presentation/widgets/vor_tab_table_view.dart` — Отдельная таблица для таба `ВОР` в деталях сметы. Динамически строит колонки `ВОР-*`, считает `ИТОГО`, синхронизирует горизонтальный скролл заголовка/тела и поддерживает поиск по позициям.
+- `lib/features/estimates/presentation/providers/estimate_providers.dart` — Провайдеры Riverpod. Реализована логика очистки Storage при удалении ВОР в методе `deleteVor`.
 
 ### Слой Domain (Бизнес-логика)
 - `lib/domain/entities/estimate.dart` — Основная сущность сметной позиции.
-- `lib/domain/repositories/estimate_repository.dart` — Интерфейс репозитория.
-- `lib/domain/usecases/estimate/` — Набор сценариев (Get, Create, Update, Delete).
 
 ### Слой Data (Инфраструктура)
-- `lib/data/datasources/estimate_data_source.dart` — Реализация запросов к Supabase RPC.
-- `lib/data/models/estimate_model.dart` — DTO для сериализации данных сметы.
-- `lib/data/models/estimate_completion_model.dart` — Модель данных выполнения с полями материалов.
+- `lib/data/datasources/estimate_data_source.dart` — Вызов RPC-функций Supabase.
+
+---
+
+## 🔗 Зависимости
+
+### Таблицы модуля (owner)
+- `public.estimates`
+- `public.vors`
+- `public.vor_items`
+- `public.vor_status_history`
+
+### Таблицы других модулей (usage)
+- `public.contracts` (связь по `contract_id`)
+- `public.objects` (связь через договор/объект для фильтрации и именования файлов)
+- `public.work_items` (источник фактического выполнения)
+- `public.company_members`, `public.profiles` (RBAC и object-scope доступ)
+- `storage.objects`, `storage.buckets` (хранение документов ВОР)
 
 ---
 
@@ -62,6 +77,8 @@ lib/features/estimates/
     │   └── estimate_actions_mixin.dart
     ├── providers/
     │   └── estimate_providers.dart
+    ├── services/
+    │   └── vor_export_service.dart
     ├── screens/
     │   ├── estimate_desktop_view.dart
     │   ├── estimate_details_screen.dart
@@ -70,16 +87,20 @@ lib/features/estimates/
     │   ├── estimates_list_screen.dart
     │   └── import_estimate_form_modal.dart
     ├── utils/
-    │   ├── estimate_sorter.dart
-    │   └── ks6a_processor.dart
+    │   └── estimate_sorter.dart
     └── widgets/
+        ├── acts_table_view.dart
         ├── estimate_completion_history_panel.dart
         ├── estimate_details_modal.dart
         ├── estimate_edit_dialog.dart
         ├── estimate_item_card.dart
         ├── estimate_item_details_dialog.dart
         ├── estimate_table_view.dart
-        ├── ks6a_table_view.dart
+        ├── vor_approve_dialog.dart
+        ├── vor_card_details.dart
+        ├── vor_create_dialog.dart
+        ├── vor_list_dialog.dart
+        ├── vor_tab_table_view.dart
         └── material_from_receipts_picker.dart
 ```
 
@@ -91,74 +112,120 @@ lib/features/estimates/
 | Колонка | Тип | Описание |
 |:---|:---|:---|
 | id | UUID (PK) | Уникальный идентификатор позиции |
-| company_id | UUID (FK) | Ссылка на компанию (Multi-tenancy) |
-| object_id | UUID (FK) | Ссылка на объект (Nullable) |
-| contract_id | UUID (FK) | Ссылка на договор (Nullable) |
-| system | TEXT | Название инженерной системы |
-| subsystem | TEXT | Название подсистемы |
-| number | TEXT | Порядковый номер (поддерживает "д-1") |
-| name | TEXT | Наименование работ/материалов |
+| company_id | UUID (FK) | Привязка к компании (Multi-tenancy) |
+| number | TEXT | Порядковый номер (всегда "д-X" для новых позиций) |
 | quantity | DOUBLE PRECISION | Плановый объем |
 | price | DOUBLE PRECISION | Цена за единицу |
 | total | DOUBLE PRECISION | Итоговая сумма (quantity * price) |
-| estimate_title | TEXT | Заголовок сметного файла |
 
-### Таблица `public.ks6a_periods` (Журнал КС-6а)
+### Таблица `public.vors` (Заголовки ВОР)
 | Колонка | Тип | Описание |
 |:---|:---|:---|
-| id | UUID (PK) | Уникальный идентификатор периода |
-| company_id | UUID (FK) | Ссылка на компанию |
+| id | UUID (PK) | Уникальный идентификатор ведомости |
+| company_id | UUID (FK) | Привязка к компании (Multi-tenancy) |
 | contract_id | UUID (FK) | Ссылка на договор |
-| start_date | DATE | Начало периода |
-| end_date | DATE | Конец периода |
-| status | ks6a_status | Статус (draft/approved) |
+| number | TEXT | Порядковый номер (например, "ВОР-001") |
+| status | vor_status | Статус (draft, pending, approved) |
+| excel_url | TEXT | Путь к сгенерированному Excel файлу в Storage (`vor_documents`) |
+| pdf_url | TEXT | Путь к подписанному скан-копии PDF |
 
-### Таблица `public.ks6a_period_items` (Строки КС-6а)
+### Хранилище (Supabase Storage)
+- **Бакет:** `vor_documents`
+- **Структура путей:** `[object_name_slug]/[vor_number_slug]_[timestamp].xlsx`
+- **Транслитерация:** Имена папок и файлов автоматически переводятся в латиницу (slugify) для совместимости и читаемости.
+
+### Таблица `public.vor_items` (Позиции ВОР)
 | Колонка | Тип | Описание |
 |:---|:---|:---|
-| id | UUID (PK) | Уникальный идентификатор строки |
-| company_id | UUID (FK) | Ссылка на компанию |
-| period_id | UUID (FK) | Ссылка на период |
-| estimate_id | UUID (FK) | Ссылка на сметную позицию |
-| quantity | DOUBLE PRECISION | Объем за период |
-| price_snapshot | DOUBLE PRECISION | Цена (фиксация) |
+| id | UUID (PK) | Уникальный идентификатор позиции |
+| company_id | UUID (FK) | Привязка к компании (Multi-tenancy) |
+| vor_id | UUID (FK) | Ссылка на родительский ВОР |
+| estimate_item_id | UUID (FK) | Ссылка на позицию сметы (null для новых работ) |
+| name | TEXT | Наименование (для extra-позиций без ссылки на estimates) |
+| unit | TEXT | Единица измерения (для extra-позиций) |
+| quantity | DOUBLE PRECISION | Фактически выполненный объем за период |
+| is_extra | BOOLEAN | Флаг превышения сметы или новой работы |
+| sort_order | INTEGER | Порядок отображения строки в ведомости |
 
-### RLS (Row Level Security)
-✅ **Включён.**
-- **Policy: "Strict SELECT/INSERT/UPDATE/DELETE"**
-  - Условие: `company_id IN (get_my_company_ids())` + проверка прав через `check_permission`.
-  - Для `ks6a_period_items` изменения (U/D) возможны только если связанный период имеет `status = 'draft'`.
+### Таблица `public.vor_status_history` (История изменений ВОР)
+| Колонка | Тип | Описание |
+|:---|:---|:---|
+| id | UUID (PK) | Уникальный идентификатор записи |
+| company_id | UUID (FK) | Привязка к компании (Multi-tenancy) |
+| vor_id | UUID (FK) | Ссылка на ВОР |
+| status | vor_status | Статус, на который перешли |
+| user_id | UUID (FK) | Кто совершил действие |
+| comment | TEXT | Причина изменения (например, при возврате в черновик) |
+
+### RLS по таблицам модуля
+- `public.estimates` — ✅ Включен (`rowsecurity = true`)
+- `public.vors` — ✅ Включен
+- `public.vor_items` — ✅ Включен
+- `public.vor_status_history` — ✅ Включен
+
+Ключевые ограничения политик:
+- `vors` удаляется только в статусе `draft`, UPDATE ограничен статусами `draft|pending`.
+- `vor_items` изменяются только пока родительский `vors.status = 'draft'`.
+- Все политики привязаны к `company_id IN get_my_company_ids()` и проверке `check_permission(..., 'estimates', ...)`.
+
+### Индексы (ключевые)
+- `estimates`: `idx_estimates_grouping`, `idx_estimates_sort`, `idx_estimates_filters`, `idx_estimates_contract_id`, `idx_estimates_company_id`.
+- `vors`: `idx_vors_company`, `idx_vors_contract`.
+- `vor_items`: `idx_vor_items_company`, `idx_vor_items_vor`.
+- `vor_status_history`: `idx_vor_status_history_vor`.
+
+### Триггеры
+- `estimates`: `trg_sync_work_items_on_estimate_update` (`AFTER UPDATE`).
+- `vors`: `tr_vors_updated_at` (`BEFORE UPDATE`).
+
+### Ключевые RPC-функции (Логика ВОР)
+1.  **`populate_vor_items(vor_id)`**: «Движок» ВОР. Автоматически наполняет ведомость фактически выполненными работами за период, сопоставляет их со сметой и помечает превышения (`is_extra`).
+2.  **`get_next_vor_number(company_id, contract_id)`**: Генерирует следующий порядковый номер ВОР в рамках договора (ВОР-001, ВОР-002 и т.д.).
+3.  **`get_vor_material_report`**: Возвращает свод по списанию материалов для экспорта из таба ВОР.
 
 ---
 
-## ⚙ Бизнес-логика (Audit)
-
-### Алгоритм контроля доступа
-1.  **Multi-tenancy:** Любой запрос фильтруется по `company_id`. Доступ к чужим компаниям невозможен.
-2.  **Объектная фильтрация:** Если пользователь не является Владельцем, он видит только те строки, чей `object_id` присутствует в его массиве `profiles.object_ids`.
-3.  **Security Definer:** Все функции чтения используют `SECURITY DEFINER` для корректной работы с правами, при этом внутри функций реализована жесткая проверка `auth.uid()`.
-
-### Формулы расчета (Execution Mode)
-- **Выполнение (%):** `(SUM(work_items.quantity) / estimates.quantity) * 100`.
-- **Остаток работ:** `estimates.quantity - SUM(work_items.quantity)`.
-- **Материалы:** Данные подтягиваются асинхронно через оптимизированный RPC `get_linked_materials_details`.
+### Бизнес-логика формирования ВОР
+1.  **Выбор периода и систем:** Пользователь указывает диапазон дат и одну или несколько инженерных систем.
+2.  **Генерация данных:** RPC-функция `populate_vor_items` собирает все выполненные работы из журналов, сопоставляет их со сметой и выявляет превышения.
+3.  **Облачная генерация (Multi-sheet):** Edge Function `generate_vor_v2` создает Excel-файл. Если выбрано несколько систем, для каждой создается отдельный лист с полной шапкой и подписями.
+4.  **Хранение:** Файл сохраняется в Storage один раз при создании. Путь записывается в `vors.excel_url`.
+5.  **Очистка:** При удалении записи ВОР соответствующий файл в Storage удаляется автоматически для экономии места.
 
 ---
 
 ## 🔌 Интеграции
-- **Edge Functions:**
-  - `excel_parse`: Обрабатывает загруженные файлы, возвращая JSON структуру для сохранения.
-  - `generate_vor`: Формирует Ведомость Объемов Работ на основе данных сметы.
-- **Склад:** Связь через таблицу `material_aliases`. Каждая позиция сметы может иметь один или несколько алиасов в складских накладных.
+- **Edge Functions (используются модулем):**
+  - `generate_vor_v2` — генерация Excel ВОР.
+  - `export-vor-materials` — генерация Excel по материалам ВОР.
+  - `export-cumulative-vor` — накопительная генерация всех ВОР договора.
+  - `excel_parse` / `xls_to_xlsx` — импорт смет из Excel.
+- **Supabase Storage:**
+  - Bucket `vor_documents` (`public = false`).
+  - Политики `storage.objects` для `vor_documents`: чтение/загрузка/удаление для `authenticated`.
+- **Связанные модули:**
+  - `contracts/objects` — контекст договора и объекта.
+  - `materials` — списание материалов по ВОР.
+  - `roles` — RBAC-права на действия `read/create/update/delete`.
 
 ---
 
 ## 🗺️ Roadmap
 - 🟢 Строгий контроль доступа (RLS + RPC) — **Done**
 - 🟢 Интеграция остатков материалов — **Done**
-- 🟢 Оптимизация производительности JOIN материалов (RPC) — **Done**
-- 🟢 Оптимизация UI блока материалов (Shimmer + Async) — **Done**
-- 🟢 Плавные анимации появления окон (DesktopDialogContent.show) — **Done**
-- 🟢 Журнал КС-6а (реальные данные договора, двухслойная синхронизация высоты) — **Done**
+- 🟢 Реестр ведомостей ВОР (UI + анимации + логика раскрытия) — **Done**
+- 🟢 Структура БД для ВОР (vors, vor_items, status_history) — **Done**
+- 🟢 Multi-tenancy и RLS для ВОР — **Done**
+- 🟢 Интерактивная смена статусов ВОР с валидацией переходов — **Done**
+- 🟢 Автоматическая нумерация ВОР и «движок» наполнения данными — **Done**
+- 🟢 Интеграция облачного хранения и генерации Excel — **Done**
+- 🟢 Автоматическая очистка Storage при удалении записей — **Done**
+- 🟢 Транслитерация путей в Storage — **Done**
+- 🟢 Разделение систем по листам в Excel — **Done**
+- 🟢 Отдельный таб `ВОР` в деталях сметы с динамическими колонками `ВОР-*` — **Done**
+- 🟢 Сортировка колонок `ВОР-*` по возрастанию номера — **Done**
+- 🟢 UX-правки таба `ВОР`: увеличена колонка `Наименование`, уменьшены и центрированы `Кол-во/ВОР/ИТОГО` — **Done**
+- 🟢 Накопительный экспорт всех ВОР договора в Excel (Объемы + Финансы, группировка, итоги) — **Done**
+- 🟡 Просмотр состава работ ВОР в интерфейсе — **In Progress**
 - 🟡 Массовое редактирование позиций — **Planned**
 - 🔴 Генерация PDF отчетов по выполнению — **Planned**

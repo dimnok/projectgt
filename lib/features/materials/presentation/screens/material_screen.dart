@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:projectgt/core/refresh/refresh_models.dart';
+import 'package:projectgt/core/refresh/app_focus_refresh_coordinator.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
 import '../widgets/materials_import_action.dart';
 import '../widgets/contracts_filter_chips.dart';
+import '../widgets/materials_vor_export_action.dart';
 import '../widgets/materials_table_view.dart';
 import '../widgets/materials_grouped_table_view.dart';
 import '../providers/materials_providers.dart';
@@ -13,12 +16,47 @@ import '../providers/materials_providers.dart';
 ///
 /// Поддерживает два режима отображения: "Материал по М-15" и
 /// "Сгруппировано по смете" с плавной анимацией переключения.
-class MaterialScreen extends ConsumerWidget {
+class MaterialScreen extends ConsumerStatefulWidget {
   /// Создаёт экран «Материал».
   const MaterialScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MaterialScreen> createState() => _MaterialScreenState();
+}
+
+class _MaterialScreenState extends ConsumerState<MaterialScreen> {
+  late final AppFocusRefreshCoordinator _refreshCoordinator;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshCoordinator = ref.read(appFocusRefreshProvider.notifier);
+
+    // Регистрация цели автоматического обновления для модуля материалов
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _refreshCoordinator.registerTarget(
+          RefreshTarget(
+            id: 'materials',
+            callback: (ref) async {
+              // Обновляем материалы
+              ref.invalidate(materialsListProvider);
+              ref.invalidate(materialsGroupedListProvider);
+            },
+          ),
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshCoordinator.unregisterTarget('materials');
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isGrouped = ref.watch(isMaterialsGroupedProvider);
 
@@ -39,6 +77,7 @@ class MaterialScreen extends ConsumerWidget {
                 ref.read(isMaterialsGroupedProvider.notifier).state =
                     !isGrouped,
           ),
+          const MaterialsVorExportAction(),
           const PermissionGuard(
             module: 'materials',
             permission: 'import',

@@ -162,14 +162,6 @@ class ContractDetailsPanel extends ConsumerWidget {
               ),
               Row(
                 children: [
-                  if (MediaQuery.sizeOf(context).width > 900)
-                    GTPrimaryButton(
-                      text: 'Журнал КС-6А',
-                      onPressed: () {
-                        // TODO: Реализовать переход к журналу КС-6А
-                      },
-                    ).animate().fade(delay: 350.ms).scale(),
-                  const SizedBox(width: 12),
                   PermissionGuard(
                     module: 'contracts',
                     permission: 'update',

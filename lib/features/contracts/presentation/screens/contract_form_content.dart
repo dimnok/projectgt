@@ -182,8 +182,9 @@ class ContractFormContent extends StatelessWidget {
                   Expanded(
                     child: Text(
                       isNew ? 'Новый договор' : 'Редактировать договор',
-                      style: theme.textTheme.titleLarge
-                          ?.copyWith(fontWeight: FontWeight.bold),
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -267,10 +268,13 @@ class ContractFormContent extends StatelessWidget {
           GTDropdown<MapEntry<String, String>>(
             items: contractorItems.entries.toList(),
             itemDisplayBuilder: (entry) => entry.value,
-            selectedItem: selectedContractorId != null &&
+            selectedItem:
+                selectedContractorId != null &&
                     contractorItems.containsKey(selectedContractorId)
-                ? MapEntry(selectedContractorId!,
-                    contractorItems[selectedContractorId]!)
+                ? MapEntry(
+                    selectedContractorId!,
+                    contractorItems[selectedContractorId]!,
+                  )
                 : null,
             onSelectionChanged: (entry) => onContractorChanged(entry?.key),
             labelText: 'Контрагент *',
@@ -280,15 +284,16 @@ class ContractFormContent extends StatelessWidget {
             readOnly: isLoading,
             validator: (v) =>
                 selectedContractorId == null || selectedContractorId!.isEmpty
-                    ? 'Выберите контрагента'
-                    : null,
+                ? 'Выберите контрагента'
+                : null,
           ),
           const SizedBox(height: 16),
           // Объект
           GTDropdown<MapEntry<String, String>>(
             items: objectItems.entries.toList(),
             itemDisplayBuilder: (entry) => entry.value,
-            selectedItem: selectedObjectId != null &&
+            selectedItem:
+                selectedObjectId != null &&
                     objectItems.containsKey(selectedObjectId)
                 ? MapEntry(selectedObjectId!, objectItems[selectedObjectId]!)
                 : null,
@@ -300,8 +305,8 @@ class ContractFormContent extends StatelessWidget {
             readOnly: isLoading,
             validator: (v) =>
                 selectedObjectId == null || selectedObjectId!.isEmpty
-                    ? 'Выберите объект'
-                    : null,
+                ? 'Выберите объект'
+                : null,
           ),
           const SizedBox(height: 16),
           // Сумма
@@ -336,8 +341,9 @@ class ContractFormContent extends StatelessWidget {
                   labelText: 'Ставка НДС (%)',
                   hintText: '20',
                   prefixIcon: CupertinoIcons.percent,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   enabled: !isLoading,
                 ),
               ),
@@ -356,7 +362,9 @@ class ContractFormContent extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           InkWell(
-            onTap: isLoading ? null : () => onVatIncludedChanged(!isVatIncluded),
+            onTap: isLoading
+                ? null
+                : () => onVatIncludedChanged(!isVatIncluded),
             splashColor: Colors.transparent,
             highlightColor: Colors.transparent,
             hoverColor: Colors.transparent,
@@ -373,7 +381,7 @@ class ContractFormContent extends StatelessWidget {
                   Switch.adaptive(
                     value: isVatIncluded,
                     onChanged: isLoading ? null : onVatIncludedChanged,
-                    activeColor: theme.colorScheme.primary,
+                    activeTrackColor: theme.colorScheme.primary,
                   ),
                 ],
               ),
@@ -402,8 +410,9 @@ class ContractFormContent extends StatelessWidget {
                   labelText: 'Удержания (%)',
                   hintText: '5',
                   prefixIcon: CupertinoIcons.shield,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   enabled: !isLoading,
                 ),
               ),
@@ -441,8 +450,9 @@ class ContractFormContent extends StatelessWidget {
                   labelText: 'Генподрядные (%)',
                   hintText: '3',
                   prefixIcon: CupertinoIcons.briefcase,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   enabled: !isLoading,
                 ),
               ),
@@ -569,10 +579,7 @@ class ContractFormContent extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: GTSecondaryButton(
-                    text: 'Отмена',
-                    onPressed: onCancel,
-                  ),
+                  child: GTSecondaryButton(text: 'Отмена', onPressed: onCancel),
                 ),
                 const SizedBox(width: 16),
                 Expanded(

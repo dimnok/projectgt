@@ -72,7 +72,7 @@
    ↓
 7. watchAppVersionProvider уведомляет слушателей в main.dart
    ↓
-8. main.dart проверяет: AppConstants.appVersion (1.0.1) < minimum_version (1.0.2)
+8. main.dart проверяет: AppConstants.appVersion (1.0.11) < minimum_version (1.0.11)
    ↓
 9. Результат: ЗАБЛОКИРОВАН → redirect на /force-update
    ↓
@@ -278,7 +278,7 @@ await repository.updateVersion(
 
 # ✅ ПРАВИЛЬНО
 # Синхронизировать обе версии
-pubspec.yaml: version: 1.0.2+22
+pubspec.yaml: version: 1.0.11+34
 app_constants.dart: appVersion = '1.0.2'
 ```
 

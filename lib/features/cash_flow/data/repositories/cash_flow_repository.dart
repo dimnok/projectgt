@@ -207,6 +207,11 @@ class CashFlowRepository implements ICashFlowRepository {
   }
 
   @override
+  Future<void> deleteBankStatementEntry(String id) async {
+    await _client.from(_bankEntriesTable).delete().eq('id', id);
+  }
+
+  @override
   Future<void> deleteTransaction(String id) async {
     await _client.from(_tableName).delete().eq('id', id);
   }

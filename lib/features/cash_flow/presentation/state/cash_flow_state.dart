@@ -123,6 +123,7 @@ class CashFlowNotifier extends StateNotifier<CashFlowState> {
     : super(CashFlowState.initial());
 
   /// Загружает начальные данные модуля (первая страница транзакций и категории).
+  /// [quiet] — если true, статус loading не устанавливается (для фонового обновления).
   Future<void> loadAllData({
     String? search,
     int? year,
@@ -130,10 +131,11 @@ class CashFlowNotifier extends StateNotifier<CashFlowState> {
     String? contractorId,
     List<String>? contractIds,
     List<String>? operationTypes,
+    bool quiet = false,
   }) async {
     final effectiveYear = year ?? state.selectedYear;
     state = state.copyWith(
-      status: CashFlowStatus.loading,
+      status: quiet ? state.status : CashFlowStatus.loading,
       searchQuery: search ?? state.searchQuery,
       selectedYear: effectiveYear,
       selectedObjectId: objectId,
@@ -462,6 +464,21 @@ class CashFlowNotifier extends StateNotifier<CashFlowState> {
         status: CashFlowStatus.success,
         bankStatementEntries: entries,
       );
+    } catch (e) {
+      state = state.copyWith(
+        status: CashFlowStatus.error,
+        errorMessage: e.toString(),
+      );
+    }
+  }
+
+  /// Удаляет запись банковской выписки.
+  Future<void> deleteBankStatementEntry(String id) async {
+    try {
+      await _repository.deleteBankStatementEntry(id);
+      if (state.selectedBankAccountId != null) {
+        await loadBankStatementEntries(state.selectedBankAccountId!);
+      }
     } catch (e) {
       state = state.copyWith(
         status: CashFlowStatus.error,

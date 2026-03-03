@@ -130,8 +130,11 @@ class ContractNotifier extends StateNotifier<ContractState> {
   /// Загружает список всех договоров.
   ///
   /// В случае успеха — обновляет состояние на success, иначе — error с сообщением.
-  Future<void> loadContracts() async {
-    state = state.copyWith(status: ContractStatusState.loading);
+  /// [quiet] — если true, статус loading не устанавливается (для фонового обновления).
+  Future<void> loadContracts({bool quiet = false}) async {
+    if (!quiet) {
+      state = state.copyWith(status: ContractStatusState.loading);
+    }
     try {
       final contracts = await getContractsUseCase.execute();
       state = state.copyWith(

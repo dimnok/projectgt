@@ -282,6 +282,7 @@ async function createXlsxWithExcelJS(aggregated: any[], original: any[]) {
     }
   }
   
+  // Автоширина
   generalSheet.columns.forEach((column) => {
     let maxLength = 0;
     column.eachCell?.({ includeEmpty: true }, (cell) => {

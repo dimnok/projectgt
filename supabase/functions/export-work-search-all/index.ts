@@ -54,30 +54,50 @@ serve(async (req) => {
       });
     }
 
-    // Используем RPC функцию search_work_items_paginated для получения ВСЕХ данных
-    const { data, error } = await client.rpc('search_work_items_paginated', {
-      p_object_id: requestData.objectId,
-      p_start_date: requestData.startDate || null,
-      p_end_date: requestData.endDate || null,
-      p_system_filters: (requestData.systemFilters?.length ?? 0) > 0 ? requestData.systemFilters : null,
-      p_section_filters: (requestData.sectionFilters?.length ?? 0) > 0 ? requestData.sectionFilters : null,
-      p_floor_filters: (requestData.floorFilters?.length ?? 0) > 0 ? requestData.floorFilters : null,
-      p_search_query: requestData.searchQuery || null,
-      p_from: 0,
-      p_to: 100000 
-    });
+    // Реализуем цикл для получения ВСЕХ данных, обходя лимит в 1000 строк
+    const allData: any[] = [];
+    let from = 0;
+    const batchSize = 1000;
+    let hasMore = true;
 
-    if (error) {
-      console.error("RPC Error:", error);
-      throw error;
+    while (hasMore) {
+      const to = from + batchSize - 1;
+      
+      const { data, error } = await client.rpc('search_work_items_paginated', {
+        p_object_id: requestData.objectId,
+        p_start_date: requestData.startDate || null,
+        p_end_date: requestData.endDate || null,
+        p_system_filters: (requestData.systemFilters?.length ?? 0) > 0 ? requestData.systemFilters : null,
+        p_section_filters: (requestData.sectionFilters?.length ?? 0) > 0 ? requestData.sectionFilters : null,
+        p_floor_filters: (requestData.floorFilters?.length ?? 0) > 0 ? requestData.floorFilters : null,
+        p_search_query: requestData.searchQuery || null,
+        p_from: from,
+        p_to: to 
+      });
+
+      if (error) {
+        console.error(`RPC Error at offset ${from}:`, error);
+        throw error;
+      }
+
+      if (data && data.length > 0) {
+        allData.push(...data);
+        if (data.length < batchSize) {
+          hasMore = false;
+        } else {
+          from += batchSize;
+        }
+      } else {
+        hasMore = false;
+      }
+
+      // Защита от бесконечного цикла или слишком большого объема
+      if (allData.length >= 100000) {
+        hasMore = false;
+      }
     }
 
-    const results = (data || []).map((item: any) => {
-      // Логируем для отладки (только если есть данные)
-      if (item.m15_name) {
-        // console.log(`Found m15_name: ${item.m15_name} for ${item.work_name}`);
-      }
-      
+    const results = allData.map((item: any) => {
       return {
         workDate: item.work_date,
         objectName: item.object_name || "Unknown",
@@ -88,8 +108,8 @@ serve(async (req) => {
         floor: item.floor || "",
         positionNumber: item.position_number || "",
         workName: item.work_name || "",
-        m15_name: item.m15_name || "", // Используем snake_case для надежности
-        m15Name: item.m15_name || "",  // И camelCase для совместимости
+        m15_name: item.m15_name || "",
+        m15Name: item.m15_name || "",
         unit: item.unit || "",
         quantity: Number(item.quantity) || 0,
         price: Number(item.price) || 0,
@@ -97,13 +117,11 @@ serve(async (req) => {
       };
     });
 
-    console.log(`Successfully processed ${results.length} records. First m15_name: ${results[0]?.m15_name || 'none'}`);
-
     return new Response(JSON.stringify({
       success: true,
       results: results,
       totalCount: results.length,
-      message: `Loaded all ${results.length} records using RPC`
+      message: `Loaded all ${results.length} records in batches`
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" }

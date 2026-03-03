@@ -395,7 +395,7 @@ static const String appVersion = '1.0.2';  // Изменить здесь
 **⚠️ ВАЖНО:** Синхронизируйте с `pubspec.yaml`:
 
 ```yaml
-version: 1.0.2+22  # X.Y.Z+buildNumber
+version: 1.0.11+34  # X.Y.Z+buildNumber
 ```
 
 ### Как вызвать редирект на обновление вручную (тестирование)?

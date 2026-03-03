@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/theme/theme_settings_provider.dart';
+import 'package:projectgt/core/refresh/app_focus_refresh_coordinator.dart';
 
 /// Кастомный плавающий AppBar для приложения с поддержкой смены темы и адаптивными действиями.
 class AppBarWidget extends ConsumerWidget implements PreferredSizeWidget {
@@ -56,6 +57,7 @@ class AppBarWidget extends ConsumerWidget implements PreferredSizeWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
+    final isRefreshing = ref.watch(appFocusRefreshProvider.select((s) => s.isRefreshing));
 
     return PreferredSize(
       preferredSize: preferredSize,
@@ -88,60 +90,79 @@ class AppBarWidget extends ConsumerWidget implements PreferredSizeWidget {
                 ),
               ],
             ),
-            child: AppBar(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              surfaceTintColor: Colors.transparent,
-              shadowColor: Colors.transparent,
-              scrolledUnderElevation: 0,
-              shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.all(Radius.circular(32)),
-              ),
-              bottom: showSearchField
-                  ? PreferredSize(
-                      preferredSize: const Size.fromHeight(60),
-                      child: _buildSearchField(theme),
-                    )
-                  : const PreferredSize(
-                      preferredSize: Size.zero,
-                      child: SizedBox.shrink(),
-                    ),
-              title: Text(
-                title,
-                style: theme.textTheme.titleLarge?.copyWith(
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-              centerTitle: centerTitle,
-              leadingWidth: leadingWidth,
-              leading: leading ??
-                  Builder(
-                    builder: (context) => CupertinoButton(
-                      padding: EdgeInsets.zero,
-                      child: const Icon(
-                        Icons.menu,
-                        color: Colors.green,
-                      ),
-                      onPressed: () {
-                        Scaffold.of(context).openDrawer();
-                      },
+            child: Stack(
+              children: [
+                AppBar(
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  surfaceTintColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  scrolledUnderElevation: 0,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(32)),
+                  ),
+                  bottom: showSearchField
+                      ? PreferredSize(
+                          preferredSize: const Size.fromHeight(60),
+                          child: _buildSearchField(theme),
+                        )
+                      : const PreferredSize(
+                          preferredSize: Size.zero,
+                          child: SizedBox.shrink(),
+                        ),
+                  title: Text(
+                    title,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      color: theme.colorScheme.onSurface,
                     ),
                   ),
-              actions: [
-                ...?actions,
-                if (showThemeSwitch)
-                  CupertinoButton(
-                    padding: EdgeInsets.zero,
-                    child: Icon(
-                      isDarkMode ? Icons.light_mode : Icons.dark_mode,
+                  centerTitle: centerTitle,
+                  leadingWidth: leadingWidth,
+                  leading: leading ??
+                      Builder(
+                        builder: (context) => CupertinoButton(
+                          padding: EdgeInsets.zero,
+                          child: const Icon(
+                            Icons.menu,
+                            color: Colors.green,
+                          ),
+                          onPressed: () {
+                            Scaffold.of(context).openDrawer();
+                          },
+                        ),
+                      ),
+                  actions: [
+                    ...?actions,
+                    if (showThemeSwitch)
+                      CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        child: Icon(
+                          isDarkMode ? Icons.light_mode : Icons.dark_mode,
+                        ),
+                        onPressed: () {
+                          final newMode =
+                              isDarkMode ? ThemeMode.light : ThemeMode.dark;
+                          ref
+                              .read(themeSettingsProvider.notifier)
+                              .setThemeMode(newMode);
+                        },
+                      ),
+                  ],
+                ),
+                if (isRefreshing)
+                  Positioned(
+                    left: 32,
+                    right: 32,
+                    bottom: 0,
+                    child: SizedBox(
+                      height: 2,
+                      child: LinearProgressIndicator(
+                        backgroundColor: Colors.transparent,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Colors.green.withValues(alpha: 0.5),
+                        ),
+                      ),
                     ),
-                    onPressed: () {
-                      final newMode =
-                          isDarkMode ? ThemeMode.light : ThemeMode.dark;
-                      ref
-                          .read(themeSettingsProvider.notifier)
-                          .setThemeMode(newMode);
-                    },
                   ),
               ],
             ),

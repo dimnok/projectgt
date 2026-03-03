@@ -21,6 +21,9 @@ enum EstimateViewMode {
 
   /// Режим "Выполнение" — фактические данные выполнения.
   execution,
+
+  /// Режим "ВОР" — накопление по ведомостям.
+  vor,
 }
 
 /// Облегчённая таблица сметы без зависимостей от PlutoGrid.
@@ -71,7 +74,7 @@ class EstimateTableView extends ConsumerStatefulWidget {
 }
 
 class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
-  static const double _kCellVerticalPadding = 1;
+  static const double _kCellVerticalPadding = 2;
   static const double _kCellHorizontalPadding = 8;
   static const double _kDefaultMinColumnWidth = 32;
 
@@ -490,8 +493,9 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
             theme.textTheme.labelMedium?.copyWith(
               fontWeight: FontWeight.w600,
               fontSize: 10,
+              letterSpacing: 0,
             ) ??
-            const TextStyle(fontWeight: FontWeight.w600, fontSize: 10),
+            const TextStyle(fontWeight: FontWeight.w600, fontSize: 10, letterSpacing: 0),
       ),
     );
   }
@@ -513,17 +517,15 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
           horizontal: _kCellHorizontalPadding,
           vertical: _kCellVerticalPadding,
         ),
-        constraints: const BoxConstraints(minHeight: 30),
+        constraints: const BoxConstraints(minHeight: 28),
         alignment: align,
         child: DefaultTextStyle.merge(
-          style:
-              theme.textTheme.bodySmall?.copyWith(
-                fontSize: 12,
-                height: 1.0,
-                fontWeight: isSelected ? FontWeight.bold : null,
-                color: isSelected ? theme.colorScheme.onPrimaryContainer : null,
-              ) ??
-              const TextStyle(fontSize: 12, height: 1.0),
+          style: (theme.textTheme.bodySmall ?? const TextStyle()).copyWith(
+            fontSize: 12,
+            letterSpacing: 0,
+            fontWeight: isSelected ? FontWeight.bold : null,
+            color: isSelected ? theme.colorScheme.onPrimaryContainer : null,
+          ),
           child: child,
         ),
       ),
@@ -624,12 +626,13 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
     final headerStyle =
         theme.textTheme.labelMedium?.copyWith(
           fontWeight: FontWeight.w600,
-          fontSize: 11,
+          fontSize: 10,
+          letterSpacing: 0,
         ) ??
-        const TextStyle(fontWeight: FontWeight.w600, fontSize: 11);
+        const TextStyle(fontWeight: FontWeight.w600, fontSize: 10, letterSpacing: 0);
     final bodyStyle =
-        theme.textTheme.bodySmall?.copyWith(fontSize: 12, height: 1.0) ??
-        const TextStyle(fontSize: 12, height: 1.0);
+        theme.textTheme.bodySmall?.copyWith(fontSize: 12, letterSpacing: 0) ??
+        const TextStyle(fontSize: 12, letterSpacing: 0);
 
     const paddingWidth = _kCellHorizontalPadding * 2;
 
@@ -642,6 +645,11 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
       }
 
       double columnWidth = config.minWidth ?? _kDefaultMinColumnWidth;
+
+      // ВСЕГДА измеряем ширину заголовка, чтобы колонки были одинаковыми во всех табах
+      final headerWidth = _measureText(config.title, headerStyle) + paddingWidth;
+      columnWidth = math.max(columnWidth, headerWidth);
+
       if (config.measureText != null) {
         for (final estimate in widget.items) {
           final completion = widget.completionData?[estimate.id];
@@ -651,17 +659,6 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
           columnWidth = math.max(columnWidth, width);
         }
       }
-
-      if (widget.items.isEmpty) {
-        final headerWidth =
-            _measureText(config.title, headerStyle) + paddingWidth;
-        columnWidth = math.max(columnWidth, headerWidth);
-      }
-
-      columnWidth = math.max(
-        columnWidth,
-        config.minWidth ?? _kDefaultMinColumnWidth,
-      );
 
       fixedWidths[i] = columnWidth;
       totalFixed += columnWidth;

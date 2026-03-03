@@ -10,6 +10,7 @@ targets:
             - lib/features/**/domain/entities/**.dart
             - lib/features/**/presentation/state/**.dart
             - lib/core/error/**.dart
+            - lib/core/refresh/**.dart
       json_serializable:
         options:
           explicit_to_json: true

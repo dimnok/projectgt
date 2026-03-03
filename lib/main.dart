@@ -21,6 +21,7 @@ import 'package:projectgt/data/services/fcm_token_service.dart';
 import 'package:projectgt/features/version_control/providers/version_providers.dart';
 import 'package:projectgt/core/utils/version_utils.dart';
 import 'package:projectgt/core/constants/app_constants.dart';
+import 'package:projectgt/core/refresh/app_focus_refresh_coordinator.dart';
 
 /// Обработчик фоновых сообщений Firebase Cloud Messaging.
 ///
@@ -131,12 +132,40 @@ Future<void> main() async {
 /// Корневой виджет приложения ProjectGT.
 ///
 /// Настраивает темы, маршрутизацию и глобальные провайдеры состояния.
-class MyApp extends ConsumerWidget {
+class MyApp extends ConsumerStatefulWidget {
   /// Создаёт экземпляр [MyApp].
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends ConsumerState<MyApp> {
+  late final AppLifecycleListener _lifecycleListener;
+
+  @override
+  void initState() {
+    super.initState();
+    // Инициализация глобального слушателя жизненного цикла приложения
+    _lifecycleListener = AppLifecycleListener(
+      onRestart: () => _handleRefresh(),
+      onResume: () => _handleRefresh(),
+      onShow: () => _handleRefresh(),
+    );
+  }
+
+  void _handleRefresh() {
+    ref.read(appFocusRefreshProvider.notifier).handleAppResumed();
+  }
+
+  @override
+  void dispose() {
+    _lifecycleListener.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     // Инициализация локальных уведомлений и обработка тапа
     ref.read(notificationServiceProvider).initialize(onSelect: (payload) async {
       if (payload == null || payload.isEmpty) return;

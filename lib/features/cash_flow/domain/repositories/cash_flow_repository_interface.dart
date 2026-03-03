@@ -17,6 +17,9 @@ abstract class ICashFlowRepository {
   /// Используется для дедупликации при импорте.
   Future<Set<String>> getExistingOperationHashes();
 
+  /// Удаляет запись банковской выписки.
+  Future<void> deleteBankStatementEntry(String id);
+
   /// Получает список финансовых операций с поддержкой пагинации и поиска.
   Future<List<CashFlowTransaction>> getTransactions({
     String? objectId,

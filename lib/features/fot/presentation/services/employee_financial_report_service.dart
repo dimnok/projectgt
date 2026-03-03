@@ -9,7 +9,7 @@ import 'package:projectgt/features/fot/presentation/providers/payroll_providers.
 import 'package:collection/collection.dart';
 
 /// Сервис для формирования данных финансового отчета по конкретному сотруднику.
-/// 
+///
 /// Инкапсулирует логику сбора данных из разных источников:
 /// - История ставок (employee_rates)
 /// - Отработанные часы (work_hours + employee_attendance)
@@ -37,11 +37,15 @@ class EmployeeFinancialReportService {
         .select()
         .eq('employee_id', employeeId)
         .order('valid_from');
-    final List<Map<String, dynamic>> rates = List<Map<String, dynamic>>.from(ratesResponse);
+    final List<Map<String, dynamic>> rates = List<Map<String, dynamic>>.from(
+      ratesResponse,
+    );
 
     // 2. Все отработанные часы (смены + табель)
     final results = await Future.wait([
-      _client.from('work_hours').select('''
+      _client
+          .from('work_hours')
+          .select('''
         hours,
         works!inner(date, status)
       ''')
@@ -49,21 +53,27 @@ class EmployeeFinancialReportService {
           .eq('works.status', 'closed')
           .gte('works.date', startDate.toIso8601String())
           .lte('works.date', endDate.toIso8601String()),
-      _client.from('employee_attendance').select('hours, date')
+      _client
+          .from('employee_attendance')
+          .select('hours, date')
           .eq('employee_id', employeeId)
           .gte('date', startDate.toIso8601String())
           .lte('date', endDate.toIso8601String()),
     ]);
 
     final allWorkEntries = [
-      ...(results[0] as List).map((row) => {
-        'hours': (row['hours'] as num).toDouble(),
-        'date': DateTime.parse(row['works']['date']),
-      }),
-      ...(results[1] as List).map((row) => {
-        'hours': (row['hours'] as num).toDouble(),
-        'date': DateTime.parse(row['date']),
-      }),
+      ...(results[0] as List).map(
+        (row) => {
+          'hours': (row['hours'] as num).toDouble(),
+          'date': DateTime.parse(row['works']['date']),
+        },
+      ),
+      ...(results[1] as List).map(
+        (row) => {
+          'hours': (row['hours'] as num).toDouble(),
+          'date': DateTime.parse(row['date']),
+        },
+      ),
     ];
 
     // 3. Выплаты за год
@@ -79,12 +89,16 @@ class EmployeeFinancialReportService {
         .toList();
 
     // 4. Расчеты ФОТ через RPC за каждый месяц
-    final List<Future<dynamic>> payrollFutures = List.generate(12, (i) => 
-      _client.rpc('calculate_payroll_for_month', params: {
-        'p_year': year,
-        'p_month': i + 1,
-        'p_company_id': _activeCompanyId,
-      })
+    final List<Future<dynamic>> payrollFutures = List.generate(
+      12,
+      (i) => _client.rpc(
+        'calculate_payroll_for_month',
+        params: {
+          'p_year': year,
+          'p_month': i + 1,
+          'p_company_id': _activeCompanyId,
+        },
+      ),
     );
     final payrollResults = await Future.wait(payrollFutures);
 
@@ -93,7 +107,9 @@ class EmployeeFinancialReportService {
     for (int i = 0; i < 12; i++) {
       final month = i + 1;
       final monthResults = payrollResults[i] as List;
-      final monthRow = monthResults.firstWhereOrNull((row) => row['employee_id'] == employeeId);
+      final monthRow = monthResults.firstWhereOrNull(
+        (row) => row['employee_id'] == employeeId,
+      );
 
       PayrollCalculation? calc;
       if (monthRow != null) {
@@ -105,7 +121,8 @@ class EmployeeFinancialReportService {
           baseSalary: (monthRow['base_salary'] as num).toDouble(),
           bonusesTotal: (monthRow['bonuses_total'] as num).toDouble(),
           penaltiesTotal: (monthRow['penalties_total'] as num).toDouble(),
-          businessTripTotal: (monthRow['business_trip_total'] as num).toDouble(),
+          businessTripTotal: (monthRow['business_trip_total'] as num)
+              .toDouble(),
           netSalary: (monthRow['net_salary'] as num).toDouble(),
         );
       }
@@ -123,9 +140,13 @@ class EmployeeFinancialReportService {
         double activeRate = 0;
         for (final rate in rates) {
           final validFrom = DateTime.parse(rate['valid_from']);
-          final validTo = rate['valid_to'] != null ? DateTime.parse(rate['valid_to']) : null;
+          final validTo = rate['valid_to'] != null
+              ? DateTime.parse(rate['valid_to'])
+              : null;
           if ((date.isAfter(validFrom) || date.isAtSameMomentAs(validFrom)) &&
-              (validTo == null || date.isBefore(validTo) || date.isAtSameMomentAs(validTo))) {
+              (validTo == null ||
+                  date.isBefore(validTo) ||
+                  date.isAtSameMomentAs(validTo))) {
             activeRate = (rate['hourly_rate'] as num).toDouble();
             break;
           }
@@ -136,11 +157,13 @@ class EmployeeFinancialReportService {
       }
 
       final List<RateBreakdown> breakdowns = rateHoursMap.entries
-          .map((entry) => RateBreakdown(
-                rate: entry.key,
-                hours: entry.value,
-                amount: entry.key * entry.value,
-              ))
+          .map(
+            (entry) => RateBreakdown(
+              rate: entry.key,
+              hours: entry.value,
+              amount: entry.key * entry.value,
+            ),
+          )
           .toList();
 
       // Если переданы данные FIFO — берем выплаты и баланс оттуда
@@ -148,30 +171,42 @@ class EmployeeFinancialReportService {
       double monthBalance = 0;
 
       if (fifoData != null) {
-        final fifoAmount = fifoData.payouts[month] ?? 0.0;
         monthBalance = fifoData.balances[month] ?? 0.0;
-        
+
         // Для детального отчета нам все равно нужны объекты PayrollPayoutModel
         // Но мы берем только те, что фактически относятся к этому месяцу по дате,
         // ИЛИ (более корректно для PDF) показываем все выплаты, но помечаем их.
         // Пока оставим фильтрацию по дате для списка транзакций, но баланс будет из FIFO.
-        monthPayouts = allPayouts.where((p) => p.payoutDate.year == year && p.payoutDate.month == month).toList();
+        monthPayouts = allPayouts
+            .where(
+              (p) => p.payoutDate.year == year && p.payoutDate.month == month,
+            )
+            .toList();
       } else {
-        monthPayouts = allPayouts.where((p) => p.payoutDate.year == year && p.payoutDate.month == month).toList();
+        monthPayouts = allPayouts
+            .where(
+              (p) => p.payoutDate.year == year && p.payoutDate.month == month,
+            )
+            .toList();
         final monthEarned = calc?.netSalary ?? 0;
-        final monthPaid = monthPayouts.fold<double>(0, (sum, p) => sum + p.amount);
+        final monthPaid = monthPayouts.fold<double>(
+          0,
+          (sum, p) => sum + p.amount,
+        );
         monthBalance = monthEarned - monthPaid;
       }
 
       if (calc != null || monthPayouts.isNotEmpty) {
-        monthlyReportData.add(MonthlyReportData(
-          month: month,
-          year: year,
-          calculation: calc,
-          payouts: monthPayouts,
-          rateBreakdowns: breakdowns,
-          balance: monthBalance,
-        ));
+        monthlyReportData.add(
+          MonthlyReportData(
+            month: month,
+            year: year,
+            calculation: calc,
+            payouts: monthPayouts,
+            rateBreakdowns: breakdowns,
+            balance: monthBalance,
+          ),
+        );
       }
     }
 

@@ -1,16 +1,8 @@
-import 'dart:io';
-import 'dart:typed_data';
-
 import 'package:collection/collection.dart';
-import 'package:excel/excel.dart' as excel;
-import 'package:excel/excel.dart' show TextCellValue, DoubleCellValue;
-import 'package:file_saver/file_saver.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:path_provider/path_provider.dart' as path_provider;
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
@@ -19,13 +11,14 @@ import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:projectgt/features/estimates/presentation/screens/estimate_details_screen.dart';
 import 'package:projectgt/features/estimates/presentation/providers/estimate_providers.dart';
 import 'package:projectgt/features/estimates/presentation/screens/import_estimate_form_modal.dart';
+import 'package:projectgt/core/refresh/refresh_models.dart';
+import 'package:projectgt/core/refresh/app_focus_refresh_coordinator.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
 import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
 import 'package:projectgt/presentation/widgets/app_badge.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 import 'package:projectgt/presentation/widgets/cupertino_dialog_widget.dart';
-import 'package:share_plus/share_plus.dart';
 
 /// Экран со списком всех смет.
 class EstimatesListScreen extends ConsumerStatefulWidget {
@@ -39,11 +32,34 @@ class EstimatesListScreen extends ConsumerStatefulWidget {
 
 class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
   EstimateFile? selectedEstimateFile;
+  late final AppFocusRefreshCoordinator _refreshCoordinator;
 
   @override
   void initState() {
     super.initState();
-    // Данные загружаются через FutureProvider, явный вызов не нужен
+    _refreshCoordinator = ref.read(appFocusRefreshProvider.notifier);
+    
+    // Регистрация цели автоматического обновления для модуля смет
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _refreshCoordinator.registerTarget(
+          RefreshTarget(
+            id: 'estimates',
+            callback: (ref) async {
+              ref.invalidate(estimateGroupsProvider);
+              // Также инвалидируем детали, если они открыты
+              ref.invalidate(estimateItemsProvider);
+            },
+          ),
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshCoordinator.unregisterTarget('estimates');
+    super.dispose();
   }
 
   void _showImportEstimateBottomSheet(BuildContext context) {
@@ -56,112 +72,6 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
         ref.invalidate(estimateGroupsProvider);
       },
     );
-  }
-
-  Future<void> _exportToExcel(BuildContext context) async {
-    try {
-      // Загружаем все группы смет
-      final groups = await ref.read(estimateGroupsProvider.future);
-      if (!context.mounted) return;
-      if (groups.isEmpty) {
-        SnackBarUtils.showInfo(context, 'Нет данных для экспорта');
-        return;
-      }
-
-      final excelFile = excel.Excel.createExcel();
-      final sheet = excelFile['Сметы'];
-
-      sheet.appendRow([
-        TextCellValue('Система'),
-        TextCellValue('Подсистема'),
-        TextCellValue('№'),
-        TextCellValue('Наименование'),
-        TextCellValue('Артикул'),
-        TextCellValue('Производитель'),
-        TextCellValue('Ед. изм.'),
-        TextCellValue('Кол-во'),
-        TextCellValue('Цена'),
-        TextCellValue('Сумма'),
-        TextCellValue('Объект'),
-        TextCellValue('Договор'),
-        TextCellValue('Название сметы'),
-        TextCellValue('ID'),
-      ]);
-
-      final objects = ref.read(objectProvider).objects;
-
-      // Проходим по каждой группе и загружаем её элементы для экспорта
-      for (final group in groups) {
-        // Загружаем элементы для каждой группы
-        final items = await ref.read(
-          estimateItemsProvider(
-            EstimateDetailArgs(
-              estimateTitle: group.estimateTitle,
-              objectId: group.objectId,
-              contractId: group.contractId,
-            ),
-          ).future,
-        );
-
-        String objectName = '';
-        if (group.objectId != null) {
-          final objectEntity = objects.firstWhereOrNull(
-            (o) => o.id == group.objectId,
-          );
-          if (objectEntity != null) {
-            objectName = objectEntity.name;
-          }
-        }
-
-        final contractNumber = group.contractNumber ?? '—';
-
-        for (final estimate in items) {
-          sheet.appendRow([
-            TextCellValue(estimate.system),
-            TextCellValue(estimate.subsystem),
-            TextCellValue(estimate.number),
-            TextCellValue(estimate.name),
-            TextCellValue(estimate.article),
-            TextCellValue(estimate.manufacturer),
-            TextCellValue(estimate.unit),
-            DoubleCellValue(estimate.quantity),
-            DoubleCellValue(estimate.price),
-            DoubleCellValue(estimate.total),
-            TextCellValue(objectName),
-            TextCellValue(estimate.contractNumber ?? contractNumber),
-            TextCellValue(group.estimateTitle),
-            TextCellValue(estimate.id),
-          ]);
-        }
-      }
-
-      final bytes = excelFile.encode()!;
-      final fileName =
-          'estimates_export_${DateTime.now().millisecondsSinceEpoch}.xlsx';
-
-      if (kIsWeb) {
-        await FileSaver.instance.saveFile(
-          name: fileName,
-          bytes: Uint8List.fromList(bytes),
-          mimeType: MimeType.microsoftExcel,
-        );
-      } else {
-        final directory = await path_provider.getTemporaryDirectory();
-        final path = '${directory.path}/$fileName';
-        final file = File(path);
-        await file.writeAsBytes(bytes);
-
-        await SharePlus.instance.share(
-          ShareParams(files: [XFile(path)], text: 'Экспорт смет'),
-        );
-      }
-
-      if (!context.mounted) return;
-      SnackBarUtils.showSuccess(context, 'Сметы экспортированы в Excel');
-    } catch (e) {
-      if (!context.mounted) return;
-      SnackBarUtils.showError(context, 'Ошибка экспорта: $e');
-    }
   }
 
   void _deleteEstimateFile(EstimateFile file) async {
@@ -248,15 +158,6 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
               )
             : null,
         actions: [
-          PermissionGuard(
-            module: 'estimates',
-            permission: 'export',
-            child: IconButton(
-              icon: const Icon(CupertinoIcons.arrow_down_doc),
-              tooltip: 'Экспортировать Excel',
-              onPressed: () => _exportToExcel(context),
-            ),
-          ),
           IconButton(
             icon: const Icon(CupertinoIcons.refresh),
             tooltip: 'Обновить данные',

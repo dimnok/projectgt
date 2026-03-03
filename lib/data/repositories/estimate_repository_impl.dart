@@ -1,11 +1,10 @@
 import '../../domain/entities/estimate.dart';
 import '../../domain/entities/estimate_completion_history.dart';
-import '../../domain/entities/ks6a_period.dart' as entity;
+import '../../domain/entities/vor.dart';
 import '../../domain/repositories/estimate_repository.dart';
 import '../datasources/estimate_data_source.dart';
 import '../models/estimate_model.dart';
 import '../models/estimate_completion_model.dart';
-import '../models/ks6a_model.dart';
 
 /// Реализация репозитория EstimateRepository для работы со сметами через data source.
 class EstimateRepositoryImpl implements EstimateRepository {
@@ -74,12 +73,12 @@ class EstimateRepositoryImpl implements EstimateRepository {
     String? contractId,
   }) async {
     if (dataSource is SupabaseEstimateDataSource) {
-      final models =
-          await (dataSource as SupabaseEstimateDataSource).getEstimatesByFile(
-        estimateTitle: estimateTitle,
-        objectId: objectId,
-        contractId: contractId,
-      );
+      final models = await (dataSource as SupabaseEstimateDataSource)
+          .getEstimatesByFile(
+            estimateTitle: estimateTitle,
+            objectId: objectId,
+            contractId: contractId,
+          );
       return models.map((e) => e.toDomain()).toList();
     }
     return [];
@@ -87,7 +86,8 @@ class EstimateRepositoryImpl implements EstimateRepository {
 
   /// Получает выполнение только для указанных ID сметных позиций.
   Future<List<EstimateCompletionModel>> getEstimateCompletionByIds(
-      List<String> estimateIds) async {
+    List<String> estimateIds,
+  ) async {
     if (dataSource is SupabaseEstimateDataSource) {
       return (dataSource as SupabaseEstimateDataSource)
           .getEstimateCompletionByIds(estimateIds);
@@ -102,16 +102,18 @@ class EstimateRepositoryImpl implements EstimateRepository {
   }
 
   @override
-  Future<List<EstimateCompletionHistory>> getEstimateCompletionHistory(String estimateId) async {
+  Future<List<EstimateCompletionHistory>> getEstimateCompletionHistory(
+    String estimateId,
+  ) async {
     final rawData = await dataSource.getEstimateCompletionHistory(estimateId);
-    
+
     final history = rawData.map((row) {
       final works = row['works'] as Map<String, dynamic>?;
       final dateStr = works?['date'] as String?;
       final quantity = (row['quantity'] as num?)?.toDouble() ?? 0.0;
       final section = row['section'] as String? ?? '';
       final floor = row['floor'] as String? ?? '';
-      
+
       return EstimateCompletionHistory(
         date: dateStr != null ? DateTime.parse(dateStr) : DateTime.now(),
         quantity: quantity,
@@ -122,7 +124,7 @@ class EstimateRepositoryImpl implements EstimateRepository {
 
     // Сортируем: сначала новые даты (по убыванию)
     history.sort((a, b) => b.date.compareTo(a.date));
-    
+
     return history;
   }
 
@@ -133,57 +135,38 @@ class EstimateRepositoryImpl implements EstimateRepository {
   }
 
   @override
-  Future<List<Map<String, dynamic>>> getContractCompletionHistory(String contractId) async {
-    return dataSource.getContractCompletionHistory(contractId);
+  Future<List<Vor>> getVors(String contractId) async {
+    final models = await dataSource.getVors(contractId);
+    return models.map((m) => m.toDomain()).toList();
   }
 
   @override
-  Future<String> createKs6aPeriod({
+  Future<String> createVor({
     required String contractId,
     required DateTime startDate,
     required DateTime endDate,
-    String? title,
+    required List<String> systems,
   }) async {
-    return dataSource.createKs6aPeriod(
+    return dataSource.createVor(
       contractId: contractId,
       startDate: startDate,
       endDate: endDate,
-      title: title,
+      systems: systems,
     );
   }
 
   @override
-  Future<void> refreshKs6aPeriod(String periodId) async {
-    await dataSource.refreshKs6aPeriod(periodId);
+  Future<void> updateVorStatus(String vorId, VorStatus status, {String? comment}) async {
+    await dataSource.updateVorStatus(vorId, status, comment: comment);
   }
 
   @override
-  Future<void> approveKs6aPeriod(String periodId) async {
-    await dataSource.approveKs6aPeriod(periodId);
+  Future<void> deleteVor(String vorId) async {
+    await dataSource.deleteVor(vorId);
   }
 
   @override
-  Future<entity.Ks6aContractData> getKs6aContractData(String contractId) async {
-    final rawData = await dataSource.getKs6aContractData(contractId);
-    final model = Ks6aContractData.fromJson(rawData);
-    
-    return entity.Ks6aContractData(
-      periods: model.periods.map((p) => entity.Ks6aPeriod(
-        id: p.id,
-        startDate: p.startDate,
-        endDate: p.endDate,
-        status: p.status,
-        title: p.title,
-        totalAmount: p.totalAmount,
-      )).toList(),
-      items: model.items.map((i) => entity.Ks6aPeriodItem(
-        id: i.id,
-        periodId: i.periodId,
-        estimateId: i.estimateId,
-        quantity: i.quantity,
-        priceSnapshot: i.priceSnapshot,
-        amount: i.amount,
-      )).toList(),
-    );
+  Future<void> populateVorItems(String vorId) async {
+    await dataSource.populateVorItems(vorId);
   }
 }
