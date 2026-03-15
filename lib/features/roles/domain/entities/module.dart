@@ -21,6 +21,8 @@ abstract class Module with _$Module {
   /// Получить иконку по ключу (временное решение, пока иконки строковые)
   IconData get icon {
     switch (iconKey) {
+      case 'table':
+        return CupertinoIcons.table;
       case 'person_3':
         return CupertinoIcons.person_3;
       case 'cube_box':

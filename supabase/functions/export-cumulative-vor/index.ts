@@ -169,13 +169,13 @@ serve(async (req) => {
           const num = vor.number || "ВОР";
           headers.push(`${num}\n(объем)`, `${num}\n(сумма)`);
         });
-        headers.push("ИТОГО\n(объем)", "ИТОГО\n(сумма)");
+        headers.push("ИТОГО\n(объем)", "ИТОГО\n(сумма)", "Превышение\n(объем)", "Превышение\n(сумма)");
       } else {
         headers.push("Кол-во по смете");
         vors.forEach((vor: any) => {
           headers.push(vor.number || `ВОР-${vor.id.substring(0, 4)}`);
         });
-        headers.push("ИТОГО");
+        headers.push("ИТОГО", "Превышение");
       }
 
       const headerRow = worksheet.addRow(headers);
@@ -211,6 +211,7 @@ serve(async (req) => {
         let groupEstimateSum = 0;
         const groupVorSums: Record<string, number> = {}; // vor_id -> sum
         let groupTotalSum = 0;
+        let groupExcessSum = 0;
 
         groupedData[estimateTitle].forEach((item: any) => {
           const rowData = [
@@ -249,10 +250,14 @@ serve(async (req) => {
           });
           
           if (isFinancial) {
-            rowData.push(totalQty, totalAmount);
+            const excessQty = Math.max(0, totalQty - (item.quantity || 0));
+            const excessAmount = excessQty * (item.price || 0);
+            rowData.push(totalQty, totalAmount, excessQty > 0.0001 ? excessQty : "", excessAmount >= 0 ? excessAmount : 0);
             groupTotalSum += totalAmount;
+            groupExcessSum += (excessAmount > 0 ? excessAmount : 0);
           } else {
-            rowData.push(totalQty);
+            const excessQty = Math.max(0, totalQty - (item.quantity || 0));
+            rowData.push(totalQty, excessQty > 0.0001 ? excessQty : "");
           }
 
           const newRow = worksheet.addRow(rowData);
@@ -260,14 +265,37 @@ serve(async (req) => {
           
           for (let i = 1; i <= totalCols; i++) {
             const cell = newRow.getCell(i);
+            // Границы и центрирование
             cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+            
+            // Жирные границы для колонок превышения
+            if (isFinancial) {
+              if (i === totalCols - 1 || i === totalCols) {
+                cell.border = { 
+                  top: { style: 'thin' }, 
+                  left: { style: 'medium' }, 
+                  bottom: { style: 'thin' }, 
+                  right: { style: 'medium' } 
+                };
+              }
+            } else {
+              if (i === totalCols) {
+                cell.border = { 
+                  top: { style: 'thin' }, 
+                  left: { style: 'medium' }, 
+                  bottom: { style: 'thin' }, 
+                  right: { style: 'medium' } 
+                };
+              }
+            }
+            
             cell.alignment = { vertical: 'middle', horizontal: i === 4 ? 'left' : 'center', wrapText: true };
             
             // Форматирование чисел
             if (isFinancial) {
-              if (i === 7 || i === 8 || (i >= 9 && (i - 9) % 2 !== 0)) { // Финансы (Цена, Суммы)
+              if (i === 8 || (i >= 9 && i < totalCols - 1 && (i - 9) % 2 !== 0) || i === totalCols) { // Финансы (Цена, Суммы, Превышение сумма)
                 cell.numFmt = '#,##0.00';
-              } else if (i === 6 || (i >= 9 && (i - 9) % 2 === 0)) { // Объемы (Кол-во смет., ВОР-объем, ИТОГО-объем)
+              } else if (i === 6 || (i >= 9 && (i - 9) % 2 === 0) || i === totalCols - 1) { // Объемы (Кол-во смет., ВОР-объем, ИТОГО-объем, Превышение объем)
                 cell.numFmt = '#,##0';
               }
             } else {
@@ -294,6 +322,8 @@ serve(async (req) => {
           });
           footerRowData.push(""); // ИТОГО объем (пусто)
           footerRowData.push(groupTotalSum); // ИТОГО сумма
+          footerRowData.push(""); // Превышение объем (пусто для итога)
+          footerRowData.push(groupExcessSum); // Превышение сумма (ИТОГО)
 
           const footerRow = worksheet.addRow(footerRowData);
           footerRow.height = 25;
@@ -303,6 +333,17 @@ serve(async (req) => {
             const cell = footerRow.getCell(i);
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } };
             cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+            
+            // Жирные границы для колонок превышения в футере
+            if (i === totalCols - 1 || i === totalCols) {
+              cell.border = { 
+                top: { style: 'thin' }, 
+                left: { style: 'medium' }, 
+                bottom: { style: 'thin' }, 
+                right: { style: 'medium' } 
+              };
+            }
+            
             cell.alignment = { vertical: 'middle', horizontal: (i === 1 || i === 4) ? (i === 1 ? 'left' : 'right') : 'center' };
             
             if (i === 8 || (i >= 9 && (i - 9) % 2 !== 0)) {
@@ -324,17 +365,38 @@ serve(async (req) => {
       if (isFinancial) {
         colWidths.push({ width: 12 }, { width: 12 }, { width: 15 }); // Кол-во смет., Цена, Сумма смет.
         vors.forEach(() => colWidths.push({ width: 10 }, { width: 15 })); // Объем ВОР, Сумма ВОР
-        colWidths.push({ width: 10 }, { width: 15 }); // ИТОГО объем, ИТОГО сумма
+        colWidths.push({ width: 10 }, { width: 15 }, { width: 15 }, { width: 15 }); // ИТОГО объем, ИТОГО сумма, Превышение объем, Превышение сумма
       } else {
         colWidths.push({ width: 10 }); // Кол-во смет.
         vors.forEach(() => colWidths.push({ width: 10 }));
-        colWidths.push({ width: 10 }); // ИТОГО
+        colWidths.push({ width: 10 }, { width: 15 }); // ИТОГО, Превышение
       }
 
       worksheet.columns = colWidths;
 
-      headerRow.eachCell((cell) => {
+      headerRow.eachCell((cell, colNumber) => {
         cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+        
+        // Жирные границы для заголовков превышения
+        if (isFinancial) {
+          if (colNumber === totalCols - 1 || colNumber === totalCols) {
+            cell.border = { 
+              top: { style: 'thin' }, 
+              left: { style: 'medium' }, 
+              bottom: { style: 'thin' }, 
+              right: { style: 'medium' } 
+            };
+          }
+        } else {
+          if (colNumber === totalCols) {
+            cell.border = { 
+              top: { style: 'thin' }, 
+              left: { style: 'medium' }, 
+              bottom: { style: 'thin' }, 
+              right: { style: 'medium' } 
+            };
+          }
+        }
       });
     };
 

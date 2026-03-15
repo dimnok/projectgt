@@ -10,6 +10,7 @@ import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/gt_buttons.dart';
 import '../../../../data/models/estimate_completion_model.dart';
 import '../../../../domain/entities/estimate.dart';
+import '../../../../features/estimates/presentation/screens/import_estimate_addendum_modal.dart';
 import '../../../../features/estimates/presentation/screens/import_estimate_form_modal.dart';
 import '../../../../features/roles/application/permission_service.dart';
 import '../../../../features/roles/presentation/widgets/permission_guard.dart';
@@ -241,7 +242,8 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
                                                       }),
                                                       onActsTap: () => setState(
                                                         () {
-                                                          _isContractDetailMode = true;
+                                                          _isContractDetailMode =
+                                                              true;
                                                           _contractViewMode =
                                                               ContractViewMode
                                                                   .acts;
@@ -365,6 +367,36 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
     );
   }
 
+  void _showImportEstimateAddendumModal(
+    BuildContext context,
+    EstimateFile file,
+  ) {
+    final contractId = file.contractId;
+    if (contractId == null || contractId.isEmpty) {
+      SnackBarUtils.showError(
+        context,
+        'Для LC / ДС требуется смета, привязанная к договору',
+      );
+      return;
+    }
+
+    ImportEstimateAddendumModal.show(
+      context,
+      estimateTitle: file.estimateTitle,
+      contractId: contractId,
+      objectId: file.objectId,
+      onSuccess: () {
+        if (context.mounted) {
+          context.pop();
+        }
+        SnackBarUtils.showSuccess(
+          context,
+          'Черновик LC / ДС сохранён в новом потоке ревизий',
+        );
+      },
+    );
+  }
+
   Widget _buildContractDetailPanel(BuildContext context) {
     final theme = Theme.of(context);
     final contractId = _selectedContractId;
@@ -417,8 +449,7 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
                     GTSecondaryButton(
                       icon: CupertinoIcons.doc_text,
                       text: 'Ведомости ВОР',
-                      onPressed: () =>
-                          VorListDialog.show(context, contractId),
+                      onPressed: () => VorListDialog.show(context, contractId),
                     ),
                   ],
                 ),
@@ -440,10 +471,7 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
   Widget _buildContractViewContent(BuildContext context, String contractId) {
     switch (_contractViewMode) {
       case ContractViewMode.acts:
-        return ActsTableView(
-          contractId: contractId,
-          searchQuery: _searchQuery,
-        );
+        return ActsTableView(contractId: contractId, searchQuery: _searchQuery);
     }
   }
 
@@ -622,7 +650,8 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
                 objectId: file.objectId,
                 contractId: file.contractId,
               ),
-              onDuplicate: (estimate) => duplicateEstimateItem(context, estimate),
+              onDuplicate: (estimate) =>
+                  duplicateEstimateItem(context, estimate),
               onDelete: (id) => deleteEstimateItem(context, id),
               contractNumber: file.contractNumber,
             ),
@@ -693,7 +722,9 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
                             const SizedBox(width: 16),
                             _CompactVorButton(contractId: file.contractId!),
                             const SizedBox(width: 8),
-                            _ExportCumulativeVorButton(contractId: file.contractId!),
+                            _ExportCumulativeVorButton(
+                              contractId: file.contractId!,
+                            ),
                           ],
                         ],
                       ),
@@ -759,19 +790,36 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
                   ),
                 ),
                 if (_viewMode == EstimateViewMode.planning)
-                  PermissionGuard(
-                    module: 'estimates',
-                    permission: 'create',
-                    child: GTPrimaryButton(
-                      icon: CupertinoIcons.add,
-                      text: 'Добавить позицию',
-                      onPressed: () => openEditDialog(
-                        context,
-                        estimateTitle: file.estimateTitle,
-                        objectId: file.objectId,
-                        contractId: file.contractId,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (file.contractId != null)
+                        PermissionGuard(
+                          module: 'estimates',
+                          permission: 'import',
+                          child: GTSecondaryButton(
+                            icon: CupertinoIcons.doc_text,
+                            text: 'LC / ДС',
+                            onPressed: () =>
+                                _showImportEstimateAddendumModal(context, file),
+                          ),
+                        ),
+                      if (file.contractId != null) const SizedBox(width: 12),
+                      PermissionGuard(
+                        module: 'estimates',
+                        permission: 'create',
+                        child: GTPrimaryButton(
+                          icon: CupertinoIcons.add,
+                          text: 'Добавить позицию',
+                          onPressed: () => openEditDialog(
+                            context,
+                            estimateTitle: file.estimateTitle,
+                            objectId: file.objectId,
+                            contractId: file.contractId,
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
               ],
             ),

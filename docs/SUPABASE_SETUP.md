@@ -1,152 +1,84 @@
-# 🔧 Настройка Supabase для ProjectGT
+# 🔧 Настройка Supabase для ProjectGT (Self-hosted)
 
-**Project ID:** `hzcawspbkvkrsmsklyuj`
+**Текущий статус:** Переход на Self-hosted сервер завершен (15.03.2026).
+**Project URL:** `https://api.progt.ru`
+**Legacy Project ID (Cloud):** `hzcawspbkvkrsmsklyuj` (сохранен для обратной совместимости)
 
 ## ⚠️ Важно!
-Приложение сейчас работает в **демо-режиме** без подключения к реальной базе данных. Для полноценной работы необходимо настроить Supabase проект.
+Приложение полностью переведено на собственный сервер (Self-hosted Supabase). Все данные, функции и хранилище (Storage) теперь находятся на VPS.
 
-## 🆕 Создание нового Supabase проекта
+## 🔑 Конфигурация приложения
 
-### 1. Регистрация в Supabase
-1. Перейдите на [supabase.com](https://supabase.com)
-2. Нажмите **"Start your project"**
-3. Войдите через GitHub, Google или создайте аккаунт
+Основные настройки находятся в `lib/core/config/app_config.dart` и файле `.env`.
 
-### 2. Создание проекта
-1. В dashboard нажмите **"New project"**
-2. Выберите организацию (или создайте новую)
-3. Заполните данные проекта:
-   - **Name**: `ProjectGT`
-   - **Database Password**: создайте надёжный пароль
-   - **Region**: выберите ближайший регион
-   - **Pricing Plan**: Free tier (для начала)
-4. Нажмите **"Create new project"**
+### 1. Файл .env (для нативных платформ)
+```env
+# SELF-HOSTED Supabase
+SUPABASE_URL=https://api.progt.ru
+SUPABASE_ANON_KEY=eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9... (ваш ключ)
+ENV=dev
+```
 
-### 3. Получение настроек проекта
-После создания проекта (2-3 минуты):
-
-1. Перейдите в **Settings** → **API**
-2. Скопируйте:
-   - **Project URL** (например: `https://abcdefgh.supabase.co`)
-   - **anon public** ключ (длинная строка)
-
-## 🔑 Обновление конфигурации
-
-Отредактируйте файл `lib/core/config/app_config.dart`:
-
+### 2. Файл lib/core/config/app_config.dart (для Web и Fallback)
 ```dart
 class AppConfig {
-  /// URL Supabase проекта
-  static const String supabaseUrl = 'https://ваш-проект-id.supabase.co';
-  
-  /// Анонимный ключ Supabase
-  static const String supabaseAnonKey = 'ваш-анонимный-ключ';
-  
-  /// Режим отладки
-  static const bool debugMode = true; // false для продакшн
-  
-  /// Показывать ли заглушку вместо реального Supabase
-  static const bool useMockData = false; // ВАЖНО: установить false
+  static String get supabaseUrl => 'https://api.progt.ru';
+  static String get supabaseAnonKey => 'ваш-анонимный-ключ';
+  static bool get useMockData => false;
 }
 ```
 
-## 🗄️ Настройка базы данных
+## 🗄️ Инфраструктура Self-hosted
 
-### 1. Создание таблиц
+### 1. База данных и RLS
+- База данных полностью мигрирована из Supabase Cloud.
+- Все политики Row Level Security (RLS) активны и настроены для изоляции данных по `company_id`.
+- Для управления доступом используется функция `get_my_company_ids()`.
 
-В Supabase Dashboard перейдите в **SQL Editor** и выполните миграции:
+### 2. Edge Functions (26 функций)
+- Все функции перенесены на новый сервер.
+- Вызов функций происходит через стандартный API Gateway: `https://api.progt.ru/functions/v1/`.
+- Настроены секреты для интеграций:
+  - **DaData** (поиск по ИНН)
+  - **Notisend** (отправка SMS/OTP)
+  - **Telegram** (уведомления)
+  - **Firebase** (Push-уведомления)
 
-```sql
--- Выполните миграции из папки data/migrations/
--- В следующем порядке:
-```
+### 3. Storage (Хранилище)
+- Используется локальное хранилище на диске VPS.
+- Бакеты: `avatars`, `employees`, `contractors`, `works`.
+- Доступ к файлам осуществляется через публичные URL: `https://api.progt.ru/storage/v1/object/public/...`.
 
-1. `profiles_migration.sql` ← **ОБЯЗАТЕЛЬНО ПЕРВАЯ!**
-2. `employees_migration.sql`
-3. `contractors_migration.sql`
-4. `storage_policy_migration.sql`
-5. Другие миграции из папки `data/migrations/`
+## 🚀 Разработка и Деплой
 
-### 2. Настройка Row Level Security (RLS)
+### Локальная разработка
+Для локального запуска достаточно обновить `.env` файл актуальными данными.
 
-RLS уже настроена в миграциях для защиты данных.
+### CI/CD (GitHub Actions)
+При деплое через GitHub Actions необходимо обновить секреты репозитория:
+- `SUPABASE_URL`: `https://api.progt.ru`
+- `SUPABASE_ANON_KEY`: (ваш новый ключ)
+- `SUPABASE_SERVICE_ROLE_KEY`: (ключ для административных действий, если требуется)
 
-### 3. Настройка Storage (для фото)
+## ❗ Решение проблем на Self-hosted
 
-1. Перейдите в **Storage**
-2. Создайте bucket `employees` для фотографий сотрудников
-3. Bucket должен быть **public** для просмотра изображений
+### Ошибки 401 Unauthorized
+- Проверьте актуальность `SUPABASE_ANON_KEY`.
+- Убедитесь, что JWT секрет на сервере совпадает с тем, которым подписан ключ.
 
-## 🔐 Настройка аутентификации
+### Ошибки 404 Not Found (Edge Functions)
+- Проверьте, что функция задеплоена на сервере.
+- Убедитесь, что Kong API Gateway корректно пробрасывает запросы на `functions-v1`.
 
-1. Перейдите в **Authentication** → **Settings**
-2. Настройте провайдеры входа:
-   - **Email** (включён по умолчанию)
-   - **Google** (опционально)
-   - **Apple** (опционально)
-
-## 🚀 Деплой обновлённой версии
-
-После настройки Supabase:
-
-### Веб-версия:
-```bash
-./deploy.sh
-```
-
-### iOS:
-```bash
-./deploy.sh ios
-```
-
-## 🧪 Проверка подключения
-
-1. Запустите приложение
-2. В логах должно появиться: `"Supabase initialized successfully"`
-3. Попробуйте зарегистрироваться/войти
-4. Создайте тестового сотрудника
-
-## 📊 Мониторинг
-
-В Supabase Dashboard доступны:
-- **Logs** - логи запросов
-- **Metrics** - статистика использования  
-- **Database** - просмотр данных
-- **Auth** - управление пользователями
-
-## ❗ Решение проблем
-
-### "Failed host lookup"
-- Проверьте правильность URL проекта
-- Убедитесь, что проект активен в Supabase
-
-### "Invalid API key"
-- Проверьте правильность anon ключа
-- Убедитесь, что скопировали именно **anon public** ключ
-
-### "Connection refused"
-- Проверьте интернет соединение
-- Убедитесь, что проект не заморожен (Free tier ограничения)
-
-### "Row Level Security"
-- Если данные не отображаются, проверьте RLS политики
-- Убедитесь, что пользователь аутентифицирован
-
-## 💡 Полезные ссылки
-
-- [Supabase Documentation](https://supabase.com/docs)
-- [Flutter Supabase Client](https://supabase.com/docs/reference/dart/installing)
-- [Row Level Security Guide](https://supabase.com/docs/guides/auth/row-level-security)
-- [Storage Guide](https://supabase.com/docs/guides/storage)
-
-## 🆘 Поддержка
-
-Если возникли проблемы:
-1. Проверьте логи в консоли приложения
-2. Проверьте Supabase Dashboard → Logs
-3. Убедитесь, что все миграции выполнены
-4. Проверьте настройки RLS
+### Проблемы со Storage
+- Проверьте права доступа к папке хранения на VPS.
+- Убедитесь, что RLS политики бакета позволяют загрузку/чтение.
 
 ---
 
-*После настройки Supabase приложение получит полную функциональность с сохранением данных в облаке!*
+## 💡 Полезные ссылки
+- [Документация по архитектуре RBAC](architecture/rbac.md)
+- [Стандарт документации модулей](development_guide.md)
+
+---
+*Последнее обновление: 15 марта 2026 г.*

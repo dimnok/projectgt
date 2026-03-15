@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/widgets/gt_dropdown.dart';
 import 'package:projectgt/domain/entities/employee.dart';
-import 'package:projectgt/features/objects/domain/entities/object.dart' as project_object;
+import 'package:projectgt/features/objects/domain/entities/object.dart'
+    as project_object;
 import '../../domain/entities/employee_attendance_entry.dart';
 import '../providers/repositories_providers.dart';
 
@@ -79,11 +81,21 @@ class _EmployeeAttendanceDialogState
     super.dispose();
   }
 
+  String _formatHoursForInput(num hours) {
+    final hoursAsDouble = hours.toDouble();
+    if (hoursAsDouble == hoursAsDouble.truncateToDouble()) {
+      return hoursAsDouble.toInt().toString();
+    }
+
+    return formatQuantity(hours).replaceAll(',', '.');
+  }
+
   /// Загружает существующие данные посещаемости
   Future<void> _loadExistingData() async {
     try {
-      final attendanceRepository =
-          ref.read(employeeAttendanceRepositoryProvider);
+      final attendanceRepository = ref.read(
+        employeeAttendanceRepositoryProvider,
+      );
       final timesheetRepository = ref.read(timesheetRepositoryProvider);
 
       // Загружаем данные ПАРАЛЛЕЛЬНО (одновременно)
@@ -238,8 +250,9 @@ class _EmployeeAttendanceDialogState
         .where((obj) => widget.employee.objectIds.contains(obj.id))
         .toList();
 
-    final padding =
-        isMobile ? const EdgeInsets.all(10.0) : const EdgeInsets.all(20.0);
+    final padding = isMobile
+        ? const EdgeInsets.all(10.0)
+        : const EdgeInsets.all(20.0);
 
     return Dialog(
       backgroundColor: theme.colorScheme.surface,
@@ -281,8 +294,9 @@ class _EmployeeAttendanceDialogState
                         Text(
                           widget.employee.position!,
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface
-                                .withValues(alpha: 0.6),
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.6,
+                            ),
                             fontSize: isMobile ? 11 : null,
                           ),
                         ),
@@ -306,8 +320,8 @@ class _EmployeeAttendanceDialogState
               hintText: 'Выберите объект для учёта ФОТ',
               selectedItem: _selectedObjectId != null
                   ? employeeObjects
-                      .where((obj) => obj.id == _selectedObjectId)
-                      .firstOrNull
+                        .where((obj) => obj.id == _selectedObjectId)
+                        .firstOrNull
                   : null,
               onSelectionChanged: (selectedObj) {
                 if (!_isLoading && !_isSaving && selectedObj != null) {
@@ -333,10 +347,13 @@ class _EmployeeAttendanceDialogState
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 TextButton(
-                  onPressed:
-                      _isSaving ? null : () => Navigator.of(context).pop(),
-                  child: Text('Отмена',
-                      style: TextStyle(fontSize: isMobile ? 12 : null)),
+                  onPressed: _isSaving
+                      ? null
+                      : () => Navigator.of(context).pop(),
+                  child: Text(
+                    'Отмена',
+                    style: TextStyle(fontSize: isMobile ? 12 : null),
+                  ),
                 ),
                 SizedBox(width: isMobile ? 8 : 12),
                 FilledButton(
@@ -347,8 +364,10 @@ class _EmployeeAttendanceDialogState
                           width: 20,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : Text('Сохранить',
-                          style: TextStyle(fontSize: isMobile ? 12 : null)),
+                      : Text(
+                          'Сохранить',
+                          style: TextStyle(fontSize: isMobile ? 12 : null),
+                        ),
                 ),
               ],
             ),
@@ -372,8 +391,9 @@ class _EmployeeAttendanceDialogState
             padding: EdgeInsets.all(isMobile ? 4.0 : 8.0),
             decoration: BoxDecoration(
               color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(8)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(8),
+              ),
             ),
             child: Text(
               'Период: ${DateFormat.yMMMM('ru').format(widget.startDate)}',
@@ -391,8 +411,9 @@ class _EmployeeAttendanceDialogState
               border: Border.all(
                 color: theme.dividerColor.withValues(alpha: 0.3),
               ),
-              borderRadius:
-                  const BorderRadius.vertical(bottom: Radius.circular(8)),
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(8),
+              ),
             ),
             child: Column(
               children: [
@@ -450,8 +471,9 @@ class _EmployeeAttendanceDialogState
                     Expanded(
                       child: Text(
                         'Введите часы напрямую в ячейки дней.',
-                        style:
-                            theme.textTheme.bodySmall?.copyWith(fontSize: 11),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontSize: 11,
+                        ),
                       ),
                     ),
                   ],
@@ -490,9 +512,7 @@ class _EmployeeAttendanceDialogState
       alignment: Alignment.center,
       padding: const EdgeInsets.symmetric(vertical: 4),
       decoration: BoxDecoration(
-        border: Border.all(
-          color: theme.dividerColor.withValues(alpha: 0.2),
-        ),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.2)),
         color: theme.colorScheme.surfaceContainerHighest,
       ),
       child: Text(
@@ -531,7 +551,8 @@ class _EmployeeAttendanceDialogState
     DateTime currentDate = widget.startDate;
     while (currentDate.isBefore(widget.endDate) ||
         currentDate.isAtSameMomentAs(widget.endDate)) {
-      final isWeekend = currentDate.weekday == DateTime.saturday ||
+      final isWeekend =
+          currentDate.weekday == DateTime.saturday ||
           currentDate.weekday == DateTime.sunday;
       cells.add(_buildDayCell(currentDate, isWeekend, theme, isMobile));
       currentDate = currentDate.add(const Duration(days: 1));
@@ -542,7 +563,11 @@ class _EmployeeAttendanceDialogState
 
   /// Строит ячейку дня с инлайн вводом часов
   Widget _buildDayCell(
-      DateTime day, bool isWeekend, ThemeData theme, bool isMobile) {
+    DateTime day,
+    bool isWeekend,
+    ThemeData theme,
+    bool isMobile,
+  ) {
     // Проверяем, есть ли часы из смен (защищены от редактирования)
     final shiftHours = _shiftHoursMap[day];
     final hasShiftHours = shiftHours != null;
@@ -552,17 +577,21 @@ class _EmployeeAttendanceDialogState
     final dayColor = isWeekend
         ? theme.colorScheme.error.withValues(alpha: 0.1)
         : hasShiftHours
-            ? theme.colorScheme.tertiary
-                .withValues(alpha: 0.1) // Особый цвет для смен
-            : theme.colorScheme.surface;
+        ? theme.colorScheme.tertiary.withValues(
+            alpha: 0.1,
+          ) // Особый цвет для смен
+        : theme.colorScheme.surface;
 
-    final textColor =
-        isWeekend ? theme.colorScheme.error : theme.textTheme.bodyMedium?.color;
+    final textColor = isWeekend
+        ? theme.colorScheme.error
+        : theme.textTheme.bodyMedium?.color;
 
     // Получаем или создаём контроллер для этого дня
     final controller = _controllers.putIfAbsent(
       day,
-      () => TextEditingController(text: hours?.toString() ?? ''),
+      () => TextEditingController(
+        text: hours == null ? '' : _formatHoursForInput(hours),
+      ),
     );
 
     return Container(
@@ -570,8 +599,9 @@ class _EmployeeAttendanceDialogState
         color: dayColor,
         border: Border.all(
           color: hasShiftHours
-              ? theme.colorScheme.tertiary
-                  .withValues(alpha: 0.5) // Подсветка границы
+              ? theme.colorScheme.tertiary.withValues(
+                  alpha: 0.5,
+                ) // Подсветка границы
               : theme.dividerColor.withValues(alpha: 0.2),
         ),
       ),
@@ -614,15 +644,18 @@ class _EmployeeAttendanceDialogState
                   width: isMobile ? 40 : 45,
                   child: TextField(
                     controller: controller,
-                    enabled: !_isSaving &&
+                    enabled:
+                        !_isSaving &&
                         !hasShiftHours, // Блокируем если есть часы из смены
                     textAlign: TextAlign.center,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(
-                          // ignore: deprecated_member_use
-                          RegExp(r'^(2[0-4]|1[0-9]|[0-9])(\.[0-9])?$')),
+                        // ignore: deprecated_member_use
+                        RegExp(r'^(2[0-4]|1[0-9]|[0-9])(\.[0-9])?$'),
+                      ),
                     ],
                     style: theme.textTheme.bodySmall?.copyWith(
                       fontSize: isMobile ? 9 : 11,
@@ -632,8 +665,9 @@ class _EmployeeAttendanceDialogState
                     decoration: InputDecoration(
                       hintText: '—',
                       hintStyle: TextStyle(
-                        color:
-                            theme.colorScheme.onSurface.withValues(alpha: 0.3),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.3,
+                        ),
                       ),
                       contentPadding: EdgeInsets.symmetric(
                         horizontal: isMobile ? 2 : 3,
@@ -654,8 +688,9 @@ class _EmployeeAttendanceDialogState
                       disabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(2),
                         borderSide: BorderSide(
-                          color:
-                              theme.colorScheme.tertiary.withValues(alpha: 0.3),
+                          color: theme.colorScheme.tertiary.withValues(
+                            alpha: 0.3,
+                          ),
                         ),
                       ),
                       focusedBorder: OutlineInputBorder(
@@ -667,12 +702,14 @@ class _EmployeeAttendanceDialogState
                       ),
                       filled: true,
                       fillColor: hasShiftHours
-                          ? theme.colorScheme.tertiary
-                              .withValues(alpha: 0.2) // Особый цвет для смен
+                          ? theme.colorScheme.tertiary.withValues(
+                              alpha: 0.2,
+                            ) // Особый цвет для смен
                           : hours != null && hours > 0
-                              ? theme.colorScheme.primaryContainer
-                                  .withValues(alpha: 0.3)
-                              : theme.colorScheme.surface,
+                          ? theme.colorScheme.primaryContainer.withValues(
+                              alpha: 0.3,
+                            )
+                          : theme.colorScheme.surface,
                     ),
                     onChanged: hasShiftHours
                         ? null // Не обрабатываем изменения если из смены
@@ -695,8 +732,9 @@ class _EmployeeAttendanceDialogState
                 Text(
                   hasShiftHours ? 'смена' : 'ч',
                   style: theme.textTheme.bodySmall?.copyWith(
-                    fontSize:
-                        hasShiftHours ? (isMobile ? 6 : 7) : (isMobile ? 7 : 9),
+                    fontSize: hasShiftHours
+                        ? (isMobile ? 6 : 7)
+                        : (isMobile ? 7 : 9),
                     color: hasShiftHours
                         ? theme.colorScheme.tertiary.withValues(alpha: 0.8)
                         : textColor?.withValues(alpha: 0.6),

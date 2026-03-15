@@ -6,6 +6,7 @@ import '../../../../core/widgets/gt_buttons.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../domain/entities/vor.dart';
 import '../providers/estimate_providers.dart';
+import '../utils/vor_pdf_actions.dart';
 import 'vor_approve_dialog.dart';
 import 'vor_card_details.dart';
 import 'vor_create_dialog.dart';
@@ -423,12 +424,58 @@ class _VorCardContentState extends ConsumerState<_VorCardContent> {
                                         color: Vor.getStatusColor(s),
                                         onTap: () async {
                                           if (s == VorStatus.approved) {
-                                            final confirmed =
+                                            final approvalResult =
                                                 await VorApproveDialog.show(
                                                   context,
                                                   widget.vor,
                                                 );
-                                            if (confirmed != true) return;
+                                            if (approvalResult == null ||
+                                                !approvalResult.isConfirmed) {
+                                              return;
+                                            }
+
+                                            try {
+                                              await actions.updateStatus(
+                                                widget.vor.contractId,
+                                                widget.vor.id,
+                                                s,
+                                                comment: 'Ведомость подписана',
+                                              );
+
+                                              if (approvalResult.selectedFile !=
+                                                  null) {
+                                                await VorPdfActions.uploadPdf(
+                                                  context: context,
+                                                  vor: widget.vor,
+                                                  actions: actions,
+                                                  selectedFile: approvalResult
+                                                      .selectedFile,
+                                                );
+                                              }
+
+                                              if (!mounted) {
+                                                return;
+                                              }
+                                              setState(
+                                                () => _isPickingStatus = false,
+                                              );
+                                              return;
+                                            } catch (e) {
+                                              if (!mounted ||
+                                                  !context.mounted) {
+                                                return;
+                                              }
+                                              final messenger =
+                                                  ScaffoldMessenger.of(context);
+                                              messenger.showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                    'Ошибка смены статуса: $e',
+                                                  ),
+                                                ),
+                                              );
+                                              return;
+                                            }
                                           }
 
                                           try {
@@ -436,9 +483,8 @@ class _VorCardContentState extends ConsumerState<_VorCardContent> {
                                               widget.vor.contractId,
                                               widget.vor.id,
                                               s,
-                                              comment: s == VorStatus.approved
-                                                  ? 'Ведомость подписана'
-                                                  : 'Статус изменен пользователем',
+                                              comment:
+                                                  'Статус изменен пользователем',
                                             );
                                             if (!mounted) {
                                               return;
@@ -592,26 +638,34 @@ class _CardActions extends ConsumerWidget {
     final actions = ref.watch(vorActionsProvider);
     final exportService = ref.watch(vorExportServiceProvider);
     final isDraft = vor.status == VorStatus.draft;
+    final isApproved = vor.status == VorStatus.approved;
+    final hasPdf = vor.pdfUrl != null && vor.pdfUrl!.isNotEmpty;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _ActionButton(
-          icon: CupertinoIcons.eye,
-          tooltip: 'Просмотр',
-          onPressed: () {},
-        ),
+        if (isApproved)
+          _ActionButton(
+            icon: CupertinoIcons.doc_text_fill,
+            tooltip: hasPdf ? 'Просмотр PDF' : 'Загрузить PDF',
+            color: hasPdf ? Colors.green[700] : Colors.red[700],
+            onPressed: () => hasPdf
+                ? VorPdfActions.openPdf(
+                    context: context,
+                    vor: vor,
+                    actions: actions,
+                  )
+                : VorPdfActions.uploadPdf(
+                    context: context,
+                    vor: vor,
+                    actions: actions,
+                  ),
+          ),
         _ActionButton(
           icon: CupertinoIcons.doc,
           tooltip: 'Excel файл',
           onPressed: () => exportService.exportVorToExcel(vor.id),
         ),
-        if (isDraft)
-          _ActionButton(
-            icon: CupertinoIcons.pencil,
-            tooltip: 'Редактировать',
-            onPressed: () {},
-          ),
         if (isDraft)
           _ActionButton(
             icon: CupertinoIcons.trash,
@@ -678,7 +732,7 @@ class _CardActions extends ConsumerWidget {
                       const _StepRow(
                         number: '2',
                         text:
-                            'Связанный Excel-файл будет удален из облачного хранилища',
+                            'Связанные Excel и PDF файлы будут удалены из облачного хранилища',
                       ),
                       const _StepRow(
                         number: '3',

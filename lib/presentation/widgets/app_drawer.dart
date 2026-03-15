@@ -30,6 +30,9 @@ enum AppRoute {
   /// Экран списка сотрудников.
   employees,
 
+  /// Экран списка сотрудников (табличный вид).
+  employeesTable,
+
   /// Экран списка подрядчиков.
   contractors,
 
@@ -350,6 +353,14 @@ class AppDrawer extends ConsumerWidget {
                             icon: CupertinoIcons.person_3,
                             route: AppRoute.employees,
                             routeName: 'employees',
+                          ),
+                          _buildMenuItem(
+                            context: context,
+                            module: 'employees',
+                            title: 'Сотрудники (Таблица)',
+                            icon: CupertinoIcons.table,
+                            route: AppRoute.employeesTable,
+                            routeName: 'employees_table',
                           ),
                           _DirectoriesSection(activeRoute: activeRoute),
                           _buildMenuItem(

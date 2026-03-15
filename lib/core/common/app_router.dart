@@ -11,6 +11,7 @@ import 'package:projectgt/features/profile/presentation/screens/financial_info_s
 import 'package:projectgt/features/profile/presentation/screens/property_screen.dart';
 import 'package:projectgt/features/profile/presentation/screens/users_list_screen.dart';
 import 'package:projectgt/features/employees/presentation/screens/employees_list_screen.dart';
+import 'package:projectgt/features/employees/presentation/screens/employees_table_screen.dart';
 import 'package:projectgt/features/employees/presentation/screens/employee_details_screen.dart';
 import 'package:projectgt/features/employees/presentation/screens/employee_form_screen.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
@@ -212,6 +213,22 @@ final routerProvider = Provider<GoRouter>((ref) {
               final service = ref.watch(permissionServiceProvider);
               if (service.can('employees', 'read')) {
                 return const EmployeesListScreen();
+              }
+              return _buildAccessDeniedScreen();
+            },
+          );
+        },
+      ),
+      // Маршрут для списка сотрудников (табличный вид)
+      GoRoute(
+        path: AppRoutes.employeesTable,
+        name: 'employees_table',
+        builder: (context, state) {
+          return Consumer(
+            builder: (context, ref, child) {
+              final service = ref.watch(permissionServiceProvider);
+              if (service.can('employees', 'read')) {
+                return const EmployeesTableScreen();
               }
               return _buildAccessDeniedScreen();
             },
@@ -694,6 +711,9 @@ class AppRoutes {
 
   /// Список сотрудников
   static const String employees = '/employees';
+
+  /// Список сотрудников (табличный вид)
+  static const String employeesTable = '/employees-table';
 
   /// Список объектов
   static const String objects = '/objects';

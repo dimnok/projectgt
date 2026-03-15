@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/domain/entities/employee.dart';
 import 'package:projectgt/features/timesheet/domain/entities/timesheet_entry.dart';
 import 'package:projectgt/presentation/widgets/cupertino_dialog_widget.dart';
@@ -80,8 +81,9 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
     final allEmployees = await employeeRepository.getEmployees();
 
     // Находим ID сотрудников, у которых есть часы в текущих записях
-    final employeeIdsWithHours =
-        widget.entries.map((entry) => entry.employeeId).toSet();
+    final employeeIdsWithHours = widget.entries
+        .map((entry) => entry.employeeId)
+        .toSet();
 
     // Применяем фильтр по должностям (если установлен)
     final selectedPositions = timesheetState.selectedPositions;
@@ -156,12 +158,15 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
     return '${employee.lastName} ${employee.firstName}';
   }
 
+  String _formatHours(num hours) => formatQuantity(hours);
+
   /// Строит основную таблицу календаря
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final headerStyle =
-        theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold);
+    final headerStyle = theme.textTheme.titleMedium?.copyWith(
+      fontWeight: FontWeight.bold,
+    );
 
     // Перезагружаем список сотрудников при изменении фильтров по должностям
     ref.listen<List<String>?>(
@@ -185,9 +190,7 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
               color: null, // цвет задаётся ниже
             ),
             SizedBox(height: 16),
-            Text(
-              'Нет данных для отображения',
-            ),
+            Text('Нет данных для отображения'),
             SizedBox(height: 8),
             Text(
               'Попробуйте изменить фильтры или выбрать другой период',
@@ -222,10 +225,9 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
                 ),
                 dataRowColor: WidgetStateProperty.resolveWith((states) {
                   if (states.contains(WidgetState.selected)) {
-                    return Theme.of(context)
-                        .colorScheme
-                        .primaryContainer
-                        .withValues(alpha: 0.2);
+                    return Theme.of(
+                      context,
+                    ).colorScheme.primaryContainer.withValues(alpha: 0.2);
                   }
                   return null;
                 }),
@@ -238,13 +240,15 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
                 border: TableBorder(
                   horizontalInside: BorderSide(
                     width: 0.5,
-                    color:
-                        Theme.of(context).dividerColor.withValues(alpha: 0.3),
+                    color: Theme.of(
+                      context,
+                    ).dividerColor.withValues(alpha: 0.3),
                   ),
                   verticalInside: BorderSide(
                     width: 0.5,
-                    color:
-                        Theme.of(context).dividerColor.withValues(alpha: 0.3),
+                    color: Theme.of(
+                      context,
+                    ).dividerColor.withValues(alpha: 0.3),
                   ),
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -259,24 +263,25 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
 
                   // Колонки для дней месяца
                   ..._daysInRange.map((day) {
-                    final isWeekend = day.weekday == DateTime.saturday ||
+                    final isWeekend =
+                        day.weekday == DateTime.saturday ||
                         day.weekday == DateTime.sunday;
                     final dayColor = isWeekend
-                        ? Theme.of(context)
-                            .colorScheme
-                            .error
-                            .withValues(alpha: 0.18)
-                        : Theme.of(context)
-                            .colorScheme
-                            .surface
-                            .withValues(alpha: 0.5);
+                        ? Theme.of(
+                            context,
+                          ).colorScheme.error.withValues(alpha: 0.18)
+                        : Theme.of(
+                            context,
+                          ).colorScheme.surface.withValues(alpha: 0.5);
                     final textColor = isWeekend
                         ? Theme.of(context).colorScheme.error
                         : Theme.of(context).textTheme.bodySmall?.color;
                     return DataColumn(
                       label: Container(
-                        constraints:
-                            const BoxConstraints(minWidth: 40, maxWidth: 40),
+                        constraints: const BoxConstraints(
+                          minWidth: 40,
+                          maxWidth: 40,
+                        ),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -290,16 +295,16 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
                             const SizedBox(height: 2),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 4, vertical: 1),
+                                horizontal: 4,
+                                vertical: 1,
+                              ),
                               decoration: BoxDecoration(
                                 color: dayColor,
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
                                 _getDayAbbreviation(day.weekday),
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
+                                style: Theme.of(context).textTheme.bodySmall
                                     ?.copyWith(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 12,
@@ -316,8 +321,10 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
                   // Колонка для итогов по сотруднику
                   DataColumn(
                     label: Container(
-                      constraints:
-                          const BoxConstraints(minWidth: 64, maxWidth: 64),
+                      constraints: const BoxConstraints(
+                        minWidth: 64,
+                        maxWidth: 64,
+                      ),
                       child: Text('Итого', style: headerStyle),
                     ),
                   ),
@@ -370,8 +377,9 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
                     height: 24,
                     margin: const EdgeInsets.only(right: 8),
                     decoration: BoxDecoration(
-                      color:
-                          Theme.of(context).colorScheme.surfaceContainerHighest,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     alignment: Alignment.center,
@@ -395,7 +403,8 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
                               child: Text(
                                 employeeName,
                                 style: const TextStyle(
-                                    fontWeight: FontWeight.w500),
+                                  fontWeight: FontWeight.w500,
+                                ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -404,10 +413,9 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
                             Icon(
                               Icons.edit_calendar_outlined,
                               size: 16,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .primary
-                                  .withValues(alpha: 0.6),
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.primary.withValues(alpha: 0.6),
                             ),
                           ],
                         ),
@@ -417,10 +425,9 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
                             employee.position!,
                             style: TextStyle(
                               fontSize: 11,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurface
-                                  .withValues(alpha: 0.7),
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.7),
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -446,8 +453,10 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
             .toList();
 
         // Суммируем часы за день
-        final dayHours =
-            dayEntries.fold<num>(0, (sum, entry) => sum + entry.hours);
+        final dayHours = dayEntries.fold<num>(
+          0,
+          (sum, entry) => sum + entry.hours,
+        );
         totalHours += dayHours;
 
         // Создаем ячейку для текущего дня и сотрудника
@@ -479,15 +488,12 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
                           // Синий кружок вокруг числа для ручного ввода
                           shape: BoxShape.circle,
                           border: dayEntries.any((e) => e.isManualEntry)
-                              ? Border.all(
-                                  color: Colors.blue,
-                                  width: 2,
-                                )
+                              ? Border.all(color: Colors.blue, width: 2)
                               : null,
                         ),
                         alignment: Alignment.center,
                         child: Text(
-                          dayHours.toString(),
+                          _formatHours(dayHours),
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
@@ -510,7 +516,7 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
             padding: const EdgeInsets.symmetric(vertical: 4),
             alignment: Alignment.center,
             child: Text(
-              '$totalHours',
+              _formatHours(totalHours),
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
@@ -553,8 +559,10 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
             .toList();
 
         // Суммируем часы за день
-        final dayHours =
-            dayEntries.fold<num>(0, (sum, entry) => sum + entry.hours);
+        final dayHours = dayEntries.fold<num>(
+          0,
+          (sum, entry) => sum + entry.hours,
+        );
         grandTotal += dayHours;
 
         totalCells.add(
@@ -564,7 +572,7 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
               padding: const EdgeInsets.symmetric(vertical: 4),
               alignment: Alignment.center,
               child: Text(
-                '$dayHours',
+                _formatHours(dayHours),
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
@@ -580,7 +588,7 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
             padding: const EdgeInsets.symmetric(vertical: 4),
             alignment: Alignment.center,
             child: Text(
-              '$grandTotal',
+              _formatHours(grandTotal),
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
@@ -595,7 +603,10 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
 
   /// Показывает диалог с детальной информацией о записи
   void _showEntryDetails(
-      List<TimesheetEntry> entries, String employeeName, DateTime day) {
+    List<TimesheetEntry> entries,
+    String employeeName,
+    DateTime day,
+  ) {
     if (entries.isEmpty) return;
 
     // Создаем виджет содержимого для диалога
@@ -622,9 +633,7 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(entry.objectName ?? 'Н/Д'),
-                    ),
+                    Expanded(child: Text(entry.objectName ?? 'Н/Д')),
                   ],
                 ),
                 const SizedBox(height: 4),
@@ -637,7 +646,7 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(width: 8),
-                    Text('${entry.hours}'),
+                    Text(_formatHours(entry.hours)),
                   ],
                 ),
 
@@ -663,9 +672,7 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
       context: context,
       title: 'Детали записи',
       message: '',
-      contentWidget: SingleChildScrollView(
-        child: contentWidget,
-      ),
+      contentWidget: SingleChildScrollView(child: contentWidget),
       buttonText: 'Закрыть',
     );
   }
@@ -685,7 +692,8 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Недостаточно прав для редактирования табеля')),
+          content: Text('Недостаточно прав для редактирования табеля'),
+        ),
       );
       return;
     }

@@ -263,8 +263,13 @@ class EmployeeNotifier extends StateNotifier<EmployeeState> {
   Future<void> updateEmployee(Employee employee) async {
     state = state.copyWith(status: EmployeeStatus.loading);
     try {
-      final updatedEmployee =
+      final result =
           await _ref.read(updateEmployeeUseCaseProvider).execute(employee);
+
+      // Сохраняем текущую ставку, так как она не возвращается при обновлении основной таблицы
+      final updatedEmployee = result.copyWith(
+        currentHourlyRate: result.currentHourlyRate ?? employee.currentHourlyRate,
+      );
 
       // Обновляем сотрудника в текущем списке
       final updatedEmployees = state.employees

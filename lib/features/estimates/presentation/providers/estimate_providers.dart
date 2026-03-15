@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -383,23 +384,31 @@ class VorActions {
       final vorData = await ref
           .read(supabaseClientProvider)
           .from('vors')
-          .select('excel_url')
+          .select('excel_url, pdf_url')
           .eq('id', vorId)
           .maybeSingle();
 
       final String? excelUrl = vorData?['excel_url'];
+      final String? pdfUrl = vorData?['pdf_url'];
 
       // 2. Удаляем запись из БД (каскадное удаление должно быть настроено в БД)
       await repository.deleteVor(vorId);
 
-      // 3. Если файл был в Storage, удаляем его
-      if (excelUrl != null && excelUrl.isNotEmpty) {
-        debugPrint('🗑️ [VorActions] Удаление файла из Storage: $excelUrl');
+      // 3. Если файлы были в Storage, удаляем их
+      final filesToDelete = <String>[
+        if (excelUrl != null && excelUrl.isNotEmpty) excelUrl,
+        if (pdfUrl != null && pdfUrl.isNotEmpty) pdfUrl,
+      ];
+
+      if (filesToDelete.isNotEmpty) {
+        debugPrint(
+          '🗑️ [VorActions] Удаление файлов ВОР из Storage: $filesToDelete',
+        );
         await ref
             .read(supabaseClientProvider)
             .storage
             .from('vor_documents')
-            .remove([excelUrl]);
+            .remove(filesToDelete);
       }
 
       ref.invalidate(vorsProvider(contractId));
@@ -408,5 +417,22 @@ class VorActions {
       debugPrint('❌ [VorActions] Ошибка при удалении ВОР: $e');
       rethrow;
     }
+  }
+
+  /// Загружает подписанный PDF-файл для уже подписанной ведомости ВОР.
+  Future<void> uploadPdf({
+    required String contractId,
+    required String vorId,
+    required File file,
+    required String fileName,
+  }) async {
+    await repository.uploadVorPdf(vorId: vorId, file: file, fileName: fileName);
+
+    ref.invalidate(vorsProvider(contractId));
+  }
+
+  /// Возвращает временную ссылку для просмотра подписанного PDF-файла ВОР.
+  Future<String> getVorPdfViewUrl(String vorId) {
+    return repository.getVorPdfViewUrl(vorId);
   }
 }

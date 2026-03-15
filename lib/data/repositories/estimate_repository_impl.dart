@@ -1,7 +1,10 @@
 import '../../domain/entities/estimate.dart';
 import '../../domain/entities/estimate_completion_history.dart';
+import '../../domain/entities/estimate_revision.dart';
 import '../../domain/entities/vor.dart';
 import '../../domain/repositories/estimate_repository.dart';
+import 'dart:io';
+import 'dart:typed_data';
 import '../datasources/estimate_data_source.dart';
 import '../models/estimate_model.dart';
 import '../models/estimate_completion_model.dart';
@@ -156,7 +159,11 @@ class EstimateRepositoryImpl implements EstimateRepository {
   }
 
   @override
-  Future<void> updateVorStatus(String vorId, VorStatus status, {String? comment}) async {
+  Future<void> updateVorStatus(
+    String vorId,
+    VorStatus status, {
+    String? comment,
+  }) async {
     await dataSource.updateVorStatus(vorId, status, comment: comment);
   }
 
@@ -168,5 +175,64 @@ class EstimateRepositoryImpl implements EstimateRepository {
   @override
   Future<void> populateVorItems(String vorId) async {
     await dataSource.populateVorItems(vorId);
+  }
+
+  @override
+  Future<void> uploadVorPdf({
+    required String vorId,
+    required File file,
+    required String fileName,
+  }) async {
+    await dataSource.uploadVorPdf(vorId: vorId, file: file, fileName: fileName);
+  }
+
+  @override
+  Future<String> getVorPdfViewUrl(String vorId) {
+    return dataSource.getVorPdfViewUrl(vorId);
+  }
+
+  @override
+  Future<List<EstimateAddendumTemplateRow>> getAddendumTemplateRows({
+    required String estimateTitle,
+    required String contractId,
+    String? objectId,
+  }) {
+    return dataSource.getAddendumTemplateRows(
+      estimateTitle: estimateTitle,
+      contractId: contractId,
+      objectId: objectId,
+    );
+  }
+
+  @override
+  Future<Map<String, dynamic>> getAddendumTemplateFile({
+    required String estimateTitle,
+    required String contractId,
+    String? objectId,
+  }) {
+    return dataSource.getAddendumTemplateFile(
+      estimateTitle: estimateTitle,
+      contractId: contractId,
+      objectId: objectId,
+    );
+  }
+
+  @override
+  Future<EstimateRevisionDraftResult> createEstimateRevisionDraft({
+    required String estimateTitle,
+    required String contractId,
+    String? objectId,
+    required String fileName,
+    required Uint8List fileBytes,
+    required List<EstimateAddendumImportRow> rows,
+  }) {
+    return dataSource.createEstimateRevisionDraft(
+      estimateTitle: estimateTitle,
+      contractId: contractId,
+      objectId: objectId,
+      fileName: fileName,
+      fileBytes: fileBytes,
+      rows: rows,
+    );
   }
 }

@@ -8,6 +8,17 @@ import '../../../../domain/entities/vor.dart';
 /// Диалог подтверждения подписания ВОР.
 ///
 /// Предупреждает о заморозке данных и предлагает загрузить подписанный PDF.
+class VorApproveResult {
+  /// Было ли подтверждено подписание.
+  final bool isConfirmed;
+
+  /// Выбранный PDF-файл для загрузки.
+  final PlatformFile? selectedFile;
+
+  /// Создает результат диалога подтверждения подписания.
+  const VorApproveResult({required this.isConfirmed, this.selectedFile});
+}
+
 class VorApproveDialog extends StatefulWidget {
   /// Ведомость ВОР для подписания.
   final Vor vor;
@@ -17,9 +28,9 @@ class VorApproveDialog extends StatefulWidget {
 
   /// Отображает диалог подтверждения.
   ///
-  /// Возвращает `true`, если пользователь подтвердил подписание.
-  static Future<bool?> show(BuildContext context, Vor vor) {
-    return showGeneralDialog<bool>(
+  /// Возвращает [VorApproveResult], если пользователь закрыл диалог действием.
+  static Future<VorApproveResult?> show(BuildContext context, Vor vor) {
+    return showGeneralDialog<VorApproveResult>(
       context: context,
       barrierDismissible: false,
       barrierLabel: 'Подписание ВОР',
@@ -47,7 +58,6 @@ class VorApproveDialog extends StatefulWidget {
 
 class _VorApproveDialogState extends State<VorApproveDialog> {
   PlatformFile? _selectedFile;
-  final bool _isUploading = false;
 
   Future<void> _pickFile() async {
     final result = await FilePicker.platform.pickFiles(
@@ -121,7 +131,7 @@ class _VorApproveDialogState extends State<VorApproveDialog> {
         ),
         const SizedBox(height: 12),
         InkWell(
-          onTap: _isUploading ? null : _pickFile,
+          onTap: _pickFile,
           borderRadius: BorderRadius.circular(12),
           child: Container(
             padding: const EdgeInsets.all(16),
@@ -181,15 +191,19 @@ class _VorApproveDialogState extends State<VorApproveDialog> {
           children: [
             GTTextButton(
               text: 'Отмена',
-              onPressed: () => Navigator.of(context).pop(false),
+              onPressed: () => Navigator.of(
+                context,
+              ).pop(const VorApproveResult(isConfirmed: false)),
             ),
             const SizedBox(width: 12),
             GTPrimaryButton(
               text: 'Подтвердить и подписать',
-              onPressed: () {
-                // В будущем здесь будет логика загрузки файла в Storage
-                Navigator.of(context).pop(true);
-              },
+              onPressed: () => Navigator.of(context).pop(
+                VorApproveResult(
+                  isConfirmed: true,
+                  selectedFile: _selectedFile,
+                ),
+              ),
             ),
           ],
         ),

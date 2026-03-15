@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../domain/entities/vor.dart';
 import '../providers/estimate_providers.dart';
+import '../utils/vor_pdf_actions.dart';
 
 /// Виджет детальной информации о ведомости ВОР.
 ///
@@ -19,6 +20,9 @@ class VorCardDetails extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final exportService = ref.watch(vorExportServiceProvider);
+    final actions = ref.watch(vorActionsProvider);
+    final pdfUploadHistory = _getLatestPdfUploadHistory(vor);
+    final pdfDisplayDate = _resolvePdfDisplayDate(vor, pdfUploadHistory);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -91,14 +95,18 @@ class VorCardDetails extends ConsumerWidget {
                       ),
                     if (vor.pdfUrl != null)
                       _HistoryRow(
-                        date: vor
-                            .createdAt, // В будущем добавить дату загрузки PDF
-                        user: '',
-                        content: 'Подписанный PDF.pdf',
-                        icon: CupertinoIcons.doc_checkmark,
-                        onTap: () {
-                          // TODO(task): Реализовать скачивание PDF
-                        },
+                        date: pdfDisplayDate,
+                        user:
+                            pdfUploadHistory?.userName ??
+                            vor.createdByName ??
+                            'Неизвестно',
+                        content: 'Подписанный ВОР.pdf',
+                        icon: CupertinoIcons.doc_text_fill,
+                        onTap: () => VorPdfActions.openPdf(
+                          context: context,
+                          vor: vor,
+                          actions: actions,
+                        ),
                       ),
                   ],
                 ),
@@ -109,6 +117,41 @@ class VorCardDetails extends ConsumerWidget {
       ),
     );
   }
+}
+
+VorHistoryItem? _getLatestPdfUploadHistory(Vor vor) {
+  final matches =
+      vor.statusHistory
+          .where((item) => item.comment == 'Загружен подписанный ВОР PDF')
+          .toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+  return matches.isEmpty ? null : matches.first;
+}
+
+DateTime _resolvePdfDisplayDate(Vor vor, VorHistoryItem? pdfUploadHistory) {
+  if (pdfUploadHistory != null) {
+    return pdfUploadHistory.createdAt;
+  }
+
+  final pdfUrl = vor.pdfUrl;
+  if (pdfUrl == null || pdfUrl.isEmpty) {
+    return vor.createdAt;
+  }
+
+  final fileName = pdfUrl.split('/').last;
+  final underscoreIndex = fileName.indexOf('_');
+  if (underscoreIndex <= 0) {
+    return vor.createdAt;
+  }
+
+  final timestampPart = fileName.substring(0, underscoreIndex);
+  final milliseconds = int.tryParse(timestampPart);
+  if (milliseconds == null) {
+    return vor.createdAt;
+  }
+
+  return DateTime.fromMillisecondsSinceEpoch(milliseconds);
 }
 
 class _DetailSection extends StatelessWidget {

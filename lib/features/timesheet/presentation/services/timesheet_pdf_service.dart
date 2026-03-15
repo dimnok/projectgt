@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:file_saver/file_saver.dart';
 import 'package:logger/logger.dart';
+import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/domain/entities/employee.dart';
 import 'package:projectgt/domain/repositories/employee_repository.dart';
 import '../../domain/entities/timesheet_entry.dart';
@@ -33,8 +34,12 @@ class TimesheetPdfService {
   static final DateFormat _dateFormatter = DateFormat('dd.MM.yyyy', 'ru_RU');
 
   /// Форматтер для отображения времени.
-  static final DateFormat _timeFormatter =
-      DateFormat('HH:mm dd.MM.yyyy', 'ru_RU');
+  static final DateFormat _timeFormatter = DateFormat(
+    'HH:mm dd.MM.yyyy',
+    'ru_RU',
+  );
+
+  String _formatHours(num hours) => formatQuantity(hours);
 
   /// Экспортирует табель в PDF.
   ///
@@ -66,8 +71,9 @@ class TimesheetPdfService {
       final allEmployees = await employeeRepository.getEmployees();
 
       // Находим ID сотрудников, у которых есть часы в записях
-      final employeeIdsWithHours =
-          entries.map((entry) => entry.employeeId).toSet();
+      final employeeIdsWithHours = entries
+          .map((entry) => entry.employeeId)
+          .toSet();
 
       // Фильтруем: активные сотрудники + уволенные с часами
       // С учетом фильтра по должностям (если установлен)
@@ -100,8 +106,8 @@ class TimesheetPdfService {
 
       // Инициализируем всех отфильтрованных сотрудников
       for (final employee in filteredEmployees) {
-        final fullName = employee.middleName != null &&
-                employee.middleName!.isNotEmpty
+        final fullName =
+            employee.middleName != null && employee.middleName!.isNotEmpty
             ? '${employee.lastName} ${employee.firstName} ${employee.middleName}'
             : '${employee.lastName} ${employee.firstName}';
 
@@ -111,8 +117,11 @@ class TimesheetPdfService {
 
       // Заполняем часы из записей
       for (final entry in entries) {
-        final date =
-            DateTime(entry.date.year, entry.date.month, entry.date.day);
+        final date = DateTime(
+          entry.date.year,
+          entry.date.month,
+          entry.date.day,
+        );
 
         if (employeeMap.containsKey(entry.employeeId)) {
           employeeMap[entry.employeeId]![date] =
@@ -130,8 +139,10 @@ class TimesheetPdfService {
       }
 
       // Подсчитываем общую сумму часов
-      final totalHours =
-          entries.fold<num>(0, (sum, entry) => sum + entry.hours);
+      final totalHours = entries.fold<num>(
+        0,
+        (sum, entry) => sum + entry.hours,
+      );
 
       // Заголовок периода
       final periodText =
@@ -158,18 +169,12 @@ class TimesheetPdfService {
                   children: [
                     pw.Text(
                       'ТАБЕЛЬ РАБОЧЕГО ВРЕМЕНИ',
-                      style: pw.TextStyle(
-                        font: fontBold,
-                        fontSize: 16,
-                      ),
+                      style: pw.TextStyle(font: fontBold, fontSize: 16),
                     ),
                     pw.SizedBox(height: 3),
                     pw.Text(
                       'Период: $periodText',
-                      style: pw.TextStyle(
-                        font: font,
-                        fontSize: 10,
-                      ),
+                      style: pw.TextStyle(font: font, fontSize: 10),
                     ),
                     if (filterInfo.isNotEmpty) ...[
                       pw.SizedBox(height: 2),
@@ -199,21 +204,21 @@ class TimesheetPdfService {
 
               // Таблица в календарном виде (как в приложении)
               pw.Table(
-                border:
-                    pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
+                border: pw.TableBorder.all(
+                  color: PdfColors.grey400,
+                  width: 0.5,
+                ),
                 columnWidths: {
                   0: const pw.FixedColumnWidth(140), // ФИО (расширенная)
                   // Остальные колонки для дат - динамические
                   ...Map.fromEntries(
                     List.generate(daysInRange.length, (i) {
-                      return MapEntry(
-                        i + 1,
-                        const pw.FixedColumnWidth(28),
-                      );
+                      return MapEntry(i + 1, const pw.FixedColumnWidth(28));
                     }),
                   ),
-                  daysInRange.length + 1:
-                      const pw.FixedColumnWidth(35), // Итого
+                  daysInRange.length + 1: const pw.FixedColumnWidth(
+                    35,
+                  ), // Итого
                 },
                 children: [
                   // Шапка таблицы - первая строка (день месяца)
@@ -223,11 +228,13 @@ class TimesheetPdfService {
                     ),
                     children: [
                       _buildHeaderCell('ФИО', font: fontBold, fontSize: 7),
-                      ...daysInRange.map((date) => _buildHeaderCell(
-                            '${date.day}',
-                            font: fontBold,
-                            fontSize: 7,
-                          )),
+                      ...daysInRange.map(
+                        (date) => _buildHeaderCell(
+                          '${date.day}',
+                          font: fontBold,
+                          fontSize: 7,
+                        ),
+                      ),
                       _buildHeaderCell('Итого', font: fontBold, fontSize: 7),
                     ],
                   ),
@@ -239,11 +246,13 @@ class TimesheetPdfService {
                     ),
                     children: [
                       _buildHeaderCell('', font: font, fontSize: 6),
-                      ...daysInRange.map((date) => _buildHeaderCell(
-                            _getDayAbbreviation(date.weekday),
-                            font: font,
-                            fontSize: 6,
-                          )),
+                      ...daysInRange.map(
+                        (date) => _buildHeaderCell(
+                          _getDayAbbreviation(date.weekday),
+                          font: font,
+                          fontSize: 6,
+                        ),
+                      ),
                       _buildHeaderCell('', font: font, fontSize: 6),
                     ],
                   ),
@@ -256,8 +265,10 @@ class TimesheetPdfService {
                         employeeNames[employeeId] ?? 'Неизвестный';
 
                     // Подсчитываем итого по сотруднику
-                    final employeeTotal =
-                        dateHours.values.fold<num>(0, (sum, h) => sum + h);
+                    final employeeTotal = dateHours.values.fold<num>(
+                      0,
+                      (sum, h) => sum + h,
+                    );
 
                     return pw.TableRow(
                       children: [
@@ -272,17 +283,20 @@ class TimesheetPdfService {
                           final isWeekend =
                               date.weekday == 6 || date.weekday == 7;
                           return _buildDataCell(
-                            hours != null && hours > 0 ? hours.toString() : '',
+                            hours != null && hours > 0
+                                ? _formatHours(hours)
+                                : '',
                             font: font,
                             fontSize: 7,
                             padding: 2,
-                            backgroundColor:
-                                isWeekend ? PdfColors.grey100 : null,
+                            backgroundColor: isWeekend
+                                ? PdfColors.grey100
+                                : null,
                             alignment: pw.Alignment.center,
                           );
                         }),
                         _buildDataCell(
-                          employeeTotal > 0 ? employeeTotal.toString() : '',
+                          employeeTotal > 0 ? _formatHours(employeeTotal) : '',
                           font: fontBold,
                           fontSize: 7,
                           padding: 2,
@@ -298,8 +312,12 @@ class TimesheetPdfService {
                       color: PdfColors.grey200,
                     ),
                     children: [
-                      _buildDataCell('ИТОГО:',
-                          font: fontBold, fontSize: 7, padding: 2),
+                      _buildDataCell(
+                        'ИТОГО:',
+                        font: fontBold,
+                        fontSize: 7,
+                        padding: 2,
+                      ),
                       ...daysInRange.map((date) {
                         // Суммируем часы всех сотрудников за этот день
                         num dayTotal = 0;
@@ -307,7 +325,7 @@ class TimesheetPdfService {
                           dayTotal += employeeEntry[date] ?? 0;
                         }
                         return _buildDataCell(
-                          dayTotal > 0 ? dayTotal.toString() : '',
+                          dayTotal > 0 ? _formatHours(dayTotal) : '',
                           font: fontBold,
                           fontSize: 7,
                           padding: 2,
@@ -315,7 +333,7 @@ class TimesheetPdfService {
                         );
                       }),
                       _buildDataCell(
-                        totalHours.toString(),
+                        _formatHours(totalHours),
                         font: fontBold,
                         fontSize: 7,
                         padding: 2,
@@ -337,7 +355,7 @@ class TimesheetPdfService {
                     style: pw.TextStyle(font: font, fontSize: 8),
                   ),
                   pw.Text(
-                    'Всего часов: $totalHours',
+                    'Всего часов: ${_formatHours(totalHours)}',
                     style: pw.TextStyle(font: fontBold, fontSize: 8),
                   ),
                 ],
@@ -368,8 +386,11 @@ class TimesheetPdfService {
         return file.path;
       }
     } catch (e, stackTrace) {
-      _logger.e('Ошибка при экспорте табеля в PDF',
-          error: e, stackTrace: stackTrace);
+      _logger.e(
+        'Ошибка при экспорте табеля в PDF',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return null;
     }
   }
@@ -406,10 +427,7 @@ class TimesheetPdfService {
       padding: const pw.EdgeInsets.all(2),
       child: pw.Text(
         text,
-        style: pw.TextStyle(
-          font: font,
-          fontSize: fontSize,
-        ),
+        style: pw.TextStyle(font: font, fontSize: fontSize),
         textAlign: pw.TextAlign.center,
       ),
     );
@@ -431,10 +449,7 @@ class TimesheetPdfService {
         alignment: alignment,
         child: pw.Text(
           text,
-          style: pw.TextStyle(
-            font: font,
-            fontSize: fontSize,
-          ),
+          style: pw.TextStyle(font: font, fontSize: fontSize),
           maxLines: 1,
           overflow: pw.TextOverflow.clip,
         ),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 import '../providers/timesheet_provider.dart';
+import '../widgets/timesheet_excel_action.dart';
 import '../widgets/timesheet_filter_widget.dart';
 import '../widgets/timesheet_calendar_view.dart';
 import '../widgets/timesheet_pdf_action.dart';
@@ -31,6 +32,12 @@ class TimesheetScreen extends ConsumerWidget {
           TimesheetSearchAction(),
           SizedBox(width: 8),
           TimesheetFiltersAction(),
+          SizedBox(width: 8),
+          PermissionGuard(
+            module: 'timesheet',
+            permission: 'export',
+            child: TimesheetExcelAction(),
+          ),
           SizedBox(width: 8),
           PermissionGuard(
             module: 'timesheet',
@@ -84,10 +91,9 @@ class TimesheetScreen extends ConsumerWidget {
                       ),
                       if (timesheetState.isLoading)
                         Container(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .surface
-                              .withValues(alpha: 0.8),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.surface.withValues(alpha: 0.8),
                           child: const Center(
                             child: CircularProgressIndicator(),
                           ),

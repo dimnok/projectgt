@@ -1,6 +1,9 @@
 import '../entities/estimate.dart';
 import '../entities/estimate_completion_history.dart';
+import '../entities/estimate_revision.dart';
 import '../entities/vor.dart';
+import 'dart:io';
+import 'dart:typed_data';
 
 /// Абстракция репозитория для работы со сметами.
 ///
@@ -53,11 +56,53 @@ abstract class EstimateRepository {
   });
 
   /// Обновляет статус ведомости ВОР.
-  Future<void> updateVorStatus(String vorId, VorStatus status, {String? comment});
+  Future<void> updateVorStatus(
+    String vorId,
+    VorStatus status, {
+    String? comment,
+  });
 
   /// Удаляет ведомость ВОР.
   Future<void> deleteVor(String vorId);
 
   /// Наполняет состав ведомости ВОР фактически выполненными работами.
   Future<void> populateVorItems(String vorId);
+
+  /// Загружает подписанный PDF-файл для ведомости ВОР.
+  Future<void> uploadVorPdf({
+    required String vorId,
+    required File file,
+    required String fileName,
+  });
+
+  /// Создает временную ссылку для просмотра PDF-файла ведомости ВОР.
+  Future<String> getVorPdfViewUrl(String vorId);
+
+  /// Возвращает строки текущей сметы для выгрузки шаблона LC / ДС.
+  ///
+  /// Новый поток работает параллельно старому `estimates` flow и не заменяет его.
+  Future<List<EstimateAddendumTemplateRow>> getAddendumTemplateRows({
+    required String estimateTitle,
+    required String contractId,
+    String? objectId,
+  });
+
+  /// Возвращает готовый Excel-файл шаблона LC / ДС, сгенерированный на сервере.
+  Future<Map<String, dynamic>> getAddendumTemplateFile({
+    required String estimateTitle,
+    required String contractId,
+    String? objectId,
+  });
+
+  /// Создаёт черновик ревизии LC / ДС и сохраняет строки в новых таблицах.
+  ///
+  /// Старые таблицы `estimates` и текущие ВОР при этом не меняются.
+  Future<EstimateRevisionDraftResult> createEstimateRevisionDraft({
+    required String estimateTitle,
+    required String contractId,
+    String? objectId,
+    required String fileName,
+    required Uint8List fileBytes,
+    required List<EstimateAddendumImportRow> rows,
+  });
 }
