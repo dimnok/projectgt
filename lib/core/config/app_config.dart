@@ -63,7 +63,7 @@ class AppConfig {
     if (kIsWeb) {
       // SELF-HOSTED: api.progt.ru
       // TODO: Удалить старый ключ после стабилизации (eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6Y2F3c3Bia3ZrcnNtc2tseXVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ0NzkyODEsImV4cCI6MjA2MDA1NTI4MX0.VOeRvuFE9mVGXXEs8ylEeVyebB1DAqH-9r-73awQQ4k)
-      return 'eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJyb2xlIjogImFub24iLCAiaXNzIjogInN1cGFiYXNlIiwgImlhdCI6IDE3NzM1NTc0NTAsICJleHAiOiAyMDg4OTE0NDUwfQ.3ytSHkpn0edR6DlpVwIBPaCTXCvCH6Q4bGs4oX0SJek';
+      return 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzczODYwMDU3LCJleHAiOjIwODg5MTQ0NTB9.7y8Hpqmi2eB-IV2gVyjGk45Sz_R-IKevZ_W97C2rMOg';
     }
 
     // Для нативных платформ проверяем переменные окружения
@@ -74,7 +74,7 @@ class AppConfig {
 
     // Fallback на Self-hosted ключ
     // TODO: Удалить старый ключ после стабилизации (eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6Y2F3c3Bia3ZrcnNtc2tseXVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ0NzkyODEsImV4cCI6MjA2MDA1NTI4MX0.VOeRvuFE9mVGXXEs8ylEeVyebB1DAqH-9r-73awQQ4k)
-    return 'eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJyb2xlIjogImFub24iLCAiaXNzIjogInN1cGFiYXNlIiwgImlhdCI6IDE3NzM1NTc0NTAsICJleHAiOiAyMDg4OTE0NDUwfQ.3ytSHkpn0edR6DlpVwIBPaCTXCvCH6Q4bGs4oX0SJek';
+    return 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzczODYwMDU3LCJleHAiOjIwODg5MTQ0NTB9.7y8Hpqmi2eB-IV2gVyjGk45Sz_R-IKevZ_W97C2rMOg';
   }
 
   /// Режим отладки
@@ -135,7 +135,7 @@ class AppConfig {
 
   /// Версия приложения
   static String get appVersion {
-    return '1.0.0';
+    return '1.0.13';
   }
 
   // Telegram конфигурация удалена
