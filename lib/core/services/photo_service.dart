@@ -286,10 +286,19 @@ class PhotoService {
       try {
         debugPrint('Получаем список файлов в папке $folder...');
         final files = await _supabase.storage.from(bucket).list(path: folder);
-        final toDelete = files
-            .where((f) => f.name.startsWith(safeName))
-            .map((f) => '$folder${f.name}')
-            .toList();
+        
+        late List<String> toDelete;
+        if (entity == 'shift' || entity == 'work') {
+          toDelete = files
+              .where((f) => f.name.startsWith(safeName))
+              .map((f) => '$folder${f.name}')
+              .toList();
+        } else {
+          // Для аватаров удаляем все файлы в папке, чтобы не копить старые фото
+          toDelete = files
+              .map((f) => '$folder${f.name}')
+              .toList();
+        }
 
         if (toDelete.isNotEmpty) {
           debugPrint('Удаляем ${toDelete.length} старых файлов...');
@@ -317,7 +326,11 @@ class PhotoService {
       final fileName = (entity == 'shift' || entity == 'work')
           ? _getWorkFileName(displayName)
           : '${safeName}_$unique.$ext';
-      final filePath = '$folder$datePrefix/$fileName';
+          
+      final filePath = (entity == 'shift' || entity == 'work') 
+          ? '$folder$datePrefix/$fileName'
+          : '$folder$fileName'; // Для аватаров дата не нужна
+          
       debugPrint('Загружаем файл по пути: $filePath');
 
       try {
@@ -390,10 +403,20 @@ class PhotoService {
       // Очистка старых по префиксу — по возможности оставляем последнюю (опционально)
       try {
         final files = await _supabase.storage.from(bucket).list(path: folder);
-        final toDelete = files
-            .where((f) => f.name.startsWith(safeName))
-            .map((f) => '$folder${f.name}')
-            .toList();
+        late List<String> toDelete;
+        
+        if (entity == 'shift' || entity == 'work') {
+          toDelete = files
+              .where((f) => f.name.startsWith(safeName))
+              .map((f) => '$folder${f.name}')
+              .toList();
+        } else {
+          // Для аватаров удаляем все файлы в папке
+          toDelete = files
+              .map((f) => '$folder${f.name}')
+              .toList();
+        }
+        
         if (toDelete.isNotEmpty) {
           await _supabase.storage.from(bucket).remove(toDelete);
         }
@@ -414,7 +437,10 @@ class PhotoService {
       final fileName = (entity == 'shift' || entity == 'work')
           ? _getWorkFileName(displayName)
           : '${safeName}_$unique.$ext';
-      final filePath = '$folder$datePrefix/$fileName';
+          
+      final filePath = (entity == 'shift' || entity == 'work') 
+          ? '$folder$datePrefix/$fileName'
+          : '$folder$fileName'; // Для аватаров дата не нужна
 
       await _supabase.storage.from(bucket).uploadBinary(
             filePath,
@@ -449,7 +475,6 @@ class PhotoService {
     try {
       late String bucket;
       late String folder;
-      final safeName = slugify(displayName);
       switch (entity) {
         case 'profile':
           bucket = 'avatars';
@@ -488,9 +513,9 @@ class PhotoService {
             .map((f) => '$folder${f.name}')
             .toList();
       } else {
-        // Для других сущностей используем прежнюю логику с поиском по префиксу
+        // Для аватаров (профиль, сотрудник, контрагент) просто удаляем все файлы в папке ID,
+        // чтобы не оставлять мусор, если у человека изменилось ФИО и префикс файла стал другим.
         toDelete = files
-            .where((f) => f.name.startsWith(safeName))
             .map((f) => '$folder${f.name}')
             .toList();
       }

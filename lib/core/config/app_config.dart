@@ -135,7 +135,7 @@ class AppConfig {
 
   /// Версия приложения
   static String get appVersion {
-    return '1.0.13';
+    return '1.0.14';
   }
 
   // Telegram конфигурация удалена

@@ -88,7 +88,7 @@ serve(async (req) => {
       throw new Error("Missing Supabase environment variables");
     }
 
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
+    const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
     await ensureCompanyAccess(supabase, req, request.companyId);
 
     const employeeRows = await loadEmployees(supabase, request);
@@ -109,10 +109,18 @@ serve(async (req) => {
       );
 
     const employeeIdsWithHours = new Set(entries.map((entry) => entry.employeeId));
+    
+    const hasObjectFilter = request.objectIds && request.objectIds.length > 0;
+
     const visibleEmployees = employeeRows
-      .filter((employee) =>
-        employee.status !== "fired" || employeeIdsWithHours.has(employee.id)
-      )
+      .filter((employee) => {
+        // Если включен фильтр по объектам, показываем ТОЛЬКО тех, у кого есть часы
+        if (hasObjectFilter) {
+          return employeeIdsWithHours.has(employee.id);
+        }
+        // Иначе показываем всех активных + уволенных с часами
+        return employee.status !== "fired" || employeeIdsWithHours.has(employee.id);
+      })
       .sort((a, b) => a.fullName.localeCompare(b.fullName, "ru"));
 
     if (visibleEmployees.length === 0) {

@@ -1,4 +1,5 @@
 import 'package:projectgt/domain/entities/employee.dart';
+import 'package:projectgt/domain/entities/employee_blocking_shift.dart';
 
 /// Абстракция репозитория для работы с сотрудниками.
 abstract class EmployeeRepository {
@@ -26,6 +27,11 @@ abstract class EmployeeRepository {
   ///
   /// Возвращает void. Бросает [Exception] при ошибке.
   Future<void> deleteEmployee(String id);
+
+  /// Смены с учётом часов сотрудника [employeeId], из‑за которых удаление может быть запрещено FK.
+  Future<List<EmployeeBlockingShift>> getEmployeeDeleteBlockingShifts(
+    String employeeId,
+  );
 
   /// Получить уникальные должности сотрудников
   Future<List<String>> getPositions();

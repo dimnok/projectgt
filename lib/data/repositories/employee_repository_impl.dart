@@ -1,6 +1,7 @@
 import 'package:projectgt/data/datasources/employee_data_source.dart';
 import 'package:projectgt/data/models/employee_model.dart';
 import 'package:projectgt/domain/entities/employee.dart';
+import 'package:projectgt/domain/entities/employee_blocking_shift.dart';
 import 'package:projectgt/domain/repositories/employee_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -46,6 +47,13 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
   @override
   Future<void> deleteEmployee(String id) async {
     await dataSource.deleteEmployee(id);
+  }
+
+  @override
+  Future<List<EmployeeBlockingShift>> getEmployeeDeleteBlockingShifts(
+    String employeeId,
+  ) {
+    return dataSource.getEmployeeDeleteBlockingShifts(employeeId);
   }
 
   @override

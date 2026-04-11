@@ -1,194 +1,200 @@
 # Модуль Employees (Сотрудники)
 
-**Дата актуализации:** 14 марта 2026 года
+**Дата актуализации:** 11 апреля 2026 года
 
 **Изменения в этой версии:**
-- подтвержден новый альтернативный экран `employees_table_screen.dart` с полноэкранной таблицей
-- добавлены inline-действия: смена `status` и `object_ids` прямо из таблицы
-- подтвержден новый маршрут `/employees-table` и пункт меню `Сотрудники (Таблица)` в `AppDrawer`
-- **внедрена система разрешений для `employees_table` (read, create, update, export, import)**
-- **добавлен новый модуль `employees_table` в таблицу `app_modules` и матрицу прав `PermissionsMatrix`**
-- **экран `EmployeesTableScreen` теперь учитывает права доступа через `PermissionService`**
-- актуализирован audit по таблицам `employees`, `employee_rates`, связанным RLS-политикам, индексам и триггерам
-- зафиксировано текущее поведение `EmployeeNotifier`: локальный кэш деталей, client-side поиск и кэш `canBeResponsibleMap`
-- **исправлена ошибка исчезновения ставки при обновлении объектов/статуса сотрудника в `EmployeeNotifier`**
+- задокументированы **две поверхности списка**: таблица на широких экранах и **мобильный** `EmployeesListMobileScreen` при узкой стороне окна ([`EmployeesLayoutUtils`](../../lib/features/employees/presentation/utils/employees_layout_utils.dart))
+- обновлён раздел **Presentation**: карточки, свайпы, bottom sheet деталей/редактирования, аватар ([`EmployeeAvatarController`](../../lib/features/employees/presentation/providers/employee_avatar_controller.dart), [`PhotoService`](../../lib/core/services/photo_service.dart))
+- **Навигация и RBAC**: маршрут `/employees`, детали `/employees/:employeeId`, права модуля `employees` (`read`, `create`, `update`, `export`); просмотр «своей» карточки по `profiles` без права на весь справочник
+- **База данных (audit по репозиторию)**: актуализированы имена RLS-политик из [`20251015_fix_rls_performance_auth_initplan.sql`](../../supabase/migrations/20251015_fix_rls_performance_auth_initplan.sql); убраны неподтверждённые имена политик и устаревшие оценки `pg_stat`; отмечено отсутствие `CREATE TABLE employee_rates` в текущем наборе миграций
+- **Edge Function `export-employees`**: проверка доступа через `company_members` + JWT; фильтры как в UI
+- **EmployeeNotifier**: параметр `includeResponsibilityMap`, сохранение `currentHourlyRate` при `updateEmployee`, удаление фото из Storage при `deleteEmployee`
+- выравнивание с [`documentation.mdc`](../../.cursor/rules/documentation.mdc): заголовки слоёв, **RLS** в формате ✅, подразделы **Триггеры / Functions**, **Формулы и инварианты**, **Design System**, **Roadmap** с приоритетами багов
 
 ---
 
 ## Важное замечание
 
-Модуль `Employees` владеет двумя основными таблицами:
+Модуль **владеет** (основной CRUD и бизнес-смысл) таблицами:
+
 - `employees`
 - `employee_rates`
 
-Дополнительно модуль тесно связан с:
-- `profiles` — привязка пользователя к карточке сотрудника через `profiles.employee_id`
-- `objects` — связи сотрудника с объектами через `employees.object_ids`
-- `work_plan_blocks` — использование сотрудников как `responsible_id` и `worker_ids`
-- `work_hours` и `employee_attendance` — использование сотрудников в учёте часов и табеле
+Тесные связи:
 
-Ключевые особенности текущей реализации:
-- все основные запросы к сотрудникам жёстко ограничены `activeCompanyIdProvider`
-- поиск, фильтрация по строке и сортировка выполняются на клиенте в `EmployeeState.filteredEmployees`
-- текущая ставка сотрудника не хранится в `employees`, а догружается из `employee_rates` по записи с `valid_to IS NULL`
-- для флага `can_be_responsible` используется отдельный кэш `canBeResponsibleMap`
-- табличный экран пока существует как альтернативный view, не заменяя legacy master-detail экран
+- `profiles` — `employee_id`, `object_ids` (доступ и привязка пользователя к карточке)
+- `objects` — `employees.object_ids`
+- `work_hours`, `employee_attendance` — учёт часов
+- `work_plan_blocks` — `responsible_id`, `worker_ids`
+- `work_plans` — в т.ч. колонка `responsible_id` (FK на `employees`)
+- таблицы **FOT** (`payroll_*`, функции расчёта) — чтение ставок и сотрудников
+
+Особенности реализации:
+
+- все запросы к PostgREST фильтруются по **`activeCompanyId`** в datasource
+- поиск по ФИО / должности / телефону — **на клиенте** (`EmployeeState.filteredEmployees`)
+- **текущая ставка** не хранится в строке `employees`: подгружается из `employee_rates`, где `valid_to IS NULL`, и кладётся в `Employee.currentHourlyRate` / `EmployeeModel.currentHourlyRate` (только на клиенте)
+- флаг **`can_be_responsible`** хранится в БД в `employees`, в доменной модели [`Employee`](../../lib/domain/entities/employee.dart) **не** сериализуется; в UI используется кэш `EmployeeState.canBeResponsibleMap` и отдельные методы datasource
+- **две раскладки списка**: `EmployeesTableScreen` (таблица) и `EmployeesListMobileScreen` (карточки) — выбор по [`EmployeesLayoutUtils.useEmployeesMobileList`](../../lib/features/employees/presentation/utils/employees_layout_utils.dart) (`shortestSide` vs breakpoint планшета)
 
 ---
 
 ## Описание модуля
 
-Модуль `Employees` отвечает за полный жизненный цикл сотрудника внутри компании: анкетные данные, паспортные реквизиты, трудоустройство, назначение на объекты, текущий статус, ставки, привязку к профилю пользователя и участие в смежных модулях (`Timesheet`, `Works`, `Work Plans`, `FOT`).
+Модуль **Employees** закрывает жизненный цикл карточки сотрудника в компании: анкета, паспорт, трудоустройство, объекты, статус, история ставок, фото, флаг ответственного, участие в **Timesheet**, **Works**, **Work Plans**, **FOT**.
 
 Ключевые функции:
-- просмотр списка сотрудников в master-detail режиме
-- просмотр списка сотрудников в полноэкранной таблице
-- создание и редактирование карточки сотрудника
-- ведение истории ставок через `employee_rates`
-- переключение флага `can_be_responsible`
-- inline-редактирование `status` и `object_ids` в табличном view
-- отображение связанных объектов, ставок и командировок в деталях сотрудника
 
-Архитектурные особенности:
-- Clean Architecture: `presentation` / `domain` / `data`
-- состояние через `Riverpod`
-- immutable-сущности через `Freezed`
-- DTO-маппинг через `json_serializable`
-- Supabase PostgREST как транспорт к БД
-- Multi-tenancy через `company_id`
+- список сотрудников: **таблица** (desktop / широкий экран) или **мобильный** список с фильтром по статусу, поиском, свайп-действиями и bottom sheet
+- создание / редактирование / удаление (права `employees:*`)
+- история и текущая ставка (`employee_rates`)
+- переключение **`can_be_responsible`**
+- inline на таблице: **статус**, **объекты** (`object_ids`)
+- экспорт XLSX на сервере (**Edge Function** + клиентский сервис)
+- фото: загрузка / удаление / сохранение (платформенно) через **Storage** и `PhotoService`
+
+Архитектура: Clean Architecture (`presentation` / `domain` / `data`), **Riverpod**, **Freezed**, **json_serializable**, транспорт **Supabase PostgREST**, мультитенантность по **`company_id`**.
 
 ---
 
 ## Зависимости
 
-### Основные таблицы модуля
-- `employees`
-- `employee_rates`
+### Таблицы модуля (owner)
 
-### Таблицы, которые модуль использует
-- `objects`
-- `profiles`
-- `work_plan_blocks`
-- `work_plans`
-- `work_hours`
-- `employee_attendance`
-- payroll-таблицы модуля `FOT`
+| Таблица          | Назначение                          |
+|------------------|-------------------------------------|
+| `employees`      | Карточка сотрудника                 |
+| `employee_rates` | История почасовых ставок            |
 
-### Связанные модули
-- `objects`
-- `profile`
-- `works`
-- `work_plans`
-- `timesheet`
-- `fot`
-- `roles` (матрица прав `employees_table`)
-- `company`
+### Таблицы и сущности, которые модуль использует
 
----
+| Объект               | Использование                                      |
+|----------------------|----------------------------------------------------|
+| `objects`            | Имена объектов, фильтры, `object_ids`              |
+| `profiles`           | Привязка `employee_id`, навигационные проверки     |
+| `company_members`    | Проверка доступа к компании в `export-employees`   |
+| `work_plan_blocks`   | `responsible_id`, `worker_ids`                     |
+| `work_plans`         | `responsible_id`                                   |
+| `work_hours`         | `employee_id` в сменах                             |
+| `employee_attendance`| ручные часы табеля                                 |
+| FOT / payroll        | расчёты, отчёты, балансы                           |
 
-## Presentation
+### Связанные модули приложения
 
-- `lib/features/employees/presentation/screens/employees_list_screen.dart`
-  Legacy экран списка сотрудников в формате master-detail. Поддерживает поиск, статистику, действия над выбранным сотрудником и адаптивное поведение для desktop/mobile.
-
-- `lib/features/employees/presentation/screens/employees_table_screen.dart`
-  Новый полноэкранный табличный view сотрудников. Поддерживает:
-  - sticky header
-  - поиск
-  - статусные фильтры с counters
-  - multi-select через checkbox
-  - inline-изменение `status`
-  - inline-изменение `object_ids`
-  - подсветку активной строки при открытом popup menu
-  - быстрые локальные обновления без полной перезагрузки списка
-  - **разграничение прав доступа (read, create, update, export)** через `PermissionService`
-
-- `lib/features/employees/presentation/screens/employee_details_screen.dart`
-  Детальный экран сотрудника. Использует `employeeProvider`, показывает статус, тип трудоустройства, связанные объекты, summary по ставкам и командировкам, а также action buttons для edit/delete и toggle `can_be_responsible`.
-
-- `lib/features/employees/presentation/screens/employee_form_screen.dart`
-  Форма создания/редактирования сотрудника. Содержит персональные данные, паспортные поля, трудовые параметры, выбор объектов, тип трудоустройства, статус и загрузку фотографии. Текущая ставка загружается отдельно через `employeeRateDataSourceProvider`.
-
-- `lib/features/employees/presentation/widgets/employee_card.dart`
-  Карточка сотрудника для legacy-списка.
-
-- `lib/features/employees/presentation/widgets/employee_statistics_modal.dart`
-  Модальное окно со сводной статистикой по сотрудникам.
-
-- `lib/features/employees/presentation/widgets/employee_rate_summary_widget.dart`
-  Summary по ставкам сотрудника.
-
-- `lib/features/employees/presentation/widgets/employee_business_trip_summary_widget.dart`
-  Summary по командировкам сотрудника.
-
-- `lib/features/employees/presentation/widgets/employee_trip_editor_form.dart`
-  Редактор блока поездок/командировок в контексте деталей сотрудника.
-
-- `lib/features/employees/presentation/widgets/form_widgets.dart`
-  Переиспользуемые building blocks для формы сотрудника.
-
-- `lib/features/employees/presentation/widgets/master_detail_layout.dart`
-  Layout-обвязка для desktop master-detail view.
-
-- `lib/features/employees/presentation/widgets/search_field.dart`
-  Вспомогательный поисковый виджет legacy-экрана.
-
-Дополнительно подтверждено:
-- маршрут `AppRoutes.employeesTable = '/employees-table'`
-- `GoRoute(name: 'employees_table')`
-- пункт в `AppDrawer`: `Сотрудники (Таблица)`
+- `objects`, `profile`, `works`, `work_plans`, `timesheet`, `fot`, `roles` (матрица прав), `company`
 
 ---
 
-## Domain / Data
+## Слой Presentation
+
+### Экраны
+
+| Файл | Назначение |
+|------|------------|
+| [`employees_table_screen.dart`](../../lib/features/employees/presentation/screens/employees_table_screen.dart) | Полноэкранная таблица: sticky header, поиск, фильтр статуса (счётчики), фильтр по объекту, multi-select, inline `status` / `object_ids`, детали в модалке, права `read` / `create` / `update` / `export` |
+| [`employees_list_mobile_screen.dart`](../../lib/features/employees/presentation/screens/employees_list_mobile_screen.dart) | Мобильный список карточек, чипы статусов, bottom sheet объектов и деталей |
+| [`employee_details_screen.dart`](../../lib/features/employees/presentation/screens/employee_details_screen.dart) | Маршрут по `employeeId`; общий UI с модалкой деталей |
+
+### Утилиты и сервисы UI
+
+| Файл | Назначение |
+|------|------------|
+| [`employees_layout_utils.dart`](../../lib/features/employees/presentation/utils/employees_layout_utils.dart) | `useEmployeesMobileList`, `useEmployeesDesktopModal` (shortestSide + ширина) |
+| [`employee_server_excel_export_service.dart`](../../lib/features/employees/presentation/services/employee_server_excel_export_service.dart) | Вызов `export-employees`, сохранение base64 XLSX (веб / десктоп / share) |
+| [`employee_avatar_controller.dart`](../../lib/features/employees/presentation/providers/employee_avatar_controller.dart) | Загрузка / удаление аватара, сохранение в галерею на мобильных |
+
+### Виджеты (основные)
+
+| Файл | Назначение |
+|------|------------|
+| [`employees_table_actions_bar.dart`](../../lib/features/employees/presentation/widgets/employees_table_actions_bar.dart) | Панель действий таблицы |
+| [`employees_table_filters_toolbar.dart`](../../lib/features/employees/presentation/widgets/employees_table_filters_toolbar.dart) | Фильтры; `EmployeesObjectTableFilterValue.toExportFilterJson()` для экспорта |
+| [`employee_details_modal.dart`](../../lib/features/employees/presentation/widgets/employee_details_modal.dart) | Детальная карточка, действия, `can_be_responsible` |
+| [`employee_edit_form.dart`](../../lib/features/employees/presentation/widgets/employee_edit_form.dart) | Форма редактирования |
+| [`add_employee_simple_dialog.dart`](../../lib/features/employees/presentation/widgets/add_employee_simple_dialog.dart) | Быстрое добавление |
+| [`add_employee_rate_dialog.dart`](../../lib/features/employees/presentation/widgets/add_employee_rate_dialog.dart) | Добавление ставки |
+| [`employee_rate_summary_widget.dart`](../../lib/features/employees/presentation/widgets/employee_rate_summary_widget.dart) | Сводка по ставкам |
+| [`employee_business_trip_summary_widget.dart`](../../lib/features/employees/presentation/widgets/employee_business_trip_summary_widget.dart) | Сводка по командировкам |
+| [`employee_trip_editor_form.dart`](../../lib/features/employees/presentation/widgets/employee_trip_editor_form.dart) | Редактор поездок |
+| [`form_widgets.dart`](../../lib/features/employees/presentation/widgets/form_widgets.dart) | Общие блоки формы |
+| [`editable_inline_text_row.dart`](../../lib/features/employees/presentation/widgets/editable_inline_text_row.dart) | Inline-редактирование |
+| [`employees_mobile_atmosphere.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_atmosphere.dart) | Визуальный фон мобильного списка |
+| [`employees_mobile_search_field.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_search_field.dart) | Поиск на мобильном |
+| [`employees_mobile_add_employee_button.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_add_employee_button.dart) | FAB / кнопка добавления |
+| [`employees_mobile_employee_card.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_card.dart) | Карточка в списке |
+| [`employees_mobile_swipeable_employee_card.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_swipeable_employee_card.dart) | Свайп по карточке |
+| [`employees_mobile_employee_details_sheet.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_details_sheet.dart) | Bottom sheet деталей |
+| [`employees_mobile_employee_edit_blocks.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_edit_blocks.dart) | Блоки редактирования на мобильном |
+
+### Design System (`lib/core/widgets/`)
+
+Модуль опирается на общие компоненты вместо «голого» Material там, где есть обёртки проекта:
+
+| Виджет / API | Файл в core | Где используется в модуле (примеры) |
+|--------------|-------------|-------------------------------------|
+| `GTTextField` | [`gt_text_field.dart`](../../lib/core/widgets/gt_text_field.dart) | диалоги добавления/ставки, мобильные блоки редактирования, поиск |
+| `GTDropdown` | [`gt_dropdown.dart`](../../lib/core/widgets/gt_dropdown.dart) | формы, редактор поездок, мобильные блоки |
+| `GTPrimaryButton` / `GTSecondaryButton` / `GTTextButton` | [`gt_buttons.dart`](../../lib/core/widgets/gt_buttons.dart) | диалоги, bottom sheet, мобильный список |
+| `DesktopDialogContent` | [`desktop_dialog_content.dart`](../../lib/core/widgets/desktop_dialog_content.dart) | детали, добавление сотрудника/ставки, формы на desktop |
+| `MobileBottomSheetContent` | [`mobile_bottom_sheet_content.dart`](../../lib/core/widgets/mobile_bottom_sheet_content.dart) | те же сценарии на mobile / узкой ширине |
+| `AppSnackBar` | [`app_snackbar.dart`](../../lib/core/widgets/app_snackbar.dart) | [`employees_list_mobile_screen.dart`](../../lib/features/employees/presentation/screens/employees_list_mobile_screen.dart) |
+| `GTContextMenu` | [`gt_context_menu.dart`](../../lib/core/widgets/gt_context_menu.dart) | [`employee_details_modal.dart`](../../lib/features/employees/presentation/widgets/employee_details_modal.dart) |
+
+Табличный экран построен на кастомной вёрстке (`Table` / `LayoutBuilder` и т.д.), без внешних grid-библиотек — в духе правил проекта (см. [`flutter.mdc`](../../.cursor/rules/flutter.mdc)).
+
+### Навигация и меню
+
+- Маршруты: `AppRoutes.employees = '/employees'`, `employee_details` — `${AppRoutes.employees}/:employeeId` ([`app_router.dart`](../../lib/core/common/app_router.dart))
+- Список: при `employees` + `read` показывается таблица или мобильный список в зависимости от [`EmployeesLayoutUtils`](../../lib/features/employees/presentation/utils/employees_layout_utils.dart)
+- Детали: доступ при `employees` + `read` **или** если `profiles` содержит тот же `employee_id`, что и маршрут
+- [`AppDrawer`](../../lib/presentation/widgets/app_drawer.dart): пункт «Сотрудники» (без ограничения «только desktop», в отличие от части других модулей)
+
+### Вспомогательный UI вне фичи
+
+- [`employee_ui_utils.dart`](../../lib/core/utils/employee_ui_utils.dart) — общие подписи/статусы для списков и таблицы
+
+---
+
+## Слой Domain / Data
 
 ### Domain
 
-- `lib/domain/entities/employee.dart`
-  Основная доменная сущность сотрудника. Содержит:
-  - ФИО
-  - персональные и паспортные данные
-  - `employmentType`
-  - `status`
-  - `objectIds`
-  - `currentHourlyRate`
-  - helper `fullName`
+| Файл | Содержимое |
+|------|------------|
+| [`employee.dart`](../../lib/domain/entities/employee.dart) | Сущность сотрудника, enum `EmploymentType`, `EmployeeStatus` (отдельно от `EmployeeState` в Riverpod) |
+| [`employee_rate.dart`](../../lib/domain/entities/employee_rate.dart) | Сущность ставки с периодом |
+| [`employee_repository.dart`](../../lib/domain/repositories/employee_repository.dart) | Контракт репозитория сотрудников |
+| [`employee_rate_repository.dart`](../../lib/domain/repositories/employee_rate_repository.dart) | Контракт ставок |
 
-- `lib/domain/entities/employee_rate.dart`
-  Доменная сущность ставки сотрудника с периодом действия. Поддерживает `isCurrent`, `isActiveOn()` и `periodText`.
+### Use cases
 
-- `lib/domain/repositories/employee_repository.dart`
-  Контракт CRUD для сотрудников + получение уникальных должностей.
-
-- `lib/domain/repositories/employee_rate_repository.dart`
-  Контракт истории ставок.
+| Каталог | Файлы |
+|---------|--------|
+| `lib/domain/usecases/employee/` | `get_employee`, `get_employees`, `create_employee`, `update_employee`, `delete_employee` |
+| `lib/domain/usecases/employee_rate/` | `get_employee_rates`, `get_employee_rate_for_date`, `set_employee_rate` |
 
 ### Data
 
-- `lib/data/models/employee_model.dart`
-  DTO-модель `employees` с `fieldRename: FieldRename.snake`. Поле `currentHourlyRate` не сериализуется напрямую и используется только как enrichment на клиенте.
+| Файл | Назначение |
+|------|------------|
+| [`employee_model.dart`](../../lib/data/models/employee_model.dart) | DTO `employees`; `current_hourly_rate` только на клиенте (`includeFromJson: false`) |
+| [`employee_rate_model.dart`](../../lib/data/models/employee_rate_model.dart) | DTO `employee_rates` |
+| [`employee_data_source.dart`](../../lib/data/datasources/employee_data_source.dart) | Supabase: CRUD, `getResponsibleEmployees`, `can_be_responsible`, пакетная мапа флага, обогащение текущей ставкой |
+| [`employee_rate_data_source.dart`](../../lib/data/datasources/employee_rate_data_source.dart) | История ставок |
+| [`employee_repository_impl.dart`](../../lib/data/repositories/employee_repository_impl.dart) | Маппинг модель ↔ сущность |
+| [`employee_rate_repository_impl.dart`](../../lib/data/repositories/employee_rate_repository_impl.dart) | Репозиторий ставок |
 
-- `lib/data/models/employee_rate_model.dart`
-  DTO-модель ставок.
+### Состояние (Riverpod)
 
-- `lib/data/datasources/employee_data_source.dart`
-  Основной Supabase datasource. Подтвержденные особенности:
-  - все CRUD-запросы фильтруются по `company_id`
-  - `getEmployees()` сначала грузит сотрудников, затем одним дополнительным запросом подтягивает текущие ставки из `employee_rates`
-  - `getResponsibleEmployees(objectId)` фильтрует по `status = 'working'`, `can_be_responsible = true` и `object_ids contains objectId`
-  - есть отдельные методы `getCanBeResponsible`, `setCanBeResponsible`, `getCanBeResponsibleMap`
+| Файл | Назначение |
+|------|------------|
+| [`employee_state.dart`](../../lib/presentation/state/employee_state.dart) | `EmployeeNotifier`: список, выбранный сотрудник, кэш деталей, `searchQuery`, `canBeResponsibleMap`, локальные обновления списка, `getEmployees(includeResponsibilityMap: ...)`, сохранение ставки при `updateEmployee`, **удаление фото** при `deleteEmployee` |
 
-- `lib/data/repositories/employee_repository_impl.dart`
-  Простая адаптация `EmployeeModel <-> Employee` и отдельный runtime-запрос unique `position` через Supabase.
+Провайдеры datasources / repositories / use cases: [`lib/core/di/providers.dart`](../../lib/core/di/providers.dart) (`employeeDataSourceProvider`, `employeeRateDataSourceProvider`, …).
 
-- `lib/presentation/state/employee_state.dart`
-  `EmployeeNotifier`:
-  - держит список сотрудников и выбранного сотрудника
-  - кэширует details в `_employeeDetailsCache`
-  - хранит поисковую строку `searchQuery`
-  - хранит кэш `canBeResponsibleMap`
-  - обновляет список локально после `createEmployee`, `updateEmployee`, `deleteEmployee`
-  - повторно использует уже загруженный список, если состояние success и список не пуст
+### Фото (Storage)
+
+[`PhotoService`](../../lib/core/services/photo_service.dart): `entity: 'employee'`, загрузка в bucket Supabase Storage, используется модулем и при удалении сотрудника.
 
 ---
 
@@ -196,6 +202,10 @@
 
 ```text
 lib/
+├── core/
+│   ├── di/providers.dart                    # провайдеры employees / employee_rates
+│   ├── services/photo_service.dart          # фото сотрудника (entity: employee)
+│   └── utils/employee_ui_utils.dart
 ├── data/
 │   ├── datasources/
 │   │   ├── employee_data_source.dart
@@ -210,26 +220,37 @@ lib/
 │   ├── entities/
 │   │   ├── employee.dart
 │   │   └── employee_rate.dart
-│   └── repositories/
-│       ├── employee_repository.dart
-│       └── employee_rate_repository.dart
-├── features/
-│   └── employees/
-│       └── presentation/
-│           ├── screens/
-│           │   ├── employee_details_screen.dart
-│           │   ├── employee_form_screen.dart
-│           │   ├── employees_list_screen.dart
-│           │   └── employees_table_screen.dart
-│           └── widgets/
-│               ├── employee_business_trip_summary_widget.dart
-│               ├── employee_card.dart
-│               ├── employee_rate_summary_widget.dart
-│               ├── employee_statistics_modal.dart
-│               ├── employee_trip_editor_form.dart
-│               ├── form_widgets.dart
-│               ├── master_detail_layout.dart
-│               └── search_field.dart
+│   ├── repositories/
+│   │   ├── employee_repository.dart
+│   │   └── employee_rate_repository.dart
+│   └── usecases/
+│       ├── employee/
+│       └── employee_rate/
+├── features/employees/
+│   └── presentation/
+│       ├── providers/
+│       │   └── employee_avatar_controller.dart
+│       ├── screens/
+│       │   ├── employees_table_screen.dart
+│       │   ├── employees_list_mobile_screen.dart
+│       │   └── employee_details_screen.dart
+│       ├── services/
+│       │   └── employee_server_excel_export_service.dart
+│       ├── utils/
+│       │   └── employees_layout_utils.dart
+│       └── widgets/
+│           ├── add_employee_rate_dialog.dart
+│           ├── add_employee_simple_dialog.dart
+│           ├── editable_inline_text_row.dart
+│           ├── employee_business_trip_summary_widget.dart
+│           ├── employee_details_modal.dart
+│           ├── employee_edit_form.dart
+│           ├── employee_rate_summary_widget.dart
+│           ├── employee_trip_editor_form.dart
+│           ├── employees_mobile_*.dart
+│           ├── employees_table_actions_bar.dart
+│           ├── employees_table_filters_toolbar.dart
+│           └── form_widgets.dart
 └── presentation/
     └── state/
         └── employee_state.dart
@@ -237,340 +258,203 @@ lib/
 
 ---
 
-## База данных (Audit)
+## База данных (Audit по репозиторию)
+
+> **Источник:** SQL-миграции в `supabase/migrations/` и DTO в `lib/data/models/`. Полный `CREATE TABLE` для `employee_rates` в отслеживаемых миграциях **не найден** (таблица используется в функциях ФОТ, экспорте и клиенте). Имена индексов ниже — только те, что явно фигурируют в миграциях.
 
 ### Таблица `employees`
 
-Назначение:
-- основная карточка сотрудника
+**Назначение:** основная карточка сотрудника в разрезе компании.
 
-Ключевые колонки:
-- `id UUID`
-- `company_id UUID`
-- `photo_url TEXT`
-- `last_name TEXT`
-- `first_name TEXT`
-- `middle_name TEXT`
-- `birth_date TIMESTAMPTZ`
-- `birth_place TEXT`
-- `citizenship TEXT`
-- `phone TEXT`
-- `clothing_size TEXT`
-- `shoe_size TEXT`
-- `height TEXT`
-- `employment_date TIMESTAMPTZ`
-- `employment_type TEXT DEFAULT 'official'`
-- `position TEXT`
-- `status TEXT DEFAULT 'working'`
-- `passport_series TEXT`
-- `passport_number TEXT`
-- `passport_issued_by TEXT`
-- `passport_issue_date TIMESTAMPTZ`
-- `passport_department_code TEXT`
-- `registration_address TEXT`
-- `inn TEXT`
-- `snils TEXT`
-- `object_ids TEXT[] DEFAULT ARRAY[]::text[]`
-- `can_be_responsible BOOLEAN DEFAULT false`
-- `created_at TIMESTAMPTZ DEFAULT now()`
-- `updated_at TIMESTAMPTZ DEFAULT now()`
+**Колонки (по [`EmployeeModel`](../../lib/data/models/employee_model.dart) + колонка флага в БД, используемая datasource):**
 
-RLS:
-- ✅ включён
+| Колонка | Тип (логический) | Примечание |
+|---------|------------------|------------|
+| `id` | UUID | PK |
+| `company_id` | UUID | обязателен в клиенте |
+| `photo_url` | TEXT | |
+| `last_name`, `first_name`, `middle_name` | TEXT | |
+| `birth_date`, `birth_place` | TIMESTAMPTZ / TEXT | |
+| `citizenship`, `phone` | TEXT | |
+| `clothing_size`, `shoe_size`, `height` | TEXT | |
+| `employment_date` | TIMESTAMPTZ | |
+| `employment_type` | TEXT | default `official` |
+| `position` | TEXT | |
+| `status` | TEXT | default `working` |
+| `object_ids` | TEXT[] | в приложении `List<String>` |
+| `passport_*`, `registration_address`, `inn`, `snils` | TEXT / TIMESTAMPTZ | |
+| `can_be_responsible` | BOOLEAN | в клиенте — через `canBeResponsibleMap`, не в JSON модели |
+| `created_at`, `updated_at` | TIMESTAMPTZ | |
 
-Политики:
-- `Users can view employees of their companies`
-- `Users can manage employees of their companies`
-- `employees_select`
-- `employees_insert`
-- `employees_update`
-- `employees_delete`
+Ранняя миграция [`20240101000002_employees_migration.sql`](../../supabase/migrations/20240101000002_employees_migration.sql) содержит иные поля (`hourly_rate`, `facility`); **текущая** доменная модель их **не** использует — фактическая схема на деплое должна быть сверена с продакшеном (`pg_dump` / Supabase Studio).
 
-Фактическое поведение доступа:
-- company-scope через `get_my_company_ids()`
-- дополнительный SELECT-разрешитель через `check_permission(...)`
-- сотрудник может читать собственную карточку через `profiles.employee_id`
-- чтение также допускается при пересечении `employees.object_ids` и `profiles.object_ids`
+**RLS:** ✅ Включён (`ALTER TABLE ... ENABLE ROW LEVEL SECURITY`).
 
-Индексы:
-- `employees_pkey`
-- `idx_employees_position`
-- `idx_employees_status`
+**Политики** (файл [`20251015_fix_rls_performance_auth_initplan.sql`](../../supabase/migrations/20251015_fix_rls_performance_auth_initplan.sql)):
 
-Оценка объёма:
-- ~74 строк (`pg_stat_user_tables`)
+| Имя | Операция | Суть |
+|-----|----------|------|
+| `Users can view employees` | SELECT | `auth.role() = 'authenticated'` |
+| `Only admins can create employees` | INSERT | authenticated и `profiles.role = 'admin'` |
+| `Only admins can update employees` | UPDATE | то же |
+| `Only admins can delete employees` | DELETE | то же |
+
+> **Замечание RBAC:** политики опираются на legacy-поле `profiles.role`. Матрица прав приложения ([`PermissionService`](../../lib/features/roles/application/permission_service.dart), ключ `employees`) задаёт UX, но **PostgREST** ограничен политиками выше.
+
+**Индексы** (упоминания в миграциях):
+
+- `employees_pkey` (подразумевается PK)
+- `idx_employees_status`, `idx_employees_position` — из [`20240101000002_employees_migration.sql`](../../supabase/migrations/20240101000002_employees_migration.sql)
+- `idx_employees_name` — **удалён** в [`20251015_optimize_indexes.sql`](../../supabase/migrations/20251015_optimize_indexes.sql)
+
+#### Триггеры (`employees`)
+
+В отслеживаемых миграциях репозитория **триггеров на таблице `public.employees` не объявлено**.
+
+#### Функции (SQL), использующие `employees`
+
+Таблица читается и джойнится вне модуля, в первую очередь в **FOT** и отчётах, например (имена из миграций; не исчерпывающий список):
+
+- `calculate_employee_balances()` — баланс к выплате по сотрудникам
+- функции расчёта зарплаты за месяц / срезы payroll (используют `employees`, `employee_rates`, `work_hours`, `employee_attendance`)
+- `get_payroll_report_data` и связанные RPC в миграциях ФОТ
+- `get_month_employees_summary` — агрегат по числу сотрудников в сменах за месяц
 
 ### Таблица `employee_rates`
 
-Назначение:
-- история ставок сотрудника
+**Назначение:** история ставок; «текущая» строка с `valid_to IS NULL`.
 
-Ключевые колонки:
-- `id UUID`
-- `company_id UUID`
-- `employee_id UUID`
-- `hourly_rate NUMERIC`
-- `valid_from DATE`
-- `valid_to DATE NULL`
-- `created_at TIMESTAMPTZ DEFAULT now()`
-- `created_by UUID`
+**Колонки (по [`EmployeeRateModel`](../../lib/data/models/employee_rate_model.dart)):**
 
-RLS:
-- ✅ включён
+| Колонка | Назначение |
+|---------|------------|
+| `id` | PK |
+| `company_id` | компания |
+| `employee_id` | сотрудник |
+| `hourly_rate` | NUMERIC |
+| `valid_from`, `valid_to` | период; `valid_to NULL` — действующая ставка |
+| `created_at`, `created_by` | аудит |
 
-Политики:
-- `Users can view employee rates of their companies`
-- `Users can manage employee rates of their companies`
-- `employee_rates_select`
-- `employee_rates_insert`
-- `employee_rates_update`
-- `employee_rates_delete`
+**RLS:** ✅ Включён.
 
-Особенность:
-- активная ставка обеспечивается partial unique index `idx_employee_rates_active_unique` на `employee_id` при `valid_to IS NULL`
+**Политики** ([`20251015_fix_rls_performance_auth_initplan.sql`](../../supabase/migrations/20251015_fix_rls_performance_auth_initplan.sql)):
 
-Индексы:
-- `employee_rates_pkey`
-- `idx_employee_rates_active_unique`
-- `idx_employee_rates_dates`
-- `idx_employee_rates_created_by`
+| Имя | Операция | Суть |
+|-----|----------|------|
+| `Users can view employee rates` | SELECT | authenticated |
+| `Only admins can modify employee rates` | ALL | authenticated + `profiles.role = 'admin'` |
 
-Оценка объёма:
-- ~98 строк
+**Индексы / изменения в миграциях:**
 
-### Таблица `profiles`
+- [`20251015_optimize_indexes.sql`](../../supabase/migrations/20251015_optimize_indexes.sql): `CREATE INDEX IF NOT EXISTS idx_employee_rates_created_by ON employee_rates(created_by)`; удалены `idx_employee_rates_employee_id`, `idx_employee_rates_active`.
 
-Использование модулем:
-- связка пользователя с карточкой сотрудника через `employee_id`
-- хранение `object_ids`, влияющих на доступ к сотрудникам по RLS
+**Инвариант «одна активная ставка»:** в коде и экспорте используется фильтр `valid_to IS NULL`. Явный **partial unique** в отслеживаемых миграциях не найден — при необходимости жёсткой уникальности её стоит добавить отдельной миграцией на проде.
 
-Ключевые колонки:
-- `id UUID`
-- `email TEXT`
-- `full_name TEXT`
-- `short_name TEXT`
-- `photo_url TEXT`
-- `phone TEXT`
-- `status BOOLEAN`
-- `object JSONB`
-- `object_ids ARRAY`
-- `employee_id UUID`
-- `telegram_user_id BIGINT`
-- `last_company_id UUID`
-- `created_at TIMESTAMPTZ`
-- `updated_at TIMESTAMPTZ`
-- `approved_at TIMESTAMPTZ`
-- `disabled_at TIMESTAMPTZ`
+#### Триггеры (`employee_rates`)
 
-RLS:
-- ✅ включён
+В отслеживаемых миграциях репозитория **триггеров на таблице `public.employee_rates` не объявлено**.
 
-Триггеры:
-- `before_profiles_insert_update` → `generate_short_name()`
-- `profiles_updated_at` → `handle_updated_at()`
-- `profiles_status_ts` → `profile_status_timestamps()`
-- `on_profile_update_sync_auth` → `sync_profile_to_auth()`
+#### Функции (SQL), использующие `employee_rates`
 
-Оценка объёма:
-- ~11 строк
+Те же зоны, что и для `employees`: расчёты ФОТ, балансы, отчёты по часам и ставкам (`calculate_employee_balances`, payroll-RPC, `get_payroll_report_data` и др. в `supabase/migrations/`).
 
-### Таблица `employee_attendance`
+### Связанные таблицы (кратко)
 
-Использование модулем:
-- источник ручных часов для `Timesheet`
-- связана с сотрудником через `employee_id`
+| Таблица | RLS в миграциях | Комментарий |
+|---------|-----------------|-------------|
+| `profiles` | да | `employee_id`, `object_ids` |
+| `employee_attendance` | да | FK на `employees` — [`20251005000000_create_employee_attendance.sql`](../../supabase/migrations/20251005000000_create_employee_attendance.sql) |
+| `work_hours` | да | `employee_id` |
+| `work_plan_blocks` | да | `responsible_id`, `worker_ids`; индекс `idx_work_plan_blocks_responsible_id` в [`20251015_optimize_indexes.sql`](../../supabase/migrations/20251015_optimize_indexes.sql) |
 
-Ключевые колонки:
-- `id UUID`
-- `employee_id UUID`
-- `object_id UUID`
-- `date DATE`
-- `hours NUMERIC DEFAULT 8`
-- `attendance_type TEXT DEFAULT 'work'`
-- `comment TEXT`
-- `created_by UUID`
-- `company_id UUID`
-- `created_at TIMESTAMPTZ`
-- `updated_at TIMESTAMPTZ`
+### Storage
 
-RLS:
-- ✅ включён
-
-Индексы:
-- `idx_employee_attendance_employee`
-- `idx_employee_attendance_employee_date`
-- `idx_employee_attendance_object_id`
-- `idx_employee_attendance_date`
-- `unique_employee_object_date`
-
-Триггеры:
-- `update_employee_attendance_updated_at` → `update_updated_at_column()`
-
-Оценка объёма:
-- ~352 строки
-
-### Таблица `work_plan_blocks`
-
-Использование модулем:
-- сотрудники участвуют как `responsible_id`
-- сотрудники участвуют как исполнители в `worker_ids`
-
-RLS:
-- ✅ включён
-
-Ключевые колонки:
-- `id UUID`
-- `work_plan_id UUID`
-- `responsible_id UUID`
-- `worker_ids UUID[]`
-- `system TEXT`
-- `section TEXT`
-- `floor TEXT`
-- `company_id UUID`
-- `created_at TIMESTAMPTZ`
-- `updated_at TIMESTAMPTZ`
-
-Триггеры:
-- `trg_work_plan_block_responsible_check` → `ensure_responsible_is_allowed()`
-- `trg_work_plan_blocks_updated_at` → `set_updated_at()`
-
-Особенно важно:
-- `ensure_responsible_is_allowed()` опирается на `employees.status`, `employees.can_be_responsible` и привязку к объектам
-
-Оценка объёма:
-- ~817 строк
-
-### Таблица `work_plans`
-
-Использование модулем:
-- косвенная связь через `work_plan_blocks`
-
-RLS:
-- ✅ включён
-
-Триггеры:
-- `handle_work_plans_updated_at`
-
-Оценка объёма:
-- ~212 строк
-
-### Таблица `work_hours`
-
-Использование модулем:
-- часы сотрудника в сменах
-- downstream-зависимость для `Timesheet` и `FOT`
-
-Ключевые колонки:
-- `id UUID`
-- `work_id UUID`
-- `employee_id UUID`
-- `hours NUMERIC`
-- `comment TEXT`
-- `company_id UUID`
-- `created_at TIMESTAMPTZ`
-- `updated_at TIMESTAMPTZ`
-
-RLS:
-- ✅ включён
-
-Политики:
-- старый company-scope слой
-- более строгий слой через `check_work_access(work_id)` / `check_work_editable(work_id, auth.uid())`
-
-Триггеры:
-- `work_hours_aggregate_trigger` → `trigger_update_work_aggregates_hours()`
-
-Индексы:
-- `idx_work_hours_employee_id`
-- `idx_work_hours_work_id`
-
-Оценка объёма:
-- ~2697 строк
+[`20240101000005_storage_policy_migration.sql`](../../supabase/migrations/20240101000005_storage_policy_migration.sql): политики для префикса bucket `employees/` (исторически под роль admin в storage).
 
 ---
 
 ## Бизнес-логика
 
-1. `EmployeesListScreen` и `EmployeesTableScreen` вызывают `employeeProvider.notifier.getEmployees()` и `objectProvider.notifier.loadObjects()` после первого `frame`.
-2. `EmployeeNotifier.getEmployees()` останавливает повторную загрузку, если список уже успешно получен, и отдельно догружает `canBeResponsibleMap`.
-3. `SupabaseEmployeeDataSource.getEmployees()` получает список сотрудников по `company_id`, затем отдельным запросом подтягивает текущие ставки из `employee_rates` и обогащает `currentHourlyRate`.
-4. Поиск реализован в `EmployeeState.filteredEmployees` по ФИО, должности и телефону.
-5. Табличный view добавляет поверх этого локальную фильтрацию по `status`, client-side counters и сортировку по `last_name`.
-6. Inline-изменение статуса и объектов выполняется через `Employee.copyWith(...)` + `employeeProvider.notifier.updateEmployee(...)`.
-7. Подсветка строки в табличном view включается, пока открыто popup menu изменения `status` или `object_ids`.
-8. Флаг `can_be_responsible` меняется отдельным методом `toggleCanBeResponsible()`, потому что он кешируется отдельно от базового `Employee`.
+### Формулы и инварианты
 
-Логика ответственного в планах работ:
-- сотрудник должен быть `status = 'working'`
-- сотрудник должен иметь `can_be_responsible = true`
-- сотрудник должен быть привязан к нужному объекту
+- **Текущая почасовая ставка в UI:** для сотрудника `e` выбираются строки `employee_rates` с `employee_id = e.id` и `valid_to IS NULL`; значение `hourly_rate` попадает в `Employee.currentHourlyRate` / `EmployeeModel.currentHourlyRate` (поле не колонка `employees` в API-модели).
+- **Список ответственных по объекту** (`getResponsibleEmployees`): `status = 'working'` AND `can_be_responsible = true` AND `object_ids` содержит `objectId` (семантика «содержит» — как в PostgREST / клиентском фильтре).
+- **Поиск в списке (client-side):** совпадение подстроки в нижнем регистре с конкатенацией ФИО, `position`, `phone` (`EmployeeState.filteredEmployees`).
+- **Сохранение ставки при правке анкеты:** после `updateEmployee` в notifier выполняется `copyWith(currentHourlyRate: result.currentHourlyRate ?? employee.currentHourlyRate)`, чтобы не потерять ставку, не пришедшую из одного ответа `employees`.
 
-Логика текущей ставки:
-- текущей считается запись в `employee_rates`, где `valid_to IS NULL`
-- uniqueness поддерживается partial unique index `idx_employee_rates_active_unique`
+Денежные расчёты начислений (часы × ставка за период, командировочные, премии) **не входят в модуль Employees** — см. модуль **FOT** и SQL-функции в миграциях.
+
+1. После первого кадра экраны списка вызывают `employeeProvider.notifier.getEmployees()` и загрузку объектов (`objectProvider`).
+2. `EmployeeNotifier.getEmployees()` не перезагружает список, если уже `success` и список не пуст; опционально догружает `canBeResponsibleMap` (`includeResponsibilityMap`).
+3. `SupabaseEmployeeDataSource.getEmployees()` читает `employees` по `company_id`, затем одним запросом — текущие ставки (`employee_rates`, `valid_to IS NULL`) и обогащает `currentHourlyRate`.
+4. Поиск: `EmployeeState.filteredEmployees` (ФИО, должность, телефон).
+5. Таблица: дополнительно фильтр по статусу, объекту, сортировка по фамилии, счётчики по статусам — на клиенте.
+6. Inline: `Employee.copyWith` + `updateEmployee` для `status` и `object_ids`.
+7. `can_be_responsible`: отдельные вызовы datasource + обновление `canBeResponsibleMap` (не через полную перезагрузку карточки из одного JSON).
+8. Ответственный по объекту для планов: `getResponsibleEmployees` — `status = working`, `can_be_responsible = true`, объект в `object_ids`.
+9. При удалении сотрудника — удаление файла фото в Storage и строки в БД.
+10. Экспорт: те же фильтры, что UI, плюс проверка членства в `company_members` на Edge.
 
 ---
 
 ## Интеграции
 
-### UI / Навигация
-- `AppDrawer` содержит два входа в модуль: legacy-список и табличный view
-- `GoRouter` содержит отдельный route `employees_table`
+### UI / Router / RBAC
+
+- [`app_router.dart`](../../lib/core/common/app_router.dart): `/employees`, детали, `_canViewEmployee` для «своей» карточки
+- [`PermissionService`](../../lib/features/roles/application/permission_service.dart): `employees` → `read`, `create`, `update`, `export`
 
 ### Объекты
-- `objectProvider` используется в списках, деталях и табличном view для разрешения `objectIds -> object.name`
-- табличный экран позволяет менять `object_ids` inline
 
-### Work Plans / Works
-- `work_plan_blocks.responsible_id`
-- `work_plan_blocks.worker_ids`
+- `objectProvider` для имён и фильтров
+
+### Works / Work Plans
+
 - `work_hours.employee_id`
+- `work_plan_blocks.responsible_id`, `worker_ids`
+- `work_plans.responsible_id`
 
-### Timesheet
-- модуль табеля использует сотрудников как справочник ФИО, статусов, должностей и объектных привязок
+### Timesheet и FOT
 
-### FOT
-- `employee_rates` и `employees` используются в расчётах выплат, бонусов, штрафов и поиске payroll-записей
-
-### Auth / Profile
-- `profiles.employee_id` связывает пользователя и сотрудника
-- RLS на `employees_select` учитывает и эту связь, и пересечение по `object_ids`
+- справочник сотрудников и ставок для табеля и расчётов (функции вроде `calculate_employee_balances`, `get_payroll_report_data` и др. в миграциях ФОТ)
 
 ### Edge Functions
 
-Прямой Edge Function, принадлежащий модулю `Employees`, по audit не найден.
+| Функция | Назначение |
+|---------|------------|
+| **`export-employees`** | POST: `companyId`, `status`, `objectFilter`, `searchQuery`; **service role** + `ensureCompanyAccess` (JWT + `company_members`); ExcelJS; отдача base64 XLSX |
 
-Из project-level функций косвенно связаны только profile/user сценарии:
-- `update_user_profile`
-- `update_own_profile`
-
-То есть модуль `Employees` в текущем состоянии работает преимущественно напрямую через Supabase PostgREST, а не через Edge Functions.
+Клиент: [`EmployeeServerExcelExportService`](../../lib/features/employees/presentation/services/employee_server_excel_export_service.dart).
 
 ---
 
 ## Roadmap
 
-### Уже реализовано
-- legacy master-detail экран сотрудников
-- альтернативный табличный экран `employees_table_screen.dart`
-- inline-смена `status`
-- inline-смена `object_ids`
-- sticky header таблицы
-- counters по статусам
-- локальное обновление строки без полной перезагрузки экрана
-- кэш `canBeResponsibleMap`
-- обогащение текущей ставки через `employee_rates`
-- **система разрешений для табличного вида сотрудников**
+### Реализовано
 
-### Замеченные ограничения
-- экспорт из табличного view пока отмечен как `TODO`
-- фильтрация по статусам и поиску выполняется на клиенте, без server-side pagination
-- для `object_ids` в `employees` используется `text[]`, а не `uuid[]`
-- документирование payroll-связей частично вынесено в модуль `FOT`, поэтому в `Employees` хранится только интеграционный срез
+- Табличный и мобильный списки, адаптивный выбор раскладки
+- Inline статус / объекты, фильтры, экспорт, аватар, детали и редактирование
+- Кэш деталей, `canBeResponsibleMap`, сохранение ставки при обновлении анкеты
+- Серверный Excel через `export-employees`
 
-### Следующие шаги
-- вынести batch-редактирование статусов/объектов в отдельный use case
-- при росте объёма данных перевести фильтрацию/поиск в PostgREST слой
-- добавить полноценный audit trail изменений сотрудника и ставок
-- при необходимости вынести массовые операции в отдельную Edge Function
+### Известные баги (приоритет)
 
+| Приоритет | Описание |
+|-----------|----------|
+| 🟢 | Зарегистрированных багов, специфичных для модуля Employees, в документе не зафиксировано. |
+
+При появлении регрессий строки выше заменяются конкретикой: 🔴 критичный, 🟡 средний, 🟢 низкий / косметика.
+
+### Ограничения
+
+- Поиск и фильтры списка без server-side pagination
+- `object_ids` как `text[]` в БД
+- RLS на `employees` / `employee_rates` завязан на `profiles.role`, не на матрицу `PermissionService`
+- Схема `employee_rates` и часть индексов не воспроизводятся из одного `CREATE` в репозитории
+
+### Возможные шаги
+
+- Серверная пагинация и фильтрация PostgREST
+- Выравнивание RLS с `company_members` + матрицей прав
+- Явный partial unique index на «активную» ставку в миграции
+- Audit trail изменений карточки и ставок

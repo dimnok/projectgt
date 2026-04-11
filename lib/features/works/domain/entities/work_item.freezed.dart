@@ -32,7 +32,9 @@ mixin _$WorkItem {
  double? get total;/// Дата создания записи.
  DateTime? get createdAt;/// Дата последнего обновления.
  DateTime? get updatedAt;/// Идентификатор акта КС-2 (если работа закрыта актом).
- String? get ks2Id;
+ String? get ks2Id;/// Идентификатор контрагента-подрядчика; если null — работа силами компании.
+ String? get contractorId;/// Количество специалистов подрядчика (имеет смысл при [contractorId]).
+ int? get specialistsCount;
 /// Create a copy of WorkItem
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -45,16 +47,16 @@ $WorkItemCopyWith<WorkItem> get copyWith => _$WorkItemCopyWithImpl<WorkItem>(thi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is WorkItem&&(identical(other.id, id) || other.id == id)&&(identical(other.companyId, companyId) || other.companyId == companyId)&&(identical(other.workId, workId) || other.workId == workId)&&(identical(other.section, section) || other.section == section)&&(identical(other.floor, floor) || other.floor == floor)&&(identical(other.estimateId, estimateId) || other.estimateId == estimateId)&&(identical(other.name, name) || other.name == name)&&(identical(other.system, system) || other.system == system)&&(identical(other.subsystem, subsystem) || other.subsystem == subsystem)&&(identical(other.unit, unit) || other.unit == unit)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.price, price) || other.price == price)&&(identical(other.total, total) || other.total == total)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.ks2Id, ks2Id) || other.ks2Id == ks2Id));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is WorkItem&&(identical(other.id, id) || other.id == id)&&(identical(other.companyId, companyId) || other.companyId == companyId)&&(identical(other.workId, workId) || other.workId == workId)&&(identical(other.section, section) || other.section == section)&&(identical(other.floor, floor) || other.floor == floor)&&(identical(other.estimateId, estimateId) || other.estimateId == estimateId)&&(identical(other.name, name) || other.name == name)&&(identical(other.system, system) || other.system == system)&&(identical(other.subsystem, subsystem) || other.subsystem == subsystem)&&(identical(other.unit, unit) || other.unit == unit)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.price, price) || other.price == price)&&(identical(other.total, total) || other.total == total)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.ks2Id, ks2Id) || other.ks2Id == ks2Id)&&(identical(other.contractorId, contractorId) || other.contractorId == contractorId)&&(identical(other.specialistsCount, specialistsCount) || other.specialistsCount == specialistsCount));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,companyId,workId,section,floor,estimateId,name,system,subsystem,unit,quantity,price,total,createdAt,updatedAt,ks2Id);
+int get hashCode => Object.hash(runtimeType,id,companyId,workId,section,floor,estimateId,name,system,subsystem,unit,quantity,price,total,createdAt,updatedAt,ks2Id,contractorId,specialistsCount);
 
 @override
 String toString() {
-  return 'WorkItem(id: $id, companyId: $companyId, workId: $workId, section: $section, floor: $floor, estimateId: $estimateId, name: $name, system: $system, subsystem: $subsystem, unit: $unit, quantity: $quantity, price: $price, total: $total, createdAt: $createdAt, updatedAt: $updatedAt, ks2Id: $ks2Id)';
+  return 'WorkItem(id: $id, companyId: $companyId, workId: $workId, section: $section, floor: $floor, estimateId: $estimateId, name: $name, system: $system, subsystem: $subsystem, unit: $unit, quantity: $quantity, price: $price, total: $total, createdAt: $createdAt, updatedAt: $updatedAt, ks2Id: $ks2Id, contractorId: $contractorId, specialistsCount: $specialistsCount)';
 }
 
 
@@ -65,7 +67,7 @@ abstract mixin class $WorkItemCopyWith<$Res>  {
   factory $WorkItemCopyWith(WorkItem value, $Res Function(WorkItem) _then) = _$WorkItemCopyWithImpl;
 @useResult
 $Res call({
- String id, String companyId, String workId, String section, String floor, String estimateId, String name, String system, String subsystem, String unit, num quantity, double? price, double? total, DateTime? createdAt, DateTime? updatedAt, String? ks2Id
+ String id, String companyId, String workId, String section, String floor, String estimateId, String name, String system, String subsystem, String unit, num quantity, double? price, double? total, DateTime? createdAt, DateTime? updatedAt, String? ks2Id, String? contractorId, int? specialistsCount
 });
 
 
@@ -82,7 +84,7 @@ class _$WorkItemCopyWithImpl<$Res>
 
 /// Create a copy of WorkItem
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? companyId = null,Object? workId = null,Object? section = null,Object? floor = null,Object? estimateId = null,Object? name = null,Object? system = null,Object? subsystem = null,Object? unit = null,Object? quantity = null,Object? price = freezed,Object? total = freezed,Object? createdAt = freezed,Object? updatedAt = freezed,Object? ks2Id = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? companyId = null,Object? workId = null,Object? section = null,Object? floor = null,Object? estimateId = null,Object? name = null,Object? system = null,Object? subsystem = null,Object? unit = null,Object? quantity = null,Object? price = freezed,Object? total = freezed,Object? createdAt = freezed,Object? updatedAt = freezed,Object? ks2Id = freezed,Object? contractorId = freezed,Object? specialistsCount = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,companyId: null == companyId ? _self.companyId : companyId // ignore: cast_nullable_to_non_nullable
@@ -100,7 +102,9 @@ as double?,total: freezed == total ? _self.total : total // ignore: cast_nullabl
 as double?,createdAt: freezed == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,updatedAt: freezed == updatedAt ? _self.updatedAt : updatedAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,ks2Id: freezed == ks2Id ? _self.ks2Id : ks2Id // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,contractorId: freezed == contractorId ? _self.contractorId : contractorId // ignore: cast_nullable_to_non_nullable
+as String?,specialistsCount: freezed == specialistsCount ? _self.specialistsCount : specialistsCount // ignore: cast_nullable_to_non_nullable
+as int?,
   ));
 }
 
@@ -111,7 +115,7 @@ as String?,
 @JsonSerializable()
 
 class _WorkItem implements WorkItem {
-  const _WorkItem({required this.id, required this.companyId, required this.workId, required this.section, required this.floor, required this.estimateId, required this.name, required this.system, required this.subsystem, required this.unit, required this.quantity, this.price, this.total, this.createdAt, this.updatedAt, this.ks2Id});
+  const _WorkItem({required this.id, required this.companyId, required this.workId, required this.section, required this.floor, required this.estimateId, required this.name, required this.system, required this.subsystem, required this.unit, required this.quantity, this.price, this.total, this.createdAt, this.updatedAt, this.ks2Id, this.contractorId, this.specialistsCount});
   factory _WorkItem.fromJson(Map<String, dynamic> json) => _$WorkItemFromJson(json);
 
 /// Идентификатор работы.
@@ -146,6 +150,10 @@ class _WorkItem implements WorkItem {
 @override final  DateTime? updatedAt;
 /// Идентификатор акта КС-2 (если работа закрыта актом).
 @override final  String? ks2Id;
+/// Идентификатор контрагента-подрядчика; если null — работа силами компании.
+@override final  String? contractorId;
+/// Количество специалистов подрядчика (имеет смысл при [contractorId]).
+@override final  int? specialistsCount;
 
 /// Create a copy of WorkItem
 /// with the given fields replaced by the non-null parameter values.
@@ -160,16 +168,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _WorkItem&&(identical(other.id, id) || other.id == id)&&(identical(other.companyId, companyId) || other.companyId == companyId)&&(identical(other.workId, workId) || other.workId == workId)&&(identical(other.section, section) || other.section == section)&&(identical(other.floor, floor) || other.floor == floor)&&(identical(other.estimateId, estimateId) || other.estimateId == estimateId)&&(identical(other.name, name) || other.name == name)&&(identical(other.system, system) || other.system == system)&&(identical(other.subsystem, subsystem) || other.subsystem == subsystem)&&(identical(other.unit, unit) || other.unit == unit)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.price, price) || other.price == price)&&(identical(other.total, total) || other.total == total)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.ks2Id, ks2Id) || other.ks2Id == ks2Id));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _WorkItem&&(identical(other.id, id) || other.id == id)&&(identical(other.companyId, companyId) || other.companyId == companyId)&&(identical(other.workId, workId) || other.workId == workId)&&(identical(other.section, section) || other.section == section)&&(identical(other.floor, floor) || other.floor == floor)&&(identical(other.estimateId, estimateId) || other.estimateId == estimateId)&&(identical(other.name, name) || other.name == name)&&(identical(other.system, system) || other.system == system)&&(identical(other.subsystem, subsystem) || other.subsystem == subsystem)&&(identical(other.unit, unit) || other.unit == unit)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.price, price) || other.price == price)&&(identical(other.total, total) || other.total == total)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.ks2Id, ks2Id) || other.ks2Id == ks2Id)&&(identical(other.contractorId, contractorId) || other.contractorId == contractorId)&&(identical(other.specialistsCount, specialistsCount) || other.specialistsCount == specialistsCount));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,companyId,workId,section,floor,estimateId,name,system,subsystem,unit,quantity,price,total,createdAt,updatedAt,ks2Id);
+int get hashCode => Object.hash(runtimeType,id,companyId,workId,section,floor,estimateId,name,system,subsystem,unit,quantity,price,total,createdAt,updatedAt,ks2Id,contractorId,specialistsCount);
 
 @override
 String toString() {
-  return 'WorkItem(id: $id, companyId: $companyId, workId: $workId, section: $section, floor: $floor, estimateId: $estimateId, name: $name, system: $system, subsystem: $subsystem, unit: $unit, quantity: $quantity, price: $price, total: $total, createdAt: $createdAt, updatedAt: $updatedAt, ks2Id: $ks2Id)';
+  return 'WorkItem(id: $id, companyId: $companyId, workId: $workId, section: $section, floor: $floor, estimateId: $estimateId, name: $name, system: $system, subsystem: $subsystem, unit: $unit, quantity: $quantity, price: $price, total: $total, createdAt: $createdAt, updatedAt: $updatedAt, ks2Id: $ks2Id, contractorId: $contractorId, specialistsCount: $specialistsCount)';
 }
 
 
@@ -180,7 +188,7 @@ abstract mixin class _$WorkItemCopyWith<$Res> implements $WorkItemCopyWith<$Res>
   factory _$WorkItemCopyWith(_WorkItem value, $Res Function(_WorkItem) _then) = __$WorkItemCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String companyId, String workId, String section, String floor, String estimateId, String name, String system, String subsystem, String unit, num quantity, double? price, double? total, DateTime? createdAt, DateTime? updatedAt, String? ks2Id
+ String id, String companyId, String workId, String section, String floor, String estimateId, String name, String system, String subsystem, String unit, num quantity, double? price, double? total, DateTime? createdAt, DateTime? updatedAt, String? ks2Id, String? contractorId, int? specialistsCount
 });
 
 
@@ -197,7 +205,7 @@ class __$WorkItemCopyWithImpl<$Res>
 
 /// Create a copy of WorkItem
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? companyId = null,Object? workId = null,Object? section = null,Object? floor = null,Object? estimateId = null,Object? name = null,Object? system = null,Object? subsystem = null,Object? unit = null,Object? quantity = null,Object? price = freezed,Object? total = freezed,Object? createdAt = freezed,Object? updatedAt = freezed,Object? ks2Id = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? companyId = null,Object? workId = null,Object? section = null,Object? floor = null,Object? estimateId = null,Object? name = null,Object? system = null,Object? subsystem = null,Object? unit = null,Object? quantity = null,Object? price = freezed,Object? total = freezed,Object? createdAt = freezed,Object? updatedAt = freezed,Object? ks2Id = freezed,Object? contractorId = freezed,Object? specialistsCount = freezed,}) {
   return _then(_WorkItem(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,companyId: null == companyId ? _self.companyId : companyId // ignore: cast_nullable_to_non_nullable
@@ -215,7 +223,9 @@ as double?,total: freezed == total ? _self.total : total // ignore: cast_nullabl
 as double?,createdAt: freezed == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,updatedAt: freezed == updatedAt ? _self.updatedAt : updatedAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,ks2Id: freezed == ks2Id ? _self.ks2Id : ks2Id // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,contractorId: freezed == contractorId ? _self.contractorId : contractorId // ignore: cast_nullable_to_non_nullable
+as String?,specialistsCount: freezed == specialistsCount ? _self.specialistsCount : specialistsCount // ignore: cast_nullable_to_non_nullable
+as int?,
   ));
 }
 

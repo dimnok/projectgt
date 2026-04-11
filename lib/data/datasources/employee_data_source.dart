@@ -1,6 +1,7 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:projectgt/data/models/employee_model.dart';
 import 'package:logger/logger.dart';
+import 'package:projectgt/data/models/employee_model.dart';
+import 'package:projectgt/domain/entities/employee_blocking_shift.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Абстракция для источника данных по сотрудникам.
 ///
@@ -38,6 +39,14 @@ abstract class EmployeeDataSource {
   /// [id] — идентификатор сотрудника.
   /// Генерирует исключение при ошибке.
   Future<void> deleteEmployee(String id);
+
+  /// Смены, в которых у сотрудника есть строки в `work_hours` (для сообщения при запрете удаления).
+  ///
+  /// [employeeId] — идентификатор сотрудника.
+  /// Возвращает смены текущей компании, от новых к старым по дате.
+  Future<List<EmployeeBlockingShift>> getEmployeeDeleteBlockingShifts(
+    String employeeId,
+  );
 
   /// Получает сотрудников, которые могут быть назначены ответственными по объекту.
   ///
@@ -225,6 +234,77 @@ class SupabaseEmployeeDataSource implements EmployeeDataSource {
     } catch (e) {
       Logger().e('Error deleting employee: $e');
       rethrow;
+    }
+  }
+
+  @override
+  Future<List<EmployeeBlockingShift>> getEmployeeDeleteBlockingShifts(
+    String employeeId,
+  ) async {
+    if (activeCompanyId.isEmpty || activeCompanyId == 'null') {
+      return [];
+    }
+    try {
+      final hoursRows = await client
+          .from('work_hours')
+          .select('work_id')
+          .eq('employee_id', employeeId);
+
+      final workIds = <String>{};
+      for (final row in hoursRows as List) {
+        final wid = (row as Map)['work_id'] as String?;
+        if (wid != null && wid.isNotEmpty) {
+          workIds.add(wid);
+        }
+      }
+      if (workIds.isEmpty) {
+        return [];
+      }
+
+      final worksRows = await client
+          .from('works')
+          .select('id, date, object_id, objects(name)')
+          .eq('company_id', activeCompanyId)
+          .inFilter('id', workIds.toList())
+          .order('date', ascending: false);
+
+      final out = <EmployeeBlockingShift>[];
+      for (final row in worksRows as List) {
+        final m = Map<String, dynamic>.from(row as Map);
+        final id = m['id'] as String? ?? '';
+        final dateRaw = m['date'];
+        DateTime? date;
+        if (dateRaw is String) {
+          date = DateTime.tryParse(dateRaw);
+        } else if (dateRaw != null) {
+          date = DateTime.tryParse(dateRaw.toString());
+        }
+        if (date == null) {
+          continue;
+        }
+
+        var objectName = 'Объект не указан';
+        final nested = m['objects'];
+        if (nested is Map && nested['name'] != null) {
+          final n = nested['name'].toString().trim();
+          if (n.isNotEmpty) {
+            objectName = n;
+          }
+        }
+
+        out.add(
+          EmployeeBlockingShift(
+            workId: id,
+            date: date,
+            objectName: objectName,
+          ),
+        );
+      }
+      out.sort((a, b) => b.date.compareTo(a.date));
+      return out;
+    } catch (e) {
+      Logger().e('Error loading employee delete blocking shifts: $e');
+      return [];
     }
   }
 

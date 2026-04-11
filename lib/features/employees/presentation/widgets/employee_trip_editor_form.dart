@@ -1,14 +1,29 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/domain/entities/business_trip_rate.dart';
 import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:projectgt/domain/entities/employee.dart';
 import 'package:projectgt/core/utils/formatters.dart';
+import 'package:projectgt/features/employees/presentation/utils/employees_layout_utils.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
 import 'package:projectgt/core/widgets/gt_dropdown.dart';
+import 'package:projectgt/core/widgets/gt_text_field.dart';
+import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
+import 'package:projectgt/core/widgets/gt_buttons.dart';
+import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
+import 'package:projectgt/features/employees/presentation/widgets/employees_mobile_atmosphere.dart';
 import 'package:uuid/uuid.dart';
+
+/// Где показывается форма суточных.
+enum EmployeeTripEditorSurface {
+  /// Центрированный диалог ([DesktopDialogContent]).
+  desktopDialog,
+
+  /// Нижняя панель ([MobileBottomSheetContent]) как в мобильном модуле сотрудников.
+  mobileBottomSheet,
+}
 
 /// Форма для добавления/редактирования суточных выплат сотрудника.
 ///
@@ -24,21 +39,65 @@ class EmployeeTripEditorForm extends ConsumerStatefulWidget {
   /// Callback при успешном сохранении.
   final VoidCallback? onSaved;
 
+  /// Поверхность отображения.
+  final EmployeeTripEditorSurface surface;
+
   /// Конструктор [EmployeeTripEditorForm].
   const EmployeeTripEditorForm({
     super.key,
     required this.employee,
     this.existingRate,
     this.onSaved,
+    this.surface = EmployeeTripEditorSurface.desktopDialog,
   });
+
+  /// Показывает форму: на десктопе — диалог, иначе — bottom sheet.
+  static Future<bool?> show(
+    BuildContext context, {
+    required Employee employee,
+    BusinessTripRate? existingRate,
+    VoidCallback? onSaved,
+  }) {
+    if (EmployeesLayoutUtils.useEmployeesDesktopModal(context)) {
+      return DesktopDialogContent.show<bool>(
+        context,
+        title: existingRate != null ? 'Изменение суточных' : 'Добавление суточных',
+        width: 500,
+        child: EmployeeTripEditorForm(
+          employee: employee,
+          existingRate: existingRate,
+          onSaved: onSaved,
+          surface: EmployeeTripEditorSurface.desktopDialog,
+        ),
+      );
+    }
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    return showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      useRootNavigator: true,
+      backgroundColor: Colors.transparent,
+      constraints: BoxConstraints(maxWidth: screenWidth),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => EmployeeTripEditorForm(
+        employee: employee,
+        existingRate: existingRate,
+        onSaved: onSaved,
+        surface: EmployeeTripEditorSurface.mobileBottomSheet,
+      ),
+    );
+  }
 
   @override
   ConsumerState<EmployeeTripEditorForm> createState() =>
-      _EmployeeTripEditorFormState();
+      EmployeeTripEditorFormState();
 }
 
-class _EmployeeTripEditorFormState
-    extends ConsumerState<EmployeeTripEditorForm> {
+/// Состояние [EmployeeTripEditorForm] (форма суточных).
+class EmployeeTripEditorFormState extends ConsumerState<EmployeeTripEditorForm> {
   final _formKey = GlobalKey<FormState>();
 
   // Контроллеры для полей формы
@@ -99,13 +158,29 @@ class _EmployeeTripEditorFormState
         validTo: _validTo,
       );
 
-      final createUseCase = ref.read(createBusinessTripRateUseCaseProvider);
-      await createUseCase(rate);
+      if (widget.existingRate != null) {
+        final updateUseCase = ref.read(updateBusinessTripRateUseCaseProvider);
+        await updateUseCase(rate);
+      } else {
+        final createUseCase = ref.read(createBusinessTripRateUseCaseProvider);
+        await createUseCase(rate);
+      }
 
       if (mounted) {
+        // Сбрасываем кэш и дожидаемся новых данных до закрытия — иначе UI может
+        // остаться на предыдущем [AsyncData] до следующего кадра/перезапуска.
+        ref.invalidate(employeeBusinessTripRatesProvider(widget.employee.id));
+        try {
+          await ref.read(
+            employeeBusinessTripRatesProvider(widget.employee.id).future,
+          );
+        } catch (_) {
+          // Запись в БД уже успешна; при сбое перечитывания всё равно закрываем форму.
+        }
+        if (!mounted) return;
         SnackBarUtils.showSuccess(context, 'Суточные сохранены');
         widget.onSaved?.call();
-        Navigator.of(context).pop();
+        Navigator.of(context).pop(true);
       }
     } catch (e) {
       if (mounted) {
@@ -118,279 +193,316 @@ class _EmployeeTripEditorFormState
     }
   }
 
+  String get _sheetTitle => widget.existingRate != null
+      ? 'Изменение суточных'
+      : 'Добавление суточных';
+
+  void _tripEditorUnfocus() {
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
+  /// Строка выбора даты в стиле мобильных форм сотрудников ([MobileBottomSheetContent]).
+  Widget _tripDateRow(
+    ThemeData theme, {
+    required String label,
+    required String valueText,
+    required Future<void> Function() onPick,
+    Widget? trailing,
+  }) {
+    final scheme = theme.colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            label,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () async {
+                await onPick();
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 14,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: scheme.outline.withValues(alpha: 0.25),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        valueText,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    if (trailing != null) trailing,
+                    Icon(
+                      Icons.calendar_today_outlined,
+                      size: 18,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFieldsColumn(ThemeData theme) {
+    final objectsState = ref.watch(objectProvider);
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        GTDropdown<ObjectEntity>(
+          items: objectsState.objects,
+          itemDisplayBuilder: (object) => object.name,
+          selectedItem: _selectedObject,
+          onSelectionChanged: (value) {
+            setState(() {
+              _selectedObject = value;
+            });
+          },
+          labelText: 'Объект работы',
+          hintText: 'Выберите объект',
+          allowClear: false,
+          borderRadius: 12,
+          validator: (value) => value == null || value.isEmpty
+              ? 'Выберите объект'
+              : null,
+        ),
+        const SizedBox(height: 24),
+        Text(
+          'Настройки выплат',
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+            height: 1.2,
+          ),
+        ),
+        const SizedBox(height: 12),
+        GTTextField(
+          controller: _rateController,
+          labelText: 'Сумма суточных (₽/смена)',
+          hintText: 'Введите сумму',
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+          ],
+          borderRadius: 12,
+          textInputAction: TextInputAction.next,
+          onEditingComplete: _tripEditorUnfocus,
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return 'Введите сумму';
+            }
+            final number = parseAmount(value);
+            if (number == null || number < 0) {
+              return 'Введите корректную сумму';
+            }
+            return null;
+          },
+        ),
+        const SizedBox(height: 12),
+        GTTextField(
+          controller: _minimumHoursController,
+          labelText: 'Минимум часов для начисления',
+          hintText: 'Например: 5',
+          helperText:
+              'Суточные будут начислены только если сотрудник отработал не менее указанного количества часов',
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+          ],
+          borderRadius: 12,
+          textInputAction: TextInputAction.done,
+          onEditingComplete: _tripEditorUnfocus,
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return 'Введите минимальное количество часов';
+            }
+            final number = parseAmount(value);
+            if (number == null || number < 0) {
+              return 'Введите корректное значение';
+            }
+            return null;
+          },
+        ),
+        const SizedBox(height: 24),
+        Text(
+          'Период действия',
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+            height: 1.2,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _tripDateRow(
+          theme,
+          label: 'Действует с',
+          valueText: formatRuDate(_validFrom),
+          onPick: () async {
+            final date = await showDatePicker(
+              context: context,
+              initialDate: _validFrom,
+              firstDate: DateTime(2020),
+              lastDate: DateTime(2030),
+            );
+            if (date != null && mounted) {
+              setState(() => _validFrom = date);
+            }
+          },
+        ),
+        _tripDateRow(
+          theme,
+          label: 'Действует до',
+          valueText:
+              _validTo != null ? formatRuDate(_validTo!) : 'Бессрочно',
+          trailing: _validTo != null
+              ? IconButton(
+                  icon: const Icon(Icons.clear, size: 20),
+                  tooltip: 'Сбросить дату окончания',
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 36,
+                    minHeight: 36,
+                  ),
+                  onPressed: () {
+                    setState(() => _validTo = null);
+                  },
+                )
+              : null,
+          onPick: () async {
+            final date = await showDatePicker(
+              context: context,
+              initialDate:
+                  _validTo ?? _validFrom.add(const Duration(days: 365)),
+              firstDate: _validFrom,
+              lastDate: DateTime(2030),
+            );
+            if (date != null && mounted) {
+              setState(() => _validTo = date);
+            }
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFooterActions(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: GTSecondaryButton(
+            text: 'Закрыть',
+            onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: GTPrimaryButton(
+            text: 'Сохранить',
+            onPressed: _isLoading ? null : _handleSave,
+            isLoading: _isLoading,
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final objectsState = ref.watch(objectProvider);
 
-    return Container(
-      margin: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: theme.colorScheme.shadow.withValues(alpha: 0.15),
-            blurRadius: 20,
-            offset: const Offset(0, -5),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Form(
+    if (widget.existingRate != null && _selectedObject == null) {
+      final existingObjId = widget.existingRate!.objectId;
+      final match =
+          objectsState.objects.where((o) => o.id == existingObjId).firstOrNull;
+      if (match != null) {
+        Future.microtask(() {
+          if (mounted && _selectedObject == null) {
+            setState(() {
+              _selectedObject = match;
+            });
+          }
+        });
+      }
+    }
+
+    switch (widget.surface) {
+      case EmployeeTripEditorSurface.desktopDialog:
+        return Form(
           key: _formKey,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Заголовок
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Суточные для ${widget.employee.firstName} ${widget.employee.lastName}',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-              ),
-
+              _buildFieldsColumn(theme),
               const SizedBox(height: 24),
-
-              // Выбор объекта
-              Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(
-                    color: theme.colorScheme.outline.withValues(alpha: 0.1),
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      GTDropdown<ObjectEntity>(
-                        items: objectsState.objects,
-                        itemDisplayBuilder: (object) => object.name,
-                        selectedItem: _selectedObject,
-                        onSelectionChanged: (value) {
-                          setState(() {
-                            _selectedObject = value;
-                          });
-                        },
-                        labelText: 'Объект работы',
-                        hintText: 'Выберите объект',
-                        allowClear: false,
-                        validator: (value) => value == null || value.isEmpty
-                            ? 'Выберите объект'
-                            : null,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // Настройки ставки
-              Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(
-                    color: theme.colorScheme.outline.withValues(alpha: 0.1),
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Настройки выплат',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Сумма командировочных
-                      TextFormField(
-                        controller: _rateController,
-                        decoration: const InputDecoration(
-                          labelText: 'Сумма суточных (₽/смена)',
-                          hintText: 'Введите сумму',
-                          border: OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.number,
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Введите сумму';
-                          }
-                          final number = parseAmount(value);
-                          if (number == null || number < 0) {
-                            return 'Введите корректную сумму';
-                          }
-                          return null;
-                        },
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // Минимальные часы
-                      TextFormField(
-                        controller: _minimumHoursController,
-                        decoration: const InputDecoration(
-                          labelText: 'Минимум часов для начисления',
-                          hintText: 'Например: 5',
-                          border: OutlineInputBorder(),
-                          helperText:
-                              'Суточные будут начислены только если сотрудник отработал не менее указанного количества часов',
-                        ),
-                        keyboardType: TextInputType.number,
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Введите минимальное количество часов';
-                          }
-                          final number = parseAmount(value);
-                          if (number == null || number < 0) {
-                            return 'Введите корректное значение';
-                          }
-                          return null;
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // Период действия
-              Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(
-                    color: theme.colorScheme.outline.withValues(alpha: 0.1),
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Период действия',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Дата начала
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.calendar_today),
-                        title: const Text('Действует с'),
-                        subtitle: Text(
-                          '${_validFrom.day.toString().padLeft(2, '0')}.${_validFrom.month.toString().padLeft(2, '0')}.${_validFrom.year}',
-                        ),
-                        onTap: () async {
-                          final date = await showDatePicker(
-                            context: context,
-                            initialDate: _validFrom,
-                            firstDate: DateTime(2020),
-                            lastDate: DateTime(2030),
-                          );
-                          if (date != null) {
-                            setState(() {
-                              _validFrom = date;
-                            });
-                          }
-                        },
-                      ),
-
-                      // Дата окончания (опционально)
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.event),
-                        title: const Text('Действует до'),
-                        subtitle: Text(
-                          _validTo != null
-                              ? '${_validTo!.day.toString().padLeft(2, '0')}.${_validTo!.month.toString().padLeft(2, '0')}.${_validTo!.year}'
-                              : 'Бессрочно',
-                        ),
-                        trailing: _validTo != null
-                            ? IconButton(
-                                icon: const Icon(Icons.clear),
-                                onPressed: () {
-                                  setState(() {
-                                    _validTo = null;
-                                  });
-                                },
-                              )
-                            : null,
-                        onTap: () async {
-                          final date = await showDatePicker(
-                            context: context,
-                            initialDate: _validTo ??
-                                _validFrom.add(const Duration(days: 365)),
-                            firstDate: _validFrom,
-                            lastDate: DateTime(2030),
-                          );
-                          if (date != null) {
-                            setState(() {
-                              _validTo = date;
-                            });
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // Кнопки управления
               Row(
+                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed:
-                          _isLoading ? null : () => Navigator.of(context).pop(),
-                      child: const Text('Отмена'),
-                    ),
+                  GTSecondaryButton(
+                    text: 'Отмена',
+                    onPressed:
+                        _isLoading ? null : () => Navigator.of(context).pop(),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _handleSave,
-                      child: _isLoading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CupertinoActivityIndicator(),
-                            )
-                          : const Text('Сохранить'),
-                    ),
+                  const SizedBox(width: 12),
+                  GTPrimaryButton(
+                    text: 'Сохранить',
+                    onPressed: _isLoading ? null : _handleSave,
+                    isLoading: _isLoading,
                   ),
                 ],
               ),
             ],
           ),
-        ),
-      ),
-    );
+        );
+      case EmployeeTripEditorSurface.mobileBottomSheet:
+        return MobileBottomSheetContent(
+          title: _sheetTitle,
+          scrollable: true,
+          sheetBackdrop: const EmployeesMobileAtmosphereBackdrop(),
+          footer: _buildFooterActions(context),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                widget.employee.fullName,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Form(
+                key: _formKey,
+                child: _buildFieldsColumn(theme),
+              ),
+            ],
+          ),
+        );
+    }
   }
 }

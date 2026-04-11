@@ -27,6 +27,7 @@ import 'package:projectgt/presentation/widgets/custom_sliding_segmented_control.
 import 'tabs/work_data_tab.dart';
 import 'tabs/work_hours_tab.dart';
 import 'work_item_context_menu.dart';
+import 'package:projectgt/features/contractors/presentation/state/contractor_state.dart';
 
 /// Панель деталей смены с табами: работы, материалы, часы.
 ///
@@ -540,6 +541,13 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                     separatorBuilder: (_, __) => const SizedBox(height: 10),
                     itemBuilder: (context, i) {
                       final item = filteredItems[i];
+                      final contractors =
+                          ref.watch(contractorNotifierProvider).contractors;
+                      final contractorLabel = item.contractorId == null
+                          ? null
+                          : contractors
+                              .firstWhereOrNull((c) => c.id == item.contractorId)
+                              ?.shortName;
 
                       // Отображаем номер позиции из сметы, если сметы загружены
                       Widget numberWidget;
@@ -642,27 +650,57 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                                       child: Row(
                                         children: [
                                           Expanded(
-                                            child: Text(
-                                              item.name,
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodyMedium
-                                                  ?.copyWith(
-                                                    fontWeight: FontWeight.w600,
-                                                    color:
-                                                        Theme.of(
-                                                              context,
-                                                            ).brightness ==
-                                                            Brightness.light
-                                                        ? Colors
-                                                              .lightBlue
-                                                              .shade700
-                                                        : Colors
-                                                              .lightBlue
-                                                              .shade300,
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Text(
+                                                  item.name,
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .bodyMedium
+                                                      ?.copyWith(
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        color: Theme.of(context)
+                                                                    .brightness ==
+                                                                Brightness.light
+                                                            ? Colors.lightBlue
+                                                                .shade700
+                                                            : Colors.lightBlue
+                                                                .shade300,
+                                                      ),
+                                                  maxLines: 2,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                                if (contractorLabel != null &&
+                                                    contractorLabel
+                                                        .isNotEmpty) ...[
+                                                  const SizedBox(height: 2),
+                                                  Text(
+                                                    item.specialistsCount !=
+                                                            null
+                                                        ? '$contractorLabel · спец.: ${item.specialistsCount}'
+                                                        : contractorLabel,
+                                                    style: Theme.of(context)
+                                                        .textTheme
+                                                        .bodySmall
+                                                        ?.copyWith(
+                                                          color: Theme.of(
+                                                            context,
+                                                          ).colorScheme.onSurface
+                                                              .withValues(
+                                                            alpha: 0.65,
+                                                          ),
+                                                        ),
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
                                                   ),
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
+                                                ],
+                                              ],
                                             ),
                                           ),
                                           const SizedBox(width: 12),

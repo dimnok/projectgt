@@ -87,6 +87,10 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
 
     // Применяем фильтр по должностям (если установлен)
     final selectedPositions = timesheetState.selectedPositions;
+    
+    // Проверяем, установлен ли фильтр по объектам
+    final selectedObjectIds = timesheetState.selectedObjectIds;
+    final hasObjectFilter = selectedObjectIds != null && selectedObjectIds.isNotEmpty;
 
     // Фильтруем: активные сотрудники + уволенные с часами
     var filteredEmployees = allEmployees.where((e) {
@@ -97,6 +101,11 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
               e.position!.isEmpty ||
               !selectedPositions.contains(e.position))) {
         return false; // Пропускаем сотрудников, не соответствующих фильтру
+      }
+
+      // Если включен фильтр по объектам, показываем ТОЛЬКО тех, у кого есть часы на этом объекте
+      if (hasObjectFilter) {
+        return employeeIdsWithHours.contains(e.id);
       }
 
       if (e.status != EmployeeStatus.fired) {

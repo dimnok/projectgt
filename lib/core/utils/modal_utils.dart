@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:projectgt/features/employees/presentation/screens/employee_form_screen.dart';
 import 'package:projectgt/features/works/presentation/screens/work_form_screen.dart';
 import 'package:projectgt/features/works/presentation/screens/work_hour_form_modal.dart';
 import 'package:projectgt/features/works/presentation/screens/new_material_modal.dart';
@@ -10,7 +9,6 @@ import 'package:projectgt/features/export/domain/entities/work_search_result.dar
 import 'package:projectgt/features/works/domain/entities/work_hour.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
-import 'package:projectgt/core/widgets/modal_container_wrapper.dart';
 
 /// Утилитарный класс для работы с модальными окнами.
 ///
@@ -120,23 +118,6 @@ class ModalUtils {
             cancelText: cancelText,
           ),
         ),
-      ),
-    );
-  }
-
-  /// Показывает модальное окно с формой редактирования/создания сотрудника.
-  ///
-  /// [context] - контекст для отображения модального окна.
-  /// [employeeId] - ID сотрудника для редактирования (null для создания нового).
-  static Future<void> showEmployeeFormModal(
-    BuildContext context, {
-    String? employeeId,
-  }) {
-    return _showFormModal(
-      context: context,
-      formBuilder: (scrollController) => EmployeeFormScreen(
-        employeeId: employeeId,
-        scrollController: scrollController,
       ),
     );
   }
@@ -347,56 +328,6 @@ class ModalUtils {
     );
   }
 
-  /// Универсальный метод для отображения модальных окон с формами.
-  ///
-  /// [context] - контекст для отображения модального окна.
-  /// [formBuilder] - функция для создания виджета формы с контроллером прокрутки.
-  /// [useDraggable] - использовать DraggableScrollableSheet (true) или обычный BottomSheet (false).
-  static Future<void> _showFormModal({
-    required BuildContext context,
-    required Widget Function(ScrollController scrollController) formBuilder,
-    bool useDraggable = true,
-  }) {
-    Widget buildContent(BuildContext context, ScrollController? controller) {
-      return Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: formBuilder(controller ?? ScrollController()),
-      );
-    }
-
-    Widget modalContent;
-
-    if (useDraggable) {
-      modalContent = DraggableScrollableSheet(
-        initialChildSize: 0.9,
-        minChildSize: 0.5,
-        maxChildSize: 0.9,
-        expand: false,
-        builder: (context, scrollController) =>
-            buildContent(context, scrollController),
-      );
-    } else {
-      modalContent = buildContent(context, null);
-    }
-
-    return showModalBottomSheet(
-      context: context,
-      useRootNavigator: true,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      useSafeArea: true,
-      isDismissible: false, // Запрет закрытия по тапу вне
-      enableDrag: false, // Запрет закрытия свайпом вниз
-      constraints: BoxConstraints(
-        maxHeight:
-            MediaQuery.of(context).size.height -
-            MediaQuery.of(context).padding.top,
-      ),
-      builder: (context) => ModalContainerWrapper(child: modalContent),
-    );
-  }
 }
 
 /// Внутренний виджет плавающих кнопок для модальных окон.

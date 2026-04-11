@@ -1,6 +1,6 @@
 # Модуль ФОТ (Фонд оплаты труда, Payroll)
 
-**Дата актуализации:** 20 января 2026 года
+**Дата актуализации:** 10 апреля 2026 года
 **Статус:** Актуально (Clean Architecture, Cumulative FIFO Balance, Parallel Batch Processing, Unified Reporting)
 
 ---
@@ -45,6 +45,9 @@
 ---
 
 ## ⚙ Бизнес-логика (Audit)
+
+### RPC `calculate_payroll_for_month` (начисления за месяц)
+Строка попадает в результат, если за выбранный месяц (с учётом `p_company_id` и опционально `p_object_ids`) есть **часы** в базовом расчёте **или** **премия** **или** **штраф** **или** **выплата** (`payroll_payout` с датой в этом месяце; без привязки к объекту). Колонка `net_salary` по-прежнему только начисления; выплаты отображаются через FIFO. Подробнее: `docs/fot/calculations.md`.
 
 ### Алгоритм Cumulative FIFO Balance
 1.  **Начальное сальдо:** Вызывается RPC `calculate_employee_balances_before_date` на 1 января выбранного года.

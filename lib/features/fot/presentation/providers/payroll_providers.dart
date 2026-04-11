@@ -235,46 +235,54 @@ final filteredPayrollsProvider =
 /// Fallback-функция: клиентский расчёт ФОТ (старая логика).
 ///
 /// Используется только если PostgreSQL функция недоступна.
+/// Согласована с Supabase RPC `calculate_payroll_for_month`: включает сотрудников с премиями, штрафами
+/// или **выплатами** за выбранный месяц даже без часов (фильтры — из `payrollFilterProvider` / связанных провайдеров).
 Future<List<PayrollCalculation>> _calculatePayrollClientSide(
   Ref ref,
   int year,
   int month,
 ) async {
-  // Получаем данные напрямую без watch для избежания циклических зависимостей
   final workHoursAsync = ref.watch(payrollWorkHoursProvider);
   final employeeState = ref.watch(employeeProvider);
 
-  // Проверяем готовность данных
-  if (!workHoursAsync.hasValue || employeeState.employees.isEmpty) {
-    return [];
-  }
+  if (employeeState.employees.isEmpty) return [];
+  if (!workHoursAsync.hasValue) return [];
 
   try {
-    // Используем независимые данные work_hours
     final workHours = workHoursAsync.value!;
 
-    // Группируем по сотруднику
     final Map<String, List<dynamic>> employeeEntries = {};
     for (final entry in workHours) {
       employeeEntries.putIfAbsent(entry.employeeId, () => []).add(entry);
     }
 
-    final filteredEmployeeIds = employeeEntries.keys.toList();
-
-    // Получаем все штрафы и премии за период
     final penaltiesAsyncRaw = await ref.watch(penaltiesByFilterProvider.future);
     final bonusesAsyncRaw = await ref.watch(bonusesByFilterProvider.future);
+    final payoutsAsyncRaw = await ref.watch(payrollPayoutsByFilterProvider.future);
     final penaltiesAsync = penaltiesAsyncRaw;
     final bonusesAsync = bonusesAsyncRaw;
+    final payoutsAsync = payoutsAsyncRaw;
 
-    // Формируем PayrollCalculation для каждого сотрудника
+    final companyEmployeeIds =
+        employeeState.employees.map((e) => e.id).toSet();
+    final employeeIds = <String>{
+      ...employeeEntries.keys,
+      for (final b in bonusesAsync)
+        if (companyEmployeeIds.contains(b.employeeId)) b.employeeId,
+      for (final p in penaltiesAsync)
+        if (companyEmployeeIds.contains(p.employeeId)) p.employeeId,
+      for (final po in payoutsAsync)
+        if (companyEmployeeIds.contains(po.employeeId)) po.employeeId,
+    };
+
+    final filteredEmployeeIds = employeeIds.toList();
+
     final List<PayrollCalculation> payrolls = [];
 
-    // Получаем use case для получения ставок
     final getRateUseCase = ref.read(getEmployeeRateForDateUseCaseProvider);
 
     for (final employeeId in filteredEmployeeIds) {
-      final entries = employeeEntries[employeeId]!;
+      final entries = employeeEntries[employeeId] ?? [];
       double hours = 0;
       double baseSalary = 0;
 
@@ -364,13 +372,11 @@ Future<List<PayrollCalculation>> _calculatePayrollClientSide(
       payrolls.add(calculation);
     }
 
-    // Сортировка по алфавиту
-    final employeeState = ref.watch(employeeProvider);
-    final employees = employeeState.employees;
-
     payrolls.sort((a, b) {
-      final empA = employees.firstWhereOrNull((e) => e.id == a.employeeId);
-      final empB = employees.firstWhereOrNull((e) => e.id == b.employeeId);
+      final empA =
+          employeeState.employees.firstWhereOrNull((e) => e.id == a.employeeId);
+      final empB =
+          employeeState.employees.firstWhereOrNull((e) => e.id == b.employeeId);
       final nameA = empA != null
           ? ('${empA.lastName} ${empA.firstName} ${empA.middleName ?? ''}')
               .trim()
@@ -642,6 +648,14 @@ final payoutsByEmployeeAndMonthFIFOProvider =
             remainingPayout -= toApplyToMonth;
           }
         }
+      }
+
+      // Выплаты в БД не привязаны к месяцу начисления: если за год нет положительных
+      // net_salary (только нули или нет строки), весь остаток иначе «теряется» для колонки
+      // «Выплаты». Относим остаток на календарный месяц даты выплаты в выбранном году.
+      if (remainingPayout > 0 && payout.payoutDate.year == year) {
+        final m = payout.payoutDate.month;
+        payoutsForMonth[m] = (payoutsForMonth[m] ?? 0.0) + remainingPayout;
       }
     }
 

@@ -84,6 +84,15 @@ class GTDropdown<T> extends StatefulWidget {
   /// Иконка в начале поля.
   final IconData? prefixIcon;
 
+  /// Размер [prefixIcon].
+  final double prefixIconSize;
+
+  /// Ограничения области [prefixIcon] (иначе minHeight 48 у [InputDecoration]).
+  final BoxConstraints? prefixIconConstraints;
+
+  /// Ограничения области суффикса (стрелка / индикатор).
+  final BoxConstraints? suffixIconConstraints;
+
   /// Функция для создания нового элемента из строки (для allowCustomInput).
   final T Function(String input)? customInputBuilder;
 
@@ -95,6 +104,8 @@ class GTDropdown<T> extends StatefulWidget {
   /// [hintText] — подсказка внутри поля.
   /// [borderRadius] — скругление углов (по умолчанию 16.0).
   /// [allowClear] — разрешить очистку выбранного значения.
+  /// [prefixIconSize], [prefixIconConstraints], [suffixIconConstraints] —
+  /// компактные панели фильтров в одну линию с [GTTextField].
   const GTDropdown({
     super.key,
     required this.items,
@@ -119,6 +130,9 @@ class GTDropdown<T> extends StatefulWidget {
     this.borderRadius = 16.0,
     this.borderSide,
     this.prefixIcon,
+    this.prefixIconSize = 20,
+    this.prefixIconConstraints,
+    this.suffixIconConstraints,
     this.customInputBuilder,
   }) : assert(
          !allowMultipleSelection || onMultiSelectionChanged != null,
@@ -716,6 +730,7 @@ class _GTDropdownState<T> extends State<GTDropdown<T>> {
 
   Widget _buildSuffixIcon() {
     final theme = Theme.of(context);
+    final arrowSize = widget.isDense ? 20.0 : 24.0;
 
     // Показываем иконку очистки если есть выбранные элементы и разрешена очистка
     if (widget.allowClear && _hasSelection() && !widget.readOnly) {
@@ -730,7 +745,7 @@ class _GTDropdownState<T> extends State<GTDropdown<T>> {
               padding: const EdgeInsets.all(4),
               child: Icon(
                 Icons.clear,
-                size: 18,
+                size: widget.isDense ? 18 : 20,
                 color: theme.colorScheme.outline,
               ),
             ),
@@ -741,6 +756,7 @@ class _GTDropdownState<T> extends State<GTDropdown<T>> {
             _isDropdownOpen
                 ? Icons.keyboard_arrow_up
                 : Icons.keyboard_arrow_down,
+            size: arrowSize,
             color: theme.colorScheme.outline,
           ),
           const SizedBox(width: 8),
@@ -751,6 +767,7 @@ class _GTDropdownState<T> extends State<GTDropdown<T>> {
     // Только стрелка dropdown
     return Icon(
       _isDropdownOpen ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+      size: arrowSize,
       color: theme.colorScheme.outline,
     );
   }
@@ -759,29 +776,37 @@ class _GTDropdownState<T> extends State<GTDropdown<T>> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final body = theme.textTheme.bodyMedium;
+    final effectiveStyle = widget.style ??
+        (body != null ? body.copyWith(fontSize: 15) : const TextStyle(fontSize: 15));
 
     return CompositedTransformTarget(
       link: _layerLink,
       child: TextFormField(
         controller: _textController,
         focusNode: _focusNode,
-        style: widget.style ?? const TextStyle(fontSize: 15),
+        style: effectiveStyle,
         readOnly:
             true, // Всегда только для чтения, чтобы не открывалась клавиатура
         validator: widget.validator,
         decoration: InputDecoration(
           labelText: widget.labelText.isEmpty ? null : widget.labelText,
-          hintText: widget.hintText,
+          hintText: widget.hintText.isEmpty ? null : widget.hintText,
+          hintStyle: effectiveStyle.copyWith(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
+          ),
           isDense: widget.isDense,
           prefixIcon: widget.prefixIcon != null
-              ? Icon(widget.prefixIcon, size: 20)
+              ? Icon(widget.prefixIcon, size: widget.prefixIconSize)
               : null,
+          prefixIconConstraints: widget.prefixIconConstraints,
           contentPadding:
               widget.contentPadding ??
               const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          suffixIconConstraints: widget.isDense
-              ? const BoxConstraints(minWidth: 32, minHeight: 20)
-              : null,
+          suffixIconConstraints: widget.suffixIconConstraints ??
+              (widget.isDense
+                  ? const BoxConstraints(minWidth: 32, minHeight: 20)
+                  : null),
           suffixIcon: widget.isLoading
               ? const SizedBox(
                   width: 20,

@@ -22,6 +22,9 @@ abstract class WorkItemModel with _$WorkItemModel {
   /// [total] — итоговая сумма (опционально)
   /// [createdAt] — дата создания записи (опционально)
   /// [updatedAt] — дата последнего обновления (опционально)
+  /// [ks2Id] — идентификатор акта КС-2 (опционально)
+  /// [contractorId] — подрядчик; null — работа силами компании
+  /// [specialistsCount] — число специалистов подрядчика; null — не указано
   const factory WorkItemModel({
     /// Идентификатор работы.
     required String id,
@@ -70,6 +73,12 @@ abstract class WorkItemModel with _$WorkItemModel {
 
     /// Идентификатор акта КС-2 (если работа закрыта актом).
     @JsonKey(name: 'ks2_id') String? ks2Id,
+
+    /// Идентификатор контрагента-подрядчика; если null — работа силами компании.
+    @JsonKey(name: 'contractor_id') String? contractorId,
+
+    /// Количество специалистов подрядчика на строке.
+    @JsonKey(name: 'specialists_count') int? specialistsCount,
   }) = _WorkItemModel;
 
   /// Создаёт data-модель работы в смене из JSON.

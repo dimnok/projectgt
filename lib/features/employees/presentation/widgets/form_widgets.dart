@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:projectgt/core/utils/responsive_utils.dart';
 
 /// Виджет секции формы.
 ///
@@ -134,6 +134,9 @@ class FormTextField extends StatelessWidget {
   /// Тип клавиатуры.
   final TextInputType? keyboardType;
 
+  /// Форматтеры ввода.
+  final List<TextInputFormatter>? inputFormatters;
+
   /// Доступно ли поле для редактирования.
   final bool readOnly;
 
@@ -145,6 +148,7 @@ class FormTextField extends StatelessWidget {
     required this.hintText,
     this.validator,
     this.keyboardType,
+    this.inputFormatters,
     this.readOnly = false,
   });
 
@@ -155,6 +159,7 @@ class FormTextField extends StatelessWidget {
       decoration: InputDecoration(labelText: labelText, hintText: hintText),
       validator: validator,
       keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
       readOnly: readOnly,
     );
   }
@@ -187,8 +192,7 @@ class FormButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = ResponsiveUtils.isMobile(context);
-    final buttonHeight = isMobile ? 26.0 : 44.0; // Уменьшили с 30 до 26
+    const buttonHeight = 44.0;
 
     return Row(
       children: [
@@ -196,12 +200,9 @@ class FormButtons extends StatelessWidget {
           child: OutlinedButton(
             onPressed: onCancel,
             style: OutlinedButton.styleFrom(
-              minimumSize: Size.fromHeight(buttonHeight),
+              minimumSize: const Size.fromHeight(buttonHeight),
               shape: const StadiumBorder(),
-              elevation: isMobile ? 2 : 0,
-              shadowColor: isMobile
-                  ? Colors.black.withValues(alpha: 0.2)
-                  : null,
+              elevation: 0,
               textStyle: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -215,12 +216,9 @@ class FormButtons extends StatelessWidget {
           child: ElevatedButton(
             onPressed: isLoading ? null : onSave,
             style: ElevatedButton.styleFrom(
-              minimumSize: Size.fromHeight(buttonHeight),
+              minimumSize: const Size.fromHeight(buttonHeight),
               shape: const StadiumBorder(),
-              elevation: isMobile ? 4 : 1,
-              shadowColor: isMobile
-                  ? Colors.black.withValues(alpha: 0.3)
-                  : null,
+              elevation: 1,
               textStyle: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,

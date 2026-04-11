@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 
 /// Виджет для содержимого модального окна (Dialog) на десктопе.
@@ -58,6 +59,12 @@ class DesktopDialogContent extends StatelessWidget {
   /// Если не передан, используется Navigator.of(context).pop().
   final VoidCallback? onClose;
 
+  /// Если задан, видимость кнопки закрытия в заголовке: `true` — показать крестик.
+  ///
+  /// Используется, когда дочерний виджет должен временно скрыть закрытие диалога
+  /// (например, во время редактирования формы с отменой/сохранением внутри контента).
+  final ValueListenable<bool>? closeButtonVisibility;
+
   /// Определяет, должен ли контент быть обернут в скролл.
   /// По умолчанию true. Если false, скролл должен быть реализован внутри child.
   final bool scrollable;
@@ -76,6 +83,7 @@ class DesktopDialogContent extends StatelessWidget {
     this.height,
     this.padding = const EdgeInsets.all(24),
     this.onClose,
+    this.closeButtonVisibility,
     this.scrollable = true,
     this.showDividers = true,
   });
@@ -95,6 +103,7 @@ class DesktopDialogContent extends StatelessWidget {
     bool showDividers = true,
     bool barrierDismissible = true,
     VoidCallback? onClose,
+    ValueListenable<bool>? closeButtonVisibility,
   }) {
     return showGeneralDialog<T>(
       context: context,
@@ -116,6 +125,7 @@ class DesktopDialogContent extends StatelessWidget {
               scrollable: scrollable,
               showDividers: showDividers,
               onClose: onClose,
+              closeButtonVisibility: closeButtonVisibility,
               child: child,
             ),
           ),
@@ -183,13 +193,10 @@ class DesktopDialogContent extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 16),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: onClose ?? () => Navigator.of(context).pop(),
-                        tooltip: 'Закрыть',
-                        style: IconButton.styleFrom(
-                          foregroundColor: theme.colorScheme.onSurfaceVariant,
-                        ),
+                      _DesktopDialogCloseButton(
+                        theme: theme,
+                        onClose: onClose ?? () => Navigator.of(context).pop(),
+                        visibility: closeButtonVisibility,
                       ),
                     ],
                   ),
@@ -220,6 +227,46 @@ class DesktopDialogContent extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _DesktopDialogCloseButton extends StatelessWidget {
+  const _DesktopDialogCloseButton({
+    required this.theme,
+    required this.onClose,
+    required this.visibility,
+  });
+
+  final ThemeData theme;
+  final VoidCallback onClose;
+  final ValueListenable<bool>? visibility;
+
+  @override
+  Widget build(BuildContext context) {
+    if (visibility == null) {
+      return IconButton(
+        icon: const Icon(Icons.close),
+        onPressed: onClose,
+        tooltip: 'Закрыть',
+        style: IconButton.styleFrom(
+          foregroundColor: theme.colorScheme.onSurfaceVariant,
+        ),
+      );
+    }
+    return ListenableBuilder(
+      listenable: visibility!,
+      builder: (context, _) {
+        if (!visibility!.value) return const SizedBox.shrink();
+        return IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: onClose,
+          tooltip: 'Закрыть',
+          style: IconButton.styleFrom(
+            foregroundColor: theme.colorScheme.onSurfaceVariant,
+          ),
+        );
+      },
     );
   }
 }

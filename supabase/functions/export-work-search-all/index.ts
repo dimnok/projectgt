@@ -42,7 +42,7 @@ serve(async (req) => {
       throw new Error("Missing Supabase configuration");
     }
 
-    const client = createClient(supabaseUrl, supabaseKey);
+    const client = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } });
 
     if (!requestData.objectId) {
       return new Response(JSON.stringify({

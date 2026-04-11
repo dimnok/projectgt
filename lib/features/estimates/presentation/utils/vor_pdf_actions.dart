@@ -51,6 +51,7 @@ class VorPdfActions {
   }) async {
     final file = selectedFile ?? await _pickPdfFile();
     if (file == null) return;
+    if (!context.mounted) return;
 
     final filePath = file.path;
     if (filePath == null || filePath.isEmpty) {

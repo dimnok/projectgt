@@ -50,6 +50,19 @@ class GTTextField extends StatelessWidget {
   /// Отступы внутри поля.
   final EdgeInsets? contentPadding;
 
+  /// Ограничения области [prefixIcon] (по умолчанию у [InputDecoration] часто
+  /// minHeight 48 — из‑за этого поле не становится ниже при уменьшении [contentPadding]).
+  final BoxConstraints? prefixIconConstraints;
+
+  /// Ограничения области [suffixIcon] (аналогично [prefixIconConstraints]).
+  final BoxConstraints? suffixIconConstraints;
+
+  /// Размер иконки [prefixIcon] (если задана).
+  final double prefixIconSize;
+
+  /// Стиль вводимого текста и подсказки (hint наследует [fontSize]).
+  final TextStyle? style;
+
   /// Радиус скругления границ.
   final double borderRadius;
 
@@ -67,6 +80,21 @@ class GTTextField extends StatelessWidget {
 
   /// Автофокус на поле.
   final bool autofocus;
+
+  /// Узел фокуса (для связки с [FocusScope] и прокруткой к полю).
+  final FocusNode? focusNode;
+
+  /// Кнопка на клавиатуре (например [TextInputAction.done] для числового ввода).
+  final TextInputAction? textInputAction;
+
+  /// Вызывается при нажатии действия на клавиатуре (часто — скрыть клавиатуру).
+  final VoidCallback? onEditingComplete;
+
+  /// Отступ при автоскролле к полю при фокусе (запас над клавиатурой).
+  final EdgeInsets scrollPadding;
+
+  /// Тап вне поля (по умолчанию снимает фокус и закрывает клавиатуру).
+  final TapRegionCallback? onTapOutside;
 
   /// Создаёт текстовое поле ввода в стиле проекта.
   ///
@@ -88,9 +116,16 @@ class GTTextField extends StatelessWidget {
   /// - [onSubmitted] — вызов при подтверждении ввода (Enter).
   /// - [onTap] — вызов при нажатии на область поля.
   /// - [contentPadding] — пользовательские отступы.
+  /// - [prefixIconConstraints] / [suffixIconConstraints] — компактные поля в панелях инструментов.
+  /// - [prefixIconSize] — размер [prefixIcon].
+  /// - [style] — стиль текста поля.
   /// - [borderRadius] — радиус скругления (по умолчанию 16).
   /// - [textAlign] — выравнивание текста (по умолчанию start).
   /// - [autofocus] — автоматический фокус при появлении поля.
+  /// - [focusNode] — внешний [FocusNode], если нужен контроль фокуса.
+  /// - [textInputAction] / [onEditingComplete] — кнопка «Готово» и скрытие клавиатуры.
+  /// - [scrollPadding] — запас при прокрутке к полю в [ScrollView].
+  /// - [onTapOutside] — если null, по тапу вне поля фокус снимается.
   const GTTextField({
     super.key,
     this.controller,
@@ -111,9 +146,18 @@ class GTTextField extends StatelessWidget {
     this.onSubmitted,
     this.onTap,
     this.contentPadding,
+    this.prefixIconConstraints,
+    this.suffixIconConstraints,
+    this.prefixIconSize = 20,
+    this.style,
     this.borderRadius = 16,
     this.textAlign = TextAlign.start,
     this.autofocus = false,
+    this.focusNode,
+    this.textInputAction,
+    this.onEditingComplete,
+    this.scrollPadding = const EdgeInsets.fromLTRB(20, 20, 20, 120),
+    this.onTapOutside,
   });
 
   @override
@@ -121,8 +165,15 @@ class GTTextField extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
+    // Явно опираемся на body из темы, чтобы шрифт совпадал с остальным UI
+    // (иначе частичный TextStyle даёт другой fallback, чем заголовки листа).
+    final body = theme.textTheme.bodyMedium;
+    final effectiveStyle =
+        style ?? (body != null ? body.copyWith(fontSize: 15) : const TextStyle(fontSize: 15));
+
     return TextFormField(
       controller: controller,
+      focusNode: focusNode,
       enabled: enabled,
       validator: validator,
       keyboardType: keyboardType,
@@ -135,13 +186,27 @@ class GTTextField extends StatelessWidget {
       onFieldSubmitted: onSubmitted,
       onTap: onTap,
       textAlign: textAlign,
-      style: const TextStyle(fontSize: 15),
+      style: effectiveStyle,
+      textInputAction: textInputAction,
+      onEditingComplete: onEditingComplete,
+      scrollPadding: scrollPadding,
+      onTapOutside: onTapOutside ??
+          (PointerDownEvent event) {
+            FocusManager.instance.primaryFocus?.unfocus();
+          },
       decoration: InputDecoration(
         labelText: labelText,
         hintText: hintText,
+        hintStyle: effectiveStyle.copyWith(
+          color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
+        ),
         helperText: helperText,
-        prefixIcon: prefixIcon != null ? Icon(prefixIcon, size: 20) : null,
+        prefixIcon: prefixIcon != null
+            ? Icon(prefixIcon, size: prefixIconSize)
+            : null,
+        prefixIconConstraints: prefixIconConstraints,
         suffixIcon: suffixIcon,
+        suffixIconConstraints: suffixIconConstraints,
         suffixText: suffixText,
         isDense: true,
         contentPadding:

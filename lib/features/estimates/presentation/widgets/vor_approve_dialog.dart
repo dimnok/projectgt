@@ -19,6 +19,7 @@ class VorApproveResult {
   const VorApproveResult({required this.isConfirmed, this.selectedFile});
 }
 
+/// Диалог подтверждения подписания ВОР с загрузкой подписанного PDF.
 class VorApproveDialog extends StatefulWidget {
   /// Ведомость ВОР для подписания.
   final Vor vor;

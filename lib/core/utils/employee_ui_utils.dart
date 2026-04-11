@@ -34,6 +34,8 @@ class EmployeeUIUtils {
         return 'Официально';
       case EmploymentType.unofficial:
         return 'Неофициально';
+      case EmploymentType.contractor:
+        return 'Подрядчик';
     }
   }
 }

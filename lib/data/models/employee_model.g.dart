@@ -94,6 +94,7 @@ Map<String, dynamic> _$EmployeeModelToJson(_EmployeeModel instance) =>
 const _$EmploymentTypeEnumMap = {
   EmploymentType.official: 'official',
   EmploymentType.unofficial: 'unofficial',
+  EmploymentType.contractor: 'contractor',
 };
 
 const _$EmployeeStatusEnumMap = {

@@ -67,7 +67,11 @@ serve(async (req) => {
         throw new Error('Invalid or expired code')
       }
 
-      const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+      const supabase = createClient(
+        Deno.env.get('SUPABASE_URL')!, 
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+        { auth: { persistSession: false } }
+      )
       
       // Ищем профиль по телефону (точечный запрос .eq)
       const { data: profile, error: profileError } = await supabase

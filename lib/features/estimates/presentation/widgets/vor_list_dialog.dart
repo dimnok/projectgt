@@ -444,6 +444,10 @@ class _VorCardContentState extends ConsumerState<_VorCardContent> {
 
                                               if (approvalResult.selectedFile !=
                                                   null) {
+                                                if (!mounted ||
+                                                    !context.mounted) {
+                                                  return;
+                                                }
                                                 await VorPdfActions.uploadPdf(
                                                   context: context,
                                                   vor: widget.vor,

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/domain/entities/business_trip_rate.dart';
 import 'package:projectgt/domain/entities/employee.dart';
 import 'package:projectgt/core/di/providers.dart';
-import 'package:projectgt/core/utils/responsive_utils.dart';
 
 /// Виджет для отображения краткой информации о суточных в экране деталей сотрудника.
 ///
@@ -26,6 +25,9 @@ class EmployeeBusinessTripSummaryWidget extends ConsumerStatefulWidget {
   /// Callback для открытия формы добавления суточных.
   final VoidCallback? onAddBusinessTrip;
 
+  /// Callback для открытия формы редактирования суточных.
+  final Function(BusinessTripRate)? onEditBusinessTrip;
+
   /// Конструктор [EmployeeBusinessTripSummaryWidget].
   const EmployeeBusinessTripSummaryWidget({
     super.key,
@@ -34,6 +36,7 @@ class EmployeeBusinessTripSummaryWidget extends ConsumerStatefulWidget {
     required this.valueStyle,
     required this.theme,
     this.onAddBusinessTrip,
+    this.onEditBusinessTrip,
   });
 
   @override
@@ -47,14 +50,13 @@ class _EmployeeBusinessTripSummaryWidgetState
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<BusinessTripRate>>(
-      future: ref.read(getBusinessTripRatesByEmployeeUseCaseProvider)(
-          widget.employee.id),
-      builder: (context, snapshot) {
-        final rates = snapshot.data ?? [];
-        final summaryText = _getBusinessTripSummaryFromRates(rates);
+    final ratesAsync = ref.watch(employeeBusinessTripRatesProvider(widget.employee.id));
+    final List<BusinessTripRate> rates = ratesAsync.valueOrNull ?? [];
+    final summaryText = ratesAsync.isLoading 
+        ? 'Загрузка...' 
+        : _getBusinessTripSummaryFromRates(rates);
 
-        return Column(
+    return Column(
           children: [
             // Основная строка (кликабельная)
             GestureDetector(
@@ -66,9 +68,7 @@ class _EmployeeBusinessTripSummaryWidgetState
                     }
                   : null,
               child: Container(
-                margin: EdgeInsets.only(
-                    bottom: ResponsiveUtils.adaptiveValue(
-                        context: context, mobile: 12.0, desktop: 16.0)),
+                margin: const EdgeInsets.only(bottom: 16),
                 padding:
                     const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
                 decoration: BoxDecoration(
@@ -102,14 +102,12 @@ class _EmployeeBusinessTripSummaryWidgetState
                     ),
                     const SizedBox(width: 8),
                     SizedBox(
-                      width: ResponsiveUtils.adaptiveValue(
-                        context: context,
-                        mobile: 150 - 12,
-                        desktop: 150 * 1.2 - 12,
+                      width: 168,
+                      child: Text(
+                        'Суточные',
+                        style: widget.labelStyle
+                            .copyWith(fontWeight: FontWeight.w500),
                       ),
-                      child: Text('Суточные',
-                          style: widget.labelStyle
-                              .copyWith(fontWeight: FontWeight.w500)),
                     ),
                     Expanded(
                       child: Text(
@@ -187,8 +185,6 @@ class _EmployeeBusinessTripSummaryWidgetState
             ),
           ],
         );
-      },
-    );
   }
 
   /// Строит детальную информацию о суточных.
@@ -214,20 +210,25 @@ class _EmployeeBusinessTripSummaryWidgetState
                   .firstOrNull ??
               'Объект не найден';
 
-          return Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: widget.theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: widget.theme.colorScheme.outline.withValues(alpha: 0.15),
-                width: 1,
+          return InkWell(
+            onTap: widget.onEditBusinessTrip != null
+                ? () => widget.onEditBusinessTrip!(rate)
+                : null,
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: widget.theme.colorScheme.surface,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: widget.theme.colorScheme.outline.withValues(alpha: 0.15),
+                  width: 1,
+                ),
               ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                 Row(
                   children: [
                     Expanded(
@@ -299,6 +300,7 @@ class _EmployeeBusinessTripSummaryWidgetState
                 ],
               ],
             ),
+          ),
           );
         }),
       ],

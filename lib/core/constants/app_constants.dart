@@ -8,8 +8,8 @@ class AppConstants {
   ///
   /// Формат: major.minor.patch (например, 1.0.3).
   /// ⚠️ СИНХРОНИЗИРУЙТЕ С pubspec.yaml при каждом обновлении!
-  /// Используйте скрипт: bash scripts/update_version.sh
-  static const String appVersion = '1.0.13';
+  /// Используйте скрипт: bash tools/update_version.sh
+  static const String appVersion = '1.0.14';
 
   /// Платформа приложения для проверки версии.
   ///

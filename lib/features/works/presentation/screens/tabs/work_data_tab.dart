@@ -24,6 +24,7 @@ import 'package:projectgt/core/utils/telegram_helper.dart';
 import 'package:projectgt/features/works/presentation/providers/repositories_providers.dart';
 import 'package:projectgt/features/works/presentation/widgets/work_data_skeleton.dart';
 import 'package:projectgt/features/works/presentation/widgets/work_stats_card.dart';
+import 'package:projectgt/features/works/presentation/widgets/work_own_contractor_amounts_card.dart';
 import 'package:projectgt/features/works/presentation/widgets/work_validation_block.dart';
 import 'package:projectgt/features/works/presentation/utils/works_strings.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -83,14 +84,29 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
           return const WorkDataSkeleton();
         }
 
-        // Рассчитываем статистику
-        final worksCount = work.itemsCount ?? items?.length ?? 0;
+        // Рассчитываем статистику верхней карточки: только собственное выполнение
+        // (строки без contractor_id). Пока список позиций не загружен — fallback на
+        // агрегаты смены из БД (могут включать подрядчика до прихода items).
         final uniqueEmployees = work.employeesCount ??
             hours?.map((h) => h.employeeId).toSet().length ??
             0;
-        final totalAmount = work.totalAmount ??
-            items?.fold<double>(0, (sum, item) => sum + (item.total ?? 0)) ??
-            0.0;
+        final int worksCount;
+        final double totalAmount;
+        if (items != null) {
+          final ownItems = items
+              .where(
+                (i) => i.contractorId == null || i.contractorId!.isEmpty,
+              )
+              .toList();
+          worksCount = ownItems.length;
+          totalAmount = ownItems.fold<double>(
+            0,
+            (sum, item) => sum + (item.total ?? 0),
+          );
+        } else {
+          worksCount = work.itemsCount ?? 0;
+          totalAmount = work.totalAmount ?? 0.0;
+        }
         final productivityPerEmployee =
             uniqueEmployees > 0 ? totalAmount / uniqueEmployees : 0.0;
 
@@ -125,6 +141,8 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
             ),
 
             if (items != null && items.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              WorkOwnContractorAmountsCard(items: items),
               const SizedBox(height: 16),
               WorkDistributionCard(items: items),
             ] else if (items == null) ...[

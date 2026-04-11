@@ -10,10 +10,10 @@ import 'package:projectgt/features/profile/presentation/screens/settings_screen.
 import 'package:projectgt/features/profile/presentation/screens/financial_info_screen.dart';
 import 'package:projectgt/features/profile/presentation/screens/property_screen.dart';
 import 'package:projectgt/features/profile/presentation/screens/users_list_screen.dart';
-import 'package:projectgt/features/employees/presentation/screens/employees_list_screen.dart';
+import 'package:projectgt/features/employees/presentation/utils/employees_layout_utils.dart';
 import 'package:projectgt/features/employees/presentation/screens/employees_table_screen.dart';
+import 'package:projectgt/features/employees/presentation/screens/employees_list_mobile_screen.dart';
 import 'package:projectgt/features/employees/presentation/screens/employee_details_screen.dart';
-import 'package:projectgt/features/employees/presentation/screens/employee_form_screen.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
 import 'package:projectgt/features/objects/presentation/screens/objects_list_screen.dart';
 import 'package:projectgt/features/objects/presentation/screens/object_form_screen.dart';
@@ -36,6 +36,7 @@ import 'package:projectgt/features/work_plans/presentation/screens/work_plan_det
 import 'package:projectgt/features/materials/presentation/screens/material_screen.dart';
 import 'package:projectgt/features/cash_flow/presentation/screens/cash_flow_list_screen.dart';
 // Telegram moderation экраны удалены
+import 'package:projectgt/core/navigation/app_route_observer.dart';
 import 'package:projectgt/core/widgets/auth_gate.dart';
 import 'package:projectgt/features/version_control/presentation/force_update_screen.dart';
 import 'package:projectgt/features/version_control/presentation/version_management_screen.dart';
@@ -96,6 +97,7 @@ Widget _buildAccessDeniedScreen() {
 /// Использует Riverpod для внедрения зависимостей и состояния авторизации.
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
+    observers: [appRouteObserver],
     initialLocation: AppRoutes.splash,
     redirect: (context, state) {
       final loc = state.matchedLocation;
@@ -203,7 +205,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      // Маршрут для списка сотрудников
+      // Маршрут для списка сотрудников (табличный вид, теперь основной)
       GoRoute(
         path: AppRoutes.employees,
         name: 'employees',
@@ -212,56 +214,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, ref, child) {
               final service = ref.watch(permissionServiceProvider);
               if (service.can('employees', 'read')) {
-                return const EmployeesListScreen();
-              }
-              return _buildAccessDeniedScreen();
-            },
-          );
-        },
-      ),
-      // Маршрут для списка сотрудников (табличный вид)
-      GoRoute(
-        path: AppRoutes.employeesTable,
-        name: 'employees_table',
-        builder: (context, state) {
-          return Consumer(
-            builder: (context, ref, child) {
-              final service = ref.watch(permissionServiceProvider);
-              if (service.can('employees', 'read')) {
+                if (EmployeesLayoutUtils.useEmployeesMobileList(context)) {
+                  return const EmployeesListMobileScreen();
+                }
                 return const EmployeesTableScreen();
-              }
-              return _buildAccessDeniedScreen();
-            },
-          );
-        },
-      ),
-      // Маршрут для создания нового сотрудника
-      GoRoute(
-        path: '${AppRoutes.employees}/create',
-        name: 'employee_new',
-        builder: (context, state) {
-          return Consumer(
-            builder: (context, ref, child) {
-              final service = ref.watch(permissionServiceProvider);
-              if (service.can('employees', 'create')) {
-                return const EmployeeFormScreen();
-              }
-              return _buildAccessDeniedScreen();
-            },
-          );
-        },
-      ),
-      // Маршрут для редактирования существующего сотрудника
-      GoRoute(
-        path: '${AppRoutes.employees}/:employeeId/edit',
-        name: 'employee_edit',
-        builder: (context, state) {
-          return Consumer(
-            builder: (context, ref, child) {
-              final service = ref.watch(permissionServiceProvider);
-              if (service.can('employees', 'update')) {
-                final employeeId = state.pathParameters['employeeId']!;
-                return EmployeeFormScreen(employeeId: employeeId);
               }
               return _buildAccessDeniedScreen();
             },
@@ -709,11 +665,8 @@ class AppRoutes {
   /// Список пользователей (админ)
   static const String users = '/users';
 
-  /// Список сотрудников
-  static const String employees = '/employees';
-
   /// Список сотрудников (табличный вид)
-  static const String employeesTable = '/employees-table';
+  static const String employees = '/employees';
 
   /// Список объектов
   static const String objects = '/objects';

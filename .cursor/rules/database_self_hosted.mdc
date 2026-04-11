@@ -1,0 +1,13 @@
+---
+description: Работа с БД ProjectGT (self-hosted Supabase через MCP)
+globs: supabase/**/*.sql, lib/data/**/*.dart, lib/**/repositories/**/*.dart
+alwaysApply: true
+---
+
+# База данных (self-hosted)
+
+- **Postgres / Supabase проекта размещён на self-hosted** (`api.progt.ru` и связанная инфраструктура). Прямой `psql` / локальный `supabase db` к продакшену **не использовать** для операций от имени агента, если пользователь явно не попросил иначе.
+- **Источник правды для запросов и изменений схемы/данных в чате:** MCP Supabase из `.cursor/mcp.json` (URL `https://api.progt.ru/mcp`). В вызовах инструментов агенту указывать **идентификатор сервера** из дескриптора Cursor (пример для этого репозитория: **`project-0-projectgt-supabase`**, не короткое имя `supabase`).
+- Для **DDL и миграций**, которые должны попасть в историю Supabase: инструмент **`apply_migration`** (поля `name`, `query`).
+- Для **DML и разовых SELECT**: инструмент **`execute_sql`** (поле `query`).
+- Файлы в `supabase/migrations/` коммитить как обычно; после согласования с пользователем **дублировать критичные изменения** через MCP, если рабочий процесс требует немедленного применения на сервере.

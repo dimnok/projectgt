@@ -24,6 +24,9 @@ abstract class WorkItem with _$WorkItem {
   /// [total] — итоговая сумма (опционально)
   /// [createdAt] — дата создания записи (опционально)
   /// [updatedAt] — дата последнего обновления (опционально)
+  /// [ks2Id] — идентификатор акта КС-2 (опционально)
+  /// [contractorId] — подрядчик из справочника контрагентов; null — наша бригада
+  /// [specialistsCount] — число специалистов подрядчика на строке; null — не указано
   const factory WorkItem({
     /// Идентификатор работы.
     required String id,
@@ -72,6 +75,12 @@ abstract class WorkItem with _$WorkItem {
 
     /// Идентификатор акта КС-2 (если работа закрыта актом).
     String? ks2Id,
+
+    /// Идентификатор контрагента-подрядчика; если null — работа силами компании.
+    String? contractorId,
+
+    /// Количество специалистов подрядчика (имеет смысл при [contractorId]).
+    int? specialistsCount,
   }) = _WorkItem;
 
   /// Создаёт сущность из JSON.

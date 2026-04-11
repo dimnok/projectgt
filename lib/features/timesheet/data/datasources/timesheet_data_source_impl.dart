@@ -32,6 +32,7 @@ class TimesheetDataSourceImpl implements TimesheetDataSource {
   }) async {
     try {
       // Базовый запрос с join для получения данных из связанных таблиц
+      // Используем !inner для works, чтобы фильтрация по дате отсекала строки work_hours
       String query = '''
         id,
         work_id,
@@ -40,7 +41,7 @@ class TimesheetDataSourceImpl implements TimesheetDataSource {
         comment,
         created_at,
         updated_at,
-        works:work_id (
+        works!inner (
           date,
           object_id,
           status,
@@ -66,6 +67,17 @@ class TimesheetDataSourceImpl implements TimesheetDataSource {
       // Серверная фильтрация только закрытых смен (через works)
       queryBuilder = queryBuilder.eq('works.status', 'closed');
 
+      // Серверная фильтрация по датам (через works)
+      if (startDate != null) {
+        final startDateStr = startDate.toIso8601String().split('T')[0];
+        queryBuilder = queryBuilder.gte('works.date', startDateStr);
+      }
+
+      if (endDate != null) {
+        final endDateStr = endDate.toIso8601String().split('T')[0];
+        queryBuilder = queryBuilder.lte('works.date', endDateStr);
+      }
+
       // Выполняем запрос с сортировкой
       final response = await queryBuilder.order('created_at');
 
@@ -89,21 +101,6 @@ class TimesheetDataSourceImpl implements TimesheetDataSource {
           'updated_at': record['updated_at'],
         };
       }).toList();
-
-      // Клиентская фильтрация по диапазону дат
-      if (startDate != null) {
-        flatResults = flatResults.where((record) {
-          final date = DateTime.tryParse(record['date'] ?? '');
-          return date != null && !date.isBefore(startDate);
-        }).toList();
-      }
-
-      if (endDate != null) {
-        flatResults = flatResults.where((record) {
-          final date = DateTime.tryParse(record['date'] ?? '');
-          return date != null && !date.isAfter(endDate);
-        }).toList();
-      }
 
       // Клиентская фильтрация по объектам (мультивыбор)
       if (objectIds != null && objectIds.isNotEmpty) {

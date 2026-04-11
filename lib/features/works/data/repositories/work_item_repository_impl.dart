@@ -33,6 +33,9 @@ class WorkItemRepositoryImpl implements WorkItemRepository {
             total: e.total,
             createdAt: e.createdAt,
             updatedAt: e.updatedAt,
+            ks2Id: e.ks2Id,
+            contractorId: e.contractorId,
+            specialistsCount: e.specialistsCount,
           ),
         )
         .toList();
@@ -58,6 +61,9 @@ class WorkItemRepositoryImpl implements WorkItemRepository {
         total: item.total,
         createdAt: item.createdAt,
         updatedAt: item.updatedAt,
+        ks2Id: item.ks2Id,
+        contractorId: item.contractorId,
+        specialistsCount: item.specialistsCount,
       ),
     );
   }
@@ -85,6 +91,9 @@ class WorkItemRepositoryImpl implements WorkItemRepository {
               total: item.total,
               createdAt: item.createdAt,
               updatedAt: item.updatedAt,
+              ks2Id: item.ks2Id,
+              contractorId: item.contractorId,
+              specialistsCount: item.specialistsCount,
             ),
           )
           .toList(),
@@ -111,6 +120,9 @@ class WorkItemRepositoryImpl implements WorkItemRepository {
         total: item.total,
         createdAt: item.createdAt,
         updatedAt: item.updatedAt,
+        ks2Id: item.ks2Id,
+        contractorId: item.contractorId,
+        specialistsCount: item.specialistsCount,
       ),
     );
   }
@@ -143,6 +155,9 @@ class WorkItemRepositoryImpl implements WorkItemRepository {
             total: e.total,
             createdAt: e.createdAt,
             updatedAt: e.updatedAt,
+            ks2Id: e.ks2Id,
+            contractorId: e.contractorId,
+            specialistsCount: e.specialistsCount,
           ),
         )
         .toList();
@@ -172,6 +187,9 @@ class WorkItemRepositoryImpl implements WorkItemRepository {
                   total: e.total,
                   createdAt: e.createdAt,
                   updatedAt: e.updatedAt,
+                  ks2Id: e.ks2Id,
+                  contractorId: e.contractorId,
+                  specialistsCount: e.specialistsCount,
                 ),
               )
               .toList(),

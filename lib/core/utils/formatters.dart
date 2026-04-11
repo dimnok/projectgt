@@ -121,6 +121,43 @@ class GtFormatters {
   /// Маска: +7 XXX XXX XX XX
   static TextInputFormatter phoneFormatter() => _PhoneInputFormatter();
 
+  /// Форматирует СНИЛС в реальном времени.
+  /// Маска: XXX-XXX-XXX XX
+  static TextInputFormatter snilsFormatter() => _SnilsInputFormatter();
+
+  /// Форматирует ИНН в реальном времени.
+  /// Маска: XXXXXXXXXXXX (12 цифр для физлиц)
+  static TextInputFormatter innFormatter() => _InnInputFormatter();
+
+  /// Форматирует серию паспорта в реальном времени.
+  /// Маска: XXXX
+  static TextInputFormatter passportSeriesFormatter() =>
+      _DigitsLengthInputFormatter(4);
+
+  /// Форматирует номер паспорта в реальном времени.
+  /// Маска: XXXXXX
+  static TextInputFormatter passportNumberFormatter() =>
+      _DigitsLengthInputFormatter(6);
+
+  /// Форматирует код подразделения в реальном времени.
+  /// Маска: XXX-XXX
+  static TextInputFormatter passportDepartmentCodeFormatter() =>
+      _PassportDepartmentCodeInputFormatter();
+
+  /// Форматирует код подразделения для отображения.
+  /// Пример: 123456 -> "123-456"
+  static String formatPassportDepartmentCode(String? value) {
+    if (value == null || value.isEmpty) return '—';
+
+    final digits = value.replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) return '—';
+    if (digits.length <= 3) return digits;
+
+    final firstPart = digits.substring(0, 3);
+    final secondPart = digits.substring(3, min(digits.length, 6));
+    return '$firstPart-$secondPart';
+  }
+
   /// Форматирует номер телефона для отображения.
   /// Пример: "79610092141" -> "+7 961 009 21 41"
   static String formatPhone(String? phone) {
@@ -154,6 +191,9 @@ class GtFormatters {
 
   /// Форматирует количество в реальном времени (до 3 знаков после запятой).
   static TextInputFormatter quantityFormatter() => _QuantityInputFormatter();
+
+  /// Форматирует текст как Имя Собственное (каждое слово с заглавной буквы, остальные строчные).
+  static TextInputFormatter nameFormatter() => _NameInputFormatter();
 }
 
 class _AmountInputFormatter extends TextInputFormatter {
@@ -299,6 +339,140 @@ class _PhoneInputFormatter extends TextInputFormatter {
   }
 }
 
+class _SnilsInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    // Оставляем только цифры
+    final String digits = newValue.text.replaceAll(RegExp(r'\D'), '');
+    
+    // Ограничиваем длину до 11 цифр (формат СНИЛС)
+    final String truncated = digits.substring(0, min(digits.length, 11));
+    
+    String formatted = '';
+    
+    // Форматируем по маске XXX-XXX-XXX XX
+    for (int i = 0; i < truncated.length; i++) {
+      if (i == 3 || i == 6) {
+        formatted += '-';
+      } else if (i == 9) {
+        formatted += ' ';
+      }
+      formatted += truncated[i];
+    }
+
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}
+
+class _InnInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    // Оставляем только цифры
+    final String digits = newValue.text.replaceAll(RegExp(r'\D'), '');
+    
+    // Ограничиваем длину до 12 цифр (формат ИНН для физлиц)
+    final String truncated = digits.substring(0, min(digits.length, 12));
+
+    return TextEditingValue(
+      text: truncated,
+      selection: TextSelection.collapsed(offset: truncated.length),
+    );
+  }
+}
+
+class _DigitsLengthInputFormatter extends TextInputFormatter {
+  final int maxLength;
+
+  _DigitsLengthInputFormatter(this.maxLength);
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final String digits = newValue.text.replaceAll(RegExp(r'\D'), '');
+    final String truncated = digits.substring(0, min(digits.length, maxLength));
+
+    return TextEditingValue(
+      text: truncated,
+      selection: TextSelection.collapsed(offset: truncated.length),
+    );
+  }
+}
+
+class _PassportDepartmentCodeInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final String digits = newValue.text.replaceAll(RegExp(r'\D'), '');
+    final String truncated = digits.substring(0, min(digits.length, 6));
+
+    if (truncated.isEmpty) {
+      return const TextEditingValue(
+        text: '',
+        selection: TextSelection.collapsed(offset: 0),
+      );
+    }
+
+    final String formatted = truncated.length <= 3
+        ? truncated
+        : '${truncated.substring(0, 3)}-${truncated.substring(3)}';
+
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}
+
+class _NameInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.isEmpty) {
+      return newValue;
+    }
+
+    final String text = newValue.text;
+    final StringBuffer formatted = StringBuffer();
+    bool capitalizeNext = true;
+
+    for (int i = 0; i < text.length; i++) {
+      final char = text[i];
+      // Считаем разделителями пробел и дефис
+      if (char == ' ' || char == '-') {
+        formatted.write(char);
+        capitalizeNext = true;
+      } else {
+        if (capitalizeNext) {
+          formatted.write(char.toUpperCase());
+          capitalizeNext = false;
+        } else {
+          formatted.write(char.toLowerCase());
+        }
+      }
+    }
+
+    return TextEditingValue(
+      text: formatted.toString(),
+      selection: newValue.selection,
+    );
+  }
+}
+
 // --- Глобальные алиасы для удобства использования в UI ---
 
 /// Алиас для форматирования ФИО сотрудника сокращённо (Иванов И.И.).
@@ -349,3 +523,28 @@ DateTime? parseDate(String? text, String format) =>
 
 /// Алиас для форматирования номера телефона для отображения (+7 XXX XXX XX XX).
 String formatPhone(String? phone) => GtFormatters.formatPhone(phone);
+
+/// Алиас для получения форматтера СНИЛС (XXX-XXX-XXX XX).
+TextInputFormatter snilsFormatter() => GtFormatters.snilsFormatter();
+
+/// Алиас для получения форматтера ИНН (12 цифр).
+TextInputFormatter innFormatter() => GtFormatters.innFormatter();
+
+/// Алиас для получения форматтера серии паспорта (4 цифры).
+TextInputFormatter passportSeriesFormatter() =>
+    GtFormatters.passportSeriesFormatter();
+
+/// Алиас для получения форматтера номера паспорта (6 цифр).
+TextInputFormatter passportNumberFormatter() =>
+    GtFormatters.passportNumberFormatter();
+
+/// Алиас для получения форматтера кода подразделения (XXX-XXX).
+TextInputFormatter passportDepartmentCodeFormatter() =>
+    GtFormatters.passportDepartmentCodeFormatter();
+
+/// Алиас для форматирования кода подразделения для отображения.
+String formatPassportDepartmentCode(String? value) =>
+    GtFormatters.formatPassportDepartmentCode(value);
+
+/// Алиас для получения форматтера имени (каждое слово с заглавной буквы, остальные строчные).
+TextInputFormatter nameFormatter() => GtFormatters.nameFormatter();

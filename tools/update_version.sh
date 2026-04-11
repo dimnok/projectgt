@@ -2,10 +2,11 @@
 
 # ════════════════════════════════════════════════════════════════════════════════
 # Скрипт автоматизации обновления версии приложения
-# Синхронизирует версию в 3 местах одновременно:
+# Синхронизирует версию в 4 местах одновременно:
 # 1. pubspec.yaml
 # 2. lib/core/constants/app_constants.dart
-# 3. Supabase БД (app_versions.current_version) через Edge Function
+# 3. lib/core/config/app_config.dart (getter appVersion)
+# 4. Supabase БД (app_versions.current_version) через Edge Function
 # ════════════════════════════════════════════════════════════════════════════════
 
 set -e
@@ -56,6 +57,19 @@ sed -i '' "s/static const String appVersion = '[^']*';/static const String appVe
 
 echo -e "${GREEN}✅ Обновлено: lib/core/constants/app_constants.dart${NC}"
 echo "   Новая версия: $NEW_VERSION"
+echo ""
+
+# ════════════════════════════════════════════════════════════════════════════════
+# ШАГ 2b: Обновление lib/core/config/app_config.dart (AppConfig.appVersion)
+# ════════════════════════════════════════════════════════════════════════════════
+
+APP_CONFIG_FILE="$PROJECT_ROOT/lib/core/config/app_config.dart"
+if [ -f "$APP_CONFIG_FILE" ]; then
+  sed -i '' "/static String get appVersion/,/^  }/s/return '[^']*';/return '$NEW_VERSION';/" "$APP_CONFIG_FILE"
+  echo -e "${GREEN}✅ Обновлено: lib/core/config/app_config.dart (AppConfig.appVersion)${NC}"
+else
+  echo -e "${YELLOW}⚠️  app_config.dart не найден — пропуск${NC}"
+fi
 echo ""
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -110,5 +124,6 @@ echo ""
 echo "📋 Обновлено:"
 echo "   1. ✅ pubspec.yaml: $FULL_VERSION"
 echo "   2. ✅ app_constants.dart: $NEW_VERSION"
-echo "   3. 🔄 app_versions (БД): $NEW_VERSION (через Edge Function)"
+echo "   3. ✅ app_config.dart (AppConfig.appVersion): $NEW_VERSION"
+echo "   4. 🔄 app_versions (БД): $NEW_VERSION (через Edge Function)"
 echo ""

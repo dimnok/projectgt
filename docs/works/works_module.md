@@ -1,5 +1,5 @@
 # Модуль Works (Shifts & Work Plans)
-**Дата актуализации:** 24 января 2026 года (Аудит безопасности: внедрение строгих RLS-политик с фильтрацией по объектам профиля пользователя, обновление RPC функций статистики)
+**Дата актуализации:** 12 апреля 2026 года — в `work_items` добавлено поле `specialists_count` (число специалистов подрядчика по строке; см. миграцию `20260412120000_work_items_specialists_count.sql`).
 
 ## Важное замечание о структуре данных
 > **Внимание:**
@@ -111,6 +111,8 @@ lib/features/
 | quantity | numeric | NO | Объем |
 | total | float8 | YES | Сумма (quantity * price) |
 | company_id | uuid | NO | FK → `companies.id` |
+| contractor_id | uuid | YES | FK → `contractors.id`; NULL — собственное выполнение |
+| specialists_count | integer | YES | Число специалистов подрядчика на строке; NULL — не задано |
 
 ### RLS-политики
 - ✅ **Включён** для всех таблиц модуля.

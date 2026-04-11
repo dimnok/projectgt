@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/domain/entities/employee.dart';
 import 'package:projectgt/domain/entities/employee_rate.dart';
 import 'package:projectgt/core/di/providers.dart';
-import 'package:projectgt/core/utils/responsive_utils.dart';
+import 'package:projectgt/features/employees/presentation/widgets/add_employee_rate_dialog.dart';
+import 'package:projectgt/presentation/state/employee_state.dart' as employee_state;
+
 
 /// Виджет для отображения краткой информации о текущей ставке в экране деталей сотрудника.
 ///
@@ -56,9 +58,7 @@ class _EmployeeRateSummaryWidgetState
             });
           },
           child: Container(
-            margin: EdgeInsets.only(
-                bottom: ResponsiveUtils.adaptiveValue(
-                    context: context, mobile: 12.0, desktop: 16.0)),
+            margin: const EdgeInsets.only(bottom: 16),
             padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(10),
@@ -91,19 +91,54 @@ class _EmployeeRateSummaryWidgetState
                 ),
                 const SizedBox(width: 8),
                 SizedBox(
-                  width: ResponsiveUtils.adaptiveValue(
-                    context: context,
-                    mobile: 150 - 12,
-                    desktop: 150 * 1.2 - 12,
+                  width: 168,
+                  child: Text(
+                    'Текущая ставка',
+                    style: widget.labelStyle
+                        .copyWith(fontWeight: FontWeight.w500),
                   ),
-                  child: Text('Текущая ставка',
-                      style: widget.labelStyle
-                          .copyWith(fontWeight: FontWeight.w500)),
                 ),
                 Expanded(
                   child: Text(
                     currentRateText,
                     style: widget.valueStyle,
+                  ),
+                ),
+                // Кнопка добавления ставки (круглая зелёная)
+                Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: GestureDetector(
+                    onTap: () async {
+                      final result = await AddEmployeeRateDialog.show(context, widget.employee);
+                      if (result == true) {
+                        // Инвалидируем провайдер истории ставок
+                        ref.invalidate(getEmployeeRatesUseCaseProvider);
+                        // Вместо инвалидации всего провайдера сотрудников (что сбрасывает список),
+                        // просто обновляем данные конкретного сотрудника
+                        ref.read(employee_state.employeeProvider.notifier).getEmployee(widget.employee.id);
+                        setState(() {});
+                      }
+                    },
+                    child: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: Colors.green,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.green.withValues(alpha: 0.3),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.add,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                    ),
                   ),
                 ),
                 Padding(

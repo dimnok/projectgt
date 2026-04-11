@@ -1,7 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/core/utils/employee_delete_error_mapper.dart';
 import 'package:projectgt/domain/entities/employee.dart';
+import 'package:projectgt/domain/entities/employee_blocking_shift.dart';
 import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
+
 
 /// Перечисление возможных статусов загрузки и обработки сотрудников.
 ///
@@ -146,7 +149,9 @@ class EmployeeNotifier extends StateNotifier<EmployeeState> {
   /// Загружает отдельного сотрудника по [id].
   ///
   /// Сначала ищет в кэше, затем в списке, затем асинхронно обновляет детали с сервера.
-  /// В случае успеха — обновляет состояние на success, иначе — error с сообщением.
+  /// При успешном ответе обновляет и [EmployeeState.employee], и соответствующую
+  /// запись в [EmployeeState.employees] (актуальные ставки и прочие денормализованные поля).
+  /// В случае успеха — статус [EmployeeStatus.success], иначе — [EmployeeStatus.error] с сообщением.
   Future<void> getEmployee(String id) async {
     // 1. Сначала ищем в кэше
     if (_employeeDetailsCache.containsKey(id)) {
@@ -173,9 +178,15 @@ class EmployeeNotifier extends StateNotifier<EmployeeState> {
       final employee = await _ref.read(getEmployeeUseCaseProvider).execute(id);
       if (employee != null) {
         _employeeDetailsCache[id] = employee;
+        // Список сотрудников держит устаревшие ставки/суточные, пока его не
+        // обновить — карточки и таблица читают из [employees], а не из [employee].
+        final updatedEmployees = state.employees
+            .map((e) => e.id == employee.id ? employee : e)
+            .toList();
         state = state.copyWith(
           status: EmployeeStatus.success,
           employee: employee,
+          employees: updatedEmployees,
         );
       } else {
         state = state.copyWith(
@@ -316,9 +327,20 @@ class EmployeeNotifier extends StateNotifier<EmployeeState> {
         employees: updatedEmployees,
       );
     } catch (e) {
+      var workShifts = <EmployeeBlockingShift>[];
+      if (EmployeeDeleteErrorMapper.referencesWorkHoursTable(e)) {
+        try {
+          workShifts = await _ref
+              .read(employeeRepositoryProvider)
+              .getEmployeeDeleteBlockingShifts(id);
+        } catch (_) {
+          workShifts = [];
+        }
+      }
       state = state.copyWith(
         status: EmployeeStatus.error,
-        errorMessage: e.toString(),
+        errorMessage:
+            EmployeeDeleteErrorMapper.formatDeleteBlockedForUi(e, workShifts),
       );
     }
   }

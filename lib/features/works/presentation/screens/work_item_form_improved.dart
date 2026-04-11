@@ -20,6 +20,9 @@ import '../providers/work_provider.dart';
 import '../../../../features/company/presentation/providers/company_providers.dart';
 import 'package:projectgt/core/utils/modal_utils.dart';
 import 'package:projectgt/core/utils/formatters.dart';
+import 'package:collection/collection.dart';
+import 'package:projectgt/features/contractors/domain/entities/contractor.dart';
+import 'package:projectgt/features/contractors/presentation/state/contractor_state.dart';
 
 /// Улучшенная версия модального окна для создания или редактирования работы (WorkItem).
 class WorkItemFormImproved extends ConsumerStatefulWidget {
@@ -83,6 +86,12 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
 
   /// Флаг сохранения для отображения состояния кнопок.
   bool _isSaving = false;
+
+  /// Выбранный подрядчик (null — работа силами компании).
+  Contractor? _selectedContractor;
+
+  /// Ввод количества специалистов подрядчика (показывается при выбранном подрядчике).
+  late final TextEditingController _specialistsCountController;
 
   /// Списки данных для dropdown'ов
   List<String> _availableSections = [];
@@ -150,6 +159,11 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
             total: quantity > 0 ? estimate.price * quantity : 0,
             createdAt: isModifying ? widget.initial!.createdAt : DateTime.now(),
             updatedAt: DateTime.now(),
+            ks2Id: isModifying ? widget.initial!.ks2Id : null,
+            contractorId: _selectedContractor?.id,
+            specialistsCount: _selectedContractor == null
+                ? null
+                : _parsedSpecialistsCount(),
           ),
         );
       }
@@ -188,6 +202,11 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
   @override
   void initState() {
     super.initState();
+    _specialistsCountController = TextEditingController(
+      text: isModifying && widget.initial?.specialistsCount != null
+          ? '${widget.initial!.specialistsCount}'
+          : '',
+    );
     final work = ref.read(workProvider(widget.workId));
     objectId = work?.objectId ?? '';
     if (objectId.isEmpty) {
@@ -220,9 +239,17 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
     }
 
     // Загружаем сметы и данные для dropdown'ов
-    Future.microtask(() {
+    Future.microtask(() async {
       if (ref.read(estimateNotifierProvider).estimates.isEmpty) {
-        ref.read(estimateNotifierProvider.notifier).loadEstimates();
+        await ref.read(estimateNotifierProvider.notifier).loadEstimates();
+      }
+      await ref.read(contractorNotifierProvider.notifier).loadContractors();
+      if (!mounted) return;
+      if (isModifying && widget.initial?.contractorId != null) {
+        final list = ref.read(contractorNotifierProvider).contractors;
+        final match =
+            list.where((c) => c.id == widget.initial!.contractorId).firstOrNull;
+        setState(() => _selectedContractor = match);
       }
       _loadDropdownData();
       // Обновляем отфильтрованный список (важно! это должно быть ДО инициализации выбранных работ)
@@ -256,8 +283,27 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
     for (final controller in _quantityControllers.values) {
       controller.dispose();
     }
+    _specialistsCountController.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  /// Разбор поля «специалисты» для сохранения (пусто → null).
+  int? _parsedSpecialistsCount() {
+    final raw = _specialistsCountController.text.trim();
+    if (raw.isEmpty) return null;
+    return int.tryParse(raw);
+  }
+
+  /// Валидация поля количества специалистов (только при выбранном подрядчике).
+  String? _validateSpecialistsCount(String? value) {
+    if (_selectedContractor == null) return null;
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return null;
+    final n = int.tryParse(v);
+    if (n == null) return 'Введите целое число';
+    if (n < 0) return 'Не меньше 0';
+    return null;
   }
 
   /// Загружает данные для dropdown'ов
@@ -336,7 +382,8 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
                 item.section == _selectedSection &&
                 item.floor == _selectedFloor &&
                 item.system == _selectedSystem &&
-                item.subsystem == _selectedSubsystem,
+                item.subsystem == _selectedSubsystem &&
+                item.contractorId == _selectedContractor?.id,
           )
           .map((e) => e.estimateId)
           .toSet();
@@ -679,9 +726,61 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
     final isFloorFilled = _selectedFloor != null && _selectedFloor!.isNotEmpty;
     final isSystemFilled =
         _selectedSystem != null && _selectedSystem!.isNotEmpty;
+    final contractorState = ref.watch(contractorNotifierProvider);
+    final contractorChoices = contractorState.contractors
+        .where((c) => c.type == ContractorType.contractor)
+        .toList();
 
     return Column(
       children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: GTDropdown<Contractor>(
+                items: contractorChoices,
+                itemDisplayBuilder: (c) => c.shortName,
+                labelText: 'Подрядчик',
+                hintText: 'Не выбран — наша бригада',
+                selectedItem: _selectedContractor,
+                allowClear: true,
+                isLoading: contractorState.status == ContractorStatus.loading,
+                onSelectionChanged: (value) {
+                  setState(() {
+                    _selectedContractor = value;
+                    if (value == null) {
+                      _specialistsCountController.clear();
+                    }
+                    if (!isModifying) {
+                      _selectedEstimateItems.clear();
+                    }
+                  });
+                  _updateFilteredEstimates();
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            SizedBox(
+              width: 96,
+              child: GTTextField(
+                controller: _specialistsCountController,
+                labelText: 'Спец.',
+                hintText: _selectedContractor == null ? '—' : null,
+                enabled: _selectedContractor != null,
+                keyboardType: TextInputType.number,
+                textAlign: TextAlign.center,
+                textInputAction: TextInputAction.done,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                validator: _validateSpecialistsCount,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
         // Поле "Участок"
         GTStringDropdown(
           items: _availableSections,

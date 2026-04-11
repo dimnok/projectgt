@@ -14,6 +14,7 @@ import 'package:projectgt/domain/usecases/auth/logout_usecase.dart';
 import 'package:projectgt/domain/usecases/auth/request_phone_otp_usecase.dart';
 import 'package:projectgt/domain/usecases/auth/verify_phone_otp_usecase.dart';
 import 'package:projectgt/domain/usecases/auth/complete_user_profile_usecase.dart';
+import 'package:projectgt/domain/entities/business_trip_rate.dart';
 
 // Telegram moderation слои удалены
 import 'package:projectgt/domain/usecases/profile/get_profile_usecase.dart';
@@ -708,3 +709,8 @@ final getBusinessTripRatesByEmployeeUseCaseProvider =
       final repository = ref.watch(businessTripRateRepositoryProvider);
       return GetBusinessTripRatesByEmployeeUseCase(repository);
     });
+
+/// Провайдер для получения суточных выплат конкретного сотрудника
+final employeeBusinessTripRatesProvider = FutureProvider.family<List<BusinessTripRate>, String>((ref, employeeId) async {
+  return await ref.read(getBusinessTripRatesByEmployeeUseCaseProvider)(employeeId);
+});
