@@ -66,6 +66,11 @@ abstract class EmployeeDataSource {
 
   /// Возвращает мапу флага can_be_responsible для всех сотрудников: id -> bool.
   Future<Map<String, bool>> getCanBeResponsibleMap();
+
+  /// Уникальные должности сотрудников активной компании (отсортированные по алфавиту).
+  ///
+  /// Пустые и `null`-значения отфильтровываются на стороне БД.
+  Future<List<String>> getPositions();
 }
 
 /// Реализация [EmployeeDataSource] через Supabase.
@@ -367,6 +372,33 @@ class SupabaseEmployeeDataSource implements EmployeeDataSource {
     } catch (e) {
       Logger().e('Error reading can_be_responsible: $e');
       return false;
+    }
+  }
+
+  @override
+  Future<List<String>> getPositions() async {
+    if (activeCompanyId.isEmpty || activeCompanyId == 'null') {
+      return [];
+    }
+    try {
+      final response = await client.rpc(
+        'get_employee_positions',
+        params: {'p_company_id': activeCompanyId},
+      );
+      if (response is! List) return [];
+      final out = <String>[];
+      for (final row in response) {
+        if (row is Map) {
+          final name = row['position_name']?.toString().trim();
+          if (name != null && name.isNotEmpty) {
+            out.add(name);
+          }
+        }
+      }
+      return out;
+    } catch (e) {
+      Logger().e('Error fetching employee positions: $e');
+      return [];
     }
   }
 

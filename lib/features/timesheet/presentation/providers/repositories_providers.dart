@@ -44,12 +44,8 @@ final timesheetRepositoryProvider = Provider<TimesheetRepository>((ref) {
 final employeeAttendanceRepositoryProvider =
     Provider<EmployeeAttendanceRepository>((ref) {
   final dataSource = ref.watch(employeeAttendanceDataSourceProvider);
-  final employeeRepository = ref.watch(employeeRepositoryProvider);
-  final objectRepository = ref.watch(objectRepositoryProvider);
 
   return EmployeeAttendanceRepositoryImpl(
     dataSource: dataSource,
-    employeeRepository: employeeRepository,
-    objectRepository: objectRepository,
   );
 });

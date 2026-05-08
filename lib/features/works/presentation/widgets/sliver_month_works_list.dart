@@ -1,14 +1,16 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/core/utils/formatters.dart';
+import 'package:projectgt/core/utils/responsive_utils.dart';
+import 'package:projectgt/core/widgets/mobile_atmosphere_backdrop.dart';
+import 'package:projectgt/core/widgets/mobile_atmosphere_card_style.dart';
 import 'package:projectgt/features/works/data/models/month_group.dart';
 import 'package:projectgt/features/works/domain/entities/work.dart';
-import 'package:projectgt/core/utils/responsive_utils.dart';
+import 'package:projectgt/features/works/presentation/widgets/mobile_work_card.dart';
 import 'package:projectgt/presentation/providers/profiles_cache_provider.dart';
 import 'package:projectgt/presentation/widgets/app_badge.dart';
-import 'package:projectgt/core/di/providers.dart';
-import 'package:projectgt/features/works/presentation/widgets/mobile_work_card.dart';
-import 'package:projectgt/core/utils/formatters.dart';
 
 /// Sliver-версия списка смен для использования внутри CustomScrollView.
 ///
@@ -86,7 +88,7 @@ class SliverMonthWorksList extends ConsumerWidget {
           }
 
           final work = works[index];
-          return _buildWorkCard(context, ref, work);
+          return _buildWorkCard(context, ref, work, index);
         },
         // Добавляем +1 элемент для лоадера, если есть еще данные
         childCount: works.length + (hasMore ? 1 : 0),
@@ -94,7 +96,12 @@ class SliverMonthWorksList extends ConsumerWidget {
     );
   }
 
-  Widget _buildWorkCard(BuildContext context, WidgetRef ref, Work work) {
+  Widget _buildWorkCard(
+    BuildContext context,
+    WidgetRef ref,
+    Work work,
+    int listIndex,
+  ) {
     final theme = Theme.of(context);
     final isDesktop = ResponsiveUtils.isDesktop(context);
     final selected = isDesktop && work.id == selectedWork?.id;
@@ -108,7 +115,8 @@ class SliverMonthWorksList extends ConsumerWidget {
             .firstOrNull ??
         work.objectId;
 
-    final (statusText, statusColor) = _getWorkStatusInfo(work.status);
+    final (statusText, statusColor) =
+        _getWorkStatusInfo(work.status, theme.colorScheme);
 
     final profileAsync = ref.watch(userProfileProvider(work.openedBy));
     final String createdBy = profileAsync.when(
@@ -119,12 +127,22 @@ class SliverMonthWorksList extends ConsumerWidget {
     );
 
     if (!isDesktop) {
-      return MobileWorkCard(
-        work: work,
-        objectName: objectName,
-        createdBy: createdBy,
-        onTap: () => onWorkSelected(work),
-        statusColor: statusColor,
+      final cardStyle = MobileAtmosphereCardStyle.fromAppearance(
+        MobileAtmosphereAppearance.of(context),
+      );
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(10, 0, 10, 12),
+        child: MobileWorkCard(
+          work: work,
+          listMonth: group.month,
+          listIndex: listIndex,
+          style: cardStyle,
+          objectName: objectName,
+          createdBy: createdBy,
+          onTap: () => onWorkSelected(work),
+          statusColor: statusColor,
+          statusSemanticsLabel: statusText,
+        ),
       );
     }
 
@@ -324,14 +342,14 @@ class SliverMonthWorksList extends ConsumerWidget {
     );
   }
 
-  (String, Color) _getWorkStatusInfo(String status) {
+  (String, Color) _getWorkStatusInfo(String status, ColorScheme scheme) {
     switch (status.toLowerCase()) {
       case 'open':
-        return ('Открыта', Colors.green);
+        return ('Открыта', scheme.primary);
       case 'closed':
-        return ('Закрыта', Colors.red);
+        return ('Закрыта', scheme.error);
       default:
-        return ('Неизвестно', Colors.grey);
+        return ('Неизвестно', scheme.onSurfaceVariant);
     }
   }
 }

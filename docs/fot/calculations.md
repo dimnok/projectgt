@@ -1,7 +1,13 @@
 # Детализация расчетов модуля ФОТ
 
-**Дата:** 10 апреля 2026 года  
-**Изменения:** RPC `calculate_payroll_for_month` и клиентский fallback включают в результат сотрудников с премией и/или штрафом за месяц **без** отработанных часов (при тех же фильтрах `p_object_ids` / `company_id`).
+**Дата:** 19 апреля 2026 года
+
+**Изменения 19.04.2026:**
+- Унифицирован приоритет командировочных ставок во всех RPC (`calculate_payroll_for_month`, `calculate_employee_balances`, `calculate_employee_balances_before_date`, `calculate_employee_balances_at_date`, `calculate_single_employee_balance`).
+- Удалены неиспользуемые функции (`get_employee_bonuses`, `calculate_base_salary_all_time`, `calculate_business_trip_all_time`, `get_payroll_report_data`, старая перегрузка `calculate_payroll_for_month` без `company_id`).
+- В `calculate_employee_balances_at_date` добавлены `company_id`-фильтры в подзапросы по `employee_rates` и `business_trip_rates`.
+
+**Ранее:** RPC `calculate_payroll_for_month` и клиентский fallback включают в результат сотрудников с премией и/или штрафом за месяц **без** отработанных часов (при тех же фильтрах `p_object_ids` / `company_id`).
 
 ## 🚀 Hybrid расчет ФОТ
 
@@ -12,8 +18,8 @@
 - **Преимущество:** Агрегация тысяч записей `work_hours` и `employee_rates` за миллисекунды.
 - **Логика:**
     - Объединяет `work_hours` (из закрытых смен) и `employee_attendance`.
-    - Подбирает актуальную часовую ставку из `employee_rates` для каждой даты.
-    - Рассчитывает суточные через `business_trip_rates` (приоритет: индивидуальная ставка -> общая ставка объекта).
+    - Подбирает актуальную часовую ставку из `employee_rates` для каждой даты (с фильтром по `company_id`).
+    - Рассчитывает суточные через `business_trip_rates` по **унифицированному приоритету** (см. ниже раздел «Приоритет суточных»).
     - Суммирует премии и штрафы за указанный период.
     - **Включение строки:** сотрудник попадает в выборку, если за месяц есть часы (в `base_calc`) **или** премия **или** штраф (после фильтров по объектам и компании) **или** хотя бы одна **выплата** с `payout_date` в этом календарном месяце (по `company_id`; у выплат нет `object_id`, поэтому фильтр `p_object_ids` на них не действует). Сумма выплаты в колонку `net_salary` не входит — она по-прежнему в FIFO/колонке «Выплаты».
 
@@ -34,8 +40,50 @@
 5.  **Остаток без начислений за год:** если после гашения исторического долга часть выплаты не «ложится» ни на один месяц с положительным `net_salary` (все начисления за год нулевые или отсутствуют), остаток относится на **календарный месяц даты выплаты** в выбранном году — иначе колонка «Выплаты» для таких сотрудников оставалась бы пустой.
 
 ## 📊 Расчет баланса
-Баланс сотрудника рассчитывается через RPC `calculate_employee_balances()`.
+Баланс сотрудника рассчитывается через RPC `calculate_employee_balances(p_company_id)`.
 - **Формула:** `Total Accrued - Total Paid`.
-- Учитывает всю историю работы сотрудника в системе.
+- Учитывает всю историю работы сотрудника в системе в рамках выбранной компании.
 - Результат кешируется в `cachedEmployeeBalanceProvider` на 5 минут.
+
+## 🧭 Приоритет суточных (унифицированный)
+
+Логика выбора `business_trip_rates` для отработанной смены `(employee_id, object_id, work_date, work_hours)` едина во всех RPC ФОТ:
+
+1. Берутся все ставки по объекту, активные на `work_date` (`valid_from <= work_date AND (valid_to IS NULL OR valid_to >= work_date)`), отфильтрованные по `company_id`.
+2. Из них рассматриваются только те, где **выполнен `minimum_hours`** (`work_hours >= COALESCE(minimum_hours, 0)`).
+3. Среди подходящих выбирается **одна** ставка с наибольшим приоритетом по правилу:
+   - сначала **именная** (`employee_id = current employee`),
+   - затем **общая** (`employee_id IS NULL`),
+   - при равенстве типа — самая поздняя по `valid_from`.
+
+В SQL это реализовано через скалярный подзапрос вида:
+```sql
+SELECT btr.rate
+FROM business_trip_rates btr
+WHERE btr.object_id   = ah.obj_id
+  AND (p_company_id IS NULL OR btr.company_id = p_company_id)
+  AND (btr.employee_id = ah.emp_id OR btr.employee_id IS NULL)
+  AND ah.work_date >= btr.valid_from
+  AND (btr.valid_to IS NULL OR ah.work_date <= btr.valid_to)
+  AND ah.work_hours >= COALESCE(btr.minimum_hours, 0)
+ORDER BY btr.employee_id NULLS LAST, btr.valid_from DESC
+LIMIT 1
+```
+
+**Важное следствие:** если у сотрудника есть именная ставка с `minimum_hours = 8`, но в этот день он отработал 6 часов, для него применится **общая ставка по объекту** (если её `minimum_hours` выполнен), а не «нулевые суточные». Раньше в части RPC именная ставка побеждала общую безусловно — это и было причиной разночтений между балансами и месячным расчётом.
+
+## 🛡 Защита периодов ставок
+
+### `employee_rates`
+- БД: EXCLUDE-constraint `employee_rates_no_overlap` запрещает любое пересечение `daterange(valid_from, COALESCE(valid_to, 'infinity'), '[]')` в рамках `(employee_id, company_id)`.
+- UI (`AddEmployeeRateDialog`): перед сохранением вызывается `EmployeeRateRepository.findOverlappingRates(...)`, и если найдены пересечения — показывается диалог с перечнем и описанием действия для каждой записи (закрыта датой / удалена / заменена). Сохранение происходит только при подтверждении.
+- Логика разрешения пересечений (`EmployeeRateRepositoryImpl.setNewRate`):
+  - `existingFrom == newValidFrom` → старая запись удаляется, на её место встаёт новая;
+  - `existingFrom < newValidFrom` → старая закрывается датой `newValidFrom - 1 день`;
+  - `existingFrom > newValidFrom` → будущая запись удаляется (новая её перекрывает).
+- Старый частичный индекс `idx_employee_rates_active_unique` удалён (избыточен; не учитывал `company_id`).
+
+### `business_trip_rates`
+- БД: EXCLUDE-constraint `business_trip_rates_no_overlap` запрещает пересечения в рамках `(object_id, company_id, COALESCE(employee_id, sentinel-uuid))`. `COALESCE` нужен потому, что `NULL` `employee_id` означает «общая ставка»: без него EXCLUDE считал бы NULL≠NULL и не блокировал две пересекающиеся общие ставки на один объект.
+- UI: `BusinessTripRateRepositoryImpl` уже выполнял `hasOverlappingPeriods()` и выбрасывал ошибку до записи. Constraint в БД — последняя линия защиты от прямых INSERT/UPDATE через миграции, импорты, ручной SQL.
 

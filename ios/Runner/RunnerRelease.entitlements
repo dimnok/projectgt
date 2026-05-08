@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- В Runner Release-сборке этот файл может быть отключён в project.pbxproj (Personal Team без Push). После подключения Apple Developer Program верните CODE_SIGN_ENTITLEMENTS на Runner/RunnerRelease.entitlements для FCM/APNs. -->
 <plist version="1.0">
 <dict>
 	<key>aps-environment</key>

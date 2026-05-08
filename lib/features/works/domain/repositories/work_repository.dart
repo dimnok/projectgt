@@ -25,17 +25,21 @@ abstract class WorkRepository {
   /// Возвращает заголовки групп месяцев с агрегированными данными.
   ///
   /// Используется для оптимизации отображения списка смен с группировкой по месяцам.
-  Future<List<MonthGroup>> getMonthsHeaders();
+  ///
+  /// [openedBy] — если задан, агрегаты только по сменам с этим [Work.openedBy].
+  Future<List<MonthGroup>> getMonthsHeaders({String? openedBy});
 
   /// Возвращает смены конкретного месяца с пагинацией.
   ///
   /// [month] — дата начала месяца
   /// [offset] — смещение для пагинации (по умолчанию 0)
   /// [limit] — лимит записей (по умолчанию 30)
+  /// [openedBy] — если задан, только смены, открытые этим пользователем.
   Future<List<Work>> getMonthWorks(
     DateTime month, {
     int offset = 0,
     int limit = 30,
+    String? openedBy,
   });
 
   /// Возвращает полные данные по выработке за месяц для графика.

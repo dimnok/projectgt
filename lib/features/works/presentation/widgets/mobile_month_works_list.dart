@@ -1,12 +1,14 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/core/widgets/mobile_atmosphere_backdrop.dart';
+import 'package:projectgt/core/widgets/mobile_atmosphere_card_style.dart';
 import 'package:projectgt/features/works/data/models/month_group.dart';
 import 'package:projectgt/features/works/domain/entities/work.dart';
-import 'package:projectgt/presentation/providers/profiles_cache_provider.dart';
-import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/features/works/presentation/widgets/mobile_work_card.dart';
+import 'package:projectgt/presentation/providers/profiles_cache_provider.dart';
 
 /// Виджет списка смен для мобильной версии (Box-версия для анимации).
 class MobileMonthWorksList extends ConsumerWidget {
@@ -30,6 +32,9 @@ class MobileMonthWorksList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final works = group.works;
+    final cardStyle = MobileAtmosphereCardStyle.fromAppearance(
+      MobileAtmosphereAppearance.of(context),
+    );
 
     if (works == null) {
       return const Padding(
@@ -53,18 +58,26 @@ class MobileMonthWorksList extends ConsumerWidget {
 
     final hasMore = works.length < group.worksCount;
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (var i = 0; i < works.length; i++)
-          _buildWorkItem(context, ref, works[i], i),
-        if (hasMore) _LoaderItem(onLoadMore: onLoadMore),
-      ],
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(10, 0, 10, 0),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var i = 0; i < works.length; i++)
+            _buildWorkItem(context, ref, cardStyle, works[i], i),
+          if (hasMore) _LoaderItem(onLoadMore: onLoadMore),
+        ],
+      ),
     );
   }
 
   Widget _buildWorkItem(
-      BuildContext context, WidgetRef ref, Work work, int index) {
+    BuildContext context,
+    WidgetRef ref,
+    MobileAtmosphereCardStyle cardStyle,
+    Work work,
+    int index,
+  ) {
     // Получаем название объекта
     final objectName = ref
             .watch(objectProvider)
@@ -74,7 +87,8 @@ class MobileMonthWorksList extends ConsumerWidget {
             .firstOrNull ??
         work.objectId;
 
-    final (_, statusColor) = _getWorkStatusInfo(work.status);
+    final scheme = Theme.of(context).colorScheme;
+    final (statusLabel, statusColor) = _getWorkStatusInfo(work.status, scheme);
 
     final profileAsync = ref.watch(userProfileProvider(work.openedBy));
     final String createdBy = profileAsync.when(
@@ -88,28 +102,35 @@ class MobileMonthWorksList extends ConsumerWidget {
     final isLeft = index % 2 == 0;
     final double offsetX = isLeft ? -50 : 50;
 
-    return MobileWorkCard(
-      work: work,
-      objectName: objectName,
-      createdBy: createdBy,
-      onTap: () {
-        onWorkSelected(work);
-      },
-      statusColor: statusColor,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: MobileWorkCard(
+        work: work,
+        listMonth: group.month,
+        listIndex: index,
+        style: cardStyle,
+        objectName: objectName,
+        createdBy: createdBy,
+        onTap: () {
+          onWorkSelected(work);
+        },
+        statusColor: statusColor,
+        statusSemanticsLabel: statusLabel,
+      ),
     )
         .animate()
         .fade(duration: 400.ms, delay: (index * 50).ms)
         .moveX(begin: offsetX, end: 0, duration: 400.ms, curve: Curves.easeOut);
   }
 
-  (String, Color) _getWorkStatusInfo(String status) {
+  (String, Color) _getWorkStatusInfo(String status, ColorScheme scheme) {
     switch (status.toLowerCase()) {
       case 'open':
-        return ('Открыта', Colors.green);
+        return ('Открыта', scheme.primary);
       case 'closed':
-        return ('Закрыта', Colors.red);
+        return ('Закрыта', scheme.error);
       default:
-        return ('Неизвестно', Colors.grey);
+        return ('Неизвестно', scheme.onSurfaceVariant);
     }
   }
 }

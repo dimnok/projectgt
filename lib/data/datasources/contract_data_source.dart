@@ -21,13 +21,6 @@ abstract class ContractDataSource {
   /// Выбрасывает исключение при ошибке сети или БД.
   Future<List<ContractModel>> getContracts();
 
-  /// Получает договор по идентификатору.
-  ///
-  /// [id] — идентификатор договора.
-  /// Возвращает [ContractModel], если найден, иначе null.
-  /// Выбрасывает исключение при ошибке.
-  Future<ContractModel?> getContract(String id);
-
   /// Создаёт новый договор в базе данных.
   ///
   /// [contract] — доменная сущность договора.
@@ -88,23 +81,6 @@ class SupabaseContractDataSource implements ContractDataSource {
     return response
         .map<ContractModel>((json) => ContractModel.fromJson(json))
         .toList();
-  }
-
-  /// Получает договор по идентификатору без join-данных.
-  ///
-  /// [id] — идентификатор договора.
-  /// Возвращает [ContractModel], если найден, иначе null.
-  /// Выбрасывает исключение при ошибке.
-  @override
-  Future<ContractModel?> getContract(String id) async {
-    final response = await client
-        .from('contracts')
-        .select('*')
-        .eq('id', id)
-        .eq('company_id', activeCompanyId)
-        .maybeSingle();
-    if (response == null) return null;
-    return ContractModel.fromJson(response);
   }
 
   /// Создаёт новый договор в базе данных.

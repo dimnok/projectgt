@@ -16,12 +16,6 @@ abstract class ContractRepository {
   /// Бросает исключение при ошибке.
   Future<List<Contract>> getContracts();
 
-  /// Получает договор по идентификатору [id].
-  ///
-  /// [id] — идентификатор договора.
-  /// Возвращает [Contract], если найден, иначе — null.
-  Future<Contract?> getContract(String id);
-
   /// Создаёт новый договор.
   ///
   /// [contract] — данные нового договора.

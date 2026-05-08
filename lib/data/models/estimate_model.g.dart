@@ -24,6 +24,8 @@ _EstimateModel _$EstimateModelFromJson(Map<String, dynamic> json) =>
       contractId: json['contract_id'] as String?,
       contractNumber: json['contract_number'] as String?,
       estimateTitle: json['estimate_title'] as String?,
+      visibleInEstimatesModule:
+          json['visible_in_estimates_module'] as bool? ?? true,
     );
 
 Map<String, dynamic> _$EstimateModelToJson(_EstimateModel instance) =>
@@ -44,4 +46,5 @@ Map<String, dynamic> _$EstimateModelToJson(_EstimateModel instance) =>
       if (instance.contractId case final value?) 'contract_id': value,
       if (instance.contractNumber case final value?) 'contract_number': value,
       if (instance.estimateTitle case final value?) 'estimate_title': value,
+      'visible_in_estimates_module': instance.visibleInEstimatesModule,
     };

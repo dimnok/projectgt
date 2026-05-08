@@ -17,6 +17,23 @@ abstract class EmployeeRateDataSource {
 
   /// Закрыть текущую ставку сотрудника
   Future<void> closeCurrentRate(String employeeId, DateTime validTo);
+
+  /// Найти все ставки сотрудника, период действия которых пересекается с
+  /// открытым полуинтервалом [validFrom, +∞).
+  ///
+  /// Возвращаются как открытые ставки (`valid_to IS NULL`), так и закрытые,
+  /// у которых `valid_to >= validFrom` — то есть всё, что должно быть закрыто
+  /// или удалено перед вставкой новой ставки c указанной датой начала.
+  Future<List<EmployeeRateModel>> findOverlappingRates(
+    String employeeId,
+    DateTime validFrom,
+  );
+
+  /// Обновить дату окончания действия конкретной ставки.
+  Future<void> updateValidTo(String rateId, DateTime validTo);
+
+  /// Удалить ставку по идентификатору.
+  Future<void> deleteRate(String rateId);
 }
 
 /// Реализация data source через Supabase
@@ -68,35 +85,9 @@ class EmployeeRateDataSourceImpl implements EmployeeRateDataSource {
   @override
   Future<void> setNewRate(
       String employeeId, double rate, DateTime validFrom) async {
-    // Получаем текущую активную ставку
-    final currentRate = await getCurrentRate(employeeId);
-
-    if (currentRate != null) {
-      final currentValidFrom = currentRate.validFrom;
-      final validFromDate =
-          DateTime(validFrom.year, validFrom.month, validFrom.day);
-      final currentValidFromDate = DateTime(
-          currentValidFrom.year, currentValidFrom.month, currentValidFrom.day);
-
-      // Если новая ставка устанавливается на ту же дату, что и текущая активная
-      if (validFromDate.isAtSameMomentAs(currentValidFromDate)) {
-        // Просто обновляем сумму существующей записи
-        await _client
-            .from('employee_rates')
-            .update({'hourly_rate': rate}).eq('id', currentRate.id);
-        return;
-      } else if (validFromDate.isAfter(currentValidFromDate)) {
-        // Если новая дата позже текущей, закрываем текущую ставку
-        final previousDay = validFrom.subtract(const Duration(days: 1));
-        await closeCurrentRate(employeeId, previousDay);
-      } else {
-        // Если новая дата раньше текущей, удаляем текущую активную ставку
-        // чтобы избежать нарушения constraint valid_dates_check
-        await _client.from('employee_rates').delete().eq('id', currentRate.id);
-      }
-    }
-
-    // Добавляем новую ставку
+    // Чистый INSERT без побочной логики закрытий/удалений.
+    // Корректировку пересекающихся ставок делает вышестоящий слой
+    // ([EmployeeRateRepositoryImpl.setNewRate]) — это единая точка истины.
     await _client.from('employee_rates').insert({
       'employee_id': employeeId,
       'company_id': _activeCompanyId,
@@ -113,5 +104,46 @@ class EmployeeRateDataSourceImpl implements EmployeeRateDataSource {
         .eq('employee_id', employeeId)
         .eq('company_id', _activeCompanyId)
         .isFilter('valid_to', null);
+  }
+
+  @override
+  Future<List<EmployeeRateModel>> findOverlappingRates(
+    String employeeId,
+    DateTime validFrom,
+  ) async {
+    final fromStr = validFrom.toIso8601String().split('T')[0];
+
+    // Пересечение с [validFrom, +∞):
+    //   valid_to IS NULL                          — открытая ставка
+    //   ИЛИ valid_to >= validFrom                 — закрытая, но ещё активная
+    final response = await _client
+        .from('employee_rates')
+        .select()
+        .eq('employee_id', employeeId)
+        .eq('company_id', _activeCompanyId)
+        .or('valid_to.is.null,valid_to.gte.$fromStr')
+        .order('valid_from', ascending: true);
+
+    return response
+        .map<EmployeeRateModel>((json) => EmployeeRateModel.fromJson(json))
+        .toList();
+  }
+
+  @override
+  Future<void> updateValidTo(String rateId, DateTime validTo) async {
+    await _client
+        .from('employee_rates')
+        .update({'valid_to': validTo.toIso8601String().split('T')[0]})
+        .eq('id', rateId)
+        .eq('company_id', _activeCompanyId);
+  }
+
+  @override
+  Future<void> deleteRate(String rateId) async {
+    await _client
+        .from('employee_rates')
+        .delete()
+        .eq('id', rateId)
+        .eq('company_id', _activeCompanyId);
   }
 }

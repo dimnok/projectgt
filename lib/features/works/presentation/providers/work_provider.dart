@@ -50,6 +50,7 @@ class WorksNotifier extends AsyncNotifier<List<Work>> {
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
         totalAmount: 0,
+        ownTotalAmount: 0,
         itemsCount: 0,
         employeesCount: 0,
       );

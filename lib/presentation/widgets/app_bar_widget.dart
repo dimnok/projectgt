@@ -52,12 +52,13 @@ class AppBarWidget extends ConsumerWidget implements PreferredSizeWidget {
   });
 
   @override
-
   /// Строит плавающий AppBar с заголовком, actions и переключателем темы.
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
-    final isRefreshing = ref.watch(appFocusRefreshProvider.select((s) => s.isRefreshing));
+    final isRefreshing = ref.watch(
+      appFocusRefreshProvider.select((s) => s.isRefreshing),
+    );
 
     return PreferredSize(
       preferredSize: preferredSize,
@@ -118,14 +119,12 @@ class AppBarWidget extends ConsumerWidget implements PreferredSizeWidget {
                   ),
                   centerTitle: centerTitle,
                   leadingWidth: leadingWidth,
-                  leading: leading ??
+                  leading:
+                      leading ??
                       Builder(
                         builder: (context) => CupertinoButton(
                           padding: EdgeInsets.zero,
-                          child: const Icon(
-                            Icons.menu,
-                            color: Colors.green,
-                          ),
+                          child: const Icon(Icons.menu, color: Colors.green),
                           onPressed: () {
                             Scaffold.of(context).openDrawer();
                           },
@@ -140,8 +139,9 @@ class AppBarWidget extends ConsumerWidget implements PreferredSizeWidget {
                           isDarkMode ? Icons.light_mode : Icons.dark_mode,
                         ),
                         onPressed: () {
-                          final newMode =
-                              isDarkMode ? ThemeMode.light : ThemeMode.dark;
+                          final newMode = isDarkMode
+                              ? ThemeMode.light
+                              : ThemeMode.dark;
                           ref
                               .read(themeSettingsProvider.notifier)
                               .setThemeMode(newMode);
@@ -218,10 +218,7 @@ class AppBarWidget extends ConsumerWidget implements PreferredSizeWidget {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(
-              color: Colors.green,
-              width: 2,
-            ),
+            borderSide: const BorderSide(color: Colors.green, width: 2),
           ),
           filled: true,
           fillColor: theme.colorScheme.surface.withValues(alpha: 0.5),
@@ -235,7 +232,6 @@ class AppBarWidget extends ConsumerWidget implements PreferredSizeWidget {
   }
 
   @override
-  Size get preferredSize => Size.fromHeight(
-        kToolbarHeight + 24 + (showSearchField ? 60 : 0),
-      );
+  Size get preferredSize =>
+      Size.fromHeight(kToolbarHeight + 24 + (showSearchField ? 60 : 0));
 }

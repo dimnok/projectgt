@@ -20,12 +20,6 @@ class ContractRepositoryImpl implements ContractRepository {
   }
 
   @override
-  Future<Contract?> getContract(String id) async {
-    final model = await dataSource.getContract(id);
-    return model?.toDomain();
-  }
-
-  @override
   Future<Contract> createContract(Contract contract) async {
     final model = await dataSource.createContract(contract);
     return model.toDomain();

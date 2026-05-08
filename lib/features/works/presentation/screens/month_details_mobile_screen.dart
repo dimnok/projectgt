@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:projectgt/core/widgets/mobile_atmosphere_backdrop.dart';
 import 'package:projectgt/features/works/presentation/providers/month_groups_provider.dart';
 import 'package:projectgt/features/works/presentation/widgets/month_details_panel.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
@@ -62,23 +64,38 @@ class _MonthDetailsMobileScreenState
             : '${word[0].toUpperCase()}${word.substring(1)}')
         .join(' ');
 
-    final theme = Theme.of(context);
-    final groupedBackgroundColor = theme.brightness == Brightness.light
-        ? theme.colorScheme.surfaceContainerHigh
-        : theme.colorScheme.surfaceContainerLowest;
+    final appearance = MobileAtmosphereAppearance.of(context);
+    final isDark = appearance.isDark;
 
-    return Scaffold(
-      appBar: AppBarWidget(
-        title: formattedMonth,
-        leading: const BackButton(),
-        centerTitle: true,
-        showThemeSwitch: false,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle(
+        statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarColor: appearance.atmosphereBase,
+        systemNavigationBarDividerColor: Colors.transparent,
+        systemNavigationBarIconBrightness:
+            isDark ? Brightness.light : Brightness.dark,
       ),
-      backgroundColor: groupedBackgroundColor,
-      body: MonthDetailsPanel(
-        group: currentGroup,
-        showMobileAppBar: false,
-        useGroupedBackground: true,
+      child: Scaffold(
+        appBar: AppBarWidget(
+          title: formattedMonth,
+          leading: const BackButton(),
+          centerTitle: true,
+          showThemeSwitch: false,
+        ),
+        backgroundColor:
+            isDark ? appearance.atmosphereBase : Colors.transparent,
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            const MobileAtmosphereBackdrop(),
+            MonthDetailsPanel(
+              group: currentGroup,
+              showMobileAppBar: false,
+              useGroupedBackground: false,
+            ),
+          ],
+        ),
       ),
     );
   }

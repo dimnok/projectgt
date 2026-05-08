@@ -30,7 +30,10 @@ enum AppRoute {
   /// Экран списка сотрудников.
   employees,
 
-  /// Экран списка подрядчиков.
+  /// Экран списка подрядчиков (сметный учёт, мобильный раздел).
+  subcontractors,
+
+  /// Справочник контрагентов (как в реестре).
   contractors,
 
   /// Экран объектов.
@@ -350,6 +353,14 @@ class AppDrawer extends ConsumerWidget {
                             icon: CupertinoIcons.person_3,
                             route: AppRoute.employees,
                             routeName: 'employees',
+                          ),
+                          _buildMenuItem(
+                            context: context,
+                            module: 'contractors',
+                            title: 'Подрядчики',
+                            icon: Icons.engineering_outlined,
+                            route: AppRoute.subcontractors,
+                            routeName: 'subcontractors',
                           ),
                           _DirectoriesSection(activeRoute: activeRoute),
                           _buildMenuItem(
@@ -837,12 +848,7 @@ class _DirectoriesSection extends ConsumerWidget {
     }
 
     addIfAllowed('objects', 'Объекты', AppRoute.objects, 'objects');
-    addIfAllowed(
-      'contractors',
-      'Контрагенты',
-      AppRoute.contractors,
-      'contractors',
-    );
+    addIfAllowed('contractors', 'Контрагенты', AppRoute.contractors, 'contractors');
     addIfAllowed('contracts', 'Договоры', AppRoute.contracts, 'contracts');
 
     if (items.isEmpty) return const SizedBox.shrink();

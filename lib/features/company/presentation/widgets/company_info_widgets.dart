@@ -20,6 +20,10 @@ class CompanyInfoCard extends StatelessWidget {
   /// Дополнительный виджет в заголовке (например, кнопка).
   final Widget? action;
 
+  /// Если true — без собственной заливки [surface] и рамки: для вставки
+  /// во внешнюю карточку с градиентом/тенью родительского виджета.
+  final bool atmosphereEmbedded;
+
   /// Создаёт карточку с информацией о компании.
   const CompanyInfoCard({
     super.key,
@@ -28,12 +32,58 @@ class CompanyInfoCard extends StatelessWidget {
     this.icon,
     this.accentColor,
     this.action,
+    this.atmosphereEmbedded = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final color = accentColor ?? theme.colorScheme.primary;
+
+    final body = IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(width: 3, color: color),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      if (icon != null) ...[
+                        Icon(icon, size: 18, color: color),
+                        const SizedBox(width: 8),
+                      ],
+                      Expanded(
+                        child: Text(
+                          title.toUpperCase(),
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.2,
+                            color: color,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                      if (action != null) action!,
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  ...children,
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (atmosphereEmbedded) {
+      return body;
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -46,47 +96,7 @@ class CompanyInfoCard extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: const BorderRadius.all(Radius.circular(12)),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Акцентная линия слева (теперь тоньше и строже)
-              Container(width: 3, color: color),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          if (icon != null) ...[
-                            Icon(icon, size: 18, color: color),
-                            const SizedBox(width: 8),
-                          ],
-                          Expanded(
-                            child: Text(
-                              title.toUpperCase(),
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 1.2,
-                                color: color,
-                                fontSize: 10,
-                              ),
-                            ),
-                          ),
-                          if (action != null) action!,
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      ...children,
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+        child: body,
       ),
     );
   }
@@ -148,6 +158,13 @@ class CompanyInfoRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final iconMuted = theme.colorScheme.onSurface.withValues(
+      alpha: isDark ? 0.48 : 0.34,
+    );
+    final labelMuted = theme.colorScheme.onSurface.withValues(
+      alpha: isDark ? 0.58 : 0.42,
+    );
     final displayValue = (value == null || value!.isEmpty) ? '—' : value!;
 
     return Padding(
@@ -160,8 +177,8 @@ class CompanyInfoRow extends StatelessWidget {
               padding: const EdgeInsets.only(top: 2),
               child: Icon(
                 icon,
-                size: 14,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
+                size: 15,
+                color: iconMuted,
               ),
             ),
             const SizedBox(width: 8),
@@ -173,9 +190,9 @@ class CompanyInfoRow extends StatelessWidget {
                 Text(
                   label,
                   style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                    color: labelMuted,
                     fontWeight: FontWeight.w600,
-                    fontSize: 10,
+                    fontSize: 11,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -188,6 +205,7 @@ class CompanyInfoRow extends StatelessWidget {
                         style: theme.textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
+                          color: theme.colorScheme.onSurface,
                         ),
                       ),
                     ),

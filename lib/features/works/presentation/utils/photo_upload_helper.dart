@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/features/works/presentation/widgets/photo_loading_dialog.dart';
 
@@ -59,27 +60,64 @@ class PhotoUploadHelper {
 
       if (!context.mounted) return null;
 
-      // ✅ Показываем диалог загрузки
+      // ✅ Показываем диалог загрузки (на мобильном — bottom sheet как в модуле сотрудников)
       Future.microtask(() {
         if (!context.mounted) return;
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (dialogContext) {
-            return ValueListenableBuilder<double>(
-              valueListenable: progressNotifier,
-              builder: (context, progress, child) {
-                return PhotoLoadingDialog(
-                  progress: progress,
-                  isComplete: false,
-                  photoType: photoType,
-                  onDone: () =>
-                      Navigator.of(context, rootNavigator: true).pop(),
-                );
-              },
-            );
-          },
-        );
+        final useSheet = ResponsiveUtils.isMobile(context);
+        if (useSheet) {
+          final screenWidth = MediaQuery.sizeOf(context).width;
+          showModalBottomSheet<void>(
+            context: context,
+            isScrollControlled: true,
+            useSafeArea: true,
+            useRootNavigator: true,
+            backgroundColor: Colors.transparent,
+            constraints: BoxConstraints(maxWidth: screenWidth),
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            isDismissible: false,
+            enableDrag: false,
+            builder: (sheetContext) {
+              return ValueListenableBuilder<double>(
+                valueListenable: progressNotifier,
+                builder: (_, progress, __) {
+                  return PhotoLoadingDialog(
+                    useBottomSheet: true,
+                    progress: progress,
+                    isComplete: false,
+                    photoType: photoType,
+                    onDone: () {
+                      if (sheetContext.mounted) {
+                        Navigator.of(sheetContext, rootNavigator: true).pop();
+                      }
+                    },
+                  );
+                },
+              );
+            },
+          );
+        } else {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (dialogContext) {
+              return ValueListenableBuilder<double>(
+                valueListenable: progressNotifier,
+                builder: (context, progress, child) {
+                  return PhotoLoadingDialog(
+                    useBottomSheet: false,
+                    progress: progress,
+                    isComplete: false,
+                    photoType: photoType,
+                    onDone: () =>
+                        Navigator.of(context, rootNavigator: true).pop(),
+                  );
+                },
+              );
+            },
+          );
+        }
       });
 
       // ✅ Имитируем прогресс загрузки (0-95%)
@@ -150,22 +188,56 @@ class PhotoUploadHelper {
       // ✅ Используем Completer для ожидания нажатия кнопки "Готово"
       final successCompleter = Completer<void>();
 
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialogContext) {
-          return PhotoLoadingDialog(
-            progress: 1.0,
-            isComplete: true,
-            photoType: photoType,
-            onDone: () {
-              Navigator.of(dialogContext, rootNavigator: true).pop();
-              successCompleter.complete();
-              onSuccess?.call(uploadedUrl!);
-            },
-          );
-        },
-      );
+      final useSheet = ResponsiveUtils.isMobile(context);
+      if (useSheet) {
+        final screenWidth = MediaQuery.sizeOf(context).width;
+        showModalBottomSheet<void>(
+          context: context,
+          isScrollControlled: true,
+          useSafeArea: true,
+          useRootNavigator: true,
+          backgroundColor: Colors.transparent,
+          constraints: BoxConstraints(maxWidth: screenWidth),
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          isDismissible: false,
+          enableDrag: false,
+          builder: (sheetContext) {
+            return PhotoLoadingDialog(
+              useBottomSheet: true,
+              progress: 1.0,
+              isComplete: true,
+              photoType: photoType,
+              onDone: () {
+                if (sheetContext.mounted) {
+                  Navigator.of(sheetContext, rootNavigator: true).pop();
+                }
+                successCompleter.complete();
+                onSuccess?.call(uploadedUrl!);
+              },
+            );
+          },
+        );
+      } else {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) {
+            return PhotoLoadingDialog(
+              useBottomSheet: false,
+              progress: 1.0,
+              isComplete: true,
+              photoType: photoType,
+              onDone: () {
+                Navigator.of(dialogContext, rootNavigator: true).pop();
+                successCompleter.complete();
+                onSuccess?.call(uploadedUrl!);
+              },
+            );
+          },
+        );
+      }
 
       // ✅ ЖДЕМ пока пользователь нажмет "Готово"
       await successCompleter.future;

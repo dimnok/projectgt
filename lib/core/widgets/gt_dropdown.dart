@@ -308,9 +308,17 @@ class _GTDropdownState<T> extends State<GTDropdown<T>> {
       // Ограничиваем в разумных пределах
       return safeSpace.clamp(120.0, desired);
     }();
-    final double followerDy = openUpwards
-        ? -(computedMaxHeight + _kDropdownOffset)
-        : (size.height + _kDropdownOffset);
+
+    // Позиция панели: якоря по углам цели, чтобы при открытии вверх нижний край
+    // меню совпадал с верхом поля (а не с отступом на полную maxHeight — иначе
+    // при коротком списке остаётся большой разрыв).
+    final Alignment targetAnchor =
+        openUpwards ? Alignment.topLeft : Alignment.bottomLeft;
+    final Alignment followerAnchor =
+        openUpwards ? Alignment.bottomLeft : Alignment.topLeft;
+    final Offset anchorOffset = openUpwards
+        ? const Offset(0, -_kDropdownOffset)
+        : const Offset(0, _kDropdownOffset);
 
     return OverlayEntry(
       builder: (context) => GestureDetector(
@@ -326,7 +334,9 @@ class _GTDropdownState<T> extends State<GTDropdown<T>> {
               child: CompositedTransformFollower(
                 link: _layerLink,
                 showWhenUnlinked: false,
-                offset: Offset(0.0, followerDy),
+                targetAnchor: targetAnchor,
+                followerAnchor: followerAnchor,
+                offset: anchorOffset,
                 child: GestureDetector(
                   onTap: () {}, // Предотвращаем закрытие при клике на dropdown
                   child: Material(
@@ -777,8 +787,11 @@ class _GTDropdownState<T> extends State<GTDropdown<T>> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final body = theme.textTheme.bodyMedium;
-    final effectiveStyle = widget.style ??
-        (body != null ? body.copyWith(fontSize: 15) : const TextStyle(fontSize: 15));
+    final effectiveStyle =
+        widget.style ??
+        (body != null
+            ? body.copyWith(fontSize: 15)
+            : const TextStyle(fontSize: 15));
 
     return CompositedTransformTarget(
       link: _layerLink,
@@ -803,7 +816,8 @@ class _GTDropdownState<T> extends State<GTDropdown<T>> {
           contentPadding:
               widget.contentPadding ??
               const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          suffixIconConstraints: widget.suffixIconConstraints ??
+          suffixIconConstraints:
+              widget.suffixIconConstraints ??
               (widget.isDense
                   ? const BoxConstraints(minWidth: 32, minHeight: 20)
                   : null),
@@ -911,6 +925,9 @@ class GTEnumDropdown<T extends Enum> extends StatelessWidget {
   /// Радиус скругления углов.
   final double borderRadius;
 
+  /// Цвет и стиль границы (как у [GTDropdown]).
+  final BorderSide? borderSide;
+
   /// Создает dropdown для enum значений.
   ///
   /// [values] — список доступных вариантов enum.
@@ -918,6 +935,7 @@ class GTEnumDropdown<T extends Enum> extends StatelessWidget {
   /// [onChanged] — callback при изменении выбора.
   /// [enumToString] — функция преобразования enum в человекочитаемую строку.
   /// [borderRadius] — скругление углов (по умолчанию 16.0).
+  /// [borderSide] — граница поля (необязательно).
   const GTEnumDropdown({
     super.key,
     required this.values,
@@ -933,6 +951,7 @@ class GTEnumDropdown<T extends Enum> extends StatelessWidget {
     this.isDense = false,
     this.style,
     this.borderRadius = 16.0,
+    this.borderSide,
   });
 
   @override
@@ -956,6 +975,7 @@ class GTEnumDropdown<T extends Enum> extends StatelessWidget {
       isDense: isDense,
       style: style,
       borderRadius: borderRadius,
+      borderSide: borderSide,
     );
   }
 }

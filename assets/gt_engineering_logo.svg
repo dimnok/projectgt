@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" fill="none">
+  <defs>
+    <linearGradient id="gt-dark" x1="150" y1="120" x2="870" y2="930" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1F2B3C"/>
+      <stop offset="1" stop-color="#0E1827"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Hexagon outline -->
+  <polygon
+    points="512,72 848,266 848,758 512,952 176,758 176,266"
+    stroke="url(#gt-dark)"
+    stroke-width="22"
+    stroke-linejoin="round"
+    stroke-linecap="round"
+  />
+
+  <!-- GT mark (balanced geometry) -->
+  <path d="M323 390 H539 V456 H395 V624 H323 Z" fill="url(#gt-dark)"/>
+  <path d="M323 308 H703 V380 H621 V624 H549 V380 H323 Z" fill="#1557EA"/>
+
+  <!-- Wordmark (single unified inscription) -->
+  <text
+    x="512"
+    y="725"
+    fill="url(#gt-dark)"
+    text-anchor="middle"
+    font-family="Russo One, Tektur, Rajdhani, UnitPro-Bold, UnitPro, Roboto Condensed, Roboto, Arial, sans-serif"
+    font-size="76"
+    font-weight="800"
+    letter-spacing="1.6"
+    stroke="url(#gt-dark)"
+    stroke-width="0.7"
+    paint-order="stroke fill"
+    style="font-kerning: normal; text-rendering: geometricPrecision; shape-rendering: geometricPrecision;"
+  >
+    ИНЖИНИРИНГ
+  </text>
+
+  <!-- Accent line -->
+  <rect x="440" y="792" width="146" height="16" fill="#1557EA"/>
+</svg>

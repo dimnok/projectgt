@@ -7,6 +7,7 @@ import 'dart:convert';
 import '../models/estimate_model.dart';
 import '../models/estimate_completion_model.dart';
 import '../models/vor_model.dart';
+import '../../domain/entities/estimate_bulk_update.dart';
 import '../../domain/entities/estimate_revision.dart';
 import '../../domain/entities/vor.dart';
 
@@ -105,7 +106,22 @@ abstract class EstimateDataSource {
     String? objectId,
   });
 
-  /// Создаёт черновик ревизии LC / ДС в новых таблицах.
+  /// Excel со сметой по договору и колонками ДС (Edge Function `export-contract-estimate-addenda`).
+  Future<Map<String, dynamic>> exportContractEstimateWithAddendaExcel({
+    required String estimateTitle,
+    required String contractId,
+    String? objectId,
+  });
+
+  /// Read-only история позиции по базовой ревизии и ДС ([estimate_revision_items]).
+  Future<List<EstimatePositionAddendumHistoryEntry>>
+      getEstimatePositionAddendumHistory({
+    required String contractId,
+    required String estimateTitle,
+    required String estimateRowId,
+  });
+
+  /// Создаёт ревизию LC / ДС в новых таблицах (сразу в статусе «согласовано»).
   Future<EstimateRevisionDraftResult> createEstimateRevisionDraft({
     required String estimateTitle,
     required String contractId,
@@ -113,6 +129,54 @@ abstract class EstimateDataSource {
     required String fileName,
     required Uint8List fileBytes,
     required List<EstimateAddendumImportRow> rows,
+    DateTime? effectiveFrom,
+    String? userDescription,
+  });
+
+  /// Переносит снимок ревизии ДС в таблицу [estimates] (приоритет данных ДС).
+  Future<EstimateBulkUpdateResult> applyAddendumRevisionToEstimates({
+    required String revisionId,
+  });
+
+  /// Обновляет дату действия и краткое описание ревизии ДС.
+  Future<void> updateEstimateRevisionMetadata({
+    required String revisionId,
+    DateTime? effectiveFrom,
+    String? userDescription,
+  });
+
+  /// Удаляет ревизию LC/ДС при соблюдении условий целостности (см. реализацию).
+  Future<void> deleteAddendumRevision({required String revisionId});
+
+  /// Возвращает строки текущей сметы для Excel-файла массового обновления.
+  Future<List<EstimateBulkUpdateTemplateRow>> getBulkUpdateTemplateRows({
+    required String estimateTitle,
+    required String contractId,
+    String? objectId,
+  });
+
+  /// Возвращает готовый Excel-файл массового обновления, сгенерированный на сервере.
+  Future<Map<String, dynamic>> getBulkUpdateTemplateFile({
+    required String estimateTitle,
+    required String contractId,
+    String? objectId,
+  });
+
+  /// Пустой Excel-шаблон импорта сметы (заголовки и пример строки), сгенерированный на сервере.
+  ///
+  /// [contractId] — если задан и договор доступен, в имя файла включается номер договора и дата.
+  Future<Map<String, dynamic>> getEstimateImportTemplateFile({
+    String? contractId,
+  });
+
+  /// Проверяет или применяет массовое обновление сметы через RPC.
+  Future<EstimateBulkUpdateResult> runBulkUpdate({
+    required String estimateTitle,
+    required String contractId,
+    String? objectId,
+    required List<EstimateBulkUpdateImportRow> rows,
+    required bool dryRun,
+    String? sourceFileName,
   });
 }
 
@@ -130,6 +194,9 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
   /// Имя представления для чтения смет с метаданными.
   static const String view = 'estimates_with_contracts';
 
+  /// Максимум строк в одном ответе PostgREST; без пагинации дальнейшие строки отбрасываются.
+  static const int _postgrestPageSize = 1000;
+
   /// Регулярное выражение для удаления пробелов (скомпилировано для производительности).
   // ignore: deprecated_member_use
   static final Pattern _whitespaceRegex = RegExp(r'\s+');
@@ -141,18 +208,16 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
   Future<List<EstimateModel>> getEstimates() async {
     final allEstimates = <EstimateModel>[];
     var offset = 0;
-    const limit = 1000;
     var hasMore = true;
 
-    // Загружаем данные порциями (чанками) по 1000 записей,
-    // чтобы обойти ограничение Supabase на максимальное количество строк в одном ответе.
+    // Загружаем данные порциями, чтобы обойти max-rows PostgREST.
     while (hasMore) {
       final response = await client
           .from(view)
           .select('*')
           .eq('company_id', activeCompanyId)
           .order('system')
-          .range(offset, offset + limit - 1);
+          .range(offset, offset + _postgrestPageSize - 1);
 
       if (response.isEmpty) {
         hasMore = false;
@@ -165,11 +230,10 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
 
       allEstimates.addAll(chunk);
 
-      // Если получено меньше лимита, значит это последняя порция данных
-      if (chunk.length < limit) {
+      if (chunk.length < _postgrestPageSize) {
         hasMore = false;
       } else {
-        offset += limit;
+        offset += _postgrestPageSize;
       }
     }
 
@@ -188,9 +252,15 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
     return EstimateModel.fromJson(response);
   }
 
+  /// Удаляет из [json] поля, которых нет в таблице `estimates` (есть только во view).
+  static void _stripEstimateTableReadOnlyKeys(Map<String, dynamic> json) {
+    json.remove('contract_number');
+  }
+
   @override
   Future<void> createEstimate(EstimateModel estimate) async {
     final json = estimate.toJson();
+    _stripEstimateTableReadOnlyKeys(json);
     json['company_id'] = activeCompanyId;
     await client.from(table).insert(json);
   }
@@ -199,6 +269,7 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
   Future<void> updateEstimate(EstimateModel estimate) async {
     if (estimate.id == null) throw Exception('id is required for update');
     final json = estimate.toJson();
+    _stripEstimateTableReadOnlyKeys(json);
     json['company_id'] = activeCompanyId;
     await client
         .from(table)
@@ -254,6 +325,7 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
         quantity: quantity,
         price: price,
         total: total,
+        visibleInEstimatesModule: true,
       );
     }).toList();
   }
@@ -279,23 +351,44 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
     String? objectId,
     String? contractId,
   }) async {
-    var query = client
-        .from(view)
-        .select('*')
-        .eq('estimate_title', estimateTitle)
-        .eq('company_id', activeCompanyId);
-
-    if (objectId != null) {
-      query = query.eq('object_id', objectId);
+    PostgrestFilterBuilder baseQuery() {
+      var q = client
+          .from(view)
+          .select('*')
+          .eq('estimate_title', estimateTitle)
+          .eq('company_id', activeCompanyId)
+          .eq('visible_in_estimates_module', true);
+      if (objectId != null) {
+        q = q.eq('object_id', objectId);
+      }
+      if (contractId != null) {
+        q = q.eq('contract_id', contractId);
+      }
+      return q;
     }
-    if (contractId != null) {
-      query = query.eq('contract_id', contractId);
+
+    final all = <EstimateModel>[];
+    var offset = 0;
+    var hasMore = true;
+    while (hasMore) {
+      final response = await baseQuery()
+          .order('system')
+          .order('number')
+          .range(offset, offset + _postgrestPageSize - 1);
+      if (response.isEmpty) {
+        break;
+      }
+      final chunk = (response as List)
+          .map((json) => EstimateModel.fromJson(json as Map<String, dynamic>))
+          .toList();
+      all.addAll(chunk);
+      if (chunk.length < _postgrestPageSize) {
+        hasMore = false;
+      } else {
+        offset += _postgrestPageSize;
+      }
     }
-
-    // Сортировка по системе
-    final response = await query.order('system');
-
-    return response.map((json) => EstimateModel.fromJson(json)).toList();
+    return all;
   }
 
   @override
@@ -411,17 +504,32 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
 
   @override
   Future<List<EstimateModel>> getEstimatesByContract(String contractId) async {
-    final response = await client
-        .from(view)
-        .select('*')
-        .eq('contract_id', contractId)
-        .eq('company_id', activeCompanyId)
-        .order('system')
-        .order('number');
-
-    return (response as List)
-        .map((json) => EstimateModel.fromJson(json))
-        .toList();
+    final all = <EstimateModel>[];
+    var offset = 0;
+    var hasMore = true;
+    while (hasMore) {
+      final response = await client
+          .from(view)
+          .select('*')
+          .eq('contract_id', contractId)
+          .eq('company_id', activeCompanyId)
+          .order('system')
+          .order('number')
+          .range(offset, offset + _postgrestPageSize - 1);
+      if (response.isEmpty) {
+        break;
+      }
+      final chunk = (response as List)
+          .map((json) => EstimateModel.fromJson(json as Map<String, dynamic>))
+          .toList();
+      all.addAll(chunk);
+      if (chunk.length < _postgrestPageSize) {
+        hasMore = false;
+      } else {
+        offset += _postgrestPageSize;
+      }
+    }
+    return all;
   }
 
   @override
@@ -519,6 +627,219 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
   }
 
   @override
+  Future<Map<String, dynamic>> exportContractEstimateWithAddendaExcel({
+    required String estimateTitle,
+    required String contractId,
+    String? objectId,
+  }) async {
+    final trimmedTitle = estimateTitle.trim();
+    if (trimmedTitle.isEmpty) {
+      throw Exception('Не задан заголовок сметы для выгрузки');
+    }
+
+    final response = await client.functions.invoke(
+      'export-contract-estimate-addenda',
+      body: <String, dynamic>{
+        'companyId': activeCompanyId,
+        'contractId': contractId,
+        'estimateTitle': trimmedTitle,
+        if (objectId != null && objectId.isNotEmpty) 'objectId': objectId,
+      },
+      headers: <String, String>{
+        'Authorization':
+            'Bearer ${client.auth.currentSession?.accessToken ?? ''}',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    final raw = response.data;
+    if (raw is! Map) {
+      throw Exception('Некорректный ответ сервера');
+    }
+    final data = Map<String, dynamic>.from(raw);
+    final success = data['success'] as bool? ?? false;
+    if (!success) {
+      throw Exception(
+        data['message']?.toString() ?? 'Не удалось сформировать Excel',
+      );
+    }
+
+    final base64File = data['base64']?.toString();
+    if (base64File == null || base64File.isEmpty) {
+      throw Exception('Ответ сервера не содержит Excel-файл');
+    }
+
+    return {
+      'bytes': Uint8List.fromList(
+        base64Decode(base64File.replaceAll(RegExp(r'\s+'), '')),
+      ),
+      'filename': data['filename'] as String? ?? 'Смета.xlsx',
+    };
+  }
+
+  @override
+  Future<List<EstimatePositionAddendumHistoryEntry>>
+      getEstimatePositionAddendumHistory({
+    required String contractId,
+    required String estimateTitle,
+    required String estimateRowId,
+  }) async {
+    final trimmedTitle = estimateTitle.trim();
+    if (trimmedTitle.isEmpty) {
+      return const [];
+    }
+
+    final est = await client
+        .from(table)
+        .select('position_id, quantity, price, total, updated_at')
+        .eq('id', estimateRowId)
+        .eq('company_id', activeCompanyId)
+        .eq('contract_id', contractId)
+        .maybeSingle();
+
+    if (est == null) {
+      return const [];
+    }
+
+    final positionId = est['position_id']?.toString();
+    if (positionId == null || positionId.isEmpty) {
+      return _estimateHistoryCurrentOnly(est);
+    }
+
+    final revResponse = await client
+        .from('estimate_revisions')
+        .select(
+          'id, revision_label, revision_type, revision_no, status, created_at, effective_from, approved_at',
+        )
+        .eq('company_id', activeCompanyId)
+        .eq('contract_id', contractId)
+        .eq('estimate_title', trimmedTitle)
+        .order('revision_no', ascending: true);
+
+    final allRevs = (revResponse as List).cast<Map<String, dynamic>>();
+    final revList = allRevs.where((r) {
+      final t = (r['revision_type'] as String?)?.trim() ?? '';
+      return t == 'original' || t == 'addendum';
+    }).toList();
+
+    if (revList.isEmpty) {
+      return _estimateHistoryCurrentOnly(est);
+    }
+
+    final revIds = <String>[];
+    for (final r in revList) {
+      final id = r['id']?.toString();
+      if (id != null && id.isNotEmpty) {
+        revIds.add(id);
+      }
+    }
+    if (revIds.isEmpty) {
+      return _estimateHistoryCurrentOnly(est);
+    }
+
+    final itemsByRevision = <String, Map<String, dynamic>>{};
+    const chunk = 40;
+    for (var i = 0; i < revIds.length; i += chunk) {
+      final slice = revIds.sublist(
+        i,
+        i + chunk > revIds.length ? revIds.length : i + chunk,
+      );
+      final itemsResponse = await client
+          .from('estimate_revision_items')
+          .select('revision_id, quantity, total, price, change_type')
+          .eq('company_id', activeCompanyId)
+          .eq('position_id', positionId)
+          .inFilter('revision_id', slice);
+
+      for (final row in itemsResponse as List) {
+        final m = row as Map<String, dynamic>;
+        final rid = m['revision_id']?.toString();
+        if (rid != null && rid.isNotEmpty) {
+          itemsByRevision[rid] = m;
+        }
+      }
+    }
+
+    DateTime? parseDateOnly(dynamic v) {
+      if (v == null) return null;
+      final s = v.toString().trim();
+      if (s.isEmpty) return null;
+      final normalized = s.length <= 10 ? '${s}T00:00:00' : s;
+      return DateTime.tryParse(normalized);
+    }
+
+    DateTime displayDateForRev(Map<String, dynamic> r) {
+      final eff = parseDateOnly(r['effective_from']);
+      if (eff != null) {
+        return DateTime(eff.year, eff.month, eff.day);
+      }
+      final approved = r['approved_at'];
+      if (approved != null) {
+        final d = DateTime.tryParse(approved.toString());
+        if (d != null) return d;
+      }
+      final c = r['created_at'];
+      return DateTime.tryParse(c?.toString() ?? '') ?? DateTime.now();
+    }
+
+    final out = <EstimatePositionAddendumHistoryEntry>[];
+    for (final r in revList) {
+      final rid = r['id']?.toString() ?? '';
+      if (rid.isEmpty) continue;
+      final item = itemsByRevision[rid];
+      if (item == null) continue;
+
+      final type = (r['revision_type'] as String?)?.trim() ?? '';
+      final labelRaw = r['revision_label']?.toString().trim();
+      final label = labelRaw != null && labelRaw.isNotEmpty
+          ? labelRaw
+          : (type == 'original' ? 'Основная' : 'ДС');
+
+      out.add(
+        EstimatePositionAddendumHistoryEntry(
+          revisionId: rid,
+          revisionLabel: label,
+          kind: type.isNotEmpty ? type : 'addendum',
+          displayDate: displayDateForRev(r),
+          quantity: _toDouble(item['quantity']),
+          price: _toDouble(item['price']),
+          total: _toDouble(item['total']),
+          changeType: (item['change_type'] as String?)?.trim() ?? '',
+        ),
+      );
+    }
+
+    out.add(_estimateHistorySyntheticCurrent(est));
+
+    return out;
+  }
+
+  EstimatePositionAddendumHistoryEntry _estimateHistorySyntheticCurrent(
+    Map<String, dynamic> est,
+  ) {
+    final updatedAt = est['updated_at'];
+    final curDate = updatedAt != null
+        ? DateTime.tryParse(updatedAt.toString()) ?? DateTime.now()
+        : DateTime.now();
+    return EstimatePositionAddendumHistoryEntry(
+      revisionId: '',
+      revisionLabel: 'Сейчас в договорной смете (estimates)',
+      kind: 'current',
+      displayDate: curDate,
+      quantity: _toDouble(est['quantity']),
+      price: _toDouble(est['price']),
+      total: _toDouble(est['total']),
+      changeType: 'current',
+    );
+  }
+
+  List<EstimatePositionAddendumHistoryEntry> _estimateHistoryCurrentOnly(
+    Map<String, dynamic> est,
+  ) {
+    return [_estimateHistorySyntheticCurrent(est)];
+  }
+
+  @override
   Future<EstimateRevisionDraftResult> createEstimateRevisionDraft({
     required String estimateTitle,
     required String contractId,
@@ -526,6 +847,8 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
     required String fileName,
     required Uint8List fileBytes,
     required List<EstimateAddendumImportRow> rows,
+    DateTime? effectiveFrom,
+    String? userDescription,
   }) async {
     if (rows.isEmpty) {
       throw Exception('Файл LC / ДС не содержит строк для импорта');
@@ -626,6 +949,14 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
       nextRevisionNo = maxRevisionNo + 1;
     }
 
+    final effective = effectiveFrom ?? DateTime.now();
+    final sqlDate = _revisionEffectiveDateOnly(effective);
+    final trimmedDescription = userDescription?.trim();
+    final descriptionValue =
+        trimmedDescription == null || trimmedDescription.isEmpty
+        ? null
+        : trimmedDescription;
+
     final draftRevisionResponse = await client
         .from('estimate_revisions')
         .insert({
@@ -635,10 +966,13 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
           'revision_no': nextRevisionNo,
           'revision_label': 'ДС-$nextRevisionNo',
           'revision_type': 'addendum',
-          'status': 'draft',
+          'status': 'approved',
           'based_on_revision_id': basedOnRevisionId,
           'source_file_path': storagePath,
           'created_by': currentUserId,
+          'approved_at': DateTime.now().toUtc().toIso8601String(),
+          'effective_from': sqlDate,
+          'user_description': descriptionValue,
         })
         .select('id, revision_no, revision_label')
         .single();
@@ -732,6 +1066,436 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
       itemsCount: revisionItemsToInsert.length,
       baseRevisionCreated: baseRevisionCreated,
     );
+  }
+
+  @override
+  Future<List<EstimateBulkUpdateTemplateRow>> getBulkUpdateTemplateRows({
+    required String estimateTitle,
+    required String contractId,
+    String? objectId,
+  }) async {
+    var query = client
+        .from(table)
+        .select(
+          'id, position_id, updated_at, system, subsystem, number, name, article, manufacturer, unit, quantity, price, total',
+        )
+        .eq('company_id', activeCompanyId)
+        .eq('contract_id', contractId)
+        .eq('estimate_title', estimateTitle);
+
+    if (objectId == null) {
+      query = query.isFilter('object_id', null);
+    } else {
+      query = query.eq('object_id', objectId);
+    }
+
+    final response = await query.order('system').order('number');
+    return (response as List).cast<Map<String, dynamic>>().map((row) {
+      return EstimateBulkUpdateTemplateRow(
+        id: row['id']?.toString() ?? '',
+        positionId: row['position_id']?.toString() ?? '',
+        updatedAt: DateTime.parse(row['updated_at'].toString()),
+        system: row['system']?.toString() ?? '',
+        subsystem: row['subsystem']?.toString() ?? '',
+        number: row['number']?.toString() ?? '',
+        name: row['name']?.toString() ?? '',
+        article: row['article']?.toString() ?? '',
+        manufacturer: row['manufacturer']?.toString() ?? '',
+        unit: row['unit']?.toString() ?? '',
+        quantity: _toDouble(row['quantity']),
+        price: _toDouble(row['price']),
+        total: _toDouble(row['total']),
+      );
+    }).toList();
+  }
+
+  @override
+  Future<Map<String, dynamic>> getBulkUpdateTemplateFile({
+    required String estimateTitle,
+    required String contractId,
+    String? objectId,
+  }) async {
+    final response = await client.functions.invoke(
+      'export-estimate-bulk-update-template',
+      body: {
+        'companyId': activeCompanyId,
+        'contractId': contractId,
+        'estimateTitle': estimateTitle,
+        if (objectId != null) 'objectId': objectId,
+      },
+      headers: {
+        'Authorization':
+            'Bearer ${client.auth.currentSession?.accessToken ?? ''}',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    final data = response.data;
+    if (data is! Map) {
+      throw Exception('Некорректный ответ сервера');
+    }
+    final error = data['error'];
+    if (error != null) {
+      throw Exception(error.toString());
+    }
+
+    final fileBase64 = data['file'] as String?;
+    if (fileBase64 == null || fileBase64.isEmpty) {
+      throw Exception('Ответ сервера не содержит Excel-файл');
+    }
+
+    return {
+      'bytes': Uint8List.fromList(
+        base64Decode(fileBase64.replaceAll(RegExp(r'\s+'), '')),
+      ),
+      'filename': data['filename'] as String? ?? 'estimate_update.xlsx',
+    };
+  }
+
+  @override
+  Future<Map<String, dynamic>> getEstimateImportTemplateFile({
+    String? contractId,
+  }) async {
+    final response = await client.functions.invoke(
+      'generate-estimate-import-template',
+      body: {
+        'companyId': activeCompanyId,
+        if (contractId != null && contractId.isNotEmpty) 'contractId': contractId,
+      },
+      headers: {
+        'Authorization':
+            'Bearer ${client.auth.currentSession?.accessToken ?? ''}',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    final data = response.data;
+    if (data is! Map) {
+      throw Exception('Некорректный ответ сервера');
+    }
+    final error = data['error'];
+    if (error != null) {
+      throw Exception(error.toString());
+    }
+
+    final fileBase64 = data['file'] as String?;
+    if (fileBase64 == null || fileBase64.isEmpty) {
+      throw Exception('Ответ сервера не содержит Excel-файл');
+    }
+
+    return {
+      'bytes': Uint8List.fromList(
+        base64Decode(fileBase64.replaceAll(RegExp(r'\s+'), '')),
+      ),
+      'filename': data['filename'] as String? ?? 'estimate_template.xlsx',
+    };
+  }
+
+  @override
+  Future<EstimateBulkUpdateResult> runBulkUpdate({
+    required String estimateTitle,
+    required String contractId,
+    String? objectId,
+    required List<EstimateBulkUpdateImportRow> rows,
+    required bool dryRun,
+    String? sourceFileName,
+  }) async {
+    final response = await client.rpc(
+      'apply_estimate_bulk_update',
+      params: {
+        'p_company_id': activeCompanyId,
+        'p_contract_id': contractId,
+        'p_estimate_title': estimateTitle,
+        'p_rows': rows.map((row) => row.toRpcJson()).toList(),
+        'p_dry_run': dryRun,
+        'p_object_id': objectId,
+        'p_source_file_name': sourceFileName,
+      },
+    );
+
+    if (response is! Map) {
+      throw Exception('Некорректный ответ сервера при обновлении сметы');
+    }
+
+    return EstimateBulkUpdateResult.fromJson(response.cast<String, dynamic>());
+  }
+
+  /// Календарная дата для колонки `effective_from` (тип DATE).
+  String _revisionEffectiveDateOnly(DateTime d) {
+    final l = DateTime(d.year, d.month, d.day);
+    final y = l.year.toString().padLeft(4, '0');
+    final m = l.month.toString().padLeft(2, '0');
+    final day = l.day.toString().padLeft(2, '0');
+    return '$y-$m-$day';
+  }
+
+  Future<List<Map<String, dynamic>>> _getEstimateRowsRaw({
+    required String estimateTitle,
+    required String contractId,
+    String? objectId,
+  }) async {
+    var q = client
+        .from(table)
+        .select('id, position_id, updated_at')
+        .eq('company_id', activeCompanyId)
+        .eq('contract_id', contractId)
+        .eq('estimate_title', estimateTitle);
+    if (objectId == null || objectId.isEmpty) {
+      q = q.isFilter('object_id', null);
+    } else {
+      q = q.eq('object_id', objectId);
+    }
+    final response = await q;
+    return (response as List).cast<Map<String, dynamic>>();
+  }
+
+  @override
+  Future<EstimateBulkUpdateResult> applyAddendumRevisionToEstimates({
+    required String revisionId,
+  }) async {
+    final rev = await client
+        .from('estimate_revisions')
+        .select(
+          'id, company_id, contract_id, estimate_title, revision_type, applied_to_estimates_at',
+        )
+        .eq('id', revisionId)
+        .eq('company_id', activeCompanyId)
+        .maybeSingle();
+
+    if (rev == null) {
+      throw Exception('Ревизия не найдена');
+    }
+    if (rev['revision_type'] != 'addendum') {
+      throw Exception('К основной смете можно применить только доп. соглашение (addendum)');
+    }
+    if (rev['applied_to_estimates_at'] != null) {
+      throw Exception('Это доп. соглашение уже перенесено в основную смету');
+    }
+
+    final contractId = rev['contract_id'] as String;
+    final estimateTitle = rev['estimate_title'] as String;
+
+    final contractRow = await client
+        .from('contracts')
+        .select('object_id')
+        .eq('id', contractId)
+        .eq('company_id', activeCompanyId)
+        .maybeSingle();
+    if (contractRow == null) {
+      throw Exception('Договор не найден');
+    }
+    final objectId = contractRow['object_id'] as String?;
+
+    final items = await client
+        .from('estimate_revision_items')
+        .select(
+          'position_id, source_estimate_id, change_type, system, subsystem, number, name, article, manufacturer, unit, quantity, price, total, row_no',
+        )
+        .eq('revision_id', revisionId)
+        .eq('company_id', activeCompanyId)
+        .order('row_no');
+
+    final itemList = (items as List).cast<Map<String, dynamic>>();
+    if (itemList.isEmpty) {
+      throw Exception('В ревизии нет строк для применения');
+    }
+
+    final estRows = await _getEstimateRowsRaw(
+      estimateTitle: estimateTitle,
+      contractId: contractId,
+      objectId: objectId,
+    );
+
+    final byPosition = <String, Map<String, dynamic>>{};
+    for (final er in estRows) {
+      final pid = er['position_id']?.toString();
+      if (pid != null && pid.isNotEmpty) {
+        byPosition[pid] = er;
+      }
+    }
+
+    final toDelete = <String>{};
+    final bulkRows = <EstimateBulkUpdateImportRow>[];
+    var rowNo = 0;
+
+    for (final it in itemList) {
+      final changeType = it['change_type'] as String? ?? '';
+      if (changeType == 'removed') {
+        final sid = it['source_estimate_id']?.toString();
+        if (sid != null && sid.isNotEmpty) {
+          toDelete.add(sid);
+        }
+        continue;
+      }
+
+      rowNo++;
+      final posId = it['position_id']?.toString();
+      if (posId == null || posId.isEmpty) {
+        throw Exception('У строки ревизии отсутствует position_id');
+      }
+
+      final ex = byPosition[posId];
+      final srcId = it['source_estimate_id'] as String?;
+      final String? existingId;
+      if (srcId != null && srcId.trim().isNotEmpty) {
+        existingId = srcId.trim();
+      } else if (ex != null && ex['id'] != null) {
+        existingId = ex['id'] as String;
+      } else {
+        existingId = null;
+      }
+
+      bulkRows.add(
+        EstimateBulkUpdateImportRow(
+          rowNo: rowNo,
+          id: existingId,
+          positionId: posId,
+          updatedAt: null,
+          system: it['system']?.toString() ?? '',
+          subsystem: it['subsystem']?.toString() ?? '',
+          number: it['number']?.toString() ?? '',
+          name: it['name']?.toString() ?? '',
+          article: it['article']?.toString() ?? '',
+          manufacturer: it['manufacturer']?.toString() ?? '',
+          unit: it['unit']?.toString() ?? '',
+          quantity: (it['quantity'] as num?)?.toDouble() ?? 0.0,
+          price: (it['price'] as num?)?.toDouble() ?? 0.0,
+        ),
+      );
+    }
+
+    EstimateBulkUpdateResult? appliedResult;
+    if (bulkRows.isNotEmpty) {
+      final preview = await runBulkUpdate(
+        estimateTitle: estimateTitle,
+        contractId: contractId,
+        objectId: objectId,
+        rows: bulkRows,
+        dryRun: true,
+        sourceFileName: 'apply_revision:$revisionId',
+      );
+      if (preview.summary.conflicts > 0) {
+        throw Exception(
+          'Нельзя применить ДС: ${preview.summary.conflicts} конфликт(ов). '
+          'Возможно, позиции сметы изменились после создания ревизии. '
+          'Повторите попытку или приведите смету в соответствие с ревизией.',
+        );
+      }
+
+      appliedResult = await runBulkUpdate(
+        estimateTitle: estimateTitle,
+        contractId: contractId,
+        objectId: objectId,
+        rows: bulkRows,
+        dryRun: false,
+        sourceFileName: 'apply_revision:$revisionId',
+      );
+    }
+
+    for (final delId in toDelete) {
+      await deleteEstimate(delId);
+    }
+
+    final uid = client.auth.currentUser?.id;
+    await client
+        .from('estimate_revisions')
+        .update({
+          'applied_to_estimates_at': DateTime.now().toUtc().toIso8601String(),
+          if (uid != null) 'applied_by': uid,
+        })
+        .eq('id', revisionId)
+        .eq('company_id', activeCompanyId);
+
+    return appliedResult ??
+        EstimateBulkUpdateResult.fromJson(const <String, dynamic>{
+          'dry_run': false,
+          'applied': true,
+          'summary': <String, dynamic>{
+            'total': 0,
+            'updated': 0,
+            'inserted': 0,
+            'skipped': 0,
+            'conflicts': 0,
+          },
+          'items': <dynamic>[],
+        });
+  }
+
+  @override
+  Future<void> updateEstimateRevisionMetadata({
+    required String revisionId,
+    DateTime? effectiveFrom,
+    String? userDescription,
+  }) async {
+    final patch = <String, dynamic>{};
+    if (effectiveFrom != null) {
+      patch['effective_from'] = _revisionEffectiveDateOnly(effectiveFrom);
+    }
+    if (userDescription != null) {
+      final t = userDescription.trim();
+      patch['user_description'] = t.isEmpty ? null : t;
+    }
+    if (patch.isEmpty) {
+      return;
+    }
+    await client
+        .from('estimate_revisions')
+        .update(patch)
+        .eq('id', revisionId)
+        .eq('company_id', activeCompanyId);
+  }
+
+  @override
+  Future<void> deleteAddendumRevision({required String revisionId}) async {
+    final rev = await client
+        .from('estimate_revisions')
+        .select(
+          'id, revision_type, applied_to_estimates_at, source_file_path',
+        )
+        .eq('id', revisionId)
+        .eq('company_id', activeCompanyId)
+        .maybeSingle();
+
+    if (rev == null) {
+      throw Exception('Ревизия не найдена');
+    }
+    if (rev['revision_type'] != 'addendum') {
+      throw Exception('Удалять можно только дополнительное соглашение (addendum)');
+    }
+    if (rev['applied_to_estimates_at'] != null) {
+      throw Exception(
+        'Нельзя удалить ДС, уже перенесённое в основную смету',
+      );
+    }
+
+    final dependent = await client
+        .from('estimate_revisions')
+        .select('id')
+        .eq('company_id', activeCompanyId)
+        .eq('based_on_revision_id', revisionId)
+        .limit(1);
+
+    final depList = dependent as List;
+    if (depList.isNotEmpty) {
+      throw Exception(
+        'Нельзя удалить это ДС: есть следующее по цепочке. Сначала удалите более поздние ДС.',
+      );
+    }
+
+    final path = rev['source_file_path']?.toString().trim();
+    if (path != null && path.isNotEmpty) {
+      try {
+        await client.storage.from('estimates').remove([path]);
+      } catch (_) {
+        // Файл мог отсутствовать или быть недоступен по политике bucket.
+      }
+    }
+
+    await client
+        .from('estimate_revisions')
+        .delete()
+        .eq('id', revisionId)
+        .eq('company_id', activeCompanyId);
   }
 
   @override

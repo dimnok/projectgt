@@ -1,23 +1,33 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'package:projectgt/core/utils/formatters.dart';
+import 'package:projectgt/core/widgets/mobile_atmosphere_backdrop.dart';
+import 'package:projectgt/core/widgets/mobile_atmosphere_card_style.dart';
 import 'package:projectgt/domain/entities/contract.dart';
 import 'package:projectgt/features/contracts/presentation/widgets/contract_list_shared.dart';
-import 'package:projectgt/features/roles/application/permission_service.dart';
-import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/presentation/widgets/app_badge.dart';
 
 /// Табличное представление списка договоров для десктопа.
 ///
-/// Отображает договора в виде карточек на всю ширину экрана.
-/// Каждая строка - это карточка с полями: номер договора, контрагент,
-/// дата окончания, сумма, статус.
-class ContractTableView extends ConsumerWidget {
-  /// Создает табличное представление списка договоров.
+/// Над карточками выводится одна строка заголовков колонок ([ContractTableHeaderRow]);
+/// внутри каждой карточки — только значения, без повторяющихся подписей полей.
+///
+/// Строки оформлены как атмосферные карточки (градиент, тень, подсветка границы)
+/// и состояниями выбора и наведения на десктопе.
+///
+/// Редактирование и удаление выполняются из панели деталей или иных действий экрана,
+/// не из строки списка.
+class ContractTableView extends StatelessWidget {
+  /// Горизонтальный отступ заголовков колонок: [ContractListScreenDesktopChrome.tableListHorizontalPadding] +
+  /// внутренний отступ текста карточки (ровно под колонки строки).
+  static const double _headerInsetH =
+      ContractListScreenDesktopChrome.tableListHorizontalPadding +
+      _ContractCard.clipHorizontalPadding;
+
+  /// Создаёт табличное представление списка договоров.
   const ContractTableView({
     super.key,
     required this.contracts,
-    required this.onEdit,
-    required this.onDelete,
     this.onSelect,
     this.selectedId,
   });
@@ -31,283 +41,329 @@ class ContractTableView extends ConsumerWidget {
   /// Обратный вызов при выборе договора.
   final void Function(Contract)? onSelect;
 
-  /// Обратный вызов для редактирования договора.
-  final void Function(Contract) onEdit;
-
-  /// Обратный вызов для удаления договора.
-  final void Function(String id) onDelete;
-
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final permissionService = ref.watch(permissionServiceProvider);
-    final canUpdate = permissionService.can('contracts', 'update');
-    final canDelete = permissionService.can('contracts', 'delete');
 
     if (contracts.isEmpty) {
       return Center(
-        child: Text('Нет договоров', style: theme.textTheme.bodyMedium),
+        child: Text(
+          'Нет договоров',
+          style: theme.textTheme.bodyLarge?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      itemCount: contracts.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 8),
-      itemBuilder: (context, index) {
-        final contract = contracts[index];
-        final isSelected = selectedId == contract.id;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(
+            _headerInsetH,
+            0,
+            _headerInsetH,
+            ContractListTableLayout.headerBottomSpacing,
+          ),
+          child: ContractTableHeaderRow(),
+        ),
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.only(
+              bottom: ContractListTableLayout.listBottomPadding,
+            ),
+            itemCount: contracts.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 10),
+            itemBuilder: (context, index) {
+              final contract = contracts[index];
+              final isSelected = selectedId == contract.id;
 
-        return _ContractCard(
-          contract: contract,
-          isSelected: isSelected,
-          canUpdate: canUpdate,
-          canDelete: canDelete,
-          onTap: () => onSelect?.call(contract),
-          onEdit: onEdit,
-          onDelete: onDelete,
-        );
-      },
+              return _ContractCard(
+                contract: contract,
+                isSelected: isSelected,
+                onTap: () => onSelect?.call(contract),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
 
-/// Карточка договора на всю ширину экрана.
+/// Карточка договора на всю ширину (десктоп).
 class _ContractCard extends StatefulWidget {
+  /// Горизонтальный отступ текста внутри карточки (для выравнивания с [ContractTableHeaderRow]).
+  static const double clipHorizontalPadding = 18;
+
   const _ContractCard({
     required this.contract,
     required this.isSelected,
-    required this.canUpdate,
-    required this.canDelete,
     required this.onTap,
-    required this.onEdit,
-    required this.onDelete,
   });
 
   final Contract contract;
   final bool isSelected;
-  final bool canUpdate;
-  final bool canDelete;
   final VoidCallback onTap;
-  final void Function(Contract) onEdit;
-  final void Function(String) onDelete;
 
   @override
   State<_ContractCard> createState() => _ContractCardState();
 }
 
-class _ContractCardState extends State<_ContractCard> {
+class _ContractCardState extends State<_ContractCard>
+    with SingleTickerProviderStateMixin {
+  static const double _outerRadius = 16;
+  static const double _clipRadius = 15;
+  static const double _columnGap = 16;
+  static const double _hoverLiftPx = 4;
+
+  late final AnimationController _liftController;
+  late final Animation<double> _liftY;
+
+  bool _hover = false;
+
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    final warningIcon = ContractWarningHelper.buildWarningIcon(widget.contract);
-    final statusInfo = ContractStatusHelper.getStatusInfo(
-      widget.contract.status,
-      theme,
+  void initState() {
+    super.initState();
+    _liftController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 220),
     );
-
-    final daysRemainingText = _getDaysRemainingText(widget.contract.endDate);
-    final daysRemainingColor = _getDaysRemainingColor(widget.contract.endDate);
-
-    return GestureDetector(
-      onTap: widget.onTap,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        decoration: BoxDecoration(
-          color: widget.isSelected
-              ? (isDark
-                    ? Colors.white10
-                    : Colors.black.withValues(alpha: 0.05))
-              : (isDark ? Colors.grey[900] : Colors.white),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: widget.isSelected
-                ? (isDark ? Colors.white : Colors.black)
-                : (isDark ? Colors.grey[800]! : Colors.grey[300]!),
-            width: widget.isSelected ? 1.5 : 1,
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Row(
-            children: [
-              // Номер договора
-              Expanded(
-                flex: 12,
-                child: _buildField(
-                  label: 'Номер',
-                  value: '№ ${widget.contract.number}',
-                  icon: warningIcon,
-                ),
-              ),
-              const SizedBox(width: 16),
-              // Контрагент
-              Expanded(
-                flex: 20,
-                child: _buildField(
-                  label: 'Контрагент',
-                  value: widget.contract.contractorName ?? '—',
-                ),
-              ),
-              const SizedBox(width: 16),
-              // Объект
-              Expanded(
-                flex: 20,
-                child: _buildField(
-                  label: 'Объект',
-                  value: widget.contract.objectName ?? '—',
-                ),
-              ),
-              const SizedBox(width: 16),
-              // Дата окончания
-              Expanded(
-                flex: 10,
-                child: _buildField(
-                  label: 'Дата окончания',
-                  value: widget.contract.endDate != null
-                      ? formatRuDate(widget.contract.endDate!)
-                      : '—',
-                  subtitle: daysRemainingText,
-                  subtitleColor: daysRemainingColor,
-                ),
-              ),
-              const SizedBox(width: 16),
-              // Сумма
-              Expanded(
-                flex: 12,
-                child: _buildField(
-                  label: 'Сумма',
-                  value: formatCurrency(widget.contract.amount),
-                  valueStyle: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: isDark ? Colors.white : Colors.black,
-                    fontSize: 15,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              // Статус
-              Expanded(
-                flex: 10,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'СТАТУС',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withValues(
-                          alpha: 0.5,
-                        ),
-                        fontSize: 10,
-                        letterSpacing: 0.5,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    AppBadge(text: statusInfo.$1, color: statusInfo.$2),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
+    _liftY = Tween<double>(begin: 0, end: -_hoverLiftPx).animate(
+      CurvedAnimation(
+        parent: _liftController,
+        curve: Curves.easeOutCubic,
+        reverseCurve: Curves.easeInCubic,
       ),
     );
   }
 
-  String? _getDaysRemainingText(DateTime? endDate) {
-    if (endDate == null) return null;
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final end = DateTime(endDate.year, endDate.month, endDate.day);
-    final difference = end.difference(today).inDays;
+  @override
+  void dispose() {
+    _liftController.dispose();
+    super.dispose();
+  }
 
-    if (difference < 0) {
-      final days = difference.abs();
-      return 'Просрочено на $days ${_pluralDays(days)}';
-    } else if (difference == 0) {
-      return 'Истекает сегодня';
+  void _setHover(bool value) {
+    setState(() => _hover = value);
+    if (value) {
+      _liftController.forward();
     } else {
-      return 'Осталось $difference ${_pluralDays(difference)}';
+      _liftController.reverse();
     }
   }
 
-  Color? _getDaysRemainingColor(DateTime? endDate) {
-    if (endDate == null) return null;
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final end = DateTime(endDate.year, endDate.month, endDate.day);
-    final difference = end.difference(today).inDays;
-
-    if (difference < 0) return Colors.red;
-    if (difference <= 30) return Colors.amber;
-    return null;
-  }
-
-  String _pluralDays(int n) {
-    int n10 = n % 10;
-    int n100 = n % 100;
-    if (n10 == 1 && n100 != 11) return 'день';
-    if (n10 >= 2 && n10 <= 4 && (n100 < 10 || n100 >= 20)) return 'дня';
-    return 'дней';
-  }
-
-  Widget _buildField({
-    required String label,
-    required String value,
-    Widget? icon,
-    TextStyle? valueStyle,
-    String? subtitle,
-    Color? subtitleColor,
-  }) {
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final appearance = MobileAtmosphereAppearance.of(context);
+    final cardStyle = MobileAtmosphereCardStyle.fromAppearance(appearance);
+    final scheme = appearance.scheme;
+    final hi = cardStyle.cardHighlight;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[icon, const SizedBox(width: 8)],
-            Text(
-              label.toUpperCase(),
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                fontSize: 10,
-                letterSpacing: 0.5,
-                fontWeight: FontWeight.w600,
+    final warningIcon = ContractWarningHelper.buildWarningIcon(widget.contract);
+    final statusBadge = ContractStatusHelper.tableBadgePalette(
+      widget.contract.status,
+      scheme,
+    );
+
+    final borderColor = widget.isSelected
+        ? scheme.primary
+        : _hover
+        ? hi.withValues(alpha: appearance.isDark ? 0.35 : 0.55)
+        : cardStyle.cardBorder;
+
+    final borderWidth = widget.isSelected ? 1.5 : 1.0;
+
+    final shadows = <BoxShadow>[
+      ...cardStyle.cardShadows,
+      if (_hover && !widget.isSelected)
+        BoxShadow(
+          color: scheme.shadow.withValues(
+            alpha: appearance.isDark ? 0.35 : 0.07,
+          ),
+          blurRadius: 14,
+          offset: const Offset(0, 6),
+        ),
+    ];
+
+    final amountStyle = theme.textTheme.titleSmall?.copyWith(
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0.2,
+      color: scheme.onSurface,
+    );
+
+    final cellValueStyle = theme.textTheme.bodyMedium?.copyWith(
+      fontWeight: FontWeight.w600,
+      fontSize: 14,
+      letterSpacing: 0.15,
+      color: scheme.onSurface.withValues(alpha: 0.92),
+    );
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => _setHover(true),
+      onExit: (_) => _setHover(false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onTap,
+        child: AnimatedBuilder(
+          animation: _liftY,
+          builder: (context, child) => Transform.translate(
+            offset: Offset(0, _liftY.value),
+            child: child,
+          ),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(_outerRadius),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [cardStyle.cardTop, cardStyle.cardBottom],
+              ),
+              boxShadow: shadows,
+            ),
+            foregroundDecoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(_outerRadius),
+              border: Border.fromBorderSide(
+                BorderSide(
+                  color: borderColor,
+                  width: borderWidth,
+                  strokeAlign: BorderSide.strokeAlignInside,
+                ),
               ),
             ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        Text(
-          value,
-          style: (valueStyle ?? theme.textTheme.bodyMedium)?.copyWith(
-            fontWeight: FontWeight.w500,
-            fontSize: 14,
-            letterSpacing: 0.2,
-          ),
-          overflow: TextOverflow.ellipsis,
-          maxLines: 1,
-        ),
-        if (subtitle != null) ...[
-          const SizedBox(height: 2),
-          Text(
-            subtitle,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color:
-                  subtitleColor ??
-                  theme.colorScheme.onSurface.withValues(alpha: 0.4),
-              fontSize: 11,
-              fontWeight: subtitleColor != null ? FontWeight.w600 : null,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(_clipRadius),
+              clipBehavior: Clip.antiAlias,
+              child: Stack(
+                clipBehavior: Clip.antiAlias,
+                children: [
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: 0,
+                    height: 1,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            hi.withValues(alpha: 0),
+                            hi.withValues(
+                              alpha: widget.isSelected ? 0.95 : 0.65,
+                            ),
+                            hi.withValues(alpha: 0),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      _ContractCard.clipHorizontalPadding,
+                      15,
+                      _ContractCard.clipHorizontalPadding,
+                      15,
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: ContractListTableColumnFlex.number,
+                          child: Row(
+                            children: [
+                              if (warningIcon != null) ...[
+                                warningIcon,
+                                const SizedBox(width: 8),
+                              ],
+                              Expanded(
+                                child: Text(
+                                  '№ ${widget.contract.number}',
+                                  style: cellValueStyle,
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: _columnGap),
+                        Expanded(
+                          flex: ContractListTableColumnFlex.kind,
+                          child: Text(
+                            ContractKindUi.label(widget.contract.kind),
+                            style: cellValueStyle,
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
+                        const SizedBox(width: _columnGap),
+                        Expanded(
+                          flex: ContractListTableColumnFlex.contractor,
+                          child: Text(
+                            widget.contract.contractorName ?? '—',
+                            style: cellValueStyle,
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 2,
+                          ),
+                        ),
+                        const SizedBox(width: _columnGap),
+                        Expanded(
+                          flex: ContractListTableColumnFlex.object,
+                          child: Text(
+                            widget.contract.objectName ?? '—',
+                            style: cellValueStyle,
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 2,
+                          ),
+                        ),
+                        const SizedBox(width: _columnGap),
+                        Expanded(
+                          flex: ContractListTableColumnFlex.period,
+                          child: ContractPeriodTableCell(
+                            contract: widget.contract,
+                            valueStyle: cellValueStyle,
+                          ),
+                        ),
+                        const SizedBox(width: _columnGap),
+                        Expanded(
+                          flex: ContractListTableColumnFlex.amount,
+                          child: Text(
+                            formatCurrency(widget.contract.amount),
+                            style: amountStyle,
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
+                        const SizedBox(width: _columnGap),
+                        Expanded(
+                          flex: ContractListTableColumnFlex.status,
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: AppBadge(
+                              text: statusBadge.label,
+                              color: statusBadge.foreground,
+                              fillColor: statusBadge.fill,
+                              borderColor: statusBadge.border,
+                              borderRadius: 8,
+                              fontSize: 12,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ],
-      ],
+        ),
+      ),
     );
   }
 }

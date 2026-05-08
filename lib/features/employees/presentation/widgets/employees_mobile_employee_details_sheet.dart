@@ -251,7 +251,6 @@ class _EmployeesMobileEmployeeDetailsBody extends ConsumerWidget {
 
         return MobileBottomSheetContent(
           title: 'Фото',
-          scrollable: false,
           sheetBackdrop: const EmployeesMobileAtmosphereBackdrop(),
           child: Column(
             mainAxisSize: MainAxisSize.min,

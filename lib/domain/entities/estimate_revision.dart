@@ -109,7 +109,7 @@ class EstimateAddendumImportRow {
   });
 }
 
-/// Результат создания черновика LC / ДС.
+/// Результат сохранения LC / ДС (ревизии в `estimate_revisions`).
 class EstimateRevisionDraftResult {
   /// Идентификатор ревизии.
   final String revisionId;
@@ -126,12 +126,54 @@ class EstimateRevisionDraftResult {
   /// Признак того, что базовая ревизия "Основная" была создана автоматически.
   final bool baseRevisionCreated;
 
-  /// Создаёт результат импорта черновика LC / ДС.
+  /// Создаёт результат импорта LC / ДС.
   const EstimateRevisionDraftResult({
     required this.revisionId,
     required this.revisionNo,
     required this.revisionLabel,
     required this.itemsCount,
     required this.baseRevisionCreated,
+  });
+}
+
+/// Одна строка **read-only** истории позиции по ревизиям сметы (базовая + ДС).
+///
+/// Источник данных: [estimate_revision_items] и шапка [estimate_revisions].
+/// Ручные правки в [estimates] без повторного импорта ДС здесь не фиксируются.
+class EstimatePositionAddendumHistoryEntry {
+  /// Идентификатор ревизии в БД (пустой у синтетической строки «сейчас в смете»).
+  final String revisionId;
+
+  /// Подпись для UI (например «Основная», «ДС-1» или «Сейчас в договорной смете»).
+  final String revisionLabel;
+
+  /// `original` / `addendum` / `current` (текущее состояние [estimates]).
+  final String kind;
+
+  /// Дата для сортировки и отображения (дата действия, подписания или обновления).
+  final DateTime displayDate;
+
+  /// Количество в снимке.
+  final double quantity;
+
+  /// Цена за единицу в снимке.
+  final double price;
+
+  /// Сумма в снимке.
+  final double total;
+
+  /// Значение [estimate_revision_items.change_type] либо `current` для строки estimates.
+  final String changeType;
+
+  /// Создаёт элемент истории для UI.
+  const EstimatePositionAddendumHistoryEntry({
+    required this.revisionId,
+    required this.revisionLabel,
+    required this.kind,
+    required this.displayDate,
+    required this.quantity,
+    required this.price,
+    required this.total,
+    required this.changeType,
   });
 }

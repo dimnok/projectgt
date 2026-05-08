@@ -1,8 +1,11 @@
 # Модуль Timesheet (Табель рабочего времени)
 
-**Дата актуализации:** 07 марта 2026 года
+**Дата актуализации:** 04 мая 2026 года
 
 **Изменения в этой версии:**
+- удалён клиентский экспорт табеля в PDF (`timesheet_pdf_action`, `timesheet_pdf_service`)
+- удалена неиспользуемая data-модель `timesheet_entry_model` (маппинг строк из `work_hours` остаётся через `Map` в репозитории)
+- Excel-экспорт (`export-timesheet`): постраничная выборка через `.range()` для обхода лимита PostgREST `max-rows` (~1000 строк на ответ); стабильный порядок сортировки и нормализация даты для ключей ячеек
 - добавлен серверный Excel-экспорт табеля через Supabase Edge Function `export-timesheet`
 - подтверждено использование `employee_attendance` как второго источника часов помимо `work_hours`
 - актуализирован audit по таблицам, RLS-политикам и Edge Functions
@@ -38,7 +41,6 @@
 - календарное представление часов по дням
 - просмотр деталей записи по клику
 - ручной ввод часов вне смен
-- экспорт в PDF
 - экспорт в Excel с генерацией файла на стороне сервера
 
 Архитектурные особенности:
@@ -74,7 +76,7 @@
 ## Presentation
 
 - `lib/features/timesheet/presentation/screens/timesheet_screen.dart`
-  Основной экран табеля. Содержит поиск, фильтры, кнопку Excel и кнопку PDF.
+  Основной экран табеля. Содержит поиск, фильтры и кнопку Excel.
 
 - `lib/features/timesheet/presentation/widgets/timesheet_calendar_view.dart`
   Календарная таблица по сотрудникам и дням месяца. Загружает всех активных сотрудников и уволенных с часами.
@@ -82,17 +84,11 @@
 - `lib/features/timesheet/presentation/widgets/timesheet_filter_widget.dart`
   Панель фильтров и поиск по ФИО.
 
-- `lib/features/timesheet/presentation/widgets/timesheet_pdf_action.dart`
-  Действие `AppBar` для PDF-экспорта.
-
 - `lib/features/timesheet/presentation/widgets/timesheet_excel_action.dart`
   Действие `AppBar` для Excel-экспорта.
 
 - `lib/features/timesheet/presentation/widgets/employee_attendance_dialog.dart`
   Диалог ручного ввода часов вне смен.
-
-- `lib/features/timesheet/presentation/services/timesheet_pdf_service.dart`
-  Клиентская генерация PDF.
 
 - `lib/features/timesheet/presentation/services/timesheet_excel_export_service.dart`
   Вызов Edge Function `export-timesheet`, обработка ответа и сохранение `.xlsx` на устройство.
@@ -138,9 +134,8 @@
 - `lib/features/timesheet/data/repositories/employee_attendance_repository_impl.dart`
   Репозиторий для ручных записей.
 
-- `lib/features/timesheet/data/models/timesheet_entry_model.dart`
 - `lib/features/timesheet/data/models/employee_attendance_model.dart`
-  DTO-уровень для сериализации и маппинга.
+  DTO для `employee_attendance`. Строки табеля из `work_hours` маппятся из `Map` в домен в репозитории без отдельной data-модели.
 
 ---
 
@@ -157,8 +152,7 @@ lib/
         │   │   ├── timesheet_data_source.dart
         │   │   └── timesheet_data_source_impl.dart
         │   ├── models/
-        │   │   ├── employee_attendance_model.dart
-        │   │   └── timesheet_entry_model.dart
+        │   │   └── employee_attendance_model.dart
         │   └── repositories/
         │       ├── employee_attendance_repository_impl.dart
         │       └── timesheet_repository_impl.dart
@@ -177,14 +171,12 @@ lib/
             ├── screens/
             │   └── timesheet_screen.dart
             ├── services/
-            │   ├── timesheet_excel_export_service.dart
-            │   └── timesheet_pdf_service.dart
+            │   └── timesheet_excel_export_service.dart
             └── widgets/
                 ├── employee_attendance_dialog.dart
                 ├── timesheet_calendar_view.dart
                 ├── timesheet_excel_action.dart
-                ├── timesheet_filter_widget.dart
-                └── timesheet_pdf_action.dart
+                └── timesheet_filter_widget.dart
 
 supabase/
 └── functions/
@@ -398,13 +390,6 @@ company_members ──> profiles
 - серверная: `employee_id`, `works.status = 'closed'`
 - клиентская: диапазон дат, список объектов, список должностей
 
-### Экспорт в PDF
-
-`TimesheetPdfService` формирует календарный PDF на клиенте:
-- данные берутся из текущего состояния
-- учитываются все активные сотрудники и уволенные с часами
-- сохраняется структура таблицы по дням месяца
-
 ### Экспорт в Excel
 
 Компоненты:
@@ -416,11 +401,11 @@ Pipeline:
 1. Flutter вызывает `export-timesheet` и передаёт `companyId`, период и фильтры.
 2. Edge Function валидирует JWT.
 3. Edge Function дополнительно проверяет участие пользователя в компании через `company_members`.
-4. Загружаются:
-   - сотрудники
-   - объекты
-   - сменные часы из `work_hours`
-   - ручные часы из `employee_attendance`
+4. Загружаются (каждый список циклически, страница **POSTGREST_PAGE_SIZE** строк, пока ответ не станет короче страницы — иначе при больших месяцах ответ API обрезается по **max-rows**):
+   - сотрудники (`employees`: порядок `last_name`, `id`)
+   - объекты (`objects`: порядок `name`, `id`)
+   - сменные часы из `work_hours` (порядок `created_at`, `id`)
+   - ручные часы из `employee_attendance` (порядок `date`, `id`)
 5. Из набора сотрудников исключаются уволенные без часов.
 6. На сервере через `ExcelJS` собирается XLSX-файл:
    - колонка сотрудника содержит только ФИО
@@ -452,7 +437,6 @@ Pipeline:
 - `riverpod`
 - `freezed`
 - `json_serializable`
-- `pdf`
 - `file_saver`
 - `file_picker`
 - `path_provider`
@@ -474,7 +458,6 @@ Pipeline:
 - ✅ подмешивание ручных часов из `employee_attendance`
 - ✅ показ всех активных сотрудников
 - ✅ показ уволенных сотрудников только при наличии часов
-- ✅ экспорт в PDF
 - ✅ экспорт в Excel с серверной генерацией
 - ✅ платформа-специфичное сохранение файла на Web/Desktop/Mobile
 
@@ -497,7 +480,7 @@ Pipeline:
   - `employee_attendance_data_source_*`
   - `employee_attendance_repository_*`
   - `TimesheetRepositoryImpl`
-  - Excel/PDF export services
+  - Excel export service
 - При изменениях в серверном Excel-экспорте необходимо проверять:
   - формат числовых ячеек
   - RBAC-проверку через `company_members`
@@ -505,9 +488,12 @@ Pipeline:
 - Для генерации кода:
   - `flutter pub run build_runner build --delete-conflicting-outputs`
 
-**Последняя актуализация:** 07 марта 2026 года
+**Последняя актуализация:** 04 мая 2026 года
 
 **Ключевые обновления:**
+
+**04.05.2026 — Удаление PDF-экспорта табеля**
+- убраны `TimesheetPdfAction` и `TimesheetPdfService`; экспорт табеля только в Excel через Edge `export-timesheet`
 
 **07.03.2026 — Серверный Excel-экспорт табеля**
 - добавлен `TimesheetExcelAction` в `AppBar`
@@ -519,4 +505,3 @@ Pipeline:
 **05.10.2025 — Логика отображения активных и уволенных сотрудников**
 - оставлены все активные сотрудники
 - уволенные показываются только при наличии часов
-- PDF синхронизирован с логикой экрана

@@ -21,10 +21,4 @@ abstract class WorkItemDataSource {
 
   /// Возвращает список всех работ из всех смен.
   Future<List<WorkItemModel>> getAllWorkItems();
-
-  /// Возвращает поток работ для смены по идентификатору [workId].
-  ///
-  /// Использует Supabase Realtime для мгновенного обновления данных в приложении
-  /// при изменениях в таблице [work_items].
-  Stream<List<WorkItemModel>> watchWorkItems(String workId);
 }

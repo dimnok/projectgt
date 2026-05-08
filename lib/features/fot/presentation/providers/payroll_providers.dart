@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/payroll_calculation.dart';
 import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
@@ -112,7 +114,13 @@ final payrollWorkHoursProvider = FutureProvider<List<dynamic>>((ref) async {
 
     // 5️⃣ Объединяем данные из обеих таблиц
     return [...workHoursEntries, ...attendanceEntries];
-  } catch (e) {
+  } catch (e, stackTrace) {
+    developer.log(
+      'Failed to load payroll work hours',
+      name: 'fot.payrollWorkHoursProvider',
+      error: e,
+      stackTrace: stackTrace,
+    );
     return [];
   }
 });
@@ -226,8 +234,15 @@ final filteredPayrollsProvider =
     }
 
     return payrolls;
-  } catch (e) {
-    // 🔄 FALLBACK: Если RPC не работает — используем старую логику
+  } catch (e, stackTrace) {
+    // 🔄 FALLBACK: Если RPC не работает — используем старую логику.
+    // Ошибку логируем, чтобы не было «тихого» переключения на медленный путь.
+    developer.log(
+      'RPC calculate_payroll_for_month failed, falling back to client-side',
+      name: 'fot.filteredPayrollsProvider',
+      error: e,
+      stackTrace: stackTrace,
+    );
     return _calculatePayrollClientSide(ref, year, month);
   }
 });
@@ -319,8 +334,13 @@ Future<List<PayrollCalculation>> _calculatePayrollClientSide(
             if (rate != null) {
               businessTripTotal += rate.rate;
             }
-          } catch (e) {
-            // Игнорируем ошибки получения ставок
+          } catch (e, stackTrace) {
+            developer.log(
+              'Failed to load business trip rate (employee=$employeeId, object=$objectId, date=${entry.date})',
+              name: 'fot._calculatePayrollClientSide',
+              error: e,
+              stackTrace: stackTrace,
+            );
           }
         }
       }
@@ -391,7 +411,13 @@ Future<List<PayrollCalculation>> _calculatePayrollClientSide(
     });
 
     return payrolls;
-  } catch (e) {
+  } catch (e, stackTrace) {
+    developer.log(
+      'Client-side payroll calculation failed',
+      name: 'fot._calculatePayrollClientSide',
+      error: e,
+      stackTrace: stackTrace,
+    );
     return [];
   }
 }
@@ -490,7 +516,13 @@ final filteredPayrollPayoutsProvider =
     result.sort((a, b) => b.payoutDate.compareTo(a.payoutDate));
 
     return result;
-  } catch (e) {
+  } catch (e, stackTrace) {
+    developer.log(
+      'Failed to load payroll payouts (filtered)',
+      name: 'fot.payrollPayoutsByFilterProvider',
+      error: e,
+      stackTrace: stackTrace,
+    );
     return [];
   }
 });
@@ -515,7 +547,13 @@ final allPayoutsProvider =
         .map(
             (json) => PayrollPayoutModel.fromJson(json as Map<String, dynamic>))
         .toList();
-  } catch (e) {
+  } catch (e, stackTrace) {
+    developer.log(
+      'Failed to load all payouts',
+      name: 'fot.allPayoutsProvider',
+      error: e,
+      stackTrace: stackTrace,
+    );
     return [];
   }
 });
@@ -561,8 +599,15 @@ final payoutsByEmployeeAndMonthFIFOProvider =
       final empId = row['employee_id'] as String;
       accrualsBeforeYear[empId] = (row['accruals_sum'] as num).toDouble();
     }
-  } catch (e) {
-    // В случае ошибки считаем, что исторических начислений нет
+  } catch (e, stackTrace) {
+    // В случае ошибки считаем, что исторических начислений нет.
+    // Это деградация (FIFO стартует с нулевой истории), но не падение — логируем.
+    developer.log(
+      'Failed to load historical accruals, assuming zero (FIFO accuracy degraded)',
+      name: 'fot.payoutsByEmployeeAndMonthFIFOProvider',
+      error: e,
+      stackTrace: stackTrace,
+    );
   }
 
   // 2️⃣ Группируем выплаты по сотрудникам и сортируем их по дате (хронология)

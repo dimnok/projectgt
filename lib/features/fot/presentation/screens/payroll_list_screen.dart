@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -140,8 +142,13 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
       // Принудительно обновляем провайдер filteredPayrolls
       // (теперь он использует RPC и не зависит от employees/objects)
       ref.invalidate(filteredPayrollsProvider);
-    } catch (e) {
-      // Игнорируем ошибки инициализации
+    } catch (e, stackTrace) {
+      developer.log(
+        'Failed to load initial payroll data',
+        name: 'fot.PayrollListScreen._loadInitialData',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -179,11 +186,14 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
       );
 
       final exportService = ref.read(workSearchExportServerServiceProvider);
+      final searchQuery = ref.read(payrollSearchQueryProvider);
 
       final result = await exportService.exportPayroll(
         year: filterState.selectedYear,
         month: filterState.selectedMonth,
         companyId: activeCompanyId,
+        objectIds: filterState.selectedObjectIds,
+        searchQuery: searchQuery,
       );
 
       if (!mounted) return;

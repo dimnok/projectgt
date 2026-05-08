@@ -23,9 +23,6 @@ class TimesheetState {
   /// Выбранные объекты для фильтрации (мультивыбор)
   final List<String>? selectedObjectIds;
 
-  /// Выбранные должности для фильтрации
-  final List<String>? selectedPositions;
-
   /// Специальный sentinel-объект для различения null и отсутствия значения в copyWith.
   static const _sentinel = Object();
 
@@ -37,7 +34,6 @@ class TimesheetState {
   /// [startDate] — начальная дата для фильтрации (обязательный параметр).
   /// [endDate] — конечная дата для фильтрации (обязательный параметр).
   /// [selectedObjectIds] — выбранные объекты для фильтрации (мультивыбор, по умолчанию null).
-  /// [selectedPositions] — выбранные должности для фильтрации (по умолчанию null).
   TimesheetState({
     this.entries = const [],
     this.isLoading = false,
@@ -45,7 +41,6 @@ class TimesheetState {
     required this.startDate,
     required this.endDate,
     this.selectedObjectIds,
-    this.selectedPositions,
   });
 
   /// Создаёт копию состояния [TimesheetState] с обновлёнными свойствами.
@@ -58,7 +53,6 @@ class TimesheetState {
   /// [startDate] — новая начальная дата фильтрации (опционально).
   /// [endDate] — новая конечная дата фильтрации (опционально).
   /// [selectedObjectIds] — новые выбранные объекты для фильтрации (опционально, поддерживает sentinel для различения null и отсутствия значения).
-  /// [selectedPositions] — новые выбранные должности для фильтрации (опционально).
   ///
   /// Возвращает новый экземпляр [TimesheetState] с обновлёнными значениями.
   TimesheetState copyWith({
@@ -68,7 +62,6 @@ class TimesheetState {
     DateTime? startDate,
     DateTime? endDate,
     Object? selectedObjectIds = _sentinel,
-    List<String>? selectedPositions,
   }) {
     return TimesheetState(
       entries: entries ?? this.entries,
@@ -79,7 +72,6 @@ class TimesheetState {
       selectedObjectIds: selectedObjectIds == _sentinel
           ? this.selectedObjectIds
           : selectedObjectIds as List<String>?,
-      selectedPositions: selectedPositions ?? this.selectedPositions,
     );
   }
 }
@@ -114,9 +106,7 @@ class TimesheetNotifier extends StateNotifier<TimesheetState> {
         objectIds: state.selectedObjectIds?.isNotEmpty == true
             ? state.selectedObjectIds
             : null,
-        positions: state.selectedPositions?.isNotEmpty == true
-            ? state.selectedPositions
-            : null,
+        positions: null,
       );
 
       state = state.copyWith(
@@ -143,12 +133,6 @@ class TimesheetNotifier extends StateNotifier<TimesheetState> {
     loadTimesheet();
   }
 
-  /// Устанавливает выбранные должности для фильтрации
-  void setSelectedPositions(List<String> positions) {
-    state = state.copyWith(selectedPositions: positions);
-    loadTimesheet();
-  }
-
   /// Сбрасывает все фильтры
   void resetFilters() {
     final now = DateTime.now();
@@ -156,7 +140,6 @@ class TimesheetNotifier extends StateNotifier<TimesheetState> {
       startDate: DateTime(now.year, now.month, 1),
       endDate: DateTime(now.year, now.month + 1, 0),
       selectedObjectIds: <String>[],
-      selectedPositions: <String>[],
     );
     loadTimesheet();
   }
@@ -170,3 +153,7 @@ final timesheetProvider =
   final repository = ref.watch(timesheetRepositoryProvider);
   return TimesheetNotifier(repository);
 });
+
+/// ID сотрудников, отмеченных чекбоксами в сетке табеля (экспорт, будущие действия).
+final timesheetGridSelectedEmployeeIdsProvider =
+    StateProvider<Set<String>>((ref) => <String>{});

@@ -36,8 +36,8 @@
 ### Экраны
 - `ContractsListScreen`: Главный экран со списком, поиском и фильтрацией. Точка регистрации `RefreshTarget` ('contracts'). Адаптивно переключается между Mobile и Desktop представлениями.
 - `ContractsListDesktopView`: Полноэкранный реестр договоров. Заголовок включает поиск по номеру, контрагенту или объекту.
-- `ContractsListMobileView`: Оптимизированный список для мобильных устройств.
-- `ContractFormScreen`: Адаптивная форма создания/редактирования договора. Использует `GTTextField`, `GTDropdown` и `GTButtons` для единообразия UI.
+- `ContractsListMobileView`: Список на мобильных; редактирование по тапу карточки через колбэк `onEditContract` (тот же сценарий, что FAB — `ContractFormModal` и bottom sheet).
+- `ContractFormModal` / `ContractFormModal.show`: создание и редактирование договора в диалоге (desktop) или bottom sheet (mobile); разметка полей в `ContractFormContent` (`GTTextField`, `GTDropdown`, `GTButtons`).
 
 ### Виджеты
 - `AppBarWidget`: Отображает индикатор фонового обновления при работе координатора.

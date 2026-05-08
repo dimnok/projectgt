@@ -14,6 +14,7 @@ import 'package:projectgt/core/utils/telegram_helper.dart';
 import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/gt_dropdown.dart';
+import 'package:projectgt/core/widgets/mobile_atmosphere_backdrop.dart';
 import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
 import 'package:projectgt/domain/entities/employee.dart' as emp_domain;
 import 'package:projectgt/domain/entities/employee.dart' show Employee;
@@ -181,57 +182,88 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
   /// Показать опции выбора фото
   void _showPhotoOptions() {
     final theme = Theme.of(context);
-    // Используем MobileBottomSheetContent для вложенного диалога выбора фото
-    showModalBottomSheet(
+    final scheme = theme.colorScheme;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+
+    showModalBottomSheet<void>(
       context: context,
       useRootNavigator: true,
       isScrollControlled: true,
       useSafeArea: true,
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: Colors.transparent,
+      constraints: BoxConstraints(maxWidth: screenWidth),
+      clipBehavior: Clip.antiAlias,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => MobileBottomSheetContent(
-        title: 'Фото смены',
-        footer: GTTextButton(
-          text: 'Отмена',
-          onPressed: () => Navigator.pop(context),
-          color: theme.colorScheme.onSurface,
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _PhotoOptionButton(
-              icon: CupertinoIcons.camera,
-              label: 'Камера',
-              onTap: () {
-                Navigator.pop(context);
-                _pickPhoto(ImageSource.camera);
-              },
-            ),
-            _PhotoOptionButton(
-              icon: CupertinoIcons.photo,
-              label: 'Галерея',
-              onTap: () {
-                Navigator.pop(context);
-                _pickPhoto(ImageSource.gallery);
-              },
-            ),
-            if (_selectedPhotoFile != null || _selectedPhotoBytes != null)
-              _PhotoOptionButton(
-                icon: CupertinoIcons.delete,
-                label: 'Удалить',
-                onTap: () {
-                  Navigator.pop(context);
-                  setState(() {
-                    _selectedPhotoFile = null;
-                    _selectedPhotoBytes = null;
-                  });
-                },
+      builder: (sheetContext) {
+        Widget tile({
+          required IconData icon,
+          required String title,
+          required VoidCallback onTap,
+          Color? titleColor,
+        }) {
+          return ListTile(
+            leading: Icon(icon, color: titleColor ?? scheme.onSurface),
+            title: Text(
+              title,
+              style: TextStyle(
+                color: titleColor ?? scheme.onSurface,
+                fontWeight: FontWeight.w500,
               ),
-          ],
-        ),
-      ),
+            ),
+            onTap: onTap,
+          );
+        }
+
+        void runAfterClose(VoidCallback action) {
+          Navigator.pop(sheetContext);
+          Future<void>.microtask(() {
+            if (!mounted) return;
+            action();
+          });
+        }
+
+        return MobileBottomSheetContent(
+          title: 'Фото смены',
+          scrollable: false,
+          sheetBackdrop: const MobileAtmosphereBackdrop(),
+          footer: GTSecondaryButton(
+            text: 'Отмена',
+            onPressed: () => Navigator.pop(sheetContext),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              tile(
+                icon: CupertinoIcons.camera,
+                title: 'Сделать фото',
+                onTap: () =>
+                    runAfterClose(() => _pickPhoto(ImageSource.camera)),
+              ),
+              tile(
+                icon: CupertinoIcons.photo_on_rectangle,
+                title: 'Выбрать из галереи',
+                onTap: () =>
+                    runAfterClose(() => _pickPhoto(ImageSource.gallery)),
+              ),
+              if (_selectedPhotoFile != null || _selectedPhotoBytes != null)
+                tile(
+                  icon: CupertinoIcons.delete,
+                  title: 'Удалить фото',
+                  titleColor: scheme.error,
+                  onTap: () => runAfterClose(() {
+                    setState(() {
+                      _selectedPhotoFile = null;
+                      _selectedPhotoBytes = null;
+                    });
+                  }),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -435,6 +467,7 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
     if (isMobile) {
       return MobileBottomSheetContent(
         title: 'Открытие смены $dateStr',
+        sheetBackdrop: const MobileAtmosphereBackdrop(),
         footer: footer,
         child: content,
       );
@@ -929,46 +962,6 @@ class _EmployeeSelectionTile extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-/// Виджет кнопки выбора фото
-class _PhotoOptionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _PhotoOptionButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(24),
-          child: Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primaryContainer,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              icon,
-              color: Theme.of(context).colorScheme.onPrimaryContainer,
-              size: 32,
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(label, style: Theme.of(context).textTheme.bodyMedium),
-      ],
     );
   }
 }

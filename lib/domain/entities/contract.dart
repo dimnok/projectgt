@@ -12,6 +12,18 @@ enum ContractStatus {
   completed, // Завершен
 }
 
+/// Тип договора по участию контрагента (колонка «Тип» в списке).
+enum ContractKind {
+  /// Контрагент — заказчик; договор «от заказчика» (мы выполняем).
+  customer,
+
+  /// Отдаём работы в подряд / субподряд.
+  subcontract,
+
+  /// Договор поставки материалов или товаров.
+  supply,
+}
+
 /// Сущность "Контракт" (доменная модель).
 ///
 /// Описывает договор между подрядчиком и заказчиком, включая сумму, сроки и статус.
@@ -80,6 +92,9 @@ abstract class Contract with _$Contract {
 
     /// Статус контракта ([ContractStatus]).
     @Default(ContractStatus.active) ContractStatus status,
+
+    /// Тип договора по участию контрагента ([ContractKind]): заказчик, подряд, поставка.
+    @Default(ContractKind.customer) ContractKind kind,
 
     /// Название организации подрядчика (для документов).
     String? contractorOrgName,

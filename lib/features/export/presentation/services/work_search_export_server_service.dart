@@ -178,20 +178,34 @@ class WorkSearchExportServerService {
     }
   }
 
-  /// Экспортирует данные ФОТ за указанный период
+  /// Экспортирует данные ФОТ за указанный период.
+  ///
+  /// [objectIds] — фильтр по объектам (как на экране ФОТ); пустой список не передаётся на сервер.
+  /// [searchQuery] — подстрока поиска по ФИО (как в таблице ФОТ).
   Future<ExportResult> exportPayroll({
     required int year,
     required int month,
     required String companyId,
+    List<String> objectIds = const [],
+    String searchQuery = '',
   }) async {
     try {
+      final body = <String, dynamic>{
+        'year': year,
+        'month': month,
+        'companyId': companyId,
+      };
+      if (objectIds.isNotEmpty) {
+        body['objectIds'] = objectIds;
+      }
+      final q = searchQuery.trim();
+      if (q.isNotEmpty) {
+        body['searchQuery'] = q;
+      }
+
       final response = await client.functions.invoke(
         'export-payroll',
-        body: {
-          'year': year,
-          'month': month,
-          'companyId': companyId,
-        },
+        body: body,
         headers: {
           'Authorization':
               'Bearer ${client.auth.currentSession?.accessToken ?? ''}',

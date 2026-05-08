@@ -1,5 +1,9 @@
 // GENERATED via MCP (not using flutterfire CLI)
 // Provides FirebaseOptions for all supported platforms.
+//
+// После смены iOS Bundle ID: в Firebase Console добавьте iOS-приложение с тем же
+// bundle id, что в [DefaultFirebaseOptions.ios], скачайте GoogleService-Info.plist
+// и при необходимости обновите здесь `appId`, `apiKey` и `iosBundleId`.
 
 // ignore_for_file: constant_identifier_names
 
@@ -53,6 +57,6 @@ class DefaultFirebaseOptions {
     messagingSenderId: '229844296884',
     projectId: 'pgtmess',
     storageBucket: 'pgtmess.firebasestorage.app',
-    iosBundleId: 'dev.projectgt.projectgt',
+    iosBundleId: 'com.projectgt.stroyka',
   );
 }

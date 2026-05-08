@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,15 +15,46 @@ import 'package:projectgt/features/contracts/presentation/widgets/contract_files
 import 'package:projectgt/presentation/widgets/app_badge.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/gt_confirmation_dialog.dart';
-import 'package:projectgt/features/company/presentation/widgets/company_info_widgets.dart';
 import 'package:projectgt/core/widgets/gt_section_title.dart';
+import 'package:projectgt/features/contracts/presentation/widgets/contract_detail_navigation_section.dart';
+import 'package:projectgt/features/contracts/presentation/widgets/contract_estimate_positions_table_panel.dart';
+import 'package:projectgt/features/contracts/presentation/widgets/contract_details_main_information_section.dart';
+import 'package:projectgt/features/contracts/presentation/widgets/contract_addenda_from_revisions_section.dart';
+import 'package:projectgt/features/contracts/presentation/widgets/contract_estimates_section.dart';
 import 'contract_list_shared.dart';
+
+/// Плюс к потоку (приход): читаемый на [surface] в тёмной и светлой теме.
+Color _cashFlowInflowColor(ThemeData theme) {
+  return theme.brightness == Brightness.dark
+      ? const Color(0xFF69F0AE)
+      : const Color(0xFF1B5E20);
+}
+
+/// Минус / расход в таблице Cash Flow — тот же акцент, что и системная ошибка.
+Color _cashFlowOutflowColor(ThemeData theme) => theme.colorScheme.error;
+
+/// «Подписан», ссылки-иконки: контраст к фону в обеих темах.
+Color _infoAccentColor(ThemeData theme) {
+  return theme.brightness == Brightness.dark
+      ? const Color(0xFF82B1FF)
+      : const Color(0xFF1565C0);
+}
+
+/// Черновик и пр. предупреждающий, но читаемый акцент.
+Color _draftStatusColor(ThemeData theme) {
+  return theme.brightness == Brightness.dark
+      ? const Color(0xFFFFB74D)
+      : const Color(0xFFE65100);
+}
 
 /// Панель детальной информации о договоре.
 ///
 /// Отображает все ключевые параметры договора: объект, статус, даты, финансовые условия,
 /// а также разделы с файлами, дополнительными соглашениями и актами КС-2.
 /// Включает визуализацию Cash Flow по договору.
+///
+/// При [detailSectionFilter] не `null` (встроенный список с навигацией по разделам)
+/// под шапкой показывается только выбранный подраздел; в диалоге [show] значение `null` — полная карточка.
 class ContractDetailsPanel extends ConsumerWidget {
   /// Сущность договора, данные которой необходимо отобразить.
   final Contract contract;
@@ -29,46 +62,82 @@ class ContractDetailsPanel extends ConsumerWidget {
   /// Функция обратного вызова для перехода к форме редактирования договора.
   final VoidCallback onEdit;
 
+  /// Ограничение контента карточки одним разделом (`null` — все блоки как в диалоге).
+  final ContractDetailNavigationSection? detailSectionFilter;
+
+  /// Растянуть блок «Сметы» по вертикали под родителя с конечной высотой (inline-детали).
+  ///
+  /// В диалоге [show] должен быть `false`: там [Column] без [Expanded].
+  final bool expandEstimatesBodyToViewport;
+
   /// Создает экземпляр панели деталей договора.
   const ContractDetailsPanel({
     super.key,
     required this.contract,
     required this.onEdit,
+    this.detailSectionFilter,
+    this.expandEstimatesBodyToViewport = false,
   });
 
+  /// Заголовок хрома (inline-панель над карточкой, шапка диалога «Договор № …»).
+  static String toolbarTitle(Contract contract) =>
+      'Договор № ${contract.number}';
+
   /// Показывает диалоговое окно с деталями договора.
+  ///
+  /// Возвращает [Future], завершающийся после закрытия диалога (крестик, барьер,
+  /// кнопка «Закрыть», после перехода к редактированию и т.д.).
   static Future<void> show(
     BuildContext context, {
     required Contract contract,
     required VoidCallback onEdit,
-  }) async {
-    // Используем addPostFrameCallback для предотвращения MouseTracker error на десктопе
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!context.mounted) return;
-      DesktopDialogContent.show(
-        context,
-        title: 'Детали договора',
-        width: 900,
-        scrollable: false, // ContractDetailsPanel сам управляет скроллом
-        padding: EdgeInsets.zero, // Отступы управляются внутри панели
-        footer: Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            GTPrimaryButton(
-              text: 'Закрыть',
-              onPressed: () => Navigator.pop(context),
-            ),
-          ],
-        ),
-        child: ContractDetailsPanel(
-          contract: contract,
-          onEdit: () {
-            Navigator.pop(context);
-            onEdit();
-          },
-        ),
-      );
+  }) {
+    final done = Completer<void>();
+
+    void safeComplete() {
+      if (!done.isCompleted) done.complete();
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!context.mounted) {
+        safeComplete();
+        return;
+      }
+      final dialogHeight = MediaQuery.sizeOf(context).height * 0.85;
+      try {
+        await DesktopDialogContent.show<void>(
+          context,
+          title: toolbarTitle(contract),
+          width: 900,
+          // Явная высота: иначе у Flexible/LayoutBuilder внутри DesktopDialogContent
+          // остаётся неограниченная высота, и Column+Expanded в панели падают по layout.
+          height: dialogHeight,
+          scrollable:
+              false, // Скролл в DesktopDialogContent; панель — Column без Expanded
+          padding: EdgeInsets.zero, // Отступы управляются внутри панели
+          footer: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              GTPrimaryButton(
+                text: 'Закрыть',
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+          child: ContractDetailsPanel(
+            contract: contract,
+            onEdit: () {
+              Navigator.pop(context);
+              onEdit();
+            },
+          ),
+        );
+      } finally {
+        safeComplete();
+      }
     });
+
+    return done.future;
   }
 
   Future<void> _handleDelete(BuildContext context, WidgetRef ref) async {
@@ -100,214 +169,228 @@ class ContractDetailsPanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final filter = detailSectionFilter;
+    final fillEstimatesViewport =
+        filter == ContractDetailNavigationSection.estimates &&
+        expandEstimatesBodyToViewport;
 
+    // Без Expanded: родитель (DesktopDialogContent при scrollable:false) оборачивает
+    // child в SingleChildScrollView — там вертикальный maxHeight бесконечен.
     return Column(
+      mainAxisSize: fillEstimatesViewport ? MainAxisSize.max : MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Header
-        Container(
-          padding: const EdgeInsets.all(24),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    Container(
-                      width: 64,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Icon(
-                        CupertinoIcons.doc_text,
-                        size: 32,
-                        color: theme.colorScheme.primary,
-                      ),
-                    ).animate().scale(delay: 100.ms, duration: 400.ms, curve: Curves.easeOutBack),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Договор № ${contract.number}',
-                            style: theme.textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ).animate().fade(delay: 200.ms).slideX(begin: 0.1),
-                          const SizedBox(height: 4),
-                          Text(
-                            contract.contractorName ?? 'Без контрагента',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.textTheme.bodySmall?.color,
-                            ),
-                          ).animate().fade(delay: 250.ms).slideX(begin: 0.1),
-                          const SizedBox(height: 8),
-                          AppBadge(
-                            text: ContractStatusHelper.getStatusInfo(
-                              contract.status,
-                              theme,
-                            ).$1,
-                            color: ContractStatusHelper.getStatusInfo(
-                              contract.status,
-                              theme,
-                            ).$2,
-                          ).animate().fade(delay: 300.ms).scale(begin: const Offset(0.8, 0.8)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Row(
+        // Действия в правом верхнем углу карточки (без дубля названия и контрагента — они в toolbar / диалоге).
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+          child: switch (filter) {
+            ContractDetailNavigationSection.estimates => Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  PermissionGuard(
-                    module: 'contracts',
-                    permission: 'update',
-                    child: CupertinoButton(
-                      padding: EdgeInsets.zero,
-                      onPressed: onEdit,
-                      child: const Icon(
-                        CupertinoIcons.pencil,
-                        size: 22,
-                        color: Colors.amber,
+                  Expanded(
+                    flex: 28,
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        ContractEstimatesSection.embeddedScreenTitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ).animate().fade(delay: 140.ms),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 44,
+                    child: Center(
+                      child: ContractEstimateEmbeddedTabStrip(
+                        contractId: contract.id,
                       ),
                     ),
-                  ).animate().fade(delay: 400.ms).scale(),
-                  PermissionGuard(
-                    module: 'contracts',
-                    permission: 'delete',
-                    child: CupertinoButton(
-                      padding: EdgeInsets.zero,
-                      onPressed: () => _handleDelete(context, ref),
-                      child: Icon(
-                        CupertinoIcons.trash,
-                        size: 22,
-                        color: theme.colorScheme.error,
-                      ),
-                    ),
-                  ).animate().fade(delay: 450.ms).scale(),
+                  ),
+                  // На вкладке «Сметы» действия по договору (редактирование/удаление)
+                  // не показываем — они относятся к карточке договора в других разделах.
+                  const Expanded(flex: 28, child: SizedBox.shrink()),
                 ],
               ),
-            ],
-          ),
+            ContractDetailNavigationSection.addenda => Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    flex: 28,
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        ContractAddendaFromRevisionsSection.embeddedScreenTitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ).animate().fade(delay: 140.ms),
+                    ),
+                  ),
+                  const Expanded(
+                    flex: 44,
+                    child: Center(child: SizedBox.shrink()),
+                  ),
+                  const Expanded(flex: 28, child: SizedBox.shrink()),
+                ],
+              ),
+            _ => Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const Expanded(
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: SizedBox.shrink(),
+                      ),
+                    ),
+                    PermissionGuard(
+                      module: 'contracts',
+                      permission: 'update',
+                      child: GTTextButton(
+                        text: 'Редактировать',
+                        fontSize: 12,
+                        color: theme.colorScheme.primary,
+                        onPressed: onEdit,
+                      ),
+                    ).animate().fade(delay: 200.ms),
+                    const SizedBox(width: 4),
+                    PermissionGuard(
+                      module: 'contracts',
+                      permission: 'delete',
+                      child: GTTextButton(
+                        text: 'Удалить',
+                        fontSize: 12,
+                        color: theme.colorScheme.error,
+                        onPressed: () => _handleDelete(context, ref),
+                      ),
+                    ).animate().fade(delay: 250.ms),
+                  ],
+                ),
+          },
         ),
         const Divider(height: 1),
-        // Content
-        Expanded(
-          child: SingleChildScrollView(
+        if (filter == null)
+          Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildCashFlowSection(theme)
+                ContractAtmosphereCard(child: _buildCashFlowSection(theme))
                     .animate()
                     .fade(delay: 400.ms, duration: 500.ms)
                     .slideY(begin: 0.05, curve: Curves.easeOut),
                 const SizedBox(height: 32),
-                CompanyInfoCard(
-                  title: 'Основная информация',
-                  icon: CupertinoIcons.info_circle,
-                  children: [
-                    CompanyInfoRow(
-                      label: 'Объект',
-                      value: contract.objectName,
-                      icon: CupertinoIcons.building_2_fill,
-                    ),
-                    CompanyInfoRow(
-                      label: 'Статус',
-                      value: ContractStatusHelper.getStatusInfo(contract.status, theme).$1,
-                      icon: CupertinoIcons.info_circle,
-                    ),
-                    CompanyInfoRow(
-                      label: 'Дата начала',
-                      value: formatRuDate(contract.date),
-                      icon: CupertinoIcons.calendar,
-                    ),
-                    CompanyInfoRow(
-                      label: 'Дата окончания',
-                      value: contract.endDate != null ? formatRuDate(contract.endDate!) : null,
-                      icon: CupertinoIcons.calendar_badge_minus,
-                      isLast: true,
-                    ),
-                  ],
-                ).animate()
+                ContractAtmosphereCard(
+                      child: ContractDetailsMainInformationSection(
+                        contract: contract,
+                      ),
+                    )
+                    .animate()
                     .fade(delay: 500.ms, duration: 500.ms)
-                    .slideY(begin: 0.05, curve: Curves.easeOut),
-                const SizedBox(height: 24),
-                CompanyInfoCard(
-                  title: 'Финансовые условия',
-                  icon: CupertinoIcons.money_rubl_circle,
-                  children: [
-                    CompanyInfoRow(
-                      label: 'Сумма договора',
-                      value: formatCurrency(contract.amount),
-                      icon: CupertinoIcons.money_rubl,
-                    ),
-                    CompanyInfoRow(
-                      label: contract.isVatIncluded
-                          ? 'НДС ${contract.vatRate.toStringAsFixed(0)}% (включен)'
-                          : 'НДС ${contract.vatRate.toStringAsFixed(0)}% (сверху)',
-                      value: formatCurrency(contract.vatAmount),
-                      icon: CupertinoIcons.percent,
-                    ),
-                    CompanyInfoRow(
-                      label: 'Аванс',
-                      value: formatCurrency(contract.advanceAmount),
-                      icon: CupertinoIcons.money_rubl_circle,
-                    ),
-                    CompanyInfoRow(
-                      label: contract.warrantyPeriodMonths > 0
-                          ? 'Гарантийные удержания (${contract.warrantyRetentionRate.toStringAsFixed(0)}%, ${contract.warrantyPeriodMonths} мес.)'
-                          : 'Гарантийные удержания',
-                      value: formatCurrency(contract.warrantyRetentionAmount),
-                      icon: CupertinoIcons.shield,
-                    ),
-                    CompanyInfoRow(
-                      label: contract.generalContractorFeeRate > 0
-                          ? 'Генподрядные (${contract.generalContractorFeeRate.toStringAsFixed(0)}%)'
-                          : 'Генподрядные',
-                      value: formatCurrency(contract.generalContractorFeeAmount),
-                      icon: CupertinoIcons.briefcase,
-                      isLast: true,
-                    ),
-                  ],
-                ).animate()
-                    .fade(delay: 600.ms, duration: 500.ms)
                     .slideY(begin: 0.05, curve: Curves.easeOut),
                 const SizedBox(height: 32),
                 ContractFilesSection(contract: contract)
                     .animate()
-                    .fade(delay: 700.ms, duration: 500.ms)
+                    .fade(delay: 600.ms, duration: 500.ms)
                     .slideY(begin: 0.05, curve: Curves.easeOut),
                 const SizedBox(height: 32),
-                _buildAddendumsSection(theme)
+                ContractAtmosphereCard(
+                      child: ContractAddendaFromRevisionsSection(
+                        contract: contract,
+                      ),
+                    )
                     .animate()
-                    .fade(delay: 800.ms, duration: 500.ms)
+                    .fade(delay: 700.ms, duration: 500.ms)
                     .slideY(begin: 0.05, curve: Curves.easeOut),
                 const SizedBox(height: 32),
                 _buildActsSection(theme)
                     .animate()
-                    .fade(delay: 900.ms, duration: 500.ms)
+                    .fade(delay: 800.ms, duration: 500.ms)
                     .slideY(begin: 0.05, curve: Curves.easeOut),
                 const SizedBox(height: 32),
-                const GTSectionTitle(title: 'Выполнение и остатки')
-                    .animate()
-                    .fade(delay: 1000.ms, duration: 500.ms),
+                const GTSectionTitle(
+                  title: 'Выполнение и остатки',
+                ).animate().fade(delay: 900.ms, duration: 500.ms),
                 const SizedBox(height: 16),
                 ContractCostsInfo(
-                  contractId: contract.id,
-                  objectId: contract.objectId,
-                  contractAmount: contract.amount,
-                ).animate()
-                    .fade(delay: 1100.ms, duration: 500.ms)
+                      contractId: contract.id,
+                      objectId: contract.objectId,
+                      contractAmount: contract.amount,
+                    )
+                    .animate()
+                    .fade(delay: 1000.ms, duration: 500.ms)
                     .slideY(begin: 0.05, curve: Curves.easeOut),
               ],
             ),
+          )
+        else if (fillEstimatesViewport)
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child:
+                  ContractEstimatesSection(
+                        contract: contract,
+                        stretchTableVertically: true,
+                      )
+                      .animate()
+                      .fade(delay: 400.ms, duration: 500.ms)
+                      .slideY(begin: 0.05, curve: Curves.easeOut),
+            ),
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: switch (filter) {
+              ContractDetailNavigationSection.general =>
+                ContractAtmosphereCard(
+                      child: ContractDetailsMainInformationSection(
+                        contract: contract,
+                      ),
+                    )
+                    .animate()
+                    .fade(delay: 400.ms, duration: 500.ms)
+                    .slideY(begin: 0.05, curve: Curves.easeOut),
+              ContractDetailNavigationSection.estimates =>
+                ContractEstimatesSection(contract: contract)
+                    .animate()
+                    .fade(delay: 400.ms, duration: 500.ms)
+                    .slideY(begin: 0.05, curve: Curves.easeOut),
+              ContractDetailNavigationSection.addenda =>
+                ContractAtmosphereCard(
+                      child: ContractAddendaFromRevisionsSection(
+                        contract: contract,
+                        showSectionHeader: false,
+                      ),
+                    )
+                    .animate()
+                    .fade(delay: 400.ms, duration: 500.ms)
+                    .slideY(begin: 0.05, curve: Curves.easeOut),
+              _ => _filteredSectionPlaceholder(theme, filter),
+            },
+          ),
+      ],
+    );
+  }
+
+  Widget _filteredSectionPlaceholder(
+    ThemeData theme,
+    ContractDetailNavigationSection section,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 48),
+      child: Center(
+        child: Text(
+          'Раздел «${section.label}»: в разработке',
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodyLarge?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
-      ],
+      ),
     );
   }
 
@@ -371,10 +454,12 @@ class ContractDetailsPanel extends ConsumerWidget {
         const SizedBox(height: 16),
         Container(
           decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
+            color: theme.colorScheme.onSurface.withValues(
+              alpha: theme.brightness == Brightness.dark ? 0.06 : 0.045,
+            ),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: theme.colorScheme.outline.withValues(alpha: 0.1),
+              color: theme.colorScheme.outline.withValues(alpha: 0.14),
             ),
           ),
           clipBehavior: Clip.antiAlias,
@@ -432,7 +517,9 @@ class ContractDetailsPanel extends ConsumerWidget {
                               monthWidth,
                               rowHeight,
                               theme,
-                              valueColor: incomes[i] > 0 ? Colors.green : null,
+                              valueColor: incomes[i] > 0
+                                  ? _cashFlowInflowColor(theme)
+                                  : null,
                             ),
                             const Divider(height: 1),
                             _buildCell(
@@ -442,7 +529,9 @@ class ContractDetailsPanel extends ConsumerWidget {
                               monthWidth,
                               rowHeight,
                               theme,
-                              valueColor: expenses[i] > 0 ? Colors.red : null,
+                              valueColor: expenses[i] > 0
+                                  ? _cashFlowOutflowColor(theme)
+                                  : null,
                             ),
                             const Divider(height: 1, thickness: 1),
                             _buildCell(
@@ -452,8 +541,8 @@ class ContractDetailsPanel extends ConsumerWidget {
                               theme,
                               isBold: true,
                               valueColor: (incomes[i] - expenses[i]) >= 0
-                                  ? Colors.green
-                                  : Colors.red,
+                                  ? _cashFlowInflowColor(theme)
+                                  : _cashFlowOutflowColor(theme),
                             ),
                             const Divider(height: 1),
                           ],
@@ -485,7 +574,7 @@ class ContractDetailsPanel extends ConsumerWidget {
                     totalWidth,
                     rowHeight,
                     theme,
-                    valueColor: Colors.green,
+                    valueColor: _cashFlowInflowColor(theme),
                     isTotalColumn: true,
                   ),
                   const Divider(height: 1),
@@ -494,7 +583,7 @@ class ContractDetailsPanel extends ConsumerWidget {
                     totalWidth,
                     rowHeight,
                     theme,
-                    valueColor: Colors.red,
+                    valueColor: _cashFlowOutflowColor(theme),
                     isTotalColumn: true,
                   ),
                   const Divider(height: 1, thickness: 1),
@@ -504,7 +593,9 @@ class ContractDetailsPanel extends ConsumerWidget {
                     rowHeight,
                     theme,
                     isBold: true,
-                    valueColor: totalBalance >= 0 ? Colors.green : Colors.red,
+                    valueColor: totalBalance >= 0
+                        ? _cashFlowInflowColor(theme)
+                        : _cashFlowOutflowColor(theme),
                     isTotalColumn: true,
                   ),
                   const Divider(height: 1),
@@ -550,9 +641,9 @@ class ContractDetailsPanel extends ConsumerWidget {
           color: isHeader
               ? (isTotalColumn
                     ? theme.colorScheme.primary
-                    : theme.colorScheme.onSurface.withValues(alpha: 0.5))
-              : valueColor,
-          fontSize: isHeader ? 11 : (isTotalColumn ? 12 : 11),
+                    : theme.colorScheme.onSurface.withValues(alpha: 0.55))
+              : (valueColor ?? theme.colorScheme.onSurface),
+          fontSize: isHeader ? 12 : 13,
         ),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
@@ -565,169 +656,6 @@ class ContractDetailsPanel extends ConsumerWidget {
       width: 1,
       height: height,
       color: theme.colorScheme.outline.withValues(alpha: 0.1),
-    );
-  }
-
-  Widget _buildAddendumsSection(ThemeData theme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Expanded(
-              child: GTSectionTitle(title: 'Дополнительные соглашения'),
-            ),
-            PermissionGuard(
-              module: 'contracts',
-              permission: 'update',
-              child: CupertinoButton(
-                padding: EdgeInsets.zero,
-                onPressed: () {
-                  // TODO: Реализовать создание ДС
-                },
-                child: const Icon(CupertinoIcons.plus_circle, size: 20),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        _buildAddendumRow(
-          '1',
-          '15.01.2024',
-          'Продление срока выполнения работ до 31.12.2024',
-          null,
-          theme,
-        ),
-        _buildAddendumRow(
-          '2',
-          '20.02.2024',
-          'Увеличение суммы договора (доп. работы по 2 этажу)',
-          150000,
-          theme,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAddendumRow(
-    String number,
-    String date,
-    String description,
-    double? amount,
-    ThemeData theme,
-  ) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                CupertinoIcons.doc_append,
-                size: 18,
-                color: theme.colorScheme.primary.withValues(alpha: 0.6),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Доп. соглашение №$number',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          date,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface.withValues(
-                              alpha: 0.5,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      description,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withValues(
-                          alpha: 0.7,
-                        ),
-                      ),
-                    ),
-                    if (amount != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        '+ ${formatCurrency(amount)}',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: Colors.green,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CupertinoButton(
-                    padding: EdgeInsets.zero,
-                    onPressed: () {},
-                    child: const Icon(
-                      CupertinoIcons.eye,
-                      size: 18,
-                      color: Colors.blue,
-                    ),
-                  ),
-                  PermissionGuard(
-                    module: 'contracts',
-                    permission: 'update',
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        CupertinoButton(
-                          padding: EdgeInsets.zero,
-                          onPressed: () {},
-                          child: const Icon(
-                            CupertinoIcons.pencil,
-                            size: 18,
-                            color: Colors.amber,
-                          ),
-                        ),
-                        CupertinoButton(
-                          padding: EdgeInsets.zero,
-                          onPressed: () {},
-                          child: Icon(
-                            CupertinoIcons.trash,
-                            size: 18,
-                            color: theme.colorScheme.error,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        Divider(
-          height: 1,
-          thickness: 0.5,
-          indent: 40,
-          endIndent: 12,
-          color: theme.colorScheme.outline.withValues(alpha: 0.08),
-        ),
-      ],
     );
   }
 
@@ -793,15 +721,15 @@ class ContractDetailsPanel extends ConsumerWidget {
     String statusText;
     switch (status) {
       case 'paid':
-        statusColor = Colors.green;
+        statusColor = _cashFlowInflowColor(theme);
         statusText = 'Оплачен';
         break;
       case 'signed':
-        statusColor = Colors.blue;
+        statusColor = _infoAccentColor(theme);
         statusText = 'Подписан';
         break;
       default:
-        statusColor = Colors.orange;
+        statusColor = _draftStatusColor(theme);
         statusText = 'Черновик';
     }
 
@@ -873,10 +801,10 @@ class ContractDetailsPanel extends ConsumerWidget {
                   CupertinoButton(
                     padding: EdgeInsets.zero,
                     onPressed: () {},
-                    child: const Icon(
+                    child: Icon(
                       CupertinoIcons.eye,
                       size: 18,
-                      color: Colors.blue,
+                      color: _infoAccentColor(theme),
                     ),
                   ),
                   PermissionGuard(

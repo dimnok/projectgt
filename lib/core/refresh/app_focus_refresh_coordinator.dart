@@ -3,9 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'refresh_models.dart';
 
 /// Координатор автоматического обновления данных при возврате приложения в фокус.
-/// 
-/// Позволяет регистрировать цели [RefreshTarget], которые будут автоматически 
-/// обновляться (через callback) при возврате пользователя в приложение, 
+///
+/// Позволяет регистрировать цели [RefreshTarget], которые будут автоматически
+/// обновляться (через callback) при возврате пользователя в приложение,
 /// если истекло время TTL (по умолчанию 5 минут).
 class AppFocusRefreshCoordinator extends StateNotifier<RefreshState> {
   final Ref _ref;
@@ -15,7 +15,7 @@ class AppFocusRefreshCoordinator extends StateNotifier<RefreshState> {
   AppFocusRefreshCoordinator(this._ref) : super(const RefreshState());
 
   /// Регистрирует новую цель для обновления.
-  /// 
+  ///
   /// Если цель с таким [target.id] уже существует, она будет перезаписана.
   void registerTarget(RefreshTarget target) {
     _targets[target.id] = target;
@@ -24,16 +24,16 @@ class AppFocusRefreshCoordinator extends StateNotifier<RefreshState> {
   /// Удаляет регистрацию цели по её [id].
   void unregisterTarget(String id) {
     if (!_targets.containsKey(id)) return;
-    
+
     _targets.remove(id);
-    
+
     // Обновляем состояние асинхронно, чтобы избежать ошибок при вызове из dispose()
     Future.microtask(() {
       if (!mounted) return;
 
       final newLastRun = Map<String, DateTime>.from(state.lastRunByTargetUtc);
       newLastRun.remove(id);
-      
+
       final newVisibleIds = Set<String>.from(state.visibleTargetIds);
       newVisibleIds.remove(id);
 
@@ -45,14 +45,14 @@ class AppFocusRefreshCoordinator extends StateNotifier<RefreshState> {
   }
 
   /// Помечает цель как видимую или скрытую.
-  /// 
-  /// Используется для целей с флагом `visibleOnly: true`. 
+  ///
+  /// Используется для целей с флагом `visibleOnly: true`.
   /// Обновление таких целей будет запущено только если они помечены как видимые.
   void markTargetVisible(String id, bool visible) {
     // Обновляем состояние асинхронно, так как это может вызываться во время сборки кадра
     Future.microtask(() {
       if (!mounted) return;
-      
+
       final newVisibleIds = Set<String>.from(state.visibleTargetIds);
       if (visible) {
         newVisibleIds.add(id);
@@ -64,7 +64,7 @@ class AppFocusRefreshCoordinator extends StateNotifier<RefreshState> {
   }
 
   /// Обрабатывает событие возврата приложения из фонового режима (или перехода в фокус).
-  /// 
+  ///
   /// Проверяет все зарегистрированные цели, соблюдает их TTL и visibleOnly ограничения.
   /// Предотвращает параллельный запуск нескольких циклов обновления.
   Future<void> handleAppResumed() async {
@@ -72,18 +72,15 @@ class AppFocusRefreshCoordinator extends StateNotifier<RefreshState> {
     if (state.isRefreshing) return;
 
     final nowUtc = DateTime.now().toUtc();
-    state = state.copyWith(
-      isRefreshing: true,
-      lastAppResumeAtUtc: nowUtc,
-    );
+    state = state.copyWith(isRefreshing: true, lastAppResumeAtUtc: nowUtc);
 
     try {
       final startTime = DateTime.now();
-      
+
       // Отбираем цели, которые требуют обновления
       final targetsToRefresh = _targets.values.where((target) {
         if (!target.enabled) return false;
-        
+
         // Если цель требует видимости, проверяем, помечена ли она как видимая
         if (target.visibleOnly && !state.visibleTargetIds.contains(target.id)) {
           return false;
@@ -115,7 +112,7 @@ class AppFocusRefreshCoordinator extends StateNotifier<RefreshState> {
         try {
           // Выполняем обновление через предоставленный callback
           await target.callback(_ref);
-          
+
           // Проверяем еще раз после await
           if (!_targets.containsKey(target.id)) continue;
 
@@ -147,5 +144,5 @@ class AppFocusRefreshCoordinator extends StateNotifier<RefreshState> {
 /// Провайдер координатора обновления данных при фокусе.
 final appFocusRefreshProvider =
     StateNotifierProvider<AppFocusRefreshCoordinator, RefreshState>((ref) {
-  return AppFocusRefreshCoordinator(ref);
-});
+      return AppFocusRefreshCoordinator(ref);
+    });

@@ -1,5 +1,3 @@
-import 'package:projectgt/domain/repositories/employee_repository.dart';
-import 'package:projectgt/features/objects/domain/repositories/object_repository.dart';
 import '../../domain/entities/employee_attendance_entry.dart';
 import '../../domain/repositories/employee_attendance_repository.dart';
 import '../datasources/employee_attendance_data_source.dart';
@@ -7,23 +5,13 @@ import '../models/employee_attendance_model.dart';
 
 /// Реализация репозитория для работы с посещаемостью сотрудников.
 ///
-/// Выполняет обогащение данных именами сотрудников и названиями объектов.
+/// Делегирует чтение/запись [EmployeeAttendanceDataSource], маппинг в доменные сущности.
 class EmployeeAttendanceRepositoryImpl implements EmployeeAttendanceRepository {
   /// Источник данных для посещаемости.
   final EmployeeAttendanceDataSource dataSource;
 
-  /// Репозиторий сотрудников для обогащения данных.
-  final EmployeeRepository employeeRepository;
-
-  /// Репозиторий объектов для обогащения данных.
-  final ObjectRepository objectRepository;
-
   /// Создает экземпляр [EmployeeAttendanceRepositoryImpl].
-  EmployeeAttendanceRepositoryImpl({
-    required this.dataSource,
-    required this.employeeRepository,
-    required this.objectRepository,
-  });
+  EmployeeAttendanceRepositoryImpl({required this.dataSource});
 
   @override
   Future<List<EmployeeAttendanceEntry>> getAttendanceRecords({
@@ -78,7 +66,6 @@ class EmployeeAttendanceRepositoryImpl implements EmployeeAttendanceRepository {
         entries.map((e) => employeeAttendanceModelFromDomain(e)).toList();
     await dataSource.batchUpsertAttendance(models);
 
-    // Возвращаем обогащённые записи
     return getAttendanceRecords(
       employeeId: entries.first.employeeId,
       objectId: entries.first.objectId,

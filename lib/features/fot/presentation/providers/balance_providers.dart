@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:developer' as developer;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
@@ -34,7 +36,13 @@ final employeeAggregatedBalanceProvider =
     }
 
     return balance;
-  } catch (e) {
+  } catch (e, stackTrace) {
+    developer.log(
+      'Failed to load aggregated employee balances',
+      name: 'fot.employeeAggregatedBalanceProvider',
+      error: e,
+      stackTrace: stackTrace,
+    );
     return <String, double>{};
   }
 });
@@ -55,7 +63,13 @@ final singleEmployeeBalanceProvider =
       'p_company_id': activeCompanyId,
     });
     return (response as num?)?.toDouble() ?? 0.0;
-  } catch (e) {
+  } catch (e, stackTrace) {
+    developer.log(
+      'Failed to load single employee balance (employee=$employeeId)',
+      name: 'fot.singleEmployeeBalanceProvider',
+      error: e,
+      stackTrace: stackTrace,
+    );
     return 0.0;
   }
 });
@@ -93,7 +107,13 @@ final employeeBalanceAtDateProvider =
     }
 
     return balance;
-  } catch (e) {
+  } catch (e, stackTrace) {
+    developer.log(
+      'Failed to load employee balances at date (date=$date)',
+      name: 'fot.employeeBalanceAtDateProvider',
+      error: e,
+      stackTrace: stackTrace,
+    );
     return <String, double>{};
   }
 });

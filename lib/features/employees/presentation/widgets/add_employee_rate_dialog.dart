@@ -10,6 +10,7 @@ import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/gt_text_field.dart';
 import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
 import 'package:projectgt/domain/entities/employee.dart';
+import 'package:projectgt/domain/entities/employee_rate.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employees_mobile_atmosphere.dart';
 import 'package:projectgt/presentation/state/employee_state.dart' as employee_state;
 
@@ -104,11 +105,44 @@ class _AddEmployeeRateDialogState extends ConsumerState<AddEmployeeRateDialog> {
       return;
     }
 
+    final validFromDate =
+        DateTime(_validFrom.year, _validFrom.month, _validFrom.day);
+
+    // Перед сохранением — проверка пересечений с уже существующими ставками.
+    final repository = ref.read(employeeRateRepositoryProvider);
+    List<EmployeeRate> overlapping;
+    try {
+      overlapping = await repository.findOverlappingRates(
+        widget.employee.id,
+        validFromDate,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      SnackBarUtils.showError(
+        context,
+        'Не удалось проверить существующие ставки: $e',
+      );
+      return;
+    }
+
+    if (!mounted) return;
+
+    if (overlapping.isNotEmpty) {
+      final confirmed = await _confirmOverlap(
+        context,
+        overlapping: overlapping,
+        newValidFrom: validFromDate,
+        newRate: newRate,
+      );
+      if (confirmed != true) return;
+      if (!mounted) return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
       final setRateUseCase = ref.read(setEmployeeRateUseCaseProvider);
-      await setRateUseCase(widget.employee.id, newRate, _validFrom);
+      await setRateUseCase(widget.employee.id, newRate, validFromDate);
 
       ref.invalidate(getEmployeeRatesUseCaseProvider);
       await ref
@@ -132,6 +166,103 @@ class _AddEmployeeRateDialogState extends ConsumerState<AddEmployeeRateDialog> {
 
   void _unfocus() {
     FocusManager.instance.primaryFocus?.unfocus();
+  }
+
+  /// Показывает диалог подтверждения с перечнем пересекающихся ставок
+  /// и описанием действия для каждой.
+  Future<bool?> _confirmOverlap(
+    BuildContext context, {
+    required List<EmployeeRate> overlapping,
+    required DateTime newValidFrom,
+    required double newRate,
+  }) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final dayBefore = newValidFrom.subtract(const Duration(days: 1));
+
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Найдены пересекающиеся ставки'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Новая ставка ${newRate.toStringAsFixed(0)} ₽/час '
+                  'с ${formatRuDate(newValidFrom)} пересекается '
+                  'со следующими записями:',
+                  style: theme.textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 12),
+                ...overlapping.map((rate) {
+                  final existingFrom = DateTime(
+                    rate.validFrom.year,
+                    rate.validFrom.month,
+                    rate.validFrom.day,
+                  );
+                  final periodText = rate.validTo == null
+                      ? 'с ${formatRuDate(rate.validFrom)} (открытая)'
+                      : 'с ${formatRuDate(rate.validFrom)} '
+                          'по ${formatRuDate(rate.validTo!)}';
+                  String actionText;
+                  if (existingFrom.isAtSameMomentAs(newValidFrom)) {
+                    actionText = '→ будет заменена';
+                  } else if (existingFrom.isBefore(newValidFrom)) {
+                    actionText =
+                        '→ будет закрыта ${formatRuDate(dayBefore)}';
+                  } else {
+                    actionText = '→ будет удалена';
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '• ${rate.hourlyRate.toStringAsFixed(0)} ₽/час, '
+                          '$periodText',
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 12, top: 2),
+                          child: Text(
+                            actionText,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: scheme.primary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+                const SizedBox(height: 8),
+                Text(
+                  'Продолжить?',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Отмена'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Подтвердить и сохранить'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Widget _validFromDateRow(BuildContext context) {
@@ -200,7 +331,9 @@ class _AddEmployeeRateDialogState extends ConsumerState<AddEmployeeRateDialog> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'Новая ставка закроет предыдущую (если она была) и начнёт действовать с указанной даты.',
+          'Новая ставка начнёт действовать с указанной даты. '
+          'Если она пересекается с уже существующими ставками, '
+          'вам будет показан список изменений до сохранения.',
           style: TextStyle(
             color: Theme.of(context).colorScheme.onSurface.withValues(
                   alpha: 0.6,

@@ -91,6 +91,7 @@ class WorkDataSourceImpl implements WorkDataSource {
 
       // КРИТИЧНО: Удаляем агрегатные поля, которые управляются триггерами БД.
       workJson.remove('total_amount');
+      workJson.remove('own_total_amount');
       workJson.remove('items_count');
       workJson.remove('employees_count');
 
@@ -134,11 +135,15 @@ class WorkDataSourceImpl implements WorkDataSource {
 
   /// Возвращает заголовки групп месяцев с агрегированными данными.
   @override
-  Future<List<MonthGroup>> getMonthsHeaders() async {
+  Future<List<MonthGroup>> getMonthsHeaders({String? openedBy}) async {
     try {
-      final response = await client.rpc('get_months_summary', params: {
+      final params = <String, dynamic>{
         'p_company_id': activeCompanyId,
-      });
+      };
+      if (openedBy != null) {
+        params['p_opened_by'] = openedBy;
+      }
+      final response = await client.rpc('get_months_summary', params: params);
 
       final groups = (response as List).map<MonthGroup>((json) {
         final month = DateTime.parse(json['month'] as String);
@@ -167,17 +172,22 @@ class WorkDataSourceImpl implements WorkDataSource {
     DateTime month, {
     int offset = 0,
     int limit = 30,
+    String? openedBy,
   }) async {
     try {
       final startDate = DateTime(month.year, month.month, 1);
       final endDate = DateTime(month.year, month.month + 1, 1);
 
-      final response = await client
+      var query = client
           .from(table)
           .select('*')
           .eq('company_id', activeCompanyId)
           .gte('date', startDate.toIso8601String())
-          .lt('date', endDate.toIso8601String())
+          .lt('date', endDate.toIso8601String());
+      if (openedBy != null) {
+        query = query.eq('opened_by', openedBy);
+      }
+      final response = await query
           .order('date', ascending: false)
           .range(offset, offset + limit - 1);
 

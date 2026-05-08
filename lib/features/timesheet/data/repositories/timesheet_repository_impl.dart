@@ -1,11 +1,18 @@
 import 'package:projectgt/domain/repositories/employee_repository.dart';
 import 'package:projectgt/features/objects/domain/repositories/object_repository.dart';
 import 'package:projectgt/domain/entities/employee.dart';
-import 'package:projectgt/features/objects/domain/entities/object.dart' as project_object;
 import '../../domain/entities/timesheet_entry.dart';
 import '../../domain/repositories/timesheet_repository.dart';
 import '../../domain/repositories/employee_attendance_repository.dart';
 import '../datasources/timesheet_data_source.dart';
+
+/// ФИО для отображения в табеле — тот же формат, что в календаре ([Employee]).
+String _timesheetEmployeeDisplayName(Employee employee) {
+  if (employee.middleName != null && employee.middleName!.isNotEmpty) {
+    return '${employee.lastName} ${employee.firstName} ${employee.middleName}';
+  }
+  return '${employee.lastName} ${employee.firstName}';
+}
 
 /// Реализация репозитория для работы с табелем рабочего времени.
 ///
@@ -88,22 +95,13 @@ class TimesheetRepositoryImpl implements TimesheetRepository {
 
     // Объединяем активных и уволенных с часами
     final employees = [...activeEmployees, ...firedEmployeesWithHours];
+    final employeesById = {for (final e in employees) e.id: e};
+    final objectsById = {for (final o in objects) o.id: o};
 
     // 5. Преобразуем записи из смен
     final workTimesheetEntries = workEntries.map((entry) {
-      Employee? employee;
-      try {
-        employee = employees.firstWhere((e) => e.id == entry['employee_id']);
-      } catch (_) {
-        employee = null;
-      }
-
-      project_object.ObjectEntity? object;
-      try {
-        object = objects.firstWhere((o) => o.id == entry['object_id']);
-      } catch (_) {
-        object = null;
-      }
+      final employee = employeesById[entry['employee_id'] as String];
+      final object = objectsById[entry['object_id'] as String];
 
       return TimesheetEntry(
         id: entry['id'],
@@ -114,9 +112,7 @@ class TimesheetRepositoryImpl implements TimesheetRepository {
         date: DateTime.parse(entry['date']),
         objectId: entry['object_id'],
         employeeName: employee != null
-            ? employee.middleName != null && employee.middleName!.isNotEmpty
-                ? '${employee.lastName} ${employee.firstName} ${employee.middleName}'
-                : '${employee.lastName} ${employee.firstName}'
+            ? _timesheetEmployeeDisplayName(employee)
             : 'Сотрудник #${entry['employee_id']}',
         employeePosition: employee?.position ?? entry['employee_position'],
         objectName: object?.name ?? 'Объект #${entry['object_id']}',
@@ -129,8 +125,11 @@ class TimesheetRepositoryImpl implements TimesheetRepository {
       );
     }).toList();
 
-    // 6. Преобразуем записи из посещаемости в TimesheetEntry
+    // 6. Преобразуем записи из посещаемости в TimesheetEntry (ФИО как у смен — из [employees])
     final attendanceTimesheetEntries = attendanceEntries.map((entry) {
+      final employee = employeesById[entry.employeeId];
+      final object = objectsById[entry.objectId];
+
       return TimesheetEntry(
         id: entry.id,
         workId: entry.id, // Используем ID записи посещаемости
@@ -139,9 +138,12 @@ class TimesheetRepositoryImpl implements TimesheetRepository {
         comment: entry.comment,
         date: entry.date,
         objectId: entry.objectId,
-        employeeName: entry.employeeName ?? 'Сотрудник #${entry.employeeId}',
-        employeePosition: entry.employeePosition,
-        objectName: entry.objectName ?? 'Объект #${entry.objectId}',
+        employeeName: employee != null
+            ? _timesheetEmployeeDisplayName(employee)
+            : entry.employeeName ?? 'Сотрудник #${entry.employeeId}',
+        employeePosition: employee?.position ?? entry.employeePosition,
+        objectName:
+            object?.name ?? entry.objectName ?? 'Объект #${entry.objectId}',
         createdAt: entry.createdAt,
         updatedAt: entry.updatedAt,
         isManualEntry: true, // Помечаем как ручной ввод

@@ -104,11 +104,6 @@ class ContractFilesNotifier extends StateNotifier<ContractFilesState> {
     }
   }
 
-  /// Получает URL для скачивания файла.
-  Future<String> getDownloadUrl(String filePath, String originalName) async {
-    return await repository.getDownloadUrl(filePath, originalName);
-  }
-
   /// Скачивает файл и возвращает его содержимое в виде списка байтов.
   Future<List<int>> downloadFile(String filePath) async {
     return await repository.downloadFile(filePath);

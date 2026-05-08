@@ -47,7 +47,6 @@ import 'package:projectgt/data/datasources/contract_data_source.dart';
 import 'package:projectgt/data/repositories/contract_repository_impl.dart';
 import 'package:projectgt/domain/repositories/contract_repository.dart';
 import 'package:projectgt/domain/usecases/contract/get_contracts_usecase.dart';
-import 'package:projectgt/domain/usecases/contract/get_contract_usecase.dart';
 import 'package:projectgt/domain/usecases/contract/create_contract_usecase.dart';
 import 'package:projectgt/domain/usecases/contract/update_contract_usecase.dart';
 import 'package:projectgt/domain/usecases/contract/delete_contract_usecase.dart';
@@ -188,10 +187,12 @@ final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
 });
 
 /// Провайдер репозитория сотрудников.
+///
+/// `company_id` теперь целиком инкапсулирован в [employeeDataSourceProvider],
+/// поэтому репозиторий не зависит от него напрямую.
 final employeeRepositoryProvider = Provider<EmployeeRepository>((ref) {
   final dataSource = ref.watch(employeeDataSourceProvider);
-  final activeCompanyId = ref.watch(activeCompanyIdProvider);
-  return EmployeeRepositoryImpl(dataSource, activeCompanyId ?? '');
+  return EmployeeRepositoryImpl(dataSource);
 });
 
 /// Провайдер репозитория объектов.
@@ -403,12 +404,6 @@ final getContractsUseCaseProvider = Provider<GetContractsUseCase>((ref) {
   return GetContractsUseCase(repository);
 });
 
-/// Провайдер use-case для получения договора.
-final getContractUseCaseProvider = Provider<GetContractUseCase>((ref) {
-  final repository = ref.watch(contractRepositoryProvider);
-  return GetContractUseCase(repository);
-});
-
 /// Провайдер use-case для создания договора.
 final createContractUseCaseProvider = Provider<CreateContractUseCase>((ref) {
   final repository = ref.watch(contractRepositoryProvider);
@@ -578,7 +573,6 @@ final contractProvider = StateNotifierProvider<ContractNotifier, ContractState>(
 
     return ContractNotifier(
       getContractsUseCase: ref.watch(getContractsUseCaseProvider),
-      getContractUseCase: ref.watch(getContractUseCaseProvider),
       createContractUseCase: ref.watch(createContractUseCaseProvider),
       updateContractUseCase: ref.watch(updateContractUseCaseProvider),
       deleteContractUseCase: ref.watch(deleteContractUseCaseProvider),

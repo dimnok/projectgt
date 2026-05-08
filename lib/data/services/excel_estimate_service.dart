@@ -351,22 +351,9 @@ class ExcelEstimateService {
             systems.add(system);
           }
 
-          // Суммируем общую стоимость
-          final totalCell = row[9]?.value;
-          if (totalCell != null) {
-            if (totalCell is DoubleCellValue) {
-              totalAmount += totalCell.value;
-            } else if (totalCell is IntCellValue) {
-              totalAmount += totalCell.value.toDouble();
-            } else {
-              String totalStr = totalCell
-                  .toString()
-                  // ignore: deprecated_member_use
-                  .replaceAll(RegExp(r'\s+'), '')
-                  .replaceAll(',', '.');
-              totalAmount += double.tryParse(totalStr) ?? 0;
-            }
-          }
+          // Итог по смете: кол-во × цена (колонка «Сумма» может быть формулой).
+          final lineTotal = _cellToDouble(row[7]) * _cellToDouble(row[8]);
+          totalAmount += lineTotal;
         }
       }
 
@@ -395,6 +382,9 @@ class ExcelEstimateService {
   /// [objectId] — идентификатор объекта.
   /// [contractId] — идентификатор договора.
   /// [estimateTitle] — название сметы.
+  /// Сумма в результате импорта: всегда количество × цена. Колонку «Сумма»
+  /// в файле не читаем (в ячейке часто формула; библиотека excel не отдаёт
+  /// вычисленное значение).
   /// Возвращает объект EstimateModel или null, если строка недействительна.
   static dynamic rowToEstimateModel(
     List<Data?> row,
@@ -442,30 +432,9 @@ class ExcelEstimateService {
         }
       }
 
-      final priceStr = row[8]?.value?.toString() ?? '0';
-      final totalStr = row[9]?.value?.toString() ?? '0';
-
-      String clean(String value) =>
-          // ignore: deprecated_member_use
-          value.replaceAll(RegExp(r'\s+'), '').replaceAll(',', '.');
-      final cleanPrice = clean(priceStr);
-      final cleanTotal = clean(totalStr);
-
-      // Преобразуем строки в числа для quantity, price и total
-      double quantity = 0;
-      if (row[7]?.value != null) {
-        final cellValue = row[7]!.value;
-        if (cellValue != null) {
-          if (cellValue is DoubleCellValue) {
-            quantity = cellValue.value;
-          } else if (cellValue is IntCellValue) {
-            quantity = cellValue.value.toDouble();
-          } else {
-            final rawStr = cellValue.toString().trim();
-            quantity = double.tryParse(clean(rawStr)) ?? 0;
-          }
-        }
-      }
+      final price = _cellToDouble(row[8]);
+      final quantity = _cellToDouble(row[7]);
+      final total = quantity * price;
 
       // Здесь вернем Map с данными для создания EstimateModel
       return {
@@ -477,8 +446,8 @@ class ExcelEstimateService {
         'manufacturer': row[5]?.value.toString() ?? '',
         'unit': row[6]?.value.toString() ?? '',
         'quantity': quantity,
-        'price': double.tryParse(cleanPrice) ?? 0,
-        'total': double.tryParse(cleanTotal) ?? 0,
+        'price': price,
+        'total': total,
         'objectId': objectId,
         'contractId': contractId,
         'estimateTitle': estimateTitle,
@@ -487,5 +456,18 @@ class ExcelEstimateService {
       debugPrint('Ошибка при обработке строки Excel: $e');
       return null;
     }
+  }
+
+  static String _cleanNumericString(String value) {
+    // ignore: deprecated_member_use
+    return value.replaceAll(RegExp(r'\s+'), '').replaceAll(',', '.');
+  }
+
+  static double _cellToDouble(Data? cell) {
+    if (cell?.value == null) return 0;
+    final v = cell!.value!;
+    if (v is DoubleCellValue) return v.value;
+    if (v is IntCellValue) return v.value.toDouble();
+    return double.tryParse(_cleanNumericString(v.toString().trim())) ?? 0;
   }
 }

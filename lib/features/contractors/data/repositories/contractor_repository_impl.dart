@@ -29,15 +29,17 @@ class ContractorRepositoryImpl implements ContractorRepository {
 
   @override
   Future<Contractor> createContractor(Contractor contractor) async {
-    final model = await dataSource
-        .createContractor(ContractorModel.fromDomain(contractor));
+    final model = await dataSource.createContractor(
+      ContractorModel.fromDomain(contractor),
+    );
     return model.toDomain();
   }
 
   @override
   Future<Contractor> updateContractor(Contractor contractor) async {
-    final model = await dataSource
-        .updateContractor(ContractorModel.fromDomain(contractor));
+    final model = await dataSource.updateContractor(
+      ContractorModel.fromDomain(contractor),
+    );
     return model.toDomain();
   }
 
@@ -47,26 +49,45 @@ class ContractorRepositoryImpl implements ContractorRepository {
   }
 
   @override
-  Future<List<ContractorBankAccount>> getBankAccounts(String contractorId, String companyId) async {
+  Future<List<ContractorBankAccount>> getBankAccounts(
+    String contractorId,
+    String companyId,
+  ) async {
     final models = await dataSource.getBankAccounts(contractorId, companyId);
     return models.map((m) => m.toDomain()).toList();
   }
 
   @override
-  Future<ContractorBankAccount> addBankAccount(ContractorBankAccount account) async {
+  Future<ContractorBankAccount> addBankAccount(
+    ContractorBankAccount account,
+  ) async {
     if (account.isPrimary) {
-      await _ensureOnlyOnePrimary(account.contractorId, account.companyId, null);
+      await _ensureOnlyOnePrimary(
+        account.contractorId,
+        account.companyId,
+        null,
+      );
     }
-    final model = await dataSource.addBankAccount(ContractorBankAccountModel.fromDomain(account));
+    final model = await dataSource.addBankAccount(
+      ContractorBankAccountModel.fromDomain(account),
+    );
     return model.toDomain();
   }
 
   @override
-  Future<ContractorBankAccount> updateBankAccount(ContractorBankAccount account) async {
+  Future<ContractorBankAccount> updateBankAccount(
+    ContractorBankAccount account,
+  ) async {
     if (account.isPrimary) {
-      await _ensureOnlyOnePrimary(account.contractorId, account.companyId, account.id);
+      await _ensureOnlyOnePrimary(
+        account.contractorId,
+        account.companyId,
+        account.id,
+      );
     }
-    final model = await dataSource.updateBankAccount(ContractorBankAccountModel.fromDomain(account));
+    final model = await dataSource.updateBankAccount(
+      ContractorBankAccountModel.fromDomain(account),
+    );
     return model.toDomain();
   }
 
@@ -75,7 +96,11 @@ class ContractorRepositoryImpl implements ContractorRepository {
     await dataSource.deleteBankAccount(id);
   }
 
-  Future<void> _ensureOnlyOnePrimary(String contractorId, String companyId, String? excludeId) async {
+  Future<void> _ensureOnlyOnePrimary(
+    String contractorId,
+    String companyId,
+    String? excludeId,
+  ) async {
     final accounts = await dataSource.getBankAccounts(contractorId, companyId);
     for (final account in accounts) {
       if (account.isPrimary && account.id != excludeId) {

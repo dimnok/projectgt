@@ -24,11 +24,6 @@ abstract class ContractFileRepository {
   /// Требует [fileId] (ID записи в БД) и [filePath] (путь к файлу в хранилище).
   Future<void> deleteFile(String fileId, String filePath);
 
-  /// Генерирует временную публичную ссылку для скачивания файла.
-  ///
-  /// Принимает [filePath] в хранилище и [originalName] для подстановки в заголовок ответа.
-  Future<String> getDownloadUrl(String filePath, String originalName);
-
   /// Скачивает содержимое файла в виде списка байтов.
   ///
   /// Используется для прямого доступа к данным файла по его [filePath].

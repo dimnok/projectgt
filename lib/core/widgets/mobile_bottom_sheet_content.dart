@@ -17,7 +17,15 @@ import 'package:flutter/material.dart';
 /// - У [CustomScrollView] при отсутствии своего [scrollController] включается
 ///   [ScrollView.primary], чтобы [TextField.scrollPadding] / `ensureVisible` находили скролл.
 /// - [ScrollViewKeyboardDismissBehavior.onDrag] — смахивание скролла скрывает клавиатуру.
+/// - При [scrollable] == false область «padding + child + footer» в [ListView] с
+///   [ListView.shrinkWrap] — высота листа по контенту до [maxHeightFactor], при
+///   переполнении прокрутка внутри области между заголовком и низом листа.
 /// - [sheetBackdrop] — опциональная подложка внутри скругления (прозрачный фон листа).
+/// - [fixedFooter]: заголовок листа и [footer] закреплены; высота листа по контенту
+///   (до [maxHeightFactor]), область [child] ограничена по остатку высоты — для
+///   [CustomScrollView] задайте [ScrollView.shrinkWrap] = true, чтобы короткий контент
+///   не растягивал лист на весь экран. Параметр [scrollable] при [fixedFooter] == true не
+///   используется.
 ///
 /// Важно: При вызове [showModalBottomSheet] используйте `isScrollControlled: true`
 /// и при необходимости `useSafeArea: true`.
@@ -71,6 +79,12 @@ class MobileBottomSheetContent extends StatelessWidget {
   /// подложка (например атмосфера экрана сотрудников).
   final Widget? sheetBackdrop;
 
+  /// Закрепить [footer] снизу листа; [child] — скролл между заголовком и футером.
+  ///
+  /// Высота листа подстраивается под контент (в пределах [maxHeightFactor]). При `true`
+  /// ветка [scrollable] не применяется — скролл только внутри [child].
+  final bool fixedFooter;
+
   /// Создаёт содержимое модального окна.
   const MobileBottomSheetContent({
     super.key,
@@ -82,6 +96,7 @@ class MobileBottomSheetContent extends StatelessWidget {
     this.scrollable = true,
     this.maxHeightFactor = 0.92,
     this.sheetBackdrop,
+    this.fixedFooter = false,
   });
 
   static void _unfocusKeyboard() {
@@ -158,6 +173,39 @@ class MobileBottomSheetContent extends StatelessWidget {
       );
     }
 
+    final resolvedPadding = padding.resolve(Directionality.of(context));
+
+    if (fixedFooter) {
+      final footerPadded = footer == null
+          ? null
+          : Padding(
+              padding: EdgeInsets.fromLTRB(
+                resolvedPadding.left,
+                16,
+                resolvedPadding.right,
+                8 + resolvedPadding.bottom,
+              ),
+              child: footer!,
+            );
+      return AnimatedPadding(
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOutCubic,
+        padding: EdgeInsets.only(bottom: keyboardBottom),
+        child: widthSizedSheet(
+          ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: maxSheetHeight),
+            child: _FixedFooterSheetLayout(
+              maxSheetHeight: maxSheetHeight,
+              titleWidget: titleWidget,
+              scrollPadding: padding,
+              footer: footerPadded,
+              child: child,
+            ),
+          ),
+        ),
+      );
+    }
+
     if (scrollable) {
       return AnimatedPadding(
         duration: const Duration(milliseconds: 120),
@@ -171,8 +219,7 @@ class MobileBottomSheetContent extends StatelessWidget {
               primary: scrollController == null,
               shrinkWrap: true,
               physics: const ClampingScrollPhysics(),
-              keyboardDismissBehavior:
-                  ScrollViewKeyboardDismissBehavior.onDrag,
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               slivers: [
                 SliverToBoxAdapter(child: titleWidget),
                 SliverPadding(
@@ -216,26 +263,104 @@ class MobileBottomSheetContent extends StatelessWidget {
               titleWidget,
               Flexible(
                 fit: FlexFit.loose,
-                child: Padding(
+                child: ListView(
+                  shrinkWrap: true,
+                  primary: false,
+                  physics: const ClampingScrollPhysics(),
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
                   padding: padding,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      child,
-                      if (footer != null) ...[
-                        const SizedBox(height: 24),
-                        footer!,
-                      ],
-                      const SizedBox(height: 8),
+                  children: [
+                    child,
+                    if (footer != null) ...[
+                      const SizedBox(height: 24),
+                      footer!,
                     ],
-                  ),
+                    const SizedBox(height: 8),
+                  ],
                 ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Лист с фиксированным футером: высота по контенту, скролл только в середине.
+class _FixedFooterSheetLayout extends StatefulWidget {
+  /// Создаёт раскладку «заголовок — скролл — футер».
+  const _FixedFooterSheetLayout({
+    required this.maxSheetHeight,
+    required this.titleWidget,
+    required this.scrollPadding,
+    required this.child,
+    this.footer,
+  });
+
+  final double maxSheetHeight;
+  final Widget titleWidget;
+  final EdgeInsetsGeometry scrollPadding;
+  final Widget child;
+  final Widget? footer;
+
+  @override
+  State<_FixedFooterSheetLayout> createState() => _FixedFooterSheetLayoutState();
+}
+
+class _FixedFooterSheetLayoutState extends State<_FixedFooterSheetLayout> {
+  final GlobalKey _titleKey = GlobalKey();
+  final GlobalKey _footerKey = GlobalKey();
+
+  /// Сумма высот заголовка, футера и вертикальных отступов вокруг скролла.
+  double _chromeHeight = 192;
+
+  static const double _minScrollExtent = 120;
+
+  void _measureChrome() {
+    if (!mounted) return;
+    final titleBox =
+        _titleKey.currentContext?.findRenderObject() as RenderBox?;
+    final footerBox =
+        _footerKey.currentContext?.findRenderObject() as RenderBox?;
+    final pad = widget.scrollPadding.resolve(Directionality.of(context));
+    var sum = pad.top + pad.bottom;
+    if (titleBox != null && titleBox.hasSize) {
+      sum += titleBox.size.height;
+    }
+    if (footerBox != null && footerBox.hasSize) {
+      sum += footerBox.size.height;
+    }
+    if (sum > 0 && (sum - _chromeHeight).abs() > 0.5) {
+      setState(() => _chromeHeight = sum);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _measureChrome());
+
+    final maxBody = math.max(
+      _minScrollExtent,
+      widget.maxSheetHeight - _chromeHeight,
+    );
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        KeyedSubtree(key: _titleKey, child: widget.titleWidget),
+        Padding(
+          padding: widget.scrollPadding,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: maxBody),
+            child: widget.child,
+          ),
+        ),
+        if (widget.footer != null)
+          KeyedSubtree(key: _footerKey, child: widget.footer!),
+      ],
     );
   }
 }

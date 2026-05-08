@@ -11,6 +11,33 @@ import 'work_item_form_improved.dart';
 /// Предоставляет админу возможность редактировать, удалять и добавлять работы
 /// даже в закрытых сменах через долгий таб (long press).
 class WorkItemContextMenu {
+  /// Мобильный bottom sheet формы работы: те же параметры, что у сотрудников
+  /// ([AddEmployeeSimpleDialog.show]) — ширина экрана и скругление сверху.
+  static void _showMobileWorkItemSheet(
+    BuildContext context, {
+    required String workId,
+    WorkItem? initial,
+    String? initialObjectId,
+  }) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      useRootNavigator: true,
+      backgroundColor: Colors.transparent,
+      constraints: BoxConstraints(maxWidth: screenWidth),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => WorkItemFormImproved(
+        workId: workId,
+        initial: initial,
+        initialObjectId: initialObjectId,
+      ),
+    );
+  }
+
   /// Показывает контекстное меню для работы.
   ///
   /// Доступно для:
@@ -29,6 +56,7 @@ class WorkItemContextMenu {
     required String workId,
     required BuildContext parentContext,
     required WidgetRef ref,
+    String? initialObjectId,
     VoidCallback? onDeleteComplete,
   }) {
     showCupertinoModalPopup<void>(
@@ -45,6 +73,7 @@ class WorkItemContextMenu {
                 item: item,
                 workId: workId,
                 ref: ref,
+                initialObjectId: initialObjectId,
               );
             },
             child: const Text('Редактировать'),
@@ -73,6 +102,7 @@ class WorkItemContextMenu {
               openNewWorkItemForm(
                 context: parentContext,
                 workId: workId,
+                initialObjectId: initialObjectId,
               );
             },
             child: const Text('Добавить новую работу'),
@@ -97,6 +127,7 @@ class WorkItemContextMenu {
     required WorkItem item,
     required String workId,
     required WidgetRef ref,
+    String? initialObjectId,
   }) {
     final isDesktop = ResponsiveUtils.isDesktop(context);
 
@@ -107,20 +138,16 @@ class WorkItemContextMenu {
           child: WorkItemFormImproved(
             workId: workId,
             initial: item,
+            initialObjectId: initialObjectId,
           ),
         ),
       );
     } else {
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        useSafeArea: true,
-        useRootNavigator: true,
-        backgroundColor: Colors.transparent,
-        builder: (ctx) => WorkItemFormImproved(
-          workId: workId,
-          initial: item,
-        ),
+      _showMobileWorkItemSheet(
+        context,
+        workId: workId,
+        initial: item,
+        initialObjectId: initialObjectId,
       );
     }
   }
@@ -154,7 +181,7 @@ class WorkItemContextMenu {
               // Удаляем работу из провайдера
               await ref
                   .read(workItemsProvider(workId).notifier)
-                  .deleteOptimistic(item.id);
+                  .delete(item.id);
 
               // Вызываем callback для обновления фильтров в родительском компоненте
               onComplete?.call();
@@ -172,6 +199,7 @@ class WorkItemContextMenu {
   static void openNewWorkItemForm({
     required BuildContext context,
     required String workId,
+    String? initialObjectId,
   }) {
     final isDesktop = ResponsiveUtils.isDesktop(context);
 
@@ -179,17 +207,17 @@ class WorkItemContextMenu {
       showDialog(
         context: context,
         builder: (context) => Center(
-          child: WorkItemFormImproved(workId: workId),
+          child: WorkItemFormImproved(
+            workId: workId,
+            initialObjectId: initialObjectId,
+          ),
         ),
       );
     } else {
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        useSafeArea: true,
-        useRootNavigator: true,
-        backgroundColor: Colors.transparent,
-        builder: (ctx) => WorkItemFormImproved(workId: workId),
+      _showMobileWorkItemSheet(
+        context,
+        workId: workId,
+        initialObjectId: initialObjectId,
       );
     }
   }

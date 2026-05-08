@@ -96,7 +96,7 @@
 | Параметр | Значение |
 |----------|----------|
 | **Название** | ProjectGT |
-| **Bundle ID** | `dev.projectgt.projectgt` |
+| **Bundle ID** | `com.projectgt.stroyka` |
 | **Версия** | 1.0.1 |
 | **Build** | 19 |
 | **Deployment Target** | iOS 12.0+ |

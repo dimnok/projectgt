@@ -18,6 +18,7 @@ abstract class WorkModel with _$WorkModel {
   /// [createdAt] — дата создания записи (опционально)
   /// [updatedAt] — дата последнего обновления (опционально)
   /// [totalAmount] — общая сумма всех работ (опционально, вычисляется через триггеры БД)
+  /// [ownTotalAmount] — сумма только наших позиций без подрядчика (триггеры БД)
   /// [itemsCount] — количество работ (опционально, вычисляется через триггеры БД)
   /// [employeesCount] — количество сотрудников (опционально, вычисляется через триггеры БД)
   const factory WorkModel({
@@ -55,6 +56,9 @@ abstract class WorkModel with _$WorkModel {
     ///
     /// Вычисляется автоматически через триггеры БД.
     @JsonKey(name: 'total_amount') double? totalAmount,
+
+    /// Сумма работ без подрядчика (`contractor_id` пуст).
+    @JsonKey(name: 'own_total_amount') double? ownTotalAmount,
 
     /// Количество работ в смене.
     ///

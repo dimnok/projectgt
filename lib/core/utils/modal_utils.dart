@@ -1,11 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:projectgt/features/export/domain/entities/work_search_result.dart';
 import 'package:projectgt/features/works/presentation/screens/work_form_screen.dart';
 import 'package:projectgt/features/works/presentation/screens/work_hour_form_modal.dart';
 import 'package:projectgt/features/works/presentation/screens/new_material_modal.dart';
-import 'package:projectgt/features/export/presentation/widgets/export_work_item_edit_modal.dart';
-import 'package:projectgt/features/export/domain/entities/work_search_result.dart';
 import 'package:projectgt/features/works/domain/entities/work_hour.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
@@ -135,12 +134,17 @@ class ModalUtils {
       );
     }
 
+    final screenWidth = MediaQuery.sizeOf(context).width;
     return showModalBottomSheet(
       context: context,
       useRootNavigator: true,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
+      constraints: BoxConstraints(maxWidth: screenWidth),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) => const WorkFormScreen(),
     );
   }
@@ -304,30 +308,6 @@ class ModalUtils {
       items: items,
     );
   }
-
-  /// Показывает модальное окно для редактирования работы из результатов поиска.
-  ///
-  /// [context] - контекст для отображения модального окна.
-  /// [initialData] - начальные данные для редактирования.
-  static Future<void> showExportWorkItemEditModal(
-    BuildContext context, {
-    required WorkSearchResult initialData,
-  }) {
-    return showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      useSafeArea: true,
-      constraints: BoxConstraints(
-        maxHeight:
-            MediaQuery.of(context).size.height -
-            MediaQuery.of(context).padding.top -
-            kToolbarHeight,
-      ),
-      builder: (ctx) => ExportWorkItemEditModal(initialData: initialData),
-    );
-  }
-
 }
 
 /// Внутренний виджет плавающих кнопок для модальных окон.

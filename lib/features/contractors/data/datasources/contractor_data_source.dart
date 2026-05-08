@@ -41,13 +41,20 @@ abstract class ContractorDataSource {
   Future<void> deleteContractor(String id);
 
   /// Получает список банковских счетов для контрагента.
-  Future<List<ContractorBankAccountModel>> getBankAccounts(String contractorId, String companyId);
+  Future<List<ContractorBankAccountModel>> getBankAccounts(
+    String contractorId,
+    String companyId,
+  );
 
   /// Добавляет новый банковский счет.
-  Future<ContractorBankAccountModel> addBankAccount(ContractorBankAccountModel account);
+  Future<ContractorBankAccountModel> addBankAccount(
+    ContractorBankAccountModel account,
+  );
 
   /// Обновляет существующий банковский счет.
-  Future<ContractorBankAccountModel> updateBankAccount(ContractorBankAccountModel account);
+  Future<ContractorBankAccountModel> updateBankAccount(
+    ContractorBankAccountModel account,
+  );
 
   /// Удаляет банковский счет.
   Future<void> deleteBankAccount(String id);
@@ -82,8 +89,11 @@ class SupabaseContractorDataSource implements ContractorDataSource {
 
   @override
   Future<ContractorModel?> getContractor(String id) async {
-    final response =
-        await client.from('contractors').select('*').eq('id', id).maybeSingle();
+    final response = await client
+        .from('contractors')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
     if (response == null) return null;
     return ContractorModel.fromJson(response);
   }
@@ -93,15 +103,15 @@ class SupabaseContractorDataSource implements ContractorDataSource {
     final contractorJson = contractor.toJson();
     // Удаляем null-поля, чтобы сработали default значения в БД
     contractorJson.removeWhere((key, value) => value == null);
-    
+
     _logger.d('[DEBUG] contractorJson to insert: $contractorJson');
-    
+
     final response = await client
         .from('contractors')
         .insert(contractorJson)
         .select()
         .maybeSingle();
-        
+
     if (response == null) {
       throw Exception('Ошибка создания контрагента');
     }
@@ -111,14 +121,14 @@ class SupabaseContractorDataSource implements ContractorDataSource {
   @override
   Future<ContractorModel> updateContractor(ContractorModel contractor) async {
     final contractorJson = contractor.toJson();
-    
+
     final response = await client
         .from('contractors')
         .update(contractorJson)
         .eq('id', contractor.id)
         .select()
         .maybeSingle();
-        
+
     if (response == null) {
       throw Exception('Контрагент не найден для обновления');
     }
@@ -131,7 +141,10 @@ class SupabaseContractorDataSource implements ContractorDataSource {
   }
 
   @override
-  Future<List<ContractorBankAccountModel>> getBankAccounts(String contractorId, String companyId) async {
+  Future<List<ContractorBankAccountModel>> getBankAccounts(
+    String contractorId,
+    String companyId,
+  ) async {
     final response = await client
         .from('contractor_bank_accounts')
         .select('*')
@@ -139,17 +152,21 @@ class SupabaseContractorDataSource implements ContractorDataSource {
         .eq('company_id', companyId)
         .order('is_primary', ascending: false);
     return response
-        .map<ContractorBankAccountModel>((json) => ContractorBankAccountModel.fromJson(json))
+        .map<ContractorBankAccountModel>(
+          (json) => ContractorBankAccountModel.fromJson(json),
+        )
         .toList();
   }
 
   @override
-  Future<ContractorBankAccountModel> addBankAccount(ContractorBankAccountModel account) async {
+  Future<ContractorBankAccountModel> addBankAccount(
+    ContractorBankAccountModel account,
+  ) async {
     final data = account.toJson();
     data.remove('id');
     data.remove('created_at');
     data.remove('updated_at');
-    
+
     final response = await client
         .from('contractor_bank_accounts')
         .insert(data)
@@ -159,11 +176,13 @@ class SupabaseContractorDataSource implements ContractorDataSource {
   }
 
   @override
-  Future<ContractorBankAccountModel> updateBankAccount(ContractorBankAccountModel account) async {
+  Future<ContractorBankAccountModel> updateBankAccount(
+    ContractorBankAccountModel account,
+  ) async {
     final data = account.toJson();
     data.remove('created_at');
     data.remove('updated_at');
-    
+
     final response = await client
         .from('contractor_bank_accounts')
         .update(data)

@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "dev.projectgt.projectgt"
+    namespace = "com.projectgt.stroyka"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "28.2.13676358"
 
@@ -23,7 +23,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "dev.projectgt.projectgt"
+        applicationId = "com.projectgt.stroyka"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

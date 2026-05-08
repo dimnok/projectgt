@@ -20,8 +20,8 @@ import 'package:projectgt/features/objects/presentation/screens/object_form_scre
 import 'package:projectgt/features/contractors/presentation/screens/contractors_list_screen.dart';
 import 'package:projectgt/features/contractors/presentation/screens/contractor_form_screen.dart';
 import 'package:projectgt/features/contractors/presentation/screens/contractor_details_screen.dart';
+import 'package:projectgt/features/contractors/presentation/screens/subcontractors_mobile_screen.dart';
 import 'package:projectgt/features/contracts/presentation/screens/contracts_list_screen.dart';
-import 'package:projectgt/features/contracts/presentation/screens/contract_form_screen.dart';
 import 'package:projectgt/features/estimates/presentation/screens/estimates_list_screen.dart';
 import 'package:projectgt/features/estimates/presentation/screens/estimate_form_screen.dart';
 import 'package:projectgt/features/estimates/presentation/screens/estimate_details_screen.dart';
@@ -224,6 +224,21 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
+      GoRoute(
+        path: AppRoutes.subcontractors,
+        name: 'subcontractors',
+        builder: (context, state) {
+          return Consumer(
+            builder: (context, ref, child) {
+              final service = ref.watch(permissionServiceProvider);
+              if (service.can('contractors', 'read')) {
+                return const SubcontractorsMobileScreen();
+              }
+              return _buildAccessDeniedScreen();
+            },
+          );
+        },
+      ),
       // Маршрут для просмотра конкретного сотрудника
       GoRoute(
         path: '${AppRoutes.employees}/:employeeId',
@@ -358,40 +373,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      // Маршрут для создания нового договора
-      GoRoute(
-        path: '${AppRoutes.contracts}/create',
-        name: 'contract_new',
-        builder: (context, state) {
-          return Consumer(
-            builder: (context, ref, child) {
-              final service = ref.watch(permissionServiceProvider);
-              if (service.can('contracts', 'create')) {
-                return const ContractFormScreen();
-              }
-              return _buildAccessDeniedScreen();
-            },
-          );
-        },
-      ),
-      // Маршрут для редактирования договора
-      GoRoute(
-        path: '${AppRoutes.contracts}/:contractId/edit',
-        name: 'contract_edit',
-        builder: (context, state) {
-          return Consumer(
-            builder: (context, ref, child) {
-              final service = ref.watch(permissionServiceProvider);
-              if (service.can('contracts', 'update')) {
-                // Передаем contractId, ContractFormScreen сам найдет контракт по id
-                // (или можно доработать для передачи объекта)
-                return const ContractFormScreen();
-              }
-              return _buildAccessDeniedScreen();
-            },
-          );
-        },
-      ),
       // Маршрут для просмотра договора удален
 
       // Маршрут для смет
@@ -453,7 +434,14 @@ final routerProvider = Provider<GoRouter>((ref) {
               final service = ref.watch(permissionServiceProvider);
               if (service.can('estimates', 'read')) {
                 final estimateTitle = state.pathParameters['estimateTitle']!;
-                return EstimateDetailsScreen(estimateTitle: estimateTitle);
+                final q = state.uri.queryParameters;
+                final objectId = q['objectId'];
+                final contractId = q['contractId'];
+                return EstimateDetailsScreen(
+                  estimateTitle: estimateTitle,
+                  objectId: objectId,
+                  contractId: contractId,
+                );
               }
               return _buildAccessDeniedScreen();
             },
@@ -479,20 +467,9 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: ':workId',
             name: 'work_details',
-            pageBuilder: (context, state) {
+            builder: (context, state) {
               final workId = state.pathParameters['workId']!;
-              return CustomTransitionPage(
-                key: state.pageKey,
-                child: WorkDetailsScreen(workId: workId),
-                transitionDuration: const Duration(milliseconds: 600),
-                reverseTransitionDuration: const Duration(milliseconds: 600),
-                transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                  // Возвращаем child без FadeTransition, чтобы фон нового экрана
-                  // сразу перекрывал старый (по требованию пользователя).
-                  // Hero-анимация при этом продолжит работать благодаря длительности перехода.
-                  return child;
-                },
-              );
+              return WorkDetailsScreen(workId: workId);
             },
           ),
           GoRoute(
@@ -667,6 +644,9 @@ class AppRoutes {
 
   /// Список сотрудников (табличный вид)
   static const String employees = '/employees';
+
+  /// Раздел «Подрядчики» (смета / план, мобильный UI)
+  static const String subcontractors = '/subcontractors';
 
   /// Список объектов
   static const String objects = '/objects';

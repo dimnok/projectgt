@@ -1,7 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/work_item_model.dart';
 import 'work_item_data_source.dart';
-import 'dart:async';
 
 /// Реализация источника данных для работы с работами в смене через Supabase.
 class WorkItemDataSourceImpl implements WorkItemDataSource {
@@ -136,109 +135,5 @@ class WorkItemDataSourceImpl implements WorkItemDataSource {
     } catch (e) {
       rethrow;
     }
-  }
-
-  /// Реалтайм-подписка на изменения работ конкретной смены
-  @override
-  Stream<List<WorkItemModel>> watchWorkItems(String workId) async* {
-    final controller = StreamController<List<WorkItemModel>>();
-    if (workId.isEmpty) {
-      controller.add(const []);
-      yield* controller.stream;
-      return;
-    }
-
-    List<WorkItemModel> current = [];
-
-    Future<void> syncInitial() async {
-      try {
-        current = await fetchWorkItems(workId);
-        if (!controller.isClosed) controller.add(current);
-      } catch (e, st) {
-        if (!controller.isClosed) controller.addError(e, st);
-      }
-    }
-
-    // Отдаём начальные данные после подписки клиента на поток
-    // (задержка позволяет подписчику успеть прикрепиться)
-    () async {
-      await syncInitial();
-    }();
-
-    // Топик канала без параметров фильтра — фильтр задаем в onPostgresChanges
-    final channel = client.channel('public:work_items')
-      ..onPostgresChanges(
-        event: PostgresChangeEvent.all,
-        schema: 'public',
-        table: table,
-        // В supabase_flutter >=2.6.0 filter принимает PostgresChangeFilter
-        filter: PostgresChangeFilter(
-          type: PostgresChangeFilterType.eq,
-          column: 'work_id',
-          value: workId,
-        ),
-        callback: (payload) async {
-          try {
-            final Map<String, dynamic>? newRecord =
-                payload.newRecord as Map<String, dynamic>?;
-            final Map<String, dynamic>? oldRecord =
-                payload.oldRecord as Map<String, dynamic>?;
-            final event = payload.eventType;
-            final dynamic idValue =
-                newRecord != null ? newRecord['id'] : oldRecord?['id'];
-            final String? id =
-                idValue is String ? idValue : idValue?.toString();
-
-            WorkItemModel? nextModel;
-            if (newRecord != null) {
-              nextModel = WorkItemModel.fromJson(newRecord);
-            }
-
-            switch (event) {
-              case PostgresChangeEvent.insert:
-                if (nextModel != null) {
-                  current = [...current, nextModel];
-                }
-                break;
-              case PostgresChangeEvent.update:
-                if (nextModel != null && id != null) {
-                  current = current
-                      .map((item) => item.id == id ? nextModel! : item)
-                      .toList();
-                }
-                break;
-              case PostgresChangeEvent.delete:
-                if (id != null) {
-                  current = current.where((item) => item.id != id).toList();
-                }
-                break;
-              default:
-                await syncInitial();
-            }
-
-            if (!controller.isClosed) controller.add(current);
-          } catch (_) {
-            // При ошибке парсинга делаем полную синхронизацию
-            await syncInitial();
-          }
-        },
-      )
-      ..subscribe();
-
-    controller.onCancel = () async {
-      try {
-        await channel.unsubscribe();
-      } catch (_) {
-        // Намеренно игнорируем ошибки отписки
-      }
-      try {
-        await client.removeChannel(channel);
-      } catch (_) {
-        // Намеренно игнорируем ошибки удаления канала
-      }
-      await controller.close();
-    };
-
-    yield* controller.stream;
   }
 }

@@ -230,9 +230,7 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
           objects: objects,
           canDelete: canDelete,
           isSelected: false,
-          onTap: () => context.go(
-            '/estimates/${Uri.encodeComponent(file.estimateTitle)}',
-          ),
+          onTap: () => context.go(estimateDetailAppPath(file)),
         );
       },
     );

@@ -29,13 +29,18 @@ abstract class ContractorRepository {
   Future<void> deleteContractor(String id);
 
   /// Получает список банковских счетов для контрагента в рамках компании.
-  Future<List<ContractorBankAccount>> getBankAccounts(String contractorId, String companyId);
+  Future<List<ContractorBankAccount>> getBankAccounts(
+    String contractorId,
+    String companyId,
+  );
 
   /// Добавляет новый банковский счет.
   Future<ContractorBankAccount> addBankAccount(ContractorBankAccount account);
 
   /// Обновляет существующий банковский счет.
-  Future<ContractorBankAccount> updateBankAccount(ContractorBankAccount account);
+  Future<ContractorBankAccount> updateBankAccount(
+    ContractorBankAccount account,
+  );
 
   /// Удаляет банковский счет.
   Future<void> deleteBankAccount(String id);

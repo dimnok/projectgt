@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
@@ -32,6 +33,9 @@ class WorkItemFormImproved extends ConsumerStatefulWidget {
   /// Исходная работа для редактирования (null — создание новой).
   final WorkItem? initial;
 
+  /// Идентификатор объекта, если форма открывается вне экрана смены.
+  final String? initialObjectId;
+
   /// Контроллер прокрутки для DraggableScrollableSheet (используется только на мобильных в bottom sheet).
   final ScrollController? scrollController;
 
@@ -40,6 +44,7 @@ class WorkItemFormImproved extends ConsumerStatefulWidget {
     super.key,
     required this.workId,
     this.initial,
+    this.initialObjectId,
     this.scrollController,
   });
 
@@ -79,7 +84,34 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
 
   /// Поиск
   final TextEditingController _searchController = TextEditingController();
+
+  /// Узел фокуса для поля поиска по сметам (не даём потерять фокус при смене viewport / snap скролла).
+  final FocusNode _searchFocusNode = FocusNode(
+    debugLabel: 'workEstimateSearch',
+  );
+
   String _searchQuery = '';
+
+  /// Локальный [ScrollController] списка, если снаружи не передан [WorkItemFormImproved.scrollController].
+  ScrollController? _ownedListScrollController;
+
+  /// Дополнительная высота внизу мобильного скролла: не даёт сбросить offset при сужении списка по поиску.
+  double _mobileScrollBottomPad = 0;
+
+  /// Высота первого [SliverToBoxAdapter] (поля над списком смет) на мобилке — начало сливеров материалов в offset скролла.
+  final GlobalKey _mobileLeadingBlockKey = GlobalKey();
+
+  /// Поля выбора (участок / этаж / …) свернуты: освобождаем высоту, поиск остаётся в закреплённой шапке.
+  ///
+  /// Только мобильный layout: на десктопе внешний скролл не связан с [_listScrollController], сворачивание не включается.
+  bool _selectionFieldsCollapsed = false;
+
+  /// Порог смещения скролла (px), после которого сворачиваем блок полей выбора.
+  static const double _collapseSelectionScrollThreshold = 40;
+
+  /// Контроллер прокрутки списка формы (внешний или внутренний).
+  ScrollController get _listScrollController =>
+      widget.scrollController ?? _ownedListScrollController!;
 
   /// Флаг загрузки для отображения индикатора.
   final bool _isLoading = false;
@@ -171,7 +203,7 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
       // Если редактируем, обновляем; если добавляем, сохраняем
       if (isModifying) {
         // Редактируем первую (и единственную) работу
-        await workItemsNotifier.updateOptimistic(itemsToAdd.first);
+        await workItemsNotifier.update(itemsToAdd.first);
       } else {
         // Добавляем новые работы
         await workItemsNotifier.addMany(itemsToAdd);
@@ -179,7 +211,7 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
 
       // Закрываем модальное окно после успешного сохранения
       if (mounted) {
-        Navigator.pop(context);
+        Navigator.pop(context, true);
       }
     } catch (e) {
       // В случае ошибки показываем сообщение
@@ -202,13 +234,17 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
   @override
   void initState() {
     super.initState();
+    if (widget.scrollController == null) {
+      _ownedListScrollController = ScrollController();
+    }
+    _listScrollController.addListener(_handleScrollForSelectionCollapse);
     _specialistsCountController = TextEditingController(
       text: isModifying && widget.initial?.specialistsCount != null
           ? '${widget.initial!.specialistsCount}'
           : '',
     );
     final work = ref.read(workProvider(widget.workId));
-    objectId = work?.objectId ?? '';
+    objectId = widget.initialObjectId ?? work?.objectId ?? '';
     if (objectId.isEmpty) {
       throw Exception('objectId не найден для данной смены');
     }
@@ -247,8 +283,9 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
       if (!mounted) return;
       if (isModifying && widget.initial?.contractorId != null) {
         final list = ref.read(contractorNotifierProvider).contractors;
-        final match =
-            list.where((c) => c.id == widget.initial!.contractorId).firstOrNull;
+        final match = list
+            .where((c) => c.id == widget.initial!.contractorId)
+            .firstOrNull;
         setState(() => _selectedContractor = match);
       }
       _loadDropdownData();
@@ -280,12 +317,60 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
 
   @override
   void dispose() {
+    _listScrollController.removeListener(_handleScrollForSelectionCollapse);
     for (final controller in _quantityControllers.values) {
       controller.dispose();
     }
     _specialistsCountController.dispose();
     _searchController.dispose();
+    _searchFocusNode.dispose();
+    _ownedListScrollController?.dispose();
     super.dispose();
+  }
+
+  /// Сворачивает блок полей выбора при прокрутке списка вниз (контент уходит вверх).
+  ///
+  /// Не трогает поиск и [_onSearchQueryChanged]. Раскрытие только через [_expandSelectionFields].
+  void _handleScrollForSelectionCollapse() {
+    if (!mounted) return;
+    if (!allSelected || _selectionFieldsCollapsed) return;
+    if (!ResponsiveUtils.isMobile(context)) return;
+    final c = _listScrollController;
+    if (!c.hasClients) return;
+    if (c.offset <= _collapseSelectionScrollThreshold) return;
+
+    final box =
+        _mobileLeadingBlockKey.currentContext?.findRenderObject() as RenderBox?;
+    final leadingH = (box != null && box.hasSize) ? box.size.height : 0.0;
+
+    setState(() {
+      _selectionFieldsCollapsed = true;
+    });
+
+    if (leadingH > 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !c.hasClients) return;
+        final next = (c.offset - leadingH).clamp(
+          0.0,
+          c.position.maxScrollExtent,
+        );
+        if ((c.offset - next).abs() > 0.5) {
+          c.jumpTo(next);
+        }
+      });
+    }
+  }
+
+  /// Раскрывает поля выбора и прокручивает к началу формы, чтобы блок снова был виден.
+  void _expandSelectionFields() {
+    if (!_selectionFieldsCollapsed) return;
+    setState(() {
+      _selectionFieldsCollapsed = false;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_listScrollController.hasClients) return;
+      _listScrollController.jumpTo(0);
+    });
   }
 
   /// Разбор поля «специалисты» для сохранения (пусто → null).
@@ -318,12 +403,14 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
     _availableFloors = results[1];
 
     // Загружаем системы из смет
-    final estimates = ref.read(estimateNotifierProvider).estimates;
-    _availableSystems = estimates
-        .where((e) => e.objectId == objectId)
-        .map((e) => e.system)
-        .toSet()
-        .toList();
+    final estimates = ref.read(estimateNotifierProvider).estimates.where((e) {
+      if (e.objectId != objectId) return false;
+      if (e.visibleInEstimatesModule) return true;
+      return isModifying &&
+          widget.initial != null &&
+          e.id == widget.initial!.estimateId;
+    });
+    _availableSystems = estimates.map((e) => e.system).toSet().toList();
 
     if (mounted) {
       setState(() {});
@@ -335,12 +422,14 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
     if (_selectedSystem?.isEmpty ?? true) {
       _availableSubsystems = [];
     } else {
-      final estimates = ref.read(estimateNotifierProvider).estimates;
-      _availableSubsystems = estimates
-          .where((e) => e.objectId == objectId && e.system == _selectedSystem)
-          .map((e) => e.subsystem)
-          .toSet()
-          .toList();
+      final estimates = ref.read(estimateNotifierProvider).estimates.where((e) {
+        if (e.objectId != objectId || e.system != _selectedSystem) return false;
+        if (e.visibleInEstimatesModule) return true;
+        return isModifying &&
+            widget.initial != null &&
+            e.id == widget.initial!.estimateId;
+      });
+      _availableSubsystems = estimates.map((e) => e.subsystem).toSet().toList();
     }
     setState(() {});
   }
@@ -361,6 +450,13 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
         return false;
       }
       return true;
+    }).toList();
+
+    filteredList = filteredList.where((estimate) {
+      if (estimate.visibleInEstimatesModule) return true;
+      return isModifying &&
+          widget.initial != null &&
+          estimate.id == widget.initial!.estimateId;
     }).toList();
 
     // Исключаем из списка только те материалы (элементы сметы),
@@ -402,6 +498,109 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
 
     setState(() {
       _filteredEstimates = filteredList;
+      _mobileScrollBottomPad = 0;
+    });
+  }
+
+  /// Обновляет текст поиска по списку смет; на мобилке сохраняет offset прокрутки.
+  void _onSearchQueryChanged(String value) {
+    final isMobile = ResponsiveUtils.isMobile(context);
+    final c = _listScrollController;
+    final preserve = isMobile && c.hasClients ? c.offset : null;
+    final beforeMax = c.hasClients ? c.position.maxScrollExtent : -1.0;
+    final narrowing =
+        _searchQuery.isNotEmpty &&
+        value.startsWith(_searchQuery) &&
+        value.length > _searchQuery.length;
+    final firstSearchChar = _searchQuery.isEmpty && value.isNotEmpty;
+    const preemptSlackPx = 64.0;
+
+    /// Верхняя граница нижнего pad от текущего offset — без неё beforeMax раздувается
+    /// от самого pad и headroom уходит в бесконечность (логи bottomPad 2813+).
+    const maxPadAbovePreserve = 480.0;
+
+    /// Ограничение добавки по «запасу» прокрутки до сужения (не зависит от pad).
+    const maxNarrowingExtraPx = 320.0;
+    final rawHeadroom = preserve != null
+        ? math.max(0.0, beforeMax - preserve)
+        : 0.0;
+    final narrowingExtra = math.min(rawHeadroom * 1.5, maxNarrowingExtraPx);
+    double? preemptTargetPx;
+    if (isMobile && preserve != null && value.isNotEmpty) {
+      if (firstSearchChar) {
+        preemptTargetPx = preserve + preemptSlackPx;
+      } else if (narrowing) {
+        // Не используем _mobileScrollBottomPad в формуле — иначе beforeMax и pad
+        // разгоняются по кругу.
+        preemptTargetPx = preserve + preemptSlackPx + narrowingExtra;
+      }
+    }
+    setState(() {
+      if (value.isEmpty) {
+        _mobileScrollBottomPad = 0;
+      } else if (preemptTargetPx != null && preserve != null) {
+        // До layout укороченного списка расширяем extent; потолок — от preserve.
+        _mobileScrollBottomPad = math.min(
+          math.max(_mobileScrollBottomPad, preemptTargetPx),
+          preserve + maxPadAbovePreserve,
+        );
+      }
+      _searchQuery = value;
+    });
+    if (preserve != null) {
+      final target = preserve;
+      final snapMaterialsToTop =
+          isMobile && firstSearchChar && value.isNotEmpty;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        var desired = target;
+        if (snapMaterialsToTop) {
+          final materialsStart = _mobileMaterialsStartScrollOffset();
+          // При свёрнутом leading ключ не в дереве — [materialsStart] == 0; раньше условие
+          // materialsStart > 0 блокировало snap, и сохранялся большой [preserve] под pinned-поиском.
+          if (desired > materialsStart) {
+            desired = materialsStart;
+          }
+        }
+        _ensureMobileScrollCapacityForSearch(desired);
+      });
+    }
+  }
+
+  /// Возвращает offset скролла, с которого начинается блок сливеров материалов (после полей выбора).
+  double _mobileMaterialsStartScrollOffset() {
+    final box =
+        _mobileLeadingBlockKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) {
+      return 0;
+    }
+    return box.size.height;
+  }
+
+  /// Увеличивает нижний «запас» скролла, если после сужения списка offset больше [maxScrollExtent].
+  void _ensureMobileScrollCapacityForSearch(
+    double desiredOffset, [
+    int depth = 0,
+  ]) {
+    if (!mounted || depth > 4) return;
+    final c = _listScrollController;
+    if (!c.hasClients) return;
+    final maxExt = c.position.maxScrollExtent;
+    if (desiredOffset <= maxExt + 0.5) {
+      final clamped = desiredOffset.clamp(0.0, maxExt);
+      if ((c.offset - clamped).abs() > 0.5) {
+        c.jumpTo(clamped);
+      }
+      return;
+    }
+    final deficit = desiredOffset - maxExt;
+    setState(() {
+      _mobileScrollBottomPad += deficit;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !c.hasClients) return;
+      c.jumpTo(desiredOffset.clamp(0.0, c.position.maxScrollExtent));
+      _ensureMobileScrollCapacityForSearch(desiredOffset, depth + 1);
     });
   }
 
@@ -442,6 +641,17 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
   @override
   Widget build(BuildContext context) {
     final isMobile = ResponsiveUtils.isMobile(context);
+    if ((!allSelected || !isMobile) && _selectionFieldsCollapsed) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() {
+          _selectionFieldsCollapsed = false;
+        });
+      });
+    }
+    final showSelectionCollapsed =
+        _selectionFieldsCollapsed && allSelected && isMobile;
+    final theme = Theme.of(context);
     final title = widget.initial == null
         ? 'Добавить работы'
         : 'Редактировать работу';
@@ -465,45 +675,147 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
       ],
     );
 
-    final content = _isLoading
-        ? const Center(child: CupertinoActivityIndicator())
-        : Form(key: _formKey, child: _buildFormContent(Theme.of(context)));
-
     if (isMobile) {
       return MobileBottomSheetContent(
         title: title,
         footer: footer,
-        scrollController: widget.scrollController,
+        fixedFooter: true,
         scrollable: false,
-        child: content,
-      );
-    } else {
-      return DesktopDialogContent(
-        title: title,
-        footer: footer,
-        scrollable: false,
-        child: content,
+        scrollController: _listScrollController,
+        child: _isLoading
+            ? const SizedBox(
+                height: 120,
+                child: Center(child: CupertinoActivityIndicator()),
+              )
+            : Form(
+                key: _formKey,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final maxH = constraints.maxHeight;
+                    final hasBoundedHeight =
+                        maxH.isFinite && maxH < double.infinity;
+                    // Один и тот же тип дерева всегда: иначе при первой букве поиска менялся
+                    // shrinkWrap/viewport и терялся фокус. Непустой поиск — minHeight == maxH,
+                    // чтобы короткий список не сжимал лист; пустой — minHeight 0, высота по контенту.
+                    final searchActive = _searchQuery.isNotEmpty;
+                    final scroll = CustomScrollView(
+                      controller: _listScrollController,
+                      primary: false,
+                      shrinkWrap: true,
+                      physics: const ClampingScrollPhysics(),
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      slivers: [
+                        SliverToBoxAdapter(
+                          child: AnimatedSize(
+                            duration: const Duration(milliseconds: 240),
+                            curve: Curves.easeInOutCubic,
+                            alignment: Alignment.topCenter,
+                            child: showSelectionCollapsed
+                                ? const SizedBox(width: double.infinity)
+                                : KeyedSubtree(
+                                    key: _mobileLeadingBlockKey,
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        _buildSelectionFields(),
+                                        const SizedBox(height: 12),
+                                      ],
+                                    ),
+                                  ),
+                          ),
+                        ),
+                        if (allSelected)
+                          ..._buildMaterialsSlivers(
+                            theme,
+                            scrollBottomPad: _mobileScrollBottomPad,
+                          ),
+                        SliverToBoxAdapter(
+                          child: SizedBox(
+                            height: MediaQuery.viewInsetsOf(context).bottom,
+                          ),
+                        ),
+                      ],
+                    );
+                    if (!hasBoundedHeight) {
+                      return scroll;
+                    }
+                    return ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: searchActive ? maxH : 0,
+                        maxHeight: maxH,
+                      ),
+                      child: scroll,
+                    );
+                  },
+                ),
+              ),
       );
     }
+
+    final content = _isLoading
+        ? const Center(child: CupertinoActivityIndicator())
+        : Form(key: _formKey, child: _buildFormContent(theme));
+
+    return DesktopDialogContent(
+      title: title,
+      footer: footer,
+      scrollable: false,
+      child: content,
+    );
   }
 
   /// Строит содержимое формы
   Widget _buildFormContent(ThemeData theme) {
+    final showSelectionCollapsed =
+        _selectionFieldsCollapsed &&
+        allSelected &&
+        ResponsiveUtils.isMobile(context);
     return CustomScrollView(
-      controller: widget.scrollController,
+      controller: _listScrollController,
+      primary: false,
       shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       slivers: [
         SliverToBoxAdapter(
-          child: Column(
-            children: [_buildSelectionFields(), const SizedBox(height: 12)],
+          child: AnimatedSize(
+            duration: const Duration(milliseconds: 240),
+            curve: Curves.easeInOutCubic,
+            alignment: Alignment.topCenter,
+            child: showSelectionCollapsed
+                ? const SizedBox(width: double.infinity)
+                : KeyedSubtree(
+                    key: _mobileLeadingBlockKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildSelectionFields(),
+                        const SizedBox(height: 12),
+                      ],
+                    ),
+                  ),
           ),
         ),
-        if (allSelected) ..._buildMaterialsSlivers(theme),
+        if (allSelected)
+          ..._buildMaterialsSlivers(
+            theme,
+            scrollBottomPad: ResponsiveUtils.isMobile(context)
+                ? _mobileScrollBottomPad
+                : 0,
+          ),
       ],
     );
   }
 
-  List<Widget> _buildMaterialsSlivers(ThemeData theme) {
+  /// Сливеры списка смет, поиска и кнопки «Новый материал».
+  ///
+  /// [scrollBottomPad] — только мобилка: искусственно увеличивает [maxScrollExtent], чтобы при
+  /// сужении результатов поиска не сбрасывалась прокрутка и не всплывали фильтры.
+  List<Widget> _buildMaterialsSlivers(
+    ThemeData theme, {
+    double scrollBottomPad = 0,
+  }) {
     final query = _searchQuery;
     final filteredBySearch = query.isEmpty
         ? _filteredEstimates
@@ -511,33 +823,21 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
               .where((e) => e.name.toLowerCase().contains(query.toLowerCase()))
               .toList();
 
+    final showSelectionCollapsed =
+        _selectionFieldsCollapsed &&
+        allSelected &&
+        ResponsiveUtils.isMobile(context);
+
     return [
-      SliverAppBar(
-        primary: false,
+      SliverPersistentHeader(
         pinned: true,
-        backgroundColor: theme.colorScheme.surface,
-        automaticallyImplyLeading: false,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        shadowColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        shape: const Border(
-          bottom: BorderSide(color: Colors.transparent, width: 0),
-        ),
-        toolbarHeight: 52,
-        titleSpacing: 0,
-        title: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 0),
-          child: CupertinoSearchTextField(
-            controller: _searchController,
-            placeholder: 'Поиск работ...',
-            onChanged: (value) {
-              setState(() {
-                _searchQuery = value;
-              });
-            },
-            style: TextStyle(color: theme.colorScheme.onSurface),
-          ),
+        delegate: _WorkEstimateSearchHeaderDelegate(
+          theme: theme,
+          searchController: _searchController,
+          searchFocusNode: _searchFocusNode,
+          onQueryChanged: _onSearchQueryChanged,
+          filtersCollapsed: showSelectionCollapsed,
+          onExpandFilters: _expandSelectionFields,
         ),
       ),
       if (filteredBySearch.isEmpty)
@@ -555,6 +855,9 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
             final estimate = filteredBySearch[index];
             final isSelected = _selectedEstimateItems.containsKey(estimate);
             final isDark = theme.brightness == Brightness.dark;
+            final isDesktop = ResponsiveUtils.isDesktop(context);
+            final titleFontSize = isDesktop ? 14.0 : 12.0;
+            final subtitleFontSize = isDesktop ? 12.0 : 10.0;
 
             // Цвета для выделенного состояния
             final selectedBgColor = isDark
@@ -586,36 +889,45 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
               child: Card(
                 color: isSelected ? selectedBgColor : theme.colorScheme.surface,
                 elevation: isSelected ? 2 : 0,
-                margin: const EdgeInsets.symmetric(vertical: 4),
+                margin: const EdgeInsets.symmetric(vertical: 2),
                 child: ListTile(
-                  leading: Text(
-                    estimate.number,
-                    style: TextStyle(
-                      color: isSelected
-                          ? selectedTextColor
-                          : theme.colorScheme.onSurface,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
+                  visualDensity: VisualDensity.compact,
+                  minVerticalPadding: 0,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 2,
                   ),
-                  title: Text(
-                    estimate.name,
-                    style: TextStyle(
-                      color: isSelected
-                          ? selectedTextColor
-                          : theme.colorScheme.onSurface,
-                      fontWeight: isSelected
-                          ? FontWeight.w600
-                          : FontWeight.normal,
-                    ),
-                  ),
-                  subtitle: Text(
-                    '${formatCurrency(estimate.price)} / ${estimate.unit}',
-                    style: TextStyle(
-                      color: isSelected
-                          ? selectedSubColor
-                          : theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                    ),
+                  title: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        estimate.name,
+                        style: TextStyle(
+                          color: isSelected
+                              ? selectedTextColor
+                              : theme.colorScheme.onSurface,
+                          fontWeight: isSelected
+                              ? FontWeight.w600
+                              : FontWeight.normal,
+                          fontSize: titleFontSize,
+                          height: 1.15,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${formatCurrency(estimate.price)} / ${estimate.unit}',
+                        style: TextStyle(
+                          color: isSelected
+                              ? selectedSubColor
+                              : theme.colorScheme.onSurface.withValues(
+                                  alpha: 0.6,
+                                ),
+                          fontSize: subtitleFontSize,
+                          height: 1.15,
+                        ),
+                      ),
+                    ],
                   ),
                   trailing: isSelected
                       ? SizedBox(
@@ -624,6 +936,12 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
                             controller: _quantityControllers[estimate],
                             hintText: 'Кол-во',
                             borderRadius: 8,
+                            style:
+                                (theme.textTheme.bodyMedium ??
+                                        const TextStyle())
+                                    .copyWith(
+                                      fontSize: isDesktop ? 14.0 : 12.0,
+                                    ),
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 8,
                               vertical: 8,
@@ -672,7 +990,8 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
                     _selectedSubsystem == null) {
                   AppSnackBar.show(
                     context: context,
-                    message: 'Сначала заполните участок, этаж, систему и подсистему',
+                    message:
+                        'Сначала заполните участок, этаж, систему и подсистему',
                     kind: AppSnackBarKind.error,
                   );
                   return;
@@ -716,6 +1035,8 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
           ),
         ),
       ),
+      if (scrollBottomPad > 0)
+        SliverToBoxAdapter(child: SizedBox(height: scrollBottomPad)),
     ];
   }
 
@@ -896,5 +1217,107 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
         ],
       ],
     );
+  }
+}
+
+/// Закрепляемая под [SliverPersistentHeader] область поиска по списку сметных работ.
+class _WorkEstimateSearchHeaderDelegate extends SliverPersistentHeaderDelegate {
+  /// Создаёт делегат шапки поиска.
+  _WorkEstimateSearchHeaderDelegate({
+    required this.theme,
+    required this.searchController,
+    required this.searchFocusNode,
+    required this.onQueryChanged,
+    required this.filtersCollapsed,
+    required this.onExpandFilters,
+  });
+
+  /// Тема для цветов поля и фона.
+  final ThemeData theme;
+
+  /// Контроллер текста поиска.
+  final TextEditingController searchController;
+
+  /// Узел фокуса поля поиска (тот же экземпляр на всём жизненном цикле формы).
+  final FocusNode searchFocusNode;
+
+  /// Вызывается при изменении запроса.
+  final ValueChanged<String> onQueryChanged;
+
+  /// Поля выбора (участок, этаж, …) свернуты — показываем кнопку раскрытия слева от поиска.
+  final bool filtersCollapsed;
+
+  /// Раскрывает блок полей выбора (мобильный режим).
+  final VoidCallback onExpandFilters;
+
+  static const double _toolbarHeight = 52;
+
+  @override
+  double get minExtent => _toolbarHeight;
+
+  @override
+  double get maxExtent => _toolbarHeight;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    final searchField = CupertinoSearchTextField(
+      controller: searchController,
+      focusNode: searchFocusNode,
+      placeholder: 'Поиск работ...',
+      onChanged: onQueryChanged,
+      style: TextStyle(color: theme.colorScheme.onSurface),
+    );
+
+    return Material(
+      color: theme.colorScheme.surface,
+      elevation: overlapsContent ? 0.5 : 0,
+      shadowColor: theme.colorScheme.shadow.withValues(alpha: 0.12),
+      surfaceTintColor: Colors.transparent,
+      child: SizedBox(
+        height: _toolbarHeight,
+        child: filtersCollapsed
+            ? Padding(
+                padding: const EdgeInsets.only(left: 4, right: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      tooltip: 'Показать фильтры',
+                      style: IconButton.styleFrom(
+                        foregroundColor: theme.colorScheme.onSurface,
+                        backgroundColor:
+                            theme.colorScheme.surfaceContainerHighest,
+                        shape: const CircleBorder(),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        minimumSize: const Size(40, 40),
+                        padding: EdgeInsets.zero,
+                      ),
+                      onPressed: onExpandFilters,
+                      icon: const Icon(
+                        CupertinoIcons.slider_horizontal_3,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(child: searchField),
+                  ],
+                ),
+              )
+            : Align(alignment: Alignment.centerLeft, child: searchField),
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _WorkEstimateSearchHeaderDelegate oldDelegate) {
+    return oldDelegate.theme != theme ||
+        oldDelegate.searchController != searchController ||
+        oldDelegate.searchFocusNode != searchFocusNode ||
+        oldDelegate.filtersCollapsed != filtersCollapsed ||
+        oldDelegate.onExpandFilters != onExpandFilters;
   }
 }

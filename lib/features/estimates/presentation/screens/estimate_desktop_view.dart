@@ -10,7 +10,7 @@ import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/gt_buttons.dart';
 import '../../../../data/models/estimate_completion_model.dart';
 import '../../../../domain/entities/estimate.dart';
-import '../../../../features/estimates/presentation/screens/import_estimate_addendum_modal.dart';
+import '../../../../features/estimates/presentation/screens/import_estimate_bulk_update_modal.dart';
 import '../../../../features/estimates/presentation/screens/import_estimate_form_modal.dart';
 import '../../../../features/roles/application/permission_service.dart';
 import '../../../../features/roles/presentation/widgets/permission_guard.dart';
@@ -367,20 +367,17 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
     );
   }
 
-  void _showImportEstimateAddendumModal(
-    BuildContext context,
-    EstimateFile file,
-  ) {
+  void _showBulkUpdateModal(BuildContext context, EstimateFile file) {
     final contractId = file.contractId;
     if (contractId == null || contractId.isEmpty) {
       SnackBarUtils.showError(
         context,
-        'Для LC / ДС требуется смета, привязанная к договору',
+        'Для обновления из Excel требуется смета, привязанная к договору',
       );
       return;
     }
 
-    ImportEstimateAddendumModal.show(
+    ImportEstimateBulkUpdateModal.show(
       context,
       estimateTitle: file.estimateTitle,
       contractId: contractId,
@@ -389,10 +386,9 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
         if (context.mounted) {
           context.pop();
         }
-        SnackBarUtils.showSuccess(
-          context,
-          'Черновик LC / ДС сохранён в новом потоке ревизий',
-        );
+        ref.invalidate(estimateGroupsProvider);
+        ref.invalidate(estimateItemsProvider(currentEstimateArgs!));
+        ref.invalidate(estimateCompletionByIdsProvider);
       },
     );
   }
@@ -798,10 +794,10 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
                           module: 'estimates',
                           permission: 'import',
                           child: GTSecondaryButton(
-                            icon: CupertinoIcons.doc_text,
-                            text: 'LC / ДС',
+                            icon: CupertinoIcons.arrow_2_circlepath,
+                            text: 'Обновить Excel',
                             onPressed: () =>
-                                _showImportEstimateAddendumModal(context, file),
+                                _showBulkUpdateModal(context, file),
                           ),
                         ),
                       if (file.contractId != null) const SizedBox(width: 12),

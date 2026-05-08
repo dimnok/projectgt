@@ -1,5 +1,7 @@
 # Модуль Works (Shifts & Work Plans)
-**Дата актуализации:** 12 апреля 2026 года — в `work_items` добавлено поле `specialists_count` (число специалистов подрядчика по строке; см. миграцию `20260412120000_work_items_specialists_count.sql`).
+**Дата актуализации:** 16 апреля 2026 года — Presentation-слой: мобильный вид модуля выделен в отдельный экран `WorksListMobileScreen`; общие действия (открытие смены, создание/редактирование/удаление плана, удаление смены) вынесены в миксин `WorksScreenActionsMixin`; прилипающие заголовки месяцев стали переиспользуемыми `WorkMonthGroupSliverHeader` / `WorkPlanMonthGroupSliverHeader`.
+
+Предыдущая запись: 12 апреля 2026 года — в `work_items` добавлено поле `specialists_count` (число специалистов подрядчика по строке; см. миграцию `20260412120000_work_items_specialists_count.sql`).
 
 ## Важное замечание о структуре данных
 > **Внимание:**
@@ -38,7 +40,10 @@
 
 ## Слой Presentation
 **Экраны и виджеты:**
-- `WorksMasterDetailScreen` — основной экран смен и планов (адаптивный мастер-детейл).
+- `WorksMasterDetailScreen` — точка входа модуля. На десктопе реализует собственный master-detail layout (список смен/планов + правая панель деталей), на мобильном делегирует рендеринг `WorksListMobileScreen`.
+- `WorksListMobileScreen` — изолированный мобильный экран списка смен и планов поверх `MobileAtmosphereBackdrop` с адаптивным переключателем режимов (смены/планы) через `AnimatedSwitcher`.
+- `WorksScreenActionsMixin` — общий для обоих экранов миксин бизнес-логики диалогов: `showOpenShiftModal`, `showCreateWorkPlanModal`, `showEditWorkPlanModal`, `confirmDeleteWork`, `confirmDeleteWorkPlan`. Реализующие экраны переопределяют `onWorkDeleted`/`onWorkPlanDeleted` для локального сброса выбора.
+- `WorkMonthGroupSliverHeader`, `WorkPlanMonthGroupSliverHeader` — переиспользуемые делегаты прилипающих заголовков месяцев смен и планов соответственно.
 - `WorkDetailsScreen` — экран деталей смены для мобильных устройств.
 - `WorkPlanDetailsScreen` — экран деталей плана работ (используется как правая панель на десктопе).
 - `DesktopMonthWorkPlansList` — оптимизированный список планов для десктопа (показывает количество специалистов вместо блоков).
@@ -77,7 +82,15 @@ lib/features/
 │   └── presentation/
 │       ├── providers/ (works, items, hours, month_groups)
 │       ├── screens/
-│       └── widgets/ (month_details_panel, charts)
+│       │   ├── works_master_detail_screen.dart   # desktop master-detail + диспетчер
+│       │   ├── works_list_mobile_screen.dart     # mobile-only экран списка смен/планов
+│       │   ├── works_screen_actions_mixin.dart   # общие диалоги/действия
+│       │   ├── work_details_screen.dart
+│       │   └── month_details_mobile_screen.dart
+│       └── widgets/
+│           ├── month_details_panel.dart (charts)
+│           ├── work_month_group_sliver_header.dart
+│           └── work_plan_month_group_sliver_header.dart
 └── work_plans/
     ├── data/
     │   └── models/ (WorkPlanMonthGroup)
@@ -134,13 +147,14 @@ lib/features/
 
 ## Интеграции
 **Edge Functions (Supabase):**
-- `send_admin_work_event` — уведомление о событиях смены.
+- `send_admin_work_event` — push при открытии/закрытии смены (`supabase/functions/send_admin_work_event/`): по умолчанию **всем активным участникам компании**; `notify_all: false` — только админам (`company_members` + `roles`).
 - `send_work_report_to_telegram` — ежедневный отчет по закрытой смене.
 - `send_work_opening_report_to_telegram` — уведомление об открытии смены.
 - `export-work-search-pto` — экспорт данных для ПТО.
 - `export-work-search-all` — полный экспорт данных.
 
 ## Roadmap
+- ✅ **Завершено (16.04.2026):** Разделение мобильного и десктопного представлений модуля (`WorksListMobileScreen`), вынос общей бизнес-логики в `WorksScreenActionsMixin` и общих sliver-делегатов месяцев в `widgets/`.
 - ✅ **Завершено:** Редактирование и удаление планов в десктопной версии `WorksMasterDetailScreen`.
 - ✅ **Завершено:** Переход на отображение количества специалистов в списках планов с корректным склонением.
 - ✅ **Завершено:** Унификация модальных окон через `MobileBottomSheetContent` и `DesktopDialogContent`.

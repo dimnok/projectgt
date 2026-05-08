@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:projectgt/core/widgets/gt_text_action_link.dart';
+
 /// Строка текстовых действий над таблицей сотрудников: выравнивание вправо,
 /// подчёркнутые ссылки с лёгким увеличением при наведении (desktop).
 ///
@@ -50,86 +52,22 @@ class EmployeesTableActionsBar extends StatelessWidget {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             if (canCreate && onAddEmployee != null)
-              _EmployeesTableActionLink(
+              GtTextActionLink(
                 label: 'Добавить сотрудника',
                 onTap: onAddEmployee!,
               ),
             if (canExport && onExport != null)
-              _EmployeesTableActionLink(
+              GtTextActionLink(
                 label: 'Экспорт',
                 onTap: onExport!,
               ),
             if (showDelete)
-              _EmployeesTableActionLink(
+              GtTextActionLink(
                 label: 'Удалить',
                 onTap: onDeleteSelected!,
                 danger: true,
               ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Одна текстовая ссылка: акцентный или опасный цвет, hover-scale.
-class _EmployeesTableActionLink extends StatefulWidget {
-  const _EmployeesTableActionLink({
-    required this.label,
-    required this.onTap,
-    this.danger = false,
-  });
-
-  final String label;
-  final VoidCallback onTap;
-
-  /// Если `true`, цвет ссылки — [ColorScheme.error] (действие удаления).
-  final bool danger;
-
-  @override
-  State<_EmployeesTableActionLink> createState() =>
-      _EmployeesTableActionLinkState();
-}
-
-class _EmployeesTableActionLinkState extends State<_EmployeesTableActionLink> {
-  bool _hover = false;
-
-  static Color _linkColor(ThemeData theme, bool danger) {
-    if (danger) {
-      return theme.colorScheme.error;
-    }
-    return theme.brightness == Brightness.dark
-        ? const Color(0xFF81D4FA)
-        : const Color(0xFF039BE5);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final color = _linkColor(theme, widget.danger);
-    return Semantics(
-      button: true,
-      label: widget.label,
-      child: MouseRegion(
-        onEnter: (_) => setState(() => _hover = true),
-        onExit: (_) => setState(() => _hover = false),
-        cursor: SystemMouseCursors.click,
-        child: GestureDetector(
-          onTap: widget.onTap,
-          child: AnimatedScale(
-            scale: _hover ? 1.06 : 1.0,
-            duration: const Duration(milliseconds: 160),
-            curve: Curves.easeOut,
-            alignment: Alignment.center,
-            child: Text(
-              widget.label,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: color,
-                decoration: TextDecoration.underline,
-                decorationColor: color,
-              ),
-            ),
-          ),
         ),
       ),
     );

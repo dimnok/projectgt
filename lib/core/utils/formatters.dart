@@ -19,6 +19,7 @@ class GtFormatters {
   static final _apiDateFormat = DateFormat('yyyy-MM-dd');
   static final _monthYearFormat = DateFormat('LLLL yyyy', 'ru_RU');
   static final _compactMonthYearFormat = DateFormat('MMM yyyy', 'ru_RU');
+  static final _weekdayShortFormat = DateFormat('EEE', 'ru_RU');
   static final _quantityFormat = NumberFormat('###,##0.###', 'ru_RU');
   static final _amountFormat = NumberFormat('#,##0.00', 'ru_RU');
 
@@ -83,6 +84,17 @@ class GtFormatters {
   /// Пример: 2025-09-14 -> "сент. 2025".
   static String formatCompactMonthYear(DateTime date) =>
       _compactMonthYearFormat.format(date);
+
+  /// Краткий день недели для компактного UI (списки, календарные метки).
+  ///
+  /// Локаль `ru_RU`, без точки в конце, в верхнем регистре.
+  /// Пример: 2025-09-17 -> «СР».
+  static String formatRuWeekdayShort(DateTime date) {
+    final raw = _weekdayShortFormat.format(date).trim();
+    final noDot = raw.replaceAll('.', '');
+    if (noDot.isEmpty) return '';
+    return noDot.toUpperCase();
+  }
 
   /// Форматирует количество (до 3 знаков после запятой, группировка тысяч).
   /// Пример: 1234.5 -> "1 234,5".
@@ -500,6 +512,14 @@ String formatRuDateTime(DateTime date) => GtFormatters.formatRuDateTime(date);
 
 /// Алиас для форматирования месяца и года полностью (Сентябрь 2025).
 String formatMonthYear(DateTime date) => GtFormatters.formatMonthYear(date);
+
+/// Алиас для краткого дня недели (ru_RU, верхний регистр).
+String formatRuWeekdayShort(DateTime date) =>
+    GtFormatters.formatRuWeekdayShort(date);
+
+/// Алиас для краткого месяца и года (`MMM yyyy`, ru_RU).
+String formatCompactMonthYear(DateTime date) =>
+    GtFormatters.formatCompactMonthYear(date);
 
 /// Алиас для форматирования количества.
 String formatQuantity(num value) => GtFormatters.formatQuantity(value);

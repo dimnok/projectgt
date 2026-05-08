@@ -2,7 +2,7 @@ import '../entities/employee_attendance_entry.dart';
 
 /// Абстракция репозитория для работы с посещаемостью сотрудников.
 abstract class EmployeeAttendanceRepository {
-  /// Получить записи посещаемости за период с обогащением данными.
+  /// Получить записи посещаемости за период.
   Future<List<EmployeeAttendanceEntry>> getAttendanceRecords({
     DateTime? startDate,
     DateTime? endDate,

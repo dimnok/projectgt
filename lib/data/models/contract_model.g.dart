@@ -37,6 +37,9 @@ _ContractModel _$ContractModelFromJson(Map<String, dynamic> json) =>
       status:
           $enumDecodeNullable(_$ContractStatusEnumMap, json['status']) ??
           ContractStatus.active,
+      kind:
+          $enumDecodeNullable(_$ContractKindEnumMap, json['contract_kind']) ??
+          ContractKind.customer,
       contractorLegalName: json['contractor_legal_name'] as String?,
       contractorPosition: json['contractor_position'] as String?,
       contractorSigner: json['contractor_signer'] as String?,
@@ -73,6 +76,7 @@ Map<String, dynamic> _$ContractModelToJson(_ContractModel instance) =>
       'object_id': instance.objectId,
       'object_name': instance.objectName,
       'status': _$ContractStatusEnumMap[instance.status]!,
+      'contract_kind': _$ContractKindEnumMap[instance.kind]!,
       'contractor_legal_name': instance.contractorLegalName,
       'contractor_position': instance.contractorPosition,
       'contractor_signer': instance.contractorSigner,
@@ -87,4 +91,10 @@ const _$ContractStatusEnumMap = {
   ContractStatus.active: 'active',
   ContractStatus.suspended: 'suspended',
   ContractStatus.completed: 'completed',
+};
+
+const _$ContractKindEnumMap = {
+  ContractKind.customer: 'customer',
+  ContractKind.subcontract: 'subcontract',
+  ContractKind.supply: 'supply',
 };

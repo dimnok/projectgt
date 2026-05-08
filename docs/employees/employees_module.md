@@ -1,8 +1,14 @@
 # Модуль Employees (Сотрудники)
 
-**Дата актуализации:** 11 апреля 2026 года
+**Дата актуализации:** 16 апреля 2026 года
 
-**Изменения в этой версии:**
+**Изменения в этой версии (16.04.2026, perf-аудит запросов):**
+- **Индексы по `company_id`** ([`20260416120000_employees_company_id_indexes.sql`](../../supabase/migrations/20260416120000_employees_company_id_indexes.sql)): `idx_employees_company_id`, `idx_employees_company_last_name`, `idx_employee_rates_company_id`. До этого планировщик выбирал Seq Scan на `employees` при фильтре по `company_id`, что линейно деградирует с ростом справочника. Дополнительно прогнан `ANALYZE` по двум таблицам.
+- **RPC `get_employee_positions(p_company_id uuid)`** ([`20260416120500_get_employee_positions_rpc.sql`](../../supabase/migrations/20260416120500_get_employee_positions_rpc.sql), `SECURITY INVOKER`, `STABLE`): уникальные должности считаются на сервере вместо fetch‑all + клиентский `DISTINCT`. Возвращаемая колонка названа `position_name`, т.к. `position` — зарезервированный идентификатор в контексте `RETURNS TABLE`.
+- **`EmployeeRepositoryImpl`** больше **не использует `Supabase.instance.client` напрямую** — метод `getPositions` делегирован в `EmployeeDataSource.getPositions()` (вызов RPC). Конструктор репозитория упрощён: параметр `activeCompanyId` удалён, провайдер `employeeRepositoryProvider` обновлён.
+- **`EmployeeNotifier.getEmployees(includeResponsibilityMap: false)`** по умолчанию: дублирующий запрос `getCanBeResponsibleMap()` больше не выполняется при каждой загрузке списка. Поле `state.canBeResponsibleMap` никем в UI не читается, а при переключении флага через `toggleCanBeResponsible` мапа обновляется точечно.
+
+**Предыдущая версия (11.04.2026):**
 - задокументированы **две поверхности списка**: таблица на широких экранах и **мобильный** `EmployeesListMobileScreen` при узкой стороне окна ([`EmployeesLayoutUtils`](../../lib/features/employees/presentation/utils/employees_layout_utils.dart))
 - обновлён раздел **Presentation**: карточки, свайпы, bottom sheet деталей/редактирования, аватар ([`EmployeeAvatarController`](../../lib/features/employees/presentation/providers/employee_avatar_controller.dart), [`PhotoService`](../../lib/core/services/photo_service.dart))
 - **Навигация и RBAC**: маршрут `/employees`, детали `/employees/:employeeId`, права модуля `employees` (`read`, `create`, `update`, `export`); просмотр «своей» карточки по `profiles` без права на весь справочник
@@ -34,7 +40,7 @@
 - все запросы к PostgREST фильтруются по **`activeCompanyId`** в datasource
 - поиск по ФИО / должности / телефону — **на клиенте** (`EmployeeState.filteredEmployees`)
 - **текущая ставка** не хранится в строке `employees`: подгружается из `employee_rates`, где `valid_to IS NULL`, и кладётся в `Employee.currentHourlyRate` / `EmployeeModel.currentHourlyRate` (только на клиенте)
-- флаг **`can_be_responsible`** хранится в БД в `employees`, в доменной модели [`Employee`](../../lib/domain/entities/employee.dart) **не** сериализуется; в UI используется кэш `EmployeeState.canBeResponsibleMap` и отдельные методы datasource
+- флаг **`can_be_responsible`** хранится в БД в `employees`, в доменной модели [`Employee`](../../lib/domain/entities/employee.dart) **не** сериализуется; кэш `EmployeeState.canBeResponsibleMap` сейчас никем не читается, обновляется точечно через `toggleCanBeResponsible`; массовая подгрузка `getCanBeResponsibleMap()` по умолчанию **не выполняется** (`includeResponsibilityMap: false`), чтобы убрать дублирующий запрос при каждом открытии списка — подгрузка включается явно только в сценариях, где это потребуется
 - **две раскладки списка**: `EmployeesTableScreen` (таблица) и `EmployeesListMobileScreen` (карточки) — выбор по [`EmployeesLayoutUtils.useEmployeesMobileList`](../../lib/features/employees/presentation/utils/employees_layout_utils.dart) (`shortestSide` vs breakpoint планшета)
 
 ---
@@ -306,6 +312,7 @@ lib/
 - `employees_pkey` (подразумевается PK)
 - `idx_employees_status`, `idx_employees_position` — из [`20240101000002_employees_migration.sql`](../../supabase/migrations/20240101000002_employees_migration.sql)
 - `idx_employees_name` — **удалён** в [`20251015_optimize_indexes.sql`](../../supabase/migrations/20251015_optimize_indexes.sql)
+- `idx_employees_company_id`, `idx_employees_company_last_name` — из [`20260416120000_employees_company_id_indexes.sql`](../../supabase/migrations/20260416120000_employees_company_id_indexes.sql) (покрытие фильтра `company_id` и `ORDER BY last_name`)
 
 #### Триггеры (`employees`)
 
@@ -319,6 +326,10 @@ lib/
 - функции расчёта зарплаты за месяц / срезы payroll (используют `employees`, `employee_rates`, `work_hours`, `employee_attendance`)
 - `get_payroll_report_data` и связанные RPC в миграциях ФОТ
 - `get_month_employees_summary` — агрегат по числу сотрудников в сменах за месяц
+
+**Собственные RPC модуля:**
+
+- `get_employee_positions(p_company_id uuid) RETURNS TABLE (position_name text)` — уникальные должности сотрудников активной компании (SECURITY INVOKER, RLS employees применяется). Вызывается из [`SupabaseEmployeeDataSource.getPositions`](../../lib/data/datasources/employee_data_source.dart) и далее из форм добавления/редактирования. Миграция: [`20260416120500_get_employee_positions_rpc.sql`](../../supabase/migrations/20260416120500_get_employee_positions_rpc.sql).
 
 ### Таблица `employee_rates`
 
@@ -347,6 +358,8 @@ lib/
 **Индексы / изменения в миграциях:**
 
 - [`20251015_optimize_indexes.sql`](../../supabase/migrations/20251015_optimize_indexes.sql): `CREATE INDEX IF NOT EXISTS idx_employee_rates_created_by ON employee_rates(created_by)`; удалены `idx_employee_rates_employee_id`, `idx_employee_rates_active`.
+- [`20260416120000_employees_company_id_indexes.sql`](../../supabase/migrations/20260416120000_employees_company_id_indexes.sql): добавлен `idx_employee_rates_company_id` — покрытие фильтра по `company_id` в массовых выборках.
+- Частичный уникальный индекс `idx_employee_rates_active_unique (employee_id) WHERE valid_to IS NULL` уже присутствует в БД (гарантирует «одна активная ставка» на сотрудника).
 
 **Инвариант «одна активная ставка»:** в коде и экспорте используется фильтр `valid_to IS NULL`. Явный **partial unique** в отслеживаемых миграциях не найден — при необходимости жёсткой уникальности её стоит добавить отдельной миграцией на проде.
 
@@ -385,7 +398,7 @@ lib/
 Денежные расчёты начислений (часы × ставка за период, командировочные, премии) **не входят в модуль Employees** — см. модуль **FOT** и SQL-функции в миграциях.
 
 1. После первого кадра экраны списка вызывают `employeeProvider.notifier.getEmployees()` и загрузку объектов (`objectProvider`).
-2. `EmployeeNotifier.getEmployees()` не перезагружает список, если уже `success` и список не пуст; опционально догружает `canBeResponsibleMap` (`includeResponsibilityMap`).
+2. `EmployeeNotifier.getEmployees()` не перезагружает список, если уже `success` и список не пуст; параметр `includeResponsibilityMap` по умолчанию `false` — отдельный запрос за картой `can_be_responsible` не выполняется (поле в UI не потребляется; при смене флага мапа обновляется точечно).
 3. `SupabaseEmployeeDataSource.getEmployees()` читает `employees` по `company_id`, затем одним запросом — текущие ставки (`employee_rates`, `valid_to IS NULL`) и обогащает `currentHourlyRate`.
 4. Поиск: `EmployeeState.filteredEmployees` (ФИО, должность, телефон).
 5. Таблица: дополнительно фильтр по статусу, объекту, сортировка по фамилии, счётчики по статусам — на клиенте.

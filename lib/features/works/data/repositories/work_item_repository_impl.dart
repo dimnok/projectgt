@@ -162,37 +162,4 @@ class WorkItemRepositoryImpl implements WorkItemRepository {
         )
         .toList();
   }
-
-  /// Реалтайм-поток работ конкретной смены
-  @override
-  Stream<List<WorkItem>> watchWorkItems(String workId) {
-    return dataSource
-        .watchWorkItems(workId)
-        .map(
-          (models) => models
-              .map(
-                (e) => WorkItem(
-                  id: e.id,
-                  companyId: e.companyId,
-                  workId: e.workId,
-                  section: e.section,
-                  floor: e.floor,
-                  estimateId: e.estimateId,
-                  name: e.name,
-                  system: e.system,
-                  subsystem: e.subsystem,
-                  unit: e.unit,
-                  quantity: e.quantity,
-                  price: e.price,
-                  total: e.total,
-                  createdAt: e.createdAt,
-                  updatedAt: e.updatedAt,
-                  ks2Id: e.ks2Id,
-                  contractorId: e.contractorId,
-                  specialistsCount: e.specialistsCount,
-                ),
-              )
-              .toList(),
-        );
-  }
 }

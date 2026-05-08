@@ -1,4 +1,5 @@
 import '../../domain/entities/estimate.dart';
+import '../../domain/entities/estimate_bulk_update.dart';
 import '../../domain/entities/estimate_completion_history.dart';
 import '../../domain/entities/estimate_revision.dart';
 import '../../domain/entities/vor.dart';
@@ -218,6 +219,33 @@ class EstimateRepositoryImpl implements EstimateRepository {
   }
 
   @override
+  Future<Map<String, dynamic>> exportContractEstimateWithAddendaExcel({
+    required String estimateTitle,
+    required String contractId,
+    String? objectId,
+  }) {
+    return dataSource.exportContractEstimateWithAddendaExcel(
+      estimateTitle: estimateTitle,
+      contractId: contractId,
+      objectId: objectId,
+    );
+  }
+
+  @override
+  Future<List<EstimatePositionAddendumHistoryEntry>>
+      getEstimatePositionAddendumHistory({
+    required String contractId,
+    required String estimateTitle,
+    required String estimateRowId,
+  }) {
+    return dataSource.getEstimatePositionAddendumHistory(
+      contractId: contractId,
+      estimateTitle: estimateTitle,
+      estimateRowId: estimateRowId,
+    );
+  }
+
+  @override
   Future<EstimateRevisionDraftResult> createEstimateRevisionDraft({
     required String estimateTitle,
     required String contractId,
@@ -225,6 +253,8 @@ class EstimateRepositoryImpl implements EstimateRepository {
     required String fileName,
     required Uint8List fileBytes,
     required List<EstimateAddendumImportRow> rows,
+    DateTime? effectiveFrom,
+    String? userDescription,
   }) {
     return dataSource.createEstimateRevisionDraft(
       estimateTitle: estimateTitle,
@@ -233,6 +263,102 @@ class EstimateRepositoryImpl implements EstimateRepository {
       fileName: fileName,
       fileBytes: fileBytes,
       rows: rows,
+      effectiveFrom: effectiveFrom,
+      userDescription: userDescription,
+    );
+  }
+
+  @override
+  Future<EstimateBulkUpdateResult> applyAddendumRevisionToEstimates({
+    required String revisionId,
+  }) {
+    return dataSource.applyAddendumRevisionToEstimates(revisionId: revisionId);
+  }
+
+  @override
+  Future<void> updateEstimateRevisionMetadata({
+    required String revisionId,
+    DateTime? effectiveFrom,
+    String? userDescription,
+  }) {
+    return dataSource.updateEstimateRevisionMetadata(
+      revisionId: revisionId,
+      effectiveFrom: effectiveFrom,
+      userDescription: userDescription,
+    );
+  }
+
+  @override
+  Future<void> deleteAddendumRevision({required String revisionId}) {
+    return dataSource.deleteAddendumRevision(revisionId: revisionId);
+  }
+
+  @override
+  Future<List<EstimateBulkUpdateTemplateRow>> getBulkUpdateTemplateRows({
+    required String estimateTitle,
+    required String contractId,
+    String? objectId,
+  }) {
+    return dataSource.getBulkUpdateTemplateRows(
+      estimateTitle: estimateTitle,
+      contractId: contractId,
+      objectId: objectId,
+    );
+  }
+
+  @override
+  Future<Map<String, dynamic>> getBulkUpdateTemplateFile({
+    required String estimateTitle,
+    required String contractId,
+    String? objectId,
+  }) {
+    return dataSource.getBulkUpdateTemplateFile(
+      estimateTitle: estimateTitle,
+      contractId: contractId,
+      objectId: objectId,
+    );
+  }
+
+  @override
+  Future<Map<String, dynamic>> getEstimateImportTemplateFile({
+    String? contractId,
+  }) {
+    return dataSource.getEstimateImportTemplateFile(contractId: contractId);
+  }
+
+  @override
+  Future<EstimateBulkUpdateResult> previewBulkUpdate({
+    required String estimateTitle,
+    required String contractId,
+    String? objectId,
+    required List<EstimateBulkUpdateImportRow> rows,
+    String? sourceFileName,
+  }) {
+    return dataSource.runBulkUpdate(
+      estimateTitle: estimateTitle,
+      contractId: contractId,
+      objectId: objectId,
+      rows: rows,
+      dryRun: true,
+      sourceFileName: sourceFileName,
+    );
+  }
+
+  @override
+  Future<EstimateBulkUpdateResult> applyBulkUpdate({
+    required String estimateTitle,
+    required String contractId,
+    String? objectId,
+    required List<EstimateBulkUpdateImportRow> rows,
+    String? sourceFileName,
+  }) {
+    return dataSource.runBulkUpdate(
+      estimateTitle: estimateTitle,
+      contractId: contractId,
+      objectId: objectId,
+      rows: rows,
+      dryRun: false,
+      sourceFileName: sourceFileName,
     );
   }
 }

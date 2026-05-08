@@ -572,14 +572,7 @@ class _EmployeesListMobileScreenState
                       final (statusLabel, statusColor) =
                           EmployeeUIUtils.getStatusInfo(e.status);
                       final card = EmployeesMobileEmployeeCard(
-                        style: EmployeesMobileEmployeeCardStyle(
-                          scheme: appearance.scheme,
-                          cardTop: appearance.cardTop,
-                          cardBottom: appearance.cardBottom,
-                          cardBorder: appearance.cardBorder,
-                          cardHighlight: appearance.cardHighlight,
-                          cardShadows: appearance.cardShadows,
-                        ),
+                        style: appearance.cardStyle,
                         photoUrl: e.photoUrl,
                         displayName: e.fullName,
                         positionLine: positionLine,

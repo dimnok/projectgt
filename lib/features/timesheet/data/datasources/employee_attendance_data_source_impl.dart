@@ -17,8 +17,42 @@ class EmployeeAttendanceDataSourceImpl implements EmployeeAttendanceDataSource {
   /// Название таблицы
   static const String tableName = 'employee_attendance';
 
+  /// Максимум строк в одном ответе PostgREST; без пагинации остальные строки отбрасываются.
+  static const int _postgrestPageSize = 1000;
+
   /// Создает экземпляр [EmployeeAttendanceDataSourceImpl].
   EmployeeAttendanceDataSourceImpl(this.client, this.activeCompanyId);
+
+  /// Создаёт запрос по таблице посещаемости с фильтрами (без сортировки и [PostgrestFilterBuilder.range]).
+  dynamic _attendanceRecordsQuery({
+    String? employeeId,
+    String? objectId,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) {
+    var queryBuilder =
+        client.from(tableName).select().eq('company_id', activeCompanyId);
+
+    if (employeeId != null) {
+      queryBuilder = queryBuilder.eq('employee_id', employeeId);
+    }
+
+    if (objectId != null) {
+      queryBuilder = queryBuilder.eq('object_id', objectId);
+    }
+
+    if (startDate != null) {
+      final startDateStr = startDate.toIso8601String().split('T')[0];
+      queryBuilder = queryBuilder.gte('date', startDateStr);
+    }
+
+    if (endDate != null) {
+      final endDateStr = endDate.toIso8601String().split('T')[0];
+      queryBuilder = queryBuilder.lte('date', endDateStr);
+    }
+
+    return queryBuilder;
+  }
 
   @override
   Future<List<EmployeeAttendanceModel>> getAttendanceRecords({
@@ -28,35 +62,37 @@ class EmployeeAttendanceDataSourceImpl implements EmployeeAttendanceDataSource {
     String? objectId,
   }) async {
     try {
-      // Создаём начальный query builder
-      var queryBuilder = client.from(tableName).select().eq('company_id', activeCompanyId);
+      final allRows = <Map<String, dynamic>>[];
+      var offset = 0;
+      var hasMore = true;
 
-      // Фильтрация по сотруднику
-      if (employeeId != null) {
-        queryBuilder = queryBuilder.eq('employee_id', employeeId);
+      while (hasMore) {
+        final response = await _attendanceRecordsQuery(
+          employeeId: employeeId,
+          objectId: objectId,
+          startDate: startDate,
+          endDate: endDate,
+        )
+            .order('date', ascending: true)
+            .order('id', ascending: true)
+            .range(offset, offset + _postgrestPageSize - 1);
+
+        if (response.isEmpty) {
+          break;
+        }
+
+        for (final row in response) {
+          allRows.add(Map<String, dynamic>.from(row as Map));
+        }
+
+        if (response.length < _postgrestPageSize) {
+          hasMore = false;
+        } else {
+          offset += _postgrestPageSize;
+        }
       }
 
-      // Фильтрация по объекту
-      if (objectId != null) {
-        queryBuilder = queryBuilder.eq('object_id', objectId);
-      }
-
-      // Фильтрация по дате (начало периода)
-      if (startDate != null) {
-        final startDateStr = startDate.toIso8601String().split('T')[0];
-        queryBuilder = queryBuilder.gte('date', startDateStr);
-      }
-
-      // Фильтрация по дате (конец периода)
-      if (endDate != null) {
-        final endDateStr = endDate.toIso8601String().split('T')[0];
-        queryBuilder = queryBuilder.lte('date', endDateStr);
-      }
-
-      // Выполняем запрос с сортировкой
-      final response = await queryBuilder.order('date', ascending: true);
-
-      return (response as List)
+      return allRows
           .map((item) => EmployeeAttendanceModel.fromJson(item))
           .toList();
     } catch (e) {

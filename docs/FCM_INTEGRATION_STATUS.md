@@ -12,8 +12,8 @@
 
 ### 2. Firebase Console
 - [x] Проект создан — `pgtmess` (ACTIVE)
-- [x] Добавлено Android‑приложение — пакет `dev.projectgt.projectgt` (ACTIVE)
-- [x] Добавлено iOS‑приложение — bundle `dev.projectgt.projectgt`, Team ID `L37HR2KV4M` (ACTIVE)
+- [x] Добавлено Android‑приложение — пакет `com.projectgt.stroyka` (ACTIVE)
+- [x] Добавлено iOS‑приложение — bundle `com.projectgt.stroyka` (личная команда в Xcode) (ACTIVE)
 - [x] Конфиги добавлены в проект:
   - `google-services.json` — есть в `android/app/` (`/Users/dmitrit./projectgt/android/app/google-services.json`)
   - `GoogleService-Info.plist` — есть в `ios/Runner/` (`/Users/dmitrit./projectgt/ios/Runner/GoogleService-Info.plist`)

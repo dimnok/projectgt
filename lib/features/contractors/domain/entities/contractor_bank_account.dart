@@ -25,4 +25,3 @@ abstract class ContractorBankAccount with _$ContractorBankAccount {
   factory ContractorBankAccount.fromJson(Map<String, dynamic> json) =>
       _$ContractorBankAccountFromJson(json);
 }
-

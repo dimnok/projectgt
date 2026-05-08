@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/utils/formatters.dart';
+import '../../../../core/utils/snackbar_utils.dart';
 import '../../../../core/widgets/gt_buttons.dart';
 import '../../../../data/models/estimate_completion_model.dart';
 import '../../../../domain/entities/estimate.dart';
@@ -16,6 +17,7 @@ import '../providers/estimate_providers.dart';
 import '../utils/estimate_sorter.dart';
 import '../widgets/estimate_item_card.dart';
 import '../widgets/estimate_mobile_header.dart';
+import 'import_estimate_bulk_update_modal.dart';
 import 'estimate_details_screen.dart';
 
 /// Мобильное представление раздела смет.
@@ -78,6 +80,36 @@ class _EstimateMobileViewState extends ConsumerState<EstimateMobileView>
     setState(() {});
   }
 
+  void _showBulkUpdateModal(BuildContext context) {
+    final contractId = widget.contractId;
+    final title = widget.estimateTitle;
+    if (title == null || contractId == null || contractId.isEmpty) {
+      SnackBarUtils.showError(
+        context,
+        'Для обновления из Excel требуется смета, привязанная к договору',
+      );
+      return;
+    }
+
+    ImportEstimateBulkUpdateModal.show(
+      context,
+      estimateTitle: title,
+      contractId: contractId,
+      objectId: widget.objectId,
+      onSuccess: () {
+        if (context.mounted) {
+          context.pop();
+        }
+        final args = currentEstimateArgs;
+        if (args != null) {
+          ref.invalidate(estimateItemsProvider(args));
+        }
+        ref.invalidate(estimateGroupsProvider);
+        ref.invalidate(estimateCompletionByIdsProvider);
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // 1. Если передано название сметы - показываем детали
@@ -88,8 +120,9 @@ class _EstimateMobileViewState extends ConsumerState<EstimateMobileView>
       return itemsAsync.when(
         data: (items) {
           final itemIds = items.map((e) => e.id).toList();
-          final completionAsync =
-              ref.watch(estimateCompletionByIdsProvider(EstimateIds(itemIds)));
+          final completionAsync = ref.watch(
+            estimateCompletionByIdsProvider(EstimateIds(itemIds)),
+          );
 
           return Scaffold(
             appBar: AppBarWidget(
@@ -108,12 +141,21 @@ class _EstimateMobileViewState extends ConsumerState<EstimateMobileView>
                     ref.invalidate(estimateCompletionByIdsProvider);
                   },
                 ),
+                PermissionGuard(
+                  module: 'estimates',
+                  permission: 'import',
+                  child: IconButton(
+                    icon: const Icon(CupertinoIcons.arrow_2_circlepath),
+                    tooltip: 'Обновить из Excel',
+                    onPressed: () => _showBulkUpdateModal(context),
+                  ),
+                ),
               ],
             ),
             body: completionAsync.when(
               data: (completions) {
                 final completionMap = {
-                  for (final c in completions) c.estimateId: c
+                  for (final c in completions) c.estimateId: c,
                 };
                 final filteredItems = _filterAndSortItems(items);
                 return _buildMobileBody(
@@ -172,14 +214,16 @@ class _EstimateMobileViewState extends ConsumerState<EstimateMobileView>
                 subtitle: Text(formatCurrency(group.total)),
                 trailing: const Icon(CupertinoIcons.chevron_right),
                 onTap: () {
-                  Navigator.of(context).push(MaterialPageRoute(
-                    builder: (ctx) => EstimateDetailsScreen(
-                      estimateTitle: group.estimateTitle,
-                      objectId: group.objectId,
-                      contractId: group.contractId,
-                      showAppBar: true,
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (ctx) => EstimateDetailsScreen(
+                        estimateTitle: group.estimateTitle,
+                        objectId: group.objectId,
+                        contractId: group.contractId,
+                        showAppBar: true,
+                      ),
                     ),
-                  ));
+                  );
                 },
               );
             },
@@ -266,21 +310,25 @@ class _EstimateMobileViewState extends ConsumerState<EstimateMobileView>
               final canDelete = permissionService.can('estimates', 'delete');
 
               return EstimateItemCard(
-                item: item,
-                completion: completion,
-                canEdit: canUpdate,
-                canDelete: canDelete,
-                canDuplicate: canUpdate,
-                onEdit: (estimate) => openEditDialog(context,
-                    estimate: estimate, estimateTitle: title),
-                onDuplicate: (estimate) =>
-                    duplicateEstimateItem(context, estimate),
-                onDelete: (id) => deleteEstimateItem(context, id),
-              )
+                    item: item,
+                    completion: completion,
+                    canEdit: canUpdate,
+                    canDelete: canDelete,
+                    canDuplicate: canUpdate,
+                    onEdit: (estimate) => openEditDialog(
+                      context,
+                      estimate: estimate,
+                      estimateTitle: title,
+                    ),
+                    onDuplicate: (estimate) =>
+                        duplicateEstimateItem(context, estimate),
+                    onDelete: (id) => deleteEstimateItem(context, id),
+                  )
                   .animate()
                   .fadeIn(
-                      duration: 300.ms,
-                      delay: Duration(milliseconds: 30 * index))
+                    duration: 300.ms,
+                    delay: Duration(milliseconds: 30 * index),
+                  )
                   .slideX(begin: 0.05, end: 0);
             },
           ),

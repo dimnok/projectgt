@@ -45,17 +45,6 @@ abstract class ContractFileDataSource {
   /// Выбрасывает исключение при ошибке удаления.
   Future<void> deleteFile(String fileId, String filePath);
 
-  /// Получает подписанный URL для скачивания файла.
-  ///
-  /// Создаёт временную ссылку с параметром download для принудительного
-  /// скачивания файла с правильным именем.
-  ///
-  /// [filePath] - путь к файлу в хранилище.
-  /// [originalName] - оригинальное имя файла для параметра download.
-  ///
-  /// Возвращает подписанный URL, действительный в течение 1 часа.
-  Future<String> getDownloadUrl(String filePath, String originalName);
-
   /// Скачивает файл как массив байтов.
   ///
   /// [filePath] - путь к файлу в хранилище.
@@ -150,17 +139,6 @@ class SupabaseContractFileDataSource implements ContractFileDataSource {
 
     // 2. Delete from Storage
     await client.storage.from('contracts').remove([filePath]);
-  }
-
-  @override
-  Future<String> getDownloadUrl(String filePath, String originalName) async {
-    final signedUrl = await client.storage
-        .from('contracts')
-        .createSignedUrl(filePath, 3600);
-    final encodedName = Uri.encodeComponent(originalName);
-
-    // Всегда возвращаем ссылку с параметром download для принудительного скачивания с правильным именем
-    return '$signedUrl&download=$encodedName';
   }
 
   @override

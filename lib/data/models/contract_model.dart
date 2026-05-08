@@ -51,6 +51,9 @@ abstract class ContractModel with _$ContractModel {
     required String objectId,
     String? objectName,
     @Default(ContractStatus.active) ContractStatus status,
+    @JsonKey(name: 'contract_kind')
+    @Default(ContractKind.customer)
+    ContractKind kind,
 
     // Новые поля для подписантов (маппятся на _legal_name в БД через snake_case)
     String? contractorLegalName,
@@ -127,6 +130,7 @@ abstract class ContractModel with _$ContractModel {
         objectId: contract.objectId,
         objectName: contract.objectName,
         status: contract.status,
+        kind: contract.kind,
         contractorLegalName: contract.contractorOrgName,
         contractorPosition: contract.contractorPosition,
         contractorSigner: contract.contractorSigner,
@@ -161,6 +165,7 @@ abstract class ContractModel with _$ContractModel {
         objectId: objectId,
         objectName: objectName,
         status: status,
+        kind: kind,
         contractorOrgName: contractorLegalName,
         contractorPosition: contractorPosition,
         contractorSigner: contractorSigner,

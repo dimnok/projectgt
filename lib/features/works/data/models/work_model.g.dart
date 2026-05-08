@@ -22,6 +22,7 @@ _WorkModel _$WorkModelFromJson(Map<String, dynamic> json) => _WorkModel(
       ? null
       : DateTime.parse(json['updated_at'] as String),
   totalAmount: (json['total_amount'] as num?)?.toDouble(),
+  ownTotalAmount: (json['own_total_amount'] as num?)?.toDouble(),
   itemsCount: (json['items_count'] as num?)?.toInt(),
   employeesCount: (json['employees_count'] as num?)?.toInt(),
   telegramMessageId: (json['telegram_message_id'] as num?)?.toInt(),
@@ -40,6 +41,7 @@ Map<String, dynamic> _$WorkModelToJson(_WorkModel instance) =>
       'created_at': instance.createdAt?.toIso8601String(),
       'updated_at': instance.updatedAt?.toIso8601String(),
       'total_amount': instance.totalAmount,
+      'own_total_amount': instance.ownTotalAmount,
       'items_count': instance.itemsCount,
       'employees_count': instance.employeesCount,
       'telegram_message_id': instance.telegramMessageId,

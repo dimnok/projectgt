@@ -117,7 +117,6 @@ lib/
 │       ├── contract/
 │       │   ├── create_contract_usecase.dart
 │       │   ├── delete_contract_usecase.dart
-│       │   ├── get_contract_usecase.dart
 │       │   ├── get_contracts_usecase.dart
 │       │   └── update_contract_usecase.dart
 │       ├── contractor/

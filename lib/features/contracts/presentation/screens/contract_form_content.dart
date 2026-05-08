@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:projectgt/domain/entities/contract.dart';
+import 'package:projectgt/features/contracts/presentation/widgets/contract_list_shared.dart';
 import 'package:projectgt/core/widgets/gt_dropdown.dart';
 import 'package:projectgt/core/widgets/gt_text_field.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
@@ -84,8 +85,11 @@ class ContractFormContent extends StatelessWidget {
   /// Статус договора (активен, приостановлен, завершён).
   final ContractStatus status;
 
-  /// Показывать ли заголовок формы (используется, когда форма не в модальном окне).
-  final bool showHeader;
+  /// Тип договора (заказчик / подряд / поставка).
+  final ContractKind kind;
+
+  /// Колбэк при изменении типа договора.
+  final ValueChanged<ContractKind?> onKindChanged;
 
   /// Показывать ли кнопки в футере (используется, когда форма не в модальном окне).
   final bool showFooter;
@@ -150,7 +154,8 @@ class ContractFormContent extends StatelessWidget {
     required this.selectedContractorId,
     required this.selectedObjectId,
     required this.status,
-    this.showHeader = true,
+    required this.kind,
+    required this.onKindChanged,
     this.showFooter = true,
     required this.formKey,
     required this.onSave,
@@ -174,30 +179,6 @@ class ContractFormContent extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (showHeader) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16.0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      isNew ? 'Новый договор' : 'Редактировать договор',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    style: IconButton.styleFrom(foregroundColor: Colors.red),
-                    onPressed: onCancel,
-                  ),
-                ],
-              ),
-            ),
-            const Divider(),
-          ],
           const GTSectionTitle(title: 'Данные договора'),
           const SizedBox(height: 16),
           // Номер договора
@@ -209,6 +190,22 @@ class ContractFormContent extends StatelessWidget {
             validator: (v) =>
                 v == null || v.trim().isEmpty ? 'Введите номер' : null,
             enabled: !isLoading,
+          ),
+          const SizedBox(height: 16),
+          GTDropdown<ContractKind>(
+            items: const [
+              ContractKind.customer,
+              ContractKind.subcontract,
+              ContractKind.supply,
+            ],
+            itemDisplayBuilder: ContractKindUi.label,
+            selectedItem: kind,
+            onSelectionChanged: onKindChanged,
+            labelText: 'Тип договора *',
+            hintText: 'Выберите тип',
+            prefixIcon: CupertinoIcons.arrow_left_right,
+            allowClear: false,
+            readOnly: isLoading,
           ),
           const SizedBox(height: 16),
           // Даты договора

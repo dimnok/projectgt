@@ -1,14 +1,19 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:projectgt/core/utils/modal_utils.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
+import 'package:projectgt/features/export/domain/entities/work_search_result.dart';
+import 'package:projectgt/features/works/presentation/providers/work_items_provider.dart';
+import 'package:projectgt/features/works/presentation/providers/repositories_providers.dart';
+import 'package:projectgt/features/works/presentation/screens/work_item_form_improved.dart';
 import '../../providers/work_search_provider.dart';
 import '../../providers/work_search_date_provider.dart';
 import '../../widgets/export_results_table_view.dart';
 import 'package:projectgt/presentation/state/auth_state.dart';
+import 'package:projectgt/presentation/state/profile_state.dart';
 import 'package:projectgt/features/roles/presentation/providers/roles_provider.dart';
 import '../../widgets/export_search_action.dart';
 
@@ -137,12 +142,16 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
         ? ref.watch(roleByIdProvider(user!.roleId!))
         : const AsyncValue<dynamic>.data(null);
 
-    final isAdmin = roleAsync.when(
-      data: (role) =>
-          role?.name == 'Администратор' || role?.name == 'Супер-админ',
-      loading: () => false,
-      error: (_, __) => false,
-    );
+    final isCompanyOwner =
+        ref.watch(currentUserProfileProvider).profile?.systemRole == 'owner';
+    final canEdit =
+        isCompanyOwner ||
+        roleAsync.when(
+          data: (role) =>
+              role?.name == 'Администратор' || role?.name == 'Супер-админ',
+          loading: () => false,
+          error: (_, __) => false,
+        );
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -153,7 +162,8 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
               results: searchState.results,
               totalQuantity: searchState.totalQuantity,
               totalSum: searchState.totalSum,
-              canEdit: isAdmin,
+              canEdit: canEdit,
+              canDelete: canEdit,
               onEdit: (result) {
                 if (result.workItemId == null ||
                     result.workId == null ||
@@ -164,10 +174,17 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
                   );
                   return;
                 }
-                ModalUtils.showExportWorkItemEditModal(
-                  context,
-                  initialData: result,
-                );
+                _openWorkItemEditor(context, result);
+              },
+              onDelete: (result) {
+                if (result.workItemId == null || result.workId == null) {
+                  SnackBarUtils.showError(
+                    context,
+                    'Недостаточно данных для удаления',
+                  );
+                  return;
+                }
+                _confirmAndDeleteWorkItem(context, result);
               },
               onNavigateToWork: (result) {
                 if (result.workId != null) {
@@ -208,6 +225,102 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
         ],
       ),
     );
+  }
+
+  Future<void> _openWorkItemEditor(
+    BuildContext context,
+    WorkSearchResult result,
+  ) async {
+    try {
+      final workItems = await ref
+          .read(workItemRepositoryProvider)
+          .fetchWorkItems(result.workId!);
+      if (!context.mounted) return;
+
+      final workItem = workItems.firstWhereOrNull(
+        (item) => item.id == result.workItemId,
+      );
+      if (workItem == null) {
+        SnackBarUtils.showError(context, 'Работа не найдена в смене');
+        return;
+      }
+
+      final saved = await showDialog<bool>(
+        context: context,
+        builder: (context) => Center(
+          child: WorkItemFormImproved(
+            workId: result.workId!,
+            initial: workItem,
+            initialObjectId: result.objectId,
+          ),
+        ),
+      );
+      if (!context.mounted || saved != true) return;
+
+      await _refreshSearchResults();
+      if (!context.mounted) return;
+      SnackBarUtils.showSuccess(context, 'Изменения сохранены');
+    } catch (e) {
+      if (!context.mounted) return;
+      SnackBarUtils.showError(context, 'Ошибка редактирования: $e');
+    }
+  }
+
+  Future<void> _confirmAndDeleteWorkItem(
+    BuildContext context,
+    WorkSearchResult result,
+  ) async {
+    final confirmed = await showCupertinoDialog<bool>(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Подтверждение'),
+        content: Text('Удалить работу "${result.materialName}"?'),
+        actions: [
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Отмена'),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Удалить'),
+          ),
+        ],
+      ),
+    );
+    if (!context.mounted || confirmed != true) return;
+
+    try {
+      await ref
+          .read(workItemsProvider(result.workId!).notifier)
+          .delete(result.workItemId!);
+      await _refreshSearchResults();
+      if (!context.mounted) return;
+      SnackBarUtils.showSuccess(context, 'Работа удалена');
+    } catch (e) {
+      if (!context.mounted) return;
+      SnackBarUtils.showError(context, 'Ошибка удаления: $e');
+    }
+  }
+
+  Future<void> _refreshSearchResults() async {
+    final searchQuery = ref.read(exportSearchQueryProvider);
+    final dateRange = ref.read(workSearchDateRangeProvider);
+    final selectedObjectId = ref.read(exportSelectedObjectIdProvider);
+    final filters = ref.read(exportSearchFilterProvider);
+
+    await ref
+        .read(workSearchProvider.notifier)
+        .searchMaterials(
+          startDate: dateRange?.start,
+          endDate: dateRange?.end,
+          objectId: selectedObjectId,
+          searchQuery: searchQuery.trim().isNotEmpty ? searchQuery : null,
+          systemFilters: filters['system']?.toList(),
+          sectionFilters: filters['section']?.toList(),
+          floorFilters: filters['floor']?.toList(),
+        );
   }
 
   /// Строит сообщение о недоступности модуля на мобильных устройствах.

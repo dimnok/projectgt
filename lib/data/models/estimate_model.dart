@@ -26,6 +26,7 @@ abstract class EstimateModel with _$EstimateModel {
   /// [contractId] — идентификатор договора.
   /// [contractNumber] — номер договора (из view).
   /// [estimateTitle] — название сметы.
+  /// [visibleInEstimatesModule] — видимость строки в модуле «Сметы» (колонка в БД).
   @JsonSerializable(explicitToJson: true, includeIfNull: false)
   const factory EstimateModel({
     String? id,
@@ -44,6 +45,9 @@ abstract class EstimateModel with _$EstimateModel {
     @JsonKey(name: 'contract_id') String? contractId,
     @JsonKey(name: 'contract_number') String? contractNumber,
     @JsonKey(name: 'estimate_title') String? estimateTitle,
+    @JsonKey(name: 'visible_in_estimates_module', defaultValue: true)
+    @Default(true)
+    bool visibleInEstimatesModule,
   }) = _EstimateModel;
 
   /// Приватный конструктор для поддержки методов расширения.
@@ -80,6 +84,7 @@ extension EstimateModelMapper on EstimateModel {
         contractId: contractId,
         contractNumber: contractNumber,
         estimateTitle: estimateTitle,
+        visibleInEstimatesModule: visibleInEstimatesModule,
       );
 }
 
@@ -103,5 +108,6 @@ extension EstimateDomainMapper on Estimate {
         contractId: contractId,
         contractNumber: contractNumber,
         estimateTitle: estimateTitle,
+        visibleInEstimatesModule: visibleInEstimatesModule,
       );
 }

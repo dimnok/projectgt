@@ -21,13 +21,19 @@ abstract class WorkDataSource {
   Future<void> deleteWork(String id);
 
   /// Возвращает заголовки групп месяцев с агрегированными данными.
-  Future<List<MonthGroup>> getMonthsHeaders();
+  ///
+  /// [openedBy] — если задан, только смены с этим [WorkModel.openedBy]
+  /// (на сервере допускается только совпадение с текущим пользователем).
+  Future<List<MonthGroup>> getMonthsHeaders({String? openedBy});
 
   /// Возвращает смены конкретного месяца с пагинацией.
+  ///
+  /// [openedBy] — если задан, только смены, открытые этим пользователем.
   Future<List<WorkModel>> getMonthWorks(
     DateTime month, {
     int offset = 0,
     int limit = 30,
+    String? openedBy,
   });
 
   /// Проверяет, есть ли у пользователя открытая смена в данной компании.

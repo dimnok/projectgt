@@ -3,7 +3,6 @@ import 'package:projectgt/data/models/employee_model.dart';
 import 'package:projectgt/domain/entities/employee.dart';
 import 'package:projectgt/domain/entities/employee_blocking_shift.dart';
 import 'package:projectgt/domain/repositories/employee_repository.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Имплементация [EmployeeRepository] для работы с сотрудниками через data source.
 ///
@@ -12,11 +11,8 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
   /// Data source для работы с сотрудниками.
   final EmployeeDataSource dataSource;
 
-  /// ID активной компании.
-  final String activeCompanyId;
-
-  /// Создаёт [EmployeeRepositoryImpl] с указанным [dataSource] и [activeCompanyId].
-  EmployeeRepositoryImpl(this.dataSource, this.activeCompanyId);
+  /// Создаёт [EmployeeRepositoryImpl] с указанным [dataSource].
+  EmployeeRepositoryImpl(this.dataSource);
 
   @override
   Future<List<Employee>> getEmployees() async {
@@ -57,20 +53,5 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
   }
 
   @override
-  Future<List<String>> getPositions() async {
-    final data = await Supabase.instance.client
-        .from('employees')
-        .select('position')
-        .eq('company_id', activeCompanyId)
-        .not('position', 'is', null);
-
-    final positions = <String>{};
-    for (final row in data as List) {
-      final pos = row['position']?.toString().trim();
-      if (pos != null && pos.isNotEmpty) {
-        positions.add(pos);
-      }
-    }
-    return positions.toList()..sort();
-  }
+  Future<List<String>> getPositions() => dataSource.getPositions();
 }

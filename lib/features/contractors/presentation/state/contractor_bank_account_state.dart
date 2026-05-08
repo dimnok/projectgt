@@ -7,15 +7,18 @@ import 'package:projectgt/features/company/presentation/providers/company_provid
 part 'contractor_bank_account_state.freezed.dart';
 
 /// Статус состояния банковских счетов.
-enum BankAccountStatus { 
+enum BankAccountStatus {
   /// Начальное состояние.
-  initial, 
+  initial,
+
   /// Загрузка данных.
-  loading, 
+  loading,
+
   /// Данные успешно загружены.
-  loaded, 
+  loaded,
+
   /// Ошибка при работе с данными.
-  error 
+  error,
 }
 
 /// Состояние банковских счетов контрагента.
@@ -43,7 +46,7 @@ class ContractorBankAccountNotifier
 
   /// Создаёт [ContractorBankAccountNotifier].
   ContractorBankAccountNotifier(this.contractorId, this.ref)
-      : super(const ContractorBankAccountState()) {
+    : super(const ContractorBankAccountState()) {
     loadAccounts();
   }
 
@@ -55,7 +58,10 @@ class ContractorBankAccountNotifier
     state = state.copyWith(status: BankAccountStatus.loading);
     try {
       final repository = ref.read(contractorRepositoryProvider);
-      final accounts = await repository.getBankAccounts(contractorId, activeCompanyId);
+      final accounts = await repository.getBankAccounts(
+        contractorId,
+        activeCompanyId,
+      );
       state = state.copyWith(
         accounts: accounts,
         status: BankAccountStatus.loaded,
@@ -118,10 +124,9 @@ class ContractorBankAccountNotifier
 }
 
 /// Провайдер нотификатора банковских счетов контрагента.
-final contractorBankAccountNotifierProvider = StateNotifierProvider.family<
-    ContractorBankAccountNotifier,
-    ContractorBankAccountState,
-    String>(
-  (ref, contractorId) =>
-      ContractorBankAccountNotifier(contractorId, ref),
-);
+final contractorBankAccountNotifierProvider =
+    StateNotifierProvider.family<
+      ContractorBankAccountNotifier,
+      ContractorBankAccountState,
+      String
+    >((ref, contractorId) => ContractorBankAccountNotifier(contractorId, ref));

@@ -49,6 +49,7 @@ class WorkRepositoryImpl implements WorkRepository {
       updatedAt: work.updatedAt,
       // Агрегатные поля инициализируются нулями
       totalAmount: work.totalAmount ?? 0,
+      ownTotalAmount: work.ownTotalAmount ?? 0,
       itemsCount: work.itemsCount ?? 0,
       employeesCount: work.employeesCount ?? 0,
     );
@@ -72,6 +73,7 @@ class WorkRepositoryImpl implements WorkRepository {
       updatedAt: work.updatedAt,
       // Агрегатные поля (триггеры могут пересчитать, но передаём текущие значения)
       totalAmount: work.totalAmount,
+      ownTotalAmount: work.ownTotalAmount,
       itemsCount: work.itemsCount,
       employeesCount: work.employeesCount,
       telegramMessageId: work.telegramMessageId,
@@ -103,8 +105,8 @@ class WorkRepositoryImpl implements WorkRepository {
 
   /// Возвращает заголовки групп месяцев с агрегированными данными.
   @override
-  Future<List<MonthGroup>> getMonthsHeaders() async {
-    return await dataSource.getMonthsHeaders();
+  Future<List<MonthGroup>> getMonthsHeaders({String? openedBy}) async {
+    return await dataSource.getMonthsHeaders(openedBy: openedBy);
   }
 
   /// Возвращает смены конкретного месяца с пагинацией.
@@ -113,11 +115,13 @@ class WorkRepositoryImpl implements WorkRepository {
     DateTime month, {
     int offset = 0,
     int limit = 30,
+    String? openedBy,
   }) async {
     final models = await dataSource.getMonthWorks(
       month,
       offset: offset,
       limit: limit,
+      openedBy: openedBy,
     );
     return models.map(_mapToEntity).toList();
   }
@@ -173,6 +177,7 @@ class WorkRepositoryImpl implements WorkRepository {
       createdAt: model.createdAt,
       updatedAt: model.updatedAt,
       totalAmount: model.totalAmount,
+      ownTotalAmount: model.ownTotalAmount,
       itemsCount: model.itemsCount,
       employeesCount: model.employeesCount,
       telegramMessageId: model.telegramMessageId,

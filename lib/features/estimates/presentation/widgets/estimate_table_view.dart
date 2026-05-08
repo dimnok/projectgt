@@ -40,6 +40,7 @@ class EstimateTableView extends ConsumerStatefulWidget {
     this.selectedId,
     this.contractNumber,
     this.viewMode = EstimateViewMode.planning,
+    this.showSystemAndSubsystem = true,
   });
 
   /// Список позиций сметы.
@@ -56,6 +57,9 @@ class EstimateTableView extends ConsumerStatefulWidget {
 
   /// Режим отображения таблицы.
   final EstimateViewMode viewMode;
+
+  /// Показывать колонки «Система» и «Подсистема» (в модуле подрядчиков — `false`).
+  final bool showSystemAndSubsystem;
 
   /// Обратный вызов при клике на строку.
   final void Function(Estimate)? onRowTap;
@@ -128,6 +132,7 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
     );
     final headerRow = _buildHeaderRow(theme, configs);
     final bodyRows = _buildRows(theme, configs);
+    final isEmpty = widget.items.isEmpty;
 
     final dividerColor = theme.colorScheme.outline.withValues(alpha: 0.18);
 
@@ -170,26 +175,44 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
           ),
         );
 
-        final body = Expanded(
-          child: Scrollbar(
-            controller: _verticalController,
-            thumbVisibility: true,
-            child: SingleChildScrollView(
-              controller: _verticalController,
-              child: Scrollbar(
-                controller: _horizontalController,
-                thumbVisibility: true,
-                notificationPredicate: (notification) =>
-                    notification.depth == 1,
-                child: SingleChildScrollView(
-                  controller: _horizontalController,
-                  scrollDirection: Axis.horizontal,
-                  child: buildTable(bodyRows),
+        final body = isEmpty
+            ? Expanded(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 32,
+                    ),
+                    child: Text(
+                      'Нет позиций',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ),
-        );
+              )
+            : Expanded(
+                child: Scrollbar(
+                  controller: _verticalController,
+                  thumbVisibility: true,
+                  child: SingleChildScrollView(
+                    controller: _verticalController,
+                    child: Scrollbar(
+                      controller: _horizontalController,
+                      thumbVisibility: true,
+                      notificationPredicate: (notification) =>
+                          notification.depth == 1,
+                      child: SingleChildScrollView(
+                        controller: _horizontalController,
+                        scrollDirection: Axis.horizontal,
+                        child: buildTable(bodyRows),
+                      ),
+                    ),
+                  ),
+                ),
+              );
 
         return Column(children: [header, const SizedBox(height: 4), body]);
       },
@@ -215,19 +238,6 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
     final rows = <TableRow>[];
 
     if (widget.items.isEmpty) {
-      rows.add(
-        TableRow(
-          children: [
-            _bodyCell(
-              theme,
-              const Text('Нет позиций', textAlign: TextAlign.center),
-              align: Alignment.center,
-            ),
-            for (int i = 1; i < configs.length; i++)
-              _bodyCell(theme, const SizedBox.shrink()),
-          ],
-        ),
-      );
       return rows;
     }
 
@@ -280,25 +290,32 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
     required bool canCreate,
     required bool canDelete,
   }) {
-    final configs = <_EstimateColumnConfig>[
-      _EstimateColumnConfig(
-        title: 'Система',
-        headerAlign: TextAlign.center,
-        cellAlignment: Alignment.center,
-        flex: 0.9,
-        minWidth: 50,
-        measureText: (estimate, _) => estimate.system,
-        builder: (estimate, _, __) => Text(estimate.system),
-      ),
-      _EstimateColumnConfig(
-        title: 'Подсистема',
-        headerAlign: TextAlign.center,
-        cellAlignment: Alignment.center,
-        flex: 0.9,
-        minWidth: 50,
-        measureText: (estimate, _) => estimate.subsystem,
-        builder: (estimate, _, __) => Text(estimate.subsystem),
-      ),
+    final configs = <_EstimateColumnConfig>[];
+
+    if (widget.showSystemAndSubsystem) {
+      configs.addAll([
+        _EstimateColumnConfig(
+          title: 'Система',
+          headerAlign: TextAlign.center,
+          cellAlignment: Alignment.center,
+          flex: 0.9,
+          minWidth: 50,
+          measureText: (estimate, _) => estimate.system,
+          builder: (estimate, _, __) => Text(estimate.system),
+        ),
+        _EstimateColumnConfig(
+          title: 'Подсистема',
+          headerAlign: TextAlign.center,
+          cellAlignment: Alignment.center,
+          flex: 0.9,
+          minWidth: 50,
+          measureText: (estimate, _) => estimate.subsystem,
+          builder: (estimate, _, __) => Text(estimate.subsystem),
+        ),
+      ]);
+    }
+
+    configs.addAll([
       _EstimateColumnConfig(
         title: '№',
         headerAlign: TextAlign.center,
@@ -318,7 +335,7 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
         builder: (estimate, _, __) =>
             Text(estimate.name, maxLines: 3, overflow: TextOverflow.ellipsis),
       ),
-    ];
+    ]);
 
     if (_isPlanning) {
       configs.addAll([
@@ -327,7 +344,7 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
           headerAlign: TextAlign.center,
           cellAlignment: Alignment.center,
           flex: 0.8,
-          minWidth: 60,
+          minWidth: 76,
           measureText: (estimate, _) => estimate.article,
           builder: (estimate, _, __) => Text(estimate.article),
         ),
@@ -336,7 +353,7 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
           headerAlign: TextAlign.center,
           cellAlignment: Alignment.center,
           flex: 0.8,
-          minWidth: 70,
+          minWidth: 102,
           measureText: (estimate, _) => estimate.manufacturer,
           builder: (estimate, _, __) => Text(estimate.manufacturer),
         ),
@@ -349,7 +366,7 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
         headerAlign: TextAlign.center,
         cellAlignment: Alignment.center,
         flex: 0.8,
-        minWidth: 60,
+        minWidth: 78,
         measureText: (estimate, _) => estimate.unit,
         builder: (estimate, _, __) => Text(estimate.unit),
       ),
@@ -486,8 +503,8 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
       child: Text(
         title,
         textAlign: align,
-        softWrap: true,
-        maxLines: 2,
+        softWrap: false,
+        maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style:
             theme.textTheme.labelMedium?.copyWith(

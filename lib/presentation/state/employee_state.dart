@@ -205,12 +205,15 @@ class EmployeeNotifier extends StateNotifier<EmployeeState> {
 
   /// Загружает список всех сотрудников.
   ///
-  /// [includeResponsibilityMap] — если true, дополнительно подтягивает карту
-  /// can_be_responsible из БД. На старте приложения можно пропустить для
-  /// ускорения загрузки и догрузить позднее по требованию.
+  /// [includeResponsibilityMap] — если `true`, дополнительно подтягивает карту
+  /// `can_be_responsible` из БД отдельным запросом. По умолчанию `false`:
+  /// поле сейчас не потребляется ни одним UI-компонентом, а при включении
+  /// флага на карточке сотрудника ([toggleCanBeResponsible]) мапа
+  /// обновляется точечно. Тем самым исключается лишний round-trip на
+  /// каждом открытии/обновлении списка сотрудников.
   ///
   /// В случае успеха — обновляет состояние на success, иначе — error с сообщением.
-  Future<void> getEmployees({bool includeResponsibilityMap = true}) async {
+  Future<void> getEmployees({bool includeResponsibilityMap = false}) async {
     if (_isLoadingEmployees ||
         (state.employees.isNotEmpty &&
             state.status == EmployeeStatus.success)) {

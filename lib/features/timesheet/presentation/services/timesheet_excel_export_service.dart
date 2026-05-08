@@ -23,6 +23,9 @@ class TimesheetExcelExportService {
 
   /// Генерирует и сохраняет Excel-файл табеля на стороне сервера.
   ///
+  /// [employeeIds] — если задан и не пуст, в файл попадут только эти сотрудники
+  /// (пересечение с правилами видимости на сервере).
+  ///
   /// Возвращает путь к сохранённому файлу или `null`, если пользователь
   /// отменил выбор пути сохранения.
   Future<String?> exportToExcel({
@@ -31,6 +34,7 @@ class TimesheetExcelExportService {
     required DateTime endDate,
     List<String>? objectIds,
     List<String>? positions,
+    List<String>? employeeIds,
   }) async {
     final response = await client.functions.invoke(
       'export-timesheet',
@@ -40,6 +44,8 @@ class TimesheetExcelExportService {
         'endDate': GtFormatters.formatDateForApi(endDate),
         'objectIds': objectIds,
         'positions': positions,
+        if (employeeIds != null && employeeIds.isNotEmpty)
+          'employeeIds': employeeIds,
       },
       headers: {
         'Authorization':

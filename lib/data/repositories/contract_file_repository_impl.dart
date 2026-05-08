@@ -39,11 +39,6 @@ class ContractFileRepositoryImpl implements ContractFileRepository {
   }
 
   @override
-  Future<String> getDownloadUrl(String filePath, String originalName) async {
-    return await dataSource.getDownloadUrl(filePath, originalName);
-  }
-
-  @override
   Future<List<int>> downloadFile(String filePath) async {
     return await dataSource.downloadFile(filePath);
   }

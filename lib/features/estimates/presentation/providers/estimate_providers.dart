@@ -51,6 +51,22 @@ class EstimateFile {
   });
 }
 
+/// Путь приложения вида `/estimates/...` для открытия сметы с учётом объекта и договора.
+String estimateDetailAppPath(EstimateFile file) {
+  final titleEncoded = Uri.encodeComponent(file.estimateTitle);
+  final qs = <String>[];
+  if (file.objectId != null && file.objectId!.isNotEmpty) {
+    qs.add('objectId=${Uri.encodeQueryComponent(file.objectId!)}');
+  }
+  if (file.contractId != null && file.contractId!.isNotEmpty) {
+    qs.add('contractId=${Uri.encodeQueryComponent(file.contractId!)}');
+  }
+  if (qs.isEmpty) {
+    return '/estimates/$titleEncoded';
+  }
+  return '/estimates/$titleEncoded?${qs.join('&')}';
+}
+
 // --- Провайдеры ---
 
 /// Провайдер групп смет (для списков и Sidebar).
@@ -204,6 +220,58 @@ final contractEstimatesProvider = FutureProvider.autoDispose
     .family<List<Estimate>, String>((ref, contractId) async {
       final repository = ref.watch(estimateRepositoryProvider);
       return repository.getEstimatesByContract(contractId);
+    });
+
+/// Агрегирует строки смет по пары «название + объект» для списков внутри карточки договора.
+List<EstimateFile> groupEstimateRowsIntoEstimateFiles(
+  List<Estimate> estimates,
+) {
+  final groups = <(String, String), List<Estimate>>{};
+  for (final e in estimates) {
+    final title =
+        e.estimateTitle != null && e.estimateTitle!.trim().isNotEmpty
+            ? e.estimateTitle!.trim()
+            : 'Без названия';
+    final objectKey = e.objectId ?? '';
+    groups.putIfAbsent((title, objectKey), () => []).add(e);
+  }
+
+  final out = <EstimateFile>[];
+  for (final items in groups.values) {
+    if (items.isEmpty) continue;
+    final first = items.first;
+    final title =
+        first.estimateTitle != null && first.estimateTitle!.trim().isNotEmpty
+            ? first.estimateTitle!.trim()
+            : 'Без названия';
+    final total = items.fold<double>(0, (sum, row) => sum + row.total);
+    out.add(
+      EstimateFile(
+        estimateTitle: title,
+        objectId: first.objectId,
+        contractId: first.contractId,
+        contractNumber: first.contractNumber,
+        total: total,
+        itemsCount: items.length,
+      ),
+    );
+  }
+
+  out.sort((a, b) {
+    final byTitle = a.estimateTitle.compareTo(b.estimateTitle);
+    if (byTitle != 0) return byTitle;
+    return (a.objectId ?? '').compareTo(b.objectId ?? '');
+  });
+  return out;
+}
+
+/// Заголовки смет («файлы»), принадлежащих договору [contractId].
+final contractEstimateFilesProvider = FutureProvider.autoDispose
+    .family<List<EstimateFile>, String>((ref, contractId) async {
+      final rows = await ref.watch(
+        contractEstimatesProvider(contractId).future,
+      );
+      return groupEstimateRowsIntoEstimateFiles(rows);
     });
 
 /// Провайдер уникальных названий систем по договору.

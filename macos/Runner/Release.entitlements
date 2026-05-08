@@ -14,7 +14,7 @@
 	<true/>
 	<key>keychain-access-groups</key>
 	<array>
-		<string>$(AppIdentifierPrefix)dev.projectgt.projectgt</string>
+		<string>$(AppIdentifierPrefix)com.projectgt.stroyka</string>
 	</array>
 </dict>
 </plist>

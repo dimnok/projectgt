@@ -205,7 +205,7 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
 
       await ref
           .read(workItemsProvider(widget.workId).notifier)
-          .updateOptimistic(updatedItem);
+          .update(updatedItem);
     }
   }
 
@@ -541,13 +541,16 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                     separatorBuilder: (_, __) => const SizedBox(height: 10),
                     itemBuilder: (context, i) {
                       final item = filteredItems[i];
-                      final contractors =
-                          ref.watch(contractorNotifierProvider).contractors;
+                      final contractors = ref
+                          .watch(contractorNotifierProvider)
+                          .contractors;
                       final contractorLabel = item.contractorId == null
                           ? null
                           : contractors
-                              .firstWhereOrNull((c) => c.id == item.contractorId)
-                              ?.shortName;
+                                .firstWhereOrNull(
+                                  (c) => c.id == item.contractorId,
+                                )
+                                ?.shortName;
 
                       // Отображаем номер позиции из сметы, если сметы загружены
                       Widget numberWidget;
@@ -614,6 +617,7 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                                   workId: widget.workId,
                                   parentContext: widget.parentContext,
                                   ref: ref,
+                                  initialObjectId: workAsync?.objectId,
                                   onDeleteComplete: () {
                                     // Ресурс (контроллеры) освобождаются в _deleteWorkItem или _confirmDeleteItem.
                                     // Обновление фильтров теперь обрабатывается через ref.listen в build.
@@ -661,45 +665,27 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                                                       .textTheme
                                                       .bodyMedium
                                                       ?.copyWith(
+                                                        fontSize: isMobile
+                                                            ? 12
+                                                            : 14,
                                                         fontWeight:
                                                             FontWeight.w600,
-                                                        color: Theme.of(context)
-                                                                    .brightness ==
+                                                        color:
+                                                            Theme.of(
+                                                                  context,
+                                                                ).brightness ==
                                                                 Brightness.light
-                                                            ? Colors.lightBlue
-                                                                .shade700
-                                                            : Colors.lightBlue
-                                                                .shade300,
+                                                            ? Colors
+                                                                  .lightBlue
+                                                                  .shade700
+                                                            : Colors
+                                                                  .lightBlue
+                                                                  .shade300,
                                                       ),
                                                   maxLines: 2,
                                                   overflow:
                                                       TextOverflow.ellipsis,
                                                 ),
-                                                if (contractorLabel != null &&
-                                                    contractorLabel
-                                                        .isNotEmpty) ...[
-                                                  const SizedBox(height: 2),
-                                                  Text(
-                                                    item.specialistsCount !=
-                                                            null
-                                                        ? '$contractorLabel · спец.: ${item.specialistsCount}'
-                                                        : contractorLabel,
-                                                    style: Theme.of(context)
-                                                        .textTheme
-                                                        .bodySmall
-                                                        ?.copyWith(
-                                                          color: Theme.of(
-                                                            context,
-                                                          ).colorScheme.onSurface
-                                                              .withValues(
-                                                            alpha: 0.65,
-                                                          ),
-                                                        ),
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                ],
                                               ],
                                             ),
                                           ),
@@ -844,6 +830,9 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                                                             .textTheme
                                                             .bodyMedium
                                                             ?.copyWith(
+                                                              fontSize: isMobile
+                                                                  ? 12
+                                                                  : 14,
                                                               color:
                                                                   Theme.of(
                                                                         context,
@@ -937,7 +926,7 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                                             child: Text(
                                               '${item.section.isNotEmpty ? item.section : '-'}/${item.floor.isNotEmpty ? item.floor : '-'}',
                                               style: TextStyle(
-                                                fontSize: 12,
+                                                fontSize: 10,
                                                 fontWeight: FontWeight.w600,
                                                 color: Theme.of(
                                                   context,
@@ -950,7 +939,7 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                                             child: Text(
                                               '${item.system.isNotEmpty ? item.system : '-'}/${item.subsystem.isNotEmpty ? item.subsystem : '-'}',
                                               style: TextStyle(
-                                                fontSize: 12,
+                                                fontSize: 10,
                                                 fontWeight: FontWeight.w600,
                                                 color: Theme.of(
                                                   context,
@@ -963,68 +952,95 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                                         ],
                                       ),
                                       const SizedBox(height: 8),
-                                      // Цена и сумма
+                                      // Цена, подрядчик (по центру), сумма
                                       Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.center,
                                         children: [
-                                          Flexible(
-                                            child: Text.rich(
-                                              TextSpan(
-                                                children: [
-                                                  const TextSpan(
-                                                    text: 'Цена: ',
-                                                    style: TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.w500,
+                                          Expanded(
+                                            child: Align(
+                                              alignment: Alignment.centerLeft,
+                                              child: Text.rich(
+                                                TextSpan(
+                                                  children: [
+                                                    const TextSpan(
+                                                      text: 'Цена: ',
+                                                      style: TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.w500,
+                                                      ),
                                                     ),
-                                                  ),
-                                                  TextSpan(
-                                                    text: formatCurrency(
-                                                      item.price ?? 0,
+                                                    TextSpan(
+                                                      text: formatCurrency(
+                                                        item.price ?? 0,
+                                                      ),
+                                                      style: TextStyle(
+                                                        color: Theme.of(
+                                                          context,
+                                                        ).colorScheme.primary,
+                                                      ),
                                                     ),
-                                                    style: TextStyle(
-                                                      color: Theme.of(
-                                                        context,
-                                                      ).colorScheme.primary,
-                                                    ),
-                                                  ),
-                                                ],
+                                                  ],
+                                                ),
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .bodySmall
+                                                    ?.copyWith(fontSize: 10),
                                               ),
-                                              style: Theme.of(
-                                                context,
-                                              ).textTheme.bodySmall,
                                             ),
                                           ),
-                                          Flexible(
-                                            child: Text.rich(
-                                              TextSpan(
-                                                children: [
-                                                  const TextSpan(
-                                                    text: 'Сумма: ',
+                                          Expanded(
+                                            child:
+                                                (contractorLabel != null &&
+                                                    contractorLabel.isNotEmpty)
+                                                ? Text(
+                                                    contractorLabel,
+                                                    textAlign: TextAlign.center,
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
                                                     style: TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.w500,
-                                                    ),
-                                                  ),
-                                                  TextSpan(
-                                                    text: formatCurrency(
-                                                      item.total ?? 0,
-                                                    ),
-                                                    style: TextStyle(
+                                                      fontSize: 8,
                                                       color: Theme.of(
                                                         context,
-                                                      ).colorScheme.primary,
-                                                      fontWeight:
-                                                          FontWeight.bold,
+                                                      ).colorScheme.error,
                                                     ),
-                                                  ),
-                                                ],
+                                                  )
+                                                : const SizedBox.shrink(),
+                                          ),
+                                          Expanded(
+                                            child: Align(
+                                              alignment: Alignment.centerRight,
+                                              child: Text.rich(
+                                                TextSpan(
+                                                  children: [
+                                                    const TextSpan(
+                                                      text: 'Сумма: ',
+                                                      style: TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.w500,
+                                                      ),
+                                                    ),
+                                                    TextSpan(
+                                                      text: formatCurrency(
+                                                        item.total ?? 0,
+                                                      ),
+                                                      style: TextStyle(
+                                                        color: Theme.of(
+                                                          context,
+                                                        ).colorScheme.primary,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .bodySmall
+                                                    ?.copyWith(fontSize: 10),
+                                                textAlign: TextAlign.end,
                                               ),
-                                              style: Theme.of(
-                                                context,
-                                              ).textTheme.bodySmall,
-                                              textAlign: TextAlign.end,
                                             ),
                                           ),
                                         ],
@@ -1039,50 +1055,97 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                                       _miniInfo('Система', item.system),
                                       _miniInfo('Подсистема', item.subsystem),
                                       Expanded(
-                                        child: Align(
-                                          alignment: Alignment.centerRight,
-                                          child: Text.rich(
-                                            TextSpan(
-                                              children: [
-                                                const TextSpan(
-                                                  text: 'Цена: ',
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.w500,
+                                        child: Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.center,
+                                          children: [
+                                            Expanded(
+                                              child: Align(
+                                                alignment: Alignment.centerLeft,
+                                                child: Text.rich(
+                                                  TextSpan(
+                                                    children: [
+                                                      const TextSpan(
+                                                        text: 'Цена: ',
+                                                        style: TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.w500,
+                                                        ),
+                                                      ),
+                                                      TextSpan(
+                                                        text: formatCurrency(
+                                                          item.price ?? 0,
+                                                        ),
+                                                        style: TextStyle(
+                                                          color: Theme.of(
+                                                            context,
+                                                          ).colorScheme.primary,
+                                                        ),
+                                                      ),
+                                                    ],
                                                   ),
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .bodySmall
+                                                      ?.copyWith(fontSize: 12),
                                                 ),
-                                                TextSpan(
-                                                  text: formatCurrency(
-                                                    item.price ?? 0,
-                                                  ),
-                                                  style: TextStyle(
-                                                    color: Theme.of(
-                                                      context,
-                                                    ).colorScheme.primary,
-                                                  ),
-                                                ),
-                                                const TextSpan(text: '  |  '),
-                                                const TextSpan(
-                                                  text: 'Сумма: ',
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                                TextSpan(
-                                                  text: formatCurrency(
-                                                    item.total ?? 0,
-                                                  ),
-                                                  style: TextStyle(
-                                                    color: Theme.of(
-                                                      context,
-                                                    ).colorScheme.primary,
-                                                  ),
-                                                ),
-                                              ],
+                                              ),
                                             ),
-                                            style: Theme.of(
-                                              context,
-                                            ).textTheme.bodySmall,
-                                          ),
+                                            Expanded(
+                                              child:
+                                                  (contractorLabel != null &&
+                                                      contractorLabel
+                                                          .isNotEmpty)
+                                                  ? Text(
+                                                      contractorLabel,
+                                                      textAlign:
+                                                          TextAlign.center,
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: TextStyle(
+                                                        fontSize: 10,
+                                                        color: Theme.of(
+                                                          context,
+                                                        ).colorScheme.error,
+                                                      ),
+                                                    )
+                                                  : const SizedBox.shrink(),
+                                            ),
+                                            Expanded(
+                                              child: Align(
+                                                alignment:
+                                                    Alignment.centerRight,
+                                                child: Text.rich(
+                                                  TextSpan(
+                                                    children: [
+                                                      const TextSpan(
+                                                        text: 'Сумма: ',
+                                                        style: TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.w500,
+                                                        ),
+                                                      ),
+                                                      TextSpan(
+                                                        text: formatCurrency(
+                                                          item.total ?? 0,
+                                                        ),
+                                                        style: TextStyle(
+                                                          color: Theme.of(
+                                                            context,
+                                                          ).colorScheme.primary,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .bodySmall
+                                                      ?.copyWith(fontSize: 12),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ],
@@ -1161,6 +1224,7 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                   WorkItemContextMenu.openNewWorkItemForm(
                     context: widget.parentContext,
                     workId: widget.workId,
+                    initialObjectId: workAsync?.objectId,
                   );
                 },
                 child: const Icon(CupertinoIcons.add),
@@ -1205,9 +1269,7 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
     _focusNodes[item.id]?.dispose();
     _focusNodes.remove(item.id);
 
-    await ref
-        .read(workItemsProvider(widget.workId).notifier)
-        .deleteOptimistic(item.id);
+    await ref.read(workItemsProvider(widget.workId).notifier).delete(item.id);
   }
 
   void _confirmDeleteItem(BuildContext context, WidgetRef ref, WorkItem item) {
@@ -1252,7 +1314,7 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
 
               await ref
                   .read(workItemsProvider(widget.workId).notifier)
-                  .deleteOptimistic(item.id);
+                  .delete(item.id);
 
               if (mounted) {
                 navigator.pop();
@@ -1492,13 +1554,15 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
             '$label: ',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: Theme.of(context).colorScheme.outline,
+              fontSize: 12,
             ),
           ),
           Text(
             value,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w500),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              fontWeight: FontWeight.w500,
+              fontSize: 12,
+            ),
           ),
         ],
       ),

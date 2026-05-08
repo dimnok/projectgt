@@ -1,39 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
-/// Визуальные параметры карточки сотрудника в мобильном списке.
-///
-/// Соответствует градиенту, обводке и теням экрана списка.
-@immutable
-class EmployeesMobileEmployeeCardStyle {
-  /// Создаёт набор стилей карточки.
-  const EmployeesMobileEmployeeCardStyle({
-    required this.scheme,
-    required this.cardTop,
-    required this.cardBottom,
-    required this.cardBorder,
-    required this.cardHighlight,
-    required this.cardShadows,
-  });
-
-  /// Цветовая схема темы (текст, иконки).
-  final ColorScheme scheme;
-
-  /// Верхний цвет градиента заливки карточки.
-  final Color cardTop;
-
-  /// Нижний цвет градиента заливки карточки.
-  final Color cardBottom;
-
-  /// Цвет рамки карточки и рамки квадратного аватара.
-  final Color cardBorder;
-
-  /// Цвет верхней «подсветки» (1 px).
-  final Color cardHighlight;
-
-  /// Тени под карточкой.
-  final List<BoxShadow> cardShadows;
-}
+import 'package:projectgt/core/widgets/mobile_atmosphere_card_style.dart';
 
 /// Карточка строки сотрудника: градиент, аватар, индикатор статуса (точка), ФИО, должность, объекты.
 class EmployeesMobileEmployeeCard extends StatelessWidget {
@@ -50,7 +18,7 @@ class EmployeesMobileEmployeeCard extends StatelessWidget {
   });
 
   /// Стили карточки и темы.
-  final EmployeesMobileEmployeeCardStyle style;
+  final MobileAtmosphereCardStyle style;
 
   /// URL фото; при `null` показываются инициалы из [displayName].
   final String? photoUrl;

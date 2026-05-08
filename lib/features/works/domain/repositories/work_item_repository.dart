@@ -21,9 +21,4 @@ abstract class WorkItemRepository {
 
   /// Возвращает список всех работ из всех смен.
   Future<List<WorkItem>> getAllWorkItems();
-
-  /// Возвращает поток работ для смены по идентификатору [workId].
-  ///
-  /// Используется для мгновенного обновления UI при изменениях в БД.
-  Stream<List<WorkItem>> watchWorkItems(String workId);
 }

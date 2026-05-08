@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/formatters.dart';
+import '../../../../core/widgets/gt_context_menu.dart';
 import '../../domain/entities/work_search_result.dart';
 
 /// Таблица результатов поиска работ с синхронизированным скроллом.
@@ -18,10 +19,12 @@ class ExportResultsTableView extends ConsumerStatefulWidget {
     required this.totalQuantity,
     this.totalSum,
     required this.onEdit,
+    required this.onDelete,
     required this.onNavigateToWork,
     required this.onMaterialTap,
     this.selectedId,
     this.canEdit = false,
+    this.canDelete = false,
   });
 
   /// Список результатов поиска.
@@ -39,6 +42,9 @@ class ExportResultsTableView extends ConsumerStatefulWidget {
   /// Обратный вызов для редактирования позиции.
   final void Function(WorkSearchResult) onEdit;
 
+  /// Обратный вызов для удаления позиции.
+  final void Function(WorkSearchResult) onDelete;
+
   /// Обратный вызов для перехода к смене.
   final void Function(WorkSearchResult) onNavigateToWork;
 
@@ -48,11 +54,16 @@ class ExportResultsTableView extends ConsumerStatefulWidget {
   /// Разрешено ли редактирование.
   final bool canEdit;
 
+  /// Разрешено ли удаление.
+  final bool canDelete;
+
   @override
-  ConsumerState<ExportResultsTableView> createState() => _ExportResultsTableViewState();
+  ConsumerState<ExportResultsTableView> createState() =>
+      _ExportResultsTableViewState();
 }
 
-class _ExportResultsTableViewState extends ConsumerState<ExportResultsTableView> {
+class _ExportResultsTableViewState
+    extends ConsumerState<ExportResultsTableView> {
   static const double _kCellVerticalPadding = 6;
   static const double _kCellHorizontalPadding = 8;
   static const double _kDefaultMinColumnWidth = 50;
@@ -61,6 +72,7 @@ class _ExportResultsTableViewState extends ConsumerState<ExportResultsTableView>
   final ScrollController _horizontalController = ScrollController();
   final ScrollController _headerHorizontalController = ScrollController();
   bool _isSyncingScroll = false;
+  String? _contextMenuSelectedId;
 
   @override
   void initState() {
@@ -100,7 +112,7 @@ class _ExportResultsTableViewState extends ConsumerState<ExportResultsTableView>
         final availableWidth = constraints.maxWidth.isFinite
             ? constraints.maxWidth
             : MediaQuery.of(context).size.width;
-        
+
         final columnWidths = _buildColumnWidths(configs, theme, availableWidth);
 
         Widget buildTable(List<TableRow> rows) {
@@ -162,12 +174,7 @@ class _ExportResultsTableViewState extends ConsumerState<ExportResultsTableView>
           ),
         );
 
-        return Column(
-          children: [
-            header,
-            body,
-          ],
-        );
+        return Column(children: [header, body]);
       },
     );
   }
@@ -181,7 +188,10 @@ class _ExportResultsTableViewState extends ConsumerState<ExportResultsTableView>
     );
   }
 
-  List<TableRow> _buildRows(ThemeData theme, List<_ExportColumnConfig> configs) {
+  List<TableRow> _buildRows(
+    ThemeData theme,
+    List<_ExportColumnConfig> configs,
+  ) {
     final rows = <TableRow>[];
 
     if (widget.results.isEmpty) {
@@ -205,15 +215,18 @@ class _ExportResultsTableViewState extends ConsumerState<ExportResultsTableView>
     for (final result in widget.results) {
       alternate = !alternate;
       final isSelected = widget.selectedId == result.workItemId;
+      final isContextMenuSelected = _contextMenuSelectedId == result.workItemId;
 
       rows.add(
         TableRow(
           decoration: BoxDecoration(
-            color: isSelected
-                ? theme.colorScheme.primaryContainer
-                : (alternate
-                    ? theme.colorScheme.primary.withValues(alpha: 0.04)
-                    : Colors.transparent),
+            color: isContextMenuSelected
+                ? theme.colorScheme.primary.withValues(alpha: 0.15)
+                : (isSelected
+                      ? theme.colorScheme.primaryContainer
+                      : (alternate
+                            ? theme.colorScheme.primary.withValues(alpha: 0.04)
+                            : Colors.transparent)),
           ),
           children: [
             for (final config in configs)
@@ -222,8 +235,10 @@ class _ExportResultsTableViewState extends ConsumerState<ExportResultsTableView>
                 config.builder(result, theme),
                 align: config.cellAlignment,
                 isSelected: isSelected,
-                onLongPress: (details) => _showRowMenu(result, details.globalPosition),
-                onSecondaryTap: (details) => _showRowMenu(result, details.globalPosition),
+                onLongPress: (details) =>
+                    _showRowMenu(result, details.globalPosition),
+                onSecondaryTap: (details) =>
+                    _showRowMenu(result, details.globalPosition),
               ),
           ],
         ),
@@ -234,53 +249,53 @@ class _ExportResultsTableViewState extends ConsumerState<ExportResultsTableView>
   }
 
   void _showRowMenu(WorkSearchResult result, Offset offset) {
-    final theme = Theme.of(context);
-    
-    showMenu<_RowAction>(
-      context: context,
-      position: RelativeRect.fromLTRB(
-        offset.dx,
-        offset.dy,
-        offset.dx + 1,
-        offset.dy + 1,
+    setState(() => _contextMenuSelectedId = result.workItemId);
+
+    final menuItems = <dynamic>[
+      GTContextMenuItem(
+        icon: CupertinoIcons.arrow_right_circle,
+        label: 'Перейти к смене',
+        onTap: () => widget.onNavigateToWork(result),
       ),
-      elevation: 8,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      items: [
-        PopupMenuItem(
-          value: _RowAction.navigate,
-          child: _MenuRow(
-            icon: CupertinoIcons.arrow_right_circle,
-            color: theme.colorScheme.primary,
-            label: 'Перейти к смене',
-          ),
+    ];
+
+    if (widget.canEdit) {
+      menuItems.add(
+        GTContextMenuItem(
+          icon: CupertinoIcons.pencil,
+          label: 'Редактировать',
+          onTap: () => widget.onEdit(result),
         ),
-        if (widget.canEdit)
-          PopupMenuItem(
-            value: _RowAction.edit,
-            child: _MenuRow(
-              icon: CupertinoIcons.pencil,
-              color: theme.colorScheme.secondary,
-              label: 'Редактировать',
-            ),
-          ),
-      ],
-    ).then((action) {
-      if (action == null) return;
-      switch (action) {
-        case _RowAction.edit:
-          widget.onEdit(result);
-          break;
-        case _RowAction.navigate:
-          widget.onNavigateToWork(result);
-          break;
+      );
+    }
+
+    if (widget.canDelete) {
+      if (menuItems.length > 1) {
+        menuItems.add(const Divider(height: 1));
       }
-    });
+      menuItems.add(
+        GTContextMenuItem(
+          icon: CupertinoIcons.trash,
+          label: 'Удалить',
+          isDestructive: true,
+          onTap: () => widget.onDelete(result),
+        ),
+      );
+    }
+
+    GTContextMenu.show(
+      context: context,
+      tapPosition: offset,
+      onDismiss: () => setState(() => _contextMenuSelectedId = null),
+      items: menuItems,
+    );
   }
 
   TableRow _buildFooterRow(ThemeData theme, List<_ExportColumnConfig> configs) {
     final isLightTheme = theme.brightness == Brightness.light;
-    final totalTextColor = isLightTheme ? Colors.green : theme.colorScheme.primary;
+    final totalTextColor = isLightTheme
+        ? Colors.green
+        : theme.colorScheme.primary;
     final totalBackgroundColor = isLightTheme
         ? Colors.blue.withValues(alpha: 0.15)
         : theme.colorScheme.primaryContainer.withValues(alpha: 0.25);
@@ -449,21 +464,29 @@ class _ExportResultsTableViewState extends ConsumerState<ExportResultsTableView>
         headerAlign: TextAlign.center,
         cellAlignment: Alignment.centerRight,
         minWidth: 90,
-        measureText: (res) => res.price != null ? formatCurrency(res.price!) : '—',
-        builder: (res, _) => Text(res.price != null ? formatCurrency(res.price!) : '—'),
+        measureText: (res) =>
+            res.price != null ? formatCurrency(res.price!) : '—',
+        builder: (res, _) =>
+            Text(res.price != null ? formatCurrency(res.price!) : '—'),
       ),
       _ExportColumnConfig(
         title: 'Сумма',
         headerAlign: TextAlign.center,
         cellAlignment: Alignment.centerRight,
         minWidth: 100,
-        measureText: (res) => res.total != null ? formatCurrency(res.total!) : '—',
-        builder: (res, _) => Text(res.total != null ? formatCurrency(res.total!) : '—'),
+        measureText: (res) =>
+            res.total != null ? formatCurrency(res.total!) : '—',
+        builder: (res, _) =>
+            Text(res.total != null ? formatCurrency(res.total!) : '—'),
       ),
     ];
   }
 
-  Widget _headerCell(ThemeData theme, String title, {TextAlign align = TextAlign.left}) {
+  Widget _headerCell(
+    ThemeData theme,
+    String title, {
+    TextAlign align = TextAlign.left,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       alignment: _alignmentFromTextAlign(align),
@@ -492,7 +515,9 @@ class _ExportResultsTableViewState extends ConsumerState<ExportResultsTableView>
       behavior: HitTestBehavior.opaque,
       child: Container(
         padding: const EdgeInsets.symmetric(
-            horizontal: _kCellHorizontalPadding, vertical: _kCellVerticalPadding),
+          horizontal: _kCellHorizontalPadding,
+          vertical: _kCellVerticalPadding,
+        ),
         constraints: const BoxConstraints(minHeight: 32),
         alignment: align,
         child: DefaultTextStyle.merge(
@@ -526,12 +551,14 @@ class _ExportResultsTableViewState extends ConsumerState<ExportResultsTableView>
     final fixedWidths = <int, double>{};
     double totalFixed = 0;
 
-    final headerStyle = theme.textTheme.labelMedium?.copyWith(
+    final headerStyle =
+        theme.textTheme.labelMedium?.copyWith(
           fontWeight: FontWeight.w600,
           fontSize: 10,
         ) ??
         const TextStyle(fontWeight: FontWeight.w600, fontSize: 10);
-    final bodyStyle = theme.textTheme.bodySmall?.copyWith(fontSize: 12) ??
+    final bodyStyle =
+        theme.textTheme.bodySmall?.copyWith(fontSize: 12) ??
         const TextStyle(fontSize: 12);
 
     const paddingWidth = _kCellHorizontalPadding * 2;
@@ -542,7 +569,7 @@ class _ExportResultsTableViewState extends ConsumerState<ExportResultsTableView>
       if (config.isFlexible) continue;
 
       double columnWidth = config.minWidth ?? _kDefaultMinColumnWidth;
-      
+
       if (config.measureText != null) {
         for (final res in widget.results) {
           final text = config.measureText!(res);
@@ -553,20 +580,33 @@ class _ExportResultsTableViewState extends ConsumerState<ExportResultsTableView>
       }
 
       // Дополнительно измеряем итоговые значения в футере для соответствующих колонок
-      if (i == 9) { // Кол-во
+      if (i == 9) {
+        // Кол-во
         final footerText = formatQuantity(widget.totalQuantity);
-        final width = _measureText(footerText, bodyStyle.copyWith(fontWeight: FontWeight.bold)) + paddingWidth;
+        final width =
+            _measureText(
+              footerText,
+              bodyStyle.copyWith(fontWeight: FontWeight.bold),
+            ) +
+            paddingWidth;
         columnWidth = math.max(columnWidth, width);
-      } else if (i == 11) { // Сумма
+      } else if (i == 11) {
+        // Сумма
         if (widget.totalSum != null) {
           final footerText = formatCurrency(widget.totalSum!);
-          final width = _measureText(footerText, bodyStyle.copyWith(fontWeight: FontWeight.bold)) + paddingWidth;
+          final width =
+              _measureText(
+                footerText,
+                bodyStyle.copyWith(fontWeight: FontWeight.bold),
+              ) +
+              paddingWidth;
           columnWidth = math.max(columnWidth, width);
         }
       }
 
       // Check header width
-      final headerWidth = _measureText(config.title, headerStyle) + paddingWidth;
+      final headerWidth =
+          _measureText(config.title, headerStyle) + paddingWidth;
       columnWidth = math.max(columnWidth, headerWidth);
 
       fixedWidths[i] = columnWidth;
@@ -590,7 +630,9 @@ class _ExportResultsTableViewState extends ConsumerState<ExportResultsTableView>
 
       for (final index in flexibleIndexes) {
         final config = configs[index];
-        final flexPortion = totalFlex == 0 ? 1.0 / flexibleIndexes.length : config.flex / totalFlex;
+        final flexPortion = totalFlex == 0
+            ? 1.0 / flexibleIndexes.length
+            : config.flex / totalFlex;
         double width = remainingWidth * flexPortion;
         width = math.max(width, config.minWidth ?? 150);
         widths[index] = FixedColumnWidth(width);
@@ -630,88 +672,4 @@ class _ExportColumnConfig {
   final double? minWidth;
   final bool isFlexible;
   final String Function(WorkSearchResult result)? measureText;
-}
-
-enum _RowAction { edit, navigate }
-
-// ignore: unused_element
-class _ActionsMenu extends StatelessWidget {
-  const _ActionsMenu({
-    required this.theme,
-    required this.result,
-    required this.canEdit,
-    required this.onEdit,
-    required this.onNavigateToWork,
-  });
-
-  final ThemeData theme;
-  final WorkSearchResult result;
-  final bool canEdit;
-  final void Function(WorkSearchResult) onEdit;
-  final void Function(WorkSearchResult) onNavigateToWork;
-
-  @override
-  Widget build(BuildContext context) {
-    return PopupMenuButton<_RowAction>(
-      tooltip: 'Действия',
-      padding: EdgeInsets.zero,
-      icon: Icon(
-        CupertinoIcons.ellipsis_vertical,
-        size: 18,
-        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-      ),
-      onSelected: (action) {
-        switch (action) {
-          case _RowAction.edit:
-            onEdit(result);
-            break;
-          case _RowAction.navigate:
-            onNavigateToWork(result);
-            break;
-        }
-      },
-      itemBuilder: (context) => [
-        PopupMenuItem(
-          value: _RowAction.navigate,
-          child: _MenuRow(
-            icon: CupertinoIcons.arrow_right_circle,
-            color: theme.colorScheme.primary,
-            label: 'Перейти к смене',
-          ),
-        ),
-        if (canEdit)
-          PopupMenuItem(
-            value: _RowAction.edit,
-            child: _MenuRow(
-              icon: CupertinoIcons.pencil,
-              color: theme.colorScheme.secondary,
-              label: 'Редактировать',
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _MenuRow extends StatelessWidget {
-  const _MenuRow({
-    required this.icon,
-    required this.color,
-    required this.label,
-  });
-
-  final IconData icon;
-  final Color color;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: color),
-        const SizedBox(width: 12),
-        Text(label),
-      ],
-    );
-  }
 }

@@ -14,4 +14,14 @@ abstract class EmployeeRateRepository {
   /// Установить новую ставку сотрудника
   /// Автоматически закрывает предыдущую ставку и создаёт новую
   Future<void> setNewRate(String employeeId, double rate, DateTime validFrom);
+
+  /// Найти все ставки сотрудника, период действия которых пересекается
+  /// с открытым полуинтервалом [validFrom, +∞).
+  ///
+  /// Используется UI для предупреждения пользователя о пересечениях
+  /// перед сохранением новой ставки.
+  Future<List<EmployeeRate>> findOverlappingRates(
+    String employeeId,
+    DateTime validFrom,
+  );
 }

@@ -75,6 +75,21 @@ class GTTextField extends StatelessWidget {
   /// Текст-подсказка под полем.
   final String? helperText;
 
+  /// Цвет заливки активного поля.
+  final Color? fillColor;
+
+  /// Цвет заливки неактивного поля.
+  final Color? disabledFillColor;
+
+  /// Граница поля в обычном состоянии.
+  final BorderSide? borderSide;
+
+  /// Граница поля в фокусе.
+  final BorderSide? focusedBorderSide;
+
+  /// Цвет начальной иконки.
+  final Color? prefixIconColor;
+
   /// Тип капитализации текста.
   final TextCapitalization textCapitalization;
 
@@ -105,6 +120,9 @@ class GTTextField extends StatelessWidget {
   /// - [suffixIcon] — виджет в конце поля (например, кнопка очистки).
   /// - [suffixText] — текст в конце поля (например, "₽" или "кг").
   /// - [helperText] — текст-подсказка под полем.
+  /// - [fillColor] / [disabledFillColor] — кастомная заливка поля.
+  /// - [borderSide] / [focusedBorderSide] — кастомные границы поля.
+  /// - [prefixIconColor] — цвет начальной иконки.
   /// - [enabled] — активность поля.
   /// - [validator] — функция проверки введенных данных.
   /// - [keyboardType] — тип вызываемой экранной клавиатуры.
@@ -135,6 +153,11 @@ class GTTextField extends StatelessWidget {
     this.suffixIcon,
     this.suffixText,
     this.helperText,
+    this.fillColor,
+    this.disabledFillColor,
+    this.borderSide,
+    this.focusedBorderSide,
+    this.prefixIconColor,
     this.enabled = true,
     this.validator,
     this.keyboardType,
@@ -169,7 +192,26 @@ class GTTextField extends StatelessWidget {
     // (иначе частичный TextStyle даёт другой fallback, чем заголовки листа).
     final body = theme.textTheme.bodyMedium;
     final effectiveStyle =
-        style ?? (body != null ? body.copyWith(fontSize: 15) : const TextStyle(fontSize: 15));
+        style ??
+        (body != null
+            ? body.copyWith(fontSize: 15)
+            : const TextStyle(fontSize: 15));
+    final effectiveBorderSide =
+        borderSide ??
+        BorderSide(
+          color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black12,
+        );
+    final effectiveFocusedBorderSide =
+        focusedBorderSide ??
+        BorderSide(color: isDark ? Colors.white : Colors.black, width: 1.5);
+    final effectiveFillColor =
+        fillColor ??
+        (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white);
+    final effectiveDisabledFillColor =
+        disabledFillColor ??
+        (isDark
+            ? Colors.white.withValues(alpha: 0.02)
+            : Colors.grey.withValues(alpha: 0.05));
 
     return TextFormField(
       controller: controller,
@@ -190,7 +232,8 @@ class GTTextField extends StatelessWidget {
       textInputAction: textInputAction,
       onEditingComplete: onEditingComplete,
       scrollPadding: scrollPadding,
-      onTapOutside: onTapOutside ??
+      onTapOutside:
+          onTapOutside ??
           (PointerDownEvent event) {
             FocusManager.instance.primaryFocus?.unfocus();
           },
@@ -202,7 +245,7 @@ class GTTextField extends StatelessWidget {
         ),
         helperText: helperText,
         prefixIcon: prefixIcon != null
-            ? Icon(prefixIcon, size: prefixIconSize)
+            ? Icon(prefixIcon, size: prefixIconSize, color: prefixIconColor)
             : null,
         prefixIconConstraints: prefixIconConstraints,
         suffixIcon: suffixIcon,
@@ -214,37 +257,22 @@ class GTTextField extends StatelessWidget {
             const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(borderRadius),
-          borderSide: BorderSide(
-            color: isDark
-                ? Colors.white.withValues(alpha: 0.1)
-                : Colors.black12,
-          ),
+          borderSide: effectiveBorderSide,
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(borderRadius),
-          borderSide: BorderSide(
-            color: isDark
-                ? Colors.white.withValues(alpha: 0.1)
-                : Colors.black12,
-          ),
+          borderSide: effectiveBorderSide,
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(borderRadius),
-          borderSide: BorderSide(
-            color: isDark ? Colors.white : Colors.black,
-            width: 1.5,
-          ),
+          borderSide: effectiveFocusedBorderSide,
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(borderRadius),
           borderSide: const BorderSide(color: Colors.redAccent),
         ),
         filled: true,
-        fillColor: enabled
-            ? (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white)
-            : (isDark
-                  ? Colors.white.withValues(alpha: 0.02)
-                  : Colors.grey.withValues(alpha: 0.05)),
+        fillColor: enabled ? effectiveFillColor : effectiveDisabledFillColor,
       ),
     );
   }

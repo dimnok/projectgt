@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -18,6 +19,8 @@ import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/core/error/failure.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/app_snackbar.dart';
+import 'package:projectgt/core/widgets/mobile_atmosphere_backdrop.dart';
+import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
 import 'package:projectgt/features/works/presentation/widgets/work_distribution_card.dart';
 import 'package:projectgt/features/works/presentation/providers/month_groups_provider.dart';
 import 'package:projectgt/core/utils/telegram_helper.dart';
@@ -38,8 +41,11 @@ class WorkDataTab extends ConsumerStatefulWidget {
   final String objectDisplay;
 
   /// Конструктор вкладки «Данные».
-  const WorkDataTab(
-      {super.key, required this.work, required this.objectDisplay});
+  const WorkDataTab({
+    super.key,
+    required this.work,
+    required this.objectDisplay,
+  });
 
   @override
   ConsumerState<WorkDataTab> createState() => _WorkDataTabState();
@@ -74,7 +80,8 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
         final hours = hoursAsync.valueOrNull;
 
         // Проверяем, есть ли данные для отображения статистики
-        final hasStatsData = (work.itemsCount != null &&
+        final hasStatsData =
+            (work.itemsCount != null &&
                 work.employeesCount != null &&
                 work.totalAmount != null) ||
             (items != null && hours != null);
@@ -87,16 +94,15 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
         // Рассчитываем статистику верхней карточки: только собственное выполнение
         // (строки без contractor_id). Пока список позиций не загружен — fallback на
         // агрегаты смены из БД (могут включать подрядчика до прихода items).
-        final uniqueEmployees = work.employeesCount ??
+        final uniqueEmployees =
+            work.employeesCount ??
             hours?.map((h) => h.employeeId).toSet().length ??
             0;
         final int worksCount;
         final double totalAmount;
         if (items != null) {
           final ownItems = items
-              .where(
-                (i) => i.contractorId == null || i.contractorId!.isEmpty,
-              )
+              .where((i) => i.contractorId == null || i.contractorId!.isEmpty)
               .toList();
           worksCount = ownItems.length;
           totalAmount = ownItems.fold<double>(
@@ -105,10 +111,11 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
           );
         } else {
           worksCount = work.itemsCount ?? 0;
-          totalAmount = work.totalAmount ?? 0.0;
+          totalAmount = work.ownTotalAmount ?? work.totalAmount ?? 0.0;
         }
-        final productivityPerEmployee =
-            uniqueEmployees > 0 ? totalAmount / uniqueEmployees : 0.0;
+        final productivityPerEmployee = uniqueEmployees > 0
+            ? totalAmount / uniqueEmployees
+            : 0.0;
 
         final isWorkClosed = work.status.toLowerCase() == 'closed';
         final currentProfile = ref.watch(currentUserProfileProvider).profile;
@@ -118,8 +125,9 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
         final bool canModify = (isOwner && !isWorkClosed) || isCompanyOwner;
 
         final content = Column(
-          crossAxisAlignment:
-              isMobile ? CrossAxisAlignment.stretch : CrossAxisAlignment.center,
+          crossAxisAlignment: isMobile
+              ? CrossAxisAlignment.stretch
+              : CrossAxisAlignment.center,
           children: [
             // Блок закрытия смены / валидации
             if (!isWorkClosed)
@@ -177,23 +185,23 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
     final highlightColor = isDark ? Colors.grey[700]! : Colors.grey[200]!;
 
     return Container(
-      height: 150,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: baseColor,
-        borderRadius: BorderRadius.circular(16),
-      ),
-    ).animate(onPlay: (controller) => controller.repeat()).shimmer(
-          duration: 1000.ms,
-          color: highlightColor,
-          angle: -0.3,
-        );
+          height: 150,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: baseColor,
+            borderRadius: BorderRadius.circular(16),
+          ),
+        )
+        .animate(onPlay: (controller) => controller.repeat())
+        .shimmer(duration: 1000.ms, color: highlightColor, angle: -0.3);
   }
 
   Future<void> _closeWork(Work work) async {
     final workNotifier = ref.read(worksProvider.notifier);
-    final updatedWork =
-        work.copyWith(status: 'closed', updatedAt: DateTime.now());
+    final updatedWork = work.copyWith(
+      status: 'closed',
+      updatedAt: DateTime.now(),
+    );
     try {
       await workNotifier.updateWork(updatedWork);
       if (work.id != null) {
@@ -264,139 +272,139 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
   }
 
   void _showEveningPhotoOptions(Work work) {
-    final theme = Theme.of(context);
-    showModalBottomSheet(
+    final screenWidth = MediaQuery.sizeOf(context).width;
+
+    showModalBottomSheet<void>(
       context: context,
       useRootNavigator: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      builder: (_) {
-        return StatefulBuilder(
-          builder: (sheetContext, setBottomSheetState) {
-            final navigator = Navigator.of(sheetContext, rootNavigator: true);
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      constraints: BoxConstraints(maxWidth: screenWidth),
+      clipBehavior: Clip.antiAlias,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        final theme = Theme.of(sheetContext);
+        final scheme = theme.colorScheme;
+        final navigator = Navigator.of(sheetContext, rootNavigator: true);
 
-            return Container(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    WorksStrings.eveningPhotoDialogTitle,
-                    style: Theme.of(sheetContext)
-                        .textTheme
-                        .titleLarge
-                        ?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 16),
-                  if (work.eveningPhotoUrl != null &&
-                      work.eveningPhotoUrl!.isNotEmpty) ...[
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        work.eveningPhotoUrl!,
-                        height: 200,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        GTTextButton(
-                          onPressed: () async {
-                            try {
-                              final photoService =
-                                  ref.read(photoServiceProvider);
-                              await photoService.deleteWorkPhotoByUrl(
-                                work.eveningPhotoUrl!,
-                              );
-                              final updatedWork = work.copyWith(
-                                eveningPhotoUrl: null,
-                                updatedAt: DateTime.now(),
-                              );
-                              await ref
-                                  .read(worksProvider.notifier)
-                                  .updateWork(updatedWork);
-
-                              if (mounted) {
-                                navigator.pop();
-                                _updateWorkInMonthGroups(updatedWork);
-                                Future.delayed(
-                                  const Duration(milliseconds: 300),
-                                  () {
-                                    if (!mounted) return;
-                                    AppSnackBar.show(
-                                      context: context,
-                                      message: WorksStrings.successEveningPhotoDeleted,
-                                      kind: AppSnackBarKind.success,
-                                    );
-                                  },
-                                );
-                              }
-                            } catch (e) {
-                              if (mounted) {
-                                AppSnackBar.show(
-                                  context: context,
-                                  message: WorksStrings.deletePhotoError(e),
-                                  kind: AppSnackBarKind.error,
-                                );
-                              }
-                            }
-                          },
-                          icon: Icons.delete_outline,
-                          text: WorksStrings.deleteBtn,
-                          color: theme.colorScheme.error,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _PhotoOptionButton(
-                        icon: Icons.camera_alt,
-                        label: WorksStrings.cameraBtn,
-                        onTap: () => _pickEveningPhoto(
-                          ImageSource.camera,
-                          work,
-                        ),
-                      ),
-                      _PhotoOptionButton(
-                        icon: Icons.image,
-                        label: WorksStrings.galleryBtn,
-                        onTap: () => _pickEveningPhoto(
-                          ImageSource.gallery,
-                          work,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: GTTextButton(
-                      onPressed: () => navigator.pop(),
-                      text: WorksStrings.cancelBtn,
-                    ),
-                  ),
-                ],
+        Widget tile({
+          required IconData icon,
+          required String title,
+          required VoidCallback onTap,
+        }) {
+          return ListTile(
+            leading: Icon(icon, color: scheme.onSurface),
+            title: Text(
+              title,
+              style: TextStyle(
+                color: scheme.onSurface,
+                fontWeight: FontWeight.w500,
               ),
-            );
-          },
+            ),
+            onTap: onTap,
+          );
+        }
+
+        void closeSheetAndPick(ImageSource source) {
+          navigator.pop();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            _pickEveningPhoto(source, work);
+          });
+        }
+
+        return MobileBottomSheetContent(
+          title: WorksStrings.eveningPhotoDialogTitle,
+          scrollable: false,
+          sheetBackdrop: const MobileAtmosphereBackdrop(),
+          footer: GTSecondaryButton(
+            text: WorksStrings.cancelBtn,
+            onPressed: () => navigator.pop(),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (work.eveningPhotoUrl != null &&
+                  work.eveningPhotoUrl!.isNotEmpty) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    work.eveningPhotoUrl!,
+                    height: 200,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: GTTextButton(
+                    onPressed: () async {
+                      try {
+                        final photoService = ref.read(photoServiceProvider);
+                        await photoService.deleteWorkPhotoByUrl(
+                          work.eveningPhotoUrl!,
+                        );
+                        final updatedWork = work.copyWith(
+                          eveningPhotoUrl: null,
+                          updatedAt: DateTime.now(),
+                        );
+                        await ref
+                            .read(worksProvider.notifier)
+                            .updateWork(updatedWork);
+
+                        if (mounted) {
+                          navigator.pop();
+                          _updateWorkInMonthGroups(updatedWork);
+                          Future.delayed(const Duration(milliseconds: 300), () {
+                            if (!mounted) return;
+                            AppSnackBar.show(
+                              context: context,
+                              message: WorksStrings.successEveningPhotoDeleted,
+                              kind: AppSnackBarKind.success,
+                            );
+                          });
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          AppSnackBar.show(
+                            context: context,
+                            message: WorksStrings.deletePhotoError(e),
+                            kind: AppSnackBarKind.error,
+                          );
+                        }
+                      }
+                    },
+                    icon: Icons.delete_outline,
+                    text: WorksStrings.deleteBtn,
+                    color: scheme.error,
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+              tile(
+                icon: CupertinoIcons.camera,
+                title: 'Сделать фото',
+                onTap: () => closeSheetAndPick(ImageSource.camera),
+              ),
+              tile(
+                icon: CupertinoIcons.photo_on_rectangle,
+                title: 'Выбрать из галереи',
+                onTap: () => closeSheetAndPick(ImageSource.gallery),
+              ),
+            ],
+          ),
         );
       },
     );
   }
 
-  Future<void> _pickEveningPhoto(
-    ImageSource source,
-    Work work,
-  ) async {
+  Future<void> _pickEveningPhoto(ImageSource source, Work work) async {
     try {
-      // ✅ Закрываем Modal Bottom Sheet сразу
-      Navigator.pop(context);
-
       final photoService = ref.read(photoServiceProvider);
       final bytes = await photoService.pickImageBytes(source);
 
@@ -404,36 +412,34 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
       if (!mounted) return;
 
       // ✅ Загружаем фото через helper
-      final uploadedUrl = await PhotoUploadHelper(
-        context: context,
-        ref: ref,
-      ).uploadPhoto(
-        photoType: PhotoType.evening,
-        entity: 'work',
-        entityId: work.objectId,
-        displayName: 'evening',
-        photoBytes: bytes,
-        workDate: work.date,
-        // ✅ Обновляем Work ВО ВРЕМЯ диалога загрузки
-        onLoadingComplete: (String photoUrl) async {
-          try {
-            final updatedWork = work.copyWith(
-              eveningPhotoUrl: photoUrl,
-              updatedAt: DateTime.now(),
-            );
-            await ref.read(worksProvider.notifier).updateWork(updatedWork);
-            _updateWorkInMonthGroups(updatedWork);
-          } catch (e) {
-            if (mounted) {
-              AppSnackBar.show(
-                context: context,
-                message: WorksStrings.savePhotoError(e),
-                kind: AppSnackBarKind.error,
-              );
-            }
-          }
-        },
-      );
+      final uploadedUrl = await PhotoUploadHelper(context: context, ref: ref)
+          .uploadPhoto(
+            photoType: PhotoType.evening,
+            entity: 'work',
+            entityId: work.objectId,
+            displayName: 'evening',
+            photoBytes: bytes,
+            workDate: work.date,
+            // ✅ Обновляем Work ВО ВРЕМЯ диалога загрузки
+            onLoadingComplete: (String photoUrl) async {
+              try {
+                final updatedWork = work.copyWith(
+                  eveningPhotoUrl: photoUrl,
+                  updatedAt: DateTime.now(),
+                );
+                await ref.read(worksProvider.notifier).updateWork(updatedWork);
+                _updateWorkInMonthGroups(updatedWork);
+              } catch (e) {
+                if (mounted) {
+                  AppSnackBar.show(
+                    context: context,
+                    message: WorksStrings.savePhotoError(e),
+                    kind: AppSnackBarKind.error,
+                  );
+                }
+              }
+            },
+          );
 
       if (uploadedUrl == null) return;
 
@@ -498,7 +504,9 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
     if (eveningResult != null && eveningResult['success'] == true) {
       AppSnackBar.show(
         context: context,
-        message: WorksStrings.successEveningReportSent(eveningResult['items_count']),
+        message: WorksStrings.successEveningReportSent(
+          eveningResult['items_count'],
+        ),
         kind: AppSnackBarKind.success,
       );
     } else {
@@ -509,37 +517,5 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
         kind: AppSnackBarKind.error,
       );
     }
-  }
-}
-
-class _PhotoOptionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _PhotoOptionButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      children: [
-        InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(24),
-          child: CircleAvatar(
-            radius: 24,
-            backgroundColor: theme.colorScheme.primary,
-            child: Icon(icon, color: theme.colorScheme.onPrimary, size: 24),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(label, style: theme.textTheme.bodySmall),
-      ],
-    );
   }
 }

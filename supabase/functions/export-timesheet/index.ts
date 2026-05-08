@@ -16,6 +16,9 @@ const borderStyle = {
   right: { style: "thin", color: { argb: "22000000" } },
 } as const;
 
+/** Единый шрифт листа (как в печатных табелях). */
+const SHEET_FONT_NAME = "Times New Roman";
+
 const objectPalette = [
   "FFE3F2FD",
   "FFE8F5E9",
@@ -47,6 +50,8 @@ interface ExportTimesheetRequest {
   endDate: string;
   objectIds?: string[];
   positions?: string[];
+  /** Только эти сотрудники (пересечение с правилами видимости). */
+  employeeIds?: string[];
 }
 
 interface EmployeeRow {
@@ -61,6 +66,41 @@ interface TimesheetEntryRow {
   objectName: string;
   date: string;
   hours: number;
+}
+
+/** Дефолтный max-rows PostgREST; без `.range()` ответ обрезается (часто 1000 строк). */
+const POSTGREST_PAGE_SIZE = 1000;
+
+/**
+ * Загружает все строки выборки, обходя лимит max-rows PostgREST (повторные запросы с `.range`).
+ *
+ * [fetchPage] возвращает строки с индексами [from, to] включительно в порядке сортировки запроса.
+ */
+async function fetchAllPages<T>(
+  fetchPage: (
+    from: number,
+    to: number,
+  ) => Promise<{ data: T[] | null; error: unknown }>,
+): Promise<T[]> {
+  const acc: T[] = [];
+  let offset = 0;
+  for (;;) {
+    const to = offset + POSTGREST_PAGE_SIZE - 1;
+    const { data, error } = await fetchPage(offset, to);
+    if (error) throw error;
+    const batch = data ?? [];
+    acc.push(...batch);
+    if (batch.length < POSTGREST_PAGE_SIZE) break;
+    offset += POSTGREST_PAGE_SIZE;
+  }
+  return acc;
+}
+
+/** Приводит значение даты из API к ключу `YYYY-MM-DD` для сопоставления с `toDateKey`. */
+function toCalendarDateKey(value: unknown): string {
+  const s = String(value ?? "").trim();
+  if (s.length >= 10 && s[4] === "-" && s[7] === "-") return s.slice(0, 10);
+  return s;
 }
 
 serve(async (req) => {
@@ -112,7 +152,7 @@ serve(async (req) => {
     
     const hasObjectFilter = request.objectIds && request.objectIds.length > 0;
 
-    const visibleEmployees = employeeRows
+    let visibleEmployees = employeeRows
       .filter((employee) => {
         // Если включен фильтр по объектам, показываем ТОЛЬКО тех, у кого есть часы
         if (hasObjectFilter) {
@@ -123,6 +163,11 @@ serve(async (req) => {
       })
       .sort((a, b) => a.fullName.localeCompare(b.fullName, "ru"));
 
+    if (request.employeeIds && request.employeeIds.length > 0) {
+      const pick = new Set(request.employeeIds);
+      visibleEmployees = visibleEmployees.filter((e) => pick.has(e.id));
+    }
+
     if (visibleEmployees.length === 0) {
       return jsonResponse({
         success: false,
@@ -130,7 +175,9 @@ serve(async (req) => {
       });
     }
 
-    const legendItems = buildLegendItems(entries);
+    const visibleIdSet = new Set(visibleEmployees.map((e) => e.id));
+    const entriesForExport = entries.filter((e) => visibleIdSet.has(e.employeeId));
+    const legendItems = buildLegendItems(entriesForExport);
     const objectColorById = new Map<string, string>(
       legendItems.map((item) => [item.objectId, item.color]),
     );
@@ -138,13 +185,22 @@ serve(async (req) => {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet("Табель");
     const daysInRange = buildDateRange(request.startDate, request.endDate);
-    const totalColumns = daysInRange.length + 2;
+    const totalColumns = daysInRange.length + 3;
 
-    worksheet.views = [{ state: "frozen", xSplit: 1, ySplit: 5, activeCell: "B6" }];
+    const partialExport =
+      request.employeeIds != null && request.employeeIds.length > 0;
+
+    worksheet.views = [{ state: "frozen", xSplit: 2, ySplit: 5, activeCell: "C6" }];
 
     worksheet.mergeCells(1, 1, 1, totalColumns);
-    worksheet.getCell(1, 1).value = "ТАБЕЛЬ РАБОЧЕГО ВРЕМЕНИ";
-    worksheet.getCell(1, 1).font = { bold: true, size: 14 };
+    worksheet.getCell(1, 1).value = partialExport
+      ? "ТАБЕЛЬ РАБОЧЕГО ВРЕМЕНИ (выбранные сотрудники)"
+      : "ТАБЕЛЬ РАБОЧЕГО ВРЕМЕНИ";
+    worksheet.getCell(1, 1).font = {
+      name: SHEET_FONT_NAME,
+      bold: true,
+      size: 14,
+    };
     worksheet.getCell(1, 1).alignment = {
       horizontal: "center",
       vertical: "middle",
@@ -153,6 +209,7 @@ serve(async (req) => {
     worksheet.mergeCells(2, 1, 2, totalColumns);
     worksheet.getCell(2, 1).value =
       `Период: ${formatRuDate(request.startDate)} - ${formatRuDate(request.endDate)}`;
+    worksheet.getCell(2, 1).font = { name: SHEET_FONT_NAME };
     worksheet.getCell(2, 1).alignment = {
       horizontal: "center",
       vertical: "middle",
@@ -165,10 +222,15 @@ serve(async (req) => {
       horizontal: "center",
       vertical: "middle",
     };
-    worksheet.getCell(3, 1).font = { italic: true, size: 10 };
+    worksheet.getCell(3, 1).font = {
+      name: SHEET_FONT_NAME,
+      italic: true,
+      size: 10,
+    };
 
     const headerRow = worksheet.getRow(4);
     headerRow.values = [
+      "№",
       "Сотрудник",
       ...daysInRange.map((day) => day.getDate()),
       "Итого",
@@ -178,6 +240,7 @@ serve(async (req) => {
     const weekdayRow = worksheet.getRow(5);
     weekdayRow.values = [
       "",
+      "",
       ...daysInRange.map((day) => weekdayMap[day.getDay()] ?? ""),
       "",
     ];
@@ -186,13 +249,24 @@ serve(async (req) => {
     styleHeaderRow(headerRow, daysInRange, totalColumns);
     styleWeekdayRow(weekdayRow, daysInRange, totalColumns);
 
-    const cellMap = buildCellMap(entries);
+    const cellMap = buildCellMap(entriesForExport);
     let currentRowNumber = 6;
+    let employeeOrdinal = 0;
 
     for (const employee of visibleEmployees) {
+      employeeOrdinal += 1;
       const row = worksheet.getRow(currentRowNumber);
-      row.getCell(1).value = employee.fullName;
+      row.getCell(1).value = employeeOrdinal;
+      row.getCell(1).font = { name: SHEET_FONT_NAME };
       row.getCell(1).alignment = {
+        vertical: "middle",
+        horizontal: "center",
+        wrapText: false,
+      };
+
+      row.getCell(2).value = employee.fullName;
+      row.getCell(2).font = { name: SHEET_FONT_NAME };
+      row.getCell(2).alignment = {
         vertical: "middle",
         horizontal: "left",
         wrapText: false,
@@ -203,7 +277,7 @@ serve(async (req) => {
       daysInRange.forEach((day, index) => {
         const dayKey = toDateKey(day);
         const cell = cellMap.get(`${employee.id}__${dayKey}`);
-        const worksheetCell = row.getCell(index + 2);
+        const worksheetCell = row.getCell(index + 3);
 
         if (cell && cell.totalHours > 0) {
           worksheetCell.value = cell.totalHours;
@@ -212,6 +286,7 @@ serve(async (req) => {
           employeeTotal += cell.totalHours;
         }
 
+        worksheetCell.font = { name: SHEET_FONT_NAME };
         worksheetCell.alignment = {
           horizontal: "center",
           vertical: "middle",
@@ -221,19 +296,22 @@ serve(async (req) => {
       const totalCell = row.getCell(totalColumns);
       totalCell.value = employeeTotal;
       totalCell.numFmt = getHoursNumFmt(employeeTotal);
-      totalCell.font = { bold: true };
+      totalCell.font = { name: SHEET_FONT_NAME, bold: true };
       totalCell.alignment = { horizontal: "center", vertical: "middle" };
 
       row.eachCell({ includeEmpty: true }, (cell) => {
         cell.border = borderStyle;
+        cell.font = { ...cell.font, name: SHEET_FONT_NAME };
       });
       row.height = 24;
       currentRowNumber += 1;
     }
 
     const totalRow = worksheet.getRow(currentRowNumber);
+    worksheet.mergeCells(currentRowNumber, 1, currentRowNumber, 2);
     totalRow.getCell(1).value = "Итого по дням";
-    totalRow.getCell(1).font = { bold: true };
+    totalRow.getCell(1).font = { name: SHEET_FONT_NAME, bold: true };
+    totalRow.getCell(1).alignment = { horizontal: "center", vertical: "middle" };
     totalRow.getCell(1).fill = {
       type: "pattern",
       pattern: "solid",
@@ -250,10 +328,10 @@ serve(async (req) => {
       }
       grandTotal += dayTotal;
 
-      const worksheetCell = totalRow.getCell(index + 2);
+      const worksheetCell = totalRow.getCell(index + 3);
       worksheetCell.value = dayTotal;
       worksheetCell.numFmt = getHoursNumFmt(dayTotal);
-      worksheetCell.font = { bold: true };
+      worksheetCell.font = { name: SHEET_FONT_NAME, bold: true };
       worksheetCell.alignment = { horizontal: "center", vertical: "middle" };
       worksheetCell.fill = {
         type: "pattern",
@@ -265,7 +343,7 @@ serve(async (req) => {
     const grandTotalCell = totalRow.getCell(totalColumns);
     grandTotalCell.value = grandTotal;
     grandTotalCell.numFmt = getHoursNumFmt(grandTotal);
-    grandTotalCell.font = { bold: true };
+    grandTotalCell.font = { name: SHEET_FONT_NAME, bold: true };
     grandTotalCell.alignment = { horizontal: "center", vertical: "middle" };
     grandTotalCell.fill = {
       type: "pattern",
@@ -275,13 +353,17 @@ serve(async (req) => {
 
     totalRow.eachCell({ includeEmpty: true }, (cell) => {
       cell.border = borderStyle;
+      cell.font = { ...cell.font, name: SHEET_FONT_NAME };
     });
 
     let legendStartRow = currentRowNumber + 3;
     if (legendItems.length > 0) {
       worksheet.mergeCells(legendStartRow, 1, legendStartRow, 2);
       worksheet.getCell(legendStartRow, 1).value = "Легенда объектов";
-      worksheet.getCell(legendStartRow, 1).font = { bold: true };
+      worksheet.getCell(legendStartRow, 1).font = {
+        name: SHEET_FONT_NAME,
+        bold: true,
+      };
       legendStartRow += 1;
 
       for (const item of legendItems) {
@@ -298,6 +380,7 @@ serve(async (req) => {
         colorCell.border = borderStyle;
 
         nameCell.value = item.objectName;
+        nameCell.font = { name: SHEET_FONT_NAME };
         nameCell.border = borderStyle;
 
         legendStartRow += 1;
@@ -305,6 +388,7 @@ serve(async (req) => {
     }
 
     worksheet.columns = [
+      { width: 6 },
       { width: 30 },
       ...daysInRange.map(() => ({ width: 6.5 })),
       { width: 10 },
@@ -313,9 +397,13 @@ serve(async (req) => {
     const buffer = await workbook.xlsx.writeBuffer();
     const base64 = encode(new Uint8Array(buffer));
 
+    const filename = partialExport
+      ? `Табель_выбранные_${request.startDate}_${request.endDate}.xlsx`
+      : `Табель_${request.startDate}_${request.endDate}.xlsx`;
+
     return jsonResponse({
       success: true,
-      filename: `Табель_${request.startDate}_${request.endDate}.xlsx`,
+      filename,
       base64,
       rows: visibleEmployees.length,
       message: "Excel-файл табеля успешно сформирован",
@@ -379,19 +467,20 @@ async function loadEmployees(
   supabase: ReturnType<typeof createClient>,
   request: ExportTimesheetRequest,
 ): Promise<EmployeeRow[]> {
-  let query = supabase
-    .from("employees")
-    .select("id, last_name, first_name, middle_name, position, status")
-    .eq("company_id", request.companyId);
+  const data = await fetchAllPages((from, to) => {
+    let q = supabase
+      .from("employees")
+      .select("id, last_name, first_name, middle_name, position, status")
+      .eq("company_id", request.companyId);
 
-  if (request.positions && request.positions.length > 0) {
-    query = query.in("position", request.positions);
-  }
+    if (request.positions && request.positions.length > 0) {
+      q = q.in("position", request.positions);
+    }
 
-  const { data, error } = await query;
-  if (error) throw error;
+    return q.order("last_name", { ascending: true }).order("id", { ascending: true }).range(from, to);
+  });
 
-  return (data ?? []).map((employee: Record<string, unknown>) => ({
+  return data.map((employee: Record<string, unknown>) => ({
     id: String(employee.id),
     fullName: buildFullName(employee),
     status: String(employee.status ?? ""),
@@ -402,19 +491,18 @@ async function loadObjects(
   supabase: ReturnType<typeof createClient>,
   request: ExportTimesheetRequest,
 ) {
-  let query = supabase
-    .from("objects")
-    .select("id, name")
-    .eq("company_id", request.companyId);
+  return await fetchAllPages((from, to) => {
+    let q = supabase
+      .from("objects")
+      .select("id, name")
+      .eq("company_id", request.companyId);
 
-  if (request.objectIds && request.objectIds.length > 0) {
-    query = query.in("id", request.objectIds);
-  }
+    if (request.objectIds && request.objectIds.length > 0) {
+      q = q.in("id", request.objectIds);
+    }
 
-  const { data, error } = await query;
-  if (error) throw error;
-
-  return data ?? [];
+    return q.order("name", { ascending: true }).order("id", { ascending: true }).range(from, to);
+  });
 }
 
 async function loadTimesheetEntries(
@@ -425,9 +513,10 @@ async function loadTimesheetEntries(
 ): Promise<TimesheetEntryRow[]> {
   const results: TimesheetEntryRow[] = [];
 
-  let workQuery = supabase
-    .from("work_hours")
-    .select(`
+  const workRows = await fetchAllPages((from, to) => {
+    let workQuery = supabase
+      .from("work_hours")
+      .select(`
       employee_id,
       hours,
       works!inner (
@@ -437,21 +526,24 @@ async function loadTimesheetEntries(
         company_id
       )
     `)
-    .eq("company_id", request.companyId)
-    .eq("works.status", "closed")
-    .eq("works.company_id", request.companyId)
-    .in("employee_id", employeeIds)
-    .gte("works.date", request.startDate)
-    .lte("works.date", request.endDate);
+      .eq("company_id", request.companyId)
+      .eq("works.status", "closed")
+      .eq("works.company_id", request.companyId)
+      .in("employee_id", employeeIds)
+      .gte("works.date", request.startDate)
+      .lte("works.date", request.endDate);
 
-  if (request.objectIds && request.objectIds.length > 0) {
-    workQuery = workQuery.in("works.object_id", request.objectIds);
-  }
+    if (request.objectIds && request.objectIds.length > 0) {
+      workQuery = workQuery.in("works.object_id", request.objectIds);
+    }
 
-  const { data: workRows, error: workError } = await workQuery;
-  if (workError) throw workError;
+    return workQuery
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to);
+  });
 
-  for (const row of workRows ?? []) {
+  for (const row of workRows) {
     const workSource = row.works as Record<string, unknown> | Record<string, unknown>[] | null;
     const work = Array.isArray(workSource) ? workSource[0] ?? null : workSource;
     if (!work?.date || !work.object_id) continue;
@@ -461,33 +553,37 @@ async function loadTimesheetEntries(
       employeeId: String(row.employee_id),
       objectId,
       objectName: objectNameById.get(objectId) ?? "Объект",
-      date: String(work.date),
+      date: toCalendarDateKey(work.date),
       hours: Number(row.hours) || 0,
     });
   }
 
-  let attendanceQuery = supabase
-    .from("employee_attendance")
-    .select("employee_id, object_id, date, hours")
-    .eq("company_id", request.companyId)
-    .in("employee_id", employeeIds)
-    .gte("date", request.startDate)
-    .lte("date", request.endDate);
+  const attendanceRows = await fetchAllPages((from, to) => {
+    let attendanceQuery = supabase
+      .from("employee_attendance")
+      .select("employee_id, object_id, date, hours")
+      .eq("company_id", request.companyId)
+      .in("employee_id", employeeIds)
+      .gte("date", request.startDate)
+      .lte("date", request.endDate);
 
-  if (request.objectIds && request.objectIds.length > 0) {
-    attendanceQuery = attendanceQuery.in("object_id", request.objectIds);
-  }
+    if (request.objectIds && request.objectIds.length > 0) {
+      attendanceQuery = attendanceQuery.in("object_id", request.objectIds);
+    }
 
-  const { data: attendanceRows, error: attendanceError } = await attendanceQuery;
-  if (attendanceError) throw attendanceError;
+    return attendanceQuery
+      .order("date", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to);
+  });
 
-  for (const row of attendanceRows ?? []) {
+  for (const row of attendanceRows) {
     const objectId = String(row.object_id);
     results.push({
       employeeId: String(row.employee_id),
       objectId,
       objectName: objectNameById.get(objectId) ?? "Объект",
-      date: String(row.date),
+      date: toCalendarDateKey(row.date),
       hours: Number(row.hours) || 0,
     });
   }
@@ -539,11 +635,11 @@ function styleHeaderRow(
   totalColumns: number,
 ) {
   row.eachCell({ includeEmpty: true }, (cell, index) => {
-    const isWeekend = index > 1 &&
-      index < totalColumns &&
-      [0, 6].includes(daysInRange[index - 2].getDay());
+    const isDayColumn = index >= 3 && index < totalColumns;
+    const isWeekend = isDayColumn &&
+      [0, 6].includes(daysInRange[index - 3].getDay());
 
-    cell.font = { bold: true };
+    cell.font = { name: SHEET_FONT_NAME, bold: true };
     cell.alignment = { horizontal: "center", vertical: "middle" };
     cell.border = borderStyle;
     cell.fill = {
@@ -560,11 +656,11 @@ function styleWeekdayRow(
   totalColumns: number,
 ) {
   row.eachCell({ includeEmpty: true }, (cell, index) => {
-    const isWeekend = index > 1 &&
-      index < totalColumns &&
-      [0, 6].includes(daysInRange[index - 2].getDay());
+    const isDayColumn = index >= 3 && index < totalColumns;
+    const isWeekend = isDayColumn &&
+      [0, 6].includes(daysInRange[index - 3].getDay());
 
-    cell.font = { bold: true, size: 10 };
+    cell.font = { name: SHEET_FONT_NAME, bold: true, size: 10 };
     cell.alignment = { horizontal: "center", vertical: "middle" };
     cell.border = borderStyle;
     cell.fill = {

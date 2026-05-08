@@ -16,11 +16,82 @@ class TimesheetDataSourceImpl implements TimesheetDataSource {
   /// Название таблицы с часами работ.
   static const String workHoursTable = 'work_hours';
 
-  /// Название таблицы с работами.
-  static const String worksTable = 'works';
+  /// Максимум строк в одном ответе PostgREST; без пагинации остальные строки отбрасываются.
+  static const int _postgrestPageSize = 1000;
 
   /// Создает экземпляр [TimesheetDataSourceImpl].
   TimesheetDataSourceImpl(this.client, this.activeCompanyId);
+
+  /// Строит запрос `work_hours` с join и фильтрами без сортировки и [PostgrestFilterBuilder.range].
+  dynamic _timesheetRowsQuery({
+    required String selectQuery,
+    String? employeeId,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) {
+    var queryBuilder = client
+        .from(workHoursTable)
+        .select(selectQuery)
+        .eq('company_id', activeCompanyId);
+
+    if (employeeId != null) {
+      queryBuilder = queryBuilder.eq('employee_id', employeeId);
+    }
+
+    queryBuilder = queryBuilder.eq('works.status', 'closed');
+
+    if (startDate != null) {
+      final startDateStr = startDate.toIso8601String().split('T')[0];
+      queryBuilder = queryBuilder.gte('works.date', startDateStr);
+    }
+
+    if (endDate != null) {
+      final endDateStr = endDate.toIso8601String().split('T')[0];
+      queryBuilder = queryBuilder.lte('works.date', endDateStr);
+    }
+
+    return queryBuilder;
+  }
+
+  /// Загружает все строки табеля из смен, обходя лимит PostgREST на размер ответа.
+  Future<List<Map<String, dynamic>>> _fetchAllTimesheetWorkHourRows({
+    required String selectQuery,
+    String? employeeId,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    final all = <Map<String, dynamic>>[];
+    var offset = 0;
+    var hasMore = true;
+
+    while (hasMore) {
+      final response = await _timesheetRowsQuery(
+        selectQuery: selectQuery,
+        employeeId: employeeId,
+        startDate: startDate,
+        endDate: endDate,
+      )
+          .order('created_at', ascending: true)
+          .order('id', ascending: true)
+          .range(offset, offset + _postgrestPageSize - 1);
+
+      if (response.isEmpty) {
+        break;
+      }
+
+      for (final row in response) {
+        all.add(Map<String, dynamic>.from(row as Map));
+      }
+
+      if (response.length < _postgrestPageSize) {
+        hasMore = false;
+      } else {
+        offset += _postgrestPageSize;
+      }
+    }
+
+    return all;
+  }
 
   @override
   Future<List<Map<String, dynamic>>> getTimesheetEntries({
@@ -33,7 +104,7 @@ class TimesheetDataSourceImpl implements TimesheetDataSource {
     try {
       // Базовый запрос с join для получения данных из связанных таблиц
       // Используем !inner для works, чтобы фильтрация по дате отсекала строки work_hours
-      String query = '''
+      const selectQuery = '''
         id,
         work_id,
         employee_id,
@@ -53,33 +124,12 @@ class TimesheetDataSourceImpl implements TimesheetDataSource {
         )
       ''';
 
-      // Строим запрос с серверной фильтрацией
-      var queryBuilder = client
-          .from(workHoursTable)
-          .select(query)
-          .eq('company_id', activeCompanyId);
-
-      // Серверная фильтрация по employeeId (прямое поле в work_hours)
-      if (employeeId != null) {
-        queryBuilder = queryBuilder.eq('employee_id', employeeId);
-      }
-
-      // Серверная фильтрация только закрытых смен (через works)
-      queryBuilder = queryBuilder.eq('works.status', 'closed');
-
-      // Серверная фильтрация по датам (через works)
-      if (startDate != null) {
-        final startDateStr = startDate.toIso8601String().split('T')[0];
-        queryBuilder = queryBuilder.gte('works.date', startDateStr);
-      }
-
-      if (endDate != null) {
-        final endDateStr = endDate.toIso8601String().split('T')[0];
-        queryBuilder = queryBuilder.lte('works.date', endDateStr);
-      }
-
-      // Выполняем запрос с сортировкой
-      final response = await queryBuilder.order('created_at');
+      final response = await _fetchAllTimesheetWorkHourRows(
+        selectQuery: selectQuery,
+        employeeId: employeeId,
+        startDate: startDate,
+        endDate: endDate,
+      );
 
       // Преобразуем результаты в плоский формат
       var flatResults = response

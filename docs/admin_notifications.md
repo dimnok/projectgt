@@ -1,6 +1,6 @@
 # Система Push-уведомлений для администраторов
 
-**Дата актуализации:** 11 октября 2025 года (обновлено: добавлено форматирование сумм с пробелами)
+**Дата актуализации:** 11 октября 2025 года (обновлено: добавлено форматирование сумм с пробелами; 17 апреля 2026: поиск админов через `company_members` + `roles`; исходники в `supabase/functions/send_admin_work_event/` **совпадают по стилю с self-hosted**: `jsr` types, ручной JWT к FCM, тот же FCM payload / CORS)
 
 ## Обзор
 
@@ -22,7 +22,8 @@
 
 ### 2. **База данных**
 - Таблица `public.user_tokens` — хранение FCM токенов пользователей
-- Таблица `public.profiles` — информация о пользователях и их ролях
+- Таблицы `public.company_members`, `public.roles` — роль пользователя в компании (источник для «кто админ»)
+- Таблица `public.profiles` — ФИО и `status` (фильтр «не слать отключённым»)
 
 ### 3. **Backend (Supabase Edge Functions)**
 - `send_admin_work_event` — отправка уведомлений админам о событиях смены
@@ -57,7 +58,7 @@
 │  │                                              │                │
 │  │  1. Получает work_id и action               │                │
 │  │  2. Читает данные смены из БД               │                │
-│  │  3. Находит всех админов (role='admin')     │                │
+│  │  3. Находит админов по company_members+roles │               │
 │  │  4. Получает активные токены админов        │                │
 │  │  5. Формирует notification payload          │                │
 │  │  6. Отправляет через FCM API v1             │                │
@@ -66,8 +67,8 @@
 │           │                          │                           │
 │           ▼                          │                           │
 │  ┌─────────────────┐    ┌──────────────────────┐               │
-│  │  user_tokens    │    │      profiles        │               │
-│  │  - token        │    │  - role = 'admin'    │               │
+│  │  user_tokens    │    │ company_members,roles│               │
+│  │  - token        │    │  - role_name …      │               │
 │  │  - platform     │    │  - status = true     │               │
 │  │  - is_active    │    └──────────────────────┘               │
 │  └─────────────────┘                                             │
@@ -199,6 +200,7 @@ try {
       body: {
         'action': 'open',
         'work_id': createdWork.id!,
+        // Опционально: `notify_all: false` — только админам (по умолчанию на Edge — всем участникам компании).
       },
       headers: {
         'Authorization': 'Bearer $accessToken',
@@ -268,13 +270,9 @@ try {
    - Подсчёт сотрудников (`work_hours`)
    - Подсчёт суммы и выработки (для закрытия)
 
-3. **Поиск всех администраторов**
-   ```sql
-   SELECT id, email 
-   FROM profiles 
-   WHERE role = 'admin' 
-     AND (status = true OR status IS NULL)
-   ```
+3. **Кому слать push** (логика в Edge; тело запроса может содержать `notify_all`)
+   - **По умолчанию** (`notify_all` не передан или не `false`): все активные участники компании смены — `company_members` по `works.company_id`, `is_active`, затем фильтр `profiles.status !== false`, токены `user_tokens` (`ios` / `android`, `is_active`).
+   - **`notify_all: false`** (для будущей настройки в UI): только админы — `company_members` + роли `Администратор`, `Админ`, плюс глобальный `Супер-админ` по всем строкам membership, с тем же фильтром профилей и токенов.
 
 4. **Получение активных токенов админов**
    ```sql
@@ -509,7 +507,7 @@ profiles (1) ──────< user_tokens (N)
 - **Статус:** ACTIVE
 
 ### iOS
-- **Bundle ID:** `dev.projectgt.projectgt`
+- **Bundle ID:** `com.projectgt.stroyka`
 - **Team ID:** `L37HR2KV4M`
 - **APNs Authentication Key:** `.p8` файл загружен
   - **Key ID:** `TYMLTYTH4P`
@@ -518,7 +516,7 @@ profiles (1) ──────< user_tokens (N)
 - **Config:** `ios/Runner/GoogleService-Info.plist`
 
 ### Android
-- **Package:** `dev.projectgt.projectgt`
+- **Package:** `com.projectgt.stroyka`
 - **Config:** `android/app/google-services.json`
 - **Min SDK:** 23
 

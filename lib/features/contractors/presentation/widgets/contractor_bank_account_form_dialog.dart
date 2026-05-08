@@ -43,13 +43,16 @@ class _ContractorBankAccountFormDialogState
   @override
   void initState() {
     super.initState();
-    _bankNameController =
-        TextEditingController(text: widget.account?.bankName ?? '');
+    _bankNameController = TextEditingController(
+      text: widget.account?.bankName ?? '',
+    );
     _bikController = TextEditingController(text: widget.account?.bik ?? '');
-    _accountNumberController =
-        TextEditingController(text: widget.account?.accountNumber ?? '');
-    _corrAccountController =
-        TextEditingController(text: widget.account?.corrAccount ?? '');
+    _accountNumberController = TextEditingController(
+      text: widget.account?.accountNumber ?? '',
+    );
+    _corrAccountController = TextEditingController(
+      text: widget.account?.corrAccount ?? '',
+    );
     _isPrimary = widget.account?.isPrimary ?? false;
   }
 

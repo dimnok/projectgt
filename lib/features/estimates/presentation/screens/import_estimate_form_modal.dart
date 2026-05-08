@@ -12,10 +12,8 @@ import 'dart:typed_data';
 import 'package:projectgt/data/models/estimate_model.dart';
 import 'package:projectgt/data/services/excel_estimate_service.dart';
 import 'package:file_saver/file_saver.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:path_provider/path_provider.dart' as path_provider;
-import 'package:share_plus/share_plus.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:go_router/go_router.dart';
@@ -37,12 +35,20 @@ class ImportEstimateFormModal extends ConsumerStatefulWidget {
   /// По умолчанию true.
   final bool useWrapper;
 
+  /// При открытии из карточки договора: какой объект подставить.
+  final String? prefilledObjectId;
+
+  /// При открытии из карточки договора: какой договор подставить.
+  final String? prefilledContractId;
+
   /// Создаёт модальное окно импорта сметы.
   const ImportEstimateFormModal({
     super.key,
     required this.onSuccess,
     required this.onCancel,
     this.useWrapper = true,
+    this.prefilledObjectId,
+    this.prefilledContractId,
   });
 
   /// Показывает модальное окно импорта.
@@ -52,6 +58,8 @@ class ImportEstimateFormModal extends ConsumerStatefulWidget {
     BuildContext context,
     WidgetRef ref, {
     required VoidCallback onSuccess,
+    String? prefilledContractId,
+    String? prefilledObjectId,
   }) {
     final isLargeScreen = MediaQuery.of(context).size.width > 900;
 
@@ -65,6 +73,8 @@ class ImportEstimateFormModal extends ConsumerStatefulWidget {
           onSuccess: onSuccess,
           onCancel: () => Navigator.of(context).pop(),
           useWrapper: false,
+          prefilledContractId: prefilledContractId,
+          prefilledObjectId: prefilledObjectId,
         ),
       );
     } else {
@@ -76,6 +86,8 @@ class ImportEstimateFormModal extends ConsumerStatefulWidget {
         builder: (context) => ImportEstimateFormModal(
           onSuccess: onSuccess,
           onCancel: () => context.pop(),
+          prefilledContractId: prefilledContractId,
+          prefilledObjectId: prefilledObjectId,
         ),
       );
     }
@@ -119,11 +131,11 @@ class _ImportEstimateFormModalState
     _contractController = TextEditingController();
     _estimateNameController = TextEditingController();
     
-    // Инициируем загрузку смет при открытии
+    // Инициируем загрузку смет и подстановку объекта / договора из родителя
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        ref.read(estimateNotifierProvider.notifier).loadEstimates();
-      }
+      if (!mounted) return;
+      _applyContractPrefill();
+      ref.read(estimateNotifierProvider.notifier).loadEstimates();
     });
   }
 
@@ -133,6 +145,30 @@ class _ImportEstimateFormModalState
     _contractController.dispose();
     _estimateNameController.dispose();
     super.dispose();
+  }
+
+  /// Подставляет объект и договор при вызове из карточки договора.
+  void _applyContractPrefill() {
+    final objectId = widget.prefilledObjectId;
+    final contractId = widget.prefilledContractId;
+    if (objectId == null || contractId == null) return;
+    if (objectId.isEmpty || contractId.isEmpty) return;
+
+    final contracts = ref.read(contractProvider).contracts;
+    final contract =
+        contracts.firstWhereOrNull((c) => c.id == contractId);
+    if (contract == null || contract.objectId != objectId) return;
+
+    final objects = ref.read(objectProvider).objects;
+    final obj = objects.firstWhereOrNull((o) => o.id == objectId);
+
+    setState(() {
+      selectedObjectId = objectId;
+      _objectController.text = obj?.name ?? '';
+      selectedContractId = contractId;
+      _contractController.text = contract.number;
+      _updateFilteredEstimates();
+    });
   }
 
   void _updateFilteredEstimates() {
@@ -200,25 +236,46 @@ class _ImportEstimateFormModalState
   Future<void> _downloadTemplate() async {
     try {
       setState(() => isLoading = true);
-      final bytes = await ExcelEstimateService.loadTemplateFromFileSystem();
+      Uint8List bytes;
+      var outFileName = _estimateImportTemplateFileName();
+      try {
+        final repository = ref.read(estimateRepositoryProvider);
+        final result = await repository.getEstimateImportTemplateFile(
+          contractId: selectedContractId,
+        );
+        bytes = result['bytes'] as Uint8List;
+        final fn = (result['filename'] as String?)?.trim();
+        if (fn != null && fn.isNotEmpty) {
+          outFileName = fn;
+        }
+      } catch (e, st) {
+        debugPrint('Шаблон с сервера недоступен, локальный fallback: $e $st');
+        bytes = await ExcelEstimateService.loadTemplateFromAssets();
+        outFileName = _estimateImportTemplateFileName();
+      }
 
       if (kIsWeb) {
         await FileSaver.instance.saveFile(
-          name: 'estimate_template.xlsx',
+          name: outFileName.replaceAll('.xlsx', ''),
           bytes: bytes,
           mimeType: MimeType.microsoftExcel,
         );
       } else {
-        final directory = await path_provider.getTemporaryDirectory();
-        final path = '${directory.path}/estimate_template.xlsx';
-        final file = File(path);
-        await file.writeAsBytes(bytes);
-        await SharePlus.instance.share(
-          ShareParams(
-            files: [XFile(path)],
-            text: 'Шаблон сметы для заполнения',
-          ),
+        final initialDirectory =
+            (await path_provider.getDownloadsDirectory())?.path;
+        final outputPath = await FilePicker.platform.saveFile(
+          dialogTitle: 'Сохранить шаблон импорта сметы',
+          fileName: outFileName,
+          initialDirectory: initialDirectory,
+          type: FileType.custom,
+          allowedExtensions: ['xlsx'],
+          bytes: bytes,
         );
+
+        if (outputPath == null) {
+          if (!mounted) return;
+          return;
+        }
       }
       if (!mounted) return;
       SnackBarUtils.showSuccess(context, 'Шаблон сметы успешно скачан');
@@ -228,6 +285,30 @@ class _ImportEstimateFormModalState
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
+  }
+
+  /// Имя файла шаблона: `Шаблон_сметы_<номер договора>_дд.мм.гггг.xlsx` либо только дата.
+  String _estimateImportTemplateFileName() {
+    final dateStr = formatRuDate(DateTime.now());
+    final cid = selectedContractId;
+    if (cid != null && cid.isNotEmpty) {
+      final contract = ref
+          .read(contractProvider)
+          .contracts
+          .firstWhereOrNull((c) => c.id == cid);
+      final raw = contract?.number.trim();
+      if (raw != null && raw.isNotEmpty) {
+        return 'Шаблон_сметы_${_sanitizeTemplateFileSegment(raw)}_$dateStr.xlsx';
+      }
+    }
+    return 'Шаблон_сметы_$dateStr.xlsx';
+  }
+
+  String _sanitizeTemplateFileSegment(String s) {
+    return s
+        .replaceAll(RegExp(r'[\\/:*?"<>|]'), '_')
+        .replaceAll(RegExp(r'\s+'), '_')
+        .trim();
   }
 
   Future<void> _pickExcelFile() async {

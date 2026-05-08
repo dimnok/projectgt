@@ -29,7 +29,8 @@ mixin _$WorkModel {
 @JsonKey(name: 'updated_at') DateTime? get updatedAt;/// Общая сумма всех работ в смене.
 ///
 /// Вычисляется автоматически через триггеры БД.
-@JsonKey(name: 'total_amount') double? get totalAmount;/// Количество работ в смене.
+@JsonKey(name: 'total_amount') double? get totalAmount;/// Сумма работ без подрядчика (`contractor_id` пуст).
+@JsonKey(name: 'own_total_amount') double? get ownTotalAmount;/// Количество работ в смене.
 ///
 /// Вычисляется автоматически через триггеры БД.
 @JsonKey(name: 'items_count') int? get itemsCount;/// Количество уникальных сотрудников в смене.
@@ -49,16 +50,16 @@ $WorkModelCopyWith<WorkModel> get copyWith => _$WorkModelCopyWithImpl<WorkModel>
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is WorkModel&&(identical(other.id, id) || other.id == id)&&(identical(other.companyId, companyId) || other.companyId == companyId)&&(identical(other.date, date) || other.date == date)&&(identical(other.objectId, objectId) || other.objectId == objectId)&&(identical(other.openedBy, openedBy) || other.openedBy == openedBy)&&(identical(other.status, status) || other.status == status)&&(identical(other.photoUrl, photoUrl) || other.photoUrl == photoUrl)&&(identical(other.eveningPhotoUrl, eveningPhotoUrl) || other.eveningPhotoUrl == eveningPhotoUrl)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.totalAmount, totalAmount) || other.totalAmount == totalAmount)&&(identical(other.itemsCount, itemsCount) || other.itemsCount == itemsCount)&&(identical(other.employeesCount, employeesCount) || other.employeesCount == employeesCount)&&(identical(other.telegramMessageId, telegramMessageId) || other.telegramMessageId == telegramMessageId));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is WorkModel&&(identical(other.id, id) || other.id == id)&&(identical(other.companyId, companyId) || other.companyId == companyId)&&(identical(other.date, date) || other.date == date)&&(identical(other.objectId, objectId) || other.objectId == objectId)&&(identical(other.openedBy, openedBy) || other.openedBy == openedBy)&&(identical(other.status, status) || other.status == status)&&(identical(other.photoUrl, photoUrl) || other.photoUrl == photoUrl)&&(identical(other.eveningPhotoUrl, eveningPhotoUrl) || other.eveningPhotoUrl == eveningPhotoUrl)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.totalAmount, totalAmount) || other.totalAmount == totalAmount)&&(identical(other.ownTotalAmount, ownTotalAmount) || other.ownTotalAmount == ownTotalAmount)&&(identical(other.itemsCount, itemsCount) || other.itemsCount == itemsCount)&&(identical(other.employeesCount, employeesCount) || other.employeesCount == employeesCount)&&(identical(other.telegramMessageId, telegramMessageId) || other.telegramMessageId == telegramMessageId));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,companyId,date,objectId,openedBy,status,photoUrl,eveningPhotoUrl,createdAt,updatedAt,totalAmount,itemsCount,employeesCount,telegramMessageId);
+int get hashCode => Object.hash(runtimeType,id,companyId,date,objectId,openedBy,status,photoUrl,eveningPhotoUrl,createdAt,updatedAt,totalAmount,ownTotalAmount,itemsCount,employeesCount,telegramMessageId);
 
 @override
 String toString() {
-  return 'WorkModel(id: $id, companyId: $companyId, date: $date, objectId: $objectId, openedBy: $openedBy, status: $status, photoUrl: $photoUrl, eveningPhotoUrl: $eveningPhotoUrl, createdAt: $createdAt, updatedAt: $updatedAt, totalAmount: $totalAmount, itemsCount: $itemsCount, employeesCount: $employeesCount, telegramMessageId: $telegramMessageId)';
+  return 'WorkModel(id: $id, companyId: $companyId, date: $date, objectId: $objectId, openedBy: $openedBy, status: $status, photoUrl: $photoUrl, eveningPhotoUrl: $eveningPhotoUrl, createdAt: $createdAt, updatedAt: $updatedAt, totalAmount: $totalAmount, ownTotalAmount: $ownTotalAmount, itemsCount: $itemsCount, employeesCount: $employeesCount, telegramMessageId: $telegramMessageId)';
 }
 
 
@@ -69,7 +70,7 @@ abstract mixin class $WorkModelCopyWith<$Res>  {
   factory $WorkModelCopyWith(WorkModel value, $Res Function(WorkModel) _then) = _$WorkModelCopyWithImpl;
 @useResult
 $Res call({
- String? id,@JsonKey(name: 'company_id') String companyId,@JsonKey(name: 'date') DateTime date,@JsonKey(name: 'object_id') String objectId,@JsonKey(name: 'opened_by') String openedBy,@JsonKey(name: 'status') String status,@JsonKey(name: 'photo_url') String? photoUrl,@JsonKey(name: 'evening_photo_url') String? eveningPhotoUrl,@JsonKey(name: 'created_at') DateTime? createdAt,@JsonKey(name: 'updated_at') DateTime? updatedAt,@JsonKey(name: 'total_amount') double? totalAmount,@JsonKey(name: 'items_count') int? itemsCount,@JsonKey(name: 'employees_count') int? employeesCount,@JsonKey(name: 'telegram_message_id') int? telegramMessageId
+ String? id,@JsonKey(name: 'company_id') String companyId,@JsonKey(name: 'date') DateTime date,@JsonKey(name: 'object_id') String objectId,@JsonKey(name: 'opened_by') String openedBy,@JsonKey(name: 'status') String status,@JsonKey(name: 'photo_url') String? photoUrl,@JsonKey(name: 'evening_photo_url') String? eveningPhotoUrl,@JsonKey(name: 'created_at') DateTime? createdAt,@JsonKey(name: 'updated_at') DateTime? updatedAt,@JsonKey(name: 'total_amount') double? totalAmount,@JsonKey(name: 'own_total_amount') double? ownTotalAmount,@JsonKey(name: 'items_count') int? itemsCount,@JsonKey(name: 'employees_count') int? employeesCount,@JsonKey(name: 'telegram_message_id') int? telegramMessageId
 });
 
 
@@ -86,7 +87,7 @@ class _$WorkModelCopyWithImpl<$Res>
 
 /// Create a copy of WorkModel
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = freezed,Object? companyId = null,Object? date = null,Object? objectId = null,Object? openedBy = null,Object? status = null,Object? photoUrl = freezed,Object? eveningPhotoUrl = freezed,Object? createdAt = freezed,Object? updatedAt = freezed,Object? totalAmount = freezed,Object? itemsCount = freezed,Object? employeesCount = freezed,Object? telegramMessageId = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = freezed,Object? companyId = null,Object? date = null,Object? objectId = null,Object? openedBy = null,Object? status = null,Object? photoUrl = freezed,Object? eveningPhotoUrl = freezed,Object? createdAt = freezed,Object? updatedAt = freezed,Object? totalAmount = freezed,Object? ownTotalAmount = freezed,Object? itemsCount = freezed,Object? employeesCount = freezed,Object? telegramMessageId = freezed,}) {
   return _then(_self.copyWith(
 id: freezed == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String?,companyId: null == companyId ? _self.companyId : companyId // ignore: cast_nullable_to_non_nullable
@@ -99,6 +100,7 @@ as String?,eveningPhotoUrl: freezed == eveningPhotoUrl ? _self.eveningPhotoUrl :
 as String?,createdAt: freezed == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,updatedAt: freezed == updatedAt ? _self.updatedAt : updatedAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,totalAmount: freezed == totalAmount ? _self.totalAmount : totalAmount // ignore: cast_nullable_to_non_nullable
+as double?,ownTotalAmount: freezed == ownTotalAmount ? _self.ownTotalAmount : ownTotalAmount // ignore: cast_nullable_to_non_nullable
 as double?,itemsCount: freezed == itemsCount ? _self.itemsCount : itemsCount // ignore: cast_nullable_to_non_nullable
 as int?,employeesCount: freezed == employeesCount ? _self.employeesCount : employeesCount // ignore: cast_nullable_to_non_nullable
 as int?,telegramMessageId: freezed == telegramMessageId ? _self.telegramMessageId : telegramMessageId // ignore: cast_nullable_to_non_nullable
@@ -113,7 +115,7 @@ as int?,
 @JsonSerializable()
 
 class _WorkModel implements WorkModel {
-  const _WorkModel({this.id, @JsonKey(name: 'company_id') required this.companyId, @JsonKey(name: 'date') required this.date, @JsonKey(name: 'object_id') required this.objectId, @JsonKey(name: 'opened_by') required this.openedBy, @JsonKey(name: 'status') required this.status, @JsonKey(name: 'photo_url') this.photoUrl, @JsonKey(name: 'evening_photo_url') this.eveningPhotoUrl, @JsonKey(name: 'created_at') this.createdAt, @JsonKey(name: 'updated_at') this.updatedAt, @JsonKey(name: 'total_amount') this.totalAmount, @JsonKey(name: 'items_count') this.itemsCount, @JsonKey(name: 'employees_count') this.employeesCount, @JsonKey(name: 'telegram_message_id') this.telegramMessageId});
+  const _WorkModel({this.id, @JsonKey(name: 'company_id') required this.companyId, @JsonKey(name: 'date') required this.date, @JsonKey(name: 'object_id') required this.objectId, @JsonKey(name: 'opened_by') required this.openedBy, @JsonKey(name: 'status') required this.status, @JsonKey(name: 'photo_url') this.photoUrl, @JsonKey(name: 'evening_photo_url') this.eveningPhotoUrl, @JsonKey(name: 'created_at') this.createdAt, @JsonKey(name: 'updated_at') this.updatedAt, @JsonKey(name: 'total_amount') this.totalAmount, @JsonKey(name: 'own_total_amount') this.ownTotalAmount, @JsonKey(name: 'items_count') this.itemsCount, @JsonKey(name: 'employees_count') this.employeesCount, @JsonKey(name: 'telegram_message_id') this.telegramMessageId});
   factory _WorkModel.fromJson(Map<String, dynamic> json) => _$WorkModelFromJson(json);
 
 /// Идентификатор смены.
@@ -140,6 +142,8 @@ class _WorkModel implements WorkModel {
 ///
 /// Вычисляется автоматически через триггеры БД.
 @override@JsonKey(name: 'total_amount') final  double? totalAmount;
+/// Сумма работ без подрядчика (`contractor_id` пуст).
+@override@JsonKey(name: 'own_total_amount') final  double? ownTotalAmount;
 /// Количество работ в смене.
 ///
 /// Вычисляется автоматически через триггеры БД.
@@ -164,16 +168,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _WorkModel&&(identical(other.id, id) || other.id == id)&&(identical(other.companyId, companyId) || other.companyId == companyId)&&(identical(other.date, date) || other.date == date)&&(identical(other.objectId, objectId) || other.objectId == objectId)&&(identical(other.openedBy, openedBy) || other.openedBy == openedBy)&&(identical(other.status, status) || other.status == status)&&(identical(other.photoUrl, photoUrl) || other.photoUrl == photoUrl)&&(identical(other.eveningPhotoUrl, eveningPhotoUrl) || other.eveningPhotoUrl == eveningPhotoUrl)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.totalAmount, totalAmount) || other.totalAmount == totalAmount)&&(identical(other.itemsCount, itemsCount) || other.itemsCount == itemsCount)&&(identical(other.employeesCount, employeesCount) || other.employeesCount == employeesCount)&&(identical(other.telegramMessageId, telegramMessageId) || other.telegramMessageId == telegramMessageId));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _WorkModel&&(identical(other.id, id) || other.id == id)&&(identical(other.companyId, companyId) || other.companyId == companyId)&&(identical(other.date, date) || other.date == date)&&(identical(other.objectId, objectId) || other.objectId == objectId)&&(identical(other.openedBy, openedBy) || other.openedBy == openedBy)&&(identical(other.status, status) || other.status == status)&&(identical(other.photoUrl, photoUrl) || other.photoUrl == photoUrl)&&(identical(other.eveningPhotoUrl, eveningPhotoUrl) || other.eveningPhotoUrl == eveningPhotoUrl)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.totalAmount, totalAmount) || other.totalAmount == totalAmount)&&(identical(other.ownTotalAmount, ownTotalAmount) || other.ownTotalAmount == ownTotalAmount)&&(identical(other.itemsCount, itemsCount) || other.itemsCount == itemsCount)&&(identical(other.employeesCount, employeesCount) || other.employeesCount == employeesCount)&&(identical(other.telegramMessageId, telegramMessageId) || other.telegramMessageId == telegramMessageId));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,companyId,date,objectId,openedBy,status,photoUrl,eveningPhotoUrl,createdAt,updatedAt,totalAmount,itemsCount,employeesCount,telegramMessageId);
+int get hashCode => Object.hash(runtimeType,id,companyId,date,objectId,openedBy,status,photoUrl,eveningPhotoUrl,createdAt,updatedAt,totalAmount,ownTotalAmount,itemsCount,employeesCount,telegramMessageId);
 
 @override
 String toString() {
-  return 'WorkModel(id: $id, companyId: $companyId, date: $date, objectId: $objectId, openedBy: $openedBy, status: $status, photoUrl: $photoUrl, eveningPhotoUrl: $eveningPhotoUrl, createdAt: $createdAt, updatedAt: $updatedAt, totalAmount: $totalAmount, itemsCount: $itemsCount, employeesCount: $employeesCount, telegramMessageId: $telegramMessageId)';
+  return 'WorkModel(id: $id, companyId: $companyId, date: $date, objectId: $objectId, openedBy: $openedBy, status: $status, photoUrl: $photoUrl, eveningPhotoUrl: $eveningPhotoUrl, createdAt: $createdAt, updatedAt: $updatedAt, totalAmount: $totalAmount, ownTotalAmount: $ownTotalAmount, itemsCount: $itemsCount, employeesCount: $employeesCount, telegramMessageId: $telegramMessageId)';
 }
 
 
@@ -184,7 +188,7 @@ abstract mixin class _$WorkModelCopyWith<$Res> implements $WorkModelCopyWith<$Re
   factory _$WorkModelCopyWith(_WorkModel value, $Res Function(_WorkModel) _then) = __$WorkModelCopyWithImpl;
 @override @useResult
 $Res call({
- String? id,@JsonKey(name: 'company_id') String companyId,@JsonKey(name: 'date') DateTime date,@JsonKey(name: 'object_id') String objectId,@JsonKey(name: 'opened_by') String openedBy,@JsonKey(name: 'status') String status,@JsonKey(name: 'photo_url') String? photoUrl,@JsonKey(name: 'evening_photo_url') String? eveningPhotoUrl,@JsonKey(name: 'created_at') DateTime? createdAt,@JsonKey(name: 'updated_at') DateTime? updatedAt,@JsonKey(name: 'total_amount') double? totalAmount,@JsonKey(name: 'items_count') int? itemsCount,@JsonKey(name: 'employees_count') int? employeesCount,@JsonKey(name: 'telegram_message_id') int? telegramMessageId
+ String? id,@JsonKey(name: 'company_id') String companyId,@JsonKey(name: 'date') DateTime date,@JsonKey(name: 'object_id') String objectId,@JsonKey(name: 'opened_by') String openedBy,@JsonKey(name: 'status') String status,@JsonKey(name: 'photo_url') String? photoUrl,@JsonKey(name: 'evening_photo_url') String? eveningPhotoUrl,@JsonKey(name: 'created_at') DateTime? createdAt,@JsonKey(name: 'updated_at') DateTime? updatedAt,@JsonKey(name: 'total_amount') double? totalAmount,@JsonKey(name: 'own_total_amount') double? ownTotalAmount,@JsonKey(name: 'items_count') int? itemsCount,@JsonKey(name: 'employees_count') int? employeesCount,@JsonKey(name: 'telegram_message_id') int? telegramMessageId
 });
 
 
@@ -201,7 +205,7 @@ class __$WorkModelCopyWithImpl<$Res>
 
 /// Create a copy of WorkModel
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = freezed,Object? companyId = null,Object? date = null,Object? objectId = null,Object? openedBy = null,Object? status = null,Object? photoUrl = freezed,Object? eveningPhotoUrl = freezed,Object? createdAt = freezed,Object? updatedAt = freezed,Object? totalAmount = freezed,Object? itemsCount = freezed,Object? employeesCount = freezed,Object? telegramMessageId = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = freezed,Object? companyId = null,Object? date = null,Object? objectId = null,Object? openedBy = null,Object? status = null,Object? photoUrl = freezed,Object? eveningPhotoUrl = freezed,Object? createdAt = freezed,Object? updatedAt = freezed,Object? totalAmount = freezed,Object? ownTotalAmount = freezed,Object? itemsCount = freezed,Object? employeesCount = freezed,Object? telegramMessageId = freezed,}) {
   return _then(_WorkModel(
 id: freezed == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String?,companyId: null == companyId ? _self.companyId : companyId // ignore: cast_nullable_to_non_nullable
@@ -214,6 +218,7 @@ as String?,eveningPhotoUrl: freezed == eveningPhotoUrl ? _self.eveningPhotoUrl :
 as String?,createdAt: freezed == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,updatedAt: freezed == updatedAt ? _self.updatedAt : updatedAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,totalAmount: freezed == totalAmount ? _self.totalAmount : totalAmount // ignore: cast_nullable_to_non_nullable
+as double?,ownTotalAmount: freezed == ownTotalAmount ? _self.ownTotalAmount : ownTotalAmount // ignore: cast_nullable_to_non_nullable
 as double?,itemsCount: freezed == itemsCount ? _self.itemsCount : itemsCount // ignore: cast_nullable_to_non_nullable
 as int?,employeesCount: freezed == employeesCount ? _self.employeesCount : employeesCount // ignore: cast_nullable_to_non_nullable
 as int?,telegramMessageId: freezed == telegramMessageId ? _self.telegramMessageId : telegramMessageId // ignore: cast_nullable_to_non_nullable

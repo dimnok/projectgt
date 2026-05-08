@@ -14,6 +14,8 @@ import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/features/works/presentation/widgets/photo_loading_dialog.dart';
 import 'package:projectgt/features/works/presentation/utils/photo_upload_helper.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
+import 'package:projectgt/core/widgets/mobile_atmosphere_backdrop.dart';
+import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
 
 /// Извлекает время (HH:mm) из имени файла в URL фото смены.
 /// Ожидаемый формат имени: YYYY-MM-DD_HH-mm-ss_morning.jpg / ..._evening.jpg
@@ -439,52 +441,68 @@ class _FullscreenPhotoViewState extends ConsumerState<_FullscreenPhotoView> {
       return;
     }
 
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+
     final ImageSource? source = await showModalBottomSheet<ImageSource>(
       context: context,
       useRootNavigator: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      constraints: BoxConstraints(maxWidth: screenWidth),
+      clipBehavior: Clip.antiAlias,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Выбор источника фото',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+      builder: (sheetContext) {
+        Widget tile({
+          required IconData icon,
+          required String title,
+          required VoidCallback onTap,
+        }) {
+          return ListTile(
+            leading: Icon(icon, color: scheme.onSurface),
+            title: Text(
+              title,
+              style: TextStyle(
+                color: scheme.onSurface,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _PhotoRoundButton(
-                  icon: Icons.photo_camera,
-                  label: 'Камера',
-                  onTap: () {
-                    Navigator.pop(context, ImageSource.camera);
-                  },
-                ),
-                _PhotoRoundButton(
-                  icon: Icons.photo_library,
-                  label: 'Галерея',
-                  onTap: () {
-                    Navigator.pop(context, ImageSource.gallery);
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            GTTextButton(
-              onPressed: () => Navigator.pop(context),
-              text: 'Отмена',
-            ),
-          ],
-        ),
-      ),
+            onTap: onTap,
+          );
+        }
+
+        return MobileBottomSheetContent(
+          title: 'Фото смены',
+          scrollable: false,
+          sheetBackdrop: const MobileAtmosphereBackdrop(),
+          footer: GTSecondaryButton(
+            text: 'Отмена',
+            onPressed: () => Navigator.pop(sheetContext),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              tile(
+                icon: CupertinoIcons.camera,
+                title: 'Сделать фото',
+                onTap: () =>
+                    Navigator.pop(sheetContext, ImageSource.camera),
+              ),
+              tile(
+                icon: CupertinoIcons.photo_on_rectangle,
+                title: 'Выбрать из галереи',
+                onTap: () =>
+                    Navigator.pop(sheetContext, ImageSource.gallery),
+              ),
+            ],
+          ),
+        );
+      },
     );
 
     if (source == null) return;
@@ -610,38 +628,6 @@ class _FullscreenPhotoViewState extends ConsumerState<_FullscreenPhotoView> {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _PhotoRoundButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _PhotoRoundButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      children: [
-        InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(24),
-          child: CircleAvatar(
-            radius: 24,
-            backgroundColor: theme.colorScheme.primary,
-            child: Icon(icon, color: theme.colorScheme.onPrimary, size: 24),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(label, style: theme.textTheme.bodySmall),
-      ],
     );
   }
 }

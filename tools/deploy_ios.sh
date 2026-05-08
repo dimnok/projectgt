@@ -115,7 +115,7 @@ esac
 echo ""
 echo "📊 Информация о приложении:"
 echo "  Название: ProjectGT"
-echo "  Bundle ID: dev.projectgt.projectgt"
+echo "  Bundle ID: com.projectgt.stroyka"
 echo "  Версия: $APP_VERSION"
 echo "  Build: $BUILD_NUMBER"
 echo "  Deployment Target: iOS 12.0+"

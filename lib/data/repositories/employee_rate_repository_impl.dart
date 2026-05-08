@@ -30,12 +30,48 @@ class EmployeeRateRepositoryImpl implements EmployeeRateRepository {
   @override
   Future<void> setNewRate(
       String employeeId, double rate, DateTime validFrom) async {
-    // 1. Закрываем текущую ставку (если есть)
-    await _dataSource.closeCurrentRate(
-        employeeId, validFrom.subtract(const Duration(days: 1)));
+    final validFromDate =
+        DateTime(validFrom.year, validFrom.month, validFrom.day);
+    final dayBefore = validFromDate.subtract(const Duration(days: 1));
 
-    // 2. Создаём новую ставку
-    await _dataSource.setNewRate(employeeId, rate, validFrom);
+    // Единая точка истины для разрешения пересечений:
+    // 1. Берём ВСЕ ставки, чьи периоды пересекаются с [validFrom, +∞).
+    final overlapping =
+        await _dataSource.findOverlappingRates(employeeId, validFromDate);
+
+    for (final rate in overlapping) {
+      final existingFrom = DateTime(
+        rate.validFrom.year,
+        rate.validFrom.month,
+        rate.validFrom.day,
+      );
+
+      if (existingFrom.isAtSameMomentAs(validFromDate)) {
+        // Совпадает дата начала — старую запись удаляем,
+        // ниже вставится новая с актуальной суммой.
+        await _dataSource.deleteRate(rate.id);
+      } else if (existingFrom.isBefore(validFromDate)) {
+        // Старая ставка началась раньше — закрываем её днём до новой.
+        await _dataSource.updateValidTo(rate.id, dayBefore);
+      } else {
+        // existingFrom > validFromDate — новая ставка перекрывает будущую.
+        // Удаляем будущую запись.
+        await _dataSource.deleteRate(rate.id);
+      }
+    }
+
+    // 2. Создаём новую ставку (data source делает чистый INSERT).
+    await _dataSource.setNewRate(employeeId, rate, validFromDate);
+  }
+
+  @override
+  Future<List<EmployeeRate>> findOverlappingRates(
+    String employeeId,
+    DateTime validFrom,
+  ) async {
+    final models =
+        await _dataSource.findOverlappingRates(employeeId, validFrom);
+    return models.map(_mapToEntity).toList();
   }
 
   /// Преобразует модель данных в доменную сущность

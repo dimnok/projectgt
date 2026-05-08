@@ -5,34 +5,30 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/month_groups_provider.dart';
 import '../providers/work_provider.dart';
 import 'work_details_panel.dart';
+import 'works_list_mobile_screen.dart';
+import 'works_screen_actions_mixin.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
-import 'package:go_router/go_router.dart';
 import 'package:projectgt/features/works/domain/entities/work.dart';
 import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
-import 'package:projectgt/core/utils/modal_utils.dart';
-import '../widgets/month_group_header.dart';
 import '../widgets/month_details_panel.dart';
 import '../widgets/sliver_month_works_list.dart';
-import '../widgets/mobile_month_works_list.dart';
-import '../widgets/sliver_month_work_plans_list.dart';
+import '../widgets/work_month_group_sliver_header.dart';
+import '../widgets/work_plan_month_group_sliver_header.dart';
 import '../../data/models/month_group.dart';
 import 'package:projectgt/features/work_plans/data/models/work_plan_month_group.dart';
 import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
-import 'package:projectgt/features/work_plans/presentation/screens/work_plan_form_modal.dart';
 import 'package:projectgt/features/work_plans/presentation/screens/work_plan_details_screen.dart';
 import 'package:projectgt/domain/entities/work_plan.dart';
 import '../widgets/desktop_month_work_plans_list.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
-import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/features/work_plans/presentation/providers/work_plan_month_groups_provider.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
 import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/core/error/failure.dart';
-import 'package:projectgt/presentation/widgets/cupertino_dialog_widget.dart';
 
 /// Режим отображения: смены или планы.
 enum _DisplayMode { works, workPlans }
@@ -53,7 +49,8 @@ class WorksMasterDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _WorksMasterDetailScreenState
-    extends ConsumerState<WorksMasterDetailScreen> {
+    extends ConsumerState<WorksMasterDetailScreen>
+    with WorksScreenActionsMixin<WorksMasterDetailScreen> {
   final _scrollController = ScrollController();
   Work? selectedWork;
   WorkPlan? selectedWorkPlan;
@@ -64,6 +61,11 @@ class _WorksMasterDetailScreenState
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (!ResponsiveUtils.isDesktop(context)) return;
+      ref.read(monthGroupsProvider.notifier).setOpenedByListFilter(null);
+    });
   }
 
   @override
@@ -72,75 +74,35 @@ class _WorksMasterDetailScreenState
     super.dispose();
   }
 
-  /// Обрабатывает pull-to-refresh.
+  @override
+  void onWorkDeleted() {
+    if (!mounted) return;
+    setState(() {
+      selectedWork = null;
+    });
+  }
+
+  @override
+  void onWorkPlanDeleted() {
+    if (!mounted) return;
+    setState(() {
+      selectedWorkPlan = null;
+    });
+  }
+
+  /// Обрабатывает pull-to-refresh для десктопного списка смен.
   Future<void> _handleRefresh() async {
     await ref.read(monthGroupsProvider.notifier).refresh();
   }
 
-  /// Показывает модальную форму для открытия смены.
-  Future<void> _showOpenShiftModal(BuildContext context) async {
-    // Проверяем наличие открытой смены перед открытием формы
-    // Используем .future, чтобы дождаться актуального значения из БД
-    final bool hasOpen = await ref.read(hasOpenWorkProvider.future);
-
-    if (!context.mounted) return;
-
-    if (hasOpen) {
-      showCupertinoDialog(
-        context: context,
-        builder: (context) => CupertinoAlertDialog(
-          title: const Text('Внимание'),
-          content: const Text(
-            'У вас уже есть открытая смена. Пожалуйста, закройте её перед открытием новой.',
-          ),
-          actions: [
-            CupertinoDialogAction(
-              child: const Text('ОК'),
-              onPressed: () => Navigator.pop(context),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
-
-    ModalUtils.showWorkFormModal(context);
-  }
-
-  /// Показывает модальное окно создания плана работ.
-  void _showCreateWorkPlanModal(BuildContext context) {
-    if (ResponsiveUtils.isDesktop(context)) {
-      showDialog(
-        context: context,
-        builder: (context) => Dialog(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          child: WorkPlanFormModal(
-            onSuccess: (isNew) {
-              ref.read(workPlanNotifierProvider.notifier).loadWorkPlans();
-            },
-          ),
-        ),
-      );
-    } else {
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        useSafeArea: true,
-        backgroundColor: Colors.transparent,
-        builder: (context) => WorkPlanFormModal(
-          onSuccess: (isNew) {
-            ref.read(workPlanNotifierProvider.notifier).loadWorkPlans();
-          },
-        ),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final isDesktop = ResponsiveUtils.isDesktop(context);
+    if (!isDesktop) {
+      return const WorksListMobileScreen();
+    }
+
+    final theme = Theme.of(context);
 
     // [RBAC] Сбрасываем выбор при смене компании
     ref.listen(activeCompanyIdProvider, (previous, next) {
@@ -225,174 +187,61 @@ class _WorksMasterDetailScreenState
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      // На десктопе показываем AppBar в Scaffold, на мобильных - он будет в списке
-      appBar: isDesktop
-          ? AppBarWidget(
-              title: _displayMode == _DisplayMode.works
-                  ? (currentWork != null
-                        ? 'Смена: ${formatRuDate(currentWork.date)}'
-                        : 'Смены')
-                  : (selectedWorkPlan != null
-                        ? 'План: ${formatRuDate(selectedWorkPlan!.date)}'
-                        : 'Планы работ'),
-              actions: [
-                if (canDeleteSelected &&
-                    _displayMode == _DisplayMode.works &&
-                    currentWork != null)
-                  CupertinoButton(
-                    padding: EdgeInsets.zero,
-                    onPressed: () =>
-                        _confirmDeleteWork(context, ref, currentWork!),
-                    child: const Icon(
-                      CupertinoIcons.delete,
-                      color: Colors.red,
-                      size: 22,
-                    ),
-                  ),
-                if (_displayMode == _DisplayMode.workPlans &&
-                    selectedWorkPlan != null) ...[
-                  if (canEditSelectedPlan)
-                    CupertinoButton(
-                      padding: EdgeInsets.zero,
-                      onPressed: () =>
-                          _showEditWorkPlanModal(context, selectedWorkPlan!),
-                      child: const Icon(
-                        CupertinoIcons.pencil,
-                        color: Colors.amber,
-                        size: 22,
-                      ),
-                    ),
-                  if (canDeleteSelected)
-                    CupertinoButton(
-                      padding: EdgeInsets.zero,
-                      onPressed: () => _confirmDeleteWorkPlan(
-                        context,
-                        ref,
-                        selectedWorkPlan!,
-                      ),
-                      child: const Icon(
-                        CupertinoIcons.delete,
-                        color: Colors.red,
-                        size: 22,
-                      ),
-                    ),
-                ],
-              ],
-            )
-          : null,
-      drawer: const AppDrawer(activeRoute: AppRoute.works),
-      floatingActionButton: null,
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          if (isDesktop) {
-            return _buildDesktopLayout(
-              isLoading: isLoading,
-              groups: groups,
-              workPlanGroups: workPlanGroups,
-              theme: theme,
-            );
-          } else {
-            // Для мобильных добавляем SafeArea, чтобы контент не залезал под статус-бар
-            // при прозрачном (отсутствующем) AppBar
-            return SafeArea(
-              child: _buildMobileLayout(
-                isLoading: isLoading,
-                groups: groups,
-                theme: theme,
+      appBar: AppBarWidget(
+        title: _displayMode == _DisplayMode.works
+            ? (currentWork != null
+                  ? 'Смена: ${formatRuDate(currentWork.date)}'
+                  : 'Смены')
+            : (selectedWorkPlan != null
+                  ? 'План: ${formatRuDate(selectedWorkPlan!.date)}'
+                  : 'Планы работ'),
+        actions: [
+          if (canDeleteSelected &&
+              _displayMode == _DisplayMode.works &&
+              currentWork != null)
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              onPressed: () => confirmDeleteWork(context, currentWork!),
+              child: const Icon(
+                CupertinoIcons.delete,
+                color: Colors.red,
+                size: 22,
               ),
-            );
-          }
-        },
+            ),
+          if (_displayMode == _DisplayMode.workPlans &&
+              selectedWorkPlan != null) ...[
+            if (canEditSelectedPlan)
+              CupertinoButton(
+                padding: EdgeInsets.zero,
+                onPressed: () =>
+                    showEditWorkPlanModal(context, selectedWorkPlan!),
+                child: const Icon(
+                  CupertinoIcons.pencil,
+                  color: Colors.amber,
+                  size: 22,
+                ),
+              ),
+            if (canDeleteSelected)
+              CupertinoButton(
+                padding: EdgeInsets.zero,
+                onPressed: () =>
+                    confirmDeleteWorkPlan(context, selectedWorkPlan!),
+                child: const Icon(
+                  CupertinoIcons.delete,
+                  color: Colors.red,
+                  size: 22,
+                ),
+              ),
+          ],
+        ],
       ),
-    );
-  }
-
-  /// Показывает диалог подтверждения удаления смены.
-  void _confirmDeleteWork(BuildContext context, WidgetRef ref, Work work) {
-    CupertinoDialogs.showDeleteConfirmDialog(
-      context: context,
-      title: 'Подтверждение удаления',
-      message:
-          'Вы действительно хотите удалить смену от ${formatRuDate(work.date)}?\n\nЭто действие удалит все связанные работы и часы сотрудников. Операция необратима.',
-      confirmButtonText: 'Удалить',
-      onConfirm: () async {
-        if (work.id == null) return;
-
-        await ref.read(worksProvider.notifier).deleteWork(work.id!);
-
-        // Обновляем список смен для немедленного отображения изменений
-        await ref.read(monthGroupsProvider.notifier).refresh();
-
-        setState(() {
-          selectedWork = null;
-        });
-
-        if (context.mounted) {
-          AppSnackBar.show(
-            context: context,
-            message: 'Смена успешно удалена',
-            kind: AppSnackBarKind.success,
-          );
-        }
-      },
-    );
-  }
-
-  /// Показывает модальное окно редактирования плана работ.
-  void _showEditWorkPlanModal(BuildContext context, WorkPlan plan) {
-    if (ResponsiveUtils.isDesktop(context)) {
-      showDialog(
-        context: context,
-        builder: (context) => Dialog(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          child: WorkPlanFormModal(
-            workPlan: plan,
-            onSuccess: (isNew) {
-              ref.read(workPlanNotifierProvider.notifier).loadWorkPlans();
-              // Обновляем группы, чтобы изменения (дата, сумма) отразились в списке
-              ref.read(workPlanMonthGroupsProvider.notifier).refresh();
-            },
-          ),
-        ),
-      );
-    }
-  }
-
-  /// Показывает диалог подтверждения удаления плана работ.
-  void _confirmDeleteWorkPlan(
-    BuildContext context,
-    WidgetRef ref,
-    WorkPlan plan,
-  ) {
-    CupertinoDialogs.showDeleteConfirmDialog(
-      context: context,
-      title: 'Подтверждение удаления',
-      message:
-          'Вы действительно хотите удалить план от ${formatRuDate(plan.date)}?\n\nЭто действие удалит все блоки работ в плане. Операция необратима.',
-      confirmButtonText: 'Удалить',
-      onConfirm: () async {
-        if (plan.id == null) return;
-
-        await ref
-            .read(workPlanNotifierProvider.notifier)
-            .deleteWorkPlan(plan.id!);
-
-        // Обновляем список планов
-        await ref.read(workPlanMonthGroupsProvider.notifier).refresh();
-
-        setState(() {
-          selectedWorkPlan = null;
-        });
-
-        if (context.mounted) {
-          AppSnackBar.show(
-            context: context,
-            message: 'План работ успешно удален',
-            kind: AppSnackBarKind.success,
-          );
-        }
-      },
+      drawer: const AppDrawer(activeRoute: AppRoute.works),
+      body: _buildDesktopLayout(
+        isLoading: isLoading,
+        groups: groups,
+        workPlanGroups: workPlanGroups,
+        theme: theme,
+      ),
     );
   }
 
@@ -489,7 +338,7 @@ class _WorksMasterDetailScreenState
                                 module: 'works',
                                 permission: 'create',
                                 child: GTPrimaryButton(
-                                  onPressed: () => _showOpenShiftModal(context),
+                                  onPressed: () => showOpenShiftModal(context),
                                   icon: CupertinoIcons.add,
                                   text: 'Открыть смену',
                                   backgroundColor: Colors.green,
@@ -500,7 +349,7 @@ class _WorksMasterDetailScreenState
                                 permission: 'create',
                                 child: GTPrimaryButton(
                                   onPressed: () =>
-                                      _showCreateWorkPlanModal(context),
+                                      showCreateWorkPlanModal(context),
                                   icon: CupertinoIcons.add,
                                   text: 'Составить план',
                                   backgroundColor: Colors.blue,
@@ -516,8 +365,6 @@ class _WorksMasterDetailScreenState
                                 isLoading: isLoading,
                                 groups: groups,
                                 theme: theme,
-                                isDesktop: true,
-                                // Цвет фона для прилипающего заголовка на десктопе
                                 stickyHeaderColor: isDark
                                     ? Colors.grey[900]
                                     : Colors.white,
@@ -537,7 +384,7 @@ class _WorksMasterDetailScreenState
               ),
 
               // Правая панель - детали
-              Expanded(child: _buildDetailPanel(theme, isDesktop: true)),
+              Expanded(child: _buildDetailPanel(theme)),
             ],
           ),
         ),
@@ -620,7 +467,7 @@ class _WorksMasterDetailScreenState
             SliverPersistentHeader(
               key: ValueKey('plan_header_${group.month}'),
               pinned: group.isExpanded,
-              delegate: _WorkPlanMonthGroupHeaderDelegate(
+              delegate: WorkPlanMonthGroupSliverHeader(
                 group: group,
                 backgroundColor: stickyHeaderColor,
                 onTap: () {
@@ -652,48 +499,24 @@ class _WorksMasterDetailScreenState
     );
   }
 
-  /// Строит панель деталей (смена или месяц).
-  Widget _buildDetailPanel(ThemeData theme, {bool isDesktop = false}) {
-    // Если десктоп, не нужны отступы под AppBar, так как мы внутри контейнера
-    final topPadding = isDesktop
-        ? 0.0
-        : MediaQuery.of(context).viewPadding.top + kToolbarHeight + 24;
-
+  /// Строит панель деталей (смена, план или сводка месяца) в правой колонке мастер-детейла.
+  Widget _buildDetailPanel(ThemeData theme) {
     // Приоритет: месяц > смена/план > placeholder
     if (selectedMonth != null) {
-      return Column(
-        children: [
-          if (!isDesktop) SizedBox(height: topPadding),
-          Expanded(child: MonthDetailsPanel(group: selectedMonth!)),
-        ],
-      );
+      return MonthDetailsPanel(group: selectedMonth!);
     } else if (selectedWork != null && _displayMode == _DisplayMode.works) {
       return selectedWork!.id != null
-          ? Column(
-              children: [
-                if (!isDesktop) SizedBox(height: topPadding),
-                Expanded(
-                  child: WorkDetailsPanel(
-                    workId: selectedWork!.id!,
-                    parentContext: context,
-                  ),
-                ),
-              ],
+          ? WorkDetailsPanel(
+              workId: selectedWork!.id!,
+              parentContext: context,
             )
           : const Center(child: Text('Ошибка: ID смены не задан'));
     } else if (selectedWorkPlan != null &&
         _displayMode == _DisplayMode.workPlans) {
       return selectedWorkPlan!.id != null
-          ? Column(
-              children: [
-                if (!isDesktop) SizedBox(height: topPadding),
-                Expanded(
-                  child: WorkPlanDetailsScreen(
-                    workPlanId: selectedWorkPlan!.id!,
-                    showAppBar: false,
-                  ),
-                ),
-              ],
+          ? WorkPlanDetailsScreen(
+              workPlanId: selectedWorkPlan!.id!,
+              showAppBar: false,
             )
           : const Center(child: Text('Ошибка: ID плана не задан'));
     } else {
@@ -723,238 +546,15 @@ class _WorksMasterDetailScreenState
     }
   }
 
-  /// Строит мобильную версию интерфейса.
-  Widget _buildMobileLayout({
-    required bool isLoading,
-    required List<MonthGroup> groups,
-    required ThemeData theme,
-  }) {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 500),
-      transitionBuilder: (child, animation) {
-        return FadeTransition(
-          opacity: animation,
-          child: SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0, 0.2),
-              end: Offset.zero,
-            ).animate(animation),
-            child: child,
-          ),
-        );
-      },
-      child: _displayMode == _DisplayMode.works
-          ? _buildWorksView(
-              key: const ValueKey('works_view'),
-              isLoading: isLoading,
-              groups: groups,
-              theme: theme,
-            )
-          : _buildPlansView(key: const ValueKey('plans_view'), theme: theme),
-    );
-  }
-
-  /// Строит представление со сменами (верх: "Открыть смену", низ: "Составить план").
-  Widget _buildWorksView({
-    Key? key,
-    required bool isLoading,
-    required List<MonthGroup> groups,
-    required ThemeData theme,
-  }) {
-    return _buildWorksList(
-      key: key,
-      isLoading: isLoading,
-      groups: groups,
-      theme: theme,
-      isDesktop: false,
-      stickyHeaderColor: theme.colorScheme.surface,
-      topButtonMode: _DisplayMode.works,
-    );
-  }
-
-  /// Строит представление с планами (верх: "Составить план", низ: "Открыть смену").
-  Widget _buildPlansView({Key? key, required ThemeData theme}) {
-    return _buildWorkPlansList(
-      key: key,
-      theme: theme,
-      topButtonMode: _DisplayMode.workPlans,
-    );
-  }
-
-  /// Строит список планов работ с группировкой по месяцам.
-  Widget _buildWorkPlansList({
-    Key? key,
-    required ThemeData theme,
-    _DisplayMode topButtonMode = _DisplayMode.workPlans,
-  }) {
-    final workPlanMonthGroupsState = ref.watch(workPlanMonthGroupsProvider);
-    final isLoading = workPlanMonthGroupsState.isLoading;
-    final groups = workPlanMonthGroupsState.groups;
-
-    if (isLoading) {
-      return const Center(child: CupertinoActivityIndicator());
-    }
-
-    if (groups.isEmpty) {
-      return const Center(child: Text('Планы не найдены'));
-    }
-
-    final isDesktop = ResponsiveUtils.isDesktop(context);
-
-    return RefreshIndicator(
-      key: key,
-      onRefresh: () async {
-        await ref.read(workPlanMonthGroupsProvider.notifier).refresh();
-      },
-      child: CustomScrollView(
-        slivers: [
-          // AppBar для мобильных
-          if (!isDesktop)
-            SliverToBoxAdapter(
-              child: AppBarWidget(
-                title: topButtonMode == _DisplayMode.works ? 'Смены' : 'Планы',
-                showThemeSwitch: true,
-                leading: Builder(
-                  builder: (context) => CupertinoButton(
-                    padding: EdgeInsets.zero,
-                    child: Icon(
-                      Icons.menu,
-                      color: topButtonMode == _DisplayMode.works
-                          ? Colors.green
-                          : Colors.blue,
-                    ),
-                    onPressed: () {
-                      Scaffold.of(context).openDrawer();
-                    },
-                  ),
-                ),
-              ),
-            ),
-
-          // Верхняя кнопка для мобильных
-          if (!isDesktop)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: topButtonMode == _DisplayMode.works
-                      ? PermissionGuard(
-                          module: 'works',
-                          permission: 'create',
-                          child: GTPrimaryButton(
-                            onPressed: () => _showOpenShiftModal(context),
-                            icon: CupertinoIcons.add,
-                            text: 'Открыть смену',
-                            backgroundColor: Colors.green,
-                          ),
-                        )
-                      : PermissionGuard(
-                          module: 'work_plans',
-                          permission: 'create',
-                          child: GTPrimaryButton(
-                            onPressed: () => _showCreateWorkPlanModal(context),
-                            icon: CupertinoIcons.add,
-                            text: 'Составить план',
-                            backgroundColor: Colors.blue,
-                          ),
-                        ),
-                ),
-              ),
-            ),
-
-          // Группы планов по месяцам
-          for (final group in groups) ...[
-            // Заголовок группы
-            SliverPersistentHeader(
-              key: ValueKey('plan_header_${group.month}'),
-              pinned: group.isExpanded,
-              delegate: _WorkPlanMonthGroupHeaderDelegate(
-                group: group,
-                backgroundColor: theme.colorScheme.surface,
-                onTap: () {
-                  ref
-                      .read(workPlanMonthGroupsProvider.notifier)
-                      .toggleMonth(group.month);
-                },
-              ),
-            ),
-
-            // Список планов (только если развернут)
-            if (group.isExpanded)
-              SliverMonthWorkPlansList(
-                key: ValueKey('plan_list_${group.month}'),
-                group: group,
-              )
-            else
-              const SliverToBoxAdapter(child: SizedBox.shrink()),
-          ],
-
-          // Для мобильных: заполняем пространство и прижимаем кнопку вниз
-          if (!isDesktop)
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: topButtonMode == _DisplayMode.works
-                          ? PermissionGuard(
-                              module: 'work_plans',
-                              permission: 'create',
-                              child: GTPrimaryButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _displayMode = _DisplayMode.workPlans;
-                                  });
-                                },
-                                icon: CupertinoIcons.eye,
-                                text: 'Просмотреть планы',
-                                backgroundColor: Colors.blue,
-                              ),
-                            )
-                          : PermissionGuard(
-                              module: 'works',
-                              permission: 'create',
-                              child: GTPrimaryButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _displayMode = _DisplayMode.works;
-                                  });
-                                },
-                                icon: CupertinoIcons.eye,
-                                text: 'Просмотреть смены',
-                                backgroundColor: Colors.green,
-                              ),
-                            ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-          // Небольшой отступ внизу списка (только для десктопа)
-          if (isDesktop) const SliverToBoxAdapter(child: SizedBox(height: 24)),
-        ],
-      ),
-    );
-  }
-
-  /// Строит список смен с группировкой по месяцам.
+  /// Строит десктопный список смен с группировкой по месяцам.
   ///
   /// Использует [CustomScrollView] и [SliverMonthWorksList] для эффективного
   /// рендеринга и infinite scroll.
   Widget _buildWorksList({
-    Key? key,
     required bool isLoading,
     required List<MonthGroup> groups,
     required ThemeData theme,
-    required bool isDesktop,
     Color? stickyHeaderColor,
-    _DisplayMode topButtonMode = _DisplayMode.works,
   }) {
     if (isLoading) {
       return const Center(child: CupertinoActivityIndicator());
@@ -965,457 +565,52 @@ class _WorksMasterDetailScreenState
     }
 
     return RefreshIndicator(
-      key: key,
       onRefresh: _handleRefresh,
       child: CustomScrollView(
         controller: _scrollController,
         slivers: [
-          // AppBar для мобильных (внутри списка, чтобы уезжал)
-          if (!isDesktop)
-            SliverToBoxAdapter(
-              child: AppBarWidget(
-                title: topButtonMode == _DisplayMode.works ? 'Смены' : 'Планы',
-                showThemeSwitch: true,
-                // Используем context для открытия Drawer, так как Scaffold выше
-                leading: Builder(
-                  builder: (context) => CupertinoButton(
-                    padding: EdgeInsets.zero,
-                    child: Icon(
-                      Icons.menu,
-                      color: topButtonMode == _DisplayMode.works
-                          ? Colors.green
-                          : Colors.blue,
-                    ),
-                    onPressed: () {
-                      Scaffold.of(context).openDrawer();
-                    },
-                  ),
-                ),
-              ),
-            ),
-
-          // Верхняя кнопка для мобильных
-          if (!isDesktop)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: topButtonMode == _DisplayMode.works
-                      ? PermissionGuard(
-                          module: 'works',
-                          permission: 'create',
-                          child: GTPrimaryButton(
-                            onPressed: () => _showOpenShiftModal(context),
-                            icon: CupertinoIcons.add,
-                            text: 'Открыть смену',
-                            backgroundColor: Colors.green,
-                          ),
-                        )
-                      : PermissionGuard(
-                          module: 'work_plans',
-                          permission: 'create',
-                          child: GTPrimaryButton(
-                            onPressed: () => _showCreateWorkPlanModal(context),
-                            icon: CupertinoIcons.add,
-                            text: 'Составить план',
-                            backgroundColor: Colors.blue,
-                          ),
-                        ),
-                ),
-              ),
-            ),
-
-          // Генерируем slivers для каждой группы
           for (final group in groups) ...[
-            // Заголовок группы с прилипанием
             SliverPersistentHeader(
               key: ValueKey('header_${group.month}'),
-              // Прилипаем ТОЛЬКО если группа развернута
               pinned: group.isExpanded,
-              delegate: _MonthGroupHeaderDelegate(
+              delegate: WorkMonthGroupSliverHeader(
                 group: group,
                 backgroundColor: stickyHeaderColor,
                 onTap: () {
-                  // Раскрываем/сворачиваем месяц
                   ref
                       .read(monthGroupsProvider.notifier)
                       .toggleMonth(group.month);
-
-                  if (isDesktop) {
-                    setState(() {
-                      // Всегда выбираем месяц при клике, даже если сворачиваем
-                      // Это позволяет видеть сводку
-                      selectedMonth = group;
-                      selectedWork = null;
-                    });
-                  }
-                },
-                onMobileLongPress: () {
-                  if (!ResponsiveUtils.isMobile(context)) {
-                    return;
-                  }
-
-                  final notifier = ref.read(monthGroupsProvider.notifier);
-                  notifier.expandMonth(group.month);
-
-                  context.pushNamed('month_details_mobile', extra: group);
+                  setState(() {
+                    selectedMonth = group;
+                    selectedWork = null;
+                  });
                 },
               ),
             ),
-
-            // Список смен (только если развернут)
-            if (isDesktop)
-              if (group.isExpanded)
-                SliverMonthWorksList(
-                  key: ValueKey('list_${group.month}'),
-                  group: group,
-                  isCompact: isDesktop,
-                  selectedWork: selectedWork,
-                  onWorkSelected: (work) {
-                    setState(() {
-                      selectedWork = work;
-                      selectedMonth = null;
-                    });
-                  },
-                  onLoadMore: () {
-                    ref
-                        .read(monthGroupsProvider.notifier)
-                        .loadMoreMonthWorks(group.month);
-                  },
-                )
-              else
-                const SliverToBoxAdapter(child: SizedBox.shrink())
+            if (group.isExpanded)
+              SliverMonthWorksList(
+                key: ValueKey('list_${group.month}'),
+                group: group,
+                isCompact: true,
+                selectedWork: selectedWork,
+                onWorkSelected: (work) {
+                  setState(() {
+                    selectedWork = work;
+                    selectedMonth = null;
+                  });
+                },
+                onLoadMore: () {
+                  ref
+                      .read(monthGroupsProvider.notifier)
+                      .loadMoreMonthWorks(group.month);
+                },
+              )
             else
-              // Mobile: Анимация раскрытия
-              SliverToBoxAdapter(
-                key: ValueKey('anim_list_${group.month}'),
-                child: AnimatedSize(
-                  duration: const Duration(milliseconds: 400),
-                  alignment: Alignment.topCenter,
-                  curve: Curves.fastOutSlowIn,
-                  child: group.isExpanded
-                      ? MobileMonthWorksList(
-                          group: group,
-                          onWorkSelected: (work) {
-                            if (work.id != null) {
-                              context.goNamed(
-                                'work_details',
-                                pathParameters: {'workId': work.id!},
-                              );
-                            }
-                          },
-                          onLoadMore: () {
-                            ref
-                                .read(monthGroupsProvider.notifier)
-                                .loadMoreMonthWorks(group.month);
-                          },
-                        )
-                      : const SizedBox(width: double.infinity, height: 0),
-                ),
-              ),
+              const SliverToBoxAdapter(child: SizedBox.shrink()),
           ],
-
-          // Для мобильных: заполняем пространство и прижимаем кнопку вниз
-          if (!isDesktop)
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: topButtonMode == _DisplayMode.works
-                          ? PermissionGuard(
-                              module: 'work_plans',
-                              permission: 'create',
-                              child: GTPrimaryButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _displayMode = _DisplayMode.workPlans;
-                                  });
-                                },
-                                icon: CupertinoIcons.eye,
-                                text: 'Просмотреть планы',
-                                backgroundColor: Colors.blue,
-                              ),
-                            )
-                          : PermissionGuard(
-                              module: 'works',
-                              permission: 'create',
-                              child: GTPrimaryButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _displayMode = _DisplayMode.works;
-                                  });
-                                },
-                                icon: CupertinoIcons.eye,
-                                text: 'Просмотреть смены',
-                                backgroundColor: Colors.green,
-                              ),
-                            ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-          // Небольшой отступ внизу списка (только для десктопа)
-          if (isDesktop) const SliverToBoxAdapter(child: SizedBox(height: 24)),
+          const SliverToBoxAdapter(child: SizedBox(height: 24)),
         ],
       ),
     );
-  }
-}
-
-/// Делегат для прилипающего заголовка месяца
-class _MonthGroupHeaderDelegate extends SliverPersistentHeaderDelegate {
-  final MonthGroup group;
-  final VoidCallback onTap;
-  final VoidCallback? onMobileLongPress;
-  final Color? backgroundColor;
-
-  _MonthGroupHeaderDelegate({
-    required this.group,
-    required this.onTap,
-    this.onMobileLongPress,
-    this.backgroundColor,
-  });
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    final theme = Theme.of(context);
-
-    // Если группа свернута, мы не применяем эффект прилипания (не меняем цвет/размер),
-    // но заголовок все равно участвует в потоке как pinned.
-    // Чтобы убрать эффект, просто передаем stuckAmount = 0.0.
-    final bool isExpanded = group.isExpanded;
-
-    // Вычисляем степень "прилипания" (0.0 -> 1.0)
-    // shrinkOffset идет от 0 до (maxExtent - minExtent)
-    final double rawStuckAmount = (shrinkOffset / (maxExtent - minExtent))
-        .clamp(0.0, 1.0);
-
-    // Применяем эффект ТОЛЬКО если группа развернута
-    final double stuckAmount = isExpanded ? rawStuckAmount : 0.0;
-
-    // Используем переданный цвет или дефолтный
-    // Добавляем разделитель/тень, если заголовок прилип И развернут
-    final isStuck = stuckAmount > 0.1;
-
-    return Container(
-      color: backgroundColor ?? theme.colorScheme.surface,
-      child: Stack(
-        children: [
-          // Центрируем заголовок, так как высота делегата меняется
-          Align(
-            alignment: Alignment.center,
-            child: MonthGroupHeader(
-              group: group,
-              onTap: onTap,
-              onMobileLongPress: onMobileLongPress,
-              stuckAmount: stuckAmount,
-            ),
-          ),
-          // Опционально: добавить тонкую линию внизу, когда прилипло и развернуто
-          if (isStuck)
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Divider(
-                height: 1,
-                thickness: 1,
-                color: theme.colorScheme.outline.withValues(
-                  alpha: 0.1 * stuckAmount,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  // Высота заголовка:
-  // В развернутом состоянии даем больше воздуха (100.0)
-  // В свернутом (прилипшем) состоянии - компактнее (80.0)
-  double get maxExtent => 100.0;
-
-  @override
-  double get minExtent => 80.0;
-
-  @override
-  bool shouldRebuild(covariant _MonthGroupHeaderDelegate oldDelegate) {
-    return oldDelegate.group != group ||
-        oldDelegate.backgroundColor != backgroundColor;
-  }
-}
-
-/// Делегат для прилипающего заголовка месяца планов работ
-class _WorkPlanMonthGroupHeaderDelegate extends SliverPersistentHeaderDelegate {
-  final WorkPlanMonthGroup group;
-  final VoidCallback onTap;
-  final Color? backgroundColor;
-
-  _WorkPlanMonthGroupHeaderDelegate({
-    required this.group,
-    required this.onTap,
-    this.backgroundColor,
-  });
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    final theme = Theme.of(context);
-    final isDesktop = ResponsiveUtils.isDesktop(context);
-
-    final double rawStuckAmount = (shrinkOffset / (maxExtent - minExtent))
-        .clamp(0.0, 1.0);
-
-    final double stuckAmount = group.isExpanded ? rawStuckAmount : 0.0;
-
-    // Анимация текста (как в MonthGroupHeader)
-    final textScale = 1.0 + (stuckAmount * 0.15);
-
-    // Цвет: от стандартного к синему
-    final targetColor = Colors.blue.shade600;
-    final titleColor = Color.lerp(
-      theme.colorScheme.onSurface,
-      targetColor,
-      stuckAmount,
-    );
-
-    final subtitleColor = Color.lerp(
-      theme.colorScheme.onSurfaceVariant,
-      targetColor.withValues(alpha: 0.7),
-      stuckAmount * 0.5,
-    );
-
-    final isStuck = stuckAmount > 0.1;
-
-    return Container(
-      color: backgroundColor ?? theme.colorScheme.surface,
-      child: Stack(
-        children: [
-          Align(
-            alignment: Alignment.center,
-            child: Container(
-              margin: EdgeInsets.symmetric(
-                horizontal: isDesktop ? 4 : 16,
-                vertical: 4,
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: onTap,
-                  borderRadius: BorderRadius.circular(12),
-                  hoverColor: theme.colorScheme.onSurface.withValues(
-                    alpha: 0.05,
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    child: Row(
-                      children: [
-                        // Информация о месяце
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              // Месяц и год
-                              Transform.scale(
-                                scale: textScale,
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  group.monthName,
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: titleColor,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              // Статистика (мелким шрифтом)
-                              Text(
-                                '${group.plansCount} ${_pluralizePlans(group.plansCount)} • ${GtFormatters.formatCurrency(group.totalPlannedCost)}',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: subtitleColor,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        // Индикатор раскрытия
-                        AnimatedRotation(
-                          turns: group.isExpanded ? 0.25 : 0,
-                          duration: const Duration(milliseconds: 200),
-                          curve: Curves.easeInOut,
-                          child: Icon(
-                            CupertinoIcons.chevron_right,
-                            color: subtitleColor,
-                            size: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          if (isStuck)
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Divider(
-                height: 1,
-                thickness: 1,
-                color: theme.colorScheme.outline.withValues(
-                  alpha: 0.1 * stuckAmount,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  /// Возвращает правильную форму слова "план" в зависимости от количества.
-  String _pluralizePlans(int count) {
-    if (count % 10 == 1 && count % 100 != 11) {
-      return 'план';
-    } else if ([2, 3, 4].contains(count % 10) &&
-        ![12, 13, 14].contains(count % 100)) {
-      return 'плана';
-    } else {
-      return 'планов';
-    }
-  }
-
-  @override
-  double get maxExtent => 100.0;
-
-  @override
-  double get minExtent => 80.0;
-
-  @override
-  bool shouldRebuild(covariant _WorkPlanMonthGroupHeaderDelegate oldDelegate) {
-    return oldDelegate.group != group ||
-        oldDelegate.backgroundColor != backgroundColor;
   }
 }

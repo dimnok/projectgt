@@ -29,6 +29,14 @@ class EstimateEditDialog extends ConsumerStatefulWidget {
   /// Идентификатор договора (для контекста новой позиции).
   final String? contractId;
 
+  /// Начальное значение поля «Система» при создании ([estimate] == null).
+  /// При редактировании не используется.
+  final String? initialSystem;
+
+  /// Начальное значение поля «Подсистема» при создании ([estimate] == null).
+  /// При редактировании не используется.
+  final String? initialSubsystem;
+
   /// Нужно ли оборачивать в DesktopDialogContent/MobileBottomSheetContent.
   /// По умолчанию true.
   final bool useWrapper;
@@ -40,6 +48,8 @@ class EstimateEditDialog extends ConsumerStatefulWidget {
     this.estimateTitle,
     this.objectId,
     this.contractId,
+    this.initialSystem,
+    this.initialSubsystem,
     this.useWrapper = true,
   });
 
@@ -52,6 +62,8 @@ class EstimateEditDialog extends ConsumerStatefulWidget {
     String? estimateTitle,
     String? objectId,
     String? contractId,
+    String? initialSystem,
+    String? initialSubsystem,
   }) async {
     final isLargeScreen = MediaQuery.of(context).size.width > 900;
     final title = estimate != null ? 'Редактирование позиции' : 'Добавление позиции';
@@ -66,6 +78,8 @@ class EstimateEditDialog extends ConsumerStatefulWidget {
           estimateTitle: estimateTitle,
           objectId: objectId,
           contractId: contractId,
+          initialSystem: initialSystem,
+          initialSubsystem: initialSubsystem,
           useWrapper: false,
         ),
       );
@@ -80,6 +94,8 @@ class EstimateEditDialog extends ConsumerStatefulWidget {
           estimateTitle: estimateTitle,
           objectId: objectId,
           contractId: contractId,
+          initialSystem: initialSystem,
+          initialSubsystem: initialSubsystem,
         ),
       );
     }
@@ -102,6 +118,8 @@ class _EstimateEditDialogState extends ConsumerState<EstimateEditDialog> {
   late TextEditingController _unitController;
   late TextEditingController _quantityController;
   late TextEditingController _priceController;
+
+  late bool _visibleInEstimatesModule;
 
   List<String> _systems = [];
   List<String> _subsystems = [];
@@ -136,8 +154,12 @@ class _EstimateEditDialogState extends ConsumerState<EstimateEditDialog> {
           );
     }
 
-    _systemController = TextEditingController(text: e?.system ?? '');
-    _subsystemController = TextEditingController(text: e?.subsystem ?? '');
+    _systemController = TextEditingController(
+      text: e?.system ?? widget.initialSystem ?? '',
+    );
+    _subsystemController = TextEditingController(
+      text: e?.subsystem ?? widget.initialSubsystem ?? '',
+    );
     _numberController = TextEditingController(text: initialNumber);
     _nameController = TextEditingController(text: e?.name ?? '');
     _articleController = TextEditingController(text: e?.article ?? '');
@@ -149,6 +171,8 @@ class _EstimateEditDialogState extends ConsumerState<EstimateEditDialog> {
       text: e?.quantity.toString() ?? '',
     );
     _priceController = TextEditingController(text: e?.price.toString() ?? '');
+
+    _visibleInEstimatesModule = e?.visibleInEstimatesModule ?? true;
   }
 
   // Метод _calculateNextNumber удален, логика перенесена в EstimateNotifier
@@ -251,6 +275,7 @@ class _EstimateEditDialogState extends ConsumerState<EstimateEditDialog> {
         estimateTitle: widget.estimateTitle,
         objectId: objectId,
         contractId: contractId,
+        visibleInEstimatesModule: _visibleInEstimatesModule,
       );
 
       final notifier = ref.read(estimateNotifierProvider.notifier);
@@ -586,6 +611,28 @@ class _EstimateEditDialogState extends ConsumerState<EstimateEditDialog> {
             ],
           );
         },
+      ),
+      const SizedBox(height: 24),
+      Text(
+        'Отображение',
+        style: theme.textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      const SizedBox(height: 8),
+      SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Показывать в разделе «Сметы»'),
+        subtitle: Text(
+          'Выключите, чтобы позиция оставалась в договоре, но не попадала в модуль «Сметы».',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
+          ),
+        ),
+        value: _visibleInEstimatesModule,
+        onChanged: canEdit
+            ? (v) => setState(() => _visibleInEstimatesModule = v)
+            : null,
       ),
     ];
   }

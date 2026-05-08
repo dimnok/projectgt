@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/work.dart';
 import '../providers/work_provider.dart';
 import '../providers/month_groups_provider.dart';
+import 'package:projectgt/core/widgets/mobile_atmosphere_backdrop.dart';
+import 'package:projectgt/core/widgets/mobile_atmosphere_screen_header.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 
@@ -100,43 +103,90 @@ class _WorkDetailsScreenState extends ConsumerState<WorkDetailsScreen> {
     final work = globalWork ?? _localWork;
 
     final isMobile = ResponsiveUtils.isDesktop(context) == false;
+    final appearance = MobileAtmosphereAppearance.of(context);
 
     // Состояние загрузки
     if (work == null && _isLoading) {
-      return Scaffold(
-        appBar: AppBarWidget(
-          title: 'Загрузка...',
-          leading: isMobile ? const BackButton() : null,
-        ),
-        body: Hero(
-          tag: 'work_card_${widget.workId}',
-          child: const Center(child: CupertinoActivityIndicator()),
+      return _wrap(
+        isMobile: isMobile,
+        appearance: appearance,
+        scaffold: Scaffold(
+          backgroundColor: isMobile
+              ? (appearance.isDark
+                    ? appearance.atmosphereBase
+                    : Colors.transparent)
+              : null,
+          appBar: isMobile
+              ? null
+              : const AppBarWidget(title: 'Загрузка...'),
+          body: isMobile
+              ? _mobileShiftHeaderAndBody(
+                  context: context,
+                  ref: ref,
+                  appearance: appearance,
+                  title: 'Загрузка...',
+                  work: null,
+                  canDelete: false,
+                  bodyChild:
+                      const Center(child: CupertinoActivityIndicator()),
+                )
+              : const Center(child: CupertinoActivityIndicator()),
         ),
       );
     }
 
     // Состояние ошибки
     if (work == null && _error != null) {
-      return Scaffold(
-        appBar: AppBarWidget(
-          title: 'Ошибка',
-          leading: isMobile ? const BackButton() : null,
-        ),
-        body: Hero(
-          tag: 'work_card_${widget.workId}',
-          child: Center(child: Text('Ошибка загрузки: $_error')),
+      return _wrap(
+        isMobile: isMobile,
+        appearance: appearance,
+        scaffold: Scaffold(
+          backgroundColor: isMobile
+              ? (appearance.isDark
+                    ? appearance.atmosphereBase
+                    : Colors.transparent)
+              : null,
+          appBar: isMobile ? null : const AppBarWidget(title: 'Ошибка'),
+          body: isMobile
+              ? _mobileShiftHeaderAndBody(
+                  context: context,
+                  ref: ref,
+                  appearance: appearance,
+                  title: 'Ошибка',
+                  work: null,
+                  canDelete: false,
+                  bodyChild:
+                      Center(child: Text('Ошибка загрузки: $_error')),
+                )
+              : Center(child: Text('Ошибка загрузки: $_error')),
         ),
       );
     }
 
     // Состояние "не найдено"
     if (work == null) {
-      return Scaffold(
-        appBar: AppBarWidget(
-          title: 'Смена',
-          leading: isMobile ? const BackButton() : null,
+      return _wrap(
+        isMobile: isMobile,
+        appearance: appearance,
+        scaffold: Scaffold(
+          backgroundColor: isMobile
+              ? (appearance.isDark
+                    ? appearance.atmosphereBase
+                    : Colors.transparent)
+              : null,
+          appBar: isMobile ? null : const AppBarWidget(title: 'Смена'),
+          body: isMobile
+              ? _mobileShiftHeaderAndBody(
+                  context: context,
+                  ref: ref,
+                  appearance: appearance,
+                  title: 'Смена',
+                  work: null,
+                  canDelete: false,
+                  bodyChild: const Center(child: Text('Смена не найдена')),
+                )
+              : const Center(child: Text('Смена не найдена')),
         ),
-        body: const Center(child: Text('Смена не найдена')),
       );
     }
 
@@ -154,40 +204,128 @@ class _WorkDetailsScreenState extends ConsumerState<WorkDetailsScreen> {
     final canDelete =
         hasDeletePermission && ((isOwner && !isWorkClosed) || isCompanyOwner);
 
-    return Scaffold(
-      appBar: AppBarWidget(
-        title: isMobile ? 'Смена' : 'Смена: ${formatRuDate(work.date)}',
-        leading: isMobile ? const BackButton() : null,
-        actions: [
-          if (canDelete)
-            CupertinoButton(
-              padding: EdgeInsets.zero,
-              onPressed: () => _confirmDeleteWork(context, ref, work),
-              child: const Icon(
-                CupertinoIcons.delete,
-                color: Colors.red,
-                size: 22,
-              ),
-            ),
-        ],
-        showThemeSwitch: !isMobile,
-        centerTitle: isMobile,
-      ),
-      drawer: isMobile ? null : const AppDrawer(activeRoute: AppRoute.works),
-      body: Hero(
-        tag: 'work_card_${widget.workId}',
-        child: Material(
-          type: MaterialType.transparency,
-          child: Builder(
-            builder: (scaffoldContext) => WorkDetailsPanel(
-              workId: widget.workId,
-              parentContext: scaffoldContext,
-              initialWork: work,
-              initialTabIndex: widget.initialTabIndex,
-            ),
-          ),
+    final workDetailsPanel = Material(
+      type: MaterialType.transparency,
+      child: Builder(
+        builder: (scaffoldContext) => WorkDetailsPanel(
+          workId: widget.workId,
+          parentContext: scaffoldContext,
+          initialWork: work,
+          initialTabIndex: widget.initialTabIndex,
         ),
       ),
+    );
+
+    return _wrap(
+      isMobile: isMobile,
+      appearance: appearance,
+      scaffold: Scaffold(
+        backgroundColor: isMobile
+            ? (appearance.isDark
+                  ? appearance.atmosphereBase
+                  : Colors.transparent)
+            : null,
+        appBar: isMobile
+            ? null
+            : AppBarWidget(
+                title: 'Смена: ${formatRuDate(work.date)}',
+                actions: [
+                  if (canDelete)
+                    CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      onPressed: () => _confirmDeleteWork(context, ref, work),
+                      child: const Icon(
+                        CupertinoIcons.delete,
+                        color: Colors.red,
+                        size: 22,
+                      ),
+                    ),
+                ],
+                showThemeSwitch: true,
+              ),
+        drawer: isMobile ? null : const AppDrawer(activeRoute: AppRoute.works),
+        body: isMobile
+            ? _mobileShiftHeaderAndBody(
+                context: context,
+                ref: ref,
+                appearance: appearance,
+                title: 'Смена: ${formatRuDate(work.date)}',
+                work: work,
+                canDelete: canDelete,
+                bodyChild: workDetailsPanel,
+              )
+            : workDetailsPanel,
+      ),
+    );
+  }
+
+  /// Шапка в стиле списка «Смены» + контент на мобильном (без [AppBar]).
+  ///
+  /// Повторяет разметку [WorksListMobileScreen]: [MobileAtmosphereBackdrop] под
+  /// всей областью [body], затем [SafeArea] с хедером и [Expanded] для контента.
+  Widget _mobileShiftHeaderAndBody({
+    required BuildContext context,
+    required WidgetRef ref,
+    required MobileAtmosphereAppearance appearance,
+    required String title,
+    required Work? work,
+    required bool canDelete,
+    required Widget bodyChild,
+  }) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        const MobileAtmosphereBackdrop(),
+        SafeArea(
+          bottom: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              MobileAtmosphereScreenHeader(
+                appearance: appearance,
+                title: title,
+                leading: MobileAtmosphereChromeCircleButton(
+                  appearance: appearance,
+                  icon: Icons.arrow_back_rounded,
+                  onTap: () => context.pop(),
+                ),
+                trailing: work != null && canDelete
+                    ? MobileAtmosphereChromeCircleButton(
+                        appearance: appearance,
+                        tooltip: 'Удалить смену',
+                        icon: CupertinoIcons.delete,
+                        iconColor: Colors.red,
+                        onTap: () => _confirmDeleteWork(context, ref, work),
+                      )
+                    : null,
+              ),
+              Expanded(child: bodyChild),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Оборачивает [Scaffold] в [AnnotatedRegion] для корректного тонирования
+  /// системных баров на мобильном устройстве.
+  Widget _wrap({
+    required bool isMobile,
+    required MobileAtmosphereAppearance appearance,
+    required Widget scaffold,
+  }) {
+    if (!isMobile) return scaffold;
+    final isDark = appearance.isDark;
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle(
+        statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarColor: appearance.atmosphereBase,
+        systemNavigationBarDividerColor: Colors.transparent,
+        systemNavigationBarIconBrightness:
+            isDark ? Brightness.light : Brightness.dark,
+      ),
+      child: scaffold,
     );
   }
 
