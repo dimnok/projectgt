@@ -1,4 +1,4 @@
-name: Build macOS App
+name: Build Android App
 
 on:
   release:
@@ -7,11 +7,17 @@ on:
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -22,19 +28,17 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Build macOS Release (No Codesign)
+      - name: Build APK
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-        run: flutter build macos --release --no-codesign --dart-define=SUPABASE_URL=$SUPABASE_URL --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
+        run: flutter build apk --release --dart-define=SUPABASE_URL=$SUPABASE_URL --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
 
-      - name: Package App into ZIP
-        run: |
-          cd build/macos/Build/Products/Release
-          zip -r ProjectGT_macOS.zip projectgt.app
+      - name: Rename APK
+        run: mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/ProjectGT_Android.apk
 
       - name: Upload to GitHub Release
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
-          files: build/macos/Build/Products/Release/ProjectGT_macOS.zip
+          files: build/app/outputs/flutter-apk/ProjectGT_Android.apk
