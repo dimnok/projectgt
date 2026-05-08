@@ -1,8 +1,8 @@
-name: Build Windows App (Force Trigger)
+name: Build Windows App
 
 on:
-  push:
-    branches: [ "main" ]
+  release:
+    types: [published]
   workflow_dispatch:
 
 jobs:
@@ -19,29 +19,51 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Enable Windows Support
-        run: flutter config --enable-windows-desktop
-
-      - name: Initialize Windows Configuration
-        # Генерируем файлы поддержки Windows, если их нет
-        run: |
-          if (-not (Test-Path -Path "windows")) {
-            flutter create --platforms=windows .
-          }
-
       - name: Install Dependencies
         run: flutter pub get
 
       - name: Build Windows Release
-        # Передаем переменные, хотя текущая версия AppConfig может требовать доработки для их чтения через fromEnvironment
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: flutter build windows --release --dart-define=SUPABASE_URL=$Env:SUPABASE_URL --dart-define=SUPABASE_ANON_KEY=$Env:SUPABASE_ANON_KEY
 
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ProjectGT-Windows
-          path: build/windows/x64/runner/Release/
+      - name: Create Installer Script
+        run: |
+          $Version = "${{ github.event.release.tag_name }}"
+          if ([string]::IsNullOrWhiteSpace($Version)) { $Version = "1.0.0" }
+          $Version = $Version.TrimStart("v")
+          
+          $Script = @"
+          [Setup]
+          AppName=ProjectGT
+          AppVersion=$Version
+          DefaultDirName={autopf}\ProjectGT
+          DefaultGroupName=ProjectGT
+          OutputDir=build\installer
+          OutputBaseFilename=ProjectGT_Setup
+          Compression=lzma2
+          SolidCompression=yes
+          PrivilegesRequired=lowest
+          
+          [Files]
+          Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+          
+          [Icons]
+          Name: "{group}\ProjectGT"; Filename: "{app}\projectgt.exe"
+          Name: "{autodesktop}\ProjectGT"; Filename: "{app}\projectgt.exe"; Tasks: desktopicon
+          
+          [Tasks]
+          Name: "desktopicon"; Description: "Создать значок на Рабочем столе"; GroupDescription: "Дополнительные значки:"
+          "@
+          
+          Set-Content -Path "installer.iss" -Value $Script -Encoding UTF8
 
+      - name: Compile Installer (Inno Setup)
+        run: iscc installer.iss
+
+      - name: Upload to GitHub Release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/installer/ProjectGT_Setup.exe
