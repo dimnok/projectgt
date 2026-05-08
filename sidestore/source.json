@@ -11,17 +11,24 @@
       "localizedDescription": "Приложение для внутреннего тестирования и работы команды.",
       "iconURL": "https://raw.githubusercontent.com/dimnok/projectgt/main/sidestore/icon.png",
       "tintColor": "000000",
-      "version": "1.0.14",
-      "buildVersion": "39",
-      "versionDate": "2026-05-08T12:00:00+03:00",
+      "version": "1.0.15",
+      "buildVersion": "40",
+      "versionDate": "2026-05-08T22:20:00+03:00",
       "downloadURL": "https://github.com/dimnok/projectgt/releases/download/v1.0.15/projectgt.ipa",
-      "size": 18942786,
+      "size": 18942801,
       "versions": [
+        {
+          "version": "1.0.15",
+          "buildVersion": "40",
+          "date": "2026-05-08T22:20:00+03:00",
+          "downloadURL": "https://github.com/dimnok/projectgt/releases/download/v1.0.15/projectgt.ipa",
+          "size": 18942801
+        },
         {
           "version": "1.0.14",
           "buildVersion": "39",
           "date": "2026-05-08T12:00:00+03:00",
-          "downloadURL": "https://github.com/dimnok/projectgt/releases/download/v1.0.15/projectgt.ipa",
+          "downloadURL": "https://github.com/dimnok/projectgt/releases/download/v1.0.14/projectgt.ipa",
           "size": 18942786
         }
       ]
