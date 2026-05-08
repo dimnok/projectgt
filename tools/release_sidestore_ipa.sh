@@ -2,6 +2,9 @@
 #
 # Сборка IPA для SideStore, загрузка в GitHub Releases и обновление sidestore/source.json.
 #
+# Полный релиз (bump pubspec, Windows при наличии ОС, затем этот пайплайн + один commit):
+#   ./tools/projectgt_release.sh
+#
 # Требования: Flutter, GitHub CLI (gh) с авторизацией, рабочая подпись для
 # `flutter build ipa --export-method development`.
 #
