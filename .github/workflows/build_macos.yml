@@ -5,6 +5,9 @@ on:
     types: [published]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: macos-latest
@@ -19,14 +22,19 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Disable macOS Code Signing
+        run: |
+          sed -i '' 's/CODE_SIGNING_ALLOWED = YES/CODE_SIGNING_ALLOWED = NO/g' macos/Runner.xcodeproj/project.pbxproj
+          sed -i '' 's/"Apple Development"/""/g' macos/Runner.xcodeproj/project.pbxproj
+
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Build macOS Release (No Codesign)
+      - name: Build macOS Release
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-        run: flutter build macos --release --no-codesign --dart-define=SUPABASE_URL=$SUPABASE_URL --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
+        run: flutter build macos --release --dart-define=SUPABASE_URL=$SUPABASE_URL --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
 
       - name: Package App into ZIP
         run: |
