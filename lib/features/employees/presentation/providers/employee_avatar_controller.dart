@@ -70,6 +70,13 @@ class EmployeeAvatarController extends StateNotifier<AsyncValue<void>> {
     state = const AsyncValue.loading();
     try {
       final photoService = _ref.read(photoServiceProvider);
+      
+      // Удаляем конкретное фото по URL, если оно есть
+      if (employee.photoUrl != null) {
+        await photoService.deletePhotoByUrl(employee.photoUrl!);
+      }
+      
+      // На всякий случай зачищаем папку (если там остались старые файлы)
       await photoService.deletePhoto(
         entity: 'employee',
         id: employee.id,

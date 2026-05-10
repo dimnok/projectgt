@@ -5,20 +5,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:projectgt/core/di/providers.dart';
-import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
+import 'package:projectgt/features/home/presentation/providers/all_contracts_progress_provider.dart';
 
 // Константы для визуализации прогресса
 const double _kCircleSize = 180.0;
 const double _kStrokeWidth = 18.0;
-const double _kProgressHeight = 220.0;
+const double _kProgressHeight = 240.0;
 const int _kColorSteps = 9;
 
 // Константы цветовой палитры
 const List<Color> _kColorAnchors = [
-  Color(0xFFFF3B30), // красный
-  Color(0xFFFF9500), // оранжевый
-  Color(0xFFFFCC00), // жёлтый
-  Color(0xFF34C759), // зелёный
+  Color(0xFFEF4444), // красный (vibrant)
+  Color(0xFFF97316), // оранжевый
+  Color(0xFFFACC15), // жёлтый
+  Color(0xFF10B981), // зелёный (vibrant)
 ];
 
 // Кэш для NumberFormat и цветовой палитры
@@ -26,95 +26,6 @@ final _moneyFormat =
     NumberFormat.currency(locale: 'ru_RU', symbol: '₽', decimalDigits: 0);
 final _colorPalette =
     _buildRedToGreenColors(steps: _kColorSteps, anchors: _kColorAnchors);
-
-class _ContractProgress {
-  final double estimatesTotal;
-  final double executedTotal;
-  const _ContractProgress(
-      {required this.estimatesTotal, required this.executedTotal});
-}
-
-class _AllProgress {
-  final Map<String, _ContractProgress> byContract;
-  final String? bestContractId;
-  const _AllProgress({required this.byContract, required this.bestContractId});
-}
-
-/// Провайдер прогресса выполнения по всем договорам.
-///
-/// Вычисляет общую сумму смет и выполненных работ для каждого договора,
-/// определяет договор с наибольшим прогрессом выполнения.
-/// Использует Server-Side RPC для масштабируемого решения (работает на любых объёмах данных).
-final allContractsProgressProvider = FutureProvider<_AllProgress>((ref) async {
-  final client = ref.watch(supabaseClientProvider);
-  final activeCompanyId = ref.watch(activeCompanyIdProvider);
-
-  if (activeCompanyId == null) {
-    return const _AllProgress(byContract: {}, bestContractId: null);
-  }
-
-  // Объявляем переменные вне try, чтобы они были видны после блока
-  late final Map<String, double> estimatesTotalByContract;
-  late final Map<String, double> executedTotalByContract;
-
-  try {
-    // RPC запрос с timeout 30 сек
-    final rpcFuture = client.rpc('get_all_contracts_progress', params: {
-      'p_company_id': activeCompanyId,
-    });
-    final List<dynamic> rpcResult = await rpcFuture.timeout(
-      const Duration(seconds: 30),
-      onTimeout: () => throw Exception(
-          'RPC get_all_contracts_progress timeout after 30 seconds'),
-    );
-
-    // Инициализируем переменные в try блоке
-    estimatesTotalByContract = {};
-    executedTotalByContract = {};
-
-    for (final row in rpcResult) {
-      final String? contractId = row['contract_id'] as String?;
-      if (contractId == null) continue;
-
-      final dynamic estTotal = row['estimate_total'];
-      final dynamic execTotal = row['executed_total'];
-
-      final double estimateTotal =
-          (estTotal is num) ? estTotal.toDouble() : 0.0;
-      final double executedTotal =
-          (execTotal is num) ? execTotal.toDouble() : 0.0;
-
-      estimatesTotalByContract[contractId] = estimateTotal;
-      executedTotalByContract[contractId] = executedTotal;
-    }
-  } catch (e) {
-    throw Exception('Не удалось получить данные по договорам: $e');
-  }
-
-  // Итоговые данные - берём ВСЕ договоры из смет
-  final Map<String, _ContractProgress> byContract = {};
-  for (final entry in estimatesTotalByContract.entries) {
-    final String contractId = entry.key;
-    final double est = entry.value;
-    final double done = executedTotalByContract[contractId] ?? 0;
-    byContract[contractId] =
-        _ContractProgress(estimatesTotal: est, executedTotal: done);
-  }
-
-  String? best;
-  double bestRatio = -1;
-  byContract.forEach((cid, prog) {
-    final double ratio = prog.estimatesTotal > 0
-        ? (prog.executedTotal / prog.estimatesTotal)
-        : 0;
-    if (ratio > bestRatio) {
-      bestRatio = ratio;
-      best = cid;
-    }
-  });
-
-  return _AllProgress(byContract: byContract, bestContractId: best);
-});
 
 /// Виджет отображения прогресса выполнения договоров.
 ///
@@ -149,7 +60,7 @@ class _ContractProgressWidgetState
     final allProgressAsync = ref.watch(allContractsProgressProvider);
 
     // Используем listen для установки начального значения вместо setState в build
-    ref.listen<AsyncValue<_AllProgress>>(
+    ref.listen<AsyncValue<AllContractsProgress>>(
       allContractsProgressProvider,
       (previous, next) {
         next.whenData((ap) {
@@ -290,29 +201,51 @@ class _ContractProgressWidgetState
                                       painter: _GradientCircularPainter(
                                         ratio: ratio,
                                         trackColor: theme.colorScheme.onSurface
-                                            .withValues(alpha: 0.08),
+                                            .withValues(alpha: 0.05),
                                         gradientColors: _colorPalette,
                                         strokeWidth: _kStrokeWidth,
+                                        glowColor: currentColor.withValues(alpha: 0.3),
                                       ),
                                     ),
-                                    Text(
-                                      percentStr,
-                                      style: theme.textTheme.headlineSmall
-                                          ?.copyWith(
-                                        fontWeight: FontWeight.w800,
-                                        letterSpacing: 0.2,
-                                        color: currentColor,
-                                      ),
+                                    Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          percentStr,
+                                          style: theme.textTheme.headlineMedium
+                                              ?.copyWith(
+                                            fontWeight: FontWeight.w900,
+                                            letterSpacing: -1.0,
+                                            color: currentColor,
+                                          ),
+                                        ),
+                                        Text(
+                                          'ГОТОВО',
+                                          style: theme.textTheme.labelSmall?.copyWith(
+                                            fontWeight: FontWeight.w800,
+                                            letterSpacing: 1.5,
+                                            color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
                               ),
-                              const SizedBox(height: 12),
-                              Text(
-                                '${_moneyFormat.format(done)} / ${_moneyFormat.format(total)}',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: theme.colorScheme.onSurface
-                                      .withValues(alpha: 0.7),
+                              const SizedBox(height: 16),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.onSurface.withValues(alpha: 0.04),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  '${_moneyFormat.format(done)} / ${_moneyFormat.format(total)}',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: theme.colorScheme.onSurface
+                                        .withValues(alpha: 0.8),
+                                  ),
                                 ),
                               ),
                             ],
@@ -378,28 +311,47 @@ class _GradientCircularPainter extends CustomPainter {
   final Color trackColor;
   final List<Color> gradientColors;
   final double strokeWidth;
-  const _GradientCircularPainter(
-      {required this.ratio,
-      required this.trackColor,
-      required this.gradientColors,
-      this.strokeWidth = 12});
+  final Color? glowColor;
+
+  const _GradientCircularPainter({
+    required this.ratio,
+    required this.trackColor,
+    required this.gradientColors,
+    this.strokeWidth = 12,
+    this.glowColor,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final radius = (size.width / 2) - (strokeWidth / 2) - 2;
+    final radius = (size.width / 2) - (strokeWidth / 2) - 4;
 
     // Фоновый трек (серый круг)
     final trackPaint = Paint()
       ..color = trackColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.butt
+      ..strokeCap = StrokeCap.round
       ..isAntiAlias = true;
 
     canvas.drawCircle(center, radius, trackPaint);
 
     if (ratio <= 0) return;
+
+    // Свечение (Glow)
+    if (glowColor != null) {
+      final glowPaint = Paint()
+        ..color = glowColor!
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeWidth + 4
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8)
+        ..strokeCap = StrokeCap.round
+        ..isAntiAlias = true;
+      
+      const startAngle = -math.pi / 2;
+      final sweep = 2 * math.pi * ratio;
+      canvas.drawArc(Rect.fromCircle(center: center, radius: radius), startAngle, sweep, false, glowPaint);
+    }
 
     // Старт строго в верхней точке (12 часов)
     const startAngle = -math.pi / 2;
@@ -407,36 +359,29 @@ class _GradientCircularPainter extends CustomPainter {
     final rect = Rect.fromCircle(center: center, radius: radius);
 
     // Количество сегментов для плавного градиента
-    // Минимум 60 сегментов для качественного градиента
     final int segments = math.max(60, (ratio * 180).toInt());
     final double segmentAngle = sweep / segments;
 
     // Рисуем каждый сегмент с правильным цветом
     for (int i = 0; i < segments; i++) {
-      // КЛЮЧЕВОЙ МОМЕНТ: мапим сегменты на диапазон [0..ratio]
-      // Для 2%: все сегменты будут в диапазоне [0..0.02] - красные
-      // Для 50%: сегменты в диапазоне [0..0.5] - от красного до оранжевого
-      // Для 100%: сегменты в диапазоне [0..1.0] - от красного до зелёного
-      final double normalizedPosition = i / (segments - 1); // от 0 до 1
-      final double colorProgress = normalizedPosition * ratio; // от 0 до ratio
+      final double normalizedPosition = i / (segments - 1);
+      final double colorProgress = normalizedPosition * ratio;
 
-      // Получаем цвет для этой позиции в палитре
       final Color segmentColor = _colorAt(colorProgress, gradientColors);
 
       final Paint paint = Paint()
         ..color = segmentColor
         ..style = PaintingStyle.stroke
         ..strokeWidth = strokeWidth
-        ..strokeCap = StrokeCap.butt
+        ..strokeCap = i == 0 || i == segments - 1 ? StrokeCap.round : StrokeCap.butt
         ..isAntiAlias = true;
 
       final double currentAngle = startAngle + (segmentAngle * i);
 
-      // Рисуем сегмент без перекрытия (StrokeCap.butt обеспечивает плотное прилегание)
       canvas.drawArc(
         rect,
         currentAngle,
-        segmentAngle,
+        segmentAngle + 0.01, // Небольшой оверлап для плавности
         false,
         paint,
       );
@@ -447,7 +392,8 @@ class _GradientCircularPainter extends CustomPainter {
   bool shouldRepaint(covariant _GradientCircularPainter oldDelegate) {
     return oldDelegate.ratio != ratio ||
         oldDelegate.trackColor != trackColor ||
-        oldDelegate.gradientColors != gradientColors;
+        oldDelegate.gradientColors != gradientColors ||
+        oldDelegate.glowColor != glowColor;
   }
 }
 

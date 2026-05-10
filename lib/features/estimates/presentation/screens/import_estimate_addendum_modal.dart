@@ -356,7 +356,7 @@ class _ImportEstimateAddendumModalState
           mimeType: MimeType.microsoftExcel,
         );
       } else {
-        final outputPath = await FilePicker.platform.saveFile(
+        final outputPath = await FilePicker.saveFile(
           dialogTitle: 'Сохранить шаблон LC / ДС',
           fileName: fileName,
           type: FileType.custom,
@@ -412,7 +412,7 @@ class _ImportEstimateAddendumModalState
           mimeType: MimeType.microsoftExcel,
         );
       } else {
-        final outputPath = await FilePicker.platform.saveFile(
+        final outputPath = await FilePicker.saveFile(
           dialogTitle: 'Сохранить смету с колонками ДС',
           fileName: fileName,
           type: FileType.custom,
@@ -443,7 +443,7 @@ class _ImportEstimateAddendumModalState
 
   Future<void> _pickExcelFile() async {
     try {
-      final result = await FilePicker.platform.pickFiles(
+      final result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['xlsx'],
         withData: true,

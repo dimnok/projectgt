@@ -69,7 +69,7 @@ class VorCumulativeExportService {
     }
 
     if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
-      String? outputFile = await FilePicker.platform.saveFile(
+      String? outputFile = await FilePicker.saveFile(
         dialogTitle: 'Выберите место для сохранения файла',
         fileName: filename,
         type: FileType.custom,

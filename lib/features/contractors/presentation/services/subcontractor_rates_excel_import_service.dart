@@ -112,7 +112,7 @@ class SubcontractorRatesExcelImportService {
     final ids = contributionsByEstimateId.keys.toList();
     final allowed = <String>{};
 
-    const batchSize = 80;
+    const batchSize = 20;
     for (var i = 0; i < ids.length; i += batchSize) {
       final batch = ids.sublist(i, math.min(i + batchSize, ids.length));
       final rows = await client

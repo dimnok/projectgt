@@ -34,7 +34,7 @@ class SubcontractorsContractorFilterField extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final permissions = ref.watch(permissionServiceProvider);
-    if (!permissions.can('contractors', 'read')) {
+    if (!permissions.can('subcontractors', 'read')) {
       return Text(
         'Нет доступа',
         maxLines: 1,

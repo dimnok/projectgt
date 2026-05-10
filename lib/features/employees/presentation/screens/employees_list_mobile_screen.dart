@@ -17,6 +17,8 @@ import 'package:projectgt/features/employees/presentation/widgets/employees_mobi
 import 'package:projectgt/features/employees/presentation/widgets/employees_mobile_swipeable_employee_card.dart';
 import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/core/widgets/mobile_atmosphere_backdrop.dart';
+import 'package:projectgt/core/widgets/mobile_atmosphere_screen_header.dart';
 
 /// Возвращает строку названий объектов [employee] через запятую по списку [objects].
 ///
@@ -367,36 +369,20 @@ class _EmployeesListMobileScreenState
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
                     child: Row(
                       children: [
                         Builder(
-                          builder: (ctx) => Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              onTap: () {
-                                setState(() => _listSwipeDismissEpoch++);
-                                Scaffold.of(ctx).openDrawer();
-                              },
-                              borderRadius: BorderRadius.circular(22),
-                              child: Container(
-                                width: 44,
-                                height: 44,
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  color: appearance.chromeFill,
-                                  borderRadius: BorderRadius.circular(22),
-                                  border: Border.all(
-                                    color: appearance.chromeBorder,
-                                  ),
-                                ),
-                                child: Icon(
-                                  Icons.menu_rounded,
-                                  size: 22,
-                                  color: appearance.scheme.onSurface,
-                                ),
-                              ),
-                            ),
+                          builder: (ctx) =>
+                              MobileAtmosphereChromeCircleButton(
+                            appearance:
+                                MobileAtmosphereAppearance.of(context),
+                            tooltip: 'Меню',
+                            icon: Icons.menu_rounded,
+                            onTap: () {
+                              setState(() => _listSwipeDismissEpoch++);
+                              Scaffold.of(ctx).openDrawer();
+                            },
                           ),
                         ),
                         const SizedBox(width: 8),

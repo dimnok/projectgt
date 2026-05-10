@@ -2,12 +2,10 @@ import 'package:flutter/material.dart';
 
 import 'package:projectgt/core/widgets/gt_text_action_link.dart';
 
-/// Строка текстовых действий над таблицей сотрудников: выравнивание вправо,
-/// подчёркнутые ссылки с лёгким увеличением при наведении (desktop).
+/// Строка текстовых действий над таблицей сотрудников (в первую очередь «Удалить»
+/// при выборе строк). «Добавить» и «Экспорт» вынесены в [EmployeesTableFiltersToolbar].
 ///
-/// Бизнес-логику задаёт родитель: [onAddEmployee], [onExport], [onDeleteSelected].
-/// Ссылка «Удалить» показывается только если [onDeleteSelected] не `null`
-/// (родитель обычно передаёт колбэк при выбранных строках и праве на удаление).
+/// Выравнивание вправо, подчёркнутые ссылки с лёгким увеличением при наведении (desktop).
 class EmployeesTableActionsBar extends StatelessWidget {
   /// Создаёт панель действий над таблицей.
   const EmployeesTableActionsBar({

@@ -14,4 +14,9 @@ abstract class ShiftsDataSource {
   /// [date] - день, за который нужны детали.
   /// Возвращает список смен за этот день с разбивкой по объектам и системам.
   Future<Map<String, dynamic>> getShiftsForDate(DateTime date);
+
+  /// Получает сводку по сменам за конкретный день (объекты, ИТР, монтажники).
+  ///
+  /// [date] - день, за который нужна сводка.
+  Future<Map<String, dynamic>> getShiftsSummaryForDate(DateTime date);
 }

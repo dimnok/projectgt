@@ -1,12 +1,13 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+
 import 'package:projectgt/core/utils/employee_ui_utils.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:projectgt/domain/entities/business_trip_rate.dart';
 import 'package:projectgt/domain/entities/employee.dart';
 import 'package:projectgt/features/employees/presentation/providers/employee_avatar_controller.dart';
@@ -402,10 +403,20 @@ class _EmployeesMobileEmployeeDetailsBody extends ConsumerWidget {
                               ),
                               child: hasPhoto
                                   ? CachedNetworkImage(
-                                      imageUrl: employee.photoUrl!.trim(),
+                                      imageUrl: employee.photoUrl!,
                                       width: _avatarSide,
                                       height: _avatarSide,
                                       fit: BoxFit.cover,
+                                      errorWidget: (context, url, error) => Center(
+                                        child: Text(
+                                          initials,
+                                          style: TextStyle(
+                                            color: scheme.primary,
+                                            fontSize: 22,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
                                     )
                                   : Center(
                                       child: Text(

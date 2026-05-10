@@ -63,7 +63,7 @@ class _SubcontractorsMobileScreenState
   @override
   Widget build(BuildContext context) {
     final permissions = ref.watch(permissionServiceProvider);
-    if (!permissions.can('contractors', 'read')) {
+    if (!permissions.can('subcontractors', 'read')) {
       return const Scaffold(
         body: Center(child: Text('У вас нет прав для просмотра этой страницы')),
       );
@@ -176,6 +176,7 @@ class _SubcontractorsMobileScreenState
                           ),
                         ],
                         if (isRates &&
+                            permissions.can('subcontractors', 'export') &&
                             selectedObjectId != null &&
                             selectedObjectId.isNotEmpty &&
                             selectedContractId != null &&
@@ -192,6 +193,7 @@ class _SubcontractorsMobileScreenState
                           ),
                         ],
                         if (isExecution &&
+                            permissions.can('subcontractors', 'export') &&
                             selectedObjectId != null &&
                             selectedObjectId.isNotEmpty &&
                             selectedContractId != null &&
@@ -212,8 +214,8 @@ class _SubcontractorsMobileScreenState
                           ),
                         ],
                         if (isRates &&
-                            permissions.can('contractors', 'update') &&
-                            permissions.can('contractors', 'create')) ...[
+                            permissions.can('subcontractors', 'import') &&
+                            permissions.can('subcontractors', 'update')) ...[
                           const SizedBox(width: 8),
                           _ToolbarIconButton(
                             appearance: appearance,

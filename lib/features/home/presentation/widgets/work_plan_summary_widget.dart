@@ -118,8 +118,14 @@ final _actualWorkSumProvider = FutureProvider.autoDispose
 ///
 /// Отображает агрегированную информацию по ближайшему плану работ.
 class WorkPlanSummaryWidget extends ConsumerWidget {
+  /// Если `true`, заголовок не отображается.
+  final bool hideHeader;
+
   /// Создает виджет карточки плана работ.
-  const WorkPlanSummaryWidget({super.key});
+  const WorkPlanSummaryWidget({
+    super.key,
+    this.hideHeader = false,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -151,25 +157,27 @@ class WorkPlanSummaryWidget extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Icon(
-              CupertinoIcons.doc_text,
-              size: 18,
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'План работ',
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w700),
+        if (!hideHeader) ...[
+          Row(
+            children: [
+              Icon(
+                CupertinoIcons.doc_text,
+                size: 18,
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'План работ',
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+        ],
         _KpiTile(
           label: 'Сумма плана',
           value: formatCurrency(summaryData.totalPlan),
@@ -183,7 +191,7 @@ class WorkPlanSummaryWidget extends ConsumerWidget {
         ),
         const SizedBox(height: 12),
         _WorkProgress(summaryData: summaryData),
-        const Spacer(),
+        const SizedBox(height: 24),
         Row(
           children: [
             _Chip(
@@ -260,27 +268,47 @@ class _KpiTile extends StatelessWidget {
     final theme = Theme.of(context);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.28)),
-        color: color.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.15), width: 1.2),
+        color: color.withValues(alpha: 0.04),
       ),
       child: Row(
         children: [
-          Expanded(
-            child: Text(
-              label,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-              ),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              label.contains('специалиста') ? CupertinoIcons.person_fill : CupertinoIcons.money_rubl,
+              size: 16,
+              color: color,
             ),
           ),
-          Text(
-            value,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w800,
-              color: color,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  value,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    color: color,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -339,25 +367,62 @@ class _ProgressBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final p = percent.clamp(0.0, 100.0) / 100.0;
+    final Color progressColor = p > 0.8 ? const Color(0xFF10B981) : const Color(0xFF3B82F6);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: LinearProgressIndicator(
-            value: p,
-            minHeight: 14,
-            backgroundColor: Colors.green.withValues(alpha: 0.15),
-            color: Colors.green,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 6),
-        Text(
-          label,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-            fontWeight: FontWeight.w600,
-          ),
+        const SizedBox(height: 8),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            return Stack(
+              children: [
+                Container(
+                  height: 12,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: progressColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 500),
+                  curve: Curves.easeOutCubic,
+                  height: 12,
+                  width: constraints.maxWidth * p,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        progressColor.withValues(alpha: 0.7),
+                        progressColor,
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(6),
+                    boxShadow: [
+                      BoxShadow(
+                        color: progressColor.withValues(alpha: 0.2),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ],
     );

@@ -1,13 +1,19 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/core/theme/theme_settings_provider.dart';
+import 'package:projectgt/core/widgets/mobile_atmosphere_backdrop.dart';
+import 'package:projectgt/core/widgets/mobile_atmosphere_card_style.dart';
+import 'package:projectgt/core/widgets/mobile_atmosphere_screen_header.dart';
 import 'package:projectgt/core/utils/employee_delete_error_mapper.dart';
 import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/gt_confirmation_dialog.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:projectgt/core/utils/employee_ui_utils.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/domain/entities/employee.dart';
@@ -15,7 +21,6 @@ import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:projectgt/features/objects/presentation/state/object_state.dart';
 import 'package:projectgt/presentation/state/employee_state.dart' as state;
 import 'package:projectgt/features/roles/application/permission_service.dart';
-import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 import 'package:projectgt/features/employees/presentation/widgets/add_employee_simple_dialog.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employees_table_actions_bar.dart';
@@ -26,10 +31,80 @@ import 'package:projectgt/features/employees/presentation/widgets/employee_detai
 import 'package:projectgt/domain/entities/business_trip_rate.dart';
 import 'package:projectgt/features/employees/presentation/services/employee_server_excel_export_service.dart';
 
+/// Отступы шапки и тела — как у экрана табеля ([TimesheetScreen]).
+const _kEmployeesTableHeaderPadding = EdgeInsets.fromLTRB(16, 20, 16, 8);
+const _kEmployeesTableBodyPadding = EdgeInsets.fromLTRB(16, 0, 16, 10);
+
+/// Основная поверхность таблицы в визуальном языке атмосферы (градиент, тень, обводка).
+class _EmployeesTableMainSurface extends StatelessWidget {
+  const _EmployeesTableMainSurface({required this.child});
+
+  final Widget child;
+
+  static const double _outerRadius = 16;
+  static const double _clipRadius = 15;
+
+  @override
+  Widget build(BuildContext context) {
+    final appearance = MobileAtmosphereAppearance.of(context);
+    final cardStyle = MobileAtmosphereCardStyle.fromAppearance(appearance);
+    final hi = cardStyle.cardHighlight;
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(_outerRadius),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [cardStyle.cardTop, cardStyle.cardBottom],
+        ),
+        boxShadow: cardStyle.cardShadows,
+      ),
+      foregroundDecoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(_outerRadius),
+        border: Border.fromBorderSide(
+          BorderSide(
+            color: cardStyle.cardBorder,
+            width: 1,
+            strokeAlign: BorderSide.strokeAlignInside,
+          ),
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(_clipRadius),
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          clipBehavior: Clip.antiAlias,
+          children: [
+            Positioned(
+              left: 0,
+              right: 0,
+              top: 0,
+              height: 1,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      hi.withValues(alpha: 0),
+                      hi.withValues(alpha: 0.65),
+                      hi.withValues(alpha: 0),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Padding(padding: const EdgeInsets.all(16), child: child),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// Экран управления сотрудниками в табличном виде.
 ///
-/// Реализует полноэкранный список сотрудников в виде таблицы с закрепленным заголовком,
-/// расширенной фильтрацией и возможностью быстрого изменения статуса и объектов.
+/// Фон и шапка в стиле модуля «Табель»: [MobileAtmosphereBackdrop], круглая кнопка меню
+/// и переключатель темы без стандартного AppBar; таблица внутри карточки [_EmployeesTableMainSurface].
 class EmployeesTableScreen extends ConsumerStatefulWidget {
   /// Создаёт экран табличного управления сотрудниками.
   const EmployeesTableScreen({super.key});
@@ -136,41 +211,136 @@ class _EmployeesTableScreenState extends ConsumerState<EmployeesTableScreen> {
         (objectState.status == ObjectStatus.loading &&
             objectState.objects.isEmpty);
 
-    return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
-      appBar: AppBarWidget(
-        title: 'Управление сотрудниками (${employees.length})',
+    final appearance = MobileAtmosphereAppearance.of(context);
+    final scheme = appearance.scheme;
+    final isDark = appearance.isDark;
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle(
+        statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarColor: appearance.atmosphereBase,
+        systemNavigationBarDividerColor: Colors.transparent,
+        systemNavigationBarIconBrightness: isDark
+            ? Brightness.light
+            : Brightness.dark,
       ),
-      drawer: const AppDrawer(activeRoute: AppRoute.employees),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
+      child: Scaffold(
+        backgroundColor: isDark
+            ? appearance.atmosphereBase
+            : Colors.transparent,
+        drawer: const AppDrawer(activeRoute: AppRoute.employees),
+        body: Stack(
+          fit: StackFit.expand,
           children: [
-            _buildFiltersRow(
-              afterObjectFilter,
-              objectsForFilter,
-              objectState.status == ObjectStatus.loading &&
-                  objectState.objects.isEmpty,
-            ),
-            EmployeesTableActionsBar(
-              canCreate: permissions.can('employees', 'create'),
-              canExport: permissions.can('employees', 'export'),
-              onAddEmployee: () => AddEmployeeSimpleDialog.show(context),
-              onExport: () => _exportEmployeesToExcel(context),
-              onDeleteSelected:
-                  permissions.can('employees', 'delete') &&
-                          _selectedEmployeeIds.isNotEmpty
-                      ? () => _onDeleteSelectedEmployees(context)
-                      : null,
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: _buildTableContainer(
-                theme,
-                employees,
-                objectState.objects,
-                isLoading,
-                permissions,
+            const MobileAtmosphereBackdrop(),
+            SafeArea(
+              bottom: false,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: _kEmployeesTableHeaderPadding,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final narrow = constraints.maxWidth < 560;
+                        final menuButton = Builder(
+                          builder: (ctx) => MobileAtmosphereChromeCircleButton(
+                            appearance: appearance,
+                            tooltip: 'Меню',
+                            icon: Icons.menu_rounded,
+                            onTap: () => Scaffold.of(ctx).openDrawer(),
+                          ),
+                        );
+                        final themeButton = MobileAtmosphereChromeCircleButton(
+                          appearance: appearance,
+                          tooltip: isDark ? 'Светлая тема' : 'Тёмная тема',
+                          icon: isDark
+                              ? Icons.light_mode_outlined
+                              : Icons.dark_mode_outlined,
+                          onTap: () {
+                            ref
+                                .read(themeSettingsProvider.notifier)
+                                .setThemeMode(
+                                  isDark ? ThemeMode.light : ThemeMode.dark,
+                                );
+                          },
+                        );
+                        final titleText =
+                            'Управление сотрудниками (${employees.length})';
+
+                        if (narrow) {
+                          return MobileAtmosphereScreenHeader(
+                            appearance: appearance,
+                            title: titleText,
+                            leading: menuButton,
+                            trailing: themeButton,
+                          );
+                        }
+
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            menuButton,
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                titleText,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.titleLarge
+                                    ?.copyWith(color: scheme.onSurface),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: themeButton,
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: _kEmployeesTableBodyPadding,
+                      child: _EmployeesTableMainSurface(
+                        child: Column(
+                          children: [
+                            _buildFiltersRow(
+                              context,
+                              afterObjectFilter,
+                              objectsForFilter,
+                              objectState.status == ObjectStatus.loading &&
+                                  objectState.objects.isEmpty,
+                              permissions,
+                            ),
+                            EmployeesTableActionsBar(
+                              canCreate: false,
+                              canExport: false,
+                              onDeleteSelected:
+                                  permissions.can('employees', 'delete') &&
+                                      _selectedEmployeeIds.isNotEmpty
+                                  ? () => _onDeleteSelectedEmployees(context)
+                                  : null,
+                            ),
+                            const SizedBox(height: 16),
+                            Expanded(
+                              child: _buildTableContainer(
+                                theme,
+                                employees,
+                                objectState.objects,
+                                isLoading,
+                                permissions,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -327,9 +497,11 @@ class _EmployeesTableScreenState extends ConsumerState<EmployeesTableScreen> {
   }
 
   Widget _buildFiltersRow(
+    BuildContext context,
     List<Employee> employeesForStatusCounts,
     List<ObjectEntity> objectsForFilter,
     bool objectsLoading,
+    PermissionService permissions,
   ) {
     return EmployeesTableFiltersToolbar(
       employeesForStatusCounts: employeesForStatusCounts,
@@ -340,6 +512,14 @@ class _EmployeesTableScreenState extends ConsumerState<EmployeesTableScreen> {
           setState(() => _selectedStatusFilter = status),
       objectFilter: _objectFilter,
       onObjectFilterChanged: (v) => setState(() => _objectFilter = v),
+      canCreate: permissions.can('employees', 'create'),
+      canExport: permissions.can('employees', 'export'),
+      onAddEmployee: permissions.can('employees', 'create')
+          ? () => AddEmployeeSimpleDialog.show(context)
+          : null,
+      onExport: permissions.can('employees', 'export')
+          ? () => _exportEmployeesToExcel(context)
+          : null,
     );
   }
 
@@ -567,12 +747,25 @@ class _EmployeesTableScreenState extends ConsumerState<EmployeesTableScreen> {
             children: [
               CircleAvatar(
                 radius: 20,
-                backgroundImage: emp.photoUrl != null
-                    ? CachedNetworkImageProvider(emp.photoUrl!)
-                    : null,
-                child: emp.photoUrl == null
-                    ? const Icon(CupertinoIcons.person)
-                    : null,
+                backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+                child: emp.photoUrl != null && emp.photoUrl!.trim().isNotEmpty
+                    ? ClipOval(
+                        child: CachedNetworkImage(
+                          imageUrl: emp.photoUrl!,
+                          width: 40,
+                          height: 40,
+                          fit: BoxFit.cover,
+                          errorWidget: (context, url, error) => Icon(
+                            CupertinoIcons.person,
+                            size: 22,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                      )
+                    : Icon(
+                        CupertinoIcons.person,
+                        color: theme.colorScheme.primary,
+                      ),
               ),
               const SizedBox(width: 12),
               Expanded(

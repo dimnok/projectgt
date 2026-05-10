@@ -18,4 +18,9 @@ class ShiftsRepositoryImpl implements ShiftsRepository {
   Future<Map<String, dynamic>> getShiftsForDate(DateTime date) async {
     return await dataSource.getShiftsForDate(date);
   }
+
+  @override
+  Future<Map<String, dynamic>> getShiftsSummaryForDate(DateTime date) async {
+    return await dataSource.getShiftsSummaryForDate(date);
+  }
 }

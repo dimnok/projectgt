@@ -7,7 +7,7 @@ import 'package:projectgt/core/utils/snackbar_utils.dart';
 import 'package:projectgt/features/export/data/repositories/vor_repository_impl.dart';
 import 'package:projectgt/features/export/presentation/widgets/export_search_action.dart';
 import 'package:projectgt/features/export/presentation/providers/work_search_date_provider.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart' as path_provider;
 import 'package:flutter/foundation.dart';
@@ -173,16 +173,19 @@ class VorDownloadAction extends ConsumerWidget {
         );
       } else if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
         // На Desktop даем выбрать папку
-        String? outputFile = await FilePicker.platform.saveFile(
-          dialogTitle: 'Выберите место для сохранения ВОР ($ext)',
-          fileName: '$fileName.$ext',
-          type: FileType.custom,
-          allowedExtensions: [ext],
+        final FileSaveLocation? result = await getSaveLocation(
+          suggestedName: '$fileName.$ext',
+          acceptedTypeGroups: [
+            XTypeGroup(
+              label: ext.toUpperCase(),
+              extensions: [ext],
+            ),
+          ],
         );
 
-        if (outputFile == null) return; // Отменено пользователем
+        if (result == null) return; // Отменено пользователем
 
-        final file = File(outputFile);
+        final file = File(result.path);
         await file.writeAsBytes(bytes);
       } else {
         // На мобильных - системный диалог Share

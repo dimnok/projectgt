@@ -356,7 +356,7 @@ class AppDrawer extends ConsumerWidget {
                           ),
                           _buildMenuItem(
                             context: context,
-                            module: 'contractors',
+                            module: 'subcontractors',
                             title: 'Подрядчики',
                             icon: Icons.engineering_outlined,
                             route: AppRoute.subcontractors,

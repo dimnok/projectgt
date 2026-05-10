@@ -309,17 +309,27 @@ class EmployeeNotifier extends StateNotifier<EmployeeState> {
   Future<void> deleteEmployee(String id) async {
     state = state.copyWith(status: EmployeeStatus.loading);
     try {
-      // Удаляем фото сотрудника из Storage
-      Employee? employee = state.employee;
-      final displayName = employee != null
-          ? '${employee.lastName} ${employee.firstName} ${employee.middleName ?? ''}'
-              .trim()
+      // Ищем удаляемого сотрудника, чтобы достать его photoUrl
+      final employeeToDelete = state.employees.where((e) => e.id == id).firstOrNull ??
+          (state.employee?.id == id ? state.employee : null);
+
+      final photoService = _ref.read(photoServiceProvider);
+
+      // Удаляем конкретное фото по URL, если оно есть
+      if (employeeToDelete?.photoUrl != null) {
+        await photoService.deletePhotoByUrl(employeeToDelete!.photoUrl!);
+      }
+
+      // На всякий случай зачищаем папку (если там остались старые файлы)
+      final displayName = employeeToDelete != null
+          ? '${employeeToDelete.lastName} ${employeeToDelete.firstName} ${employeeToDelete.middleName ?? ''}'.trim()
           : '';
-      await _ref.read(photoServiceProvider).deletePhoto(
-            entity: 'employee',
-            id: id,
-            displayName: displayName,
-          );
+      await photoService.deletePhoto(
+        entity: 'employee',
+        id: id,
+        displayName: displayName,
+      );
+
       await _ref.read(deleteEmployeeUseCaseProvider).execute(id);
       // Удаляем сотрудника из текущего списка
       final updatedEmployees =

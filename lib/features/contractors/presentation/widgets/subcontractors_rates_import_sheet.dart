@@ -1,7 +1,8 @@
-import 'package:file_picker/file_picker.dart';
+import 'package:file_selector/file_selector.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart' as path_provider;
 
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
@@ -17,6 +18,9 @@ import 'package:projectgt/features/contractors/presentation/services/subcontract
 import 'package:projectgt/features/contractors/presentation/state/contractor_state.dart';
 
 /// Импорт расценок: тот же каркас, что у «Открытия смены» ([MobileBottomSheetContent] + [MobileAtmosphereBackdrop] / [DesktopDialogContent]).
+///
+/// Выбор файла — через [openFile] из `file_selector` (на macOS не используется
+/// `file_picker`: его проверка entitlements до диалога давала сбой при импорте).
 ///
 /// В списке только контрагенты с типом [ContractorType.contractor].
 class SubcontractorsRatesImportSheet extends ConsumerStatefulWidget {
@@ -59,33 +63,60 @@ class _SubcontractorsRatesImportSheetState
   Future<void> _pickAndImport() async {
     if (_selectedContractor == null || _isImporting) return;
 
-    FilePickerResult? result;
+    /// На macOS `file_picker` проверяет entitlements до открытия диалога и может
+    /// выбросить `ENTITLEMENT_*`; `file_selector` использует системный NSOpenPanel
+    /// без этой проверки (аналогично рекомендациям для desktop Flutter).
+    String? initialDirectory;
+    if (!kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.macOS ||
+            defaultTargetPlatform == TargetPlatform.windows ||
+            defaultTargetPlatform == TargetPlatform.linux)) {
+      try {
+        initialDirectory = (await path_provider.getDownloadsDirectory())?.path;
+      } catch (_) {
+        initialDirectory = null;
+      }
+    }
+
+    XFile? picked;
     try {
-      result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: const ['xlsx'],
-        withData: true,
+      picked = await openFile(
+        acceptedTypeGroups: const [
+          XTypeGroup(label: 'Excel', extensions: ['xlsx']),
+        ],
+        initialDirectory: initialDirectory,
+        confirmButtonText: 'Открыть',
       );
-    } on PlatformException {
+    } catch (e) {
       if (mounted) {
         AppSnackBar.show(
           context: context,
-          message:
-              'Не удалось открыть выбор файла. Проверьте доступ приложения к файлам.',
+          message: 'Не удалось открыть выбор файла: ${e.toString()}',
           kind: AppSnackBarKind.error,
         );
       }
       return;
     }
 
-    if (result == null || result.files.isEmpty) return;
-    final file = result.files.first;
-    final bytes = file.bytes;
-    if (bytes == null || bytes.isEmpty) {
+    if (picked == null) return;
+    Uint8List bytes;
+    try {
+      bytes = await picked.readAsBytes();
+    } catch (e) {
       if (mounted) {
         AppSnackBar.show(
           context: context,
-          message: 'Не удалось прочитать файл',
+          message: 'Не удалось прочитать файл: ${e.toString()}',
+          kind: AppSnackBarKind.error,
+        );
+      }
+      return;
+    }
+    if (bytes.isEmpty) {
+      if (mounted) {
+        AppSnackBar.show(
+          context: context,
+          message: 'Файл пуст',
           kind: AppSnackBarKind.error,
         );
       }

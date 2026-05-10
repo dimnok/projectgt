@@ -92,7 +92,7 @@ class MaterialsImportAction extends StatelessWidget {
     FilePickerResult? result;
 
     try {
-      result = await FilePicker.platform.pickFiles(
+      result = await FilePicker.pickFiles(
         allowMultiple: true,
         type: FileType.custom,
         allowedExtensions: const ['xlsx', 'xls'],

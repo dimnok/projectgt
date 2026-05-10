@@ -1,95 +1,69 @@
-import 'package:flutter/cupertino.dart';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:projectgt/core/utils/employee_ui_utils.dart';
+import 'package:projectgt/core/widgets/gt_text_action_link.dart';
 import 'package:projectgt/domain/entities/employee.dart';
 import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:projectgt/presentation/state/employee_state.dart'
     as employee_state;
 
-// --- Единая геометрия строки фильтров (без GTTextField / GTDropdown) ---
+// --- Геометрия и цвета как у панели табеля ([TimesheetObjectsBarDropdown],
+// [TimesheetEmployeeListScopeSegment]): высота 34, скругление 18. ---
 
-const double _kH = 42;
-const double _kR = 11;
+const double _kBarHeight = 34;
+const double _kBarRadius = 18;
 const double _kFs = 14;
 const double _kIcon = 18;
-const double _kChipGap = 8;
+const double _kMenuMaxHeight = 220;
+const double _kMenuWidth = 200;
 
-/// Максимальная ширина триггера «Объект» (компактное поле).
-const double _kObjectMaxWidth = 196;
+/// Обводка и заливка триггеров — как в модуле «Табель».
+Color _tsBorderColor(ColorScheme scheme) =>
+    scheme.outline.withValues(alpha: 0.38);
 
-/// Соотношение ширины: поиск / чипы статусов (объект фиксирован по [_kObjectMaxWidth]).
-/// Поиск ≈ на треть уже прежнего (4:6 вместо 6:4) — освобождённая доля у чипов.
-const int _kFlexSearch = 4;
-const int _kFlexStatusChips = 6;
+Color _tsTrackFill(ColorScheme scheme) =>
+    scheme.surfaceContainerHighest.withValues(alpha: 0.45);
 
-const double _kPanelRadius = 16;
-const double _kPanelPaddingH = 16;
-const double _kPanelPaddingV = 14;
-const double _kDividerGap = 12;
+/// Запас для порога «нужен горизонтальный скролл» (не добавляется к ширине дорожки при обнимании).
+const double _kStatusTrackScrollSlack = 8;
 
-Color _filtersFill(ThemeData theme) {
-  final d = theme.brightness == Brightness.dark;
-  return d ? Colors.white.withValues(alpha: 0.06) : Colors.white;
-}
+/// Микрозапас ширины дорожки (hinting). Лишнее пространство визуально делится пополам за счёт
+/// [MainAxisAlignment.center] у ряда сегментов.
+const double _kStatusTrackHugMicroSlack = 2;
 
-Color _filtersBorder(ThemeData theme, {required bool strong}) {
-  final d = theme.brightness == Brightness.dark;
-  if (strong) return d ? Colors.white : Colors.black;
-  return d
-      ? Colors.white.withValues(alpha: 0.14)
-      : Colors.black.withValues(alpha: 0.1);
-}
+/// Внешняя ширина дорожки минус область под [Row]: обводка 1+1 и внутренний [Padding] 2+2.
+const double _kStatusTrackInnerPadDeduction = 6;
 
-Color _panelBackdrop(ThemeData theme) {
-  final d = theme.brightness == Brightness.dark;
-  return d
-      ? Colors.white.withValues(alpha: 0.04)
-      : Colors.black.withValues(alpha: 0.02);
-}
-
-List<BoxShadow> _fieldShadows(ThemeData theme) {
-  final d = theme.brightness == Brightness.dark;
-  return [
-    BoxShadow(
-      color: Colors.black.withValues(alpha: d ? 0.35 : 0.06),
-      blurRadius: d ? 10 : 6,
-      offset: const Offset(0, 2),
-    ),
-  ];
-}
-
-BoxDecoration _panelDecoration(ThemeData theme) {
-  return BoxDecoration(
-    color: _panelBackdrop(theme),
-    borderRadius: BorderRadius.circular(_kPanelRadius),
-    border: Border.all(color: _filtersBorder(theme, strong: false)),
-    boxShadow: [
-      BoxShadow(
-        color: Colors.black.withValues(
-          alpha: theme.brightness == Brightness.dark ? 0.4 : 0.07,
-        ),
-        blurRadius: 20,
-        offset: const Offset(0, 6),
-        spreadRadius: -2,
-      ),
-    ],
-  );
-}
-
-Widget _toolbarDivider(ThemeData theme) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(horizontal: _kDividerGap / 2),
-    child: Center(
-      child: Container(
-        width: 1,
-        height: 26,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(1),
-          color: _filtersBorder(theme, strong: false).withValues(alpha: 0.65),
-        ),
-      ),
-    ),
-  );
+/// Ширина дорожки статусов по реальным подписям (запас под bold и масштаб текста).
+double _measureEmployeesStatusTrackWidth(
+  BuildContext context,
+  ThemeData theme,
+  List<String> labels,
+) {
+  final scaler = MediaQuery.textScalerOf(context);
+  final style = (theme.textTheme.labelLarge ?? theme.textTheme.bodyMedium!)
+      .copyWith(
+        fontWeight: FontWeight.w600,
+        fontSize: 12.5,
+        height: 1.1,
+      );
+  var w = 4.0;
+  for (var i = 0; i < labels.length; i++) {
+    if (i > 0) {
+      w += 2.0;
+    }
+    final tp = TextPainter(
+      text: TextSpan(text: labels[i], style: style),
+      maxLines: 1,
+      textScaler: scaler,
+      textDirection: Directionality.of(context),
+    )..layout(maxWidth: double.infinity);
+    // Каждый сегмент: horizontal padding 10+10 и Border.all(width: 1) слева/справа (+2).
+    w += math.max(56.0, tp.width + 22.0);
+  }
+  return w + 2.0;
 }
 
 /// Значение фильтра таблицы сотрудников по привязке к объектам ([Employee.objectIds]).
@@ -173,9 +147,12 @@ class EmployeesObjectTableFilterValue {
   int get hashCode => Object.hash(_kind, _objectId);
 }
 
-/// Самостоятельная строка фильтров таблицы сотрудников (без GTTextField/GTDropdown).
+/// Строка фильтров таблицы сотрудников (без GTTextField/GTDropdown).
 ///
-/// Единые высота [_kH] и скругление [_kR] для поиска, меню объекта и чипов.
+/// Компоновка в духе админ-панелей: поиск с **ограниченной шириной** слева;
+/// выпадающий список объектов и дорожка статусов **рядом** (зазор 8px);
+/// при [canCreate]/[canExport] — текстовые ссылки «Добавить сотрудника» и «Экспорт»
+/// справа в той же строке.
 class EmployeesTableFiltersToolbar extends ConsumerStatefulWidget {
   /// Создаёт тулбар фильтров.
   const EmployeesTableFiltersToolbar({
@@ -187,6 +164,10 @@ class EmployeesTableFiltersToolbar extends ConsumerStatefulWidget {
     required this.onStatusSelected,
     required this.objectFilter,
     required this.onObjectFilterChanged,
+    this.canCreate = false,
+    this.canExport = false,
+    this.onAddEmployee,
+    this.onExport,
   });
 
   /// Сотрудники для счётчиков на чипах (после поиска и фильтра по объекту).
@@ -209,6 +190,18 @@ class EmployeesTableFiltersToolbar extends ConsumerStatefulWidget {
 
   /// Смена фильтра по объекту.
   final ValueChanged<EmployeesObjectTableFilterValue> onObjectFilterChanged;
+
+  /// Показывать ссылку «Добавить сотрудника» справа в строке фильтров.
+  final bool canCreate;
+
+  /// Показывать ссылку «Экспорт» справа в строке фильтров.
+  final bool canExport;
+
+  /// Добавление сотрудника (если [canCreate]).
+  final VoidCallback? onAddEmployee;
+
+  /// Экспорт списка (если [canExport]).
+  final VoidCallback? onExport;
 
   @override
   ConsumerState<EmployeesTableFiltersToolbar> createState() =>
@@ -243,15 +236,16 @@ class _EmployeesTableFiltersToolbarState
     });
   }
 
-  BoxDecoration _box(ThemeData theme, {required bool strongBorder}) {
+  BoxDecoration _searchDecoration(ThemeData theme, {required bool focused}) {
+    final scheme = theme.colorScheme;
+    final borderColor = focused
+        ? scheme.primary.withValues(alpha: 0.85)
+        : _tsBorderColor(scheme);
+    final width = focused ? 1.5 : 1.0;
     return BoxDecoration(
-      color: _filtersFill(theme),
-      borderRadius: BorderRadius.circular(_kR),
-      border: Border.all(
-        color: _filtersBorder(theme, strong: strongBorder),
-        width: strongBorder ? 1.5 : 1,
-      ),
-      boxShadow: _fieldShadows(theme),
+      borderRadius: BorderRadius.circular(_kBarRadius),
+      border: Border.all(color: borderColor, width: width),
+      color: _tsTrackFill(scheme),
     );
   }
 
@@ -269,6 +263,7 @@ class _EmployeesTableFiltersToolbarState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final items = <EmployeesObjectTableFilterValue>[
       EmployeesObjectTableFilterValue.all,
       EmployeesObjectTableFilterValue.unassigned,
@@ -281,68 +276,101 @@ class _EmployeesTableFiltersToolbarState
         theme.textTheme.bodyMedium?.copyWith(
           fontSize: _kFs,
           height: 1.2,
-          color: theme.colorScheme.onSurface,
+          color: scheme.onSurface,
         ) ??
-        TextStyle(fontSize: _kFs, color: theme.colorScheme.onSurface);
+        TextStyle(fontSize: _kFs, color: scheme.onSurface);
 
-    return DecoratedBox(
-      decoration: _panelDecoration(theme),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: _kPanelPaddingH,
-          vertical: _kPanelPaddingV,
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Expanded(
-              flex: _kFlexSearch,
-              child: _ToolbarSearch(
-                height: _kH,
-                radius: _kR,
-                decoration: _box(theme, strongBorder: _searchFocus.hasFocus),
-                controller: _searchController,
-                focusNode: _searchFocus,
-                textStyle: textStyle,
-                hintStyle: textStyle.copyWith(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.42),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final rowW = constraints.maxWidth;
+          final showToolbarActions = (widget.canCreate &&
+                  widget.onAddEmployee != null) ||
+              (widget.canExport && widget.onExport != null);
+          const gapsReserveBase = 212.0;
+          // Резерв под «Добавить сотрудника» и «Экспорт» справа в строке.
+          const trailingActionsReserve = 300.0;
+          final gapsReserve = gapsReserveBase +
+              (showToolbarActions ? trailingActionsReserve : 0);
+          final computedSearch = rowW.isFinite
+              ? math.min(380.0, math.max(220.0, rowW * 0.34))
+              : 380.0;
+          final searchW = rowW.isFinite
+              ? math.min(
+                  computedSearch,
+                  math.max(160.0, rowW - gapsReserve),
+                )
+              : computedSearch;
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: searchW,
+                child: _ToolbarSearch(
+                  decoration: _searchDecoration(
+                    theme,
+                    focused: _searchFocus.hasFocus,
+                  ),
+                  controller: _searchController,
+                  focusNode: _searchFocus,
+                  textStyle: textStyle,
+                  hintStyle: textStyle.copyWith(
+                    color: scheme.onSurface.withValues(alpha: 0.42),
+                  ),
+                  onChanged: _syncSearch,
                 ),
-                onChanged: _syncSearch,
               ),
-            ),
-            _toolbarDivider(theme),
-            ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: _kObjectMaxWidth,
-                minWidth: 120,
-              ),
-              child: _ToolbarObjectMenu(
-                height: _kH,
-                radius: _kR,
-                decoration: _box(theme, strongBorder: false),
-                textStyle: textStyle,
-                theme: theme,
+              const SizedBox(width: 12),
+              _ToolbarObjectMenu(
+                scheme: scheme,
                 objectsLoading: widget.objectsLoading,
                 selected: widget.objectFilter,
                 items: items,
                 labelFor: _objectLabel,
                 onSelected: widget.onObjectFilterChanged,
               ),
-            ),
-            _toolbarDivider(theme),
-            Expanded(
-              flex: _kFlexStatusChips,
-              child: _ToolbarStatusChips(
-                height: _kH,
-                radius: _kR,
-                theme: theme,
-                employees: widget.employeesForStatusCounts,
-                selectedStatus: widget.selectedStatus,
-                onStatusSelected: widget.onStatusSelected,
+              const SizedBox(width: 8),
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 2),
+                    child: _EmployeesStatusSegmentBar(
+                      scheme: scheme,
+                      theme: theme,
+                      employees: widget.employeesForStatusCounts,
+                      selectedStatus: widget.selectedStatus,
+                      onStatusSelected: widget.onStatusSelected,
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ],
-        ),
+              if (showToolbarActions) ...[
+                const SizedBox(width: 12),
+                Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: 16,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    if (widget.canCreate && widget.onAddEmployee != null)
+                      GtTextActionLink(
+                        label: 'Добавить сотрудника',
+                        onTap: widget.onAddEmployee!,
+                      ),
+                    if (widget.canExport && widget.onExport != null)
+                      GtTextActionLink(
+                        label: 'Экспорт',
+                        onTap: widget.onExport!,
+                      ),
+                  ],
+                ),
+              ],
+            ],
+          );
+        },
       ),
     );
   }
@@ -350,8 +378,6 @@ class _EmployeesTableFiltersToolbarState
 
 class _ToolbarSearch extends StatelessWidget {
   const _ToolbarSearch({
-    required this.height,
-    required this.radius,
     required this.decoration,
     required this.controller,
     required this.focusNode,
@@ -360,8 +386,6 @@ class _ToolbarSearch extends StatelessWidget {
     required this.onChanged,
   });
 
-  final double height;
-  final double radius;
   final BoxDecoration decoration;
   final TextEditingController controller;
   final FocusNode focusNode;
@@ -371,26 +395,23 @@ class _ToolbarSearch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final iconMuted = scheme.onSurface.withValues(alpha: 0.55);
     return ListenableBuilder(
       listenable: controller,
       builder: (context, _) {
         final hasText = controller.text.isNotEmpty;
         return AnimatedContainer(
           duration: const Duration(milliseconds: 120),
-          height: height,
+          height: _kBarHeight,
           decoration: decoration,
           child: Material(
             color: Colors.transparent,
-            borderRadius: BorderRadius.circular(radius),
+            borderRadius: BorderRadius.circular(_kBarRadius),
             child: Row(
               children: [
                 const SizedBox(width: 10),
-                Icon(
-                  CupertinoIcons.search,
-                  size: _kIcon,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
-                ),
+                Icon(Icons.search_rounded, size: _kIcon, color: iconMuted),
                 const SizedBox(width: 8),
                 Expanded(
                   child: TextField(
@@ -424,15 +445,13 @@ class _ToolbarSearch extends StatelessWidget {
                             onChanged('');
                           },
                           child: SizedBox(
-                            width: height,
-                            height: height,
+                            width: _kBarHeight,
+                            height: _kBarHeight,
                             child: Center(
                               child: Icon(
-                                CupertinoIcons.xmark,
+                                Icons.close_rounded,
                                 size: 20,
-                                color: theme.colorScheme.onSurface.withValues(
-                                  alpha: 0.45,
-                                ),
+                                color: scheme.onSurface.withValues(alpha: 0.45),
                               ),
                             ),
                           ),
@@ -453,11 +472,7 @@ class _ToolbarSearch extends StatelessWidget {
 
 class _ToolbarObjectMenu extends StatelessWidget {
   const _ToolbarObjectMenu({
-    required this.height,
-    required this.radius,
-    required this.decoration,
-    required this.textStyle,
-    required this.theme,
+    required this.scheme,
     required this.objectsLoading,
     required this.selected,
     required this.items,
@@ -465,11 +480,7 @@ class _ToolbarObjectMenu extends StatelessWidget {
     required this.onSelected,
   });
 
-  final double height;
-  final double radius;
-  final BoxDecoration decoration;
-  final TextStyle textStyle;
-  final ThemeData theme;
+  final ColorScheme scheme;
   final bool objectsLoading;
   final EmployeesObjectTableFilterValue selected;
   final List<EmployeesObjectTableFilterValue> items;
@@ -478,99 +489,105 @@ class _ToolbarObjectMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final borderColor = _tsBorderColor(scheme);
+    final fill = _tsTrackFill(scheme);
+    final iconMuted = scheme.onSurface.withValues(alpha: 0.55);
     final label = labelFor(selected);
+    final triggerTextStyle = theme.textTheme.labelLarge?.copyWith(
+      fontWeight: FontWeight.w600,
+      fontSize: 14,
+      height: 1.2,
+      color: scheme.onSurface,
+    );
 
     return MenuAnchor(
       style: MenuStyle(
-        backgroundColor: WidgetStatePropertyAll(theme.colorScheme.surface),
-        elevation: const WidgetStatePropertyAll(8),
+        backgroundColor: WidgetStatePropertyAll(scheme.surface),
+        elevation: const WidgetStatePropertyAll(6),
         shadowColor: WidgetStatePropertyAll(
-          theme.colorScheme.shadow.withValues(alpha: 0.28),
+          scheme.shadow.withValues(alpha: 0.18),
         ),
         shape: WidgetStatePropertyAll(
           RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(_kR),
-            side: BorderSide(color: _filtersBorder(theme, strong: false)),
+            borderRadius: BorderRadius.circular(10),
+            side: BorderSide(color: borderColor),
           ),
         ),
-        maximumSize: const WidgetStatePropertyAll(Size(double.infinity, 320)),
+        padding: const WidgetStatePropertyAll(EdgeInsets.zero),
       ),
       menuChildren: [
-        for (final v in items)
-          MenuItemButton(
-            onPressed: objectsLoading ? null : () => onSelected(v),
-            leadingIcon: v == selected
-                ? Icon(
-                    CupertinoIcons.check_mark,
-                    size: _kIcon,
-                    color: theme.colorScheme.primary,
-                  )
-                : const SizedBox(width: _kIcon, height: _kIcon),
-            child: Text(
-              labelFor(v),
-              style: textStyle,
-              overflow: TextOverflow.ellipsis,
-            ),
+        _EmployeesObjectFilterMenu(
+          key: ValueKey(
+            '${objectsLoading}_${items.length}_${selected.hashCode}',
           ),
+          scheme: scheme,
+          theme: theme,
+          objectsLoading: objectsLoading,
+          items: items,
+          selected: selected,
+          labelFor: labelFor,
+          onPick: onSelected,
+        ),
       ],
-      builder: (context, controller, _) {
+      builder: (context, menuController, _) {
         return Tooltip(
-          message: 'Объект · $label',
+          message: 'Фильтр по объектам',
           child: Material(
             color: Colors.transparent,
-            borderRadius: BorderRadius.circular(radius),
+            borderRadius: BorderRadius.circular(_kBarRadius),
             child: InkWell(
-              borderRadius: BorderRadius.circular(radius),
+              borderRadius: BorderRadius.circular(_kBarRadius),
               onTap: objectsLoading
                   ? null
                   : () {
-                      if (controller.isOpen) {
-                        controller.close();
+                      if (menuController.isOpen) {
+                        menuController.close();
                       } else {
-                        controller.open();
+                        menuController.open();
                       }
                     },
               child: Ink(
-                height: height,
-                decoration: decoration,
+                height: _kBarHeight,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(_kBarRadius),
+                  border: Border.all(color: borderColor),
+                  color: fill,
+                ),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        CupertinoIcons.layers,
+                        Icons.apartment_outlined,
                         size: _kIcon,
-                        color: theme.colorScheme.onSurface.withValues(
-                          alpha: 0.55,
-                        ),
+                        color: iconMuted,
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
+                      const SizedBox(width: 6),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 168),
                         child: Text(
                           label,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: textStyle,
+                          style: triggerTextStyle,
                         ),
                       ),
+                      const SizedBox(width: 2),
                       if (objectsLoading)
-                        const Padding(
-                          padding: EdgeInsets.only(left: 4),
-                          child: SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
+                        const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       else
                         Icon(
-                          controller.isOpen
-                              ? CupertinoIcons.chevron_up
-                              : CupertinoIcons.chevron_down,
-                          size: _kIcon,
-                          color: theme.colorScheme.onSurface.withValues(
-                            alpha: 0.45,
-                          ),
+                          menuController.isOpen
+                              ? Icons.expand_less_rounded
+                              : Icons.expand_more_rounded,
+                          size: 20,
+                          color: iconMuted,
                         ),
                     ],
                   ),
@@ -584,18 +601,141 @@ class _ToolbarObjectMenu extends StatelessWidget {
   }
 }
 
-class _ToolbarStatusChips extends StatelessWidget {
-  const _ToolbarStatusChips({
-    required this.height,
-    required this.radius,
+/// Содержимое меню объектов: заголовок «ОБЪЕКТЫ» и строки как в табеле.
+class _EmployeesObjectFilterMenu extends StatelessWidget {
+  const _EmployeesObjectFilterMenu({
+    super.key,
+    required this.scheme,
+    required this.theme,
+    required this.objectsLoading,
+    required this.items,
+    required this.selected,
+    required this.labelFor,
+    required this.onPick,
+  });
+
+  final ColorScheme scheme;
+  final ThemeData theme;
+  final bool objectsLoading;
+  final List<EmployeesObjectTableFilterValue> items;
+  final EmployeesObjectTableFilterValue selected;
+  final String Function(EmployeesObjectTableFilterValue) labelFor;
+  final ValueChanged<EmployeesObjectTableFilterValue> onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    final headerStyle = theme.textTheme.labelMedium?.copyWith(
+      fontWeight: FontWeight.w600,
+      fontSize: 11,
+      letterSpacing: 0.4,
+      height: 1.1,
+      color: scheme.onSurface.withValues(alpha: 0.65),
+    );
+    final rowTextStyle = theme.textTheme.bodyMedium?.copyWith(
+      fontSize: 13.5,
+      height: 1.15,
+      color: scheme.onSurface,
+    );
+
+    Widget row({
+      required String semanticLabel,
+      required bool isSelected,
+      required String text,
+      required VoidCallback onTap,
+    }) {
+      return Semantics(
+        button: true,
+        selected: isSelected,
+        label: semanticLabel,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: objectsLoading
+                ? null
+                : () {
+                    onTap();
+                    MenuController.maybeOf(context)?.close();
+                  },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 22,
+                    child: isSelected
+                        ? Icon(
+                            Icons.check_rounded,
+                            size: 18,
+                            color: scheme.primary,
+                          )
+                        : null,
+                  ),
+                  Expanded(
+                    child: Text(
+                      text,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: rowTextStyle?.copyWith(
+                        fontWeight:
+                            isSelected ? FontWeight.w600 : FontWeight.w400,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return SizedBox(
+      width: _kMenuWidth,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 6, 10, 4),
+            child: Text('ОБЪЕКТЫ', style: headerStyle),
+          ),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: _kMenuMaxHeight),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (final v in items)
+                    row(
+                      semanticLabel: labelFor(v),
+                      isSelected: v == selected,
+                      text: labelFor(v),
+                      onTap: () => onPick(v),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Сегментированный фильтр статусов в одной дорожке (в стиле табеля).
+class _EmployeesStatusSegmentBar extends StatelessWidget {
+  const _EmployeesStatusSegmentBar({
+    required this.scheme,
     required this.theme,
     required this.employees,
     required this.selectedStatus,
     required this.onStatusSelected,
   });
 
-  final double height;
-  final double radius;
+  final ColorScheme scheme;
   final ThemeData theme;
   final List<Employee> employees;
   final EmployeeStatus? selectedStatus;
@@ -618,6 +758,12 @@ class _ToolbarStatusChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final borderColor = _tsBorderColor(scheme);
+    final trackFill = _tsTrackFill(scheme);
+    final selectedFill = scheme.surface;
+    final outlineSelected = scheme.outline.withValues(alpha: 0.22);
+    final shadowSoft = scheme.shadow.withValues(alpha: 0.1);
+
     final counts = <EmployeeStatus?, int>{
       null: employees.length,
       EmployeeStatus.working: 0,
@@ -630,119 +776,195 @@ class _ToolbarStatusChips extends StatelessWidget {
       counts[e.status] = (counts[e.status] ?? 0) + 1;
     }
 
-    // Статусы с ненулевым счётчиком; выбранный статус оставляем, чтобы можно
-    // было снять фильтр через «Все», даже если после других фильтров счётчик 0.
     final visibleStatuses = EmployeeStatus.values
         .where(
           (s) => (counts[s] ?? 0) > 0 || selectedStatus == s,
         )
         .toList(growable: false);
-    final chipCount = 1 + visibleStatuses.length;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final w =
-            (constraints.maxWidth - ((chipCount - 1) * _kChipGap)) / chipCount;
+    final statusLabels = [
+      'Все',
+      ...visibleStatuses.map(_statusLabel),
+    ];
 
-        Widget chip({
-          required String label,
-          required int count,
-          required bool selected,
-          required VoidCallback onTap,
-        }) {
-          final d = theme.brightness == Brightness.dark;
-          final accent = selected
-              ? (d ? Colors.white : Colors.black)
-              : theme.colorScheme.onSurface;
-          return SizedBox(
-            width: w,
-            height: height,
-            child: Material(
-              color: selected
-                  ? (d
-                        ? Colors.white.withValues(alpha: 0.1)
-                        : Colors.black.withValues(alpha: 0.05))
-                  : _filtersFill(theme),
-              borderRadius: BorderRadius.circular(radius),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(radius),
-                onTap: onTap,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(radius),
-                    border: Border.all(
-                      color: selected
-                          ? (d ? Colors.white : Colors.black)
-                          : _filtersBorder(theme, strong: false),
-                      width: selected ? 1.5 : 1,
-                    ),
-                    boxShadow: _fieldShadows(theme),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            label,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              fontSize: 12,
-                              height: 1.1,
-                              color: accent.withValues(
-                                alpha: selected ? 1 : 0.65,
-                              ),
-                              fontWeight: selected
-                                  ? FontWeight.w600
-                                  : FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '$count',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            fontSize: 12,
-                            height: 1.1,
-                            color: accent.withValues(
-                              alpha: selected ? 0.85 : 0.4,
-                            ),
-                            fontWeight: selected
-                                ? FontWeight.w600
-                                : FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+    TextStyle segmentText(bool selected) {
+      final base = theme.textTheme.labelLarge ?? theme.textTheme.bodyMedium!;
+      return base.copyWith(
+        fontWeight: FontWeight.w600,
+        fontSize: 12.5,
+        height: 1.1,
+        color: selected
+            ? scheme.onSurface
+            : scheme.onSurface.withValues(alpha: 0.52),
+      );
+    }
+
+    Widget segment({
+      required String label,
+      required bool selected,
+      required VoidCallback onTap,
+      Color? statusAccent,
+    }) {
+      final bool tinted = selected && statusAccent != null;
+      final Color fillColor;
+      final Color outlineColor;
+      final Color shadowColor;
+      if (!selected) {
+        fillColor = Colors.transparent;
+        outlineColor = Colors.transparent;
+        shadowColor = Colors.transparent;
+      } else if (tinted) {
+        final accent = statusAccent;
+        final tintA = theme.brightness == Brightness.dark ? 0.26 : 0.18;
+        fillColor = Color.alphaBlend(
+          accent.withValues(alpha: tintA),
+          scheme.surface,
+        );
+        outlineColor = accent.withValues(
+          alpha: theme.brightness == Brightness.dark ? 0.58 : 0.48,
+        );
+        shadowColor = accent.withValues(alpha: 0.14);
+      } else {
+        fillColor = selectedFill;
+        outlineColor = outlineSelected;
+        shadowColor = shadowSoft;
+      }
+
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(_kBarRadius - 3),
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            constraints: const BoxConstraints(minWidth: 56),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(_kBarRadius - 3),
+              color: fillColor,
+              border: Border.all(
+                color: outlineColor,
+                width: 1,
               ),
+              boxShadow: selected
+                  ? [
+                      BoxShadow(
+                        color: shadowColor,
+                        blurRadius: 3,
+                        offset: const Offset(0, 1),
+                      ),
+                    ]
+                  : null,
             ),
-          );
-        }
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: segmentText(selected),
+            ),
+          ),
+        ),
+      );
+    }
 
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            chip(
-              label: 'Все',
-              count: counts[null]!,
-              selected: selectedStatus == null,
-              onTap: () => onStatusSelected(null),
-            ),
-            ...visibleStatuses.map(
-              (s) => chip(
+    Widget segmentRow() {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          segment(
+            label: 'Все',
+            selected: selectedStatus == null,
+            onTap: () => onStatusSelected(null),
+            statusAccent: null,
+          ),
+          ...visibleStatuses.expand(
+            (s) => [
+              const SizedBox(width: 2),
+              segment(
                 label: _statusLabel(s),
-                count: counts[s] ?? 0,
                 selected: selectedStatus == s,
                 onTap: () => onStatusSelected(s),
+                statusAccent: EmployeeUIUtils.getStatusInfo(s).$2,
               ),
-            ),
-          ],
-        );
-      },
+            ],
+          ),
+        ],
+      );
+    }
+
+    return Tooltip(
+      message: 'Фильтр по статусу сотрудника',
+      child: Semantics(
+        label: 'Статусы сотрудников',
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final maxOuter = constraints.maxWidth;
+            final intrinsicMeasured = _measureEmployeesStatusTrackWidth(
+              context,
+              theme,
+              statusLabels,
+            );
+            final scrollThreshold =
+                intrinsicMeasured + _kStatusTrackScrollSlack;
+            final hasWidthCap =
+                maxOuter.isFinite && maxOuter > 0 && maxOuter < double.infinity;
+            final useScroll = hasWidthCap && scrollThreshold > maxOuter;
+            final barWidth = hasWidthCap
+                ? (useScroll
+                    ? maxOuter
+                    : math.min(
+                        intrinsicMeasured + _kStatusTrackHugMicroSlack,
+                        maxOuter,
+                      ))
+                : null;
+
+            final inner = useScroll
+                ? SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    clipBehavior: Clip.hardEdge,
+                    primary: false,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minWidth: math.max(
+                          0,
+                          barWidth! - _kStatusTrackInnerPadDeduction,
+                        ),
+                      ),
+                      child: segmentRow(),
+                    ),
+                  )
+                : segmentRow();
+
+            final decorated = DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(_kBarRadius),
+                border: Border.all(color: borderColor),
+                color: trackFill,
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(_kBarRadius),
+                child: Padding(
+                  padding: const EdgeInsets.all(2),
+                  child: inner,
+                ),
+              ),
+            );
+
+            if (barWidth == null) {
+              return SizedBox(height: _kBarHeight, child: decorated);
+            }
+            return SizedBox(
+              width: barWidth,
+              height: _kBarHeight,
+              child: decorated,
+            );
+          },
+        ),
+      ),
     );
   }
 }

@@ -266,15 +266,31 @@ class SupabaseEmployeeDataSource implements EmployeeDataSource {
         return [];
       }
 
-      final worksRows = await client
-          .from('works')
-          .select('id, date, object_id, objects(name)')
-          .eq('company_id', activeCompanyId)
-          .inFilter('id', workIds.toList())
-          .order('date', ascending: false);
+      final allWorkIds = workIds.toList();
+      final worksRows = <dynamic>[];
+      const chunk = 20;
+      for (var i = 0; i < allWorkIds.length; i += chunk) {
+        final slice = allWorkIds.sublist(
+          i,
+          i + chunk > allWorkIds.length ? allWorkIds.length : i + chunk,
+        );
+        final chunkRows = await client
+            .from('works')
+            .select('id, date, object_id, objects(name)')
+            .eq('company_id', activeCompanyId)
+            .inFilter('id', slice);
+        worksRows.addAll(chunkRows as List);
+      }
+      
+      // Сортировка на клиенте, так как мы запрашивали частями
+      worksRows.sort((a, b) {
+        final dateA = (a as Map)['date'] as String? ?? '';
+        final dateB = (b as Map)['date'] as String? ?? '';
+        return dateB.compareTo(dateA); // descending
+      });
 
       final out = <EmployeeBlockingShift>[];
-      for (final row in worksRows as List) {
+      for (final row in worksRows) {
         final m = Map<String, dynamic>.from(row as Map);
         final id = m['id'] as String? ?? '';
         final dateRaw = m['date'];

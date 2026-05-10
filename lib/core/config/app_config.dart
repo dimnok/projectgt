@@ -43,7 +43,6 @@ class AppConfig {
   static String get supabaseUrl {
     if (kIsWeb) {
       // SELF-HOSTED: api.progt.ru
-      // TODO: Удалить старый URL после стабилизации (hzcawspbkvkrsmsklyuj.supabase.co)
       return 'https://api.progt.ru';
     }
 
@@ -54,7 +53,6 @@ class AppConfig {
     }
 
     // Fallback на Self-hosted сервер
-    // TODO: Удалить старый URL после стабилизации (hzcawspbkvkrsmsklyuj.supabase.co)
     return 'https://api.progt.ru';
   }
 
@@ -62,7 +60,6 @@ class AppConfig {
   static String get supabaseAnonKey {
     if (kIsWeb) {
       // SELF-HOSTED: api.progt.ru
-      // TODO: Удалить старый ключ после стабилизации (eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6Y2F3c3Bia3ZrcnNtc2tseXVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ0NzkyODEsImV4cCI6MjA2MDA1NTI4MX0.VOeRvuFE9mVGXXEs8ylEeVyebB1DAqH-9r-73awQQ4k)
       return 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzczODYwMDU3LCJleHAiOjIwODg5MTQ0NTB9.7y8Hpqmi2eB-IV2gVyjGk45Sz_R-IKevZ_W97C2rMOg';
     }
 
@@ -73,7 +70,6 @@ class AppConfig {
     }
 
     // Fallback на Self-hosted ключ
-    // TODO: Удалить старый ключ после стабилизации (eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6Y2F3c3Bia3ZrcnNtc2tseXVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ0NzkyODEsImV4cCI6MjA2MDA1NTI4MX0.VOeRvuFE9mVGXXEs8ylEeVyebB1DAqH-9r-73awQQ4k)
     return 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzczODYwMDU3LCJleHAiOjIwODg5MTQ0NTB9.7y8Hpqmi2eB-IV2gVyjGk45Sz_R-IKevZ_W97C2rMOg';
   }
 

@@ -5,9 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/shifts_provider.dart';
 
-const Color _telegramBlue = Color(0xFF229ED9);
-const Color _whatsappGreen = Color(0xFF25D366);
-const Color _softRed = Color(0xFFE57373);
+const Color _telegramBlue = Color(0xFF3B82F6); // Vibrant Blue
+const Color _whatsappGreen = Color(0xFF10B981); // Vibrant Green
+const Color _softRed = Color(0xFFEF4444); // Vibrant Red
+const Color _warningAmber = Color(0xFFF59E0B); // Amber for medium values
 
 /// Форматер для денежных сумм (руб., 0 знаков после запятой)
 final _moneyFormatter = NumberFormat.currency(
@@ -29,19 +30,16 @@ const double _dayFontSize = 9.0;
 const Duration _animationDuration = Duration(milliseconds: 400);
 const Duration _cellAnimationDuration = Duration(milliseconds: 220);
 
-/// Коэффициенты прозрачности цветов
-const double _emptyCellAlpha = 0.18;
-const double _emptyCellBorderAlpha = 0.28;
-const double _emptyCellTextAlpha = 0.9;
-const double _maxCellAlpha = 0.28;
-const double _maxCellBorderAlpha = 0.38;
-const double _normalCellAlpha = 0.22;
-const double _normalCellBorderAlpha = 0.32;
-
 /// Виджет календаря смен - использует отдельный провайдер шифт-данных.
 class ShiftsCalendarFlipCard extends ConsumerStatefulWidget {
+  /// Если `true`, заголовок не отображается.
+  final bool hideHeader;
+
   /// Создает виджет календаря смен с отдельным провайдером данных.
-  const ShiftsCalendarFlipCard({super.key});
+  const ShiftsCalendarFlipCard({
+    super.key,
+    this.hideHeader = false,
+  });
 
   @override
   ConsumerState<ShiftsCalendarFlipCard> createState() =>
@@ -81,10 +79,14 @@ class _ShiftsCalendarFlipCardState extends ConsumerState<ShiftsCalendarFlipCard>
 
   @override
   Widget build(BuildContext context) {
-    final shiftsAsync = ref.watch(shiftsForMonthProvider(_currentMonth));
+    final monthStr =
+        '${_currentMonth.year}-${_currentMonth.month.toString().padLeft(2, '0')}';
+    final shiftsAsync = ref.watch(shiftsForMonthProvider(monthStr));
 
     if (_selectedDate != null) {
-      final dateDetailsAsync = ref.watch(shiftsForDateProvider(_selectedDate!));
+      final dateStr =
+          '${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}';
+      final dateDetailsAsync = ref.watch(shiftsForDateProvider(dateStr));
 
       return AnimatedBuilder(
         animation: _animController,
@@ -94,23 +96,22 @@ class _ShiftsCalendarFlipCardState extends ConsumerState<ShiftsCalendarFlipCard>
               /// Календарь видимый в фоне (скрывается с анимацией)
               Opacity(
                 opacity: 1 - _fadeAnimation.value,
-                child: SingleChildScrollView(
-                  physics: const NeverScrollableScrollPhysics(),
-                  child: shiftsAsync.when(
-                    loading: () => const ShiftsHeatmap(
-                      shifts: [],
-                      isLoading: true,
+                child: shiftsAsync.when(
+                  loading: () => ShiftsHeatmap(
+                    shifts: [],
+                    isLoading: true,
+                    onDateTap: null,
+                    hideHeader: widget.hideHeader,
+                  ),
+                  error: (err, stack) => Center(
+                    child: SelectableText('Ошибка загрузки: $err'),
+                  ),
+                  data: (shifts) => IgnorePointer(
+                    child: ShiftsHeatmap(
+                      shifts: shifts,
+                      isLoading: false,
                       onDateTap: null,
-                    ),
-                    error: (err, stack) => Center(
-                      child: SelectableText('Ошибка загрузки: $err'),
-                    ),
-                    data: (shifts) => IgnorePointer(
-                      child: ShiftsHeatmap(
-                        shifts: shifts,
-                        isLoading: false,
-                        onDateTap: null,
-                      ),
+                      hideHeader: widget.hideHeader,
                     ),
                   ),
                 ),
@@ -163,34 +164,27 @@ class _ShiftsCalendarFlipCardState extends ConsumerState<ShiftsCalendarFlipCard>
 
     /// Календарь смен - основной вид
     return shiftsAsync.when(
-      loading: () => const SingleChildScrollView(
-        physics: NeverScrollableScrollPhysics(),
-        child: ShiftsHeatmap(
-          shifts: [],
-          isLoading: true,
-          onDateTap: null,
-        ),
+      loading: () => ShiftsHeatmap(
+        shifts: [],
+        isLoading: true,
+        onDateTap: null,
+        hideHeader: widget.hideHeader,
       ),
-      error: (err, stack) => SingleChildScrollView(
-        physics: const NeverScrollableScrollPhysics(),
-        child: Center(
-          child: SelectableText('Ошибка загрузки: $err'),
-        ),
+      error: (err, stack) => Center(
+        child: SelectableText('Ошибка загрузки: $err'),
       ),
-      data: (shifts) => SingleChildScrollView(
-        physics: const NeverScrollableScrollPhysics(),
-        child: ShiftsHeatmap(
-          shifts: shifts,
-          isLoading: false,
-          onDateTap: (d, v) {
-            _animController.reset();
-            setState(() {
-              _selectedDate = d;
-              _selectedAmount = v;
-            });
-            _animController.forward();
-          },
-        ),
+      data: (shifts) => ShiftsHeatmap(
+        shifts: shifts,
+        isLoading: false,
+        hideHeader: widget.hideHeader,
+        onDateTap: (d, v) {
+          _animController.reset();
+          setState(() {
+            _selectedDate = d;
+            _selectedAmount = v;
+          });
+          _animController.forward();
+        },
       ),
     );
   }
@@ -211,12 +205,16 @@ class ShiftsHeatmap extends StatelessWidget {
   /// Callback при нажатии на дату.
   final void Function(DateTime date, double value)? onDateTap;
 
+  /// Если `true`, заголовок не отображается.
+  final bool hideHeader;
+
   /// Создает виджет тепловой карты смен.
   const ShiftsHeatmap({
     super.key,
     required this.shifts,
     required this.isLoading,
     this.onDateTap,
+    this.hideHeader = false,
   });
 
   @override
@@ -261,17 +259,20 @@ class ShiftsHeatmap extends StatelessWidget {
       Color textColor;
 
       if (isZero) {
-        fill = _softRed.withValues(alpha: _emptyCellAlpha);
-        border = _softRed.withValues(alpha: _emptyCellBorderAlpha);
-        textColor = _softRed.withValues(alpha: _emptyCellTextAlpha);
+        fill = _softRed.withValues(alpha: 0.08);
+        border = _softRed.withValues(alpha: 0.15);
+        textColor = _softRed;
       } else if (isMax) {
-        fill = _whatsappGreen.withValues(alpha: _maxCellAlpha);
-        border = _whatsappGreen.withValues(alpha: _maxCellBorderAlpha);
+        fill = _whatsappGreen.withValues(alpha: 0.15);
+        border = _whatsappGreen.withValues(alpha: 0.25);
         textColor = _whatsappGreen;
       } else {
-        fill = _telegramBlue.withValues(alpha: _normalCellAlpha);
-        border = _telegramBlue.withValues(alpha: _normalCellBorderAlpha);
-        textColor = _telegramBlue;
+        // Добавляем промежуточный цвет для средних значений
+        final bool isHigh = maxValue > 0 && (v > maxValue * 0.6);
+        final Color base = isHigh ? _warningAmber : _telegramBlue;
+        fill = base.withValues(alpha: 0.12);
+        border = base.withValues(alpha: 0.2);
+        textColor = base;
       }
 
       final box = Tooltip(
@@ -282,8 +283,15 @@ class ShiftsHeatmap extends StatelessWidget {
           margin: const EdgeInsets.all(2),
           decoration: BoxDecoration(
             color: fill,
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: border),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: border, width: 1.2),
+            boxShadow: !isZero ? [
+              BoxShadow(
+                color: textColor.withValues(alpha: 0.05),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              )
+            ] : null,
           ),
           width: _cellSize,
           height: _cellSize,
@@ -294,7 +302,7 @@ class ShiftsHeatmap extends StatelessWidget {
                     fontSize: _dayFontSize,
                     height: 1.0,
                     color: textColor.withValues(alpha: 0.9),
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w800,
                   ),
             ),
           ),
@@ -308,27 +316,29 @@ class ShiftsHeatmap extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Icon(CupertinoIcons.calendar,
-                size: 18,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
-            const SizedBox(width: 8),
-            Text(
-              'Календарь смен',
-              style: theme.textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(width: 8),
-            if (isLoading)
-              const SizedBox(
-                width: 14,
-                height: 14,
-                child: CircularProgressIndicator(strokeWidth: 2),
+        if (!hideHeader) ...[
+          Row(
+            children: [
+              Icon(CupertinoIcons.calendar,
+                  size: 18,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+              const SizedBox(width: 8),
+              Text(
+                'Календарь смен',
+                style: theme.textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w700),
               ),
-          ],
-        ),
-        const SizedBox(height: 12),
+              const SizedBox(width: 8),
+              if (isLoading)
+                const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+        ],
         LayoutBuilder(
           builder: (context, constraints) {
             const columns = 7;
@@ -431,10 +441,10 @@ class _CalendarBackSide extends StatelessWidget {
       alignment: Alignment.topLeft,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
               /// Верхняя панель: дата слева, кнопка назад справа.
               Row(
                 children: [
@@ -540,7 +550,6 @@ class _CalendarBackSide extends StatelessWidget {
               const SizedBox(height: 16),
             ],
           ),
-        ),
       ),
     );
   }

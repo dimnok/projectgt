@@ -117,7 +117,7 @@ class EstimateBulkUpdateExcelService {
     }
 
     if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
-      final outputFile = await FilePicker.platform.saveFile(
+      final outputFile = await FilePicker.saveFile(
         dialogTitle: 'Сохранение Excel для обновления сметы',
         fileName: fileName,
         type: FileType.custom,

@@ -738,7 +738,7 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
     }
 
     final itemsByRevision = <String, Map<String, dynamic>>{};
-    const chunk = 40;
+    const chunk = 20;
     for (var i = 0; i < revIds.length; i += chunk) {
       final slice = revIds.sublist(
         i,

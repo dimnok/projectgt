@@ -3,9 +3,10 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:file_saver/file_saver.dart';
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart' as path_provider;
 import 'package:projectgt/domain/entities/contract.dart';
 import 'package:projectgt/domain/entities/contract_file.dart';
 import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
@@ -30,13 +31,10 @@ class ContractFilesSection extends ConsumerWidget {
 
   Future<void> _handleUpload(BuildContext context, WidgetRef ref) async {
     try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.any,
-        allowMultiple: false,
-      );
+      final XFile? file = await openFile();
 
-      if (result != null && result.files.single.path != null) {
-        final originalFileName = result.files.single.name;
+      if (file != null) {
+        final originalFileName = file.name;
         final extension = originalFileName.split('.').last;
         final nameWithoutExtension = originalFileName.replaceAll(
           '.$extension',
@@ -95,12 +93,19 @@ class ContractFilesSection extends ConsumerWidget {
 
         if (newName == null) return;
 
-        final file = File(result.files.single.path!);
         final finalFileName = '$newName.$extension';
+        final fileBytes = await file.readAsBytes();
+
+        if (!context.mounted) return;
+        
+        // Создаем временный файл из байтов, так как uploadFile ожидает File
+        final tempDir = await path_provider.getTemporaryDirectory();
+        final tempFile = File('${tempDir.path}/${file.name}');
+        await tempFile.writeAsBytes(fileBytes);
 
         await ref
             .read(contractFilesProvider(contract.id).notifier)
-            .uploadFile(file, finalFileName);
+            .uploadFile(tempFile, finalFileName);
 
         if (!context.mounted) return;
         SnackBarUtils.showSuccess(context, 'Файл успешно загружен');
@@ -124,12 +129,36 @@ class ContractFilesSection extends ConsumerWidget {
       final extension = file.name.split('.').last;
       final nameWithoutExtension = file.name.replaceAll('.$extension', '');
 
-      await FileSaver.instance.saveAs(
-        name: nameWithoutExtension,
-        bytes: Uint8List.fromList(bytes),
-        ext: extension,
-        mimeType: _getMimeType(extension),
-      );
+      if (kIsWeb) {
+        await FileSaver.instance.saveFile(
+          name: nameWithoutExtension,
+          bytes: Uint8List.fromList(bytes),
+          ext: extension,
+          mimeType: _getMimeType(extension),
+        );
+      } else if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
+        final FileSaveLocation? result = await getSaveLocation(
+          suggestedName: file.name,
+          acceptedTypeGroups: [
+            XTypeGroup(
+              label: extension.toUpperCase(),
+              extensions: [extension],
+            ),
+          ],
+        );
+
+        if (result != null) {
+          final localFile = File(result.path);
+          await localFile.writeAsBytes(bytes);
+        }
+      } else {
+        await FileSaver.instance.saveFile(
+          name: nameWithoutExtension,
+          bytes: Uint8List.fromList(bytes),
+          ext: extension,
+          mimeType: _getMimeType(extension),
+        );
+      }
     } catch (e) {
       if (!context.mounted) return;
       SnackBarUtils.showError(context, 'Ошибка при скачивании файла: $e');

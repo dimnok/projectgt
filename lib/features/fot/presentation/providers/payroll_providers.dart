@@ -444,17 +444,22 @@ final payrollPayoutsByFilterProvider =
         DateTime(filterState.selectedYear, filterState.selectedMonth, 1);
     final endDate =
         DateTime(filterState.selectedYear, filterState.selectedMonth + 1, 0);
-    
+
     query = query
         .gte('payout_date', startDate.toIso8601String())
         .lte('payout_date', endDate.toIso8601String());
+        
+    final response = await query.order('payout_date', ascending: false);
+
+    return (response as List)
+        .map((json) => PayrollPayoutModel.fromJson(json as Map<String, dynamic>))
+        .toList();
   } else {
     // Если поиск не пустой — грузим за все время, но только для подходящих сотрудников
     final queryText = searchQuery.trim().toLowerCase();
     final matchingEmployeeIds = ref.read(employeeProvider).employees
         .where((e) {
-          final fullName = '${e.lastName} ${e.firstName} ${e.middleName ?? ''}'
-              .toLowerCase();
+          final fullName = '${e.lastName} ${e.firstName} ${e.middleName ?? ''}'.toLowerCase();
           return fullName.contains(queryText);
         })
         .map((e) => e.id)
@@ -462,14 +467,27 @@ final payrollPayoutsByFilterProvider =
 
     if (matchingEmployeeIds.isEmpty) return [];
     
-    query = query.inFilter('employee_id', matchingEmployeeIds);
+    final allResults = <Map<String, dynamic>>[];
+    const chunk = 20;
+    for (var i = 0; i < matchingEmployeeIds.length; i += chunk) {
+      final slice = matchingEmployeeIds.sublist(
+        i,
+        i + chunk > matchingEmployeeIds.length ? matchingEmployeeIds.length : i + chunk,
+      );
+      final chunkResponse = await query.inFilter('employee_id', slice).order('payout_date', ascending: false);
+      allResults.addAll((chunkResponse as List).cast<Map<String, dynamic>>());
+    }
+
+    allResults.sort((a, b) {
+      final dateA = a['payout_date'] as String? ?? '';
+      final dateB = b['payout_date'] as String? ?? '';
+      return dateB.compareTo(dateA);
+    });
+
+    return allResults
+        .map((json) => PayrollPayoutModel.fromJson(json))
+        .toList();
   }
-
-  final response = await query.order('payout_date', ascending: false);
-
-  return (response as List)
-      .map((json) => PayrollPayoutModel.fromJson(json as Map<String, dynamic>))
-      .toList();
 });
 
 /// Провайдер всех выплат за текущий месяц с сортировкой.

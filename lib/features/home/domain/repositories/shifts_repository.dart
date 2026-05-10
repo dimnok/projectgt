@@ -5,4 +5,7 @@ abstract class ShiftsRepository {
 
   /// Получает детали смен за конкретный день.
   Future<Map<String, dynamic>> getShiftsForDate(DateTime date);
+
+  /// Получает сводку по сменам за конкретный день (объекты, ИТР, монтажники).
+  Future<Map<String, dynamic>> getShiftsSummaryForDate(DateTime date);
 }

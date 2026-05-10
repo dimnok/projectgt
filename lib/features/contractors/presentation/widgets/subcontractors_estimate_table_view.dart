@@ -24,7 +24,7 @@ import 'package:projectgt/features/roles/application/permission_service.dart';
 /// с вкладки «Смета». Позиции **группируются по** [Estimate.estimateTitle] (сортировка
 /// групп по названию, внутри группы — сортировка по номеру, см.
 /// [SubcontractorsEstimateTableMath.buildEstimateTitleGroups]). Контекстное меню —
-/// пункты по модулям `contractors`, опционально добавление позиции сметы
+/// пункты по модулям `subcontractors` / `estimates`, опционально добавление позиции сметы
 /// ([onAddPosition] + право `estimates` / `update`) и опционально «История по ДС»
 /// ([onEstimateAddendumHistory] + право `estimates` / `read`).
 class SubcontractorsEstimateTableView extends ConsumerStatefulWidget {
@@ -943,15 +943,16 @@ class _SubcontractorsEstimateTableViewState
 
     // Однократное чтение прав; не [watch] — меню не должно подписывать rebuild.
     final permissionService = ref.read(permissionServiceProvider);
-    final canUpdate = permissionService.can('contractors', 'update');
-    final canContractorsDelete = permissionService.can('contractors', 'delete');
+    final canUpdate = permissionService.can('subcontractors', 'update');
+    final canSubcontractorsDelete =
+        permissionService.can('subcontractors', 'delete');
     final canEstimatesUpdate = permissionService.can('estimates', 'update');
     final canEstimatesDelete = permissionService.can('estimates', 'delete');
 
     /// На карточке договора ([onAddPosition] != null) удаление позиции — право смет.
     final showDelete = widget.onAddPosition != null
         ? canEstimatesDelete
-        : canContractorsDelete;
+        : canSubcontractorsDelete;
 
     final items = <dynamic>[];
 

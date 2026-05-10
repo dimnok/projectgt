@@ -14,6 +14,16 @@ const EXECUTION_SHEET_NAME = "Выполнение";
 
 const COL_COUNT = 12;
 
+/**
+ * PostgREST кладёт фильтры в query string. Слишком длинный `.in(id,…)` даёт `URI too long`
+ * у прокси/nginx (~8 КБ). Запросы с embed (`works!inner`) короче держим в URL.
+ */
+const IN_CHUNK_SIMPLE = 80;
+const IN_CHUNK_EMBED = 32;
+
+const ESTIMATE_SELECT =
+  "id, estimate_title, number, name, article, manufacturer, unit, quantity, price, total";
+
 /** Как в UI [SubcontractorsEstimateTableView]; первая колонка — для импорта по UUID. */
 const HEADERS = [
   "ID позиции",
@@ -103,6 +113,35 @@ interface ExecutionRow {
   rows_count: number;
 }
 
+async function fetchEstimatesForExport(
+  supabase: ReturnType<typeof createClient>,
+  body: Body,
+  selectedEstimateIds: string[],
+): Promise<Record<string, unknown>[]> {
+  const base = () =>
+    supabase
+      .from("estimates")
+      .select(ESTIMATE_SELECT)
+      .eq("company_id", body.companyId)
+      .eq("contract_id", body.contractId)
+      .eq("object_id", body.objectId);
+
+  if (selectedEstimateIds.length === 0) {
+    const { data, error } = await base();
+    if (error) throw error;
+    return (data ?? []) as Record<string, unknown>[];
+  }
+
+  const merged: Record<string, unknown>[] = [];
+  for (let i = 0; i < selectedEstimateIds.length; i += IN_CHUNK_SIMPLE) {
+    const part = selectedEstimateIds.slice(i, i + IN_CHUNK_SIMPLE);
+    const { data, error } = await base().in("id", part);
+    if (error) throw error;
+    merged.push(...((data ?? []) as Record<string, unknown>[]));
+  }
+  return merged;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders });
@@ -146,31 +185,19 @@ serve(async (req) => {
       throw new Error("Договор не найден или нет доступа");
     }
 
-    let estimatesQuery = supabase
-      .from("estimates")
-      .select(
-        "id, estimate_title, number, name, article, manufacturer, unit, quantity, price, total",
-      )
-      .eq("company_id", body.companyId)
-      .eq("contract_id", body.contractId)
-      .eq("object_id", body.objectId);
-    if (selectedEstimateIds.length > 0) {
-      estimatesQuery = estimatesQuery.in("id", selectedEstimateIds);
-    }
-    const { data: rawEstimates, error: estErr } = await estimatesQuery;
-
-    if (estErr) throw estErr;
-
-    const rows = (rawEstimates ?? []) as Record<string, unknown>[];
+    const rows = await fetchEstimatesForExport(
+      supabase,
+      body,
+      selectedEstimateIds,
+    );
     const sorted = [...rows].sort(compareForExport);
     const groups = buildTitleGroups(sorted);
 
     const priceByEstimateId = new Map<string, PriceRow>();
     if (body.contractorId) {
       const ids = sorted.map((e) => String(e["id"] ?? ""));
-      const chunk = 200;
-      for (let i = 0; i < ids.length; i += chunk) {
-        const part = ids.slice(i, i + chunk);
+      for (let i = 0; i < ids.length; i += IN_CHUNK_SIMPLE) {
+        const part = ids.slice(i, i + IN_CHUNK_SIMPLE);
         const { data: priceRows, error: prErr } = await supabase
           .from("estimate_contractor_prices")
           .select("estimate_id, unit_price, contractor_quantity")
@@ -508,9 +535,8 @@ async function loadExecutionByEstimateId(
     return result;
   }
 
-  const chunk = 200;
-  for (let i = 0; i < estimateIds.length; i += chunk) {
-    const part = estimateIds.slice(i, i + chunk);
+  for (let i = 0; i < estimateIds.length; i += IN_CHUNK_EMBED) {
+    const part = estimateIds.slice(i, i + IN_CHUNK_EMBED);
     const { data, error } = await supabase
       .from("work_items")
       .select("estimate_id, quantity, works!inner(object_id, status)")

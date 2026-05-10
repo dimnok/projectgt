@@ -31,9 +31,12 @@ final shiftsRepositoryProvider = Provider<ShiftsRepository>((ref) {
 /// Провайдер для получения данных календаря за месяц.
 ///
 /// Возвращает список смен, агрегированный по датам текущего месяца.
+/// Использует строку месяца (YYYY-MM) как ключ для стабильности.
 final shiftsForMonthProvider =
-    FutureProvider.family<List<Map<String, dynamic>>, DateTime>(
-        (ref, month) async {
+    FutureProvider.family<List<Map<String, dynamic>>, String>(
+        (ref, monthStr) async {
+  final parts = monthStr.split('-');
+  final month = DateTime(int.parse(parts[0]), int.parse(parts[1]));
   final repository = ref.watch(shiftsRepositoryProvider);
   return await repository.getShiftsForMonth(month);
 });
@@ -41,8 +44,19 @@ final shiftsForMonthProvider =
 /// Провайдер для получения деталей смен за конкретный день.
 ///
 /// Возвращает разбивку по объектам и системам за выбранный день.
+/// Использует строку даты (YYYY-MM-DD) как ключ для стабильности.
 final shiftsForDateProvider =
-    FutureProvider.family<Map<String, dynamic>, DateTime>((ref, date) async {
+    FutureProvider.family<Map<String, dynamic>, String>((ref, dateStr) async {
+  final date = DateTime.parse(dateStr);
   final repository = ref.watch(shiftsRepositoryProvider);
   return await repository.getShiftsForDate(date);
+});
+
+/// Провайдер для получения сводки по сменам за конкретный день.
+/// Использует строку даты (YYYY-MM-DD) как ключ для стабильности.
+final shiftsSummaryForDateProvider =
+    FutureProvider.family<Map<String, dynamic>, String>((ref, dateStr) async {
+  final date = DateTime.parse(dateStr);
+  final repository = ref.watch(shiftsRepositoryProvider);
+  return await repository.getShiftsSummaryForDate(date);
 });

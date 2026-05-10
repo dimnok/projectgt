@@ -5,7 +5,7 @@ import '../../../../core/utils/formatters.dart';
 import 'package:file_saver/file_saver.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart' as path_provider;
-import 'package:file_picker/file_picker.dart';
+import 'package:file_selector/file_selector.dart';
 import 'dart:io';
 
 /// Сервис экспорта результатов поиска на сервер
@@ -290,20 +290,23 @@ class WorkSearchExportServerService {
         );
       } else if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
         // На Desktop (macOS, Windows, Linux) даем выбрать папку и имя
-        String? outputFile = await FilePicker.platform.saveFile(
-          dialogTitle: 'Выберите место для сохранения Excel файла',
-          fileName: filename,
-          type: FileType.custom,
-          allowedExtensions: ['xlsx'],
+        final FileSaveLocation? result = await getSaveLocation(
+          suggestedName: filename,
+          acceptedTypeGroups: [
+            const XTypeGroup(
+              label: 'Excel',
+              extensions: ['xlsx'],
+            ),
+          ],
         );
 
-        if (outputFile == null) {
+        if (result == null) {
           return 'cancelled';
         }
 
-        final file = File(outputFile);
+        final file = File(result.path);
         await file.writeAsBytes(fileBytes);
-        return outputFile;
+        return result.path;
       } else {
         // На мобильных платформах (iOS, Android)
         final directory = await path_provider.getTemporaryDirectory();

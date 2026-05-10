@@ -135,7 +135,11 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
     }
 
     if (searchChanged) {
-      _applyVisibleEmployeesFromCache();
+      // Нельзя менять провайдер из didUpdateWidget — откладываем после кадра (поиск по ФИО).
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _applyVisibleEmployeesFromCache();
+      });
     }
 
     if (needsNetworkEmployeeReload) {

@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:file_saver/file_saver.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart' as path_provider;
@@ -135,6 +135,13 @@ class SubcontractorRatesExcelExportService {
   }
 
   /// Сохранение уже готовых байт (тот же сценарий, что и для других xlsx-экспортов).
+  ///
+  /// **macOS:** диалог «Сохранить как» через [FileSaver.saveAs] — запись выполняет
+  /// нативный код (не [FilePicker], из‑за которого была ошибка
+  /// `ENTITLEMENT_REQUIRED_WRITE` при типичном Debug). Папку и имя можно выбрать
+  /// в системном окне (стартовая папка задаётся самим пакетом, обычно «Рабочий стол»).
+  ///
+  /// **Windows / Linux:** диалог [FilePicker], при возможности открывается в «Загрузках».
   static Future<String?> saveToDevice(
     Uint8List bytes, {
     required String fileName,
@@ -151,16 +158,26 @@ class SubcontractorRatesExcelExportService {
     }
 
     if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
-      final outputFile = await FilePicker.platform.saveFile(
-        dialogTitle: dialogTitle,
-        fileName: fileName,
-        type: FileType.custom,
-        allowedExtensions: const ['xlsx'],
+      String? downloadsPath;
+      try {
+        downloadsPath = (await path_provider.getDownloadsDirectory())?.path;
+      } catch (_) {
+        downloadsPath = null;
+      }
+      final FileSaveLocation? result = await getSaveLocation(
+        suggestedName: fileName,
+        initialDirectory: downloadsPath,
+        acceptedTypeGroups: [
+          const XTypeGroup(
+            label: 'Excel',
+            extensions: ['xlsx'],
+          ),
+        ],
       );
-      if (outputFile == null) return null;
-      final file = File(outputFile);
+      if (result == null) return null;
+      final file = File(result.path);
       await file.writeAsBytes(bytes);
-      return outputFile;
+      return result.path;
     }
 
     final directory = await path_provider.getTemporaryDirectory();

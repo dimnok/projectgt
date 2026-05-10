@@ -16,7 +16,7 @@ import 'package:projectgt/features/estimates/presentation/providers/estimate_pro
 ///
 /// Содержимое и оформление книги (Times New Roman, закреплённый первый ряд) формируются
 /// Edge Function `export-contract-estimate-addenda`. Сохранение на диск: на вебе —
-/// [FileSaver.saveFile], на десктопе — [FilePicker.platform.saveFile] с байтами файла
+/// [FileSaver.saveFile], на десктопе — [FilePicker.saveFile] с байтами файла
 /// (тот же подход, что при скачивании вложений договора в [ContractFilesSection]).
 ///
 /// При нескольких сметах по договору открывается тот же диалог выбора, что и для LC/ДС.
@@ -91,7 +91,7 @@ Future<void> openContractEstimateWithAddendaExportFlow({
         mimeType: MimeType.microsoftExcel,
       );
     } else {
-      await FilePicker.platform.saveFile(
+      await FilePicker.saveFile(
         dialogTitle: 'Сохранить смету с колонками ДС',
         fileName: fileName,
         type: FileType.custom,

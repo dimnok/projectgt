@@ -160,4 +160,85 @@ class ShiftsDataSourceImpl implements ShiftsDataSource {
       rethrow;
     }
   }
+
+  @override
+  Future<Map<String, dynamic>> getShiftsSummaryForDate(DateTime date) async {
+    try {
+      if (activeCompanyId == null) {
+        _log.w('getShiftsSummaryForDate: activeCompanyId is null');
+        return {
+          'totalObjects': 0,
+          'totalItr': 0,
+          'totalInstallers': 0,
+          'objects': [],
+        };
+      }
+
+      final dateStr =
+          '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
+      _log.i('getShiftsSummaryForDate: fetching for $dateStr');
+
+      final response = await supabaseClient.from('works').select('''
+            id,
+            objects(name),
+            work_hours(
+              employees(position)
+            )
+          ''').eq('date', dateStr).eq('company_id', activeCompanyId!);
+
+      final responseList = response as List;
+      _log.i('getShiftsSummaryForDate: found ${responseList.length} works');
+
+      int totalItr = 0;
+      int totalInstallers = 0;
+      final Map<String, Map<String, int>> objectStats = {};
+
+      for (final work in responseList) {
+        final objectName = work['objects']?['name'] ?? 'Неизвестный объект';
+        final workHours = work['work_hours'] as List? ?? [];
+
+        if (!objectStats.containsKey(objectName)) {
+          objectStats[objectName] = {'itr': 0, 'installers': 0};
+        }
+
+        for (final wh in workHours) {
+          final employee = wh['employees'];
+          if (employee == null) continue;
+
+          final position = (employee['position'] as String?)?.toLowerCase() ?? '';
+          
+          // Логика определения ИТР vs Монтажник
+          final isInstaller = position.contains('монтажник') || 
+                             position.contains('электрик') || 
+                             position.contains('рабочий');
+          
+          if (isInstaller) {
+            objectStats[objectName]!['installers'] = (objectStats[objectName]!['installers'] ?? 0) + 1;
+            totalInstallers++;
+          } else {
+            objectStats[objectName]!['itr'] = (objectStats[objectName]!['itr'] ?? 0) + 1;
+            totalItr++;
+          }
+        }
+      }
+
+      final objectsList = objectStats.entries.map((e) => {
+        'name': e.key,
+        'itr': e.value['itr'],
+        'installers': e.value['installers'],
+      }).toList();
+
+      return {
+        'totalObjects': objectStats.length,
+        'totalItr': totalItr,
+        'totalInstallers': totalInstallers,
+        'objects': objectsList,
+      };
+    } catch (e, stack) {
+      _log.e('❌ ОШИБКА в getShiftsSummaryForDate: $e\n$stack',
+          error: e, stackTrace: stack);
+      rethrow;
+    }
+  }
 }

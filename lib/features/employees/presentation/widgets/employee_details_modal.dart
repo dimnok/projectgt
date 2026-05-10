@@ -1,22 +1,23 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+
 import 'package:projectgt/core/utils/employee_ui_utils.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
 import 'package:projectgt/core/widgets/gt_context_menu.dart';
-import 'package:projectgt/features/employees/presentation/providers/employee_avatar_controller.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:projectgt/domain/entities/employee.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:projectgt/domain/entities/business_trip_rate.dart';
-import 'package:projectgt/features/objects/domain/entities/object.dart';
+import 'package:projectgt/domain/entities/employee.dart';
+import 'package:projectgt/features/employees/presentation/providers/employee_avatar_controller.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_business_trip_summary_widget.dart';
-import 'package:projectgt/features/employees/presentation/widgets/employee_trip_editor_form.dart';
-import 'package:projectgt/features/employees/presentation/widgets/employee_rate_summary_widget.dart';
-import 'package:projectgt/features/employees/presentation/widgets/editable_inline_text_row.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_edit_form.dart';
+import 'package:projectgt/features/employees/presentation/widgets/employee_rate_summary_widget.dart';
+import 'package:projectgt/features/employees/presentation/widgets/employee_trip_editor_form.dart';
+import 'package:projectgt/features/employees/presentation/widgets/editable_inline_text_row.dart';
+import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:projectgt/presentation/state/employee_state.dart' as employee_state;
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Модальное окно с детальной информацией о сотруднике.
 class EmployeeDetailsModal extends ConsumerStatefulWidget {
@@ -147,7 +148,8 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
       _employee.status,
     );
 
-    final hasPhoto = _employee.photoUrl != null;
+    final hasPhoto =
+        _employee.photoUrl != null && _employee.photoUrl!.trim().isNotEmpty;
     final avatarController = ref.watch(employeeAvatarControllerProvider);
     final isLoadingAvatar = avatarController is AsyncLoading;
 
@@ -231,9 +233,6 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
             children: [
               CircleAvatar(
                 radius: 48,
-                backgroundImage: hasPhoto
-                    ? CachedNetworkImageProvider(_employee.photoUrl!)
-                    : null,
                 backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
                 child: isLoadingAvatar
                     ? const CircularProgressIndicator()
@@ -243,7 +242,19 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
                             size: 48,
                             color: theme.colorScheme.primary,
                           )
-                        : null),
+                        : ClipOval(
+                            child: CachedNetworkImage(
+                              imageUrl: _employee.photoUrl!,
+                              width: 96,
+                              height: 96,
+                              fit: BoxFit.cover,
+                              errorWidget: (context, url, error) => Icon(
+                                CupertinoIcons.person,
+                                size: 48,
+                                color: theme.colorScheme.primary,
+                              ),
+                            ),
+                          )),
               ),
               AnimatedPositioned(
                 duration: const Duration(milliseconds: 300),

@@ -263,7 +263,7 @@ class _ImportEstimateFormModalState
       } else {
         final initialDirectory =
             (await path_provider.getDownloadsDirectory())?.path;
-        final outputPath = await FilePicker.platform.saveFile(
+        final outputPath = await FilePicker.saveFile(
           dialogTitle: 'Сохранить шаблон импорта сметы',
           fileName: outFileName,
           initialDirectory: initialDirectory,
@@ -313,7 +313,7 @@ class _ImportEstimateFormModalState
 
   Future<void> _pickExcelFile() async {
     try {
-      final result = await FilePicker.platform.pickFiles(
+      final result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['xlsx'],
         withData: true,

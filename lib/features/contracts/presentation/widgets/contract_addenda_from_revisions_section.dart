@@ -112,7 +112,7 @@ final contractAddendumRowsProvider = FutureProvider.autoDispose
       }
 
       final sums = <String, double>{};
-      const chunk = 80;
+      const chunk = 20;
       final idList = allIdsForSums.toList();
       for (var i = 0; i < idList.length; i += chunk) {
         final slice = idList.sublist(

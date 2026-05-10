@@ -38,7 +38,10 @@ class MobileAtmosphereChromeCircleButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = appearance.scheme;
+    final isDark = appearance.isDark;
     final effectiveIconColor = iconColor ?? scheme.onSurface;
+
+    // "Обводы" - более выразительная граница для кнопок
     final button = Material(
       color: Colors.transparent,
       child: InkWell(
@@ -51,7 +54,17 @@ class MobileAtmosphereChromeCircleButton extends StatelessWidget {
           decoration: BoxDecoration(
             color: appearance.chromeFill,
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: appearance.chromeBorder),
+            border: Border.all(
+              color: appearance.chromeBorder.withValues(alpha: isDark ? 0.15 : 0.3),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: scheme.shadow.withValues(alpha: isDark ? 0.1 : 0.05),
+                blurRadius: 8,
+                spreadRadius: -2,
+              ),
+            ],
           ),
           child: Icon(icon, size: iconSize, color: effectiveIconColor),
         ),

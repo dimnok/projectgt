@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:file_saver/file_saver.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart' as path_provider;
@@ -116,20 +116,23 @@ class TimesheetExcelExportService {
     }
 
     if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
-      final outputFile = await FilePicker.platform.saveFile(
-        dialogTitle: 'Выберите место для сохранения Excel файла',
-        fileName: filename,
-        type: FileType.custom,
-        allowedExtensions: const ['xlsx'],
+      final FileSaveLocation? result = await getSaveLocation(
+        suggestedName: filename,
+        acceptedTypeGroups: [
+          const XTypeGroup(
+            label: 'Excel',
+            extensions: ['xlsx'],
+          ),
+        ],
       );
 
-      if (outputFile == null) {
+      if (result == null) {
         return null;
       }
 
-      final file = File(outputFile);
+      final file = File(result.path);
       await file.writeAsBytes(fileBytes);
-      return outputFile;
+      return result.path;
     }
 
     final directory = await path_provider.getTemporaryDirectory();

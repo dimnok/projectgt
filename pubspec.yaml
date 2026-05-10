@@ -71,7 +71,7 @@ dependencies:
   archive: ^3.6.1
   xml: ^6.6.1
   csv: ^5.1.1
-  file_picker: ^10.3.8
+  file_picker: ^11.0.2
   
   # Utilities
   logger: ^2.0.2+1
@@ -107,6 +107,7 @@ dependencies:
   google_fonts: ^6.3.2
   flex_color_scheme: ^8.3.1
   flutter_native_splash: ^2.4.4
+  file_selector: ^1.1.0
   # Firebase отключён
 
 dev_dependencies:

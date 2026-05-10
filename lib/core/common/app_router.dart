@@ -231,7 +231,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           return Consumer(
             builder: (context, ref, child) {
               final service = ref.watch(permissionServiceProvider);
-              if (service.can('contractors', 'read')) {
+              if (service.can('subcontractors', 'read')) {
                 return const SubcontractorsMobileScreen();
               }
               return _buildAccessDeniedScreen();

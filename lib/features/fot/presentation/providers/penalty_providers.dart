@@ -79,19 +79,7 @@ final penaltiesByFilterProvider = FutureProvider<List<PayrollPenaltyModel>>((ref
         .lte('date', endDate.toIso8601String());
   } else {
     // Если поиск не пустой — грузим за все время, но только для подходящих сотрудников
-    final queryText = searchQuery.trim().toLowerCase();
-    final matchingEmployeeIds = ref.read(employeeProvider).employees
-        .where((e) {
-          final fullName = '${e.lastName} ${e.firstName} ${e.middleName ?? ''}'
-              .toLowerCase();
-          return fullName.contains(queryText);
-        })
-        .map((e) => e.id)
-        .toList();
-
-    if (matchingEmployeeIds.isEmpty) return [];
-    
-    query = query.inFilter('employee_id', matchingEmployeeIds);
+    // Фильтрация по сотрудникам (inFilter) будет применена ниже чанками
   }
 
   // 2. Фильтрация по объектам
@@ -101,10 +89,47 @@ final penaltiesByFilterProvider = FutureProvider<List<PayrollPenaltyModel>>((ref
     query = query.or('object_id.in.($objectIdsStr),object_id.is.null');
   }
 
-  final response = await query.order('date', ascending: false);
-  
-  return (response as List)
-      .map((json) => PayrollPenaltyModel.fromJson(json as Map<String, dynamic>))
+  // Если нет поиска по сотрудникам, выполняем один запрос
+  if (searchQuery.trim().isEmpty) {
+    final response = await query.order('date', ascending: false);
+    return (response as List)
+        .map((json) => PayrollPenaltyModel.fromJson(json as Map<String, dynamic>))
+        .toList();
+  }
+
+  // Если есть поиск по сотрудникам, разбиваем на чанки, чтобы избежать 502 Bad Gateway (URL Too Long)
+  final queryText = searchQuery.trim().toLowerCase();
+  final matchingEmployeeIds = ref.read(employeeProvider).employees
+      .where((e) {
+        final fullName = '${e.lastName} ${e.firstName} ${e.middleName ?? ''}'.toLowerCase();
+        return fullName.contains(queryText);
+      })
+      .map((e) => e.id)
+      .toList();
+
+  if (matchingEmployeeIds.isEmpty) return [];
+
+  final allResults = <Map<String, dynamic>>[];
+  const chunk = 20;
+  for (var i = 0; i < matchingEmployeeIds.length; i += chunk) {
+    final slice = matchingEmployeeIds.sublist(
+      i,
+      i + chunk > matchingEmployeeIds.length ? matchingEmployeeIds.length : i + chunk,
+    );
+    // Клонируем базовый запрос, добавляя фильтр по сотрудникам
+    final chunkResponse = await query.inFilter('employee_id', slice).order('date', ascending: false);
+    allResults.addAll((chunkResponse as List).cast<Map<String, dynamic>>());
+  }
+
+  // Сортируем объединенный результат
+  allResults.sort((a, b) {
+    final dateA = a['date'] as String? ?? '';
+    final dateB = b['date'] as String? ?? '';
+    return dateB.compareTo(dateA);
+  });
+
+  return allResults
+      .map((json) => PayrollPenaltyModel.fromJson(json))
       .toList();
 });
 

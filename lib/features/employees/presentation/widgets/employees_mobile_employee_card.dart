@@ -1,7 +1,7 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import 'package:projectgt/core/widgets/mobile_atmosphere_card_style.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 /// Карточка строки сотрудника: градиент, аватар, индикатор статуса (точка), ФИО, должность, объекты.
 class EmployeesMobileEmployeeCard extends StatelessWidget {
@@ -131,10 +131,22 @@ class EmployeesMobileEmployeeCard extends StatelessWidget {
                     ),
                     child: hasPhoto
                         ? CachedNetworkImage(
-                            imageUrl: photoUrl!.trim(),
+                            imageUrl: photoUrl!,
                             width: _avatarSide,
                             height: _avatarSide,
                             fit: BoxFit.cover,
+                            errorWidget: (context, url, error) => Center(
+                              child: Text(
+                                initials,
+                                style: TextStyle(
+                                  color: scheme.primary,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1,
+                                  letterSpacing: -0.3,
+                                ),
+                              ),
+                            ),
                           )
                         : Center(
                             child: Text(
