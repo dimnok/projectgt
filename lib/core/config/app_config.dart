@@ -26,11 +26,27 @@ class AppConfig {
 
   /// Безопасное получение переменной окружения только для нативных платформ
   static String? _getEnvValue(String key) {
+    // 1. Сначала проверяем compile-time константы (--dart-define)
+    String? value;
+    if (key == 'SUPABASE_URL') {
+      value = const String.fromEnvironment('SUPABASE_URL');
+    } else if (key == 'SUPABASE_ANON_KEY') {
+      value = const String.fromEnvironment('SUPABASE_ANON_KEY');
+    } else if (key == 'ENV') {
+      value = const String.fromEnvironment('ENV');
+    } else if (key == 'DEBUG_MODE') {
+      value = const String.fromEnvironment('DEBUG_MODE');
+    } else if (key == 'USE_MOCK_DATA') {
+      value = const String.fromEnvironment('USE_MOCK_DATA');
+    }
+
+    if (value != null && value.isNotEmpty) return value;
+
     if (kIsWeb) {
       // Для web всегда возвращаем null - используем хардкод значения
       return null;
     } else {
-      // Для нативных платформ используем только Platform.environment
+      // 2. Затем проверяем runtime переменные (только для native)
       try {
         return Platform.environment[key];
       } catch (e) {
@@ -131,7 +147,7 @@ class AppConfig {
 
   /// Версия приложения
   static String get appVersion {
-    return '1.0.14';
+    return '1.0.22';
   }
 
   // Telegram конфигурация удалена

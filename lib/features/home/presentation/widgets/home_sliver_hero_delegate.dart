@@ -60,10 +60,11 @@ class HomeSliverHeroDelegate extends SliverPersistentHeaderDelegate {
   double get maxExtent => isDesktop ? 200 : 250; // Увеличиваем для десктопа тоже
 
   /// Высота в свернутом виде: строка с кнопками 44px + внешний отступ 12 +
-  /// вертикальный padding контейнера (моб. 32, десктоп 40) — иначе [Column]
-  /// в [HomeAtmosphereHero] не помещается и даёт overflow на доли пикселя.
+  /// вертикальный padding контейнера (моб. 32, десктоп 40) + запас 4px.
+  /// Запас нужен для предотвращения ошибок переполнения (RenderFlex overflow)
+  /// на долю пикселя из-за особенностей рендеринга на разных экранах.
   @override
-  double get minExtent => isDesktop ? 96 : 92;
+  double get minExtent => isDesktop ? 100 : 96;
 
   @override
   bool shouldRebuild(covariant HomeSliverHeroDelegate oldDelegate) {

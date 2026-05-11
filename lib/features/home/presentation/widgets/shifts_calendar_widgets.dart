@@ -312,75 +312,77 @@ class ShiftsHeatmap extends StatelessWidget {
       return GestureDetector(onTap: () => onDateTap!(d, v), child: box);
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (!hideHeader) ...[
-          Row(
-            children: [
-              Icon(
-                CupertinoIcons.calendar,
-                size: 18,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Календарь смен',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (!hideHeader) ...[
+            Row(
+              children: [
+                Icon(
+                  CupertinoIcons.calendar,
+                  size: 18,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                 ),
-              ),
-              const SizedBox(width: 8),
-              if (isLoading)
-                const SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
-        ],
-        LayoutBuilder(
-          builder: (context, constraints) {
-            const columns = 7;
-            final rows = (cells.length / columns).ceil();
-            const double spacing = _cellSpacing;
-            final double baseSize =
-                (constraints.maxWidth - (columns * spacing)) / columns;
-            final double size = baseSize * _cellSizeCoefficient;
-
-            List<Widget> weekRows = [];
-            for (int r = 0; r < rows; r++) {
-              final startIndex = r * columns;
-              final endIndex = startIndex + columns;
-              final weekDays = cells.sublist(startIndex, endIndex);
-              weekRows.add(
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: weekDays
-                        .map(
-                          (d) => SizedBox(
-                            width: size,
-                            height: size,
-                            child: cell(d),
-                          ),
-                        )
-                        .toList(),
+                const SizedBox(width: 8),
+                Text(
+                  'Календарь смен',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-              );
-            }
+                const SizedBox(width: 8),
+                if (isLoading)
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              const columns = 7;
+              final rows = (cells.length / columns).ceil();
+              const double spacing = _cellSpacing;
+              final double baseSize =
+                  (constraints.maxWidth - (columns * spacing)) / columns;
+              final double size = baseSize * _cellSizeCoefficient;
 
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: weekRows,
-            );
-          },
-        ),
-      ],
+              List<Widget> weekRows = [];
+              for (int r = 0; r < rows; r++) {
+                final startIndex = r * columns;
+                final endIndex = startIndex + columns;
+                final weekDays = cells.sublist(startIndex, endIndex);
+                weekRows.add(
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: weekDays
+                          .map(
+                            (d) => SizedBox(
+                              width: size,
+                              height: size,
+                              child: cell(d),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ),
+                );
+              }
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: weekRows,
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 }
@@ -451,123 +453,125 @@ class _CalendarBackSide extends StatelessWidget {
       alignment: Alignment.topLeft,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            /// Верхняя панель: дата слева, кнопка назад справа.
-            Row(
-              children: [
-                Expanded(
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      dateStr,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              /// Верхняя панель: дата слева, кнопка назад справа.
+              Row(
+                children: [
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        dateStr,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                ),
-                IconButton(
-                  tooltip: 'Назад к календарю',
-                  onPressed: onClose,
-                  icon: const Icon(CupertinoIcons.arrow_right_arrow_left),
-                  visualDensity: VisualDensity.compact,
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            const SizedBox(height: 6),
-            Builder(
-              builder: (context) {
-                final sortedObjects =
-                    objectTotals.entries
-                        .map(
-                          (e) => MapEntry(e.key, (e.value as num).toDouble()),
-                        )
-                        .toList()
-                      ..sort((a, b) => b.value.compareTo(a.value));
+                  IconButton(
+                    tooltip: 'Назад к календарю',
+                    onPressed: onClose,
+                    icon: const Icon(CupertinoIcons.arrow_right_arrow_left),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              const SizedBox(height: 6),
+              Builder(
+                builder: (context) {
+                  final sortedObjects =
+                      objectTotals.entries
+                          .map(
+                            (e) => MapEntry(e.key, (e.value as num).toDouble()),
+                          )
+                          .toList()
+                        ..sort((a, b) => b.value.compareTo(a.value));
 
-                /// Проверка на пустые данные
-                if (sortedObjects.isEmpty) {
-                  return Center(
-                    child: Text(
-                      'Нет данных за выбранный день',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurface.withValues(
-                          alpha: 0.6,
-                        ),
-                      ),
-                    ),
-                  );
-                }
-
-                return Column(
-                  children: sortedObjects.map((obj) {
-                    final String objName = obj.key;
-                    final double objSum = obj.value;
-                    final systems =
-                        systemsByObject[objName] ?? <String, double>{};
-                    final systemRows = buildSystemRows(systems);
-
-                    return Container(
-                      width: double.infinity,
-                      margin: const EdgeInsets.symmetric(vertical: 6),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: theme.colorScheme.outline.withValues(
-                            alpha: 0.18,
+                  /// Проверка на пустые данные
+                  if (sortedObjects.isEmpty) {
+                    return Center(
+                      child: Text(
+                        'Нет данных за выбранный день',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.6,
                           ),
                         ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  objName,
-                                  style: theme.textTheme.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              Text(
-                                _moneyFormatter.format(objSum),
-                                style: theme.textTheme.labelLarge?.copyWith(
-                                  color: theme.colorScheme.primary,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          if (systemRows.isEmpty)
-                            Text(
-                              'Нет систем',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurface.withValues(
-                                  alpha: 0.6,
-                                ),
-                              ),
-                            )
-                          else
-                            Column(children: systemRows),
-                        ],
                       ),
                     );
-                  }).toList(),
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-          ],
+                  }
+
+                  return Column(
+                    children: sortedObjects.map((obj) {
+                      final String objName = obj.key;
+                      final double objSum = obj.value;
+                      final systems =
+                          systemsByObject[objName] ?? <String, double>{};
+                      final systemRows = buildSystemRows(systems);
+
+                      return Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.symmetric(vertical: 6),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: theme.colorScheme.outline.withValues(
+                              alpha: 0.18,
+                            ),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    objName,
+                                    style: theme.textTheme.titleSmall?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                Text(
+                                  _moneyFormatter.format(objSum),
+                                  style: theme.textTheme.labelLarge?.copyWith(
+                                    color: theme.colorScheme.primary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            if (systemRows.isEmpty)
+                              Text(
+                                'Нет систем',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurface.withValues(
+                                    alpha: 0.6,
+                                  ),
+                                ),
+                              )
+                            else
+                              Column(children: systemRows),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
         ),
       ),
     );

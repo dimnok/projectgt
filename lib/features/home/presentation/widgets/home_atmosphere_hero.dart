@@ -104,119 +104,117 @@ class HomeAtmosphereHero extends ConsumerWidget {
                 ]
               : null,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Верхняя строка: Заголовок страницы и кнопки (всегда видны)
-            if (pageTitle != null || leading != null || trailing != null) ...[
-              // Высота совпадает с [MobileAtmosphereChromeCircleButton] (44),
-              // иначе [titleLarge] может чуть вытолкнуть строку за доступную высоту.
-              SizedBox(
-                height: 44,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    if (leading != null) ...[
-                      leading!,
-                      const SizedBox(width: 12),
-                    ],
-                    if (pageTitle != null)
-                      Expanded(
-                        child: Text(
-                          pageTitle!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -0.5,
-                            height: 1.1,
-                          ),
-                        ),
-                      ),
-                    if (trailing != null) ...[
-                      const SizedBox(width: 12),
-                      trailing!,
-                    ],
-                  ],
-                ),
-              ),
-              if (contentOpacity > 0) SizedBox(height: 20 * contentOpacity),
-            ],
-
-            // Исчезающий контент (Приветствие, Дата, Совет)
-            if (contentOpacity > 0)
-              Expanded(
-                child: Opacity(
-                  opacity: contentOpacity,
-                  child: SingleChildScrollView(
-                    physics: const NeverScrollableScrollPhysics(),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Строка: Приветствие и Дата
-                        Row(
-                          children: [
-                            Icon(
-                              iconData,
-                              size: isDesktop ? 18 : 16,
-                              color: baseColor.withValues(alpha: 0.8),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text.rich(
-                                TextSpan(
-                                  children: [
-                                    TextSpan(
-                                      text: title,
-                                      style: (isDesktop
-                                              ? theme.textTheme.titleMedium
-                                              : theme.textTheme.titleSmall)
-                                          ?.copyWith(
-                                        fontWeight: FontWeight.w800,
-                                        letterSpacing: -0.3,
-                                      ),
-                                    ),
-                                    TextSpan(
-                                      text: ' · $dateString',
-                                      style: theme.textTheme.bodySmall?.copyWith(
-                                        color: theme.colorScheme.onSurface.withValues(
-                                          alpha: 0.4,
-                                        ),
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        // Нижняя строка: Совет дня
-                        tipAsync.when(
-                          data: (tip) => _buildTipLine(context, theme, tip, isDesktop),
-                          loading: () => const SizedBox(height: 20),
-                          error: (err, stack) => _buildTipLine(
-                            context,
-                            theme,
-                            const DailyTip(
-                              title: 'Безопасность',
-                              content:
-                                  'Всегда проверяйте отсутствие напряжения перед началом работ.',
-                              category: 'Общее',
-                            ),
-                            isDesktop,
-                          ),
-                        ),
+        child: SingleChildScrollView(
+          physics: const NeverScrollableScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Верхняя строка: Заголовок страницы и кнопки (всегда видны)
+              if (pageTitle != null || leading != null || trailing != null) ...[
+                // Высота совпадает с [MobileAtmosphereChromeCircleButton] (44),
+                // иначе [titleLarge] может чуть вытолкнуть строку за доступную высоту.
+                SizedBox(
+                  height: 44,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      if (leading != null) ...[
+                        leading!,
+                        const SizedBox(width: 12),
                       ],
-                    ),
+                      if (pageTitle != null)
+                        Expanded(
+                          child: Text(
+                            pageTitle!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -0.5,
+                              height: 1.1,
+                            ),
+                          ),
+                        ),
+                      if (trailing != null) ...[
+                        const SizedBox(width: 12),
+                        trailing!,
+                      ],
+                    ],
                   ),
                 ),
-              ),
-          ],
+                if (contentOpacity > 0) SizedBox(height: 20 * contentOpacity),
+              ],
+
+              // Исчезающий контент (Приветствие, Дата, Совет)
+              if (contentOpacity > 0)
+                Opacity(
+                  opacity: contentOpacity,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Строка: Приветствие и Дата
+                      Row(
+                        children: [
+                          Icon(
+                            iconData,
+                            size: isDesktop ? 18 : 16,
+                            color: baseColor.withValues(alpha: 0.8),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text.rich(
+                              TextSpan(
+                                children: [
+                                  TextSpan(
+                                    text: title,
+                                    style: (isDesktop
+                                            ? theme.textTheme.titleMedium
+                                            : theme.textTheme.titleSmall)
+                                        ?.copyWith(
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: -0.3,
+                                    ),
+                                  ),
+                                  TextSpan(
+                                    text: ' · $dateString',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: theme.colorScheme.onSurface.withValues(
+                                        alpha: 0.4,
+                                      ),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      // Нижняя строка: Совет дня
+                      tipAsync.when(
+                        data: (tip) => _buildTipLine(context, theme, tip, isDesktop),
+                        loading: () => const SizedBox(height: 20),
+                        error: (err, stack) => _buildTipLine(
+                          context,
+                          theme,
+                          const DailyTip(
+                            title: 'Безопасность',
+                            content:
+                                'Всегда проверяйте отсутствие напряжения перед началом работ.',
+                            category: 'Общее',
+                          ),
+                          isDesktop,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
