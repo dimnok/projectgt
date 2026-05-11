@@ -6,6 +6,8 @@ import 'package:projectgt/features/work_plans/presentation/providers/work_plan_m
 import 'package:projectgt/features/works/presentation/widgets/sliver_month_work_plans_list.dart';
 import 'package:projectgt/features/works/presentation/widgets/work_plan_month_group_sliver_header.dart';
 
+import 'package:projectgt/features/works/presentation/widgets/works_list_scope_chips_bar.dart';
+
 /// Мобильный список планов работ в модуле «Работы» (сгруппирован по месяцам).
 ///
 /// Создание плана — круглая кнопка в хедере родительского [WorksListMobileScreen]
@@ -14,10 +16,7 @@ import 'package:projectgt/features/works/presentation/widgets/work_plan_month_gr
 /// Используется внутри [WorksListMobileScreen] при переключении на режим «Планы».
 class WorksListMobilePlansView extends ConsumerWidget {
   /// Создаёт виджет списка планов.
-  const WorksListMobilePlansView({
-    super.key,
-    required this.onRefresh,
-  });
+  const WorksListMobilePlansView({super.key, required this.onRefresh});
 
   /// Pull-to-refresh: перезагрузка групп месяцев планов.
   final Future<void> Function() onRefresh;
@@ -26,8 +25,7 @@ class WorksListMobilePlansView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final workPlanMonthGroupsState = ref.watch(workPlanMonthGroupsProvider);
     final groups = workPlanMonthGroupsState.groups;
-    final isLoading =
-        workPlanMonthGroupsState.isLoading && groups.isEmpty;
+    final isLoading = workPlanMonthGroupsState.isLoading && groups.isEmpty;
 
     if (isLoading) {
       return const Center(child: CupertinoActivityIndicator());
@@ -93,7 +91,7 @@ class WorksListMobilePlansChipsBar extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
         child: Row(
           children: [
-            _PlansNavTextChip(
+            WorksListScopeTextChip(
               scheme: scheme,
               label: 'Смены',
               selected: true,
@@ -102,51 +100,6 @@ class WorksListMobilePlansChipsBar extends StatelessWidget {
               },
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PlansNavTextChip extends StatelessWidget {
-  const _PlansNavTextChip({
-    required this.scheme,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final ColorScheme scheme;
-  final String label;
-  final bool selected;
-  final Future<void> Function() onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = selected ? scheme.primary : scheme.onSurfaceVariant;
-
-    return InkWell(
-      onTap: () async {
-        await onTap();
-      },
-      borderRadius: BorderRadius.circular(4),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: color,
-            fontSize: 14,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-            letterSpacing: 0.1,
-            height: 1.35,
-            decoration: selected
-                ? TextDecoration.underline
-                : TextDecoration.none,
-            decorationColor: scheme.primary,
-            decorationThickness: 2,
-            decorationStyle: TextDecorationStyle.solid,
-          ),
         ),
       ),
     );

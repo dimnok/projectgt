@@ -16,6 +16,7 @@ import 'package:projectgt/features/works/presentation/screens/works_list_mobile_
 import 'package:projectgt/features/works/presentation/screens/works_screen_actions_mixin.dart';
 import 'package:projectgt/features/works/presentation/widgets/mobile_month_works_list.dart';
 import 'package:projectgt/features/works/presentation/widgets/work_month_group_sliver_header.dart';
+import 'package:projectgt/features/works/presentation/widgets/works_list_scope_chips_bar.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 
@@ -147,7 +148,7 @@ class _WorksListMobileScreenState extends ConsumerState<WorksListMobileScreen>
                               : null),
                   ),
                   if (_displayMode == _MobileDisplayMode.works)
-                    _MobileWorksListChipsBar(
+                    WorksListScopeChipsBar(
                       scheme: theme.colorScheme,
                       profileId: profileId,
                       onlyMineActive: onlyMineListScope,
@@ -301,117 +302,6 @@ class _WorksListMobileScreenState extends ConsumerState<WorksListMobileScreen>
               ),
             ],
         ],
-      ),
-    );
-  }
-}
-
-/// Горизонтальная полоса чипов списка смен: «Все» / «Мои смены» / «Планы».
-///
-/// Визуально совпадает с текстовыми чипами статусов на экране сотрудников.
-class _MobileWorksListChipsBar extends StatelessWidget {
-  /// Создаёт полосу чипов над списком смен.
-  const _MobileWorksListChipsBar({
-    required this.scheme,
-    required this.profileId,
-    required this.onlyMineActive,
-    required this.canOpenPlans,
-    required this.onAllTap,
-    required this.onMineTap,
-    required this.onPlansTap,
-  });
-
-  final ColorScheme scheme;
-  final String? profileId;
-  final bool onlyMineActive;
-  final bool canOpenPlans;
-  final Future<void> Function() onAllTap;
-  final Future<void> Function() onMineTap;
-  final VoidCallback onPlansTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
-        child: Row(
-          children: [
-            _MobileFilterTextChip(
-              scheme: scheme,
-              label: 'Все',
-              selected: !onlyMineActive,
-              onTap: onAllTap,
-            ),
-            if (profileId != null) ...[
-              const SizedBox(width: 22),
-              _MobileFilterTextChip(
-                scheme: scheme,
-                label: 'Мои смены',
-                selected: onlyMineActive,
-                onTap: onMineTap,
-              ),
-            ],
-            if (canOpenPlans) ...[
-              const SizedBox(width: 22),
-              _MobileFilterTextChip(
-                scheme: scheme,
-                label: 'Планы',
-                selected: false,
-                onTap: () async {
-                  onPlansTap();
-                },
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Текстовый чип фильтра: в активном состоянии — цвет primary и подчёркивание.
-class _MobileFilterTextChip extends StatelessWidget {
-  const _MobileFilterTextChip({
-    required this.scheme,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final ColorScheme scheme;
-  final String label;
-  final bool selected;
-  final Future<void> Function() onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = selected ? scheme.primary : scheme.onSurfaceVariant;
-
-    return InkWell(
-      onTap: () async {
-        await onTap();
-      },
-      borderRadius: BorderRadius.circular(4),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: color,
-            fontSize: 14,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-            letterSpacing: 0.1,
-            height: 1.35,
-            decoration: selected
-                ? TextDecoration.underline
-                : TextDecoration.none,
-            decorationColor: scheme.primary,
-            decorationThickness: 2,
-            decorationStyle: TextDecorationStyle.solid,
-          ),
-        ),
       ),
     );
   }

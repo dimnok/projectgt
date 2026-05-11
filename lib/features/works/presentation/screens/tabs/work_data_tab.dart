@@ -30,6 +30,7 @@ import 'package:projectgt/features/works/presentation/widgets/work_stats_card.da
 import 'package:projectgt/features/works/presentation/widgets/work_own_contractor_amounts_card.dart';
 import 'package:projectgt/features/works/presentation/widgets/work_validation_block.dart';
 import 'package:projectgt/features/works/presentation/utils/works_strings.dart';
+import 'package:projectgt/features/works/presentation/widgets/work_detail_data_spacing.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 /// Вкладка "Данные" со сводной информацией по смене
@@ -124,6 +125,8 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
             currentProfile != null && work.openedBy == currentProfile.id;
         final bool canModify = (isOwner && !isWorkClosed) || isCompanyOwner;
 
+        final narrowPhone = ResponsiveUtils.isMobile(context);
+
         final content = Column(
           crossAxisAlignment: isMobile
               ? CrossAxisAlignment.stretch
@@ -149,22 +152,27 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
             ),
 
             if (items != null && items.isNotEmpty) ...[
-              const SizedBox(height: 16),
+              SizedBox(height: WorkDetailDataSpacing.betweenCardsOf(context)),
               WorkOwnContractorAmountsCard(items: items),
-              const SizedBox(height: 16),
+              SizedBox(height: WorkDetailDataSpacing.betweenCardsOf(context)),
               WorkDistributionCard(items: items),
             ] else if (items == null) ...[
-              const SizedBox(height: 16),
+              SizedBox(height: WorkDetailDataSpacing.betweenCardsOf(context)),
               _buildDistributionSkeleton(context),
             ],
-            const SizedBox(height: 16),
+            SizedBox(height: WorkDetailDataSpacing.betweenCardsOf(context)),
             WorkPhotoView(work: work),
-            const SizedBox(height: 32),
+            SizedBox(height: narrowPhone ? 16 : 28),
           ],
         );
 
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.fromLTRB(
+            narrowPhone ? WorkDetailDataSpacing.mobileScrollHorizontal : 16,
+            0,
+            narrowPhone ? WorkDetailDataSpacing.mobileScrollHorizontal : 16,
+            narrowPhone ? WorkDetailDataSpacing.mobileScrollBottom : 24,
+          ),
           child: isMobile
               ? Center(
                   child: ConstrainedBox(
@@ -455,5 +463,4 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
       }
     });
   }
-
 }

@@ -24,6 +24,8 @@ import 'package:projectgt/presentation/state/profile_state.dart';
 
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/presentation/widgets/custom_sliding_segmented_control.dart';
+import 'package:projectgt/features/works/presentation/widgets/work_detail_data_spacing.dart';
+import 'package:projectgt/features/works/presentation/widgets/work_details_desktop_header_chrome.dart';
 import 'tabs/work_data_tab.dart';
 import 'tabs/work_hours_tab.dart';
 import 'work_item_context_menu.dart';
@@ -32,6 +34,10 @@ import 'package:projectgt/features/contractors/presentation/state/contractor_sta
 /// Панель деталей смены с табами: работы, материалы, часы.
 ///
 /// Используется как часть мастер-детейл интерфейса на десктопе и как отдельный экран на мобильных.
+/// На десктопе верхняя зона табов и фильтров оформлена единым блоком [WorkDetailsDesktopHeaderChrome]
+/// (без вложенной второй рамки у фильтров); скроллится только контент активной вкладки.
+/// На планшете и узком экране без десктоп-хрома переключатель и фильтры закреплены над областью вкладки,
+/// прокрутка только у содержимого вкладки (без общего скролла «шапка+табы»).
 /// Позволяет просматривать и редактировать списки работ, материалов и часов в смене.
 class WorkDetailsPanel extends ConsumerStatefulWidget {
   /// Идентификатор смены.
@@ -302,9 +308,252 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
     }
   }
 
+  /// Переключатель «Данные / Работы / Сотрудники» (без внешних полей).
+  ///
+  /// [forDesktopChrome] — компактный радиус и поля под единый хром панели (десктоп).
+  /// [embeddedInMobileToolbar] — только узкий телефон: трек без внешней рамки, внутри общей карточки с фильтрами.
+  Widget _buildSlidingSegmentControl(
+    ThemeData theme, {
+    bool forDesktopChrome = false,
+    bool embeddedInMobileToolbar = false,
+  }) {
+    final scheme = theme.colorScheme;
+    final phone = !forDesktopChrome && ResponsiveUtils.isMobile(context);
+    IconData? tabIcon(IconData full) => phone ? null : full;
+
+    final Color backgroundColor;
+    final BoxBorder? border;
+    final double segmentRadius;
+    if (embeddedInMobileToolbar && phone) {
+      backgroundColor = theme.brightness == Brightness.dark
+          ? scheme.surface.withValues(alpha: 0.22)
+          : scheme.surface.withValues(alpha: 0.62);
+      border = null;
+      segmentRadius = WorkDetailDataSpacing.mobileEmbeddedSegmentRadius;
+    } else if (phone) {
+      backgroundColor = scheme.surfaceContainerHighest.withValues(alpha: 0.45);
+      border = Border.all(
+        color: scheme.outline.withValues(alpha: 0.38),
+        width: 1,
+      );
+      segmentRadius = WorkDetailDataSpacing.segmentControlTrackRadius;
+    } else {
+      backgroundColor = theme.brightness == Brightness.dark
+          ? scheme.surfaceContainer
+          : scheme.surfaceContainerHighest;
+      border = Border.all(
+        color: theme.brightness == Brightness.dark
+            ? Colors.white.withValues(alpha: 0.1)
+            : scheme.outline.withValues(alpha: 0.15),
+        width: 1,
+      );
+      segmentRadius = WorkDetailDataSpacing.segmentControlTrackRadius;
+    }
+
+    final control = CustomSlidingSegmentedControl<int>(
+      groupValue: _tabController.index,
+      onValueChanged: (int value) {
+        setState(() {
+          _tabController.animateTo(value);
+        });
+      },
+      backgroundColor: backgroundColor,
+      thumbColor: scheme.surface,
+      borderRadius: segmentRadius,
+      border: border,
+      padding: WorkDetailDataSpacing.segmentControlTrackPadding,
+      children: {
+        0: _buildTabItem(
+          theme,
+          0,
+          tabIcon(CupertinoIcons.info),
+          'Данные',
+          desktopSpacious: forDesktopChrome,
+        ),
+        1: _buildTabItem(
+          theme,
+          1,
+          tabIcon(CupertinoIcons.wrench),
+          'Работы',
+          desktopSpacious: forDesktopChrome,
+        ),
+        2: _buildTabItem(
+          theme,
+          2,
+          tabIcon(CupertinoIcons.group),
+          'Сотрудники',
+          desktopSpacious: forDesktopChrome,
+        ),
+      },
+    );
+
+    if (phone) {
+      return SizedBox(
+        width: double.infinity,
+        height: WorkDetailDataSpacing.mobileWorkTabSegmentBarHeight,
+        child: control,
+      );
+    }
+    return control;
+  }
+
+  /// Единая мобильная карточка: сегмент вкладок + фильтры списка работ (таб «Работы»).
+  Widget _buildMobileUnifiedToolbar(ThemeData theme) {
+    final scheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+    final fill = isDark
+        ? scheme.surfaceContainer
+        : scheme.surfaceContainerHighest;
+    final outline = isDark
+        ? Colors.white.withValues(alpha: 0.1)
+        : scheme.outline.withValues(alpha: 0.15);
+    const r = WorkDetailDataSpacing.mobileUnifiedToolbarRadius;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: WorkDetailDataSpacing.mobileScrollHorizontal,
+      ),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: fill,
+          border: Border.all(color: outline, width: 1),
+          borderRadius: BorderRadius.circular(r),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(r),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 0),
+                child: _buildSlidingSegmentControl(
+                  theme,
+                  embeddedInMobileToolbar: true,
+                ),
+              ),
+              Consumer(
+                builder: (context, ref, _) {
+                  if (_tabController.index != 1) {
+                    return const SizedBox(height: 10);
+                  }
+                  final itemsAsync = ref.watch(
+                    workItemsProvider(widget.workId),
+                  );
+                  return itemsAsync.when(
+                    data: (items) {
+                      if (items.isEmpty) {
+                        return const SizedBox(height: 10);
+                      }
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(10, 6, 10, 0),
+                            child: Divider(
+                              height: 1,
+                              thickness: 1,
+                              color: scheme.outlineVariant.withValues(
+                                alpha: 0.35,
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                            child: _buildFiltersBlock(
+                              context,
+                              theme,
+                              items,
+                              embedInMobileToolbar: true,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                    loading: () => const SizedBox(height: 8),
+                    error: (_, __) => const SizedBox(height: 8),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Разделитель и фильтры внутри [WorkDetailsDesktopHeaderChrome] (таб «Работы»).
+  Widget _buildDesktopHeaderBelowSegment(ThemeData theme) {
+    if (_tabController.index != 1) return const SizedBox.shrink();
+    return Consumer(
+      builder: (context, ref, _) {
+        final itemsAsync = ref.watch(workItemsProvider(widget.workId));
+        return itemsAsync.when(
+          data: (items) {
+            if (items.isEmpty) return const SizedBox.shrink();
+            final scheme = theme.colorScheme;
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: WorkDetailDataSpacing.desktopHeaderDividerInset,
+                  ),
+                  child: Divider(
+                    height: 1,
+                    thickness: 1,
+                    color: scheme.outlineVariant.withValues(alpha: 0.35),
+                  ),
+                ),
+                Padding(
+                  padding: WorkDetailDataSpacing.desktopHeaderFiltersInner,
+                  child: _buildFiltersBlock(
+                    context,
+                    theme,
+                    items,
+                    embedInDesktopChrome: true,
+                  ),
+                ),
+              ],
+            );
+          },
+          loading: () => const SizedBox.shrink(),
+          error: (_, __) => const SizedBox.shrink(),
+        );
+      },
+    );
+  }
+
+  /// Фильтры списка работ под табами (только активный таб «Работы», только планшет / не телефон).
+  Widget _buildFiltersBelowTabsIfWorksTab(ThemeData theme) {
+    if (_tabController.index != 1) return const SizedBox.shrink();
+    return Consumer(
+      builder: (context, ref, _) {
+        final itemsAsync = ref.watch(workItemsProvider(widget.workId));
+        return itemsAsync.when(
+          data: (items) {
+            if (items.isEmpty) return const SizedBox.shrink();
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 8),
+                _buildFiltersBlock(context, theme, items),
+              ],
+            );
+          },
+          loading: () => const SizedBox.shrink(),
+          error: (_, __) => const SizedBox.shrink(),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDesktop = ResponsiveUtils.isDesktop(context);
 
     // Используем переданную смену или ищем в провайдере
     final workAsync =
@@ -321,77 +570,53 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
     final object = objects.firstWhereOrNull((o) => o.id == workAsync.objectId);
     final objectDisplay = object != null ? object.name : workAsync.objectId;
 
-    // Используем CustomScrollView для решения проблемы RenderFlex overflow при анимации Hero.
-    // Если высота контейнера слишком мала (например, во время анимации расширения карточки),
-    // содержимое будет просто скроллиться или обрезаться, а не вызывать ошибку переполнения.
-    return CustomScrollView(
-      physics: const ClampingScrollPhysics(),
-      slivers: [
-        // Отступ сверху как в списке смен
-        SliverToBoxAdapter(
-          child: SizedBox(height: ResponsiveUtils.isMobile(context) ? 8 : 6),
+    final tabContent = _getTabContent(
+      _tabController.index,
+      workAsync,
+      objectDisplay,
+    );
+
+    // Десктоп: закреплённый хром «табы + фильтры», скролл только у контента вкладки.
+    if (isDesktop) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          WorkDetailsDesktopHeaderChrome(
+            segmentBar: _buildSlidingSegmentControl(
+              theme,
+              forDesktopChrome: true,
+            ),
+            belowSegment: _buildDesktopHeaderBelowSegment(theme),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: tabContent,
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Узкий телефон: одна карточка «вкладки + фильтры»; планшет — сегмент и фильтры раздельно.
+    final isPhone = ResponsiveUtils.isMobile(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          height: isPhone ? WorkDetailDataSpacing.mobileSegmentTopGap : 6,
         ),
-        // Блок с табами
-        SliverToBoxAdapter(
-          child: Padding(
+        if (isPhone)
+          _buildMobileUnifiedToolbar(theme)
+        else ...[
+          Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: CustomSlidingSegmentedControl<int>(
-              groupValue: _tabController.index,
-              onValueChanged: (int value) {
-                setState(() {
-                  _tabController.animateTo(value);
-                });
-              },
-              backgroundColor: theme.brightness == Brightness.dark
-                  ? theme.colorScheme.surfaceContainer
-                  : theme.colorScheme.surfaceContainerHighest,
-              thumbColor: theme.colorScheme.surface,
-              borderRadius: 20,
-              border: Border.all(
-                color: theme.brightness == Brightness.dark
-                    ? Colors.white.withValues(alpha: 0.1)
-                    : theme.colorScheme.outline.withValues(alpha: 0.15),
-                width: 1,
-              ),
-              padding: const EdgeInsets.all(4),
-              children: {
-                0: _buildTabItem(theme, 0, CupertinoIcons.info, 'Данные'),
-                1: _buildTabItem(theme, 1, CupertinoIcons.wrench, 'Работы'),
-                2: _buildTabItem(theme, 2, CupertinoIcons.group, 'Сотрудники'),
-              },
-            ),
+            child: _buildSlidingSegmentControl(theme),
           ),
-        ),
-
-        // Фильтры (только для таба Работы)
-        if (_tabController.index == 1)
-          SliverToBoxAdapter(
-            child: Consumer(
-              builder: (context, ref, _) {
-                final itemsAsync = ref.watch(workItemsProvider(widget.workId));
-                return itemsAsync.when(
-                  data: (items) {
-                    if (items.isEmpty) return const SizedBox.shrink();
-                    return Column(
-                      children: [
-                        const SizedBox(height: 8),
-                        _buildFiltersBlock(context, theme, items),
-                      ],
-                    );
-                  },
-                  loading: () => const SizedBox.shrink(),
-                  error: (_, __) => const SizedBox.shrink(),
-                );
-              },
-            ),
-          ),
-
-        // Контент табов
-        SliverFillRemaining(
-          hasScrollBody:
-              true, // Важно: контент таба сам управляет скроллом (если это список)
-          child: _getTabContent(_tabController.index, workAsync, objectDisplay),
-        ),
+          _buildFiltersBelowTabsIfWorksTab(theme),
+        ],
+        const SizedBox(height: 8),
+        Expanded(child: tabContent),
       ],
     );
   }
@@ -399,34 +624,71 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
   Widget _buildTabItem(
     ThemeData theme,
     int index,
-    IconData icon,
-    String label,
-  ) {
+    IconData? icon,
+    String label, {
+    bool desktopSpacious = false,
+  }) {
     final isSelected = _tabController.index == index;
+    final scheme = theme.colorScheme;
+    final textOnly = icon == null && !desktopSpacious;
+
+    final EdgeInsets segmentPadding;
+    if (desktopSpacious) {
+      segmentPadding = WorkDetailDataSpacing.desktopSegmentItemPadding;
+    } else if (textOnly) {
+      segmentPadding = WorkDetailDataSpacing.mobileWorkTabSegmentTextPadding;
+    } else {
+      segmentPadding = WorkDetailDataSpacing.segmentItemPaddingOf(context);
+    }
+
+    if (textOnly) {
+      final base = theme.textTheme.labelLarge ?? theme.textTheme.bodyMedium!;
+      return ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 0),
+        child: Padding(
+          padding: segmentPadding,
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: base.copyWith(
+              fontWeight: FontWeight.w600,
+              fontSize: 12.5,
+              height: 1.1,
+              color: isSelected
+                  ? scheme.onSurface
+                  : scheme.onSurface.withValues(alpha: 0.52),
+            ),
+          ),
+        ),
+      );
+    }
+
     // Используем ConstrainedBox вместо фиксированного SizedBox, чтобы избежать переполнения
     return ConstrainedBox(
       constraints: const BoxConstraints(minWidth: 0),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        padding: segmentPadding,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              icon,
-              size: 18,
-              color: isSelected
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.onSurfaceVariant,
+              icon!,
+              size: desktopSpacious ? 19 : 18,
+              color: isSelected ? scheme.primary : scheme.onSurfaceVariant,
             ),
-            const SizedBox(width: 4),
+            SizedBox(
+              width: desktopSpacious
+                  ? WorkDetailDataSpacing.segmentIconGap
+                  : WorkDetailDataSpacing.segmentIconGapOf(context),
+            ),
             Flexible(
               child: Text(
                 label,
                 style: TextStyle(
-                  fontSize: 13, // Немного уменьшаем шрифт для мобилок
-                  color: isSelected
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.onSurfaceVariant,
+                  fontSize: desktopSpacious ? 14 : 13,
+                  color: isSelected ? scheme.primary : scheme.onSurfaceVariant,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                 ),
                 overflow: TextOverflow.ellipsis,
@@ -536,7 +798,9 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                     controller: _workItemsScrollController,
                     keyboardDismissBehavior:
                         ScrollViewKeyboardDismissBehavior.onDrag,
-                    padding: const EdgeInsets.all(16),
+                    padding: ResponsiveUtils.isMobile(context)
+                        ? WorkDetailDataSpacing.mobileTabListPadding
+                        : const EdgeInsets.all(16),
                     itemCount: filteredItems.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 10),
                     itemBuilder: (context, i) {
@@ -1332,14 +1596,16 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
     String label,
     String? value,
     List<String> items,
-    ValueChanged<String?> onChanged,
-  ) {
+    ValueChanged<String?> onChanged, {
+    double width = 150,
+    double height = 36,
+  }) {
     final theme = Theme.of(context);
     final isSelected = value != null;
 
     return SizedBox(
-      width: 150,
-      height: 36,
+      width: width,
+      height: height,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
         decoration: BoxDecoration(
@@ -1413,8 +1679,15 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
   Widget _buildFiltersBlock(
     BuildContext context,
     ThemeData theme,
-    List<WorkItem> items,
-  ) {
+    List<WorkItem> items, {
+    bool embedInDesktopChrome = false,
+    bool embedInMobileToolbar = false,
+  }) {
+    assert(
+      !(embedInDesktopChrome && embedInMobileToolbar),
+      'Взаимоисключающие режимы встраивания фильтров',
+    );
+
     final uniqueModules = _getUniqueModules(items);
     final uniqueFloors = _getUniqueFloors(items);
     final uniqueSystems = _getUniqueSystems(items);
@@ -1424,15 +1697,25 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
 
     final isMobile = ResponsiveUtils.isMobile(context);
 
+    final filterChipHeight = embedInDesktopChrome ? 40.0 : 36.0;
+    final filterChipWidth = embedInDesktopChrome ? 172.0 : 150.0;
+    final gap = embedInDesktopChrome ? 10.0 : 8.0;
+    final searchWidth = embedInDesktopChrome
+        ? 480.0
+        : (isMobile ? double.infinity : 450.0);
+
     final searchField = SizedBox(
-      width: isMobile ? double.infinity : 450,
-      height: 36,
+      width: searchWidth,
+      height: filterChipHeight,
       child: GTTextField(
         controller: _searchController,
         hintText: 'Поиск',
         prefixIcon: CupertinoIcons.search,
         borderRadius: 20,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: embedInDesktopChrome ? 10 : 8,
+        ),
         onChanged: (value) {
           setState(() {
             _searchQuery = value;
@@ -1448,16 +1731,20 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
         _selectedModule,
         uniqueModules,
         (val) => setState(() => _selectedModule = val),
+        width: filterChipWidth,
+        height: filterChipHeight,
       ),
-      const SizedBox(width: 8),
+      SizedBox(width: gap),
       _buildFilterDropdown(
         context,
         'Этаж',
         _selectedFloor,
         uniqueFloors,
         (val) => setState(() => _selectedFloor = val),
+        width: filterChipWidth,
+        height: filterChipHeight,
       ),
-      const SizedBox(width: 8),
+      SizedBox(width: gap),
       _buildFilterDropdown(
         context,
         'Система',
@@ -1467,41 +1754,77 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
           _selectedSystem = val;
           _selectedSubsystem = null;
         }),
+        width: filterChipWidth,
+        height: filterChipHeight,
       ),
-      const SizedBox(width: 8),
+      SizedBox(width: gap),
       _buildFilterDropdown(
         context,
         'Подсистема',
         _selectedSubsystem,
         uniqueSubsystems,
         (val) => setState(() => _selectedSubsystem = val),
+        width: filterChipWidth,
+        height: filterChipHeight,
       ),
-      const SizedBox(width: 8),
-      // Кнопка сброса
+      SizedBox(width: gap),
       if (_searchQuery.isNotEmpty ||
           _selectedModule != null ||
           _selectedFloor != null ||
           _selectedSystem != null ||
           _selectedSubsystem != null)
-        IconButton.filledTonal(
-          onPressed: _resetFilters,
-          icon: const Icon(CupertinoIcons.slider_horizontal_3, size: 18),
-          style: IconButton.styleFrom(
-            backgroundColor: theme.colorScheme.errorContainer.withValues(
-              alpha: 0.5,
+        SizedBox(
+          height: filterChipHeight,
+          width: filterChipHeight,
+          child: IconButton.filledTonal(
+            padding: EdgeInsets.zero,
+            onPressed: _resetFilters,
+            icon: const Icon(CupertinoIcons.slider_horizontal_3, size: 18),
+            style: IconButton.styleFrom(
+              backgroundColor: theme.colorScheme.errorContainer.withValues(
+                alpha: 0.5,
+              ),
+              foregroundColor: theme.colorScheme.error,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
             ),
-            foregroundColor: theme.colorScheme.error,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
+            tooltip: 'Сбросить',
           ),
-          tooltip: 'Сбросить',
         ),
     ];
 
+    if (embedInMobileToolbar) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          searchField,
+          const SizedBox(height: 10),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(children: filters),
+          ),
+        ],
+      );
+    }
+
+    if (embedInDesktopChrome) {
+      return SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [searchField, const SizedBox(width: 16), ...filters],
+        ),
+      );
+    }
+
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+      margin: EdgeInsets.symmetric(
+        horizontal: ResponsiveUtils.isMobile(context)
+            ? WorkDetailDataSpacing.mobileScrollHorizontal
+            : 16,
+      ),
       decoration: BoxDecoration(
         color: theme.brightness == Brightness.dark
             ? theme.colorScheme.surfaceContainer
@@ -1532,11 +1855,15 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
           : SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Padding(
-                padding: const EdgeInsets.all(4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     searchField,
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 16),
                     ...filters,
                   ],
                 ),

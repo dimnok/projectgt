@@ -18,6 +18,7 @@ import 'package:projectgt/core/utils/modal_utils.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/widgets/gt_text_field.dart';
+import 'package:projectgt/features/works/presentation/widgets/work_detail_data_spacing.dart';
 
 /// Вкладка "Сотрудники" для панели деталей смены.
 ///
@@ -203,7 +204,9 @@ class _WorkHoursTabState extends ConsumerState<WorkHoursTab> {
                         keyboardDismissBehavior:
                             ScrollViewKeyboardDismissBehavior.onDrag,
                         itemCount: hours.length,
-                        padding: const EdgeInsets.all(16),
+                        padding: ResponsiveUtils.isMobile(context)
+                            ? WorkDetailDataSpacing.mobileTabListPadding
+                            : const EdgeInsets.all(16),
                         itemBuilder: (context, i) {
                           final hour = hours[i];
                           final employeeName =
