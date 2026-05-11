@@ -7,8 +7,8 @@
 #   4) Коммит, создание тега и пуш на GitHub
 #   5) Создание GitHub Release и загрузка IPA
 #
-# ВАЖНО: Сборка Windows (.exe) и macOS (.app.zip) происходит 
-# автоматически в облаке (GitHub Actions) после публикации релиза.
+# ВАЖНО: Сборка Windows (.exe) происходит автоматически в облаке 
+# (GitHub Actions) после публикации релиза. iOS и macOS собираются локально.
 #
 # Запуск: ./tools/projectgt_release.sh
 # Опции:
@@ -80,7 +80,7 @@ TAG="v${APP_VERSION}"
 
 echo "📦 Релиз: ${VERSION_LINE} → GitHub tag ${TAG}"
 
-# 3. Сборка IPA
+# 3. Сборка IPA и macOS
 echo "📥 Получение зависимостей (flutter pub get)..."
 flutter pub get
 
@@ -94,6 +94,18 @@ if [[ ! -f "$IPA" ]]; then
 fi
 
 IPA_SIZE="$(stat -f%z "$IPA" 2>/dev/null || stat -c%s "$IPA")"
+
+echo "🖥️ Сборка macOS..."
+flutter build macos --release
+
+MACOS_ZIP="$ROOT/build/macos/Build/Products/Release/ProjectGT_macOS.zip"
+echo "📦 Упаковка macOS в ZIP..."
+(cd "$ROOT/build/macos/Build/Products/Release" && zip -r ProjectGT_macOS.zip projectgt.app)
+
+if [[ ! -f "$MACOS_ZIP" ]]; then
+  echo "❌ Ошибка: Файл $MACOS_ZIP не найден после сборки!" >&2
+  exit 1
+fi
 
 # 4. Обновление source.json
 echo "📝 Обновление sidestore/source.json..."
@@ -165,19 +177,19 @@ git push origin "$BRANCH"
 git push origin "$TAG" --force
 
 # 6. GitHub Release
-echo "☁️  Создание GitHub Release и загрузка IPA..."
+echo "☁️  Создание GitHub Release и загрузка файлов..."
 if gh release view "$TAG" -R "$FULL_REPO" &>/dev/null; then
   echo "Обновление существующего релиза..."
-  gh release upload "$TAG" "$IPA" -R "$FULL_REPO" --clobber
+  gh release upload "$TAG" "$IPA" "$MACOS_ZIP" -R "$FULL_REPO" --clobber
 else
-  gh release create "$TAG" "$IPA" -R "$FULL_REPO" \
+  gh release create "$TAG" "$IPA" "$MACOS_ZIP" -R "$FULL_REPO" \
     --title "ProjectGT ${APP_VERSION} (build ${BUILD_NUMBER})" \
     --notes "🚀 **ProjectGT ${APP_VERSION}**
 
 ### Установка
 * **iOS:** Скачайте \`projectgt.ipa\` и установите через SideStore.
-* **Windows:** Скачайте \`ProjectGT_Setup.exe\` (появится через несколько минут).
-* **macOS:** Скачайте \`ProjectGT_macOS.zip\` (появится через несколько минут)."
+* **macOS:** Скачайте \`ProjectGT_macOS.zip\`, распакуйте и запустите.
+* **Windows:** Скачайте \`ProjectGT_Setup.exe\` (появится через несколько минут)."
 fi
 
 echo "✅ Релиз ${TAG} успешно завершён!"
