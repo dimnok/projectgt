@@ -13,6 +13,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/features/works/presentation/widgets/photo_loading_dialog.dart';
 import 'package:projectgt/features/works/presentation/utils/photo_upload_helper.dart';
+import 'package:projectgt/features/works/presentation/widgets/work_detail_data_spacing.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/mobile_atmosphere_backdrop.dart';
 import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
@@ -24,8 +25,9 @@ String? extractPhotoTimeFromUrl(String url) {
     final uri = Uri.parse(url);
     final last = uri.pathSegments.isNotEmpty ? uri.pathSegments.last : '';
     // ignore: deprecated_member_use
-    final match = RegExp(r"(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})")
-        .firstMatch(last);
+    final match = RegExp(
+      r"(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})",
+    ).firstMatch(last);
     if (match != null) {
       final hour = match.group(4);
       final minute = match.group(5);
@@ -46,10 +48,7 @@ class WorkPhotoView extends StatelessWidget {
   final Work work;
 
   /// Создаёт виджет для отображения фотографий смены [work].
-  const WorkPhotoView({
-    super.key,
-    required this.work,
-  });
+  const WorkPhotoView({super.key, required this.work});
 
   @override
   Widget build(BuildContext context) {
@@ -57,21 +56,22 @@ class WorkPhotoView extends StatelessWidget {
     final isDesktop = ResponsiveUtils.isDesktop(context);
 
     // Проверяем, есть ли фотографии
-    final hasPhotos = (work.photoUrl != null && work.photoUrl!.isNotEmpty) ||
+    final hasPhotos =
+        (work.photoUrl != null && work.photoUrl!.isNotEmpty) ||
         (work.eveningPhotoUrl != null && work.eveningPhotoUrl!.isNotEmpty);
 
     if (!hasPhotos) {
       return Card(
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           side: BorderSide(
             color: theme.colorScheme.outline.withValues(alpha: 0.2),
             width: 1,
           ),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: WorkDetailDataSpacing.cardPaddingOf(context),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -122,7 +122,7 @@ class WorkPhotoView extends StatelessWidget {
                   work.photoUrl!.isNotEmpty &&
                   work.eveningPhotoUrl != null &&
                   work.eveningPhotoUrl!.isNotEmpty)
-                const SizedBox(width: 16),
+                const SizedBox(width: WorkDetailDataSpacing.photoTwinGap),
 
               // Вечерняя фотография
               if (work.eveningPhotoUrl != null &&
@@ -170,7 +170,7 @@ class WorkPhotoView extends StatelessWidget {
                   work.photoUrl!.isNotEmpty &&
                   work.eveningPhotoUrl != null &&
                   work.eveningPhotoUrl!.isNotEmpty)
-                const SizedBox(height: 16),
+                SizedBox(height: WorkDetailDataSpacing.betweenCardsOf(context)),
 
               // Вечерняя фотография
               if (work.eveningPhotoUrl != null &&
@@ -213,7 +213,7 @@ class WorkPhotoView extends StatelessWidget {
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         side: BorderSide(
           color: theme.colorScheme.outline.withValues(alpha: 0.2),
           width: 1,
@@ -224,25 +224,29 @@ class WorkPhotoView extends StatelessWidget {
         children: [
           // Заголовок с иконкой
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: WorkDetailDataSpacing.photoCardHeaderPaddingOf(context),
             child: Row(
               children: [
                 Icon(
                   icon,
+                  size: 22,
                   color: iconColor ?? theme.colorScheme.primary,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
                 Text(
                   title,
                   style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.15,
                   ),
                 ),
                 const Spacer(),
                 if (uploadedTime != null)
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: theme.colorScheme.surfaceContainerHighest
                           .withValues(alpha: 0.6),
@@ -270,8 +274,8 @@ class WorkPhotoView extends StatelessWidget {
               children: [
                 ClipRRect(
                   borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(12),
-                    bottomRight: Radius.circular(12),
+                    bottomLeft: Radius.circular(16),
+                    bottomRight: Radius.circular(16),
                   ),
                   child: Image.network(
                     imageUrl,
@@ -282,8 +286,9 @@ class WorkPhotoView extends StatelessWidget {
                       return Container(
                         width: double.infinity,
                         height: 300,
-                        color: theme.colorScheme.errorContainer
-                            .withValues(alpha: 0.2),
+                        color: theme.colorScheme.errorContainer.withValues(
+                          alpha: 0.2,
+                        ),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -320,8 +325,10 @@ class WorkPhotoView extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: theme.colorScheme.surface.withValues(alpha: 0.7),
                       borderRadius: BorderRadius.circular(16),
@@ -355,7 +362,10 @@ class WorkPhotoView extends StatelessWidget {
 
   /// Открывает полноэкранный просмотр фотографий.
   void _showPhotoFullscreen(
-      BuildContext context, List<String> photoUrls, int initialIndex) {
+    BuildContext context,
+    List<String> photoUrls,
+    int initialIndex,
+  ) {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -422,8 +432,8 @@ class _FullscreenPhotoViewState extends ConsumerState<_FullscreenPhotoView> {
   String get _title {
     final url =
         (widget.photoUrls.isNotEmpty && _currentIndex < widget.photoUrls.length)
-            ? widget.photoUrls[_currentIndex]
-            : null;
+        ? widget.photoUrls[_currentIndex]
+        : null;
     final time = url != null ? extractPhotoTimeFromUrl(url) : null;
     if (time != null) {
       return '$_titleBase • $time';
@@ -490,14 +500,12 @@ class _FullscreenPhotoViewState extends ConsumerState<_FullscreenPhotoView> {
               tile(
                 icon: CupertinoIcons.camera,
                 title: 'Сделать фото',
-                onTap: () =>
-                    Navigator.pop(sheetContext, ImageSource.camera),
+                onTap: () => Navigator.pop(sheetContext, ImageSource.camera),
               ),
               tile(
                 icon: CupertinoIcons.photo_on_rectangle,
                 title: 'Выбрать из галереи',
-                onTap: () =>
-                    Navigator.pop(sheetContext, ImageSource.gallery),
+                onTap: () => Navigator.pop(sheetContext, ImageSource.gallery),
               ),
             ],
           ),
@@ -515,55 +523,58 @@ class _FullscreenPhotoViewState extends ConsumerState<_FullscreenPhotoView> {
       if (!mounted) return;
 
       // ✅ Загружаем фото через helper
-      final photoType =
-          _currentIndex == 0 ? PhotoType.morning : PhotoType.evening;
+      final photoType = _currentIndex == 0
+          ? PhotoType.morning
+          : PhotoType.evening;
       final displayName = _currentIndex == 0 ? 'morning' : 'evening';
 
-      final uploadedUrl = await PhotoUploadHelper(
-        context: context,
-        ref: ref,
-      ).uploadPhoto(
-        photoType: photoType,
-        entity: 'work',
-        entityId: widget.work.objectId,
-        displayName: displayName,
-        photoBytes: bytes,
-        // ✅ Обновляем Work ВО ВРЕМЯ диалога загрузки
-        onLoadingComplete: (String photoUrl) async {
-          try {
-            final updated = _currentIndex == 0
-                ? widget.work
-                    .copyWith(photoUrl: photoUrl, updatedAt: DateTime.now())
-                : widget.work.copyWith(
-                    eveningPhotoUrl: photoUrl, updatedAt: DateTime.now());
+      final uploadedUrl = await PhotoUploadHelper(context: context, ref: ref)
+          .uploadPhoto(
+            photoType: photoType,
+            entity: 'work',
+            entityId: widget.work.objectId,
+            displayName: displayName,
+            photoBytes: bytes,
+            // ✅ Обновляем Work ВО ВРЕМЯ диалога загрузки
+            onLoadingComplete: (String photoUrl) async {
+              try {
+                final updated = _currentIndex == 0
+                    ? widget.work.copyWith(
+                        photoUrl: photoUrl,
+                        updatedAt: DateTime.now(),
+                      )
+                    : widget.work.copyWith(
+                        eveningPhotoUrl: photoUrl,
+                        updatedAt: DateTime.now(),
+                      );
 
-            await ref.read(worksProvider.notifier).updateWork(updated);
+                await ref.read(worksProvider.notifier).updateWork(updated);
 
-            // Обновляем локальный список URLов
-            setState(() {
-              if (_currentIndex == 0) {
-                if (widget.photoUrls.isNotEmpty) {
-                  widget.photoUrls[0] = photoUrl;
-                }
-              } else {
-                if (widget.photoUrls.length > 1) {
-                  widget.photoUrls[1] = photoUrl;
-                } else {
-                  widget.photoUrls.add(photoUrl);
+                // Обновляем локальный список URLов
+                setState(() {
+                  if (_currentIndex == 0) {
+                    if (widget.photoUrls.isNotEmpty) {
+                      widget.photoUrls[0] = photoUrl;
+                    }
+                  } else {
+                    if (widget.photoUrls.length > 1) {
+                      widget.photoUrls[1] = photoUrl;
+                    } else {
+                      widget.photoUrls.add(photoUrl);
+                    }
+                  }
+                });
+              } catch (e) {
+                if (mounted) {
+                  AppSnackBar.show(
+                    context: context,
+                    message: 'Ошибка при сохранении фото: $e',
+                    kind: AppSnackBarKind.error,
+                  );
                 }
               }
-            });
-          } catch (e) {
-            if (mounted) {
-              AppSnackBar.show(
-                context: context,
-                message: 'Ошибка при сохранении фото: $e',
-                kind: AppSnackBarKind.error,
-              );
-            }
-          }
-        },
-      );
+            },
+          );
 
       if (uploadedUrl == null) return;
 
@@ -608,8 +619,9 @@ class _FullscreenPhotoViewState extends ConsumerState<_FullscreenPhotoView> {
             imageProvider: NetworkImage(widget.photoUrls[index]),
             minScale: PhotoViewComputedScale.contained,
             maxScale: PhotoViewComputedScale.covered * 2,
-            heroAttributes:
-                PhotoViewHeroAttributes(tag: widget.photoUrls[index]),
+            heroAttributes: PhotoViewHeroAttributes(
+              tag: widget.photoUrls[index],
+            ),
           );
         },
         scrollPhysics: const BouncingScrollPhysics(),

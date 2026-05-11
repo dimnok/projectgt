@@ -54,10 +54,16 @@ class DailyWorkChart extends StatelessWidget {
 
     // Дней в месяце
     final daysInMonth = DateUtils.getDaysInMonth(month.year, month.month);
+    final chartHeight = isDesktop ? 228.0 : 200.0;
+    final outerPadding = isDesktop
+        ? const EdgeInsets.fromLTRB(18, 18, 18, 16)
+        : const EdgeInsets.all(16);
+    final headerToChartGap = isDesktop ? 18.0 : 16.0;
+    final labelReserve = isDesktop ? 24.0 : 20.0;
 
     return Container(
-      height: 200,
-      padding: const EdgeInsets.all(16),
+      height: chartHeight,
+      padding: outerPadding,
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(16),
@@ -73,9 +79,13 @@ class DailyWorkChart extends StatelessWidget {
             children: [
               Text(
                 'Динамика выработки',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
+                style: (isDesktop
+                        ? theme.textTheme.titleSmall
+                        : theme.textTheme.titleMedium)
+                    ?.copyWith(
+                  fontWeight: FontWeight.w700,
                   color: theme.colorScheme.onSurface,
+                  letterSpacing: 0.15,
                 ),
               ),
               if (maxAmount > 0)
@@ -87,7 +97,7 @@ class DailyWorkChart extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: headerToChartGap),
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -127,7 +137,7 @@ class DailyWorkChart extends StatelessWidget {
                       width: effectiveBarWidth,
                       isToday: isToday,
                       maxHeight:
-                          constraints.maxHeight - 20, // Место под подпись
+                          constraints.maxHeight - labelReserve, // подпись дня
                       theme: theme,
                       color: barColor,
                     );

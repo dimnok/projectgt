@@ -13,6 +13,19 @@ import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:projectgt/features/works/presentation/providers/month_chart_data_provider.dart';
 import 'package:projectgt/features/works/presentation/widgets/daily_work_chart.dart';
 
+/// Сетка отступов панели месяца (базовый шаг 16, как у десктопа договоров).
+abstract final class _MonthDetailsSpacing {
+  static const double grid = 16;
+  static const double insetHDesktop = 20;
+  static const double insetVDesktopTop = 16;
+  static const double insetVDesktopBottom = 24;
+  static const double section = 24;
+  static const double block = 20;
+  static const double titleBelow = 10;
+  static const double listItemGap = 10;
+  static const double twinColumns = 24;
+}
+
 /// Панель детальной информации за месяц (графики, KPI, статистика).
 class MonthDetailsPanel extends ConsumerStatefulWidget {
   /// Группа смен за месяц.
@@ -91,9 +104,13 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
           body: isLoading
               ? const Center(child: CupertinoActivityIndicator())
               : SingleChildScrollView(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isMobileLayout ? 16 : 0,
-                    vertical: isMobileLayout ? 20 : 0,
+                  padding: EdgeInsets.only(
+                    left: isMobileLayout ? 16 : _MonthDetailsSpacing.insetHDesktop,
+                    right: isMobileLayout ? 16 : _MonthDetailsSpacing.insetHDesktop,
+                    top: isMobileLayout ? 20 : _MonthDetailsSpacing.insetVDesktopTop,
+                    bottom: isMobileLayout
+                        ? 20
+                        : _MonthDetailsSpacing.insetVDesktopBottom,
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -104,7 +121,7 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
                           formattedMonthTitle,
                           currentGroup.isCurrentMonth,
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: _MonthDetailsSpacing.block),
                       ] else
                         const SizedBox(height: 12),
 
@@ -112,7 +129,11 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
                       RepaintBoundary(
                         child: _buildDailyChart(context, chartDataAsync),
                       ),
-                      const SizedBox(height: 24),
+                      SizedBox(
+                        height: isDesktop
+                            ? _MonthDetailsSpacing.block
+                            : _MonthDetailsSpacing.grid,
+                      ),
 
                       // --- KPI Карточки ---
                       if (isDesktop)
@@ -132,7 +153,11 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
                           totalHours,
                         ),
 
-                      const SizedBox(height: 32),
+                      SizedBox(
+                        height: isDesktop
+                            ? _MonthDetailsSpacing.section
+                            : 32,
+                      ),
 
                       if (isDesktop)
                         Row(
@@ -143,18 +168,24 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   _buildSectionTitle(context, 'По системам'),
-                                  const SizedBox(height: 12),
+                                  const SizedBox(
+                                    height: _MonthDetailsSpacing.titleBelow,
+                                  ),
                                   _buildSystemsStats(context, isDesktop: true),
                                 ],
                               ),
                             ),
-                            const SizedBox(width: 24),
+                            const SizedBox(
+                              width: _MonthDetailsSpacing.twinColumns,
+                            ),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   _buildSectionTitle(context, 'По объектам'),
-                                  const SizedBox(height: 12),
+                                  const SizedBox(
+                                    height: _MonthDetailsSpacing.titleBelow,
+                                  ),
                                   _buildObjectsStats(context, isDesktop: true),
                                 ],
                               ),
@@ -175,7 +206,11 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
                           ],
                         ),
 
-                      const SizedBox(height: 32),
+                      SizedBox(
+                        height: isDesktop
+                            ? _MonthDetailsSpacing.section
+                            : 32,
+                      ),
                     ],
                   ),
                 ),
@@ -262,8 +297,8 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
             ),
             if (isCurrentMonth)
               Container(
-                margin: const EdgeInsets.only(top: 4),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                margin: const EdgeInsets.only(top: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.secondaryContainer.withValues(
                     alpha: 0.5,
@@ -305,29 +340,32 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
                     icon: CupertinoIcons.money_dollar_circle_fill,
                     color: Colors.green,
                     isLarge: true,
+                    relaxed: true,
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: _MonthDetailsSpacing.grid),
                 Expanded(
                   child: _KpiCard(
                     title: 'Всего смен',
                     value: '${group.worksCount}',
                     icon: CupertinoIcons.briefcase_fill,
                     color: Colors.blue,
+                    relaxed: true,
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: _MonthDetailsSpacing.grid),
                 Expanded(
                   child: _KpiCard(
                     title: 'Специалистов',
                     value: '$totalEmployees',
                     icon: CupertinoIcons.person_3_fill,
                     color: Colors.teal,
+                    relaxed: true,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: _MonthDetailsSpacing.grid),
             Row(
               children: [
                 Expanded(
@@ -336,9 +374,10 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
                     value: totalHours > 0 ? totalHours.toStringAsFixed(0) : '0',
                     icon: CupertinoIcons.time_solid,
                     color: Colors.deepOrange,
+                    relaxed: true,
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: _MonthDetailsSpacing.grid),
                 Expanded(
                   child: _KpiCard(
                     title: 'Средняя смена',
@@ -347,15 +386,17 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
                         : formatCurrency(0),
                     icon: CupertinoIcons.chart_bar_square_fill,
                     color: Colors.orange,
+                    relaxed: true,
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: _MonthDetailsSpacing.grid),
                 Expanded(
                   child: _KpiCard(
                     title: 'Выработка / чел.',
                     value: averagePerEmployee,
                     icon: CupertinoIcons.person_crop_circle_fill,
                     color: Colors.purple,
+                    relaxed: true,
                   ),
                 ),
               ],
@@ -445,13 +486,16 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
             children: summaries
                 .map(
                   (stat) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.only(
+                      bottom: _MonthDetailsSpacing.listItemGap,
+                    ),
                     child: _SummaryListItem(
                       icon: CupertinoIcons.hammer_fill,
                       iconColor: Colors.indigo,
                       title: stat.system,
                       subtitle: '${stat.itemsCount} раб.',
                       value: formatCurrency(stat.totalAmount),
+                      relaxed: true,
                     ),
                   ),
                 )
@@ -463,13 +507,16 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
           children: summaries
               .map(
                 (stat) => Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
+                  padding: const EdgeInsets.only(
+                    bottom: _MonthDetailsSpacing.listItemGap,
+                  ),
                   child: _SummaryListItem(
                     icon: CupertinoIcons.hammer_fill,
                     iconColor: Colors.indigo,
                     title: stat.system,
                     subtitle: '${stat.itemsCount} раб.',
                     value: formatCurrency(stat.totalAmount),
+                    relaxed: false,
                   ),
                 ),
               )
@@ -496,13 +543,18 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
           children: summaries
               .map(
                 (stat) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
+                  padding: EdgeInsets.only(
+                    bottom: isDesktop
+                        ? _MonthDetailsSpacing.listItemGap
+                        : 8,
+                  ),
                   child: _SummaryListItem(
                     icon: CupertinoIcons.location_solid,
                     iconColor: Colors.redAccent,
                     title: stat.objectName,
                     subtitle: '${stat.worksCount} смен',
                     value: formatCurrency(stat.totalAmount),
+                    relaxed: isDesktop,
                   ),
                 ),
               )
@@ -516,14 +568,12 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
 
   Widget _buildSectionTitle(BuildContext context, String title) {
     final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(left: 4),
-      child: Text(
-        title,
-        style: theme.textTheme.titleMedium?.copyWith(
-          fontWeight: FontWeight.w700,
-          color: theme.colorScheme.onSurface,
-        ),
+    return Text(
+      title,
+      style: theme.textTheme.titleSmall?.copyWith(
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.2,
+        color: theme.colorScheme.onSurface,
       ),
     );
   }
@@ -577,6 +627,7 @@ class _KpiCard extends StatelessWidget {
   final IconData icon;
   final Color color;
   final bool isLarge;
+  final bool relaxed;
 
   const _KpiCard({
     required this.title,
@@ -584,13 +635,20 @@ class _KpiCard extends StatelessWidget {
     required this.icon,
     required this.color,
     this.isLarge = false,
+    this.relaxed = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final padding = relaxed
+        ? const EdgeInsets.fromLTRB(18, 18, 18, 16)
+        : const EdgeInsets.all(16);
+    final titleToValueGap = relaxed ? 16.0 : 12.0;
+    final iconGap = relaxed ? 14.0 : 12.0;
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: padding,
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(16),
@@ -603,8 +661,20 @@ class _KpiCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, size: 20, color: color),
-              const SizedBox(width: 12),
+              if (relaxed)
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Icon(icon, size: 22, color: color),
+                  ),
+                )
+              else
+                Icon(icon, size: 20, color: color),
+              SizedBox(width: iconGap),
               Expanded(
                 child: Text(
                   title,
@@ -617,7 +687,7 @@ class _KpiCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: titleToValueGap),
           Text(
             value,
             style: isLarge
@@ -644,6 +714,7 @@ class _SummaryListItem extends StatelessWidget {
   final String title;
   final String subtitle;
   final String value;
+  final bool relaxed;
 
   const _SummaryListItem({
     required this.icon,
@@ -651,13 +722,34 @@ class _SummaryListItem extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.value,
+    this.relaxed = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final horizontal = relaxed ? 18.0 : 16.0;
+    final vertical = relaxed ? 16.0 : 14.0;
+    final iconBox = relaxed ? 40.0 : 36.0;
+    final iconSize = relaxed ? 22.0 : 20.0;
+    final midGap = relaxed ? 14.0 : 16.0;
+    final endGap = relaxed ? 14.0 : 16.0;
+
+    final iconWidget = relaxed
+        ? Container(
+            width: iconBox,
+            height: iconBox,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: iconSize, color: iconColor),
+          )
+        : Icon(icon, size: iconSize, color: iconColor);
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: EdgeInsets.symmetric(horizontal: horizontal, vertical: vertical),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(12),
@@ -667,8 +759,8 @@ class _SummaryListItem extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: iconColor),
-          const SizedBox(width: 16),
+          iconWidget,
+          SizedBox(width: midGap),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -684,7 +776,7 @@ class _SummaryListItem extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 16),
+          SizedBox(width: endGap),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -696,6 +788,7 @@ class _SummaryListItem extends StatelessWidget {
                   letterSpacing: -0.3,
                 ),
               ),
+              SizedBox(height: relaxed ? 4 : 2),
               Text(
                 subtitle,
                 style: theme.textTheme.bodySmall?.copyWith(

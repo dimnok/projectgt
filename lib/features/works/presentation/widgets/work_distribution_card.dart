@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/features/works/domain/entities/work_item.dart';
 import 'package:projectgt/core/utils/formatters.dart';
+import 'package:projectgt/features/works/presentation/widgets/work_detail_data_spacing.dart';
 
 /// Карточка «Распределение работ по системам».
 ///
@@ -27,10 +29,13 @@ class WorkDistributionCard extends StatelessWidget {
 
     final sortedSystems = systemSums.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
-    final double maxSum =
-        sortedSystems.isNotEmpty ? sortedSystems.first.value : 1.0;
-    final double totalSum =
-        systemSums.values.fold<double>(0, (sum, v) => sum + v);
+    final double maxSum = sortedSystems.isNotEmpty
+        ? sortedSystems.first.value
+        : 1.0;
+    final double totalSum = systemSums.values.fold<double>(
+      0,
+      (sum, v) => sum + v,
+    );
 
     final List<Color> colors = <Color>[
       const Color(0xFF2196F3),
@@ -40,49 +45,67 @@ class WorkDistributionCard extends StatelessWidget {
       const Color(0xFFF44336),
     ];
 
+    final topSystems = sortedSystems.take(5).toList();
+
     return Card(
       elevation: 0,
+      margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
-          color: theme.colorScheme.outline.withValues(alpha: 0.2),
+          color: theme.colorScheme.outline.withValues(alpha: 0.1),
           width: 1,
         ),
       ),
+      color: theme.cardColor,
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: WorkDetailDataSpacing.cardPaddingOf(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'Распределение работ по системам',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: theme.colorScheme.primary,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.2,
+                color: theme.colorScheme.onSurface,
               ),
             ),
-            const SizedBox(height: 24),
-            ...sortedSystems.take(5).toList().asMap().entries.map((entry) {
+            SizedBox(height: WorkDetailDataSpacing.titleToContentOf(context)),
+            ...topSystems.asMap().entries.map((entry) {
               final int index = entry.key;
-              final systemName = entry.value.key;
-              final double systemSum = entry.value.value;
+              final mapEntry = entry.value;
+              final systemName = mapEntry.key;
+              final double systemSum = mapEntry.value;
               final double progress = maxSum > 0 ? systemSum / maxSum : 0.0;
-              final double sumPercent =
-                  totalSum > 0 ? systemSum / totalSum : 0.0;
+              final double sumPercent = totalSum > 0
+                  ? systemSum / totalSum
+                  : 0.0;
               final Color color = colors[index % colors.length];
+              final isLast = index == topSystems.length - 1;
 
               return Padding(
-                padding: const EdgeInsets.only(bottom: 16),
+                padding: EdgeInsets.only(
+                  bottom: isLast
+                      ? 0
+                      : WorkDetailDataSpacing.listRowGapOf(context) +
+                            (ResponsiveUtils.isMobile(context) ? 4 : 0),
+                ),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildPercentageCircle(context, sumPercent, color,
-                        '${(sumPercent * 100).round()}%'),
+                    _buildPercentageCircle(
+                      context,
+                      sumPercent,
+                      color,
+                      '${(sumPercent * 100).round()}%',
+                    ),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Expanded(
                                 child: Text(
@@ -93,21 +116,31 @@ class WorkDistributionCard extends StatelessWidget {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              Text(
-                                '${formatCurrency(systemSum)} (${(sumPercent * 100).round()}%)',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: color,
-                                  fontWeight: FontWeight.w600,
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  '${formatCurrency(systemSum)} (${(sumPercent * 100).round()}%)',
+                                  textAlign: TextAlign.end,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: color,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 8),
+                          SizedBox(
+                            height: ResponsiveUtils.isMobile(context) ? 10 : 8,
+                          ),
                           ClipRRect(
                             borderRadius: BorderRadius.circular(8),
                             child: LinearProgressIndicator(
                               value: progress,
-                              minHeight: 8,
+                              minHeight: ResponsiveUtils.isMobile(context)
+                                  ? 9
+                                  : 8,
                               backgroundColor: theme.colorScheme.primary
                                   .withValues(alpha: 0.1),
                               valueColor: AlwaysStoppedAnimation<Color>(color),
@@ -120,35 +153,44 @@ class WorkDistributionCard extends StatelessWidget {
                 ),
               );
             }),
-            const Divider(height: 32),
+            Padding(
+              padding: EdgeInsets.symmetric(
+                vertical: WorkDetailDataSpacing.dividerVerticalPaddingOf(
+                  context,
+                ),
+              ),
+              child: Divider(
+                height: 1,
+                thickness: 1,
+                color: theme.colorScheme.outline.withValues(alpha: 0.12),
+              ),
+            ),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      margin: const EdgeInsets.only(right: 12),
-                      child: Icon(
-                        Icons.data_usage_rounded,
-                        color: theme.colorScheme.primary,
-                        size: 24,
-                      ),
+                Icon(
+                  Icons.pie_chart_outline_rounded,
+                  color: theme.colorScheme.primary,
+                  size: 22,
+                ),
+                SizedBox(
+                  width: WorkDetailDataSpacing.titleToContentOf(context),
+                ),
+                Expanded(
+                  child: Text(
+                    'Общая сумма:',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: theme.colorScheme.onSurface,
                     ),
-                    Text(
-                      'Общая сумма:',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
                 Text(
                   formatCurrency(totalSum),
+                  textAlign: TextAlign.end,
                   style: theme.textTheme.titleMedium?.copyWith(
                     color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ],
@@ -160,7 +202,11 @@ class WorkDistributionCard extends StatelessWidget {
   }
 
   Widget _buildPercentageCircle(
-      BuildContext context, double percentage, Color color, String label) {
+    BuildContext context,
+    double percentage,
+    Color color,
+    String label,
+  ) {
     return Container(
       width: 40,
       height: 40,
@@ -172,8 +218,9 @@ class WorkDistributionCard extends StatelessWidget {
             painter: CirclePercentPainter(
               percentage: percentage,
               color: color,
-              backgroundColor:
-                  Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+              backgroundColor: Theme.of(
+                context,
+              ).colorScheme.outline.withValues(alpha: 0.2),
               fillColor: Theme.of(context).colorScheme.surface,
               strokeWidth: 4,
             ),
@@ -223,7 +270,8 @@ class CirclePercentPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final radius = (size.width < size.height ? size.width : size.height) / 2 -
+    final radius =
+        (size.width < size.height ? size.width : size.height) / 2 -
         strokeWidth / 2;
 
     final backgroundPaint = Paint()

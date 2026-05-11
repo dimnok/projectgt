@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:projectgt/core/utils/formatters.dart';
+import 'package:projectgt/core/utils/responsive_utils.dart';
+import 'package:projectgt/features/works/presentation/widgets/work_detail_data_spacing.dart';
 
 /// Виджет карточки статистики смены.
 class WorkStatsCard extends StatelessWidget {
@@ -40,7 +42,7 @@ class WorkStatsCard extends StatelessWidget {
       ),
       color: theme.cardColor,
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: WorkDetailDataSpacing.cardPaddingOf(context),
         child: Column(
           children: [
             Row(
@@ -55,7 +57,7 @@ class WorkStatsCard extends StatelessWidget {
                 ),
                 Container(
                   width: 1,
-                  height: 40,
+                  height: ResponsiveUtils.isMobile(context) ? 48 : 44,
                   color: theme.colorScheme.outline.withValues(alpha: 0.1),
                 ),
                 Expanded(
@@ -68,9 +70,17 @@ class WorkStatsCard extends StatelessWidget {
                 ),
               ],
             ),
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
-              child: Divider(height: 1),
+            Padding(
+              padding: EdgeInsets.symmetric(
+                vertical: WorkDetailDataSpacing.dividerVerticalPaddingOf(
+                  context,
+                ),
+              ),
+              child: Divider(
+                height: 1,
+                thickness: 1,
+                color: theme.colorScheme.outline.withValues(alpha: 0.12),
+              ),
             ),
             _buildStatRow(
               context,
@@ -78,7 +88,7 @@ class WorkStatsCard extends StatelessWidget {
               formatCurrency(totalAmount),
               isMain: true,
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: WorkDetailDataSpacing.listRowGapOf(context)),
             _buildStatRow(
               context,
               'Выработка на чел.',
@@ -102,13 +112,18 @@ class WorkStatsCard extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest
-                .withValues(alpha: 0.3),
+            color: theme.colorScheme.surfaceContainerHighest.withValues(
+              alpha: 0.3,
+            ),
             shape: BoxShape.circle,
           ),
-          child: Icon(icon, color: theme.colorScheme.onSurfaceVariant, size: 20),
+          child: Icon(
+            icon,
+            color: theme.colorScheme.onSurfaceVariant,
+            size: 22,
+          ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: WorkDetailDataSpacing.statIconToValueGapOf(context)),
         Text(
           value,
           style: theme.textTheme.titleLarge?.copyWith(
@@ -116,7 +131,7 @@ class WorkStatsCard extends StatelessWidget {
             color: theme.colorScheme.onSurface,
           ),
         ),
-        const SizedBox(height: 4),
+        SizedBox(height: WorkDetailDataSpacing.statValueToLabelGapOf(context)),
         Text(
           label,
           style: theme.textTheme.bodySmall?.copyWith(
@@ -135,16 +150,20 @@ class WorkStatsCard extends StatelessWidget {
   }) {
     final theme = Theme.of(context);
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
       children: [
-        Text(
-          label,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
+        Expanded(
+          child: Text(
+            label,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
         Text(
           value,
+          textAlign: TextAlign.end,
           style: isMain
               ? theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,

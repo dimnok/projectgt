@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/features/contractors/presentation/state/contractor_state.dart';
 import 'package:projectgt/features/works/domain/entities/work_item.dart';
+import 'package:projectgt/features/works/presentation/widgets/work_detail_data_spacing.dart';
 
 /// Карточка с разбивкой суммы выполненных работ по исполнителю.
 ///
@@ -58,11 +59,9 @@ class WorkOwnContractorAmountsCard extends ConsumerWidget {
     final contractorEntries = byContractor.entries.toList()
       ..sort((a, b) {
         final na =
-            contractors.firstWhereOrNull((c) => c.id == a.key)?.shortName ??
-                '';
+            contractors.firstWhereOrNull((c) => c.id == a.key)?.shortName ?? '';
         final nb =
-            contractors.firstWhereOrNull((c) => c.id == b.key)?.shortName ??
-                '';
+            contractors.firstWhereOrNull((c) => c.id == b.key)?.shortName ?? '';
         return na.toLowerCase().compareTo(nb.toLowerCase());
       });
 
@@ -78,27 +77,29 @@ class WorkOwnContractorAmountsCard extends ConsumerWidget {
       ),
       color: theme.cardColor,
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: WorkDetailDataSpacing.cardPaddingOf(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'По исполнителю',
               style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.2,
                 color: theme.colorScheme.onSurface,
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: WorkDetailDataSpacing.titleToContentOf(context)),
             _row(theme, 'Собственное выполнение', formatCurrency(ownTotal)),
             ...contractorEntries.expand((e) {
-              final shortName =
-                  contractors.firstWhereOrNull((c) => c.id == e.key)?.shortName;
+              final shortName = contractors
+                  .firstWhereOrNull((c) => c.id == e.key)
+                  ?.shortName;
               final label = (shortName != null && shortName.isNotEmpty)
                   ? shortName
                   : 'Контрагент';
               return [
-                const SizedBox(height: 12),
+                SizedBox(height: WorkDetailDataSpacing.listRowGapOf(context)),
                 _row(theme, label, formatCurrency(e.value)),
               ];
             }),
@@ -110,7 +111,8 @@ class WorkOwnContractorAmountsCard extends ConsumerWidget {
 
   Widget _row(ThemeData theme, String label, String value) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
       children: [
         Expanded(
           child: Text(
@@ -122,6 +124,7 @@ class WorkOwnContractorAmountsCard extends ConsumerWidget {
         ),
         Text(
           value,
+          textAlign: TextAlign.end,
           style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w600,
             color: theme.colorScheme.onSurface,
