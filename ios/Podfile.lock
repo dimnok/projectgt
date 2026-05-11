@@ -39,6 +39,8 @@ PODS:
     - Flutter
   - file_saver (0.0.1):
     - Flutter
+  - file_selector_ios (0.0.1):
+    - Flutter
   - Firebase/CoreOnly (12.4.0):
     - FirebaseCore (~> 12.4.0)
   - Firebase/Installations (12.4.0):
@@ -156,6 +158,7 @@ DEPENDENCIES:
   - app_links (from `.symlinks/plugins/app_links/ios`)
   - file_picker (from `.symlinks/plugins/file_picker/ios`)
   - file_saver (from `.symlinks/plugins/file_saver/ios`)
+  - file_selector_ios (from `.symlinks/plugins/file_selector_ios/ios`)
   - firebase_app_installations (from `.symlinks/plugins/firebase_app_installations/ios`)
   - firebase_core (from `.symlinks/plugins/firebase_core/ios`)
   - firebase_messaging (from `.symlinks/plugins/firebase_messaging/ios`)
@@ -201,6 +204,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/file_picker/ios"
   file_saver:
     :path: ".symlinks/plugins/file_saver/ios"
+  file_selector_ios:
+    :path: ".symlinks/plugins/file_selector_ios/ios"
   firebase_app_installations:
     :path: ".symlinks/plugins/firebase_app_installations/ios"
   firebase_core:
@@ -247,6 +252,7 @@ SPEC CHECKSUMS:
   DKPhotoGallery: b3834fecb755ee09a593d7c9e389d8b5d6deed60
   file_picker: a0560bc09d61de87f12d246fc47d2119e6ef37be
   file_saver: 6cdbcddd690cb02b0c1a0c225b37cd805c2bf8b6
+  file_selector_ios: ec57ec07954363dd730b642e765e58f199bb621a
   Firebase: f07b15ae5a6ec0f93713e30b923d9970d144af3e
   firebase_app_installations: 4748a5fe84226aff1e7cc873c85cc4191bd4b9cd
   firebase_core: f1aafb21c14f497e5498f7ffc4dc63cbb52b2594

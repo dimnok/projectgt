@@ -10,7 +10,7 @@ import 'package:projectgt/features/objects/presentation/state/object_state.dart'
 import 'package:projectgt/core/notifications/notification_service.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/core/widgets/app_snackbar.dart';
-import 'package:projectgt/core/utils/telegram_helper.dart';
+import 'package:projectgt/core/utils/telegram_outbox_worker.dart';
 import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/gt_dropdown.dart';
@@ -336,74 +336,42 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
                     }),
                   );
 
-                  // Отправляем PUSH админам
-                  try {
-                    final supabase = ref.read(supabaseClientProvider);
-                    final accessToken =
-                        supabase.auth.currentSession?.accessToken;
-                    if (accessToken != null) {
-                      await supabase.functions.invoke(
-                        'send_admin_work_event',
-                        body: {'action': 'open', 'work_id': createdWork.id!},
-                        headers: {'Authorization': 'Bearer $accessToken'},
-                      );
-                    }
-                  } catch (_) {}
+                    // Очередь Telegram (БД outbox + Edge process_telegram_outbox)
+                    try {
+                      final allEmployees = await ref
+                          .read(employeeRepositoryProvider)
+                          .getEmployees();
 
-                  // Отправляем утренний отчет в Telegram
-                  try {
-                    // Даём время на синхронизацию работников в БД
-                    await Future.delayed(const Duration(milliseconds: 1000));
-
-                    // Получаем ФИО всех выбранных сотрудников из локального кеша
-                    final allEmployees = await ref
-                        .read(employeeRepositoryProvider)
-                        .getEmployees();
-
-                    final workerNames = <String>[];
-                    for (final empId in _selectedEmployeeIds) {
-                      try {
-                        final emp = allEmployees.firstWhere(
-                          (e) => e.id == empId,
-                        );
-                        // Собираем ФИО из отдельных полей: Фамилия Имя Отчество
-                        final fullName = [
-                          emp.lastName,
-                          emp.firstName,
-                          if (emp.middleName != null &&
-                              emp.middleName!.isNotEmpty)
-                            emp.middleName,
-                        ].join(' ');
-                        if (fullName.isNotEmpty) {
-                          workerNames.add(fullName);
-                        }
-                      } catch (e) {
-                        // Сотрудник не найден, пропускаем
+                      final workerNames = <String>[];
+                      for (final empId in _selectedEmployeeIds) {
+                        try {
+                          final emp = allEmployees.firstWhere(
+                            (e) => e.id == empId,
+                          );
+                          final fullName = [
+                            emp.lastName,
+                            emp.firstName,
+                            if (emp.middleName != null &&
+                                emp.middleName!.isNotEmpty)
+                              emp.middleName,
+                          ].join(' ');
+                          if (fullName.isNotEmpty) {
+                            workerNames.add(fullName);
+                          }
+                        } catch (_) {}
                       }
-                    }
 
-                    final telegramResult =
-                        await TelegramHelper.sendWorkOpeningReport(
-                          createdWork.id!,
-                          workerNames: workerNames,
-                        );
-
-                    if (telegramResult != null &&
-                        telegramResult['success'] == true &&
-                        telegramResult['message_id'] != null) {
-                      // Сохраняем message_id в БД для связывания с вечерним отчетом
                       final supabase = ref.read(supabaseClientProvider);
-
-                      await supabase
-                          .from('works')
-                          .update({
-                            'telegram_message_id': telegramResult['message_id'],
-                          })
-                          .eq('id', createdWork.id!);
-                    }
-                  } catch (e) {
-                    // Ошибка отправки отчета — не критично, работа уже создана
-                  }
+                      await supabase.rpc(
+                        'enqueue_telegram_outbox_opening',
+                        params: {
+                          'p_work_id': createdWork.id!,
+                          'p_worker_names': workerNames,
+                        },
+                      );
+                      // ✅ Разгружаем клиент: не ждем завершения Edge Function
+                      kickProcessTelegramOutbox(supabase).ignore();
+                    } catch (_) {}
 
                   // Обновляем список смен
                   ref.read(monthGroupsProvider.notifier).refresh().ignore();

@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -121,7 +121,10 @@ function buildMessages(work: any): string[] {
   const dateObj = new Date(work.date);
   const formattedDate = dateObj.toLocaleDateString("ru-RU");
   const objectNameFormatted = String(work.object_name).replace(/\s+/g, "_");
+  const userName = work.opened_by_name || "Неизвестный";
+  
   const header = `#${escapeHtml(objectNameFormatted)}\nзавершение_смены_${escapeHtml(formattedDate)}\n\n`;
+  const userLine = `👤 <b>Ответственный:</b> ${escapeHtml(userName)}\n\n`;
 
   const allItems: any[] = work.work_items || [];
   const employees = Number(work.employees_count) || 0;
@@ -180,7 +183,7 @@ function buildMessages(work: any): string[] {
   const grandTotal = dbTotal > 0 ? dbTotal : computedGrand;
   body += `\n✅ ИТОГО: Общая — ${formatCurrency(grandTotal)}`;
 
-  return splitTelegramChunks(header + body, TELEGRAM_MAX_LENGTH);
+  return splitTelegramChunks(header + userLine + body, TELEGRAM_MAX_LENGTH);
 }
 
 serve(async (req: Request) => {
@@ -210,9 +213,11 @@ serve(async (req: Request) => {
     const botToken = Deno.env.get("TELEGRAM_BOT_TOKEN");
     const chatId = Deno.env.get("TELEGRAM_CHAT_ID");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SERVICE_ROLE_KEY");
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    
+    // ✅ Используем внутренний URL для работы с БД на self-hosted сервере
+    const internalDbUrl = "http://kong:8000";
 
-    if (!botToken || !chatId || !serviceRoleKey || !supabaseUrl) {
+    if (!botToken || !chatId || !serviceRoleKey) {
       return new Response(
         JSON.stringify({ success: false, error: "Missing configuration" }),
         {
@@ -222,7 +227,7 @@ serve(async (req: Request) => {
       );
     }
 
-    const supabase = createClient(supabaseUrl, serviceRoleKey, {
+    const supabase = createClient(internalDbUrl, serviceRoleKey, {
       auth: { persistSession: false }
     });
 
@@ -235,6 +240,7 @@ serve(async (req: Request) => {
         employees_count,
         telegram_message_id,
         objects(name),
+        profiles!opened_by(full_name),
         work_items(
           section,
           floor,
@@ -269,6 +275,7 @@ serve(async (req: Request) => {
       work_id: (workData as any).id,
       date: (workData as any).date,
       object_name: (workData as any).objects?.name || "Unknown",
+      opened_by_name: (workData as any).profiles?.full_name || "Unknown",
       total_amount: (workData as any).total_amount,
       employees_count: (workData as any).employees_count,
       work_items: (workData as any).work_items || [],

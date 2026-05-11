@@ -23,7 +23,7 @@ import 'package:projectgt/core/widgets/mobile_atmosphere_backdrop.dart';
 import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
 import 'package:projectgt/features/works/presentation/widgets/work_distribution_card.dart';
 import 'package:projectgt/features/works/presentation/providers/month_groups_provider.dart';
-import 'package:projectgt/core/utils/telegram_helper.dart';
+import 'package:projectgt/core/utils/telegram_outbox_worker.dart';
 import 'package:projectgt/features/works/presentation/providers/repositories_providers.dart';
 import 'package:projectgt/features/works/presentation/widgets/work_data_skeleton.dart';
 import 'package:projectgt/features/works/presentation/widgets/work_stats_card.dart';
@@ -209,22 +209,8 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
             .read(notificationServiceProvider)
             .cancelShiftReminders(work.id!);
       }
-      try {
-        if (updatedWork.id != null) {
-          final token =
-              Supabase.instance.client.auth.currentSession?.accessToken;
-          if (token != null) {
-            await Supabase.instance.client.functions.invoke(
-              'send_admin_work_event',
-              body: {'action': 'close', 'work_id': updatedWork.id!},
-              headers: {'Authorization': 'Bearer $token'},
-            );
-          }
-        }
-      } catch (_) {}
-
-      // Отправляем отчет в Telegram
       if (mounted) {
+        // Очередь Telegram: триггер в БД + kick process_telegram_outbox
         AppSnackBar.show(
           context: context,
           message: WorksStrings.successWorkClosed,
@@ -238,9 +224,9 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
         final freshWork = await workRepository.getWork(work.id!);
         if (!mounted) return;
         if (freshWork != null) {
-          // Обновляем смену в группе месяца без инвалидации провайдера
           ref.read(monthGroupsProvider.notifier).updateWorkInGroup(freshWork);
-          await _sendTelegramReport(freshWork);
+          // ✅ Разгружаем клиент: не ждем завершения Edge Function
+          kickProcessTelegramOutbox(Supabase.instance.client).ignore();
         } else {
           AppSnackBar.show(
             context: context,
@@ -470,52 +456,4 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
     });
   }
 
-  Future<void> _sendTelegramReport(Work work) async {
-    if (work.id == null) {
-      if (!mounted) return;
-      AppSnackBar.show(
-        context: context,
-        message: WorksStrings.shiftIdNotFoundError,
-        kind: AppSnackBarKind.error,
-      );
-      return;
-    }
-
-    // Обновляем утреннее сообщение с часами работы
-    if (work.telegramMessageId != null) {
-      final updateResult = await TelegramHelper.updateWorkOpeningReport(
-        work.id!,
-        work.telegramMessageId!,
-      );
-      if (!mounted) return;
-      if (updateResult != null && updateResult['success'] == true) {
-        AppSnackBar.show(
-          context: context,
-          message: WorksStrings.successMorningReportUpdated,
-          kind: AppSnackBarKind.success,
-        );
-      }
-    }
-
-    // Отправляем вечерний отчет как ответ на утреннее сообщение
-    final eveningResult = await TelegramHelper.sendWorkReport(work.id!);
-    if (!mounted) return;
-
-    if (eveningResult != null && eveningResult['success'] == true) {
-      AppSnackBar.show(
-        context: context,
-        message: WorksStrings.successEveningReportSent(
-          eveningResult['items_count'],
-        ),
-        kind: AppSnackBarKind.success,
-      );
-    } else {
-      final error = eveningResult?['error'] ?? 'Неизвестная ошибка';
-      AppSnackBar.show(
-        context: context,
-        message: WorksStrings.telegramSendError(error),
-        kind: AppSnackBarKind.error,
-      );
-    }
-  }
 }

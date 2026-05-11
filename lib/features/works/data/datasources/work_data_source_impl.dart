@@ -200,9 +200,8 @@ class WorkDataSourceImpl implements WorkDataSource {
     }
   }
 
-  /// Проверяет, есть ли у пользователя открытая смена в данной компании.
   @override
-  Future<bool> hasOpenWork(String userId) async {
+  Future<String?> getOpenWorkIdForUser(String userId) async {
     try {
       final response = await client
           .from(table)
@@ -213,11 +212,21 @@ class WorkDataSourceImpl implements WorkDataSource {
           .limit(1)
           .maybeSingle();
 
-      return response != null;
+      if (response == null) return null;
+      final raw = response['id'];
+      if (raw == null) return null;
+      return raw.toString();
     } catch (e) {
-      _logger.e('Ошибка проверки открытой смены: $e');
-      return false;
+      _logger.e('Ошибка получения id открытой смены: $e');
+      return null;
     }
+  }
+
+  /// Проверяет, есть ли у пользователя открытая смена в данной компании.
+  @override
+  Future<bool> hasOpenWork(String userId) async {
+    final id = await getOpenWorkIdForUser(userId);
+    return id != null;
   }
 
   /// Возвращает полные данные по выработке за месяц для графика.

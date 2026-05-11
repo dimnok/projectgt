@@ -3,13 +3,28 @@ import 'package:projectgt/features/home/presentation/widgets/home_atmosphere_her
 
 /// Делегат для создания прилипающей шапки с анимацией исчезновения элементов.
 class HomeSliverHeroDelegate extends SliverPersistentHeaderDelegate {
+  /// Основной заголовок в hero-секции (передаётся в [HomeAtmosphereHero]).
   final String title;
+
+  /// Час суток (0–23) для выбора фона/атмосферы в [HomeAtmosphereHero].
   final int hour;
+
+  /// Виджет слева от заголовка (например, кнопка «назад»).
   final Widget? leading;
+
+  /// Виджет справа в шапке (действия, меню).
   final Widget? trailing;
+
+  /// Дополнительный подзаголовок страницы; если null, блок не показывается.
   final String? pageTitle;
+
+  /// Если true — используются высоты и отступы для desktop-раскладки.
   final bool isDesktop;
 
+  /// Создаёт делегат с данными для [HomeAtmosphereHero].
+  ///
+  /// [title] и [hour] обязательны; [leading], [trailing], [pageTitle] опциональны.
+  /// [isDesktop] влияет на [maxExtent], [minExtent] и верстку hero.
   HomeSliverHeroDelegate({
     required this.title,
     required this.hour,
@@ -44,8 +59,11 @@ class HomeSliverHeroDelegate extends SliverPersistentHeaderDelegate {
   @override
   double get maxExtent => isDesktop ? 200 : 250; // Увеличиваем для десктопа тоже
 
+  /// Высота в свернутом виде: строка с кнопками 44px + внешний отступ 12 +
+  /// вертикальный padding контейнера (моб. 32, десктоп 40) — иначе [Column]
+  /// в [HomeAtmosphereHero] не помещается и даёт overflow на доли пикселя.
   @override
-  double get minExtent => isDesktop ? 90 : 84; // Высота в свернутом виде
+  double get minExtent => isDesktop ? 96 : 92;
 
   @override
   bool shouldRebuild(covariant HomeSliverHeroDelegate oldDelegate) {

@@ -60,8 +60,9 @@ class WorksNotifier extends AsyncNotifier<List<Work>> {
       final currentList = previousState.valueOrNull ?? [];
       state = AsyncData([...currentList, created]);
       
-      // Инвалидируем проверку наличия открытой смены
+      // Инвалидируем проверку наличия открытой смены и id для главной
       ref.invalidate(hasOpenWorkProvider);
+      ref.invalidate(myOpenWorkIdProvider);
       return created;
     } catch (e, stack) {
       state = AsyncError(Failure.fromException(e), stack);
@@ -85,6 +86,7 @@ class WorksNotifier extends AsyncNotifier<List<Work>> {
       
       // Инвалидируем проверку наличия открытой смены (статус мог измениться на closed)
       ref.invalidate(hasOpenWorkProvider);
+      ref.invalidate(myOpenWorkIdProvider);
     } catch (e, stack) {
       state = AsyncError(Failure.fromException(e), stack);
     }
@@ -105,6 +107,7 @@ class WorksNotifier extends AsyncNotifier<List<Work>> {
       
       // Инвалидируем проверку наличия открытой смены
       ref.invalidate(hasOpenWorkProvider);
+      ref.invalidate(myOpenWorkIdProvider);
     } catch (e, stack) {
       state = AsyncError(Failure.fromException(e), stack);
     }
@@ -155,4 +158,14 @@ final hasOpenWorkProvider = FutureProvider<bool>((ref) async {
   if (profile == null) return false;
 
   return await repository.hasAnyOpenWork(profile.id);
+});
+
+/// Идентификатор открытой смены текущего пользователя в активной компании (`null`, если нет).
+final myOpenWorkIdProvider = FutureProvider<String?>((ref) async {
+  final repository = ref.watch(workRepositoryProvider);
+  final profile = ref.watch(currentUserProfileProvider).profile;
+
+  if (profile == null) return null;
+
+  return repository.getMyOpenWorkId(profile.id);
 });

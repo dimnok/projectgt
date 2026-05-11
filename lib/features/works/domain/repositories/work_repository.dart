@@ -63,6 +63,9 @@ abstract class WorkRepository {
   /// Возвращает общее количество специалистов за месяц.
   Future<MonthEmployeesSummary> getTotalEmployees(DateTime month);
 
+  /// Возвращает идентификатор открытой смены текущего пользователя [userId] или `null`.
+  Future<String?> getMyOpenWorkId(String userId);
+
   /// Проверяет, есть ли у пользователя открытая смена в данной компании.
   Future<bool> hasAnyOpenWork(String userId);
 }

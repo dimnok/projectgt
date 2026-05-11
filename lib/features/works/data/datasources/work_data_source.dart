@@ -36,6 +36,9 @@ abstract class WorkDataSource {
     String? openedBy,
   });
 
+  /// Возвращает `id` открытой смены пользователя [userId] в текущей компании или `null`.
+  Future<String?> getOpenWorkIdForUser(String userId);
+
   /// Проверяет, есть ли у пользователя открытая смена в данной компании.
   Future<bool> hasOpenWork(String userId);
 

@@ -1,7 +1,9 @@
 # Модуль Works (Shifts & Work Plans)
-**Дата актуализации:** 16 апреля 2026 года — Presentation-слой: мобильный вид модуля выделен в отдельный экран `WorksListMobileScreen`; общие действия (открытие смены, создание/редактирование/удаление плана, удаление смены) вынесены в миксин `WorksScreenActionsMixin`; прилипающие заголовки месяцев стали переиспользуемыми `WorkMonthGroupSliverHeader` / `WorkPlanMonthGroupSliverHeader`.
+**Дата актуализации:** 11 мая 2026 года — Оптимизация доставки Telegram: клиент вызывает воркер асинхронно (без ожидания); Edge Function `process_telegram_outbox` переведена на параллельную обработку задач (`Promise.all`); подтвержден FIFO порядок в RPC `claim_telegram_outbox`.
 
-Предыдущая запись: 12 апреля 2026 года — в `work_items` добавлено поле `specialists_count` (число специалистов подрядчика по строке; см. миграцию `20260412120000_work_items_specialists_count.sql`).
+Предыдущая запись: 10 мая 2026 года — очередь доставки Telegram по сменам: таблица `telegram_outbox`, RPC `enqueue_telegram_outbox_opening`, триггер при закрытии смены, Edge Function `process_telegram_outbox` (ретраи); клиент после постановки в очередь вызывает воркер; опциональный cron с секретом `OUTBOX_WORKER_SECRET`.
+
+Предыдущая запись: 16 апреля 2026 года — Presentation-слой: мобильный вид модуля выделен в отдельный экран `WorksListMobileScreen`; общие действия вынесены в миксин `WorksScreenActionsMixin`.
 
 ## Важное замечание о структуре данных
 > **Внимание:**
@@ -127,6 +129,22 @@ lib/features/
 | contractor_id | uuid | YES | FK → `contractors.id`; NULL — собственное выполнение |
 | specialists_count | integer | YES | Число специалистов подрядчика на строке; NULL — не задано |
 
+#### 3. `telegram_outbox` (очередь сообщений Telegram по сменам)
+| Колонка | Тип | NULL | Описание |
+|---------|-----|------|----------|
+| id | uuid | NO | PK |
+| company_id | uuid | NO | FK → `companies.id` |
+| work_id | uuid | NO | FK → `works.id` |
+| kind | text | NO | `work_opening_telegram` / `work_close_telegram` |
+| payload | jsonb | NO | Для открытия: `worker_names`; закрытие: `{}` |
+| status | text | NO | `pending` / `processing` / `sent` / `failed` |
+| attempts | integer | NO | Счётчик попыток доставки |
+| max_attempts | integer | NO | Лимит попыток (по умолчанию 10) |
+| next_run_at | timestamptz | NO | Время следующей попытки (backoff) |
+| idempotency_key | text | NO | Уникальный ключ вида `{work_id}:{kind}` |
+
+**RLS:** ✅ Включён; для аутентифицированных пользователей разрешён SELECT по своим компаниям и праву `works` read. Вставки выполняются триггером и функцией `enqueue_telegram_outbox_opening` (SECURITY DEFINER).
+
 ### RLS-политики
 - ✅ **Включён** для всех таблиц модуля.
 - **Strict Mode:** Используются строгие политики (SELECT, INSERT, UPDATE, DELETE), которые проверяют:
@@ -147,11 +165,17 @@ lib/features/
 
 ## Интеграции
 **Edge Functions (Supabase):**
-- `send_admin_work_event` — push при открытии/закрытии смены (`supabase/functions/send_admin_work_event/`): по умолчанию **всем активным участникам компании**; `notify_all: false` — только админам (`company_members` + `roles`).
-- `send_work_report_to_telegram` — ежедневный отчет по закрытой смене.
-- `send_work_opening_report_to_telegram` — уведомление об открытии смены.
+- `send_admin_work_event` — push при открытии/закрытии смены (Edge `send_admin_work_event/`): **клиент больше не вызывает** при сменах; функция может оставаться на сервере для других сценариев. Ранее по умолчанию **всем активным участникам компании**; `notify_all: false` — только админам.
+- `process_telegram_outbox` — воркер очереди `telegram_outbox`: по JWT пользователя обрабатывает задачи компаний пользователя; по HTTP с заголовком `Authorization: Bearer <OUTBOX_WORKER_SECRET>` — фоновый cron по всем компаниям (секрет задаётся в окружении Edge).
+- `send_work_report_to_telegram` — ежедневный отчет по закрытой смене (вызывается воркером).
+- `send_work_opening_report_to_telegram` — уведомление об открытии смены (вызывается воркером).
+- `update_work_opening_report_to_telegram` — обновление утреннего сообщения при закрытии (вызывается воркером при наличии `works.telegram_message_id`).
 - `export-work-search-pto` — экспорт данных для ПТО.
 - `export-work-search-all` — полный экспорт данных.
+
+**Поток Telegram:** после добавления строк `work_hours` клиент вызывает RPC `enqueue_telegram_outbox_opening` и затем `kickProcessTelegramOutbox` (`process_telegram_outbox`). 
+- **Оптимизация (11.05.2026):** Клиент вызывает воркер асинхронно (`.ignore()`), не блокируя UI. Edge Function обрабатывает задачи в очереди параллельно для ускорения доставки.
+При переходе смены в `closed` триггер добавляет задачу `work_close_telegram`. Прямые вызовы Telegram из Flutter для этих сценариев не используются.
 
 ## Roadmap
 - ✅ **Завершено (16.04.2026):** Разделение мобильного и десктопного представлений модуля (`WorksListMobileScreen`), вынос общей бизнес-логики в `WorksScreenActionsMixin` и общих sliver-делегатов месяцев в `widgets/`.

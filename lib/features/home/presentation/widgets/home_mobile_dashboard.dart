@@ -5,6 +5,7 @@ import 'package:projectgt/core/widgets/mobile_atmosphere_card_style.dart';
 import 'package:projectgt/features/home/presentation/widgets/contract_progress_widget.dart';
 import 'package:projectgt/features/home/presentation/widgets/home_mobile_kpi_section.dart';
 import 'package:projectgt/features/home/presentation/widgets/home_mobile_quick_actions.dart';
+import 'package:projectgt/features/home/presentation/widgets/home_my_open_shift_entry.dart';
 import 'package:projectgt/features/home/presentation/widgets/home_shifts_summary_widget.dart';
 import 'package:projectgt/features/home/presentation/widgets/shifts_calendar_widgets.dart';
 import 'package:projectgt/features/home/presentation/widgets/work_plan_summary_widget.dart';
@@ -25,7 +26,9 @@ class HomeMobileDashboard extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         const HomeMobileKpiSection(),
-        const SizedBox(height: 32),
+        const SizedBox(height: 24),
+        const HomeMyOpenShiftEntry(),
+        const SizedBox(height: 24),
         const HomeMobileQuickActions(),
         const SizedBox(height: 32),
         _buildSectionHeader(theme, 'Рабочие процессы'),

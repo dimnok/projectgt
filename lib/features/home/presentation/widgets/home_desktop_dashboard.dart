@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:projectgt/features/home/presentation/widgets/contract_progress_widget.dart';
 import 'package:projectgt/features/home/presentation/widgets/home_desktop_kpi_section.dart';
+import 'package:projectgt/features/home/presentation/widgets/home_my_open_shift_entry.dart';
 import 'package:projectgt/features/home/presentation/widgets/home_desktop_quick_actions_bar.dart';
 import 'package:projectgt/features/home/presentation/widgets/home_shifts_summary_widget.dart';
 import 'package:projectgt/features/home/presentation/widgets/shifts_calendar_widgets.dart';
@@ -22,7 +23,9 @@ class HomeDesktopDashboard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const HomeDesktopKpiSection(),
-        const SizedBox(height: 32),
+        const SizedBox(height: 24),
+        const HomeMyOpenShiftEntry(),
+        const SizedBox(height: 24),
         const HomeDesktopQuickActionsBar(),
         const SizedBox(height: 32),
         Row(

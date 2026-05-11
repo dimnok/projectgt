@@ -61,13 +61,19 @@ class HomeAtmosphereHero extends ConsumerWidget {
     // Вычисляем прозрачность фона для "прилипшей" части
     final stickyBackgroundOpacity = scrollProgress.clamp(0.0, 1.0);
 
-    // Динамические отступы и скругления для эффекта прилипания
-    final horizontalMargin = (16.0 * (1.0 - scrollProgress)).clamp(0.0, 16.0);
-    final topMargin = (12.0 * (1.0 - scrollProgress)).clamp(0.0, 12.0);
-    final borderRadius = (24.0 * (1.0 - scrollProgress)).clamp(0.0, 24.0);
+    // Фиксированные отступы и скругление: без расширения карточки и «разъезда»
+    // кнопок при сворачивании (раньше горизонтальный margin уходил в 0).
+    const horizontalMargin = 16.0;
+    const topMargin = 12.0;
+    const borderRadius = 24.0;
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(horizontalMargin, topMargin, horizontalMargin, 0),
+      padding: const EdgeInsets.fromLTRB(
+        horizontalMargin,
+        topMargin,
+        horizontalMargin,
+        0,
+      ),
       child: Container(
         width: double.infinity,
         height: double.infinity,
@@ -104,21 +110,36 @@ class HomeAtmosphereHero extends ConsumerWidget {
           children: [
             // Верхняя строка: Заголовок страницы и кнопки (всегда видны)
             if (pageTitle != null || leading != null || trailing != null) ...[
-              Row(
-                children: [
-                  if (leading != null) ...[leading!, const SizedBox(width: 12)],
-                  if (pageTitle != null)
-                    Expanded(
-                      child: Text(
-                        pageTitle!,
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: -0.5,
+              // Высота совпадает с [MobileAtmosphereChromeCircleButton] (44),
+              // иначе [titleLarge] может чуть вытолкнуть строку за доступную высоту.
+              SizedBox(
+                height: 44,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    if (leading != null) ...[
+                      leading!,
+                      const SizedBox(width: 12),
+                    ],
+                    if (pageTitle != null)
+                      Expanded(
+                        child: Text(
+                          pageTitle!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.5,
+                            height: 1.1,
+                          ),
                         ),
                       ),
-                    ),
-                  if (trailing != null) ...[const SizedBox(width: 12), trailing!],
-                ],
+                    if (trailing != null) ...[
+                      const SizedBox(width: 12),
+                      trailing!,
+                    ],
+                  ],
+                ),
               ),
               if (contentOpacity > 0) SizedBox(height: 20 * contentOpacity),
             ],

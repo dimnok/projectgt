@@ -157,10 +157,16 @@ class WorkRepositoryImpl implements WorkRepository {
     return await dataSource.getTotalEmployees(month);
   }
 
+  @override
+  Future<String?> getMyOpenWorkId(String userId) async {
+    return dataSource.getOpenWorkIdForUser(userId);
+  }
+
   /// Проверяет, есть ли у пользователя открытая смена в данной компании.
   @override
   Future<bool> hasAnyOpenWork(String userId) async {
-    return await dataSource.hasOpenWork(userId);
+    final id = await getMyOpenWorkId(userId);
+    return id != null;
   }
 
   /// Преобразует модель смены [WorkModel] в доменную сущность [Work].

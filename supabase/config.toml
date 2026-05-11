@@ -1,4 +1,9 @@
 
+[functions.process_telegram_outbox]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/process_telegram_outbox/index.ts"
+
 [functions.otp-notisend]
 enabled = true
 verify_jwt = true

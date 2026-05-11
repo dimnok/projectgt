@@ -36,10 +36,7 @@ class ShiftsCalendarFlipCard extends ConsumerStatefulWidget {
   final bool hideHeader;
 
   /// Создает виджет календаря смен с отдельным провайдером данных.
-  const ShiftsCalendarFlipCard({
-    super.key,
-    this.hideHeader = false,
-  });
+  const ShiftsCalendarFlipCard({super.key, this.hideHeader = false});
 
   @override
   ConsumerState<ShiftsCalendarFlipCard> createState() =>
@@ -63,12 +60,14 @@ class _ShiftsCalendarFlipCardState extends ConsumerState<ShiftsCalendarFlipCard>
       duration: _animationDuration,
       vsync: this,
     );
-    _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _animController, curve: Curves.easeOut),
-    );
-    _scaleAnimation = Tween<double>(begin: 0.8, end: 1).animate(
-      CurvedAnimation(parent: _animController, curve: Curves.easeOut),
-    );
+    _fadeAnimation = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
+    _scaleAnimation = Tween<double>(
+      begin: 0.8,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
   }
 
   @override
@@ -98,14 +97,13 @@ class _ShiftsCalendarFlipCardState extends ConsumerState<ShiftsCalendarFlipCard>
                 opacity: 1 - _fadeAnimation.value,
                 child: shiftsAsync.when(
                   loading: () => ShiftsHeatmap(
-                    shifts: [],
+                    shifts: const [],
                     isLoading: true,
                     onDateTap: null,
                     hideHeader: widget.hideHeader,
                   ),
-                  error: (err, stack) => Center(
-                    child: SelectableText('Ошибка загрузки: $err'),
-                  ),
+                  error: (err, stack) =>
+                      Center(child: SelectableText('Ошибка загрузки: $err')),
                   data: (shifts) => IgnorePointer(
                     child: ShiftsHeatmap(
                       shifts: shifts,
@@ -123,13 +121,13 @@ class _ShiftsCalendarFlipCardState extends ConsumerState<ShiftsCalendarFlipCard>
                   loading: () => const Center(
                     child: CircularProgressIndicator(strokeWidth: 2),
                   ),
-                  error: (err, stack) => Center(
-                    child: SelectableText('Ошибка: $err'),
-                  ),
+                  error: (err, stack) =>
+                      Center(child: SelectableText('Ошибка: $err')),
                   data: (details) {
                     final objectTotals =
                         details['objectTotals'] as Map<String, dynamic>? ?? {};
-                    final systemsByObject = details['systemsByObject']
+                    final systemsByObject =
+                        details['systemsByObject']
                             as Map<String, Map<String, double>>? ??
                         {};
 
@@ -165,14 +163,13 @@ class _ShiftsCalendarFlipCardState extends ConsumerState<ShiftsCalendarFlipCard>
     /// Календарь смен - основной вид
     return shiftsAsync.when(
       loading: () => ShiftsHeatmap(
-        shifts: [],
+        shifts: const [],
         isLoading: true,
         onDateTap: null,
         hideHeader: widget.hideHeader,
       ),
-      error: (err, stack) => Center(
-        child: SelectableText('Ошибка загрузки: $err'),
-      ),
+      error: (err, stack) =>
+          Center(child: SelectableText('Ошибка загрузки: $err')),
       data: (shifts) => ShiftsHeatmap(
         shifts: shifts,
         isLoading: false,
@@ -285,13 +282,15 @@ class ShiftsHeatmap extends StatelessWidget {
             color: fill,
             borderRadius: BorderRadius.circular(6),
             border: Border.all(color: border, width: 1.2),
-            boxShadow: !isZero ? [
-              BoxShadow(
-                color: textColor.withValues(alpha: 0.05),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              )
-            ] : null,
+            boxShadow: !isZero
+                ? [
+                    BoxShadow(
+                      color: textColor.withValues(alpha: 0.05),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
           ),
           width: _cellSize,
           height: _cellSize,
@@ -299,11 +298,11 @@ class ShiftsHeatmap extends StatelessWidget {
             child: Text(
               '${d.day}',
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    fontSize: _dayFontSize,
-                    height: 1.0,
-                    color: textColor.withValues(alpha: 0.9),
-                    fontWeight: FontWeight.w800,
-                  ),
+                fontSize: _dayFontSize,
+                height: 1.0,
+                color: textColor.withValues(alpha: 0.9),
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
         ),
@@ -319,14 +318,17 @@ class ShiftsHeatmap extends StatelessWidget {
         if (!hideHeader) ...[
           Row(
             children: [
-              Icon(CupertinoIcons.calendar,
-                  size: 18,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+              Icon(
+                CupertinoIcons.calendar,
+                size: 18,
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+              ),
               const SizedBox(width: 8),
               Text(
                 'Календарь смен',
-                style: theme.textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w700),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const SizedBox(width: 8),
               if (isLoading)
@@ -353,16 +355,23 @@ class ShiftsHeatmap extends StatelessWidget {
               final startIndex = r * columns;
               final endIndex = startIndex + columns;
               final weekDays = cells.sublist(startIndex, endIndex);
-              weekRows.add(Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: weekDays
-                      .map((d) =>
-                          SizedBox(width: size, height: size, child: cell(d)))
-                      .toList(),
+              weekRows.add(
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: weekDays
+                        .map(
+                          (d) => SizedBox(
+                            width: size,
+                            height: size,
+                            child: cell(d),
+                          ),
+                        )
+                        .toList(),
+                  ),
                 ),
-              ));
+              );
             }
 
             return Column(
@@ -402,38 +411,39 @@ class _CalendarBackSide extends StatelessWidget {
         ..sort((a, b) => b.value.compareTo(a.value));
 
       return entries
-          .map((e) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      margin: const EdgeInsets.only(right: 8, left: 2),
-                      decoration: BoxDecoration(
-                        color: _whatsappGreen.withValues(alpha: 0.9),
-                        shape: BoxShape.circle,
+          .map(
+            (e) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    margin: const EdgeInsets.only(right: 8, left: 2),
+                    decoration: BoxDecoration(
+                      color: _whatsappGreen.withValues(alpha: 0.9),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      e.key,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    Expanded(
-                      child: Text(
-                        e.key,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                  ),
+                  Text(
+                    _moneyFormatter.format(e.value),
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                     ),
-                    Text(
-                      _moneyFormatter.format(e.value),
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color:
-                            theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                      ),
-                    ),
-                  ],
-                ),
-              ))
+                  ),
+                ],
+              ),
+            ),
+          )
           .toList();
     }
 
@@ -445,35 +455,40 @@ class _CalendarBackSide extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: [
-              /// Верхняя панель: дата слева, кнопка назад справа.
-              Row(
-                children: [
-                  Expanded(
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        dateStr,
-                        style: theme.textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w800),
-                        overflow: TextOverflow.ellipsis,
+            /// Верхняя панель: дата слева, кнопка назад справа.
+            Row(
+              children: [
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      dateStr,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
                       ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  IconButton(
-                    tooltip: 'Назад к календарю',
-                    onPressed: onClose,
-                    icon: const Icon(CupertinoIcons.arrow_right_arrow_left),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              const SizedBox(height: 6),
-              Builder(builder: (context) {
-                final sortedObjects = objectTotals.entries
-                    .map((e) => MapEntry(e.key, (e.value as num).toDouble()))
-                    .toList()
-                  ..sort((a, b) => b.value.compareTo(a.value));
+                ),
+                IconButton(
+                  tooltip: 'Назад к календарю',
+                  onPressed: onClose,
+                  icon: const Icon(CupertinoIcons.arrow_right_arrow_left),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const SizedBox(height: 6),
+            Builder(
+              builder: (context) {
+                final sortedObjects =
+                    objectTotals.entries
+                        .map(
+                          (e) => MapEntry(e.key, (e.value as num).toDouble()),
+                        )
+                        .toList()
+                      ..sort((a, b) => b.value.compareTo(a.value));
 
                 /// Проверка на пустые данные
                 if (sortedObjects.isEmpty) {
@@ -481,8 +496,9 @@ class _CalendarBackSide extends StatelessWidget {
                     child: Text(
                       'Нет данных за выбранный день',
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color:
-                            theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.6,
+                        ),
                       ),
                     ),
                   );
@@ -503,8 +519,9 @@ class _CalendarBackSide extends StatelessWidget {
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color:
-                              theme.colorScheme.outline.withValues(alpha: 0.18),
+                          color: theme.colorScheme.outline.withValues(
+                            alpha: 0.18,
+                          ),
                         ),
                       ),
                       child: Column(
@@ -535,8 +552,9 @@ class _CalendarBackSide extends StatelessWidget {
                             Text(
                               'Нет систем',
                               style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurface
-                                    .withValues(alpha: 0.6),
+                                color: theme.colorScheme.onSurface.withValues(
+                                  alpha: 0.6,
+                                ),
                               ),
                             )
                           else
@@ -546,10 +564,11 @@ class _CalendarBackSide extends StatelessWidget {
                     );
                   }).toList(),
                 );
-              }),
-              const SizedBox(height: 16),
-            ],
-          ),
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
       ),
     );
   }
