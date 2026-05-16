@@ -1,9 +1,17 @@
+# Flutter Web собирается только здесь (runner с Flutter SDK).
+# В панели Timeweb для сайта не указывайте команду сборки flutter —
+# там обычно Node.js без Flutter → "flutter: not found".
+# Хостинг: статика из bucket (содержимое build/web после s3 sync).
+
 name: Deploy Flutter Web to Timeweb S3
 
 on:
   # push:
   #   branches: [ main ]
   workflow_dispatch: {}
+
+permissions:
+  contents: read
 
 jobs:
   build-and-deploy:
@@ -23,7 +31,9 @@ jobs:
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
-        with: {}
+        with:
+          channel: stable
+          cache: true
 
       - name: Flutter pub get
         run: flutter pub get
@@ -33,6 +43,13 @@ jobs:
           flutter build web --release \
             --dart-define=SUPABASE_URL=${SUPABASE_URL} \
             --dart-define=SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+
+      - name: Upload build/web artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-web-build
+          path: build/web
+          retention-days: 14
 
       - name: Install AWS CLI via pip
         run: |
