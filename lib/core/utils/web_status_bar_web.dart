@@ -65,11 +65,12 @@ class WebStatusBar {
       metaTheme.removeAttribute('media');
 
       // Для PWA-режима (когда приложение добавлено "На экран Домой")
-      // мы всегда используем black-translucent, чтобы контент заходил под статус-бар.
+      // используем 'black' для стабильного черного статус-бара на iOS,
+      // так как 'black-translucent' работает нестабильно.
       final appleMeta = web.document
           .querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
       if (appleMeta != null) {
-        appleMeta.setAttribute('content', 'black-translucent');
+        appleMeta.setAttribute('content', 'black');
       }
     } catch (_) {}
   }
@@ -86,10 +87,8 @@ class WebStatusBar {
   static void initialize() {
     if (!kIsWeb) return;
     try {
-      final isDark =
-          PlatformDispatcher.instance.platformBrightness == Brightness.dark;
-      // Используем стартовые цвета до загрузки Flutter
-      final initial = isDark ? '#0E0E10' : '#FFFFFF';
+      // Используем черный фон как самый стабильный для PWA
+      final initial = '#000000';
       _setCSSVariable('--app-surface-color', initial);
       _addEdgeToEdgeStyles();
     } catch (_) {}
@@ -104,7 +103,7 @@ class WebStatusBar {
         height: 100vh;
         width: 100vw;
         overflow: hidden;
-        background-color: var(--app-surface-color, #ffffff);
+        background-color: var(--app-surface-color, #000000);
       }
       body::-webkit-scrollbar { display: none; }
       body { -ms-overflow-style: none; scrollbar-width: none; transition: background-color 0.2s ease; }
