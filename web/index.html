@@ -84,9 +84,9 @@
         '  body { font-size: 14px; }\\n' +
         '}';
       document.head.appendChild(style);
-      
-      // Установить начальный цвет статус-бара (белый для светлой темы)
-      setStatusBarColor('#ffffff');
+      // Не вызываем setStatusBarColor здесь: Flutter (WebStatusBar.syncWithTheme)
+      // уже выставил theme-color; повторный вызов на window.load сбрасывал бы
+      // тёмную тему обратно в белый статус-бар в мобильном Safari/Chrome.
     }
     
     // Инициализация при загрузке

@@ -6,9 +6,14 @@
 name: Deploy Flutter Web to Timeweb S3
 
 on:
-  # push:
-  #   branches: [ main ]
+  push:
+    branches: [main]
   workflow_dispatch: {}
+
+# Один активный деплой за раз; новый push отменит устаревший прогон.
+concurrency:
+  group: deploy-timeweb-web-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
