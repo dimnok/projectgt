@@ -45,16 +45,22 @@ class WebStatusBar {
   static void _applyShellColor(String colorHex, {required bool isDark}) {
     _updateMetaTags(colorHex, isDark);
     web.document.body?.style.backgroundColor = colorHex;
+    web.document.documentElement?.style.backgroundColor = colorHex;
     _setCSSVariable('--app-surface-color', colorHex);
   }
 
   static void _updateMetaTags(String colorHex, bool isDark) {
     try {
-      final metaTags = web.document.querySelectorAll('meta[name="theme-color"]');
-      for (final meta in metaTags) {
-        meta.setAttribute('content', colorHex);
-        meta.removeAttribute('media');
+      // Динамически создаем или обновляем theme-color для Android Chrome
+      var metaTheme = web.document.querySelector('meta[name="theme-color"]');
+      if (metaTheme == null) {
+        metaTheme = web.document.createElement('meta');
+        metaTheme.setAttribute('name', 'theme-color');
+        web.document.head?.append(metaTheme);
       }
+      metaTheme.setAttribute('content', colorHex);
+      metaTheme.removeAttribute('media');
+
       // Для PWA-режима (когда приложение добавлено "На экран Домой")
       // мы всегда используем black-translucent, чтобы контент заходил под статус-бар.
       final appleMeta = web.document
