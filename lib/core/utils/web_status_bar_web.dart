@@ -1,70 +1,69 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:universal_html/html.dart' as web;
-import 'dart:js_interop';
-import 'dart:js_interop_unsafe';
 
-/// Утилита для управления статус баром на веб-платформе.
+/// Утилита для цвета «оболочки» страницы на Web: `theme-color`, фон `html`/`body`,
+/// CSS-переменная для канваса Flutter. Один источник правды — без дублирования в JS.
 class WebStatusBar {
-  static const String _jsFunction = 'flutterStatusBar';
+  /// Тот же базовый фон, что [MobileAtmosphereAppearance.atmosphereBase] в тёмной теме.
+  static const Color _kDarkShell = Color(0xFF0E0E10);
 
-  /// Устанавливает цвет статус-бара на веб-платформе.
+  /// Устанавливает цвет оболочки (meta + документ). [isDark] — стиль строки состояния iOS.
   static void setColor(Color color, {bool isDark = false}) {
     if (!kIsWeb) return;
     try {
-      final colorHex =
-          '#${(0xFF000000 | (((color.r * 255.0).round() & 0xff) << 16) | (((color.g * 255.0).round() & 0xff) << 8) | ((color.b * 255.0).round() & 0xff)).toRadixString(16).substring(2)}';
-
-      if (globalContext.has(_jsFunction)) {
-        final statusBarObj = globalContext[_jsFunction];
-        if (statusBarObj != null) {
-          try {
-            final jsObj = statusBarObj as JSObject;
-            if (jsObj.has('setColor')) {
-              final setColorMethod = jsObj['setColor'] as JSFunction?;
-              if (setColorMethod != null) {
-                setColorMethod.callAsFunction(jsObj, colorHex.toJS);
-              }
-            }
-          } catch (_) {}
-        }
-      }
-
-      _updateMetaTags(colorHex, isDark);
-      _setCSSVariable('--app-surface-color', colorHex);
-      _setCSSVariable('--app-status-bar-color', colorHex);
+      final colorHex = _toHex(color);
+      _applyShellColor(colorHex, isDark: isDark);
     } catch (_) {}
   }
 
-  /// Устанавливает цвет поверхности на веб-платформе.
+  /// Только фон `body` и переменная `--app-surface-color` (без `theme-color` / Apple-meta).
   static void setSurfaceColor(Color color) {
     if (!kIsWeb) return;
     try {
-      final colorHex =
-          '#${(0xFF000000 | (((color.r * 255.0).round() & 0xff) << 16) | (((color.g * 255.0).round() & 0xff) << 8) | ((color.b * 255.0).round() & 0xff)).toRadixString(16).substring(2)}';
+      final colorHex = _toHex(color);
       web.document.body?.style.backgroundColor = colorHex;
       _setCSSVariable('--app-surface-color', colorHex);
     } catch (_) {}
   }
 
-  /// Синхронизирует статус-бар с темой приложения.
+  /// Синхронизирует оболочку браузера с темой приложения.
   static void syncWithTheme(ThemeData theme) {
     if (!kIsWeb) return;
     final isDark = theme.brightness == Brightness.dark;
-    final surfaceColor = theme.colorScheme.surface;
-    setColor(surfaceColor, isDark: isDark);
-    setSurfaceColor(surfaceColor);
+    final Color shell =
+        isDark ? _kDarkShell : theme.colorScheme.surface;
+    final hex = _toHex(shell);
+    _applyShellColor(hex, isDark: isDark);
+  }
+
+  static String _toHex(Color color) {
+    return '#${(0xFF000000 |
+            (((color.r * 255.0).round() & 0xff) << 16) |
+            (((color.g * 255.0).round() & 0xff) << 8) |
+            ((color.b * 255.0).round() & 0xff))
+        .toRadixString(16)
+        .substring(2)}';
+  }
+
+  static void _applyShellColor(String colorHex, {required bool isDark}) {
+    _updateMetaTags(colorHex, isDark);
+    web.document.body?.style.backgroundColor = colorHex;
+    _setCSSVariable('--app-surface-color', colorHex);
   }
 
   static void _updateMetaTags(String colorHex, bool isDark) {
     try {
-      final themeMeta = web.document.querySelector('meta[name="theme-color"]');
-      themeMeta?.setAttribute('content', colorHex);
+      web.document
+          .querySelector('meta[name="theme-color"]')
+          ?.setAttribute('content', colorHex);
       final appleMeta = web.document
           .querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
       if (appleMeta != null) {
         appleMeta.setAttribute(
-            'content', isDark ? 'black-translucent' : 'default');
+          'content',
+          isDark ? 'black-translucent' : 'default',
+        );
       }
     } catch (_) {}
   }
@@ -77,10 +76,14 @@ class WebStatusBar {
     } catch (_) {}
   }
 
-  /// Инициализирует статус-бар для веб-платформы.
+  /// Инициализация: стартовый фон по системной теме до первого кадра Flutter.
   static void initialize() {
     if (!kIsWeb) return;
     try {
+      final isDark =
+          PlatformDispatcher.instance.platformBrightness == Brightness.dark;
+      final initial = isDark ? _toHex(_kDarkShell) : '#ffffff';
+      _setCSSVariable('--app-surface-color', initial);
       _addEdgeToEdgeStyles();
     } catch (_) {}
   }
@@ -105,7 +108,7 @@ class WebStatusBar {
         flt-glass-pane { height: 100vh !important; }
       }
       body::-webkit-scrollbar { display: none; }
-      body { -ms-overflow-style: none; scrollbar-width: none; transition: background-color 0.3s ease; }
+      body { -ms-overflow-style: none; scrollbar-width: none; transition: background-color 0.2s ease; }
     ''';
     web.document.head?.append(style);
   }
