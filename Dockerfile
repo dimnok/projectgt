@@ -8,18 +8,16 @@ COPY . .
 RUN flutter pub get
 RUN flutter build web --release
 
-# Этап 2: Раздача статики через непривилегированный Nginx (для облака)
+# Этап 2: Раздача статики через непривилегированный Nginx
 FROM nginxinc/nginx-unprivileged:alpine
 
-# Копируем наш кастомный конфиг-шаблон (nginx сам подставит порт при запуске)
-COPY nginx.conf.template /etc/nginx/templates/default.conf.template
+# Копируем наш конфиг с поддержкой IPv4 и IPv6
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Копируем собранные файлы
 COPY --from=build /app/build/web /usr/share/nginx/html
 
-# Задаем порт по умолчанию (8080), если облако не передаст свой
-ENV PORT=8080
-EXPOSE $PORT
+# Жестко указываем порт для парсера Timeweb
+EXPOSE 8080
 
-# Команду CMD не указываем — используем стандартный скрипт от nginxinc,
-# который подставит $PORT в шаблон и запустит nginx.
+CMD ["nginx", "-g", "daemon off;"]
