@@ -17,6 +17,5 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 # Копируем собранные файлы
 COPY --from=build /app/build/web /usr/share/nginx/html
 
-EXPOSE 8080
-ENV PORT=8080
+EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
