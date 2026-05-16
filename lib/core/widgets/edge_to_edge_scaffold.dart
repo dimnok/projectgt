@@ -78,33 +78,45 @@ class EdgeToEdgeScaffold extends StatelessWidget {
       value: overlayStyle,
       child: Container(
         color: bgColor,
-        child: SafeArea(
-          top: false, // Позволяем контенту заходить под статус бар
-          bottom: extendBody ? false : true,
-          child: Scaffold(
-            backgroundColor: Colors.transparent, // Прозрачный фон для Scaffold
-            extendBody: extendBody,
-            extendBodyBehindAppBar: extendBodyBehindAppBar,
-            resizeToAvoidBottomInset: resizeToAvoidBottomInset,
-            appBar: appBar != null
-                ? _EdgeToEdgeAppBar(
-                    appBar: appBar!,
-                    backgroundColor: bgColor,
-                  )
-                : null,
-            body: body != null
-                ? _EdgeToEdgeBody(
-                    hasAppBar: appBar != null,
-                    topPadding: mediaQuery.padding.top,
-                    child: body!,
-                  )
-                : null,
-            floatingActionButton: floatingActionButton,
-            floatingActionButtonLocation: floatingActionButtonLocation,
-            drawer: drawer,
-            endDrawer: endDrawer,
-            bottomNavigationBar: bottomNavigationBar,
-          ),
+        child: Stack(
+          children: [
+            // Фон, который заходит под статус-бар
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: mediaQuery.padding.top,
+              child: Container(color: bgColor),
+            ),
+            SafeArea(
+              top: false, // Позволяем контенту заходить под статус бар
+              bottom: extendBody ? false : true,
+              child: Scaffold(
+                backgroundColor: Colors.transparent, // Прозрачный фон для Scaffold
+                extendBody: extendBody,
+                extendBodyBehindAppBar: extendBodyBehindAppBar,
+                resizeToAvoidBottomInset: resizeToAvoidBottomInset,
+                appBar: appBar != null
+                    ? _EdgeToEdgeAppBar(
+                        appBar: appBar!,
+                        backgroundColor: bgColor,
+                      )
+                    : null,
+                body: body != null
+                    ? _EdgeToEdgeBody(
+                        hasAppBar: appBar != null,
+                        topPadding: mediaQuery.padding.top,
+                        child: body!,
+                      )
+                    : null,
+                floatingActionButton: floatingActionButton,
+                floatingActionButtonLocation: floatingActionButtonLocation,
+                drawer: drawer,
+                endDrawer: endDrawer,
+                bottomNavigationBar: bottomNavigationBar,
+              ),
+            ),
+          ],
         ),
       ),
     );

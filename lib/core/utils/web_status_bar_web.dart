@@ -65,12 +65,12 @@ class WebStatusBar {
       metaTheme.removeAttribute('media');
 
       // Для PWA-режима (когда приложение добавлено "На экран Домой")
-      // используем 'black' для стабильного черного статус-бара на iOS,
-      // так как 'black-translucent' работает нестабильно.
+      // используем 'black-translucent', чтобы контент заходил под статус-бар,
+      // а фон под ним мы рисуем во Flutter.
       final appleMeta = web.document
           .querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
       if (appleMeta != null) {
-        appleMeta.setAttribute('content', 'black');
+        appleMeta.setAttribute('content', 'black-translucent');
       }
     } catch (_) {}
   }
