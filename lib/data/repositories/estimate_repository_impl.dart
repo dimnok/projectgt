@@ -150,12 +150,14 @@ class EstimateRepositoryImpl implements EstimateRepository {
     required DateTime startDate,
     required DateTime endDate,
     required List<String> systems,
+    bool includeCombinedSheet = false,
   }) async {
     return dataSource.createVor(
       contractId: contractId,
       startDate: startDate,
       endDate: endDate,
       systems: systems,
+      includeCombinedSheet: includeCombinedSheet,
     );
   }
 
@@ -233,7 +235,7 @@ class EstimateRepositoryImpl implements EstimateRepository {
 
   @override
   Future<List<EstimatePositionAddendumHistoryEntry>>
-      getEstimatePositionAddendumHistory({
+  getEstimatePositionAddendumHistory({
     required String contractId,
     required String estimateTitle,
     required String estimateRowId,

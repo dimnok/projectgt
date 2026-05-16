@@ -80,47 +80,21 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
     final permissionService = ref.watch(permissionServiceProvider);
     final canDelete = permissionService.can('estimates', 'delete');
 
+    // Прозрачный каркас: общий фон и атмосфера задаются родителем
+    // ([EstimatesListScreen] — [MobileAtmosphereBackdrop]). Панели списка и таблицы
+    // — отдельные поверхности поверх этого фона, без второй полноэкранной подложки.
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Container(
-          decoration: BoxDecoration(
-            color: isDark
-                ? const Color.fromRGBO(38, 40, 42, 1)
-                : const Color.fromRGBO(248, 249, 250, 1),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: isDark ? Colors.grey[700]! : Colors.grey[300]!,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(24),
-            child: Stack(
-              children: [
-                // 1. Основной фон
-                Positioned.fill(
-                  child: ColoredBox(
-                    color: isDark
-                        ? const Color.fromRGBO(38, 40, 42, 1)
-                        : const Color.fromRGBO(248, 249, 250, 1),
-                  ),
-                ),
-
-                // 2. Левая панель (Список)
-                Positioned(
-                  left: 16,
-                  top: 16,
-                  bottom: 16,
-                  width: 350,
-                  child: AnimatedOpacity(
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // 1. Левая панель (список)
+          Positioned(
+            left: 12,
+            top: 12,
+            bottom: 12,
+            width: 350,
+            child: AnimatedOpacity(
                     duration: const Duration(milliseconds: 400),
                     opacity: isSidebarVisible ? 1.0 : 0.0,
                     curve: Curves.easeInOut,
@@ -313,16 +287,16 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
                             ),
                     ),
                   ),
-                ),
+          ),
 
-                // 3. Основная область (Таблица)
+                // 2. Основная область (таблица)
                 AnimatedPositioned(
                   duration: const Duration(milliseconds: 400),
                   curve: Curves.easeInOutCubic,
-                  left: isSidebarVisible ? 382 : 16,
-                  right: 16,
-                  top: 16,
-                  bottom: 16,
+                  left: isSidebarVisible ? 374 : 12,
+                  right: 12,
+                  top: 12,
+                  bottom: 12,
                   child: Container(
                     decoration: BoxDecoration(
                       color: theme.colorScheme.surface,
@@ -349,9 +323,6 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
                 ),
               ],
             ),
-          ),
-        ),
-      ),
     );
   }
 

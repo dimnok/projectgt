@@ -7,12 +7,10 @@ import 'package:projectgt/features/home/presentation/providers/all_contracts_pro
 import 'package:projectgt/features/objects/presentation/state/object_state.dart';
 import 'package:projectgt/presentation/state/contract_state.dart';
 
-/// Ряд KPI-карточек для десктопной главной (сметы, договоры, объекты, выполнение).
+/// Единая панель (Ribbon) KPI для десктопной главной.
 class HomeDesktopKpiSection extends ConsumerWidget {
-  /// Создаёт блок KPI для десктопного дашборда.
+  /// Создаёт блок KPI в виде единой ленты.
   const HomeDesktopKpiSection({super.key});
-
-  static const double _cardMinHeight = 104;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -30,95 +28,158 @@ class HomeDesktopKpiSection extends ConsumerWidget {
     final estimatesCount = estimateState.estimates.length;
     final objectsCount = objectState.objects.length;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Сводка по компании',
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.3,
-          ),
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: theme.colorScheme.outline.withValues(alpha: 0.1),
         ),
-        const SizedBox(height: 12),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.shadow.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: IntrinsicHeight(
+        child: Row(
           children: [
             Expanded(
-              child: _KpiCard(
-                minHeight: _cardMinHeight,
+              child: _KpiRibbonItem(
                 label: 'Выполнение',
-                accentColor: const Color(0xFF10B981), // Safe Green
+                subtitle: 'Средний показатель',
+                accentColor: const Color(0xFF10B981),
                 valueWidget: progressAsync.when(
                   data: (p) {
                     final pct = p.companyWeightedExecutionPercent;
-                    if (pct == null) {
-                      return _KpiValueText('—', theme);
-                    }
-                    return _KpiValueText(
-                      '${pct.toStringAsFixed(1)} %',
-                      theme,
-                      emphasize: true,
-                    );
+                    if (pct == null) return _KpiValueText('—', theme);
+                    return _KpiValueText('${pct.toStringAsFixed(1)} %', theme, emphasize: true);
                   },
                   loading: () => const _KpiSkeleton(),
                   error: (_, __) => _KpiValueText('—', theme, isError: true),
                 ),
                 icon: CupertinoIcons.chart_pie_fill,
-                semanticLabel: 'Взвешенный процент выполнения по сметам компании',
               ),
             ),
-            const SizedBox(width: 12),
+            _buildDivider(theme),
             Expanded(
-              child: _KpiCard(
-                minHeight: _cardMinHeight,
+              child: _KpiRibbonItem(
                 label: 'Договоры',
-                accentColor: const Color(0xFF1E3A8A), // Blueprint Blue
+                subtitle: 'Всего в базе',
+                accentColor: const Color(0xFF1E3A8A),
                 valueWidget: contractsLoading
                     ? const _KpiSkeleton()
-                    : _KpiValueText(
-                        formatQuantity(contractsCount),
-                        theme,
-                      ),
+                    : _KpiValueText(formatQuantity(contractsCount), theme),
                 icon: CupertinoIcons.doc_text_fill,
-                semanticLabel: 'Количество договоров',
               ),
             ),
-            const SizedBox(width: 12),
+            _buildDivider(theme),
             Expanded(
-              child: _KpiCard(
-                minHeight: _cardMinHeight,
+              child: _KpiRibbonItem(
                 label: 'Сметы',
-                accentColor: const Color(0xFFF97316), // Warning Orange
+                subtitle: 'Загружено',
+                accentColor: const Color(0xFFF97316),
                 valueWidget: estimatesLoading
                     ? const _KpiSkeleton()
-                    : _KpiValueText(
-                        formatQuantity(estimatesCount),
-                        theme,
-                      ),
+                    : _KpiValueText(formatQuantity(estimatesCount), theme),
                 icon: CupertinoIcons.list_number,
-                semanticLabel: 'Количество смет',
               ),
             ),
-            const SizedBox(width: 12),
+            _buildDivider(theme),
             Expanded(
-              child: _KpiCard(
-                minHeight: _cardMinHeight,
+              child: _KpiRibbonItem(
                 label: 'Объекты',
-                accentColor: const Color(0xFF8B5CF6), // Violet
+                subtitle: 'Активные площадки',
+                accentColor: const Color(0xFF8B5CF6),
                 valueWidget: objectsLoading
                     ? const _KpiSkeleton()
-                    : _KpiValueText(
-                        formatQuantity(objectsCount),
-                        theme,
-                      ),
+                    : _KpiValueText(formatQuantity(objectsCount), theme),
                 icon: CupertinoIcons.building_2_fill,
-                semanticLabel: 'Количество объектов',
               ),
             ),
           ],
         ),
-      ],
+      ),
+    );
+  }
+
+  Widget _buildDivider(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 24),
+      child: VerticalDivider(
+        width: 1,
+        thickness: 1,
+        color: theme.colorScheme.outline.withValues(alpha: 0.1),
+      ),
+    );
+  }
+}
+
+class _KpiRibbonItem extends StatelessWidget {
+  final String label;
+  final String subtitle;
+  final Widget valueWidget;
+  final IconData icon;
+  final Color accentColor;
+
+  const _KpiRibbonItem({
+    required this.label,
+    required this.subtitle,
+    required this.valueWidget,
+    required this.icon,
+    required this.accentColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, size: 16, color: accentColor),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  label.toUpperCase(),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          valueWidget,
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+              fontWeight: FontWeight.w500,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -156,124 +217,12 @@ class _KpiSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return SizedBox(
-      height: 32,
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Container(
-          width: 96,
-          height: 28,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _KpiCard extends StatefulWidget {
-  final double minHeight;
-  final String label;
-  final Widget valueWidget;
-  final IconData icon;
-  final String semanticLabel;
-  final Color accentColor;
-
-  const _KpiCard({
-    required this.minHeight,
-    required this.label,
-    required this.valueWidget,
-    required this.icon,
-    required this.semanticLabel,
-    required this.accentColor,
-  });
-
-  @override
-  State<_KpiCard> createState() => _KpiCardState();
-}
-
-class _KpiCardState extends State<_KpiCard> {
-  bool _hover = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Semantics(
-      container: true,
-      label: '${widget.semanticLabel}: ${widget.label}',
-      child: MouseRegion(
-        onEnter: (_) => setState(() => _hover = true),
-        onExit: (_) => setState(() => _hover = false),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOutCubic,
-          constraints: BoxConstraints(minHeight: widget.minHeight),
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: _hover
-                  ? widget.accentColor.withValues(alpha: 0.4)
-                  : theme.colorScheme.outline.withValues(alpha: 0.12),
-              width: _hover ? 1.5 : 1.0,
-            ),
-            boxShadow: _hover
-                ? [
-                    BoxShadow(
-                      color: widget.accentColor.withValues(alpha: 0.1),
-                      blurRadius: 16,
-                      offset: const Offset(0, 8),
-                    ),
-                  ]
-                : [
-                    BoxShadow(
-                      color: theme.colorScheme.shadow.withValues(alpha: 0.02),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: widget.accentColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(
-                      widget.icon,
-                      size: 18,
-                      color: widget.accentColor,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      widget.label.toUpperCase(),
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.0,
-                        color: theme.colorScheme.onSurface.withValues(
-                          alpha: 0.5,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              widget.valueWidget,
-            ],
-          ),
-        ),
+    return Container(
+      width: 64,
+      height: 28,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(6),
+        color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
       ),
     );
   }

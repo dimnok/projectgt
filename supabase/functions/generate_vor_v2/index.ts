@@ -44,6 +44,7 @@ serve(async (req) => {
 
     // Если файл уже сгенерирован, возвращаем его путь
     if (vor.excel_url) {
+      const filesToReturn = [];
       const { data: fileData, error: downloadError } = await supabase.storage
         .from("vor_documents")
         .download(vor.excel_url);
@@ -51,10 +52,38 @@ serve(async (req) => {
       if (!downloadError && fileData) {
         const buffer = await fileData.arrayBuffer();
         const base64File = encode(new Uint8Array(buffer));
-        return new Response(JSON.stringify({ 
+        filesToReturn.push({
           file: base64File,
           filename: `ВОР_${vor.number}.xlsx`,
-          url: vor.excel_url
+          url: vor.excel_url,
+          type: 'normal'
+        });
+      }
+
+      if (vor.include_combined_sheet && vor.excel_combined_url) {
+        const { data: combinedData, error: combinedDownloadError } = await supabase.storage
+          .from("vor_documents")
+          .download(vor.excel_combined_url);
+
+        if (!combinedDownloadError && combinedData) {
+          const buffer = await combinedData.arrayBuffer();
+          const base64File = encode(new Uint8Array(buffer));
+          filesToReturn.push({
+            file: base64File,
+            filename: `ВОР_${vor.number}_Общая.xlsx`,
+            url: vor.excel_combined_url,
+            type: 'combined'
+          });
+        }
+      }
+
+      if (filesToReturn.length > 0) {
+        return new Response(JSON.stringify({ 
+          files: filesToReturn,
+          // Оставляем для обратной совместимости
+          file: filesToReturn[0].file,
+          filename: filesToReturn[0].filename,
+          url: filesToReturn[0].url
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -83,13 +112,14 @@ serve(async (req) => {
     if (itemsError) throw itemsError;
 
     // 3. Генерация Excel
-    const workbook = new ExcelJS.Workbook();
+    const workbookNormal = new ExcelJS.Workbook();
+    const workbookCombined = vor.include_combined_sheet ? new ExcelJS.Workbook() : null;
     
     // Получаем уникальные системы из позиций
     const systems = [...new Set(items.map(item => item.estimates?.system || "Без системы"))];
 
-    for (const systemName of systems) {
-      const sheetTitle = systemName.substring(0, 31);
+    const generateSheetForSystem = (workbook: ExcelJS.Workbook, systemName: string, isCombined: boolean) => {
+      const sheetTitle = (isCombined ? `${systemName} (Общая)` : systemName).substring(0, 31);
       const worksheet = workbook.addWorksheet(sheetTitle, {
         pageSetup: {
           paperSize: 9, // A4
@@ -159,7 +189,9 @@ serve(async (req) => {
       // Заголовок таблицы
       const titleCell = worksheet.getCell('A9');
       worksheet.mergeCells('A9:F9');
-      titleCell.value = `ВЕДОМОСТЬ ОБЪЁМОВ РАБОТ (${systemName.toUpperCase()})`;
+      titleCell.value = isCombined 
+        ? `ВЕДОМОСТЬ ОБЪЁМОВ РАБОТ (${systemName.toUpperCase()} - ОБЩАЯ)` 
+        : `ВЕДОМОСТЬ ОБЪЁМОВ РАБОТ (${systemName.toUpperCase()})`;
       titleCell.font = { name: 'PT Serif', size: 14, bold: true };
       titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
 
@@ -180,8 +212,6 @@ serve(async (req) => {
       let rowCounter = 1;
 
       const systemItems = items.filter(i => (i.estimates?.system || "Без системы") === systemName);
-      const normalItems = systemItems.filter(i => !i.is_extra);
-      const extraItems = systemItems.filter(i => i.is_extra);
 
       const sortFn = (a: any, b: any) => {
         const lsrA = a.estimates?.number || "";
@@ -220,22 +250,42 @@ serve(async (req) => {
         });
       };
 
-      if (normalItems.length > 0) {
-        renderRows(normalItems);
-      }
+      if (isCombined) {
+        // Суммируем объемы
+        const groupedMap = new Map<string, any>();
+        systemItems.forEach(item => {
+          const lsr = item.estimates?.number || "—";
+          const key = `${lsr}_${item.name}_${item.unit}`;
+          if (!groupedMap.has(key)) {
+            groupedMap.set(key, { ...item, quantity: 0 });
+          }
+          groupedMap.get(key).quantity += item.quantity;
+        });
+        const combinedItems = Array.from(groupedMap.values());
+        if (combinedItems.length > 0) {
+          renderRows(combinedItems);
+        }
+      } else {
+        const normalItems = systemItems.filter(i => !i.is_extra);
+        const extraItems = systemItems.filter(i => i.is_extra);
 
-      if (extraItems.length > 0) {
-        // Разделитель для превышений
-        const sepRow = worksheet.getRow(currentRowIdx);
-        worksheet.mergeCells(`A${currentRowIdx}:F${currentRowIdx}`);
-        sepRow.getCell(1).value = "ПРЕВЫШЕНИЕ ОБЪЕМОВ И ДОПОЛНИТЕЛЬНЫЕ РАБОТЫ";
-        sepRow.getCell(1).font = boldFont;
-        sepRow.getCell(1).alignment = { horizontal: "center", vertical: "middle" };
-        sepRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEEEEE' } };
-        sepRow.height = 25;
-        currentRowIdx++;
-        
-        renderRows(extraItems);
+        if (normalItems.length > 0) {
+          renderRows(normalItems);
+        }
+
+        if (extraItems.length > 0) {
+          // Разделитель для превышений
+          const sepRow = worksheet.getRow(currentRowIdx);
+          worksheet.mergeCells(`A${currentRowIdx}:F${currentRowIdx}`);
+          sepRow.getCell(1).value = "ПРЕВЫШЕНИЕ ОБЪЕМОВ И ДОПОЛНИТЕЛЬНЫЕ РАБОТЫ";
+          sepRow.getCell(1).font = boldFont;
+          sepRow.getCell(1).alignment = { horizontal: "center", vertical: "middle" };
+          sepRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEEEEE' } };
+          sepRow.height = 25;
+          currentRowIdx++;
+          
+          renderRows(extraItems);
+        }
       }
 
       // Подписи
@@ -264,9 +314,23 @@ serve(async (req) => {
       customerRow.getCell(4).font = boldFont;
       worksheet.getRow(footerStartRow + 1).getCell(4).value = sigs.customer.name;
       worksheet.getRow(footerStartRow + 2).getCell(4).value = `${sigs.customer.position}: ${sigs.customer.signer}`;
+    };
+
+    for (const systemName of systems) {
+      // Сначала стандартный лист
+      generateSheetForSystem(workbookNormal, systemName, false);
+      
+      // Затем общий, если нужно
+      if (workbookCombined) {
+        generateSheetForSystem(workbookCombined, systemName, true);
+      }
     }
 
-    const buffer = await workbook.xlsx.writeBuffer();
+    const bufferNormal = await workbookNormal.xlsx.writeBuffer();
+    let bufferCombined = null;
+    if (workbookCombined) {
+      bufferCombined = await workbookCombined.xlsx.writeBuffer();
+    }
     
     // Функция для транслитерации и очистки имен для путей в Storage
     const slugify = (text: string) => {
@@ -284,33 +348,70 @@ serve(async (req) => {
 
     const objectSlug = slugify(object?.name || "object");
     const vorNumberSlug = slugify(vor.number).replace(/^vor_/, ''); // Убираем префикс vor_, если он есть
-    const fileName = `${vorNumberSlug}_${Date.now()}.xlsx`;
-    const filePath = `${objectSlug}/${fileName}`;
+    const fileNameNormal = `${vorNumberSlug}_${Date.now()}.xlsx`;
+    const filePathNormal = `${objectSlug}/${fileNameNormal}`;
+    let filePathCombined = null;
+    
+    const updateData: any = { excel_url: filePathNormal };
 
     // Загружаем файл в Storage
     const { error: uploadError } = await supabase.storage
       .from("vor_documents")
-      .upload(filePath, buffer, {
+      .upload(filePathNormal, bufferNormal, {
         contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         upsert: true
       });
 
     if (uploadError) {
-      console.error("Ошибка загрузки в Storage:", uploadError);
-    } else {
-      // Обновляем запись в БД
-      await supabase
-        .from("vors")
-        .update({ excel_url: filePath })
-        .eq("id", vorId);
+      console.error("Ошибка загрузки обычного файла в Storage:", uploadError);
     }
 
-    const base64File = encode(new Uint8Array(buffer));
+    if (bufferCombined) {
+      const fileNameCombined = `${vorNumberSlug}_combined_${Date.now()}.xlsx`;
+      filePathCombined = `${objectSlug}/${fileNameCombined}`;
+      
+      const { error: combinedUploadError } = await supabase.storage
+        .from("vor_documents")
+        .upload(filePathCombined, bufferCombined, {
+          contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          upsert: true
+        });
+        
+      if (combinedUploadError) {
+        console.error("Ошибка загрузки общего файла в Storage:", combinedUploadError);
+      } else {
+        updateData.excel_combined_url = filePathCombined;
+      }
+    }
+
+    // Обновляем запись в БД
+    await supabase
+      .from("vors")
+      .update(updateData)
+      .eq("id", vorId);
+
+    const filesToReturn = [];
+    filesToReturn.push({
+      file: encode(new Uint8Array(bufferNormal)),
+      filename: `ВОР_${vor.number}_${object?.name || ""}.xlsx`,
+      url: filePathNormal,
+      type: 'normal'
+    });
+
+    if (bufferCombined) {
+      filesToReturn.push({
+        file: encode(new Uint8Array(bufferCombined)),
+        filename: `ВОР_${vor.number}_${object?.name || ""}_Общая.xlsx`,
+        url: filePathCombined,
+        type: 'combined'
+      });
+    }
 
     return new Response(JSON.stringify({ 
-      file: base64File,
-      filename: `ВОР_${vor.number}_${object?.name || ""}.xlsx`,
-      url: filePath
+      files: filesToReturn,
+      file: filesToReturn[0].file,
+      filename: filesToReturn[0].filename,
+      url: filesToReturn[0].url
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

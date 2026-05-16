@@ -1,17 +1,21 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/theme/theme_settings_provider.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/snackbar_utils.dart';
 import '../../../../core/widgets/gt_buttons.dart';
+import '../../../../core/widgets/mobile_atmosphere_backdrop.dart';
+import '../../../../core/widgets/mobile_atmosphere_screen_header.dart';
 import '../../../../data/models/estimate_completion_model.dart';
 import '../../../../domain/entities/estimate.dart';
 import '../../../../features/roles/application/permission_service.dart';
 import '../../../../features/roles/presentation/widgets/permission_guard.dart';
-import '../../../../presentation/widgets/app_bar_widget.dart';
+import '../../../../presentation/widgets/app_drawer.dart';
 import '../mixins/estimate_actions_mixin.dart';
 import '../providers/estimate_providers.dart';
 import '../utils/estimate_sorter.dart';
@@ -110,6 +114,94 @@ class _EstimateMobileViewState extends ConsumerState<EstimateMobileView>
     );
   }
 
+  Widget _themeToggleButton(MobileAtmosphereAppearance appearance) {
+    final isDark = appearance.isDark;
+    return MobileAtmosphereChromeCircleButton(
+      appearance: appearance,
+      tooltip: isDark ? 'Светлая тема' : 'Тёмная тема',
+      icon: isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+      onTap: () {
+        ref.read(themeSettingsProvider.notifier).setThemeMode(
+              isDark ? ThemeMode.light : ThemeMode.dark,
+            );
+      },
+    );
+  }
+
+  SystemUiOverlayStyle _systemUiOverlayFor(
+    MobileAtmosphereAppearance appearance,
+  ) {
+    final isDark = appearance.isDark;
+    return SystemUiOverlayStyle(
+      statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+      statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+      systemNavigationBarColor: appearance.atmosphereBase,
+      systemNavigationBarDividerColor: Colors.transparent,
+      systemNavigationBarIconBrightness:
+          isDark ? Brightness.light : Brightness.dark,
+    );
+  }
+
+  /// Общий каркас: фон атмосферы, без классического [AppBar].
+  Widget _estimatesAtmosphereScaffold({
+    required String title,
+    required Widget leading,
+    required List<Widget> trailing,
+    required Widget body,
+    Widget? floatingActionButton,
+  }) {
+    final appearance = MobileAtmosphereAppearance.of(context);
+    final isDark = appearance.isDark;
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: _systemUiOverlayFor(appearance),
+      child: Scaffold(
+        backgroundColor:
+            isDark ? appearance.atmosphereBase : Colors.transparent,
+        drawer: const AppDrawer(activeRoute: AppRoute.estimates),
+        floatingActionButton: floatingActionButton,
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            const MobileAtmosphereBackdrop(),
+            SafeArea(
+              bottom: false,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+                    child: MobileAtmosphereScreenHeader(
+                      appearance: appearance,
+                      title: title,
+                      leading: leading,
+                      trailing: trailing.isEmpty
+                          ? null
+                          : SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              reverse: true,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  for (var i = 0; i < trailing.length; i++) ...[
+                                    if (i > 0) const SizedBox(width: 4),
+                                    trailing[i],
+                                  ],
+                                ],
+                              ),
+                            ),
+                    ),
+                  ),
+                  Expanded(child: body),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // 1. Если передано название сметы - показываем детали
@@ -123,35 +215,44 @@ class _EstimateMobileViewState extends ConsumerState<EstimateMobileView>
           final completionAsync = ref.watch(
             estimateCompletionByIdsProvider(EstimateIds(itemIds)),
           );
+          final appearance = MobileAtmosphereAppearance.of(context);
 
-          return Scaffold(
-            appBar: AppBarWidget(
-              title: widget.estimateTitle ?? 'Детали сметы',
-              leading: IconButton(
-                icon: const Icon(CupertinoIcons.back),
-                onPressed: () => context.go('/estimates'),
-              ),
-              actions: [
-                IconButton(
-                  icon: const Icon(CupertinoIcons.refresh),
-                  tooltip: 'Обновить данные',
-                  onPressed: () {
-                    ref.invalidate(estimateGroupsProvider);
-                    ref.invalidate(estimateItemsProvider);
-                    ref.invalidate(estimateCompletionByIdsProvider);
-                  },
-                ),
-                PermissionGuard(
-                  module: 'estimates',
-                  permission: 'import',
-                  child: IconButton(
-                    icon: const Icon(CupertinoIcons.arrow_2_circlepath),
-                    tooltip: 'Обновить из Excel',
-                    onPressed: () => _showBulkUpdateModal(context),
-                  ),
-                ),
-              ],
+          return _estimatesAtmosphereScaffold(
+            title: widget.estimateTitle ?? 'Детали сметы',
+            leading: MobileAtmosphereChromeCircleButton(
+              appearance: appearance,
+              tooltip: 'Назад к списку',
+              icon: Icons.arrow_back_ios_new_rounded,
+              iconSize: 20,
+              onTap: () => context.go('/estimates'),
             ),
+            trailing: [
+              MobileAtmosphereChromeCircleButton(
+                appearance: appearance,
+                tooltip: 'Обновить данные',
+                icon: Icons.refresh_rounded,
+                onTap: () {
+                  ref.invalidate(estimateGroupsProvider);
+                  ref.invalidate(estimateItemsProvider(args));
+                  ref.invalidate(
+                    estimateCompletionByIdsProvider(
+                      EstimateIds(itemIds),
+                    ),
+                  );
+                },
+              ),
+              PermissionGuard(
+                module: 'estimates',
+                permission: 'import',
+                child: MobileAtmosphereChromeCircleButton(
+                  appearance: appearance,
+                  tooltip: 'Обновить из Excel',
+                  icon: Icons.file_upload_outlined,
+                  onTap: () => _showBulkUpdateModal(context),
+                ),
+              ),
+              _themeToggleButton(appearance),
+            ],
             body: completionAsync.when(
               data: (completions) {
                 final completionMap = {
@@ -165,7 +266,11 @@ class _EstimateMobileViewState extends ConsumerState<EstimateMobileView>
                   completionMap,
                 );
               },
-              loading: () => const Center(child: CupertinoActivityIndicator()),
+              loading: () => Center(
+                child: CupertinoActivityIndicator(
+                  color: appearance.scheme.primary,
+                ),
+              ),
               error: (e, s) => Center(child: Text('Ошибка выполнения: $e')),
             ),
             floatingActionButton: PermissionGuard(
@@ -185,27 +290,84 @@ class _EstimateMobileViewState extends ConsumerState<EstimateMobileView>
             ),
           );
         },
-        loading: () => Scaffold(
-          appBar: AppBarWidget(title: widget.estimateTitle ?? 'Загрузка...'),
-          body: const Center(child: CupertinoActivityIndicator()),
-        ),
-        error: (e, s) => Scaffold(
-          appBar: const AppBarWidget(title: 'Ошибка'),
-          body: Center(child: Text('Ошибка: $e')),
-        ),
+        loading: () {
+          final appearance = MobileAtmosphereAppearance.of(context);
+          return _estimatesAtmosphereScaffold(
+            title: widget.estimateTitle ?? 'Загрузка...',
+            leading: MobileAtmosphereChromeCircleButton(
+              appearance: appearance,
+              tooltip: 'Назад к списку',
+              icon: Icons.arrow_back_ios_new_rounded,
+              iconSize: 20,
+              onTap: () => context.go('/estimates'),
+            ),
+            trailing: [_themeToggleButton(appearance)],
+            body: Center(
+              child: CupertinoActivityIndicator(
+                color: appearance.scheme.primary,
+              ),
+            ),
+          );
+        },
+        error: (e, s) {
+          final appearance = MobileAtmosphereAppearance.of(context);
+          return _estimatesAtmosphereScaffold(
+            title: 'Ошибка',
+            leading: MobileAtmosphereChromeCircleButton(
+              appearance: appearance,
+              tooltip: 'Назад к списку',
+              icon: Icons.arrow_back_ios_new_rounded,
+              iconSize: 20,
+              onTap: () => context.go('/estimates'),
+            ),
+            trailing: [_themeToggleButton(appearance)],
+            body: Center(child: Text('Ошибка: $e')),
+          );
+        },
       );
     }
 
     // 2. Иначе показываем список групп (файлов смет)
     final groupsAsync = ref.watch(estimateGroupsProvider);
-    return Scaffold(
-      appBar: const AppBarWidget(title: 'Сметы'),
+    final appearance = MobileAtmosphereAppearance.of(context);
+    final canPop = Navigator.of(context).canPop();
+
+    return _estimatesAtmosphereScaffold(
+      title: 'Сметы',
+      leading: canPop
+          ? MobileAtmosphereChromeCircleButton(
+              appearance: appearance,
+              tooltip: 'Назад',
+              icon: Icons.arrow_back_ios_new_rounded,
+              iconSize: 20,
+              onTap: () => Navigator.of(context).maybePop(),
+            )
+          : Builder(
+              builder: (ctx) => MobileAtmosphereChromeCircleButton(
+                appearance: appearance,
+                tooltip: 'Меню',
+                icon: Icons.menu_rounded,
+                onTap: () => Scaffold.of(ctx).openDrawer(),
+              ),
+            ),
+      trailing: [
+        MobileAtmosphereChromeCircleButton(
+          appearance: appearance,
+          tooltip: 'Обновить данные',
+          icon: Icons.refresh_rounded,
+          onTap: () {
+            ref.invalidate(estimateGroupsProvider);
+          },
+        ),
+        _themeToggleButton(appearance),
+      ],
       body: groupsAsync.when(
         data: (groups) {
           if (groups.isEmpty) {
             return const Center(child: Text('Нет смет'));
           }
           return ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
             itemCount: groups.length,
             itemBuilder: (context, index) {
               final group = groups[index];
@@ -229,7 +391,11 @@ class _EstimateMobileViewState extends ConsumerState<EstimateMobileView>
             },
           );
         },
-        loading: () => const Center(child: CupertinoActivityIndicator()),
+        loading: () => Center(
+          child: CupertinoActivityIndicator(
+            color: appearance.scheme.primary,
+          ),
+        ),
         error: (e, s) => Center(child: Text('Ошибка: $e')),
       ),
     );

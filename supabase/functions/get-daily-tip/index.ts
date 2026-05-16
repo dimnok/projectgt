@@ -28,6 +28,24 @@ serve(async (req) => {
       throw new Error('OPENROUTER_API_KEY is not set in environment variables')
     }
 
+    // Генерируем случайную тему для разнообразия советов
+    const topics = [
+      "сборка электрощитов", "заземление и молниезащита", "маркировка кабельных линий", 
+      "прокладка слаботочки", "обслуживание электроинструмента", "коммуникация с заказчиком",
+      "неочевидные требования ПУЭ", "скрытые ошибки новичков при прокладке", "монтаж светодиодных лент",
+      "выбор расходников и клемм", "поиск скрытой проводки", "чистовой монтаж розеток"
+    ];
+    const randomTopic = topics[Math.floor(Math.random() * topics.length)];
+
+    const systemPrompt = `Ты — опытный шеф-электрик. Твоя задача — дать ОДИН короткий, практичный и небанальный совет для профи-монтажников.
+Узкая тема для сегодняшнего совета: "${randomTopic}".
+Внимание: Не пиши банальные базовые вещи вроде "всегда отключайте напряжение" или "используйте СИЗ". Дай реальный, профессиональный лайфхак из практики.
+Ответ должен быть строго в формате JSON:
+{
+  "title": "Заголовок (2-4 слова)",
+  "content": "Текст совета (1-3 емких предложения)"
+}`;
+
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -35,18 +53,11 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        "model": "openai/gpt-4o-mini",
+        "model": "perceptron/perceptron-mk1",
         "messages": [
-          {
-            "role": "system",
-            "content": "Ты — эксперт-электрик с многолетним стажем. Твоя задача — давать короткие, практичные и профессиональные советы для мобильного приложения строительной компании. Ответ должен быть строго в формате JSON с полями 'title' и 'content'."
-          },
-          {
-            "role": "user",
-            "content": "Сгенерируй один уникальный совет дня по части электромонтажных работ. Категория 'Электрика'."
-          }
-        ],
-        "response_format": { "type": "json_object" }
+          { "role": "system", "content": systemPrompt },
+          { "role": "user", "content": "Выдай уникальный профессиональный совет по электрике." }
+        ]
       })
     })
 
@@ -60,7 +71,11 @@ serve(async (req) => {
       throw new Error('OpenRouter returned empty choices')
     }
 
-    const aiContent = JSON.parse(aiData.choices[0].message.content)
+    let aiContentText = aiData.choices[0].message.content;
+    // Очищаем ответ от маркдаун разметки
+    aiContentText = aiContentText.replace(/```json/g, '').replace(/```/g, '').trim();
+    
+    const aiContent = JSON.parse(aiContentText);
 
     // 3. Сохраняем в базу
     const { data: newTip, error: insertError } = await supabase

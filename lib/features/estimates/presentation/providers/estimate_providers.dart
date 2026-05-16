@@ -228,10 +228,9 @@ List<EstimateFile> groupEstimateRowsIntoEstimateFiles(
 ) {
   final groups = <(String, String), List<Estimate>>{};
   for (final e in estimates) {
-    final title =
-        e.estimateTitle != null && e.estimateTitle!.trim().isNotEmpty
-            ? e.estimateTitle!.trim()
-            : 'Без названия';
+    final title = e.estimateTitle != null && e.estimateTitle!.trim().isNotEmpty
+        ? e.estimateTitle!.trim()
+        : 'Без названия';
     final objectKey = e.objectId ?? '';
     groups.putIfAbsent((title, objectKey), () => []).add(e);
   }
@@ -242,8 +241,8 @@ List<EstimateFile> groupEstimateRowsIntoEstimateFiles(
     final first = items.first;
     final title =
         first.estimateTitle != null && first.estimateTitle!.trim().isNotEmpty
-            ? first.estimateTitle!.trim()
-            : 'Без названия';
+        ? first.estimateTitle!.trim()
+        : 'Без названия';
     final total = items.fold<double>(0, (sum, row) => sum + row.total);
     out.add(
       EstimateFile(
@@ -417,12 +416,14 @@ class VorActions {
     required DateTime startDate,
     required DateTime endDate,
     required List<String> systems,
+    bool includeCombinedSheet = false,
   }) async {
     final id = await repository.createVor(
       contractId: contractId,
       startDate: startDate,
       endDate: endDate,
       systems: systems,
+      includeCombinedSheet: includeCombinedSheet,
     );
 
     // Сразу наполняем ВОР данными из журналов работ
@@ -452,11 +453,12 @@ class VorActions {
       final vorData = await ref
           .read(supabaseClientProvider)
           .from('vors')
-          .select('excel_url, pdf_url')
+          .select('excel_url, excel_combined_url, pdf_url')
           .eq('id', vorId)
           .maybeSingle();
 
       final String? excelUrl = vorData?['excel_url'];
+      final String? excelCombinedUrl = vorData?['excel_combined_url'];
       final String? pdfUrl = vorData?['pdf_url'];
 
       // 2. Удаляем запись из БД (каскадное удаление должно быть настроено в БД)
@@ -465,6 +467,8 @@ class VorActions {
       // 3. Если файлы были в Storage, удаляем их
       final filesToDelete = <String>[
         if (excelUrl != null && excelUrl.isNotEmpty) excelUrl,
+        if (excelCombinedUrl != null && excelCombinedUrl.isNotEmpty)
+          excelCombinedUrl,
         if (pdfUrl != null && pdfUrl.isNotEmpty) pdfUrl,
       ];
 

@@ -22,16 +22,19 @@ class VorExportService {
       // 1. Проверяем, есть ли уже ссылка на файл в БД
       final vorData = await client
           .from('vors')
-          .select('excel_url, number, contracts(objects(name))')
+          .select('excel_url, excel_combined_url, include_combined_sheet, number, contracts(objects(name))')
           .eq('id', vorId)
           .single();
 
       final String? excelUrl = vorData['excel_url'];
+      final String? excelCombinedUrl = vorData['excel_combined_url'];
+      final bool includeCombinedSheet = vorData['include_combined_sheet'] ?? false;
       final String vorNumber = vorData['number'] ?? 'б/н';
       final String objectName =
           vorData['contracts']?['objects']?['name'] ?? 'Объект';
       final String dateStr = formatRuDate(DateTime.now());
       final String filename = '${objectName}_${vorNumber}_$dateStr.xlsx';
+      final String combinedFilename = '${objectName}_${vorNumber}_Общая_$dateStr.xlsx';
 
       if (excelUrl != null && excelUrl.isNotEmpty) {
         debugPrint(
@@ -48,6 +51,23 @@ class VorExportService {
             'xlsx',
             MimeType.microsoftExcel,
           );
+          
+          if (includeCombinedSheet && excelCombinedUrl != null && excelCombinedUrl.isNotEmpty) {
+             debugPrint(
+              '📂 [VorExport] Общий файл найден в Storage, скачиваем: $excelCombinedUrl',
+            );
+            final combinedBytes = await client.storage
+                .from('vor_documents')
+                .download(excelCombinedUrl);
+            final combinedBase64File = base64Encode(combinedBytes);
+            await _saveFile(
+              combinedBase64File,
+              combinedFilename,
+              'xlsx',
+              MimeType.microsoftExcel,
+            );
+          }
+          
           return;
         } catch (e) {
           debugPrint(
@@ -65,13 +85,29 @@ class VorExportService {
       final data = response.data;
       if (data == null) throw Exception('Пустой ответ от сервера');
 
-      final String? base64File = data['file'];
-
-      if (base64File == null || base64File.isEmpty) {
-        throw Exception('Ответ не содержит файл');
+      final List<dynamic>? files = data['files'];
+      
+      if (files != null && files.isNotEmpty) {
+        // Скачиваем все файлы из ответа
+        for (final fileObj in files) {
+          final String? base64File = fileObj['file'];
+          final String fileType = fileObj['type'] ?? 'normal';
+          final String currentFilename = fileType == 'combined' 
+              ? '${objectName}_${vorNumber}_Общая_$dateStr.xlsx'
+              : filename;
+              
+          if (base64File != null && base64File.isNotEmpty) {
+            await _saveFile(base64File, currentFilename, 'xlsx', MimeType.microsoftExcel);
+          }
+        }
+      } else {
+        // Резервный вариант для старых ответов
+        final String? base64File = data['file'];
+        if (base64File == null || base64File.isEmpty) {
+          throw Exception('Ответ не содержит файл');
+        }
+        await _saveFile(base64File, filename, 'xlsx', MimeType.microsoftExcel);
       }
-
-      await _saveFile(base64File, filename, 'xlsx', MimeType.microsoftExcel);
     } catch (e) {
       debugPrint('❌ [VorExport] Ошибка экспорта Excel: $e');
       rethrow;

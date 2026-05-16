@@ -67,6 +67,7 @@ abstract class EstimateDataSource {
     required DateTime startDate,
     required DateTime endDate,
     required List<String> systems,
+    bool includeCombinedSheet = false,
   });
 
   /// Обновляет статус ведомости ВОР.
@@ -115,7 +116,7 @@ abstract class EstimateDataSource {
 
   /// Read-only история позиции по базовой ревизии и ДС ([estimate_revision_items]).
   Future<List<EstimatePositionAddendumHistoryEntry>>
-      getEstimatePositionAddendumHistory({
+  getEstimatePositionAddendumHistory({
     required String contractId,
     required String estimateTitle,
     required String estimateRowId,
@@ -679,7 +680,7 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
 
   @override
   Future<List<EstimatePositionAddendumHistoryEntry>>
-      getEstimatePositionAddendumHistory({
+  getEstimatePositionAddendumHistory({
     required String contractId,
     required String estimateTitle,
     required String estimateRowId,
@@ -1160,7 +1161,8 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
       'generate-estimate-import-template',
       body: {
         'companyId': activeCompanyId,
-        if (contractId != null && contractId.isNotEmpty) 'contractId': contractId,
+        if (contractId != null && contractId.isNotEmpty)
+          'contractId': contractId,
       },
       headers: {
         'Authorization':
@@ -1266,7 +1268,9 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
       throw Exception('Ревизия не найдена');
     }
     if (rev['revision_type'] != 'addendum') {
-      throw Exception('К основной смете можно применить только доп. соглашение (addendum)');
+      throw Exception(
+        'К основной смете можно применить только доп. соглашение (addendum)',
+      );
     }
     if (rev['applied_to_estimates_at'] != null) {
       throw Exception('Это доп. соглашение уже перенесено в основную смету');
@@ -1449,9 +1453,7 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
   Future<void> deleteAddendumRevision({required String revisionId}) async {
     final rev = await client
         .from('estimate_revisions')
-        .select(
-          'id, revision_type, applied_to_estimates_at, source_file_path',
-        )
+        .select('id, revision_type, applied_to_estimates_at, source_file_path')
         .eq('id', revisionId)
         .eq('company_id', activeCompanyId)
         .maybeSingle();
@@ -1460,12 +1462,12 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
       throw Exception('Ревизия не найдена');
     }
     if (rev['revision_type'] != 'addendum') {
-      throw Exception('Удалять можно только дополнительное соглашение (addendum)');
+      throw Exception(
+        'Удалять можно только дополнительное соглашение (addendum)',
+      );
     }
     if (rev['applied_to_estimates_at'] != null) {
-      throw Exception(
-        'Нельзя удалить ДС, уже перенесённое в основную смету',
-      );
+      throw Exception('Нельзя удалить ДС, уже перенесённое в основную смету');
     }
 
     final dependent = await client
@@ -1540,6 +1542,7 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
     required DateTime startDate,
     required DateTime endDate,
     required List<String> systems,
+    bool includeCombinedSheet = false,
   }) async {
     // 1. Получаем следующий порядковый номер через RPC
     final nextNumber = await client.rpc(
@@ -1557,6 +1560,7 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
           'start_date': startDate.toIso8601String(),
           'end_date': endDate.toIso8601String(),
           'status': 'draft',
+          'include_combined_sheet': includeCombinedSheet,
           'created_by': client.auth.currentUser?.id,
         })
         .select('id')

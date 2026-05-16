@@ -32,18 +32,21 @@ class HomeMyOpenShiftEntry extends ConsumerWidget {
         return Semantics(
           button: true,
           label: 'Перейти в мою открытую смену',
-          child: SizedBox(
-            width: double.infinity,
-            child: GTSecondaryButton(
-              text: 'Моя открытая смена',
-              icon: CupertinoIcons.arrow_right_circle_fill,
-              color: _accent,
-              onPressed: () {
-                context.pushNamed(
-                  'work_details',
-                  pathParameters: {'workId': workId},
-                );
-              },
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 24),
+            child: SizedBox(
+              width: double.infinity,
+              child: GTSecondaryButton(
+                text: 'Моя открытая смена',
+                icon: CupertinoIcons.arrow_right_circle_fill,
+                color: _accent,
+                onPressed: () {
+                  context.pushNamed(
+                    'work_details',
+                    pathParameters: {'workId': workId},
+                  );
+                },
+              ),
             ),
           ),
         );

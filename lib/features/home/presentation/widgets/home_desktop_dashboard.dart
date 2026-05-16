@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:projectgt/features/home/presentation/widgets/contract_progress_widget.dart';
+import 'package:projectgt/features/home/presentation/widgets/ai_contract_plan_widget.dart';
 import 'package:projectgt/features/home/presentation/widgets/home_desktop_kpi_section.dart';
 import 'package:projectgt/features/home/presentation/widgets/home_my_open_shift_entry.dart';
 import 'package:projectgt/features/home/presentation/widgets/home_desktop_quick_actions_bar.dart';
@@ -13,82 +14,104 @@ class HomeDesktopDashboard extends StatelessWidget {
   /// Создаёт десктопный дашборд с KPI, быстрыми переходами и основными карточками.
   const HomeDesktopDashboard({super.key});
 
-  static const double _mainCardHeight = 320;
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const HomeDesktopKpiSection(),
-        const SizedBox(height: 24),
-        const HomeMyOpenShiftEntry(),
-        const SizedBox(height: 24),
-        const HomeDesktopQuickActionsBar(),
-        const SizedBox(height: 32),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              flex: 3,
-              child: _DesktopMainCard(
-                theme: theme,
-                title: 'Календарь смен',
-                icon: CupertinoIcons.calendar,
-                accentColor: const Color(0xFF3B82F6),
-                child: const SizedBox(
-                  height: _mainCardHeight,
-                  child: ShiftsCalendarFlipCard(),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 32.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 1. Верхний ряд: KPI Ribbon (Сводка по компании)
+          const HomeDesktopKpiSection(),
+          const SizedBox(height: 24),
+
+          // 2. Основной контент: 3 колонки (Навигация, Фокус, Аналитика)
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ЛЕВАЯ КОЛОНКА (Навигация)
+              Expanded(
+                flex: 3,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _DesktopMainCard(
+                      theme: theme,
+                      title: 'Быстрый переход',
+                      icon: CupertinoIcons.compass,
+                      accentColor: theme.colorScheme.primary,
+                      child: const HomeDesktopQuickActionsBar(),
+                    ),
+                    const SizedBox(height: 24),
+                    _DesktopMainCard(
+                      theme: theme,
+                      title: 'План работ',
+                      icon: CupertinoIcons.doc_text_fill,
+                      accentColor: const Color(0xFFF97316),
+                      child: const WorkPlanSummaryWidget(),
+                    ),
+                  ],
                 ),
               ),
-            ),
-            const SizedBox(width: 20),
-            Expanded(
-              flex: 2,
-              child: _DesktopMainCard(
-                theme: theme,
-                title: 'Сводка смен',
-                icon: CupertinoIcons.briefcase_fill,
-                accentColor: theme.colorScheme.primary,
-                child: const SizedBox(
-                  height: _mainCardHeight,
-                  child: HomeShiftsSummaryWidget(hideHeader: true),
+              const SizedBox(width: 24),
+
+              // ЦЕНТРАЛЬНАЯ КОЛОНКА (Главный фокус)
+              Expanded(
+                flex: 5,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const HomeMyOpenShiftEntry(),
+                    _DesktopMainCard(
+                      theme: theme,
+                      title: 'ИИ Ассистент',
+                      icon: CupertinoIcons.sparkles,
+                      accentColor: const Color(0xFF8B5CF6),
+                      child: const AiContractPlanWidget(),
+                    ),
+                    const SizedBox(height: 24),
+                    _DesktopMainCard(
+                      theme: theme,
+                      title: 'Календарь смен',
+                      icon: CupertinoIcons.calendar,
+                      accentColor: const Color(0xFF3B82F6),
+                      child: const ShiftsCalendarFlipCard(),
+                    ),
+                  ],
                 ),
               ),
-            ),
-            const SizedBox(width: 20),
-            Expanded(
-              flex: 2,
-              child: _DesktopMainCard(
-                theme: theme,
-                title: 'Прогресс договора',
-                icon: CupertinoIcons.chart_pie_fill,
-                accentColor: const Color(0xFF10B981),
-                child: const SizedBox(
-                  height: _mainCardHeight,
-                  child: ContractProgressWidget(),
+              const SizedBox(width: 24),
+
+              // ПРАВАЯ КОЛОНКА (Второстепенная аналитика)
+              Expanded(
+                flex: 3,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _DesktopMainCard(
+                      theme: theme,
+                      title: 'Прогресс договора',
+                      icon: CupertinoIcons.chart_pie_fill,
+                      accentColor: const Color(0xFF10B981),
+                      child: const ContractProgressWidget(),
+                    ),
+                    const SizedBox(height: 24),
+                    _DesktopMainCard(
+                      theme: theme,
+                      title: 'Сводка смен',
+                      icon: CupertinoIcons.briefcase_fill,
+                      accentColor: const Color(0xFF1E3A8A),
+                      child: const HomeShiftsSummaryWidget(hideHeader: true),
+                    ),
+                  ],
                 ),
               ),
-            ),
-            const SizedBox(width: 20),
-            Expanded(
-              flex: 2,
-              child: _DesktopMainCard(
-                theme: theme,
-                title: 'План работ',
-                icon: CupertinoIcons.doc_text_fill,
-                accentColor: const Color(0xFFF97316),
-                child: const SizedBox(
-                  height: _mainCardHeight,
-                  child: WorkPlanSummaryWidget(),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

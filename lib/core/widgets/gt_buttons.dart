@@ -6,6 +6,47 @@ import 'package:flutter/material.dart';
 // const _kButtonTextStyle = ...
 // const _kTextButtonTextStyle = ...
 
+/// Подпись stadium-кнопки (иконка + текст) без [LayoutBuilder].
+///
+/// [LayoutBuilder] нельзя вкладывать под [IntrinsicWidth] (в т.ч. в разметке
+/// [AlertDialog] для ряда действий): при расчёте intrinsic-размеров Flutter
+/// падает с «does not support returning intrinsic dimensions».
+class _GtStadiumButtonLabelRow extends StatelessWidget {
+  const _GtStadiumButtonLabelRow({
+    required this.text,
+    required this.textStyle,
+    this.icon,
+  });
+
+  final String text;
+  final TextStyle? textStyle;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        if (icon != null) ...[
+          Icon(icon, size: 18),
+          const SizedBox(width: 8),
+        ],
+        Flexible(
+          fit: FlexFit.loose,
+          child: Text(
+            text,
+            textAlign: icon != null ? TextAlign.start : TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: textStyle,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// Основная кнопка действия (Primary).
 ///
 /// Яркая, залитая цветом кнопка для главных действий на экране
@@ -70,38 +111,14 @@ class GTPrimaryButton extends StatelessWidget {
               height: 20,
               child: CupertinoActivityIndicator(color: fgColor),
             )
-          : LayoutBuilder(
-              builder: (context, constraints) {
-                final boundedWidth = constraints.maxWidth.isFinite;
-                final textStyle = theme.textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: fgColor,
-                );
-                Widget textChild() => Text(
-                      text,
-                      textAlign:
-                          icon != null ? TextAlign.start : TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: textStyle,
-                    );
-                return Row(
-                  mainAxisSize:
-                      boundedWidth ? MainAxisSize.max : MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (icon != null) ...[
-                      Icon(icon, size: 18),
-                      const SizedBox(width: 8),
-                    ],
-                    if (boundedWidth)
-                      Expanded(child: textChild())
-                    else
-                      textChild(),
-                  ],
-                );
-              },
+          : _GtStadiumButtonLabelRow(
+              text: text,
+              icon: icon,
+              textStyle: theme.textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: fgColor,
+              ),
             ),
     );
   }
@@ -169,38 +186,14 @@ class GTSecondaryButton extends StatelessWidget {
               height: 20,
               child: CupertinoActivityIndicator(),
             )
-          : LayoutBuilder(
-              builder: (context, constraints) {
-                final boundedWidth = constraints.maxWidth.isFinite;
-                final textStyle = theme.textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: effectiveColor,
-                );
-                Widget textChild() => Text(
-                      text,
-                      textAlign:
-                          icon != null ? TextAlign.start : TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: textStyle,
-                    );
-                return Row(
-                  mainAxisSize:
-                      boundedWidth ? MainAxisSize.max : MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (icon != null) ...[
-                      Icon(icon, size: 18),
-                      const SizedBox(width: 8),
-                    ],
-                    if (boundedWidth)
-                      Expanded(child: textChild())
-                    else
-                      textChild(),
-                  ],
-                );
-              },
+          : _GtStadiumButtonLabelRow(
+              text: text,
+              icon: icon,
+              textStyle: theme.textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: effectiveColor,
+              ),
             ),
     );
   }

@@ -15,9 +15,11 @@ _VorModel _$VorModelFromJson(Map<String, dynamic> json) => _VorModel(
   endDate: DateTime.parse(json['end_date'] as String),
   status: $enumDecode(_$VorStatusEnumMap, json['status']),
   excelUrl: json['excel_url'] as String?,
+  excelCombinedUrl: json['excel_combined_url'] as String?,
   pdfUrl: json['pdf_url'] as String?,
   createdAt: DateTime.parse(json['created_at'] as String),
   createdBy: json['created_by'] as String?,
+  includeCombinedSheet: json['include_combined_sheet'] as bool? ?? false,
   systems:
       (json['systems'] as List<dynamic>?)?.map((e) => e as String).toList() ??
       const [],
@@ -39,9 +41,11 @@ Map<String, dynamic> _$VorModelToJson(_VorModel instance) => <String, dynamic>{
   'end_date': instance.endDate.toIso8601String(),
   'status': _$VorStatusEnumMap[instance.status]!,
   'excel_url': instance.excelUrl,
+  'excel_combined_url': instance.excelCombinedUrl,
   'pdf_url': instance.pdfUrl,
   'created_at': instance.createdAt.toIso8601String(),
   'created_by': instance.createdBy,
+  'include_combined_sheet': instance.includeCombinedSheet,
   'systems': instance.systems,
   'statusHistory': instance.statusHistory.map((e) => e.toJson()).toList(),
 };

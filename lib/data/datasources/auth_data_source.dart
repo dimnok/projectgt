@@ -378,6 +378,12 @@ class SupabaseAuthDataSource implements AuthDataSource {
         );
       }
 
+      // ПРИНУДИТЕЛЬНО ОЧИЩАЕМ КЭШ СТАРЫХ СЕССИЙ
+      // Игнорируем ошибки (если сессии нет, signOut может выкинуть исключение)
+      try {
+        await client.auth.signOut();
+      } catch (_) {}
+
       // 3. Выполняем вход по временному паролю
       final authRes = await client.auth.signInWithPassword(
         email: email,

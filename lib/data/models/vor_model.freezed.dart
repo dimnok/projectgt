@@ -24,11 +24,13 @@ mixin _$VorModel {
 @JsonKey(name: 'start_date') DateTime get startDate;/// Дата окончания периода работ.
 @JsonKey(name: 'end_date') DateTime get endDate;/// Текущий статус ведомости.
  VorStatus get status;/// Путь к Excel файлу.
-@JsonKey(name: 'excel_url') String? get excelUrl;/// Путь к PDF файлу.
+@JsonKey(name: 'excel_url') String? get excelUrl;/// Путь к общему Excel файлу.
+@JsonKey(name: 'excel_combined_url') String? get excelCombinedUrl;/// Путь к PDF файлу.
 @JsonKey(name: 'pdf_url') String? get pdfUrl;/// Дата создания.
 @JsonKey(name: 'created_at') DateTime get createdAt;/// Кто создал (ID пользователя).
 @JsonKey(name: 'created_by') String? get createdBy;/// ФИО создателя (опционально, подтягивается через join).
-@JsonKey(includeFromJson: false, includeToJson: false) String? get createdByName;/// Список выбранных систем.
+@JsonKey(includeFromJson: false, includeToJson: false) String? get createdByName;/// Формировать общий лист без разделения превышений.
+@JsonKey(name: 'include_combined_sheet') bool get includeCombinedSheet;/// Список выбранных систем.
  List<String> get systems;/// История изменений статусов.
  List<VorStatusHistoryModel> get statusHistory;
 /// Create a copy of VorModel
@@ -43,16 +45,16 @@ $VorModelCopyWith<VorModel> get copyWith => _$VorModelCopyWithImpl<VorModel>(thi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is VorModel&&(identical(other.id, id) || other.id == id)&&(identical(other.companyId, companyId) || other.companyId == companyId)&&(identical(other.contractId, contractId) || other.contractId == contractId)&&(identical(other.number, number) || other.number == number)&&(identical(other.startDate, startDate) || other.startDate == startDate)&&(identical(other.endDate, endDate) || other.endDate == endDate)&&(identical(other.status, status) || other.status == status)&&(identical(other.excelUrl, excelUrl) || other.excelUrl == excelUrl)&&(identical(other.pdfUrl, pdfUrl) || other.pdfUrl == pdfUrl)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.createdBy, createdBy) || other.createdBy == createdBy)&&(identical(other.createdByName, createdByName) || other.createdByName == createdByName)&&const DeepCollectionEquality().equals(other.systems, systems)&&const DeepCollectionEquality().equals(other.statusHistory, statusHistory));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is VorModel&&(identical(other.id, id) || other.id == id)&&(identical(other.companyId, companyId) || other.companyId == companyId)&&(identical(other.contractId, contractId) || other.contractId == contractId)&&(identical(other.number, number) || other.number == number)&&(identical(other.startDate, startDate) || other.startDate == startDate)&&(identical(other.endDate, endDate) || other.endDate == endDate)&&(identical(other.status, status) || other.status == status)&&(identical(other.excelUrl, excelUrl) || other.excelUrl == excelUrl)&&(identical(other.excelCombinedUrl, excelCombinedUrl) || other.excelCombinedUrl == excelCombinedUrl)&&(identical(other.pdfUrl, pdfUrl) || other.pdfUrl == pdfUrl)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.createdBy, createdBy) || other.createdBy == createdBy)&&(identical(other.createdByName, createdByName) || other.createdByName == createdByName)&&(identical(other.includeCombinedSheet, includeCombinedSheet) || other.includeCombinedSheet == includeCombinedSheet)&&const DeepCollectionEquality().equals(other.systems, systems)&&const DeepCollectionEquality().equals(other.statusHistory, statusHistory));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,companyId,contractId,number,startDate,endDate,status,excelUrl,pdfUrl,createdAt,createdBy,createdByName,const DeepCollectionEquality().hash(systems),const DeepCollectionEquality().hash(statusHistory));
+int get hashCode => Object.hash(runtimeType,id,companyId,contractId,number,startDate,endDate,status,excelUrl,excelCombinedUrl,pdfUrl,createdAt,createdBy,createdByName,includeCombinedSheet,const DeepCollectionEquality().hash(systems),const DeepCollectionEquality().hash(statusHistory));
 
 @override
 String toString() {
-  return 'VorModel(id: $id, companyId: $companyId, contractId: $contractId, number: $number, startDate: $startDate, endDate: $endDate, status: $status, excelUrl: $excelUrl, pdfUrl: $pdfUrl, createdAt: $createdAt, createdBy: $createdBy, createdByName: $createdByName, systems: $systems, statusHistory: $statusHistory)';
+  return 'VorModel(id: $id, companyId: $companyId, contractId: $contractId, number: $number, startDate: $startDate, endDate: $endDate, status: $status, excelUrl: $excelUrl, excelCombinedUrl: $excelCombinedUrl, pdfUrl: $pdfUrl, createdAt: $createdAt, createdBy: $createdBy, createdByName: $createdByName, includeCombinedSheet: $includeCombinedSheet, systems: $systems, statusHistory: $statusHistory)';
 }
 
 
@@ -63,7 +65,7 @@ abstract mixin class $VorModelCopyWith<$Res>  {
   factory $VorModelCopyWith(VorModel value, $Res Function(VorModel) _then) = _$VorModelCopyWithImpl;
 @useResult
 $Res call({
- String id,@JsonKey(name: 'company_id') String companyId,@JsonKey(name: 'contract_id') String contractId, String number,@JsonKey(name: 'start_date') DateTime startDate,@JsonKey(name: 'end_date') DateTime endDate, VorStatus status,@JsonKey(name: 'excel_url') String? excelUrl,@JsonKey(name: 'pdf_url') String? pdfUrl,@JsonKey(name: 'created_at') DateTime createdAt,@JsonKey(name: 'created_by') String? createdBy,@JsonKey(includeFromJson: false, includeToJson: false) String? createdByName, List<String> systems, List<VorStatusHistoryModel> statusHistory
+ String id,@JsonKey(name: 'company_id') String companyId,@JsonKey(name: 'contract_id') String contractId, String number,@JsonKey(name: 'start_date') DateTime startDate,@JsonKey(name: 'end_date') DateTime endDate, VorStatus status,@JsonKey(name: 'excel_url') String? excelUrl,@JsonKey(name: 'excel_combined_url') String? excelCombinedUrl,@JsonKey(name: 'pdf_url') String? pdfUrl,@JsonKey(name: 'created_at') DateTime createdAt,@JsonKey(name: 'created_by') String? createdBy,@JsonKey(includeFromJson: false, includeToJson: false) String? createdByName,@JsonKey(name: 'include_combined_sheet') bool includeCombinedSheet, List<String> systems, List<VorStatusHistoryModel> statusHistory
 });
 
 
@@ -80,7 +82,7 @@ class _$VorModelCopyWithImpl<$Res>
 
 /// Create a copy of VorModel
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? companyId = null,Object? contractId = null,Object? number = null,Object? startDate = null,Object? endDate = null,Object? status = null,Object? excelUrl = freezed,Object? pdfUrl = freezed,Object? createdAt = null,Object? createdBy = freezed,Object? createdByName = freezed,Object? systems = null,Object? statusHistory = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? companyId = null,Object? contractId = null,Object? number = null,Object? startDate = null,Object? endDate = null,Object? status = null,Object? excelUrl = freezed,Object? excelCombinedUrl = freezed,Object? pdfUrl = freezed,Object? createdAt = null,Object? createdBy = freezed,Object? createdByName = freezed,Object? includeCombinedSheet = null,Object? systems = null,Object? statusHistory = null,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,companyId: null == companyId ? _self.companyId : companyId // ignore: cast_nullable_to_non_nullable
@@ -90,11 +92,13 @@ as String,startDate: null == startDate ? _self.startDate : startDate // ignore: 
 as DateTime,endDate: null == endDate ? _self.endDate : endDate // ignore: cast_nullable_to_non_nullable
 as DateTime,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as VorStatus,excelUrl: freezed == excelUrl ? _self.excelUrl : excelUrl // ignore: cast_nullable_to_non_nullable
+as String?,excelCombinedUrl: freezed == excelCombinedUrl ? _self.excelCombinedUrl : excelCombinedUrl // ignore: cast_nullable_to_non_nullable
 as String?,pdfUrl: freezed == pdfUrl ? _self.pdfUrl : pdfUrl // ignore: cast_nullable_to_non_nullable
 as String?,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as DateTime,createdBy: freezed == createdBy ? _self.createdBy : createdBy // ignore: cast_nullable_to_non_nullable
 as String?,createdByName: freezed == createdByName ? _self.createdByName : createdByName // ignore: cast_nullable_to_non_nullable
-as String?,systems: null == systems ? _self.systems : systems // ignore: cast_nullable_to_non_nullable
+as String?,includeCombinedSheet: null == includeCombinedSheet ? _self.includeCombinedSheet : includeCombinedSheet // ignore: cast_nullable_to_non_nullable
+as bool,systems: null == systems ? _self.systems : systems // ignore: cast_nullable_to_non_nullable
 as List<String>,statusHistory: null == statusHistory ? _self.statusHistory : statusHistory // ignore: cast_nullable_to_non_nullable
 as List<VorStatusHistoryModel>,
   ));
@@ -107,7 +111,7 @@ as List<VorStatusHistoryModel>,
 @JsonSerializable()
 
 class _VorModel extends VorModel {
-  const _VorModel({required this.id, @JsonKey(name: 'company_id') required this.companyId, @JsonKey(name: 'contract_id') required this.contractId, required this.number, @JsonKey(name: 'start_date') required this.startDate, @JsonKey(name: 'end_date') required this.endDate, required this.status, @JsonKey(name: 'excel_url') this.excelUrl, @JsonKey(name: 'pdf_url') this.pdfUrl, @JsonKey(name: 'created_at') required this.createdAt, @JsonKey(name: 'created_by') this.createdBy, @JsonKey(includeFromJson: false, includeToJson: false) this.createdByName, final  List<String> systems = const [], final  List<VorStatusHistoryModel> statusHistory = const []}): _systems = systems,_statusHistory = statusHistory,super._();
+  const _VorModel({required this.id, @JsonKey(name: 'company_id') required this.companyId, @JsonKey(name: 'contract_id') required this.contractId, required this.number, @JsonKey(name: 'start_date') required this.startDate, @JsonKey(name: 'end_date') required this.endDate, required this.status, @JsonKey(name: 'excel_url') this.excelUrl, @JsonKey(name: 'excel_combined_url') this.excelCombinedUrl, @JsonKey(name: 'pdf_url') this.pdfUrl, @JsonKey(name: 'created_at') required this.createdAt, @JsonKey(name: 'created_by') this.createdBy, @JsonKey(includeFromJson: false, includeToJson: false) this.createdByName, @JsonKey(name: 'include_combined_sheet') this.includeCombinedSheet = false, final  List<String> systems = const [], final  List<VorStatusHistoryModel> statusHistory = const []}): _systems = systems,_statusHistory = statusHistory,super._();
   factory _VorModel.fromJson(Map<String, dynamic> json) => _$VorModelFromJson(json);
 
 /// Идентификатор ведомости.
@@ -126,6 +130,8 @@ class _VorModel extends VorModel {
 @override final  VorStatus status;
 /// Путь к Excel файлу.
 @override@JsonKey(name: 'excel_url') final  String? excelUrl;
+/// Путь к общему Excel файлу.
+@override@JsonKey(name: 'excel_combined_url') final  String? excelCombinedUrl;
 /// Путь к PDF файлу.
 @override@JsonKey(name: 'pdf_url') final  String? pdfUrl;
 /// Дата создания.
@@ -134,6 +140,8 @@ class _VorModel extends VorModel {
 @override@JsonKey(name: 'created_by') final  String? createdBy;
 /// ФИО создателя (опционально, подтягивается через join).
 @override@JsonKey(includeFromJson: false, includeToJson: false) final  String? createdByName;
+/// Формировать общий лист без разделения превышений.
+@override@JsonKey(name: 'include_combined_sheet') final  bool includeCombinedSheet;
 /// Список выбранных систем.
  final  List<String> _systems;
 /// Список выбранных систем.
@@ -166,16 +174,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _VorModel&&(identical(other.id, id) || other.id == id)&&(identical(other.companyId, companyId) || other.companyId == companyId)&&(identical(other.contractId, contractId) || other.contractId == contractId)&&(identical(other.number, number) || other.number == number)&&(identical(other.startDate, startDate) || other.startDate == startDate)&&(identical(other.endDate, endDate) || other.endDate == endDate)&&(identical(other.status, status) || other.status == status)&&(identical(other.excelUrl, excelUrl) || other.excelUrl == excelUrl)&&(identical(other.pdfUrl, pdfUrl) || other.pdfUrl == pdfUrl)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.createdBy, createdBy) || other.createdBy == createdBy)&&(identical(other.createdByName, createdByName) || other.createdByName == createdByName)&&const DeepCollectionEquality().equals(other._systems, _systems)&&const DeepCollectionEquality().equals(other._statusHistory, _statusHistory));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _VorModel&&(identical(other.id, id) || other.id == id)&&(identical(other.companyId, companyId) || other.companyId == companyId)&&(identical(other.contractId, contractId) || other.contractId == contractId)&&(identical(other.number, number) || other.number == number)&&(identical(other.startDate, startDate) || other.startDate == startDate)&&(identical(other.endDate, endDate) || other.endDate == endDate)&&(identical(other.status, status) || other.status == status)&&(identical(other.excelUrl, excelUrl) || other.excelUrl == excelUrl)&&(identical(other.excelCombinedUrl, excelCombinedUrl) || other.excelCombinedUrl == excelCombinedUrl)&&(identical(other.pdfUrl, pdfUrl) || other.pdfUrl == pdfUrl)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.createdBy, createdBy) || other.createdBy == createdBy)&&(identical(other.createdByName, createdByName) || other.createdByName == createdByName)&&(identical(other.includeCombinedSheet, includeCombinedSheet) || other.includeCombinedSheet == includeCombinedSheet)&&const DeepCollectionEquality().equals(other._systems, _systems)&&const DeepCollectionEquality().equals(other._statusHistory, _statusHistory));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,companyId,contractId,number,startDate,endDate,status,excelUrl,pdfUrl,createdAt,createdBy,createdByName,const DeepCollectionEquality().hash(_systems),const DeepCollectionEquality().hash(_statusHistory));
+int get hashCode => Object.hash(runtimeType,id,companyId,contractId,number,startDate,endDate,status,excelUrl,excelCombinedUrl,pdfUrl,createdAt,createdBy,createdByName,includeCombinedSheet,const DeepCollectionEquality().hash(_systems),const DeepCollectionEquality().hash(_statusHistory));
 
 @override
 String toString() {
-  return 'VorModel(id: $id, companyId: $companyId, contractId: $contractId, number: $number, startDate: $startDate, endDate: $endDate, status: $status, excelUrl: $excelUrl, pdfUrl: $pdfUrl, createdAt: $createdAt, createdBy: $createdBy, createdByName: $createdByName, systems: $systems, statusHistory: $statusHistory)';
+  return 'VorModel(id: $id, companyId: $companyId, contractId: $contractId, number: $number, startDate: $startDate, endDate: $endDate, status: $status, excelUrl: $excelUrl, excelCombinedUrl: $excelCombinedUrl, pdfUrl: $pdfUrl, createdAt: $createdAt, createdBy: $createdBy, createdByName: $createdByName, includeCombinedSheet: $includeCombinedSheet, systems: $systems, statusHistory: $statusHistory)';
 }
 
 
@@ -186,7 +194,7 @@ abstract mixin class _$VorModelCopyWith<$Res> implements $VorModelCopyWith<$Res>
   factory _$VorModelCopyWith(_VorModel value, $Res Function(_VorModel) _then) = __$VorModelCopyWithImpl;
 @override @useResult
 $Res call({
- String id,@JsonKey(name: 'company_id') String companyId,@JsonKey(name: 'contract_id') String contractId, String number,@JsonKey(name: 'start_date') DateTime startDate,@JsonKey(name: 'end_date') DateTime endDate, VorStatus status,@JsonKey(name: 'excel_url') String? excelUrl,@JsonKey(name: 'pdf_url') String? pdfUrl,@JsonKey(name: 'created_at') DateTime createdAt,@JsonKey(name: 'created_by') String? createdBy,@JsonKey(includeFromJson: false, includeToJson: false) String? createdByName, List<String> systems, List<VorStatusHistoryModel> statusHistory
+ String id,@JsonKey(name: 'company_id') String companyId,@JsonKey(name: 'contract_id') String contractId, String number,@JsonKey(name: 'start_date') DateTime startDate,@JsonKey(name: 'end_date') DateTime endDate, VorStatus status,@JsonKey(name: 'excel_url') String? excelUrl,@JsonKey(name: 'excel_combined_url') String? excelCombinedUrl,@JsonKey(name: 'pdf_url') String? pdfUrl,@JsonKey(name: 'created_at') DateTime createdAt,@JsonKey(name: 'created_by') String? createdBy,@JsonKey(includeFromJson: false, includeToJson: false) String? createdByName,@JsonKey(name: 'include_combined_sheet') bool includeCombinedSheet, List<String> systems, List<VorStatusHistoryModel> statusHistory
 });
 
 
@@ -203,7 +211,7 @@ class __$VorModelCopyWithImpl<$Res>
 
 /// Create a copy of VorModel
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? companyId = null,Object? contractId = null,Object? number = null,Object? startDate = null,Object? endDate = null,Object? status = null,Object? excelUrl = freezed,Object? pdfUrl = freezed,Object? createdAt = null,Object? createdBy = freezed,Object? createdByName = freezed,Object? systems = null,Object? statusHistory = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? companyId = null,Object? contractId = null,Object? number = null,Object? startDate = null,Object? endDate = null,Object? status = null,Object? excelUrl = freezed,Object? excelCombinedUrl = freezed,Object? pdfUrl = freezed,Object? createdAt = null,Object? createdBy = freezed,Object? createdByName = freezed,Object? includeCombinedSheet = null,Object? systems = null,Object? statusHistory = null,}) {
   return _then(_VorModel(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,companyId: null == companyId ? _self.companyId : companyId // ignore: cast_nullable_to_non_nullable
@@ -213,11 +221,13 @@ as String,startDate: null == startDate ? _self.startDate : startDate // ignore: 
 as DateTime,endDate: null == endDate ? _self.endDate : endDate // ignore: cast_nullable_to_non_nullable
 as DateTime,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as VorStatus,excelUrl: freezed == excelUrl ? _self.excelUrl : excelUrl // ignore: cast_nullable_to_non_nullable
+as String?,excelCombinedUrl: freezed == excelCombinedUrl ? _self.excelCombinedUrl : excelCombinedUrl // ignore: cast_nullable_to_non_nullable
 as String?,pdfUrl: freezed == pdfUrl ? _self.pdfUrl : pdfUrl // ignore: cast_nullable_to_non_nullable
 as String?,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as DateTime,createdBy: freezed == createdBy ? _self.createdBy : createdBy // ignore: cast_nullable_to_non_nullable
 as String?,createdByName: freezed == createdByName ? _self.createdByName : createdByName // ignore: cast_nullable_to_non_nullable
-as String?,systems: null == systems ? _self._systems : systems // ignore: cast_nullable_to_non_nullable
+as String?,includeCombinedSheet: null == includeCombinedSheet ? _self.includeCombinedSheet : includeCombinedSheet // ignore: cast_nullable_to_non_nullable
+as bool,systems: null == systems ? _self._systems : systems // ignore: cast_nullable_to_non_nullable
 as List<String>,statusHistory: null == statusHistory ? _self._statusHistory : statusHistory // ignore: cast_nullable_to_non_nullable
 as List<VorStatusHistoryModel>,
   ));

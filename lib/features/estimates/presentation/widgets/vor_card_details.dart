@@ -93,6 +93,14 @@ class VorCardDetails extends ConsumerWidget {
                         icon: CupertinoIcons.doc,
                         onTap: () => exportService.exportVorToExcel(vor.id),
                       ),
+                    if (vor.excelCombinedUrl != null)
+                      _HistoryRow(
+                        date: vor.createdAt,
+                        user: vor.createdByName ?? '',
+                        content: 'Ведомость ВОР (Общая).xlsx',
+                        icon: CupertinoIcons.doc_on_doc,
+                        onTap: () => exportService.exportVorToExcel(vor.id),
+                      ),
                     if (vor.pdfUrl != null)
                       _HistoryRow(
                         date: pdfDisplayDate,

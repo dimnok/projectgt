@@ -10,7 +10,7 @@
 # ВАЖНО: Сборка Windows (.exe) происходит автоматически в облаке 
 # (GitHub Actions) после публикации релиза. iOS и macOS собираются локально.
 #
-# Запуск: ./tools/projectgt_release.sh
+# Запуск: ./scripts/projectgt_release.sh
 # Опции:
 #   --skip-bump       не менять версию (пересобрать текущую)
 #   --build-only-bump увеличить только номер сборки (build)
@@ -64,7 +64,7 @@ fi
 # 2. Обновление версии
 if [[ "$SKIP_BUMP" != true ]]; then
   echo "📌 Поднятие версии в pubspec.yaml..."
-  BUMP_ARGS=("tools/bump_pubspec_version.py" "--pubspec" "$ROOT/pubspec.yaml")
+  BUMP_ARGS=("scripts/bump_pubspec_version.py" "--pubspec" "$ROOT/pubspec.yaml")
   if [[ "$BUILD_ONLY_BUMP" == true ]]; then
     BUMP_ARGS+=("--build-only")
   fi

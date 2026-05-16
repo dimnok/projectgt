@@ -64,6 +64,7 @@ class _VorCreateDialogState extends ConsumerState<VorCreateDialog> {
   final List<String> _selectedSystems = [];
   bool _isGenerating = false;
   String? _createdVorId;
+  bool _includeCombinedSheet = false;
 
   Future<void> _nextStep() async {
     if (_currentStep == 2) {
@@ -87,6 +88,7 @@ class _VorCreateDialogState extends ConsumerState<VorCreateDialog> {
         startDate: _selectedDateRange!.start,
         endDate: _selectedDateRange!.end,
         systems: _selectedSystems,
+        includeCombinedSheet: _includeCombinedSheet,
       );
 
       // Сразу после создания записи в БД вызываем генерацию файла
@@ -261,6 +263,12 @@ class _VorCreateDialogState extends ConsumerState<VorCreateDialog> {
           key: const ValueKey(2),
           availableSystems: systems,
           selectedSystems: _selectedSystems,
+          includeCombinedSheet: _includeCombinedSheet,
+          onIncludeCombinedSheetChanged: (val) {
+            setState(() {
+              _includeCombinedSheet = val ?? false;
+            });
+          },
           onToggle: (val) {
             setState(() {
               if (_selectedSystems.contains(val)) {
@@ -480,12 +488,16 @@ class _Step2SystemSelection extends StatelessWidget {
   final List<String> availableSystems;
   final List<String> selectedSystems;
   final ValueChanged<String> onToggle;
+  final bool includeCombinedSheet;
+  final ValueChanged<bool?> onIncludeCombinedSheetChanged;
 
   const _Step2SystemSelection({
     super.key,
     required this.availableSystems,
     required this.selectedSystems,
     required this.onToggle,
+    required this.includeCombinedSheet,
+    required this.onIncludeCombinedSheetChanged,
   });
 
   @override
@@ -522,6 +534,30 @@ class _Step2SystemSelection extends StatelessWidget {
               onTap: () => onToggle(s),
             )).toList(),
           ),
+        const SizedBox(height: 32),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.2)),
+          ),
+          child: CheckboxListTile(
+            value: includeCombinedSheet,
+            onChanged: onIncludeCombinedSheetChanged,
+            title: const Text(
+              'Добавить общий лист',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text(
+              'Все объемы будут суммированы и выведены единым списком без разделения на превышения',
+              style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
+            ),
+            controlAffinity: ListTileControlAffinity.leading,
+            contentPadding: EdgeInsets.zero,
+            activeColor: theme.colorScheme.primary,
+          ),
+        ),
       ],
     );
   }

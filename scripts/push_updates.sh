@@ -4,7 +4,7 @@
 # Рабочее дерево должно быть чистым — сначала закоммитьте изменения.
 #
 # Запуск из корня репозитория:
-#   ./tools/push_updates.sh
+#   ./scripts/push_updates.sh
 #
 set -euo pipefail
 

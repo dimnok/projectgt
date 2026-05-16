@@ -39,6 +39,9 @@ class Vor {
   /// Ссылка на Excel-файл.
   final String? excelUrl;
 
+  /// Ссылка на общий Excel-файл.
+  final String? excelCombinedUrl;
+
   /// Ссылка на PDF-файл.
   final String? pdfUrl;
 
@@ -50,6 +53,9 @@ class Vor {
 
   /// Имя создателя.
   final String? createdByName;
+
+  /// Формировать общий лист без разделения превышений.
+  final bool includeCombinedSheet;
 
   /// Список систем.
   final List<String> systems;
@@ -66,10 +72,12 @@ class Vor {
     required this.endDate,
     required this.status,
     this.excelUrl,
+    this.excelCombinedUrl,
     this.pdfUrl,
     required this.createdAt,
     this.createdBy,
     this.createdByName,
+    this.includeCombinedSheet = false,
     this.systems = const [],
     this.statusHistory = const [],
   });

@@ -54,6 +54,7 @@ abstract class EstimateRepository {
     required DateTime startDate,
     required DateTime endDate,
     required List<String> systems,
+    bool includeCombinedSheet = false,
   });
 
   /// Обновляет статус ведомости ВОР.
@@ -104,7 +105,7 @@ abstract class EstimateRepository {
 
   /// Read-only история позиции по ревизиям (базовая + ДС), без изменения [estimates].
   Future<List<EstimatePositionAddendumHistoryEntry>>
-      getEstimatePositionAddendumHistory({
+  getEstimatePositionAddendumHistory({
     required String contractId,
     required String estimateTitle,
     required String estimateRowId,

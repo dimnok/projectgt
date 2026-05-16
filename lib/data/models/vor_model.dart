@@ -33,6 +33,9 @@ abstract class VorModel with _$VorModel {
     /// Путь к Excel файлу.
     @JsonKey(name: 'excel_url') String? excelUrl,
 
+    /// Путь к общему Excel файлу.
+    @JsonKey(name: 'excel_combined_url') String? excelCombinedUrl,
+
     /// Путь к PDF файлу.
     @JsonKey(name: 'pdf_url') String? pdfUrl,
 
@@ -45,6 +48,9 @@ abstract class VorModel with _$VorModel {
     /// ФИО создателя (опционально, подтягивается через join).
     @JsonKey(includeFromJson: false, includeToJson: false)
     String? createdByName,
+
+    /// Формировать общий лист без разделения превышений.
+    @JsonKey(name: 'include_combined_sheet') @Default(false) bool includeCombinedSheet,
 
     /// Список выбранных систем.
     @Default([]) List<String> systems,
@@ -69,10 +75,12 @@ abstract class VorModel with _$VorModel {
     endDate: endDate,
     status: status,
     excelUrl: excelUrl,
+    excelCombinedUrl: excelCombinedUrl,
     pdfUrl: pdfUrl,
     createdAt: createdAt,
     createdBy: createdBy,
     createdByName: createdByName,
+    includeCombinedSheet: includeCombinedSheet,
     systems: systems,
     statusHistory: statusHistory.map((h) => h.toDomain()).toList(),
   );

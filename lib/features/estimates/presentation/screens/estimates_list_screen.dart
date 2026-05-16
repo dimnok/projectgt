@@ -1,12 +1,16 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/core/theme/theme_settings_provider.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
+import 'package:projectgt/core/widgets/mobile_atmosphere_backdrop.dart';
+import 'package:projectgt/core/widgets/mobile_atmosphere_screen_header.dart';
 import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:projectgt/features/estimates/presentation/screens/estimate_details_screen.dart';
 import 'package:projectgt/features/estimates/presentation/providers/estimate_providers.dart';
@@ -16,7 +20,6 @@ import 'package:projectgt/core/refresh/app_focus_refresh_coordinator.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
 import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
 import 'package:projectgt/presentation/widgets/app_badge.dart';
-import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 import 'package:projectgt/presentation/widgets/cupertino_dialog_widget.dart';
 
@@ -120,97 +123,194 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
     final canDelete = permissionService.can('estimates', 'delete');
     final isDesktop = ResponsiveUtils.isDesktop(context);
     final isSidebarVisible = ref.watch(estimateSidebarVisibleProvider);
+    final appearance = MobileAtmosphereAppearance.of(context);
+    final isDark = appearance.isDark;
+    final scheme = appearance.scheme;
 
-    return Scaffold(
-      appBar: AppBarWidget(
-        title: 'Сметы',
-        leadingWidth: isDesktop ? 110 : null,
-        leading: isDesktop
-            ? Row(
-                mainAxisSize: MainAxisSize.min,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle(
+        statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarColor: appearance.atmosphereBase,
+        systemNavigationBarDividerColor: Colors.transparent,
+        systemNavigationBarIconBrightness: isDark
+            ? Brightness.light
+            : Brightness.dark,
+      ),
+      child: Scaffold(
+        backgroundColor: isDark
+            ? appearance.atmosphereBase
+            : Colors.transparent,
+        drawer: const AppDrawer(activeRoute: AppRoute.estimates),
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            const MobileAtmosphereBackdrop(),
+            SafeArea(
+              bottom: false,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const SizedBox(width: 8),
-                  Builder(
-                    builder: (context) => CupertinoButton(
-                      padding: EdgeInsets.zero,
-                      child: const Icon(
-                        Icons.menu,
-                        color: Colors.green,
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+                    child: MobileAtmosphereScreenHeader(
+                      appearance: appearance,
+                      title: 'Сметы',
+                      leading: isDesktop
+                          ? Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Builder(
+                                  builder: (ctx) =>
+                                      MobileAtmosphereChromeCircleButton(
+                                    appearance: appearance,
+                                    tooltip: 'Меню',
+                                    icon: Icons.menu_rounded,
+                                    onTap: () =>
+                                        Scaffold.of(ctx).openDrawer(),
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                MobileAtmosphereChromeCircleButton(
+                                  appearance: appearance,
+                                  tooltip: isSidebarVisible
+                                      ? 'Скрыть панель'
+                                      : 'Показать панель',
+                                  icon: isSidebarVisible
+                                      ? Icons.view_sidebar_outlined
+                                      : Icons.view_sidebar,
+                                  onTap: () => ref
+                                      .read(
+                                        estimateSidebarVisibleProvider
+                                            .notifier,
+                                      )
+                                      .update((state) => !state),
+                                ),
+                              ],
+                            )
+                          : Builder(
+                              builder: (ctx) =>
+                                  MobileAtmosphereChromeCircleButton(
+                                appearance: appearance,
+                                tooltip: 'Меню',
+                                icon: Icons.menu_rounded,
+                                onTap: () => Scaffold.of(ctx).openDrawer(),
+                              ),
+                            ),
+                      trailing: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        reverse: true,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            MobileAtmosphereChromeCircleButton(
+                              appearance: appearance,
+                              tooltip: 'Обновить данные',
+                              icon: Icons.refresh_rounded,
+                              onTap: () {
+                                ref.invalidate(estimateGroupsProvider);
+                                ref.invalidate(estimateItemsProvider);
+                                ref.invalidate(
+                                  estimateCompletionByIdsProvider,
+                                );
+                              },
+                            ),
+                            if (!isDesktop) ...[
+                              const SizedBox(width: 4),
+                              PermissionGuard(
+                                module: 'estimates',
+                                permission: 'import',
+                                child:
+                                    MobileAtmosphereChromeCircleButton(
+                                  appearance: appearance,
+                                  tooltip: 'Импорт сметы',
+                                  icon: Icons.add_rounded,
+                                  iconSize: 26,
+                                  onTap: () =>
+                                      _showImportEstimateBottomSheet(context),
+                                ),
+                              ),
+                            ],
+                            const SizedBox(width: 4),
+                            MobileAtmosphereChromeCircleButton(
+                              appearance: appearance,
+                              tooltip: isDark
+                                  ? 'Светлая тема'
+                                  : 'Тёмная тема',
+                              icon: isDark
+                                  ? Icons.light_mode_outlined
+                                  : Icons.dark_mode_outlined,
+                              onTap: () {
+                                ref
+                                    .read(themeSettingsProvider.notifier)
+                                    .setThemeMode(
+                                      isDark
+                                          ? ThemeMode.light
+                                          : ThemeMode.dark,
+                                    );
+                              },
+                            ),
+                          ],
+                        ),
                       ),
-                      onPressed: () {
-                        Scaffold.of(context).openDrawer();
+                    ),
+                  ),
+                  Expanded(
+                    child: groupsAsync.when(
+                      loading: () => Center(
+                        child: CupertinoActivityIndicator(
+                          color: scheme.primary,
+                        ),
+                      ),
+                      error: (e, s) => Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Center(child: Text('Ошибка: $e')),
+                      ),
+                      data: (estimateFiles) {
+                        if (selectedEstimateFile != null &&
+                            !estimateFiles.any(
+                              (f) =>
+                                  f.estimateTitle ==
+                                      selectedEstimateFile!.estimateTitle &&
+                                  f.objectId ==
+                                      selectedEstimateFile!.objectId &&
+                                  f.contractId ==
+                                      selectedEstimateFile!.contractId,
+                            )) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (mounted) {
+                              setState(() {
+                                selectedEstimateFile = null;
+                              });
+                            }
+                          });
+                        }
+
+                        return LayoutBuilder(
+                          builder: (context, constraints) {
+                            if (isDesktop) {
+                              return const EstimateDetailsScreen(
+                                showAppBar: false,
+                              );
+                            }
+                            return Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                              child: _buildMobileLayout(
+                                estimateFiles,
+                                objects,
+                                canDelete,
+                              ),
+                            );
+                          },
+                        );
                       },
                     ),
                   ),
-                  IconButton(
-                    icon: Icon(
-                      isSidebarVisible
-                          ? CupertinoIcons.sidebar_left
-                          : CupertinoIcons.sidebar_right,
-                      color: Colors.green,
-                    ),
-                    onPressed: () => ref
-                        .read(estimateSidebarVisibleProvider.notifier)
-                        .update((state) => !state),
-                    tooltip: isSidebarVisible ? 'Скрыть панель' : 'Показать панель',
-                  ),
                 ],
-              )
-            : null,
-        actions: [
-          IconButton(
-            icon: const Icon(CupertinoIcons.refresh),
-            tooltip: 'Обновить данные',
-            onPressed: () {
-              ref.invalidate(estimateGroupsProvider);
-              ref.invalidate(estimateItemsProvider);
-              ref.invalidate(estimateCompletionByIdsProvider);
-            },
-          ),
-          if (!ResponsiveUtils.isDesktop(context))
-            PermissionGuard(
-              module: 'estimates',
-              permission: 'import',
-              child: IconButton(
-                icon: const Icon(CupertinoIcons.add),
-                onPressed: () => _showImportEstimateBottomSheet(context),
               ),
             ),
-        ],
-      ),
-      drawer: const AppDrawer(activeRoute: AppRoute.estimates),
-      body: groupsAsync.when(
-        loading: () => const Center(child: CupertinoActivityIndicator()),
-        error: (e, s) => Center(child: Text('Ошибка: $e')),
-        data: (estimateFiles) {
-          // Если выбранная смета исчезла (удалена), сбрасываем выбор
-          if (selectedEstimateFile != null &&
-              !estimateFiles.any(
-                (f) =>
-                    f.estimateTitle == selectedEstimateFile!.estimateTitle &&
-                    f.objectId == selectedEstimateFile!.objectId &&
-                    f.contractId == selectedEstimateFile!.contractId,
-              )) {
-            // Используем addPostFrameCallback, чтобы избежать ошибки во время build
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) {
-                setState(() {
-                  selectedEstimateFile = null;
-                });
-              }
-            });
-          }
-
-          return LayoutBuilder(
-            builder: (context, constraints) {
-              if (isDesktop) {
-                return const EstimateDetailsScreen(showAppBar: false);
-              } else {
-                return _buildMobileLayout(estimateFiles, objects, canDelete);
-              }
-            },
-          );
-        },
+          ],
+        ),
       ),
     );
   }
@@ -221,7 +321,7 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
     bool canDelete,
   ) {
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.only(top: 4),
       itemCount: estimateFiles.length,
       itemBuilder: (context, index) {
         final file = estimateFiles[index];
