@@ -11,11 +11,15 @@ RUN flutter build web --release
 # Этап 2: Раздача статики через непривилегированный Nginx (для облака)
 FROM nginxinc/nginx-unprivileged:alpine
 
-# Копируем наш кастомный конфиг
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Копируем наш кастомный конфиг-шаблон (nginx сам подставит порт при запуске)
+COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 
-# Копируем собранные файлы (в Nginx Unprivileged папка по умолчанию /usr/share/nginx/html)
+# Копируем собранные файлы
 COPY --from=build /app/build/web /usr/share/nginx/html
 
-EXPOSE 8080
-CMD ["nginx", "-g", "daemon off;"]
+# Задаем порт по умолчанию (8080), если облако не передаст свой
+ENV PORT=8080
+EXPOSE $PORT
+
+# Команду CMD не указываем — используем стандартный скрипт от nginxinc,
+# который подставит $PORT в шаблон и запустит nginx.
