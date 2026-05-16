@@ -5,9 +5,6 @@ import 'package:universal_html/html.dart' as web;
 /// Утилита для цвета «оболочки» страницы на Web: `theme-color`, фон `html`/`body`,
 /// CSS-переменная для канваса Flutter. Один источник правды — без дублирования в JS.
 class WebStatusBar {
-  /// Тот же базовый фон, что [MobileAtmosphereAppearance.atmosphereBase] в тёмной теме.
-  static const Color _kDarkShell = Color(0xFF0E0E10);
-
   /// Устанавливает цвет оболочки (meta + документ). [isDark] — стиль строки состояния iOS.
   static void setColor(Color color, {bool isDark = false}) {
     if (!kIsWeb) return;
@@ -31,8 +28,7 @@ class WebStatusBar {
   static void syncWithTheme(ThemeData theme) {
     if (!kIsWeb) return;
     final isDark = theme.brightness == Brightness.dark;
-    final Color shell =
-        isDark ? _kDarkShell : theme.colorScheme.surface;
+    final Color shell = theme.colorScheme.surface;
     final hex = _toHex(shell);
     _applyShellColor(hex, isDark: isDark);
   }
@@ -54,16 +50,17 @@ class WebStatusBar {
 
   static void _updateMetaTags(String colorHex, bool isDark) {
     try {
-      web.document
-          .querySelector('meta[name="theme-color"]')
-          ?.setAttribute('content', colorHex);
+      final metaTags = web.document.querySelectorAll('meta[name="theme-color"]');
+      for (final meta in metaTags) {
+        meta.setAttribute('content', colorHex);
+        meta.removeAttribute('media');
+      }
+      // Для PWA-режима (когда приложение добавлено "На экран Домой")
+      // мы всегда используем black-translucent, чтобы контент заходил под статус-бар.
       final appleMeta = web.document
           .querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
       if (appleMeta != null) {
-        appleMeta.setAttribute(
-          'content',
-          isDark ? 'black-translucent' : 'default',
-        );
+        appleMeta.setAttribute('content', 'black-translucent');
       }
     } catch (_) {}
   }
@@ -82,7 +79,8 @@ class WebStatusBar {
     try {
       final isDark =
           PlatformDispatcher.instance.platformBrightness == Brightness.dark;
-      final initial = isDark ? _toHex(_kDarkShell) : '#ffffff';
+      // Используем стартовые цвета до загрузки Flutter
+      final initial = isDark ? '#0E0E10' : '#FFFFFF';
       _setCSSVariable('--app-surface-color', initial);
       _addEdgeToEdgeStyles();
     } catch (_) {}
