@@ -1,6 +1,4 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:projectgt/core/utils/web_status_bar.dart';
 
 /// Общая визуальная тема «атмосферы» мобильных экранов (списки, сложные шапки):
 /// базовый фон, цвета радиальных подложек, хрома (кнопок/полей), карточек и теней.
@@ -156,14 +154,6 @@ class MobileAtmosphereBackdrop extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appearance = MobileAtmosphereAppearance.of(context);
-    if (kIsWeb) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        WebStatusBar.setColor(
-          appearance.atmosphereBase,
-          isDark: appearance.isDark,
-        );
-      });
-    }
     return Stack(
       fit: StackFit.expand,
       children: [

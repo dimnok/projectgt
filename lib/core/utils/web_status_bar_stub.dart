@@ -12,6 +12,9 @@ class WebStatusBar {
   /// Синхронизирует с темой приложения (заглушка).
   static void syncWithTheme(ThemeData theme) {}
 
+  /// Синхронизация по [ThemeMode] (заглушка).
+  static void applyThemeMode(ThemeMode mode) {}
+
   /// Инициализирует статус-бар (заглушка).
   static void initialize() {}
 

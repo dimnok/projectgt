@@ -11,8 +11,7 @@
   <meta name="build-number" content="50">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <!-- theme-color не задаём в HTML: на iOS PWA #FFFFFF даёт непрозрачный белый status bar.
-       Android/Chrome получает цвет из WebStatusBar после старта Flutter. -->
+  <!-- iOS PWA: без theme-color (прозрачный status bar). Android — из boot-скрипта / Flutter. -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -29,12 +28,9 @@
 
   <title>Стройка PRO</title>
 
-  <!-- До загрузки Flutter: фон под black-translucent status bar (iOS PWA). -->
+  <!-- iOS PWA: прозрачный документ под black-translucent; цвет — только Flutter. -->
   <script>
     (function () {
-      var darkMq = window.matchMedia('(prefers-color-scheme: dark)');
-      var shellLight = '#FFFFFF';
-      var shellDark = '#0E0E10';
       var ua = navigator.userAgent || '';
       var isIos = /iPhone|iPad|iPod/i.test(ua);
       var isIosStandalone =
@@ -42,42 +38,48 @@
         ((window.navigator.standalone === true) ||
           window.matchMedia('(display-mode: standalone)').matches);
 
-      function shellColor() {
-        return darkMq.matches ? shellDark : shellLight;
+      function applyIosPwaTransparentShell() {
+        document.documentElement.setAttribute('data-ios-pwa', 'true');
+        document.documentElement.style.backgroundColor = 'transparent';
+        if (document.body) {
+          document.body.style.backgroundColor = 'transparent';
+        }
+        document.querySelectorAll('meta[name="theme-color"]').forEach(function (m) {
+          m.parentNode.removeChild(m);
+        });
       }
 
-      function applyShellColor() {
-        var color = shellColor();
+      function applyAndroidShellColor() {
+        var darkMq = window.matchMedia('(prefers-color-scheme: dark)');
+        var color = darkMq.matches ? '#0E0E10' : '#FFFFFF';
         document.documentElement.style.setProperty('--app-surface-color', color);
         document.documentElement.style.backgroundColor = color;
         if (document.body) {
           document.body.style.backgroundColor = color;
         }
-        // На iOS PWA theme-color перекрывает black-translucent непрозрачной заливкой.
-        if (!isIosStandalone) {
-          var metas = document.querySelectorAll('meta[name="theme-color"]');
-          if (metas.length === 0) {
-            var meta = document.createElement('meta');
-            meta.setAttribute('name', 'theme-color');
-            meta.setAttribute('content', color);
-            document.head.appendChild(meta);
-          } else {
-            metas.forEach(function (meta) {
-              meta.setAttribute('content', color);
-            });
-          }
+        var metas = document.querySelectorAll('meta[name="theme-color"]');
+        if (metas.length === 0) {
+          var meta = document.createElement('meta');
+          meta.setAttribute('name', 'theme-color');
+          meta.setAttribute('content', color);
+          document.head.appendChild(meta);
         } else {
-          document.querySelectorAll('meta[name="theme-color"]').forEach(function (m) {
-            m.parentNode.removeChild(m);
+          metas.forEach(function (meta) {
+            meta.setAttribute('content', color);
           });
         }
       }
 
-      applyShellColor();
-      if (typeof darkMq.addEventListener === 'function') {
-        darkMq.addEventListener('change', applyShellColor);
-      } else if (typeof darkMq.addListener === 'function') {
-        darkMq.addListener(applyShellColor);
+      if (isIosStandalone) {
+        applyIosPwaTransparentShell();
+      } else {
+        applyAndroidShellColor();
+        var darkMq = window.matchMedia('(prefers-color-scheme: dark)');
+        if (typeof darkMq.addEventListener === 'function') {
+          darkMq.addEventListener('change', applyAndroidShellColor);
+        } else if (typeof darkMq.addListener === 'function') {
+          darkMq.addListener(applyAndroidShellColor);
+        }
       }
     })();
   </script>
@@ -99,8 +101,13 @@
     html, body {
       margin: 0;
       min-height: 100%;
-      background-color: var(--app-surface-color, #FFFFFF);
+      background-color: var(--app-surface-color, #0E0E10);
       background-size: 100% 100%;
+    }
+
+    html[data-ios-pwa="true"],
+    html[data-ios-pwa="true"] body {
+      background-color: transparent !important;
     }
 
     .center {
@@ -152,11 +159,6 @@
       right: 0;
     }
 
-    @media (prefers-color-scheme: dark) {
-      html, body {
-        background-color: var(--app-surface-color, #0E0E10);
-      }
-    }
   </style>
   <script id="splash-screen-script">
     function removeSplashFromWeb() {
