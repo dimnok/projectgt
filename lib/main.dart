@@ -155,6 +155,14 @@ class _MyAppState extends ConsumerState<MyApp> {
       onResume: () => _handleRefresh(),
       onShow: () => _handleRefresh(),
     );
+    if (kIsWeb) {
+      WebStatusBar.listenToSystemColorScheme(() {
+        if (!mounted) return;
+        if (ref.read(themeSettingsProvider).themeMode == ThemeMode.system) {
+          setState(() {});
+        }
+      });
+    }
   }
 
   void _handleRefresh() {

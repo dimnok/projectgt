@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 /// Заглушка для платформ, отличных от Web.
@@ -13,4 +14,7 @@ class WebStatusBar {
 
   /// Инициализирует статус-бар (заглушка).
   static void initialize() {}
+
+  /// Подписка на системную тему (заглушка).
+  static void listenToSystemColorScheme(VoidCallback onChanged) {}
 }
