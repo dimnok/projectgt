@@ -100,7 +100,8 @@ class MaterialsRepository {
       final receiptNumber = row['receipt_number']?.toString().trim();
       if (name == null || name.isEmpty) continue;
 
-      final key = "${name.toLowerCase()}_${unit?.toLowerCase() ?? ''}_${receiptNumber?.toLowerCase() ?? ''}";
+      final key =
+          "${name.toLowerCase()}_${unit?.toLowerCase() ?? ''}_${receiptNumber?.toLowerCase() ?? ''}";
       if (!unique.containsKey(key)) {
         unique[key] = {
           'name': name,
@@ -141,26 +142,30 @@ class MaterialsRepository {
   }) async {
     final response = await client.rpc(
       'get_linked_materials_details',
-      params: {
-        'p_estimate_id': estimateId,
-        'p_company_id': companyId,
-      },
+      params: {'p_estimate_id': estimateId, 'p_company_id': companyId},
     );
 
     return (response as List)
-        .map<MaterialItem>((e) => MaterialItem(
-              id: e['id'],
-              name: e['name'],
-              unit: e['unit'],
-              quantity: (e['quantity'] as num?)?.toDouble(),
-              remaining: (e['remaining_for_estimate'] as num?)?.toDouble(),
-              estimateIds: (e['estimate_ids'] as List?)?.map((id) => id.toString()).toList() ?? [],
-              receiptNumber: e['receipt_number'],
-              receiptDate: e['receipt_date'] != null 
-                  ? DateTime.parse(e['receipt_date']) 
-                  : null,
-              companyId: companyId,
-            ))
+        .map<MaterialItem>(
+          (e) => MaterialItem(
+            id: e['id'],
+            name: e['name'],
+            unit: e['unit'],
+            quantity: (e['quantity'] as num?)?.toDouble(),
+            remaining: (e['remaining_for_estimate'] as num?)?.toDouble(),
+            linkedEstimateId: estimateId,
+            estimateIds:
+                (e['estimate_ids'] as List?)
+                    ?.map((id) => id.toString())
+                    .toList() ??
+                [],
+            receiptNumber: e['receipt_number'],
+            receiptDate: e['receipt_date'] != null
+                ? DateTime.parse(e['receipt_date'])
+                : null,
+            companyId: companyId,
+          ),
+        )
         .toList();
   }
 

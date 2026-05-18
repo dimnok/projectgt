@@ -10,16 +10,18 @@ class UploadContractFileUseCase {
   /// Создает экземпляр сценария использования.
   UploadContractFileUseCase(this.repository);
 
-  /// Выполняет загрузку файла [file] с именем [fileName] для договора [contractId].
+  /// Выполняет загрузку файла [file] с именем [fileName] и описанием [description] для договора [contractId].
   Future<ContractFile> execute({
     required String contractId,
     required File file,
     required String fileName,
+    String? description,
   }) async {
     return repository.uploadFile(
       contractId: contractId,
       file: file,
       fileName: fileName,
+      description: description,
     );
   }
 }

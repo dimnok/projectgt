@@ -203,6 +203,7 @@ class GTSecondaryButton extends StatelessWidget {
 ///
 /// Без фона и рамок. Используется для ссылок или действий в заголовках.
 /// Размер шрифта по умолчанию 15; при необходимости задаётся [fontSize].
+/// [dense] — уменьшенные отступы и плотная раскладка для вложенных действий в формах.
 class GTTextButton extends StatelessWidget {
   /// Текст кнопки.
   final String text;
@@ -219,6 +220,9 @@ class GTTextButton extends StatelessWidget {
   /// Размер шрифта подписи; по умолчанию 15.
   final double? fontSize;
 
+  /// Компактные отступы и [VisualDensity.compact] (второстепенные действия в плотных формах).
+  final bool dense;
+
   /// Создает текстовую кнопку.
   const GTTextButton({
     super.key,
@@ -227,26 +231,37 @@ class GTTextButton extends StatelessWidget {
     this.color,
     this.icon,
     this.fontSize,
+    this.dense = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final resolvedSize = fontSize ?? 15;
+    final iconGap = dense ? 4.0 : 6.0;
+    final iconSize = dense
+        ? (resolvedSize * 1.05).clamp(13.0, 17.0)
+        : (resolvedSize * 1.15).clamp(14.0, 22.0);
 
     return TextButton(
       onPressed: onPressed,
       style: TextButton.styleFrom(
         foregroundColor: color,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: dense
+            ? const EdgeInsets.symmetric(horizontal: 6, vertical: 2)
+            : const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        visualDensity: dense ? VisualDensity.compact : VisualDensity.standard,
+        minimumSize: dense ? Size.zero : null,
+        tapTargetSize:
+            dense ? MaterialTapTargetSize.shrinkWrap : MaterialTapTargetSize.padded,
         shape: const StadiumBorder(),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: (resolvedSize * 1.15).clamp(14.0, 22.0)),
-            const SizedBox(width: 6),
+            Icon(icon, size: iconSize),
+            SizedBox(width: iconGap),
           ],
           Text(
             text,

@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:projectgt/core/widgets/gt_context_menu.dart';
+import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
+import 'package:projectgt/features/materials/presentation/providers/materials_providers.dart';
 import '../widgets/material_from_receipts_picker.dart';
 import '../widgets/estimate_item_details_dialog.dart';
 import '../../../../core/utils/formatters.dart';
@@ -13,6 +15,13 @@ import '../../../../data/models/estimate_completion_model.dart';
 import '../../../../domain/entities/estimate.dart';
 import '../../../../features/roles/application/permission_service.dart';
 import '../utils/estimate_sorter.dart';
+
+/// Текст внутри [Tooltip] по привязкам: читаемый цвет на фоне material-подсказки.
+TextStyle _estimateLinkedMaterialsTooltipTextStyle(ThemeData theme) {
+  return theme.brightness == Brightness.dark
+      ? const TextStyle(color: Colors.black87, fontSize: 12, height: 1.35)
+      : const TextStyle(color: Colors.white, fontSize: 12, height: 1.35);
+}
 
 /// Режимы отображения таблицы сметы.
 enum EstimateViewMode {
@@ -116,6 +125,72 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
     super.dispose();
   }
 
+  /// Ячейка «Наименование»: при наличии привязанных материалов — иконка с [Tooltip].
+  Widget _estimateNameCell(
+    Estimate estimate,
+    ThemeData theme, {
+    required Map<String, String> materialTooltipsByEstimateId,
+  }) {
+    final tooltip = materialTooltipsByEstimateId[estimate.id]?.trim();
+    final nameText = Text(
+      estimate.name,
+      maxLines: 3,
+      overflow: TextOverflow.ellipsis,
+    );
+
+    if (tooltip == null || tooltip.isEmpty) {
+      return nameText;
+    }
+
+    final mq = MediaQuery.of(context);
+    final maxTooltipHeight = math.min(
+      440.0,
+      math.max(160.0, mq.size.height - mq.padding.vertical - 72),
+    );
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Tooltip(
+          excludeFromSemantics: true,
+          preferBelow: false,
+          verticalOffset: 14,
+          richMessage: WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: Material(
+              type: MaterialType.transparency,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: 440,
+                  maxHeight: maxTooltipHeight,
+                ),
+                child: SingleChildScrollView(
+                  physics: const ClampingScrollPhysics(),
+                  child: SelectableText(
+                    tooltip,
+                    style: _estimateLinkedMaterialsTooltipTextStyle(theme),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          waitDuration: const Duration(milliseconds: 400),
+          showDuration: const Duration(seconds: 12),
+          child: Semantics(
+            label: 'Привязка материалов из накладных',
+            child: Icon(
+              Icons.link,
+              size: 16,
+              color: theme.colorScheme.primary,
+            ),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Expanded(child: nameText),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -125,10 +200,26 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
     final canCreate = permissionService.can('estimates', 'create');
     final canDelete = permissionService.can('estimates', 'delete');
 
+    final companyId = ref.watch(activeCompanyIdProvider) ?? '';
+    final contractRaw = widget.contractNumber?.trim() ?? '';
+    final sortedEstimateIds = widget.items.map((e) => e.id).toList()..sort();
+    final estimateIdsKey = sortedEstimateIds.join(',');
+
+    final materialTooltipsAsync = ref.watch(
+      estimateLinkedMaterialTooltipsMapProvider((
+        companyId: companyId,
+        contractNumber: contractRaw,
+        estimateIdsKey: estimateIdsKey,
+      )),
+    );
+    final materialTooltipsByEstimateId =
+        materialTooltipsAsync.asData?.value ?? const <String, String>{};
+
     final configs = _buildColumnConfigs(
       canUpdate: canUpdate,
       canCreate: canCreate,
       canDelete: canDelete,
+      materialTooltipsByEstimateId: materialTooltipsByEstimateId,
     );
     final headerRow = _buildHeaderRow(theme, configs);
     final bodyRows = _buildRows(theme, configs);
@@ -289,8 +380,13 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
     required bool canUpdate,
     required bool canCreate,
     required bool canDelete,
+    required Map<String, String> materialTooltipsByEstimateId,
   }) {
     final configs = <_EstimateColumnConfig>[];
+    final anyMaterialLink = widget.items.any(
+      (e) =>
+          (materialTooltipsByEstimateId[e.id]?.trim().isNotEmpty ?? false),
+    );
 
     if (widget.showSystemAndSubsystem) {
       configs.addAll([
@@ -330,10 +426,18 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
         headerAlign: TextAlign.center,
         flex: 4.2,
         isFlexible: true,
-        minWidth: 220,
-        measureText: (estimate, _) => estimate.name,
-        builder: (estimate, _, __) =>
-            Text(estimate.name, maxLines: 3, overflow: TextOverflow.ellipsis),
+        minWidth: anyMaterialLink ? 236 : 220,
+        measureText: (estimate, _) {
+          final hasLink =
+              (materialTooltipsByEstimateId[estimate.id]?.trim().isNotEmpty ??
+                  false);
+          return hasLink ? '${estimate.name}\u00A0\u00A0' : estimate.name;
+        },
+        builder: (estimate, _, theme) => _estimateNameCell(
+          estimate,
+          theme,
+          materialTooltipsByEstimateId: materialTooltipsByEstimateId,
+        ),
       ),
     ]);
 
@@ -512,7 +616,11 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
               fontSize: 10,
               letterSpacing: 0,
             ) ??
-            const TextStyle(fontWeight: FontWeight.w600, fontSize: 10, letterSpacing: 0),
+            const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 10,
+              letterSpacing: 0,
+            ),
       ),
     );
   }
@@ -646,7 +754,11 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
           fontSize: 10,
           letterSpacing: 0,
         ) ??
-        const TextStyle(fontWeight: FontWeight.w600, fontSize: 10, letterSpacing: 0);
+        const TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 10,
+          letterSpacing: 0,
+        );
     final bodyStyle =
         theme.textTheme.bodySmall?.copyWith(fontSize: 12, letterSpacing: 0) ??
         const TextStyle(fontSize: 12, letterSpacing: 0);
@@ -664,7 +776,8 @@ class _EstimateTableViewState extends ConsumerState<EstimateTableView> {
       double columnWidth = config.minWidth ?? _kDefaultMinColumnWidth;
 
       // ВСЕГДА измеряем ширину заголовка, чтобы колонки были одинаковыми во всех табах
-      final headerWidth = _measureText(config.title, headerStyle) + paddingWidth;
+      final headerWidth =
+          _measureText(config.title, headerStyle) + paddingWidth;
       columnWidth = math.max(columnWidth, headerWidth);
 
       if (config.measureText != null) {

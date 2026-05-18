@@ -1,18 +1,18 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:projectgt/domain/entities/contract.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/core/utils/formatters.dart';
-import 'package:projectgt/core/utils/snackbar_utils.dart';
+import 'package:projectgt/core/utils/responsive_utils.dart';
+import 'package:projectgt/features/contracts/presentation/providers/contract_files_providers.dart';
+import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
 import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
 import 'package:projectgt/features/contracts/presentation/widgets/contract_costs_info.dart';
 import 'package:projectgt/features/contracts/presentation/widgets/contract_files_section.dart';
-import 'package:projectgt/presentation/widgets/app_badge.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/gt_confirmation_dialog.dart';
 import 'package:projectgt/core/widgets/gt_section_title.dart';
@@ -21,6 +21,8 @@ import 'package:projectgt/features/contracts/presentation/widgets/contract_estim
 import 'package:projectgt/features/contracts/presentation/widgets/contract_details_main_information_section.dart';
 import 'package:projectgt/features/contracts/presentation/widgets/contract_addenda_from_revisions_section.dart';
 import 'package:projectgt/features/contracts/presentation/widgets/contract_estimates_section.dart';
+import 'package:projectgt/features/contracts/presentation/widgets/contract_documents_section.dart';
+import 'package:projectgt/features/contracts/presentation/widgets/contract_acts_section.dart';
 import 'contract_list_shared.dart';
 
 /// Плюс к потоку (приход): читаемый на [surface] в тёмной и светлой теме.
@@ -33,24 +35,10 @@ Color _cashFlowInflowColor(ThemeData theme) {
 /// Минус / расход в таблице Cash Flow — тот же акцент, что и системная ошибка.
 Color _cashFlowOutflowColor(ThemeData theme) => theme.colorScheme.error;
 
-/// «Подписан», ссылки-иконки: контраст к фону в обеих темах.
-Color _infoAccentColor(ThemeData theme) {
-  return theme.brightness == Brightness.dark
-      ? const Color(0xFF82B1FF)
-      : const Color(0xFF1565C0);
-}
-
-/// Черновик и пр. предупреждающий, но читаемый акцент.
-Color _draftStatusColor(ThemeData theme) {
-  return theme.brightness == Brightness.dark
-      ? const Color(0xFFFFB74D)
-      : const Color(0xFFE65100);
-}
-
 /// Панель детальной информации о договоре.
 ///
 /// Отображает все ключевые параметры договора: объект, статус, даты, финансовые условия,
-/// а также разделы с файлами, дополнительными соглашениями и актами КС-2.
+/// а также разделы с файлами, дополнительными соглашениями и актами по договору.
 /// Включает визуализацию Cash Flow по договору.
 ///
 /// При [detailSectionFilter] не `null` (встроенный список с навигацией по разделам)
@@ -157,10 +145,18 @@ class ContractDetailsPanel extends ConsumerWidget {
         try {
           await ref.read(contractProvider.notifier).deleteContract(contract.id);
           if (!context.mounted) return;
-          SnackBarUtils.showSuccess(context, 'Договор удален');
+          AppSnackBar.show(
+            context: context,
+            message: 'Договор удален',
+            kind: AppSnackBarKind.success,
+          );
         } catch (e) {
           if (!context.mounted) return;
-          SnackBarUtils.showError(context, 'Ошибка при удалении: $e');
+          AppSnackBar.show(
+            context: context,
+            message: 'Ошибка при удалении: $e',
+            kind: AppSnackBarKind.error,
+          );
         }
       }
     });
@@ -214,7 +210,7 @@ class ContractDetailsPanel extends ConsumerWidget {
                   const Expanded(flex: 28, child: SizedBox.shrink()),
                 ],
               ),
-            ContractDetailNavigationSection.addenda => Row(
+              ContractDetailNavigationSection.addenda => Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Expanded(
@@ -241,33 +237,102 @@ class ContractDetailsPanel extends ConsumerWidget {
             _ => Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const Expanded(
+                    Expanded(
                       child: Align(
                         alignment: Alignment.centerLeft,
-                        child: SizedBox.shrink(),
+                        child: switch (filter) {
+                          ContractDetailNavigationSection.documents => Text(
+                              'Документы договора',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ).animate().fade(delay: 140.ms),
+                          ContractDetailNavigationSection.acts => Text(
+                              'Акты по договору',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ).animate().fade(delay: 140.ms),
+                          _ => const SizedBox.shrink(),
+                        },
                       ),
                     ),
-                    PermissionGuard(
-                      module: 'contracts',
-                      permission: 'update',
-                      child: GTTextButton(
-                        text: 'Редактировать',
-                        fontSize: 12,
-                        color: theme.colorScheme.primary,
-                        onPressed: onEdit,
+                    if (filter == ContractDetailNavigationSection.documents &&
+                        !ResponsiveUtils.isDesktop(context))
+                      Consumer(
+                        builder: (context, ref, _) {
+                          final cid = contract.id;
+                          final fileState =
+                              ref.watch(contractFilesProvider(cid));
+                          final reorder = ref.watch(
+                            contractDocumentsReorderModeProvider(cid),
+                          );
+                          final descriptionsOn = ref.watch(
+                            contractDocumentDescriptionsVisibleProvider(cid),
+                          );
+                          final anyNotes = fileState.files.any(
+                            (f) =>
+                                f.description != null &&
+                                f.description!.trim().isNotEmpty,
+                          );
+                          if (!anyNotes) return const SizedBox.shrink();
+                          return PermissionGuard(
+                            module: 'contracts',
+                            permission: 'read',
+                            child: Tooltip(
+                              message: descriptionsOn
+                                  ? 'Скрыть примечания у всех файлов'
+                                  : 'Показать примечания у всех файлов',
+                              child: GTTextButton(
+                                text: descriptionsOn
+                                    ? 'Скрыть'
+                                    : 'Описания',
+                                fontSize: 12,
+                                color: theme.colorScheme.primary,
+                                onPressed: reorder
+                                    ? null
+                                    : () {
+                                        ref
+                                            .read(
+                                              contractDocumentDescriptionsVisibleProvider(
+                                                cid,
+                                              ).notifier,
+                                            )
+                                            .state = !descriptionsOn;
+                                      },
+                              ),
+                            ),
+                          );
+                        },
                       ),
-                    ).animate().fade(delay: 200.ms),
-                    const SizedBox(width: 4),
-                    PermissionGuard(
-                      module: 'contracts',
-                      permission: 'delete',
-                      child: GTTextButton(
-                        text: 'Удалить',
-                        fontSize: 12,
-                        color: theme.colorScheme.error,
-                        onPressed: () => _handleDelete(context, ref),
-                      ),
-                    ).animate().fade(delay: 250.ms),
+                    if (filter != ContractDetailNavigationSection.documents &&
+                        filter != ContractDetailNavigationSection.acts) ...[
+                      PermissionGuard(
+                        module: 'contracts',
+                        permission: 'update',
+                        child: GTTextButton(
+                          text: 'Редактировать',
+                          fontSize: 12,
+                          color: theme.colorScheme.primary,
+                          onPressed: onEdit,
+                        ),
+                      ).animate().fade(delay: 200.ms),
+                      const SizedBox(width: 4),
+                      PermissionGuard(
+                        module: 'contracts',
+                        permission: 'delete',
+                        child: GTTextButton(
+                          text: 'Удалить',
+                          fontSize: 12,
+                          color: theme.colorScheme.error,
+                          onPressed: () => _handleDelete(context, ref),
+                        ),
+                      ).animate().fade(delay: 250.ms),
+                    ],
                   ],
                 ),
           },
@@ -307,7 +372,9 @@ class ContractDetailsPanel extends ConsumerWidget {
                     .fade(delay: 700.ms, duration: 500.ms)
                     .slideY(begin: 0.05, curve: Curves.easeOut),
                 const SizedBox(height: 32),
-                _buildActsSection(theme)
+                ContractAtmosphereCard(
+                      child: ContractActsSection(contract: contract),
+                    )
                     .animate()
                     .fade(delay: 800.ms, duration: 500.ms)
                     .slideY(begin: 0.05, curve: Curves.easeOut),
@@ -365,6 +432,22 @@ class ContractDetailsPanel extends ConsumerWidget {
                         contract: contract,
                         showSectionHeader: false,
                       ),
+                    )
+                    .animate()
+                    .fade(delay: 400.ms, duration: 500.ms)
+                    .slideY(begin: 0.05, curve: Curves.easeOut),
+              ContractDetailNavigationSection.documents =>
+                ContractDocumentsSection(
+                      contract: contract,
+                      showSectionHeader: false,
+                    )
+                    .animate()
+                    .fade(delay: 400.ms, duration: 500.ms)
+                    .slideY(begin: 0.05, curve: Curves.easeOut),
+              ContractDetailNavigationSection.acts =>
+                ContractActsSection(
+                      contract: contract,
+                      showSectionHeader: false,
                     )
                     .animate()
                     .fade(delay: 400.ms, duration: 500.ms)
@@ -656,197 +739,6 @@ class ContractDetailsPanel extends ConsumerWidget {
       width: 1,
       height: height,
       color: theme.colorScheme.outline.withValues(alpha: 0.1),
-    );
-  }
-
-  Widget _buildActsSection(ThemeData theme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Expanded(child: GTSectionTitle(title: 'Акты КС-2')),
-            PermissionGuard(
-              module: 'contracts',
-              permission: 'update',
-              child: CupertinoButton(
-                padding: EdgeInsets.zero,
-                onPressed: () {
-                  // TODO: Реализовать создание акта
-                },
-                child: const Icon(CupertinoIcons.plus_circle, size: 20),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        _buildActRow(
-          '1',
-          '01.03.2024',
-          '01.02.2024 - 29.02.2024',
-          250000,
-          'signed',
-          theme,
-        ),
-        _buildActRow(
-          '2',
-          '01.04.2024',
-          '01.03.2024 - 31.03.2024',
-          450000,
-          'paid',
-          theme,
-        ),
-        _buildActRow(
-          '3',
-          '05.05.2024',
-          '01.04.2024 - 30.04.2024',
-          120000,
-          'draft',
-          theme,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActRow(
-    String number,
-    String date,
-    String period,
-    double amount,
-    String status,
-    ThemeData theme,
-  ) {
-    Color statusColor;
-    String statusText;
-    switch (status) {
-      case 'paid':
-        statusColor = _cashFlowInflowColor(theme);
-        statusText = 'Оплачен';
-        break;
-      case 'signed':
-        statusColor = _infoAccentColor(theme);
-        statusText = 'Подписан';
-        break;
-      default:
-        statusColor = _draftStatusColor(theme);
-        statusText = 'Черновик';
-    }
-
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                CupertinoIcons.doc_checkmark,
-                size: 18,
-                color: theme.colorScheme.primary.withValues(alpha: 0.6),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Акт №$number',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          date,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface.withValues(
-                              alpha: 0.5,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Период: $period',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withValues(
-                          alpha: 0.7,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          formatCurrency(amount),
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        AppBadge(text: statusText, color: statusColor),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CupertinoButton(
-                    padding: EdgeInsets.zero,
-                    onPressed: () {},
-                    child: Icon(
-                      CupertinoIcons.eye,
-                      size: 18,
-                      color: _infoAccentColor(theme),
-                    ),
-                  ),
-                  PermissionGuard(
-                    module: 'contracts',
-                    permission: 'update',
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        CupertinoButton(
-                          padding: EdgeInsets.zero,
-                          onPressed: () {},
-                          child: const Icon(
-                            CupertinoIcons.pencil,
-                            size: 18,
-                            color: Colors.amber,
-                          ),
-                        ),
-                        CupertinoButton(
-                          padding: EdgeInsets.zero,
-                          onPressed: () {},
-                          child: Icon(
-                            CupertinoIcons.trash,
-                            size: 18,
-                            color: theme.colorScheme.error,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        Divider(
-          height: 1,
-          thickness: 0.5,
-          indent: 40,
-          endIndent: 12,
-          color: theme.colorScheme.outline.withValues(alpha: 0.08),
-        ),
-      ],
     );
   }
 }

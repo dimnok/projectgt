@@ -1,21 +1,16 @@
-import 'dart:io';
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:file_selector/file_selector.dart';
-import 'package:file_saver/file_saver.dart';
-import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart' as path_provider;
 import 'package:projectgt/domain/entities/contract.dart';
 import 'package:projectgt/domain/entities/contract_file.dart';
 import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
 import 'package:projectgt/features/contracts/presentation/providers/contract_files_providers.dart';
-import 'package:projectgt/core/utils/snackbar_utils.dart';
-import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
-import 'package:projectgt/core/widgets/gt_buttons.dart';
-import 'package:projectgt/core/widgets/gt_text_field.dart';
+import 'package:projectgt/features/contracts/presentation/utils/contract_document_upload_flow.dart';
+import 'package:projectgt/features/contracts/presentation/utils/contract_file_download_flow.dart';
+import 'package:projectgt/core/utils/formatters.dart';
+import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/core/widgets/gt_confirmation_dialog.dart';
+import 'package:projectgt/features/contracts/presentation/widgets/contract_file_edit_dialog.dart';
 import 'contract_list_shared.dart';
 
 /// Раздел управления файлами договора.
@@ -29,162 +24,6 @@ class ContractFilesSection extends ConsumerWidget {
   /// Создает раздел файлов договора.
   const ContractFilesSection({super.key, required this.contract});
 
-  Future<void> _handleUpload(BuildContext context, WidgetRef ref) async {
-    try {
-      final XFile? file = await openFile();
-
-      if (file != null) {
-        final originalFileName = file.name;
-        final extension = originalFileName.split('.').last;
-        final nameWithoutExtension = originalFileName.replaceAll(
-          '.$extension',
-          '',
-        );
-
-        final controller = TextEditingController(text: nameWithoutExtension);
-
-        if (!context.mounted) return;
-
-        final newName = await showDialog<String>(
-          context: context,
-          builder: (context) => Dialog(
-            backgroundColor: Colors.transparent,
-            insetPadding: const EdgeInsets.all(24),
-            child: DesktopDialogContent(
-              title: 'Загрузка файла',
-              width: 500,
-              footer: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  GTSecondaryButton(
-                    text: 'Отмена',
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  const SizedBox(width: 16),
-                  GTPrimaryButton(
-                    text: 'Загрузить',
-                    onPressed: () {
-                      final text = controller.text.trim();
-                      Navigator.pop(
-                        context,
-                        text.isEmpty ? nameWithoutExtension : text,
-                      );
-                    },
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Укажите название для загружаемого файла:'),
-                  const SizedBox(height: 16),
-                  GTTextField(
-                    controller: controller,
-                    autofocus: true,
-                    hintText: 'Название файла',
-                    suffixText: '.$extension',
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-
-        if (newName == null) return;
-
-        final finalFileName = '$newName.$extension';
-        final fileBytes = await file.readAsBytes();
-
-        if (!context.mounted) return;
-        
-        // Создаем временный файл из байтов, так как uploadFile ожидает File
-        final tempDir = await path_provider.getTemporaryDirectory();
-        final tempFile = File('${tempDir.path}/${file.name}');
-        await tempFile.writeAsBytes(fileBytes);
-
-        await ref
-            .read(contractFilesProvider(contract.id).notifier)
-            .uploadFile(tempFile, finalFileName);
-
-        if (!context.mounted) return;
-        SnackBarUtils.showSuccess(context, 'Файл успешно загружен');
-      }
-    } catch (e) {
-      if (!context.mounted) return;
-      SnackBarUtils.showError(context, 'Ошибка при загрузке: $e');
-    }
-  }
-
-  Future<void> _handleDownload(
-    BuildContext context,
-    WidgetRef ref,
-    ContractFile file,
-  ) async {
-    try {
-      final bytes = await ref
-          .read(contractFilesProvider(contract.id).notifier)
-          .downloadFile(file.filePath);
-
-      final extension = file.name.split('.').last;
-      final nameWithoutExtension = file.name.replaceAll('.$extension', '');
-
-      if (kIsWeb) {
-        await FileSaver.instance.saveFile(
-          name: nameWithoutExtension,
-          bytes: Uint8List.fromList(bytes),
-          ext: extension,
-          mimeType: _getMimeType(extension),
-        );
-      } else if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
-        final FileSaveLocation? result = await getSaveLocation(
-          suggestedName: file.name,
-          acceptedTypeGroups: [
-            XTypeGroup(
-              label: extension.toUpperCase(),
-              extensions: [extension],
-            ),
-          ],
-        );
-
-        if (result != null) {
-          final localFile = File(result.path);
-          await localFile.writeAsBytes(bytes);
-        }
-      } else {
-        await FileSaver.instance.saveFile(
-          name: nameWithoutExtension,
-          bytes: Uint8List.fromList(bytes),
-          ext: extension,
-          mimeType: _getMimeType(extension),
-        );
-      }
-    } catch (e) {
-      if (!context.mounted) return;
-      SnackBarUtils.showError(context, 'Ошибка при скачивании файла: $e');
-    }
-  }
-
-  MimeType _getMimeType(String extension) {
-    switch (extension.toLowerCase()) {
-      case 'pdf':
-        return MimeType.pdf;
-      case 'doc':
-      case 'docx':
-        return MimeType.microsoftWord;
-      case 'xls':
-      case 'xlsx':
-        return MimeType.microsoftExcel;
-      case 'jpg':
-      case 'jpeg':
-        return MimeType.jpeg;
-      case 'png':
-        return MimeType.png;
-      default:
-        return MimeType.other;
-    }
-  }
-
   Future<void> _handleDelete(
     BuildContext context,
     WidgetRef ref,
@@ -197,7 +36,9 @@ class ContractFilesSection extends ConsumerWidget {
         context: context,
         title: 'Удаление файла',
         message:
-            'Вы уверены, что хотите удалить файл "${file.name}"?\nЭто действие нельзя будет отменить.',
+            'Файл будет удалён из списка и из хранилища без возможности восстановления. Продолжить?',
+        emphasisText: file.name,
+        detail: file.description,
         confirmText: 'Удалить',
         cancelText: 'Отмена',
         type: GTConfirmationType.danger,
@@ -209,11 +50,42 @@ class ContractFilesSection extends ConsumerWidget {
               .read(contractFilesProvider(contract.id).notifier)
               .deleteFile(file.id, file.filePath);
           if (!context.mounted) return;
-          SnackBarUtils.showSuccess(context, 'Файл удален');
+          AppSnackBar.show(
+            context: context,
+            message: 'Файл удален',
+            kind: AppSnackBarKind.success,
+          );
         } catch (e) {
           if (!context.mounted) return;
-          SnackBarUtils.showError(context, 'Ошибка при удалении: $e');
+          AppSnackBar.show(
+            context: context,
+            message: 'Ошибка при удалении: $e',
+            kind: AppSnackBarKind.error,
+          );
         }
+      }
+    });
+  }
+
+  Future<void> _handleEdit(
+    BuildContext context,
+    WidgetRef ref,
+    ContractFile file,
+  ) async {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!context.mounted) return;
+      final saved = await ContractFileEditDialog.show(
+        context: context,
+        contractId: contract.id,
+        file: file,
+      );
+      if (!context.mounted) return;
+      if (saved == true) {
+        AppSnackBar.show(
+          context: context,
+          message: 'Изменения сохранены',
+          kind: AppSnackBarKind.success,
+        );
       }
     });
   }
@@ -222,6 +94,8 @@ class ContractFilesSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final state = ref.watch(contractFilesProvider(contract.id));
+    final downloadingIds =
+        ref.watch(contractFileDownloadingIdsProvider(contract.id));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -244,7 +118,11 @@ class ContractFilesSection extends ConsumerWidget {
                 padding: EdgeInsets.zero,
                 onPressed: state.isLoading
                     ? null
-                    : () => _handleUpload(context, ref),
+                    : () => openContractDocumentUploadFlow(
+                          context: context,
+                          ref: ref,
+                          contract: contract,
+                        ),
                 child: const Icon(CupertinoIcons.plus_circle, size: 20),
               ),
             ),
@@ -271,7 +149,15 @@ class ContractFilesSection extends ConsumerWidget {
               ),
             ),
           ),
-        ...state.files.map((file) => _buildFileRow(context, ref, file, theme)),
+        ...state.files.map(
+          (file) => _buildFileRow(
+            context,
+            ref,
+            file,
+            theme,
+            downloadingIds,
+          ),
+        ),
       ],
     );
   }
@@ -281,8 +167,9 @@ class ContractFilesSection extends ConsumerWidget {
     WidgetRef ref,
     ContractFile file,
     ThemeData theme,
+    Set<String> downloadingIds,
   ) {
-    final fileSizeFormatted = _formatFileSize(file.size);
+    final fileSizeFormatted = formatFileSizeBytes(file.size);
 
     return Column(
       children: [
@@ -317,6 +204,16 @@ class ContractFilesSection extends ConsumerWidget {
                         fontSize: 11,
                       ),
                     ),
+                    Text(
+                      'Загрузка: ${formatRuDateTime(file.createdAt)}',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.45,
+                        ),
+                        fontSize: 10.5,
+                        height: 1.25,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -326,11 +223,41 @@ class ContractFilesSection extends ConsumerWidget {
                 children: [
                   CupertinoButton(
                     padding: EdgeInsets.zero,
-                    onPressed: () => _handleDownload(context, ref, file),
-                    child: const Icon(
-                      CupertinoIcons.cloud_download,
-                      size: 20,
-                      color: Colors.blue,
+                    onPressed: downloadingIds.contains(file.id)
+                        ? null
+                        : () => downloadContractFileForUser(
+                              context: context,
+                              ref: ref,
+                              contractId: contract.id,
+                              file: file,
+                            ),
+                    child: downloadingIds.contains(file.id)
+                        ? Padding(
+                            padding: const EdgeInsets.all(2),
+                            child: CupertinoActivityIndicator(
+                              radius: 7,
+                              color: theme.colorScheme.primary
+                                  .withValues(alpha: 0.85),
+                            ),
+                          )
+                        : Icon(
+                            CupertinoIcons.cloud_download,
+                            size: 20,
+                            color: theme.colorScheme.primary
+                                .withValues(alpha: 0.85),
+                          ),
+                  ),
+                  PermissionGuard(
+                    module: 'contracts',
+                    permission: 'update',
+                    child: CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      onPressed: () => _handleEdit(context, ref, file),
+                      child: Icon(
+                        CupertinoIcons.pencil,
+                        size: 20,
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.75),
+                      ),
                     ),
                   ),
                   PermissionGuard(
@@ -360,13 +287,6 @@ class ContractFilesSection extends ConsumerWidget {
         ),
       ],
     );
-  }
-
-  String _formatFileSize(int bytes) {
-    if (bytes <= 0) return "0 B";
-    const suffixes = ["B", "KB", "MB", "GB", "TB"];
-    var i = (math.log(bytes) / math.log(1024)).floor();
-    return '${(bytes / math.pow(1024, i)).toStringAsFixed(1)} ${suffixes[i]}';
   }
 
   IconData _getFileIcon(String fileName) {

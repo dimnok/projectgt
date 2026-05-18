@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/core/utils/formatters.dart';
-import 'package:projectgt/core/utils/snackbar_utils.dart';
+import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/gt_section_title.dart';
@@ -501,9 +501,11 @@ class _AddendumRevisionToolbarState
       );
       if (!mounted) return;
       final s = result.summary;
-      SnackBarUtils.showSuccess(
-        context,
-        'ДС применено к смете: обновлено ${s.updated}, добавлено ${s.inserted}.',
+      AppSnackBar.show(
+        context: context,
+        message:
+            'ДС применено к смете: обновлено ${s.updated}, добавлено ${s.inserted}.',
+        kind: AppSnackBarKind.success,
       );
       final cid = widget.contract.id;
       ref.invalidate(contractAddendumRowsProvider(cid));
@@ -513,7 +515,11 @@ class _AddendumRevisionToolbarState
       ref.invalidate(contractVorCompletionProvider(cid));
     } catch (e) {
       if (!mounted) return;
-      SnackBarUtils.showError(context, '$e');
+      AppSnackBar.show(
+        context: context,
+        message: '$e',
+        kind: AppSnackBarKind.error,
+      );
     } finally {
       if (mounted) {
         setState(() => _busy = false);

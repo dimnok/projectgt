@@ -2,7 +2,7 @@ import 'dart:math';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
-/// Единые форматтеры для проекта: валюта, даты и числа.
+/// Единые форматтеры для проекта: валюта, даты, числа и размер файла в байтах.
 ///
 /// Используйте эти функции вместо локальных приватных хелперов
 /// для обеспечения консистентного форматирования во всём приложении.
@@ -56,41 +56,61 @@ class GtFormatters {
   static String formatCurrency(num value) => _currencyFormat.format(value);
 
   /// Форматирует число с принудительными двумя знаками после запятой.
-  /// Пример: 1000 -> "1 000,00"
-  static String formatAmount(num value) => _amountFormat.format(value);
+  /// Пример: 1000 -> "1 000,00" (разделитель тысяч — обычный пробел).
+  static String formatAmount(num value) =>
+      _amountFormat.format(value).replaceAll('\u202F', ' ').replaceAll('\u00A0', ' ');
+
+  /// Приводит момент к локальному поясу перед форматированием для UI.
+  ///
+  /// Метки времени из API (например Postgres `timestamptz` через Supabase)
+  /// десериализуются как UTC ([DateTime.isUtc] `true`); [DateFormat] без
+  /// [DateTime.toLocal] выводит часы и минуты в UTC, а не в поясе пользователя.
+  static DateTime _forDisplay(DateTime date) => date.toLocal();
 
   /// Форматирует дату в виде dd.MM.yyyy в локали ru_RU.
+  ///
+  /// UTC-инстанты показываются в локальном поясе устройства.
   /// Пример: 2025-09-14 -> "14.09.2025".
-  static String formatRuDate(DateTime date) => _dateFormat.format(date);
+  static String formatRuDate(DateTime date) =>
+      _dateFormat.format(_forDisplay(date));
 
   /// Форматирует дату и время в виде dd.MM.yyyy HH:mm в локали ru_RU.
+  ///
+  /// UTC-инстанты показываются в локальном поясе устройства.
   /// Пример: 2025-09-14 14:30 -> "14.09.2025 14:30".
-  static String formatRuDateTime(DateTime date) => _dateTimeFormat.format(date);
+  static String formatRuDateTime(DateTime date) =>
+      _dateTimeFormat.format(_forDisplay(date));
 
   /// Форматирует дату для API в формате yyyy-MM-dd.
   /// Пример: 2025-09-14 -> "2025-09-14".
   static String formatDateForApi(DateTime date) => _apiDateFormat.format(date);
 
   /// Форматирует месяц и год полностью.
+  ///
+  /// UTC-инстанты учитываются в локальном поясе устройства.
   /// Пример: 2025-09-14 -> "сентябрь 2025".
   static String formatMonthYear(DateTime date) {
-    final formatted = _monthYearFormat.format(date);
+    final formatted = _monthYearFormat.format(_forDisplay(date));
     if (formatted.isEmpty) return '';
     // Делаем первую букву заглавной
     return formatted[0].toUpperCase() + formatted.substring(1);
   }
 
   /// Форматирует месяц и год кратко.
+  ///
+  /// UTC-инстанты учитываются в локальном поясе устройства.
   /// Пример: 2025-09-14 -> "сент. 2025".
   static String formatCompactMonthYear(DateTime date) =>
-      _compactMonthYearFormat.format(date);
+      _compactMonthYearFormat.format(_forDisplay(date));
 
   /// Краткий день недели для компактного UI (списки, календарные метки).
   ///
   /// Локаль `ru_RU`, без точки в конце, в верхнем регистре.
+  ///
+  /// UTC-инстанты учитываются в локальном поясе устройства.
   /// Пример: 2025-09-17 -> «СР».
   static String formatRuWeekdayShort(DateTime date) {
-    final raw = _weekdayShortFormat.format(date).trim();
+    final raw = _weekdayShortFormat.format(_forDisplay(date)).trim();
     final noDot = raw.replaceAll('.', '');
     if (noDot.isEmpty) return '';
     return noDot.toUpperCase();
@@ -99,6 +119,21 @@ class GtFormatters {
   /// Форматирует количество (до 3 знаков после запятой, группировка тысяч).
   /// Пример: 1234.5 -> "1 234,5".
   static String formatQuantity(num value) => _quantityFormat.format(value);
+
+  /// Размер файла в байтах по степени 1024 (B, KB, MB, …), одна цифра после запятой.
+  ///
+  /// Пример: 1536 -> "1.5 KB"; 0 и отрицательные значения -> "0 B".
+  static String formatFileSizeBytes(int bytes) {
+    if (bytes <= 0) return '0 B';
+    const suffixes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    var i = (log(bytes) / log(1024)).floor();
+    if (i < 0) {
+      i = 0;
+    } else if (i >= suffixes.length) {
+      i = suffixes.length - 1;
+    }
+    return '${(bytes / pow(1024, i)).toStringAsFixed(1)} ${suffixes[i]}';
+  }
 
   /// Форматирует процент.
   /// [decimalDigits] — количество знаков после запятой.
@@ -504,6 +539,9 @@ String formatFullName(
 /// Алиас для форматирования валюты (ru_RU, ₽, 2 знака).
 String formatCurrency(num value) => GtFormatters.formatCurrency(value);
 
+/// Алиас для форматирования суммы (ru_RU, 2 знака, группировка тысяч, без символа валюты).
+String formatAmount(num value) => GtFormatters.formatAmount(value);
+
 /// Алиас для форматирования дат (dd.MM.yyyy, ru_RU).
 String formatRuDate(DateTime date) => GtFormatters.formatRuDate(date);
 
@@ -523,6 +561,9 @@ String formatCompactMonthYear(DateTime date) =>
 
 /// Алиас для форматирования количества.
 String formatQuantity(num value) => GtFormatters.formatQuantity(value);
+
+/// Алиас для человекочитаемого размера файла в байтах (см. [GtFormatters.formatFileSizeBytes]).
+String formatFileSizeBytes(int bytes) => GtFormatters.formatFileSizeBytes(bytes);
 
 /// Алиас для форматирования процента.
 String formatPercentage(num value, {int decimalDigits = 0}) =>

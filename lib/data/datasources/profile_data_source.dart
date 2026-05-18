@@ -63,7 +63,10 @@ class SupabaseProfileDataSource implements ProfileDataSource {
   @override
   Future<ProfileModel?> getProfile(String userId, [String? companyId]) async {
     // Вспомогательная функция для выполнения запроса с ретраем
-    Future<dynamic> fetchWithRetry(Future<dynamic> Function() action, {int retries = 2}) async {
+    Future<dynamic> fetchWithRetry(
+      Future<dynamic> Function() action, {
+      int retries = 2,
+    }) async {
       int attempt = 0;
       while (attempt < retries) {
         try {
@@ -78,24 +81,30 @@ class SupabaseProfileDataSource implements ProfileDataSource {
 
     try {
       // 1. Получаем профиль (с ретраем)
-      final response = await fetchWithRetry(() => client
-          .from('profiles')
-          .select('*, slot_times, employees(position)')
-          .eq('id', userId)
-          .single());
+      final response = await fetchWithRetry(
+        () => client
+            .from('profiles')
+            .select('*, slot_times, employees(position)')
+            .eq('id', userId)
+            .single(),
+      );
 
       final json = Map<String, dynamic>.from(response as Map);
       final effectiveCompanyId = companyId ?? json['last_company_id'];
-      
+
       // 2. Получаем данные о членстве в компании (с ретраем)
-      if (effectiveCompanyId != null && effectiveCompanyId.toString().isNotEmpty && effectiveCompanyId.toString() != 'null') {
+      if (effectiveCompanyId != null &&
+          effectiveCompanyId.toString().isNotEmpty &&
+          effectiveCompanyId.toString() != 'null') {
         try {
-          final memberData = await fetchWithRetry(() => client
-              .from('company_members')
-              .select('role_id, system_role, is_active')
-              .eq('company_id', effectiveCompanyId.toString())
-              .eq('user_id', userId)
-              .maybeSingle());
+          final memberData = await fetchWithRetry(
+            () => client
+                .from('company_members')
+                .select('role_id, system_role, is_active')
+                .eq('company_id', effectiveCompanyId.toString())
+                .eq('user_id', userId)
+                .maybeSingle(),
+          );
 
           if (memberData != null) {
             json['role_id'] = memberData['role_id'];
@@ -113,13 +122,13 @@ class SupabaseProfileDataSource implements ProfileDataSource {
       final obj = Map<String, dynamic>.from((json['object'] ?? {}) as Map);
       final employeeId = json['employee_id'];
       if (employeeId != null) obj['employee_id'] = employeeId;
-      
+
       final employee = json['employees'];
       if (employee != null && employee is Map) {
         final position = employee['position'];
         if (position != null) json['position'] = position;
       }
-      
+
       if (slotTimes != null) {
         obj['slot_times'] = slotTimes;
         json['object'] = obj;
@@ -200,8 +209,7 @@ class SupabaseProfileDataSource implements ProfileDataSource {
       }
 
       // Сортируем по имени на стороне клиента, так как join может нарушить порядок
-      results.sort((a, b) =>
-          (a.fullName ?? '').compareTo(b.fullName ?? ''));
+      results.sort((a, b) => (a.fullName ?? '').compareTo(b.fullName ?? ''));
 
       return results;
     } catch (e) {
@@ -216,13 +224,14 @@ class SupabaseProfileDataSource implements ProfileDataSource {
       // Извлекаем slot_times из object, если переданы из UI
       final List<String>? slotTimesFromObject =
           (profile.object != null && profile.object!.containsKey('slot_times'))
-              ? (profile.object!['slot_times'] as List?)
-                  ?.map((e) => e.toString())
-                  .toList()
-              : null;
+          ? (profile.object!['slot_times'] as List?)
+                ?.map((e) => e.toString())
+                .toList()
+          : null;
 
-      final Map<String, dynamic> cleanedObject =
-          Map<String, dynamic>.from(profile.object ?? <String, dynamic>{});
+      final Map<String, dynamic> cleanedObject = Map<String, dynamic>.from(
+        profile.object ?? <String, dynamic>{},
+      );
       // Удаляем служебные поля из object, т.к. они хранятся в отдельных колонках
       cleanedObject.remove('slot_times');
       final String? employeeIdFromObject =
@@ -260,7 +269,8 @@ class SupabaseProfileDataSource implements ProfileDataSource {
           .maybeSingle();
 
       // Если ничего не вернулось - попробуем прочитать профиль напрямую
-      final responseData = response ??
+      final responseData =
+          response ??
           await client
               .from('profiles')
               .select('*, slot_times, employees(position)')

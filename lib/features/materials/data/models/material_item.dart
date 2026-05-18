@@ -49,6 +49,9 @@ abstract class MaterialItem with _$MaterialItem {
     /// URL файла (накладная/скан)
     String? fileUrl,
 
+    /// Привязка к одной сметной позиции (колонка `estimate_id` в `v_materials_with_usage`).
+    @JsonKey(name: 'estimate_id') String? linkedEstimateId,
+
     /// Список ID сметных позиций, к которым привязан материал
     @Default([]) List<String> estimateIds,
   }) = _MaterialItem;

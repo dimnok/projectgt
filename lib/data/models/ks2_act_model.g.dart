@@ -25,6 +25,7 @@ _Ks2ActModel _$Ks2ActModelFromJson(Map<String, dynamic> json) => _Ks2ActModel(
       ? null
       : DateTime.parse(json['updated_at'] as String),
   createdBy: json['created_by'] as String?,
+  vorId: json['vor_id'] as String?,
 );
 
 Map<String, dynamic> _$Ks2ActModelToJson(_Ks2ActModel instance) =>
@@ -41,6 +42,7 @@ Map<String, dynamic> _$Ks2ActModelToJson(_Ks2ActModel instance) =>
       'created_at': instance.createdAt?.toIso8601String(),
       'updated_at': instance.updatedAt?.toIso8601String(),
       'created_by': instance.createdBy,
+      'vor_id': instance.vorId,
     };
 
 const _$Ks2StatusEnumMap = {

@@ -15,6 +15,7 @@ import 'package:projectgt/features/contracts/presentation/widgets/contract_detai
 import 'package:projectgt/features/contracts/presentation/widgets/contract_list_shared.dart';
 import 'package:projectgt/features/contracts/presentation/widgets/contracts_list_filters_bar.dart';
 import 'package:projectgt/features/contracts/presentation/widgets/contracts_quick_actions_sidebar.dart';
+import 'package:projectgt/features/contracts/presentation/providers/contract_files_providers.dart';
 import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
 import 'package:projectgt/presentation/state/contract_state.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
@@ -204,6 +205,17 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
       onEditContract: (c) => _showContractForm(c),
       detailTopInset: detailTopInset,
       onDisplayedContractChanged: (c) {
+        final prev = _sidebarDetailContract;
+        if (prev != null && prev.id != c?.id) {
+          ref
+              .read(contractDocumentsReorderModeProvider(prev.id).notifier)
+              .state = false;
+          ref
+              .read(
+                contractDocumentDescriptionsVisibleProvider(prev.id).notifier,
+              )
+              .state = false;
+        }
         setState(() {
           _sidebarDetailContract = c;
           if (c == null) {
@@ -211,8 +223,21 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
           }
         });
       },
-      onDetailSectionChanged: (section) =>
-          setState(() => _sidebarDetailSection = section),
+      onDetailSectionChanged: (section) {
+        final c = _sidebarDetailContract;
+        if (c != null &&
+            section != ContractDetailNavigationSection.documents) {
+          ref
+              .read(contractDocumentsReorderModeProvider(c.id).notifier)
+              .state = false;
+          ref
+              .read(
+                contractDocumentDescriptionsVisibleProvider(c.id).notifier,
+              )
+              .state = false;
+        }
+        setState(() => _sidebarDetailSection = section);
+      },
       onPresentationModeChanged: (inlineDetail) {
         if (_contractsInlineDetailActive == inlineDetail) return;
         setState(() => _contractsInlineDetailActive = inlineDetail);
@@ -262,10 +287,12 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                                   ),
                             ),
                             const SizedBox(width: 12),
-                            SizedBox(
-                              width: 420,
-                              child: _buildSearchField(appearance),
-                            ),
+                            if (!_contractsInlineDetailActive) ...[
+                              SizedBox(
+                                width: 420,
+                                child: _buildSearchField(appearance),
+                              ),
+                            ],
                             const Spacer(),
                             MobileAtmosphereChromeCircleButton(
                               appearance: appearance,

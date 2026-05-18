@@ -242,23 +242,6 @@ class _ContractsListInlineDetailViewState
                 ),
                 child: LayoutBuilder(
                   builder: (innerContext, constraints) {
-                    final noteScheme = Theme.of(innerContext).colorScheme;
-                    final footnote = Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 8, 24, 26),
-                      child: Text(
-                        'Обзор строится по полям карточки договора. '
-                        'Оплату, сметы и вложения смотрите в соседних разделах навигации.',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(innerContext).textTheme.bodySmall
-                            ?.copyWith(
-                              color: noteScheme.onSurface.withValues(
-                                alpha: 0.48,
-                              ),
-                              height: 1.45,
-                            ),
-                      ),
-                    );
-
                     final expandEstimates = _detailNavSection ==
                         ContractDetailNavigationSection.estimates;
 
@@ -274,7 +257,6 @@ class _ContractsListInlineDetailViewState
                               expandEstimatesBodyToViewport: true,
                             ),
                           ),
-                          footnote,
                         ],
                       );
                     }
@@ -286,13 +268,6 @@ class _ContractsListInlineDetailViewState
                             contract: selected,
                             onEdit: () => widget.onEditContract(selected),
                             detailSectionFilter: _detailNavSection,
-                          ),
-                        ),
-                        SliverFillRemaining(
-                          hasScrollBody: false,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [const Spacer(), footnote],
                           ),
                         ),
                       ],

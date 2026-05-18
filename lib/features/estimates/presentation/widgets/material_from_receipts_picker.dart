@@ -553,10 +553,7 @@ class _MaterialFromReceiptsPickerState
         children: [
           Expanded(child: content),
           const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: footer,
-          ),
+          Padding(padding: const EdgeInsets.all(16), child: footer),
         ],
       );
     }
@@ -608,6 +605,8 @@ class _MaterialFromReceiptsPickerState
       );
       ref.invalidate(materialsGroupedListProvider);
       ref.invalidate(estimateCompletionByIdsProvider);
+      ref.invalidate(linkedMaterialsProvider(widget.estimateId));
+      ref.read(estimateLinkedMaterialTooltipsRefreshProvider.notifier).state++;
       if (mounted) {
         if (!_isKitMode) {
           Navigator.of(context).pop();
@@ -672,6 +671,8 @@ class _MaterialFromReceiptsPickerState
       );
       ref.invalidate(materialsGroupedListProvider);
       ref.invalidate(estimateCompletionByIdsProvider);
+      ref.invalidate(linkedMaterialsProvider(widget.estimateId));
+      ref.read(estimateLinkedMaterialTooltipsRefreshProvider.notifier).state++;
       if (mounted) SnackBarUtils.showSuccess(context, 'Материал отвязан');
     } catch (e) {
       if (mounted) SnackBarUtils.showError(context, 'Ошибка: $e');

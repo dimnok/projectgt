@@ -1,27 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:projectgt/features/ks2/presentation/providers/ks2_providers.dart';
-import 'package:projectgt/features/ks2/presentation/widgets/ks2_creation_sheet.dart';
-import 'package:projectgt/features/ks2/presentation/widgets/ks2_act_card.dart';
+import 'package:projectgt/features/contracts/presentation/providers/contract_ks2_providers.dart';
+import 'package:projectgt/features/contracts/presentation/widgets/contract_ks2_act_card.dart';
+import 'package:projectgt/features/contracts/presentation/widgets/contract_ks2_creation_sheet.dart';
 
-/// Нижняя шторка со списком актов КС-2 по договору.
+/// Шторка со списком актов КС-2 по договору (модуль «Договоры»).
 ///
-/// Позволяет просматривать список актов и переходить к созданию нового.
-class Ks2ActsSheet extends ConsumerWidget {
-  /// ID договора.
-  final String contractId;
+/// Не использует провайдеры и экраны модуля «Сметы».
+class ContractKs2ActsSheet extends ConsumerWidget {
+  /// Создаёт шторку со списком актов КС-2.
+  const ContractKs2ActsSheet({super.key, required this.contractId});
 
-  /// Создает шторку со списком актов.
-  const Ks2ActsSheet({super.key, required this.contractId});
+  /// Идентификатор договора.
+  final String contractId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final ks2ActsAsync = ref.watch(ks2ActsProvider(contractId));
+    final ks2ActsAsync = ref.watch(contractKs2ActsProvider(contractId));
 
     return Container(
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.85,
+        maxHeight: MediaQuery.sizeOf(context).height * 0.85,
       ),
       decoration: BoxDecoration(
         color: theme.scaffoldBackgroundColor,
@@ -54,7 +54,7 @@ class Ks2ActsSheet extends ConsumerWidget {
                 if (acts.isEmpty) {
                   return Center(
                     child: Padding(
-                      padding: const EdgeInsets.all(32.0),
+                      padding: const EdgeInsets.all(32),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         mainAxisSize: MainAxisSize.min,
@@ -63,21 +63,20 @@ class Ks2ActsSheet extends ConsumerWidget {
                               size: 64, color: theme.disabledColor),
                           const SizedBox(height: 16),
                           Text(
-                            'Актов пока нет',
+                            'Актов КС-2 пока нет',
                             style: TextStyle(
                                 color: theme.disabledColor, fontSize: 16),
                           ),
                           const SizedBox(height: 16),
                           ElevatedButton(
                             onPressed: () {
-                              Navigator.pop(
-                                  context); // Close sheet to open creation
-                              showModalBottomSheet(
+                              Navigator.pop(context);
+                              showModalBottomSheet<void>(
                                 context: context,
                                 isScrollControlled: true,
                                 useSafeArea: true,
-                                builder: (context) =>
-                                    Ks2CreationSheet(contractId: contractId),
+                                builder: (context) => ContractKs2CreationSheet(
+                                    contractId: contractId),
                               );
                             },
                             child: const Text('Сформировать первый акт'),
@@ -95,7 +94,7 @@ class Ks2ActsSheet extends ConsumerWidget {
                       const SizedBox(height: 16),
                   itemBuilder: (context, index) {
                     final act = acts[index];
-                    return Ks2ActCard(act: act);
+                    return ContractKs2ActCard(act: act);
                   },
                 );
               },
@@ -116,13 +115,13 @@ class Ks2ActsSheet extends ConsumerWidget {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () {
-                    Navigator.pop(context); // Close sheet to open creation
-                    showModalBottomSheet(
+                    Navigator.pop(context);
+                    showModalBottomSheet<void>(
                       context: context,
                       isScrollControlled: true,
                       useSafeArea: true,
                       builder: (context) =>
-                          Ks2CreationSheet(contractId: contractId),
+                          ContractKs2CreationSheet(contractId: contractId),
                     );
                   },
                   icon: const Icon(Icons.add),

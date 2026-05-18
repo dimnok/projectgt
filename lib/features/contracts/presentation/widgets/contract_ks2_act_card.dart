@@ -2,21 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/domain/entities/ks2_act.dart';
-import 'package:projectgt/features/ks2/presentation/providers/ks2_providers.dart';
+import 'package:projectgt/features/contracts/presentation/providers/contract_ks2_providers.dart';
 
-/// Виджет карточки акта КС-2.
-///
-/// Отображает основную информацию об акте: номер, дата, статус, сумма.
-class Ks2ActCard extends ConsumerWidget {
+/// Карточка акта КС-2 в модуле «Договоры» (список по договору).
+class ContractKs2ActCard extends ConsumerWidget {
   /// Акт КС-2 для отображения.
-  final Ks2Act act;
+  const ContractKs2ActCard({super.key, required this.act});
 
-  /// Создает карточку акта КС-2.
-  const Ks2ActCard({super.key, required this.act});
+  /// Акт КС-2.
+  final Ks2Act act;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final statusColor =
         act.status == Ks2Status.draft ? Colors.orange : Colors.green;
     final statusText = act.status == Ks2Status.draft ? 'Черновик' : 'Подписан';
@@ -56,6 +55,17 @@ class Ks2ActCard extends ConsumerWidget {
               'Период: ${formatRuDate(act.periodFrom)} — ${formatRuDate(act.periodTo)}',
               style: theme.textTheme.bodyMedium,
             ),
+            if (act.vorId != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                act.vorNumber != null && act.vorNumber!.trim().isNotEmpty
+                    ? 'ВОР № ${act.vorNumber!.trim()}'
+                    : 'По ведомости ВОР',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurface.withValues(alpha: 0.7),
+                ),
+              ),
+            ],
             const SizedBox(height: 8),
             const Divider(),
             const SizedBox(height: 8),
@@ -81,8 +91,11 @@ class Ks2ActCard extends ConsumerWidget {
                         context: context,
                         builder: (context) => AlertDialog(
                           title: const Text('Удалить акт?'),
-                          content: const Text(
-                              'Работы будут возвращены в список доступных для нового акта.'),
+                          content: Text(
+                            act.vorId != null
+                                ? 'Акт сформирован по ВОР. Записи журнала работ не привязаны к этому акту напрямую.'
+                                : 'Работы, привязанные к акту через журнал, будут снова доступны для включения в новый акт.',
+                          ),
                           actions: [
                             TextButton(
                                 onPressed: () => Navigator.pop(context, false),
@@ -97,7 +110,9 @@ class Ks2ActCard extends ConsumerWidget {
 
                       if (confirm == true) {
                         await ref
-                            .read(ks2ActsProvider(act.contractId).notifier)
+                            .read(
+                                contractKs2ActsProvider(act.contractId)
+                                    .notifier)
                             .deleteAct(act.id);
                       }
                     },

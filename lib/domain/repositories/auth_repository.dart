@@ -66,8 +66,5 @@ abstract class AuthRepository {
   ///
   /// [fullName] — полное ФИО пользователя.
   /// [phone] — номер телефона в формате +7-(XXX)-XXX-XXXX.
-  Future<void> updateProfile({
-    required String fullName,
-    required String phone,
-  });
+  Future<void> updateProfile({required String fullName, required String phone});
 }

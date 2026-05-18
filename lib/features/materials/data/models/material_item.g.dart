@@ -22,6 +22,7 @@ _MaterialItem _$MaterialItemFromJson(Map<String, dynamic> json) =>
       used: (json['used'] as num?)?.toDouble(),
       remaining: (json['remaining'] as num?)?.toDouble(),
       fileUrl: json['file_url'] as String?,
+      linkedEstimateId: json['estimate_id'] as String?,
       estimateIds:
           (json['estimate_ids'] as List<dynamic>?)
               ?.map((e) => e as String)
@@ -43,5 +44,6 @@ Map<String, dynamic> _$MaterialItemToJson(_MaterialItem instance) =>
       'used': instance.used,
       'remaining': instance.remaining,
       'file_url': instance.fileUrl,
+      'estimate_id': instance.linkedEstimateId,
       'estimate_ids': instance.estimateIds,
     };

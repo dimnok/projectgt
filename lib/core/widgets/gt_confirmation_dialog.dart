@@ -19,12 +19,21 @@ enum GTConfirmationType {
 ///
 /// Адаптируется под десктоп (диалог по центру) и мобильные устройства (bottom sheet).
 /// Использует системные кастомные виджеты [DesktopDialogContent] и [MobileBottomSheetContent].
+///
+/// Если заданы [emphasisText] и/или [detail], текст вопроса ([message]) отделяется от
+/// выделенного блока (имя файла, примечание) — так проще различить смысл и детали.
 class GTConfirmationDialog extends StatelessWidget {
   /// Заголовок окна.
   final String title;
 
   /// Основной текст сообщения.
   final String message;
+
+  /// Строка для выделенного блока (например имя файла). Не смешивается с [message].
+  final String? emphasisText;
+
+  /// Дополнительный текст (например примечание к документу), показывается под именем.
+  final String? detail;
 
   /// Текст кнопки подтверждения.
   final String confirmText;
@@ -40,6 +49,8 @@ class GTConfirmationDialog extends StatelessWidget {
     super.key,
     required this.title,
     required this.message,
+    this.emphasisText,
+    this.detail,
     this.confirmText = 'Подтвердить',
     this.cancelText = 'Отмена',
     this.type = GTConfirmationType.info,
@@ -52,6 +63,8 @@ class GTConfirmationDialog extends StatelessWidget {
     required BuildContext context,
     required String title,
     required String message,
+    String? emphasisText,
+    String? detail,
     String confirmText = 'Подтвердить',
     String cancelText = 'Отмена',
     GTConfirmationType type = GTConfirmationType.info,
@@ -68,6 +81,8 @@ class GTConfirmationDialog extends StatelessWidget {
           child: GTConfirmationDialog(
             title: title,
             message: message,
+            emphasisText: emphasisText,
+            detail: detail,
             confirmText: confirmText,
             cancelText: cancelText,
             type: type,
@@ -83,6 +98,8 @@ class GTConfirmationDialog extends StatelessWidget {
         builder: (context) => GTConfirmationDialog(
           title: title,
           message: message,
+          emphasisText: emphasisText,
+          detail: detail,
           confirmText: confirmText,
           cancelText: cancelText,
           type: type,
@@ -109,16 +126,9 @@ class GTConfirmationDialog extends StatelessWidget {
         break;
     }
 
-    final content = Container(
+    final content = Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Text(
-        message,
-        style: theme.textTheme.bodyLarge?.copyWith(
-          height: 1.6,
-          letterSpacing: 0.2,
-          color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
-        ),
-      ),
+      child: _buildBody(theme),
     );
 
     if (isDesktop) {
@@ -177,5 +187,115 @@ class GTConfirmationDialog extends StatelessWidget {
         child: content,
       );
     }
+  }
+
+  /// Тело диалога: либо один абзац [message], либо вопрос + карточка с файлом и примечанием.
+  Widget _buildBody(ThemeData theme) {
+    final colorScheme = theme.colorScheme;
+    final bodyStyle = theme.textTheme.bodyLarge?.copyWith(
+      height: 1.55,
+      letterSpacing: 0.15,
+      color: colorScheme.onSurface.withValues(alpha: 0.88),
+    );
+    final labelStyle = theme.textTheme.labelMedium?.copyWith(
+      color: colorScheme.onSurfaceVariant,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0.3,
+    );
+
+    final trimmedEmphasis = emphasisText?.trim();
+    final hasEmphasis = trimmedEmphasis != null && trimmedEmphasis.isNotEmpty;
+    final trimmedDetail = detail?.trim();
+    final hasDetail = trimmedDetail != null && trimmedDetail.isNotEmpty;
+
+    if (!hasEmphasis && !hasDetail) {
+      return Text(message, style: bodyStyle);
+    }
+
+    BoxDecoration cardDecoration() => BoxDecoration(
+          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: colorScheme.outline.withValues(alpha: 0.18),
+          ),
+        );
+
+    if (!hasEmphasis && hasDetail) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(message, style: bodyStyle),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: cardDecoration(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Примечание', style: labelStyle),
+                const SizedBox(height: 6),
+                Text(
+                  trimmedDetail,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    height: 1.45,
+                    color: colorScheme.onSurface.withValues(alpha: 0.75),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(message, style: bodyStyle),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: cardDecoration(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Файл', style: labelStyle),
+              const SizedBox(height: 6),
+              SelectableText(
+                trimmedEmphasis!,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  height: 1.35,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+              if (hasDetail) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Divider(
+                    height: 1,
+                    thickness: 1,
+                    color: colorScheme.outline.withValues(alpha: 0.12),
+                  ),
+                ),
+                Text('Примечание', style: labelStyle),
+                const SizedBox(height: 6),
+                Text(
+                  trimmedDetail,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    height: 1.45,
+                    color: colorScheme.onSurface.withValues(alpha: 0.72),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }

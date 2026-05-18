@@ -3,8 +3,47 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
+
+interface Body {
+  action: string;
+  contractId: string;
+  companyId: string;
+  /** Идентификатор утверждённой ВОР (обязателен для preview/create). */
+  vorId?: string | null;
+  actNumber?: string | null;
+  actDate?: string | null;
+}
+
+interface VorHeader {
+  id: string;
+  contract_id: string;
+  company_id: string;
+  status: string;
+  start_date: string;
+  end_date: string;
+}
+
+interface VorItemRow {
+  id: string;
+  estimate_item_id: string | null;
+  name: string | null;
+  unit: string | null;
+  quantity: number | string | null;
+  is_extra: boolean | null;
+  sort_order: number | null;
+}
+
+interface EstimateRow {
+  id: string;
+  price: number | string | null;
+  name: string | null;
+  unit: string | null;
+  estimate_title: string | null;
+  number: string | null;
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -14,229 +53,280 @@ serve(async (req) => {
   try {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
 
-    const { action, contractId, companyId, periodTo, actNumber, actDate } = await req.json();
+    const body = (await req.json()) as Body;
+    const { action, contractId, companyId, vorId, actNumber, actDate } = body;
 
     if (!contractId) {
       throw new Error("contractId is required");
     }
-
     if (!companyId) {
       throw new Error("companyId is required");
     }
 
-    if (action === 'preview') {
-        return await handlePreview(supabase, contractId, companyId, periodTo);
-    } else if (action === 'create') {
-        if (!actNumber || !actDate) throw new Error("actNumber and actDate are required for creation");
-        return await handleCreate(supabase, contractId, companyId, periodTo, actNumber, actDate);
-    } else {
-        throw new Error("Invalid action. Use 'preview' or 'create'");
+    const vid = typeof vorId === "string" ? vorId.trim() : "";
+    if (!vid) {
+      throw new Error("vorId is required");
     }
 
+    if (action === "preview") {
+      return await handlePreview(supabase, contractId, companyId, vid);
+    }
+    if (action === "create") {
+      if (!actNumber?.trim() || !actDate?.trim()) {
+        throw new Error("actNumber and actDate are required for creation");
+      }
+      return await handleCreate(
+        supabase,
+        contractId,
+        companyId,
+        vid,
+        actNumber.trim(),
+        actDate.trim(),
+      );
+    }
+
+    throw new Error("Invalid action. Use 'preview' or 'create'");
   } catch (error) {
-    console.error("Error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error("ks2_operations error:", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    return new Response(JSON.stringify({ error: msg }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
 
-async function handlePreview(supabase: any, contractId: string, companyId: string, periodTo: string) {
-    console.log(`Previewing KS-2 for contract ${contractId} (company ${companyId}) until ${periodTo}`);
-    const data = await calculateKs2Candidates(supabase, contractId, companyId, periodTo);
-    
-    return new Response(JSON.stringify(data), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+async function loadVorForKs2(
+  supabase: ReturnType<typeof createClient>,
+  vorId: string,
+  companyId: string,
+  contractId: string,
+): Promise<VorHeader> {
+  const { data: vor, error } = await supabase
+    .from("vors")
+    .select("id, contract_id, company_id, status, start_date, end_date")
+    .eq("id", vorId)
+    .eq("company_id", companyId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!vor) {
+    throw new Error("ВОР не найдена или нет доступа");
+  }
+  const row = vor as VorHeader;
+  if (row.contract_id !== contractId) {
+    throw new Error("ВОР не относится к выбранному договору");
+  }
+  if (row.status !== "approved") {
+    throw new Error("Акт КС-2 можно сформировать только из утверждённой ВОР");
+  }
+  return row;
 }
 
-async function handleCreate(supabase: any, contractId: string, companyId: string, periodTo: string, actNumber: string, actDate: string) {
-    console.log(`Creating KS-2 for contract ${contractId} (company ${companyId})`);
-    
-    // 1. Recalculate candidates to ensure consistency (double-check limits)
-    const { candidates, totalAmount } = await calculateKs2Candidates(supabase, contractId, companyId, periodTo);
+async function assertNoExistingActForVor(
+  supabase: ReturnType<typeof createClient>,
+  vorId: string,
+  companyId: string,
+) {
+  const { data: existing, error } = await supabase
+    .from("ks2_acts")
+    .select("id")
+    .eq("vor_id", vorId)
+    .eq("company_id", companyId)
+    .maybeSingle();
 
-    if (candidates.length === 0) {
-        throw new Error("No eligible work items found for KS-2");
-    }
-
-    const candidateIds = candidates.map((c: any) => c.id);
-
-    // 2. Create Act
-    const dates = candidates.map((c: any) => new Date(c.date).getTime());
-    const minDate = new Date(Math.min(...dates));
-    const maxDate = new Date(Math.max(...dates));
-
-    const { data: act, error: actError } = await supabase
-        .from('ks2_acts')
-        .insert({
-            contract_id: contractId,
-            company_id: companyId, // Added
-            number: actNumber,
-            date: actDate,
-            period_from: minDate.toISOString(),
-            period_to: maxDate.toISOString(),
-            total_amount: totalAmount,
-            status: 'draft'
-        })
-        .select()
-        .single();
-
-    if (actError) throw actError;
-
-    // 3. Link items to Act
-    const { error: updateError } = await supabase
-        .from('work_items')
-        .update({ ks2_id: act.id })
-        .in('id', candidateIds)
-        .eq('company_id', companyId); // Safety filter
-
-    if (updateError) {
-        // Rollback act creation if update fails
-        await supabase.from('ks2_acts').delete().eq('id', act.id).eq('company_id', companyId);
-        throw updateError;
-    }
-
-    return new Response(JSON.stringify({ success: true, actId: act.id, itemsCount: candidates.length }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+  if (error) throw error;
+  if (existing) {
+    throw new Error("По этой ВОР уже создан акт КС-2");
+  }
 }
 
-async function calculateKs2Candidates(supabase: any, contractId: string, companyId: string, periodTo: string) {
-    // 1. Get all Estimates for Contract (Limits)
-    const { data: estimates, error: estError } = await supabase
-        .from('estimates')
-        .select('id, quantity, unit, price')
-        .eq('contract_id', contractId)
-        .eq('company_id', companyId); // Added
-    
-    if (estError) throw estError;
-
-    if (!estimates || estimates.length === 0) {
-        return { candidates: [], skipped: [], totalAmount: 0, stats: { candidatesCount: 0, skippedCount: 0 } };
-    }
-
-    // Map: estimate_id -> { limit, price }
-    const estimateLimits = new Map();
-    estimates.forEach((e: any) => {
-        estimateLimits.set(e.id, { 
-            limit: Number(e.quantity) || 0,
-            price: Number(e.price) || 0
-        });
-    });
-
-    // 2. Get Historical Usage (Items already closed in previous KS-2)
-    const { data: closedItems, error: closedError } = await supabase
-        .from('work_items')
-        .select('estimate_id, quantity')
-        .not('ks2_id', 'is', null) // Closed
-        .eq('company_id', companyId) // Added
-        .in('estimate_id', estimates.map((e: any) => e.id));
-
-    if (closedError) throw closedError;
-
-    const closedUsage = new Map();
-    if (closedItems) {
-        closedItems.forEach((i: any) => {
-            const current = closedUsage.get(i.estimate_id) || 0;
-            closedUsage.set(i.estimate_id, current + Number(i.quantity));
-        });
-    }
-
-    // 3. Get Open Candidates (Items without KS-2, up to periodTo)
-    let query = supabase
-        .from('work_items')
-        .select(`
-            id, 
-            estimate_id, 
-            quantity, 
-            name, 
-            unit, 
-            price, 
-            works!inner(date)
-        `)
-        .is('ks2_id', null)
-        .eq('company_id', companyId) // Added
-        .in('estimate_id', estimates.map((e: any) => e.id));
-    
-    if (periodTo) {
-        query = query.lte('works.date', periodTo);
-    }
-    
-    const { data: openItems, error: openError } = await query.order('works(date)', { ascending: true });
-
-    if (openError) throw openError;
-
-    // 4. Filter Logic (The Vacuum)
-    const candidates = [];
-    const skipped = [];
-    const currentUsage = new Map(); // Track usage within this generation session
-
-    // Initialize current usage with closed usage
-    estimateLimits.forEach((val, key) => {
-        currentUsage.set(key, closedUsage.get(key) || 0);
-    });
-
-    let totalAmount = 0;
-
-    for (const item of openItems) {
-        const estId = item.estimate_id;
-        const limitInfo = estimateLimits.get(estId);
-        
-        if (!limitInfo) {
-            skipped.push({ ...item, reason: 'No estimate' });
-            continue;
-        }
-
-        const limit = limitInfo.limit;
-        const used = currentUsage.get(estId);
-        const itemQty = Number(item.quantity);
-        
-        // Check if item fits
-        // Strict atomic check: We only take the item if it fully fits or if we allow splitting (not implemented yet)
-        // User asked for "Simple and Reliable". Atomic is simplest.
-        // But what if we have a big item 100, and limit 99? It will hang forever.
-        // However, usually daily reports are small.
-        // Let's implement ATOMIC logic first.
-        
-        if (used + itemQty <= limit) {
-            // Fits!
-            const price = item.price || limitInfo.price || 0;
-            const amount = itemQty * price;
-            
-            candidates.push({
-                id: item.id,
-                name: item.name,
-                unit: item.unit,
-                quantity: itemQty,
-                price: price,
-                amount: amount,
-                date: item.works?.date
-            });
-            
-            currentUsage.set(estId, used + itemQty);
-            totalAmount += amount;
-        } else {
-            // Does not fit
-            skipped.push({ 
-                ...item, 
-                reason: `Limit exceeded. Limit: ${limit}, Used: ${used}, Item: ${itemQty}` 
-            });
-        }
-    }
-
-    return {
-        candidates,
-        skipped,
-        totalAmount,
-        stats: {
-            candidatesCount: candidates.length,
-            skippedCount: skipped.length
-        }
-    };
+function toNum(v: number | string | null | undefined): number {
+  if (v == null) return 0;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : 0;
 }
 
+async function buildPreviewPayload(
+  supabase: ReturnType<typeof createClient>,
+  vorId: string,
+) {
+  const { data: itemsRaw, error: itemsError } = await supabase
+    .from("vor_items")
+    .select("id, estimate_item_id, name, unit, quantity, is_extra, sort_order")
+    .eq("vor_id", vorId)
+    .order("sort_order", { ascending: true });
+
+  if (itemsError) throw itemsError;
+  const items = (itemsRaw ?? []) as VorItemRow[];
+
+  const estimateIds = [
+    ...new Set(
+      items
+        .map((i) => i.estimate_item_id)
+        .filter((x): x is string => typeof x === "string" && x.length > 0),
+    ),
+  ];
+
+  const estimatesMap = new Map<string, EstimateRow>();
+  if (estimateIds.length > 0) {
+    const { data: estRows, error: estErr } = await supabase
+      .from("estimates")
+      .select("id, price, name, unit, estimate_title, number")
+      .in("id", estimateIds);
+    if (estErr) throw estErr;
+    for (const e of (estRows ?? []) as EstimateRow[]) {
+      estimatesMap.set(e.id, e);
+    }
+  }
+
+  const candidates: Record<string, unknown>[] = [];
+  const skipped: Record<string, unknown>[] = [];
+
+  for (const row of items) {
+    const isExtra = row.is_extra === true;
+    if (isExtra) {
+      skipped.push({
+        vorItemId: row.id,
+        estimateId: row.estimate_item_id,
+        name: row.name,
+        unit: row.unit,
+        quantity: toNum(row.quantity),
+        reason: "Превышение сметы — в акт КС-2 не включается",
+      });
+      continue;
+    }
+
+    const estId = row.estimate_item_id;
+    if (!estId) {
+      skipped.push({
+        vorItemId: row.id,
+        name: row.name,
+        quantity: toNum(row.quantity),
+        reason: "Нет привязки к позиции сметы",
+      });
+      continue;
+    }
+
+    const est = estimatesMap.get(estId);
+    const price = toNum(est?.price);
+    const qty = toNum(row.quantity);
+    const name = (row.name ?? est?.name ?? "").trim() || "—";
+    const unit = (row.unit ?? est?.unit ?? "").trim() || "—";
+    const amount = qty * price;
+
+    const sectionTitle = ((est?.estimate_title ?? "") as string).trim() ||
+      "—";
+
+    const estimateNumber = ((est?.number ?? "") as string).trim() || "—";
+
+    candidates.push({
+      vorItemId: row.id,
+      estimateId: estId,
+      estimateNumber,
+      name,
+      unit,
+      quantity: qty,
+      price,
+      amount,
+      sectionTitle,
+      sortOrder: toNum(row.sort_order),
+    });
+  }
+
+  candidates.sort((a, b) => {
+    const sa = String(a.sectionTitle ?? "");
+    const sb = String(b.sectionTitle ?? "");
+    if (sa !== sb) return sa.localeCompare(sb, "ru");
+    const oa = toNum(a.sortOrder as number | string | null | undefined);
+    const ob = toNum(b.sortOrder as number | string | null | undefined);
+    if (oa !== ob) return oa - ob;
+    const nc = String(a.estimateNumber ?? "").localeCompare(
+      String(b.estimateNumber ?? ""),
+      "ru",
+      { numeric: true },
+    );
+    if (nc !== 0) return nc;
+    return String(a.name ?? "").localeCompare(String(b.name ?? ""), "ru");
+  });
+
+  const totalAmount = candidates.reduce(
+    (s, c) => s + toNum(c.amount as number),
+    0,
+  );
+
+  return {
+    candidates,
+    skipped,
+    totalAmount,
+    stats: {
+      candidatesCount: candidates.length,
+      skippedCount: skipped.length,
+    },
+  };
+}
+
+async function handlePreview(
+  supabase: ReturnType<typeof createClient>,
+  contractId: string,
+  companyId: string,
+  vorId: string,
+) {
+  await loadVorForKs2(supabase, vorId, companyId, contractId);
+  const payload = await buildPreviewPayload(supabase, vorId);
+
+  return new Response(JSON.stringify(payload), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+async function handleCreate(
+  supabase: ReturnType<typeof createClient>,
+  contractId: string,
+  companyId: string,
+  vorId: string,
+  number: string,
+  actDateIso: string,
+) {
+  const vor = await loadVorForKs2(supabase, vorId, companyId, contractId);
+  await assertNoExistingActForVor(supabase, vorId, companyId);
+
+  const payload = await buildPreviewPayload(supabase, vorId);
+  if (payload.candidates.length === 0) {
+    throw new Error(
+      "Нет строк ВОР для акта (все позиции — превышение сметы или без сметы)",
+    );
+  }
+
+  const { data: act, error: actError } = await supabase
+    .from("ks2_acts")
+    .insert({
+      contract_id: contractId,
+      company_id: companyId,
+      vor_id: vorId,
+      number,
+      date: actDateIso,
+      period_from: vor.start_date,
+      period_to: vor.end_date,
+      total_amount: payload.totalAmount,
+      status: "draft",
+    })
+    .select()
+    .single();
+
+  if (actError) throw actError;
+
+  return new Response(
+    JSON.stringify({
+      success: true,
+      actId: act.id as string,
+      itemsCount: payload.candidates.length,
+    }),
+    {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    },
+  );
+}

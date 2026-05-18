@@ -31,5 +31,9 @@ abstract class Ks2Act with _$Ks2Act {
     DateTime? createdAt,
     DateTime? updatedAt,
     String? createdBy,
+    /// Утверждённая ВОР, из которой сформирован акт (один акт на одну ВОР).
+    String? vorId,
+    /// Номер ВОР для отображения (подгружается join’ом, не хранится отдельно в [ks2_acts]).
+    String? vorNumber,
   }) = _Ks2Act;
 }

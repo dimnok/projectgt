@@ -15,20 +15,27 @@ class Ks2RepositoryImpl implements Ks2Repository {
   Future<List<Ks2Act>> getActs(String contractId) async {
     final response = await _supabase
         .from('ks2_acts')
-        .select()
+        .select('*, vors(number)')
         .eq('contract_id', contractId)
         .eq('company_id', _activeCompanyId)
-        .order('date', ascending: false); // Свежие сверху
+        .order('date', ascending: false);
 
-    return (response as List)
-        .map((json) => Ks2ActModel.fromJson(json).toDomain())
-        .toList();
+    return (response as List).map((raw) {
+      final row = Map<String, dynamic>.from(raw as Map<String, dynamic>);
+      final nested = row.remove('vors');
+      String? vorNumber;
+      if (nested is Map<String, dynamic> && nested['number'] != null) {
+        vorNumber = nested['number'].toString();
+      }
+      final model = Ks2ActModel.fromJson(row);
+      return model.toDomain().copyWith(vorNumber: vorNumber);
+    }).toList();
   }
 
   @override
   Future<Ks2PreviewData> previewAct({
     required String contractId,
-    required DateTime periodTo,
+    required String vorId,
   }) async {
     final response = await _supabase.functions.invoke(
       'ks2_operations',
@@ -36,21 +43,25 @@ class Ks2RepositoryImpl implements Ks2Repository {
         'action': 'preview',
         'contractId': contractId,
         'companyId': _activeCompanyId,
-        'periodTo': periodTo.toIso8601String(),
+        'vorId': vorId,
       },
     );
 
     if (response.status != 200) {
-      throw Exception('Failed to preview KS-2: ${response.data}');
+      final d = response.data;
+      if (d is Map && d['error'] != null) {
+        throw Exception(d['error'].toString());
+      }
+      throw Exception('Не удалось получить превью КС-2: ${response.data}');
     }
 
-    return Ks2PreviewData.fromJson(response.data);
+    return Ks2PreviewData.fromJson(response.data as Map<String, dynamic>);
   }
 
   @override
   Future<void> createAct({
     required String contractId,
-    required DateTime periodTo,
+    required String vorId,
     required String number,
     required DateTime date,
   }) async {
@@ -60,27 +71,29 @@ class Ks2RepositoryImpl implements Ks2Repository {
         'action': 'create',
         'contractId': contractId,
         'companyId': _activeCompanyId,
-        'periodTo': periodTo.toIso8601String(),
+        'vorId': vorId,
         'actNumber': number,
         'actDate': date.toIso8601String(),
       },
     );
 
     if (response.status != 200) {
-      throw Exception('Failed to create KS-2: ${response.data}');
+      final d = response.data;
+      if (d is Map && d['error'] != null) {
+        throw Exception(d['error'].toString());
+      }
+      throw Exception('Не удалось создать КС-2: ${response.data}');
     }
   }
 
   @override
   Future<void> deleteAct(String actId) async {
-    // 1. Сначала отвязываем работы (возвращаем их в пул доступных)
     await _supabase
         .from('work_items')
         .update({'ks2_id': null})
         .eq('ks2_id', actId)
         .eq('company_id', _activeCompanyId);
 
-    // 2. Затем удаляем сам акт
     await _supabase
         .from('ks2_acts')
         .delete()

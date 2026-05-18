@@ -95,234 +95,213 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
             bottom: 12,
             width: 350,
             child: AnimatedOpacity(
-                    duration: const Duration(milliseconds: 400),
-                    opacity: isSidebarVisible ? 1.0 : 0.0,
-                    curve: Curves.easeInOut,
-                    child: AnimatedScale(
-                      duration: const Duration(milliseconds: 400),
-                      scale: isSidebarVisible ? 1.0 : 0.95,
-                      curve: Curves.easeInOut,
-                      child: _selectedHistoryEstimate != null
-                          ? EstimateCompletionHistoryPanel(
-                              estimate: _selectedHistoryEstimate!,
-                              completedQuantity:
-                                  _displayedCompletion?[_selectedHistoryEstimate!
-                                          .id]
-                                      ?.completedQuantity,
-                              onClose: () => setState(
-                                () => _selectedHistoryEstimate = null,
-                              ),
-                            )
-                          : Container(
-                              decoration: BoxDecoration(
-                                color: isDark ? Colors.grey[900] : Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: isDark
-                                      ? Colors.grey[800]!
-                                      : Colors.grey[300]!,
+              duration: const Duration(milliseconds: 400),
+              opacity: isSidebarVisible ? 1.0 : 0.0,
+              curve: Curves.easeInOut,
+              child: AnimatedScale(
+                duration: const Duration(milliseconds: 400),
+                scale: isSidebarVisible ? 1.0 : 0.95,
+                curve: Curves.easeInOut,
+                child: _selectedHistoryEstimate != null
+                    ? EstimateCompletionHistoryPanel(
+                        estimate: _selectedHistoryEstimate!,
+                        completedQuantity:
+                            _displayedCompletion?[_selectedHistoryEstimate!.id]
+                                ?.completedQuantity,
+                        onClose: () =>
+                            setState(() => _selectedHistoryEstimate = null),
+                      )
+                    : Container(
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.grey[900] : Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isDark
+                                ? Colors.grey[800]!
+                                : Colors.grey[300]!,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.08),
+                              blurRadius: 20,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: PermissionGuard(
+                                module: 'estimates',
+                                permission: 'import',
+                                child: SizedBox(
+                                  width: double.infinity,
+                                  child: GTPrimaryButton(
+                                    text: 'Импорт сметы',
+                                    icon: CupertinoIcons.arrow_up_doc,
+                                    onPressed: () =>
+                                        _showImportEstimateBottomSheet(context),
+                                  ),
                                 ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.08),
-                                    blurRadius: 20,
-                                    offset: const Offset(0, 8),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.all(16.0),
-                                    child: PermissionGuard(
-                                      module: 'estimates',
-                                      permission: 'import',
-                                      child: SizedBox(
-                                        width: double.infinity,
-                                        child: GTPrimaryButton(
-                                          text: 'Импорт сметы',
-                                          icon: CupertinoIcons.arrow_up_doc,
-                                          onPressed: () =>
-                                              _showImportEstimateBottomSheet(
-                                                context,
-                                              ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: groupsAsync.when(
-                                      data: (groupedEstimates) {
-                                        if (groupedEstimates.isEmpty) {
-                                          return const Center(
-                                            child: Text('Сметы не найдены'),
-                                          );
-                                        }
-                                        return ClipRRect(
-                                          borderRadius: BorderRadius.circular(
-                                            16,
-                                          ),
-                                          child: ListView(
-                                            children: [
-                                              for (final objectEntry
-                                                  in groupedEstimates
-                                                      .entries) ...[
-                                                _ObjectGroupHeader(
-                                                  name: objectEntry.key,
-                                                  total: objectEntry
-                                                      .value
-                                                      .values
-                                                      .expand((files) => files)
-                                                      .fold(
-                                                        0.0,
-                                                        (sum, file) =>
-                                                            sum + file.total,
-                                                      ),
-                                                  isExpanded:
-                                                      _expandedObjects[objectEntry
-                                                          .key] ??
-                                                      false,
-                                                  onTap: () => setState(() {
-                                                    _expandedObjects[objectEntry
-                                                            .key] =
-                                                        !(_expandedObjects[objectEntry
-                                                                .key] ??
-                                                            false);
-                                                  }),
-                                                ),
-                                                if (_expandedObjects[objectEntry
-                                                        .key] ??
-                                                    false)
-                                                  for (final contractEntry
-                                                      in objectEntry
-                                                          .value
-                                                          .entries) ...[
-                                                    _ContractGroupHeader(
-                                                      number: contractEntry.key,
-                                                      total: contractEntry.value
-                                                          .fold(
-                                                            0.0,
-                                                            (sum, file) =>
-                                                                sum +
-                                                                file.total,
-                                                          ),
-                                                      isExpanded:
-                                                          _expandedContracts['${objectEntry.key}_${contractEntry.key}'] ??
-                                                          false,
-                                                      onTap: () => setState(() {
-                                                        _expandedContracts['${objectEntry.key}_${contractEntry.key}'] =
-                                                            !(_expandedContracts['${objectEntry.key}_${contractEntry.key}'] ??
-                                                                false);
-                                                      }),
-                                                      onActsTap: () => setState(
-                                                        () {
-                                                          _isContractDetailMode =
-                                                              true;
-                                                          _contractViewMode =
-                                                              ContractViewMode
-                                                                  .acts;
-                                                          _selectedContractId =
-                                                              contractEntry
-                                                                  .value
-                                                                  .firstOrNull
-                                                                  ?.contractId;
-                                                          _selectedEstimateFile =
-                                                              null;
-                                                        },
-                                                      ),
-                                                    ),
-                                                    if (_expandedContracts['${objectEntry.key}_${contractEntry.key}'] ??
-                                                        false)
-                                                      ...contractEntry.value.map((
-                                                        file,
-                                                      ) {
-                                                        final isSelected =
-                                                            _selectedEstimateFile
-                                                                    ?.estimateTitle ==
-                                                                file.estimateTitle &&
-                                                            _selectedEstimateFile
-                                                                    ?.objectId ==
-                                                                file.objectId &&
-                                                            _selectedEstimateFile
-                                                                    ?.contractId ==
-                                                                file.contractId;
-
-                                                        return _EstimateListTile(
-                                                          file: file,
-                                                          isSelected:
-                                                              isSelected,
-                                                          canDelete: canDelete,
-                                                          onTap: () {
-                                                            setState(() {
-                                                              _selectedEstimateFile =
-                                                                  file;
-                                                              _selectedHistoryEstimate =
-                                                                  null;
-                                                              _isContractDetailMode =
-                                                                  false;
-                                                            });
-                                                          },
-                                                          onDelete: () =>
-                                                              _deleteEstimateFile(
-                                                                file,
-                                                              ),
-                                                        );
-                                                      }),
-                                                  ],
-                                              ],
-                                            ],
-                                          ),
-                                        );
-                                      },
-                                      loading: () => const Center(
-                                        child: CupertinoActivityIndicator(),
-                                      ),
-                                      error: (e, s) => Center(
-                                        child: Text('Ошибка списка: $e'),
-                                      ),
-                                    ),
-                                  ),
-                                ],
                               ),
                             ),
-                    ),
-                  ),
+                            Expanded(
+                              child: groupsAsync.when(
+                                data: (groupedEstimates) {
+                                  if (groupedEstimates.isEmpty) {
+                                    return const Center(
+                                      child: Text('Сметы не найдены'),
+                                    );
+                                  }
+                                  return ClipRRect(
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: ListView(
+                                      children: [
+                                        for (final objectEntry
+                                            in groupedEstimates.entries) ...[
+                                          _ObjectGroupHeader(
+                                            name: objectEntry.key,
+                                            total: objectEntry.value.values
+                                                .expand((files) => files)
+                                                .fold(
+                                                  0.0,
+                                                  (sum, file) =>
+                                                      sum + file.total,
+                                                ),
+                                            isExpanded:
+                                                _expandedObjects[objectEntry
+                                                    .key] ??
+                                                false,
+                                            onTap: () => setState(() {
+                                              _expandedObjects[objectEntry
+                                                      .key] =
+                                                  !(_expandedObjects[objectEntry
+                                                          .key] ??
+                                                      false);
+                                            }),
+                                          ),
+                                          if (_expandedObjects[objectEntry
+                                                  .key] ??
+                                              false)
+                                            for (final contractEntry
+                                                in objectEntry
+                                                    .value
+                                                    .entries) ...[
+                                              _ContractGroupHeader(
+                                                number: contractEntry.key,
+                                                total: contractEntry.value.fold(
+                                                  0.0,
+                                                  (sum, file) =>
+                                                      sum + file.total,
+                                                ),
+                                                isExpanded:
+                                                    _expandedContracts['${objectEntry.key}_${contractEntry.key}'] ??
+                                                    false,
+                                                onTap: () => setState(() {
+                                                  _expandedContracts['${objectEntry.key}_${contractEntry.key}'] =
+                                                      !(_expandedContracts['${objectEntry.key}_${contractEntry.key}'] ??
+                                                          false);
+                                                }),
+                                                onActsTap: () => setState(() {
+                                                  _isContractDetailMode = true;
+                                                  _contractViewMode =
+                                                      ContractViewMode.acts;
+                                                  _selectedContractId =
+                                                      contractEntry
+                                                          .value
+                                                          .firstOrNull
+                                                          ?.contractId;
+                                                  _selectedEstimateFile = null;
+                                                }),
+                                              ),
+                                              if (_expandedContracts['${objectEntry.key}_${contractEntry.key}'] ??
+                                                  false)
+                                                ...contractEntry.value.map((
+                                                  file,
+                                                ) {
+                                                  final isSelected =
+                                                      _selectedEstimateFile
+                                                              ?.estimateTitle ==
+                                                          file.estimateTitle &&
+                                                      _selectedEstimateFile
+                                                              ?.objectId ==
+                                                          file.objectId &&
+                                                      _selectedEstimateFile
+                                                              ?.contractId ==
+                                                          file.contractId;
+
+                                                  return _EstimateListTile(
+                                                    file: file,
+                                                    isSelected: isSelected,
+                                                    canDelete: canDelete,
+                                                    onTap: () {
+                                                      setState(() {
+                                                        _selectedEstimateFile =
+                                                            file;
+                                                        _selectedHistoryEstimate =
+                                                            null;
+                                                        _isContractDetailMode =
+                                                            false;
+                                                      });
+                                                    },
+                                                    onDelete: () =>
+                                                        _deleteEstimateFile(
+                                                          file,
+                                                        ),
+                                                  );
+                                                }),
+                                            ],
+                                        ],
+                                      ],
+                                    ),
+                                  );
+                                },
+                                loading: () => const Center(
+                                  child: CupertinoActivityIndicator(),
+                                ),
+                                error: (e, s) =>
+                                    Center(child: Text('Ошибка списка: $e')),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+              ),
+            ),
           ),
 
-                // 2. Основная область (таблица)
-                AnimatedPositioned(
-                  duration: const Duration(milliseconds: 400),
-                  curve: Curves.easeInOutCubic,
-                  left: isSidebarVisible ? 374 : 12,
-                  right: 12,
-                  top: 12,
-                  bottom: 12,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surface,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: isSidebarVisible
-                          ? null
-                          : [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.1),
-                                blurRadius: 12,
-                                offset: const Offset(-4, 0),
-                              ),
-                            ],
-                    ),
-                    child: _isContractDetailMode
-                        ? _buildContractDetailPanel(context)
-                        : (_selectedEstimateFile == null
-                              ? _EmptyDesktopSelection(theme: theme)
-                              : _buildDetailPanel(
-                                  context,
-                                  _selectedEstimateFile!,
-                                )),
-                  ),
-                ),
-              ],
+          // 2. Основная область (таблица)
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeInOutCubic,
+            left: isSidebarVisible ? 374 : 12,
+            right: 12,
+            top: 12,
+            bottom: 12,
+            child: Container(
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: isSidebarVisible
+                    ? null
+                    : [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 12,
+                          offset: const Offset(-4, 0),
+                        ),
+                      ],
+              ),
+              child: _isContractDetailMode
+                  ? _buildContractDetailPanel(context)
+                  : (_selectedEstimateFile == null
+                        ? _EmptyDesktopSelection(theme: theme)
+                        : _buildDetailPanel(context, _selectedEstimateFile!)),
             ),
+          ),
+        ],
+      ),
     );
   }
 

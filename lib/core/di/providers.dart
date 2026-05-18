@@ -57,6 +57,17 @@ import 'package:projectgt/domain/repositories/contract_file_repository.dart';
 import 'package:projectgt/domain/usecases/contract/get_contract_files_usecase.dart';
 import 'package:projectgt/domain/usecases/contract/upload_contract_file_usecase.dart';
 import 'package:projectgt/domain/usecases/contract/delete_contract_file_usecase.dart';
+import 'package:projectgt/domain/usecases/contract/bulk_update_contract_files_document_status_usecase.dart';
+import 'package:projectgt/domain/usecases/contract/update_contract_file_metadata_usecase.dart';
+import 'package:projectgt/domain/usecases/contract/reorder_contract_files_usecase.dart';
+import 'package:projectgt/data/datasources/contract_act_data_source.dart';
+import 'package:projectgt/data/datasources/supabase_contract_act_data_source.dart';
+import 'package:projectgt/data/repositories/contract_act_repository_impl.dart';
+import 'package:projectgt/domain/repositories/contract_act_repository.dart';
+import 'package:projectgt/domain/usecases/contract/create_contract_act_usecase.dart';
+import 'package:projectgt/domain/usecases/contract/delete_contract_act_usecase.dart';
+import 'package:projectgt/domain/usecases/contract/get_contract_acts_usecase.dart';
+import 'package:projectgt/domain/usecases/contract/update_contract_act_usecase.dart';
 import 'package:projectgt/data/datasources/estimate_data_source.dart';
 import 'package:projectgt/data/repositories/estimate_repository_impl.dart';
 import 'package:projectgt/domain/repositories/estimate_repository.dart';
@@ -157,6 +168,12 @@ final contractFileDataSourceProvider = Provider<ContractFileDataSource>((ref) {
   return SupabaseContractFileDataSource(client, activeCompanyId ?? '');
 });
 
+/// Провайдер для [ContractActDataSource].
+final contractActDataSourceProvider = Provider<ContractActDataSource>((ref) {
+  final client = ref.watch(supabaseClientProvider);
+  return SupabaseContractActDataSource(client);
+});
+
 /// Провайдер для EstimateDataSource (Supabase).
 final estimateDataSourceProvider = Provider<EstimateDataSource>((ref) {
   final client = ref.watch(supabaseClientProvider);
@@ -217,6 +234,13 @@ final contractRepositoryProvider = Provider<ContractRepository>((ref) {
 final contractFileRepositoryProvider = Provider<ContractFileRepository>((ref) {
   final dataSource = ref.watch(contractFileDataSourceProvider);
   return ContractFileRepositoryImpl(dataSource);
+});
+
+/// Провайдер репозитория актов по договору.
+final contractActRepositoryProvider = Provider<ContractActRepository>((ref) {
+  final dataSource = ref.watch(contractActDataSourceProvider);
+  final activeCompanyId = ref.watch(activeCompanyIdProvider);
+  return ContractActRepositoryImpl(dataSource, activeCompanyId ?? '');
 });
 
 /// Провайдер репозитория смет.
@@ -422,6 +446,33 @@ final deleteContractUseCaseProvider = Provider<DeleteContractUseCase>((ref) {
   return DeleteContractUseCase(repository);
 });
 
+/// Провайдер use-case получения актов по договору.
+final getContractActsUseCaseProvider = Provider<GetContractActsUseCase>((ref) {
+  final repository = ref.watch(contractActRepositoryProvider);
+  return GetContractActsUseCase(repository);
+});
+
+/// Провайдер use-case создания акта по договору.
+final createContractActUseCaseProvider =
+    Provider<CreateContractActUseCase>((ref) {
+  final repository = ref.watch(contractActRepositoryProvider);
+  return CreateContractActUseCase(repository);
+});
+
+/// Провайдер use-case обновления акта по договору.
+final updateContractActUseCaseProvider =
+    Provider<UpdateContractActUseCase>((ref) {
+  final repository = ref.watch(contractActRepositoryProvider);
+  return UpdateContractActUseCase(repository);
+});
+
+/// Провайдер use-case удаления акта по договору.
+final deleteContractActUseCaseProvider =
+    Provider<DeleteContractActUseCase>((ref) {
+  final repository = ref.watch(contractActRepositoryProvider);
+  return DeleteContractActUseCase(repository);
+});
+
 /// Провайдер use-case получения файлов договора.
 final getContractFilesUseCaseProvider = Provider<GetContractFilesUseCase>((
   ref,
@@ -444,6 +495,27 @@ final deleteContractFileUseCaseProvider = Provider<DeleteContractFileUseCase>((
 ) {
   final repository = ref.watch(contractFileRepositoryProvider);
   return DeleteContractFileUseCase(repository);
+});
+
+/// Провайдер use-case обновления метаданных файла договора.
+final updateContractFileMetadataUseCaseProvider =
+    Provider<UpdateContractFileMetadataUseCase>((ref) {
+  final repository = ref.watch(contractFileRepositoryProvider);
+  return UpdateContractFileMetadataUseCase(repository);
+});
+
+/// Провайдер use-case массовой смены статуса файлов договора.
+final bulkUpdateContractFilesDocumentStatusUseCaseProvider =
+    Provider<BulkUpdateContractFilesDocumentStatusUseCase>((ref) {
+  final repository = ref.watch(contractFileRepositoryProvider);
+  return BulkUpdateContractFilesDocumentStatusUseCase(repository);
+});
+
+/// Провайдер use-case изменения порядка файлов договора.
+final reorderContractFilesUseCaseProvider =
+    Provider<ReorderContractFilesUseCase>((ref) {
+  final repository = ref.watch(contractFileRepositoryProvider);
+  return ReorderContractFilesUseCase(repository);
 });
 
 // UseCases - Estimate

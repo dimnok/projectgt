@@ -5,17 +5,16 @@ abstract class Ks2Repository {
   /// Получает список актов КС-2 по договору.
   Future<List<Ks2Act>> getActs(String contractId);
 
-  /// Предварительный расчет акта КС-2 (Preview).
-  /// Возвращает данные о том, какие работы войдут в акт и общую сумму.
+  /// Предварительный расчёт акта КС-2 по утверждённой ВОР (только строки без превышения сметы).
   Future<Ks2PreviewData> previewAct({
     required String contractId,
-    required DateTime periodTo,
+    required String vorId,
   });
 
-  /// Создает акт КС-2 и привязывает к нему работы.
+  /// Создаёт акт КС-2 и привязывает его к ВОР (один акт на одну ВОР).
   Future<void> createAct({
     required String contractId,
-    required DateTime periodTo,
+    required String vorId,
     required String number,
     required DateTime date,
   });
@@ -29,10 +28,10 @@ class Ks2PreviewData {
   /// Общая сумма акта.
   final double totalAmount;
 
-  /// Количество позиций (работ) в акте.
+  /// Количество позиций (строк ВОР), попадающих в акт.
   final int itemsCount;
 
-  /// Количество пропущенных позиций (например, уже в других актах).
+  /// Количество строк ВОР, не попавших в акт (превышение сметы и т.п.).
   final int skippedCount;
 
   /// Список кандидатов (работ) для включения в акт.

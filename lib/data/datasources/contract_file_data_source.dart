@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:projectgt/data/models/contract_file_model.dart';
+import 'package:projectgt/domain/entities/contract_document_status.dart';
 
 /// Абстрактный интерфейс для работы с файлами договоров.
 ///
@@ -9,8 +10,8 @@ import 'package:projectgt/data/models/contract_file_model.dart';
 abstract class ContractFileDataSource {
   /// Получает список всех файлов для указанного договора.
   ///
-  /// Возвращает список файлов, отсортированный по дате создания
-  /// (от новых к старым).
+  /// Возвращает список файлов, отсортированный по [display_order], затем по дате создания
+  /// (при равном порядке — сначала более новые).
   ///
   /// [contractId] - идентификатор договора.
   ///
@@ -25,6 +26,7 @@ abstract class ContractFileDataSource {
   /// [contractId] - идентификатор договора.
   /// [file] - файл для загрузки.
   /// [fileName] - оригинальное имя файла для отображения в UI.
+  /// [description] - краткое описание файла.
   ///
   /// Возвращает [ContractFileModel] с метаданными загруженного файла.
   ///
@@ -33,6 +35,7 @@ abstract class ContractFileDataSource {
     required String contractId,
     required File file,
     required String fileName,
+    String? description,
   });
 
   /// Удаляет файл по его идентификатору.
@@ -45,6 +48,25 @@ abstract class ContractFileDataSource {
   /// Выбрасывает исключение при ошибке удаления.
   Future<void> deleteFile(String fileId, String filePath);
 
+  /// Обновляет в БД имя и описание файла (без замены объекта в Storage).
+  ///
+  /// [type] (MIME) выставляется по расширению из [name].
+  /// Не переданные поля [documentStatus], [documentVersion], [isAmendment] не меняются.
+  Future<ContractFileModel> updateFileMetadata({
+    required String fileId,
+    required String name,
+    String? description,
+    ContractDocumentStatus? documentStatus,
+    int? documentVersion,
+    bool? isAmendment,
+  });
+
+  /// Массово выставляет [document_status] для списка файлов.
+  Future<void> updateDocumentStatusForFileIds({
+    required List<String> fileIds,
+    required ContractDocumentStatus status,
+  });
+
   /// Скачивает файл как массив байтов.
   ///
   /// [filePath] - путь к файлу в хранилище.
@@ -53,6 +75,14 @@ abstract class ContractFileDataSource {
   ///
   /// Выбрасывает исключение при ошибке скачивания.
   Future<List<int>> downloadFile(String filePath);
+
+  /// Сохраняет порядок отображения файлов договора.
+  ///
+  /// [orderedFileIds] — идентификаторы в желаемом порядке (индекс 0 = первый в списке UI).
+  Future<void> updateDisplayOrdersForContract({
+    required String contractId,
+    required List<String> orderedFileIds,
+  });
 }
 
 /// Реализация [ContractFileDataSource] на основе Supabase.
@@ -79,6 +109,7 @@ class SupabaseContractFileDataSource implements ContractFileDataSource {
         .select('*')
         .eq('contract_id', contractId)
         .eq('company_id', activeCompanyId)
+        .order('display_order', ascending: true)
         .order('created_at', ascending: false);
 
     return (response as List)
@@ -91,14 +122,15 @@ class SupabaseContractFileDataSource implements ContractFileDataSource {
     required String contractId,
     required File file,
     required String fileName,
+    String? description,
   }) async {
     // 1. Upload to Storage
     final timestamp = DateTime.now().millisecondsSinceEpoch;
 
     // Для физического пути в Storage используем безопасное имя:
-    // заменяем пробелы на подчеркивания и кодируем спецсимволы (включая кириллицу).
-    // Это позволит браузеру корректно отобразить имя из URL, если заголовки не сработают.
-    final safeName = Uri.encodeComponent(fileName.replaceAll(' ', '_'));
+    // заменяем пробелы на подчеркивания и удаляем все не-ASCII символы, чтобы избежать ошибки InvalidKey в Supabase.
+    // Оригинальное имя с кириллицей сохраняется в БД.
+    final safeName = fileName.replaceAll(' ', '_').replaceAll(RegExp(r'[^a-zA-Z0-9_.-]'), '');
     final storagePath = '$contractId/${timestamp}_$safeName';
 
     await client.storage
@@ -117,6 +149,7 @@ class SupabaseContractFileDataSource implements ContractFileDataSource {
       'file_path': storagePath,
       'size': await file.length(),
       'type': _getContentType(fileName),
+      'description': description,
     };
 
     final response = await client
@@ -142,8 +175,71 @@ class SupabaseContractFileDataSource implements ContractFileDataSource {
   }
 
   @override
+  Future<ContractFileModel> updateFileMetadata({
+    required String fileId,
+    required String name,
+    String? description,
+    ContractDocumentStatus? documentStatus,
+    int? documentVersion,
+    bool? isAmendment,
+  }) async {
+    final payload = <String, dynamic>{
+      'name': name,
+      'type': _getContentType(name),
+      'description': description,
+    };
+    if (documentStatus != null) {
+      payload['document_status'] = documentStatus.dbValue;
+    }
+    if (documentVersion != null) {
+      payload['document_version'] = documentVersion;
+    }
+    if (isAmendment != null) {
+      payload['is_amendment'] = isAmendment;
+    }
+
+    final response = await client
+        .from('contract_files')
+        .update(payload)
+        .eq('id', fileId)
+        .eq('company_id', activeCompanyId)
+        .select()
+        .single();
+
+    return ContractFileModel.fromJson(response);
+  }
+
+  @override
+  Future<void> updateDocumentStatusForFileIds({
+    required List<String> fileIds,
+    required ContractDocumentStatus status,
+  }) async {
+    if (fileIds.isEmpty) return;
+    await client
+        .from('contract_files')
+        .update({'document_status': status.dbValue})
+        .inFilter('id', fileIds)
+        .eq('company_id', activeCompanyId);
+  }
+
+  @override
   Future<List<int>> downloadFile(String filePath) async {
     return await client.storage.from('contracts').download(filePath);
+  }
+
+  @override
+  Future<void> updateDisplayOrdersForContract({
+    required String contractId,
+    required List<String> orderedFileIds,
+  }) async {
+    for (var i = 0; i < orderedFileIds.length; i++) {
+      await client
+          .from('contract_files')
+          .update({'display_order': i})
+          .eq('id', orderedFileIds[i])
+          .eq('contract_id', contractId)
+          .eq('company_id', activeCompanyId);
+    }
   }
 
   String _getContentType(String fileName) {

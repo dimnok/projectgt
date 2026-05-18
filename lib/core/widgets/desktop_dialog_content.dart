@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 
@@ -204,35 +206,40 @@ class DesktopDialogContent extends StatelessWidget {
 
                 if (showDividers) const Divider(height: 1),
 
-                // Скроллящийся контент
-                Flexible(
-                  fit: FlexFit.loose,
-                  child: scrollable
-                      ? SingleChildScrollView(
-                          padding: padding,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [child],
-                          ),
-                        )
-                      : LayoutBuilder(
-                          builder: (context, constraints) {
-                            return SingleChildScrollView(
-                              primary: false,
-                              physics: const ClampingScrollPhysics(),
-                              child: ConstrainedBox(
-                                constraints: BoxConstraints(
-                                  minHeight: constraints.maxHeight,
-                                ),
-                                child: Padding(
-                                  padding: padding,
-                                  child: child,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                ),
+                // Длинные формы: скролл во «вьюпорте» между шапкой и подвалом.
+                // Короткие окна (подтверждения): без [Flexible] и без minHeight — высота по контенту.
+                if (scrollable)
+                  Flexible(
+                    fit: FlexFit.loose,
+                    child: SingleChildScrollView(
+                      padding: padding,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [child],
+                      ),
+                    ),
+                  )
+                else
+                  Padding(
+                    padding: padding,
+                    child: Builder(
+                      builder: (context) {
+                        // Без скролла тело часто содержит [Expanded]; при [Column] с
+                        // [mainAxisSize.min] выше приходит h<=∞ — даём конечный maxHeight.
+                        final dialogMaxH =
+                            MediaQuery.sizeOf(context).height * 0.85;
+                        const reservedForDialogHeader = 120.0;
+                        final maxMiddle = math.min(
+                          math.max(160.0, dialogMaxH - reservedForDialogHeader),
+                          dialogMaxH,
+                        );
+                        return ConstrainedBox(
+                          constraints: BoxConstraints(maxHeight: maxMiddle),
+                          child: child,
+                        );
+                      },
+                    ),
+                  ),
 
                 if (footer != null) ...[
                   if (showDividers) const Divider(height: 1),

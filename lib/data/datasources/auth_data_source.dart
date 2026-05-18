@@ -91,43 +91,43 @@ class SupabaseAuthDataSource implements AuthDataSource {
         throw Exception('Неверные учетные данные');
       }
 
-    // [RBAC v3] Получаем роль пользователя строго из контекста компании.
-    // Сначала определяем активную компанию (last_company_id), затем ищем роль в этой компании.
-    String? roleId;
-    String? systemRole;
-    try {
-      final profileData = await client
-          .from('profiles')
-          .select('last_company_id')
-          .eq('id', response.user!.id)
-          .single();
+      // [RBAC v3] Получаем роль пользователя строго из контекста компании.
+      // Сначала определяем активную компанию (last_company_id), затем ищем роль в этой компании.
+      String? roleId;
+      String? systemRole;
+      try {
+        final profileData = await client
+            .from('profiles')
+            .select('last_company_id')
+            .eq('id', response.user!.id)
+            .single();
 
-      final String? lastCompanyId = profileData['last_company_id'];
+        final String? lastCompanyId = profileData['last_company_id'];
 
-      if (lastCompanyId != null) {
-        final memberData = await client
-            .from('company_members')
-            .select('role_id, system_role')
-            .eq('company_id', lastCompanyId)
-            .eq('user_id', response.user!.id)
-            .maybeSingle();
-        
-        roleId = memberData?['role_id'];
-        systemRole = memberData?['system_role'];
+        if (lastCompanyId != null) {
+          final memberData = await client
+              .from('company_members')
+              .select('role_id, system_role')
+              .eq('company_id', lastCompanyId)
+              .eq('user_id', response.user!.id)
+              .maybeSingle();
+
+          roleId = memberData?['role_id'];
+          systemRole = memberData?['system_role'];
+        }
+      } catch (e) {
+        Logger().e('Ошибка при получении роли (login): $e');
       }
-    } catch (e) {
-      Logger().e('Ошибка при получении роли (login): $e');
-    }
 
-    return UserModel(
-      id: response.user!.id,
-      email: response.user!.email!,
-      name: response.user!.userMetadata?['name'] as String?,
-      photoUrl: response.user!.userMetadata?['photoUrl'] as String?,
-      roleId: roleId,
-      systemRole: systemRole,
-    );
-  } catch (e) {
+      return UserModel(
+        id: response.user!.id,
+        email: response.user!.email!,
+        name: response.user!.userMetadata?['name'] as String?,
+        photoUrl: response.user!.userMetadata?['photoUrl'] as String?,
+        roleId: roleId,
+        systemRole: systemRole,
+      );
+    } catch (e) {
       // Обрабатываем конкретные ошибки Supabase
       final errorMessage = e.toString();
       if (errorMessage.contains('invalid_credentials') ||
@@ -188,7 +188,9 @@ class SupabaseAuthDataSource implements AuthDataSource {
     // Если локально пользователь ещё не подхвачен, пробуем получить через API
     if (user == null) {
       try {
-        final res = await client.auth.getUser().timeout(const Duration(seconds: 15));
+        final res = await client.auth.getUser().timeout(
+          const Duration(seconds: 15),
+        );
         user = res.user;
       } catch (e) {
         // игнорируем, вернём null ниже
@@ -220,7 +222,7 @@ class SupabaseAuthDataSource implements AuthDataSource {
             .eq('user_id', user.id)
             .maybeSingle()
             .timeout(const Duration(seconds: 15));
-        
+
         roleId = memberData?['role_id'];
         systemRole = memberData?['system_role'];
       }
@@ -278,41 +280,41 @@ class SupabaseAuthDataSource implements AuthDataSource {
         throw Exception('Не удалось подтвердить код');
       }
 
-    // [RBAC v3] Получаем роль пользователя строго из контекста компании.
-    // Сначала определяем активную компанию (last_company_id), затем ищем роль в этой компании.
-    String? roleId;
-    String? systemRole;
-    try {
-      final profileData = await client
-          .from('profiles')
-          .select('last_company_id')
-          .eq('id', user.id)
-          .single();
+      // [RBAC v3] Получаем роль пользователя строго из контекста компании.
+      // Сначала определяем активную компанию (last_company_id), затем ищем роль в этой компании.
+      String? roleId;
+      String? systemRole;
+      try {
+        final profileData = await client
+            .from('profiles')
+            .select('last_company_id')
+            .eq('id', user.id)
+            .single();
 
-      final String? lastCompanyId = profileData['last_company_id'];
+        final String? lastCompanyId = profileData['last_company_id'];
 
-      if (lastCompanyId != null) {
-        final memberData = await client
-            .from('company_members')
-            .select('role_id, system_role')
-            .eq('company_id', lastCompanyId)
-            .eq('user_id', user.id)
-            .maybeSingle();
-        
-        roleId = memberData?['role_id'];
-        systemRole = memberData?['system_role'];
-      }
-    } catch (_) {}
+        if (lastCompanyId != null) {
+          final memberData = await client
+              .from('company_members')
+              .select('role_id, system_role')
+              .eq('company_id', lastCompanyId)
+              .eq('user_id', user.id)
+              .maybeSingle();
 
-    return UserModel(
-      id: user.id,
-      email: user.email ?? email,
-      name: user.userMetadata?['name'] as String?,
-      photoUrl: user.userMetadata?['photoUrl'] as String?,
-      roleId: roleId,
-      systemRole: systemRole,
-    );
-  } catch (e) {
+          roleId = memberData?['role_id'];
+          systemRole = memberData?['system_role'];
+        }
+      } catch (_) {}
+
+      return UserModel(
+        id: user.id,
+        email: user.email ?? email,
+        name: user.userMetadata?['name'] as String?,
+        photoUrl: user.userMetadata?['photoUrl'] as String?,
+        roleId: roleId,
+        systemRole: systemRole,
+      );
+    } catch (e) {
       final message = e.toString();
       if (message.contains('Token has expired') ||
           message.contains('Invalid token')) {
@@ -395,41 +397,41 @@ class SupabaseAuthDataSource implements AuthDataSource {
         throw Exception('Ошибка авторизации после проверки кода');
       }
 
-    // [RBAC v3] Получаем роль пользователя строго из контекста компании.
-    // Сначала определяем активную компанию (last_company_id), затем ищем роль в этой компании.
-    String? roleId;
-    String? systemRole;
-    try {
-      final profileData = await client
-          .from('profiles')
-          .select('last_company_id')
-          .eq('id', user.id)
-          .single();
+      // [RBAC v3] Получаем роль пользователя строго из контекста компании.
+      // Сначала определяем активную компанию (last_company_id), затем ищем роль в этой компании.
+      String? roleId;
+      String? systemRole;
+      try {
+        final profileData = await client
+            .from('profiles')
+            .select('last_company_id')
+            .eq('id', user.id)
+            .single();
 
-      final String? lastCompanyId = profileData['last_company_id'];
+        final String? lastCompanyId = profileData['last_company_id'];
 
-      if (lastCompanyId != null) {
-        final memberData = await client
-            .from('company_members')
-            .select('role_id, system_role')
-            .eq('company_id', lastCompanyId)
-            .eq('user_id', user.id)
-            .maybeSingle();
-        
-        roleId = memberData?['role_id'];
-        systemRole = memberData?['system_role'];
-      }
-    } catch (_) {}
+        if (lastCompanyId != null) {
+          final memberData = await client
+              .from('company_members')
+              .select('role_id, system_role')
+              .eq('company_id', lastCompanyId)
+              .eq('user_id', user.id)
+              .maybeSingle();
 
-    return UserModel(
-      id: user.id,
-      email: user.email ?? email,
-      name: user.userMetadata?['name'] as String?,
-      photoUrl: user.userMetadata?['photoUrl'] as String?,
-      roleId: roleId,
-      systemRole: systemRole,
-    );
-  } catch (e) {
+          roleId = memberData?['role_id'];
+          systemRole = memberData?['system_role'];
+        }
+      } catch (_) {}
+
+      return UserModel(
+        id: user.id,
+        email: user.email ?? email,
+        name: user.userMetadata?['name'] as String?,
+        photoUrl: user.userMetadata?['photoUrl'] as String?,
+        roleId: roleId,
+        systemRole: systemRole,
+      );
+    } catch (e) {
       logger.e('Ошибка verifyPhoneOtp: $e');
       throw Exception('Ошибка подтверждения кода: $e');
     }

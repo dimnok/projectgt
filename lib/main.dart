@@ -119,6 +119,9 @@ Future<void> main() async {
   // Инициализация веб статус бара для единого дизайна
   if (kIsWeb) {
     WebStatusBar.initialize();
+    // На Web отключаем контекстное меню браузера, чтобы ПКМ обрабатывался
+    // приложением (таблицы, контекстные меню) без наложения системного меню.
+    await BrowserContextMenu.disableContextMenu();
   }
 
   runApp(

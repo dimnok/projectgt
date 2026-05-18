@@ -7,7 +7,7 @@ import 'package:projectgt/features/contractors/presentation/state/contractor_sta
 import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:uuid/uuid.dart';
-import 'package:projectgt/core/utils/snackbar_utils.dart';
+import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
 import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
@@ -170,7 +170,11 @@ class _ContractFormModalState extends ConsumerState<ContractFormModal> {
     if (_date == null ||
         _selectedContractorId == null ||
         _selectedObjectId == null) {
-      SnackBarUtils.showError(context, 'Заполните все обязательные поля');
+      AppSnackBar.show(
+        context: context,
+        message: 'Заполните все обязательные поля',
+        kind: AppSnackBarKind.error,
+      );
       return;
     }
     setState(() => _isLoading = true);
@@ -179,7 +183,11 @@ class _ContractFormModalState extends ConsumerState<ContractFormModal> {
 
     if (activeCompanyId == null) {
       setState(() => _isLoading = false);
-      SnackBarUtils.showError(context, 'Ошибка: ID компании не найден');
+      AppSnackBar.show(
+        context: context,
+        message: 'Ошибка: ID компании не найден',
+        kind: AppSnackBarKind.error,
+      );
       return;
     }
 
@@ -237,18 +245,30 @@ class _ContractFormModalState extends ConsumerState<ContractFormModal> {
       if (isNew) {
         await notifier.addContract(contract);
         if (!mounted) return;
-        SnackBarUtils.showSuccess(context, 'Договор успешно добавлен');
+        AppSnackBar.show(
+          context: context,
+          message: 'Договор успешно добавлен',
+          kind: AppSnackBarKind.success,
+        );
       } else {
         await notifier.updateContract(contract);
         if (!mounted) return;
-        SnackBarUtils.showInfo(context, 'Договор обновлён');
+        AppSnackBar.show(
+          context: context,
+          message: 'Договор обновлён',
+          kind: AppSnackBarKind.info,
+        );
       }
       setState(() => _isLoading = false);
       if (mounted) Navigator.pop(context);
     } catch (e) {
       setState(() => _isLoading = false);
       if (!mounted) return;
-      SnackBarUtils.showError(context, 'Ошибка: $e');
+      AppSnackBar.show(
+        context: context,
+        message: 'Ошибка: $e',
+        kind: AppSnackBarKind.error,
+      );
     }
   }
 

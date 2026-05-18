@@ -10,9 +10,7 @@ class AuthRepositoryImpl implements AuthRepository {
   final AuthDataSource authDataSource;
 
   /// Создаёт [AuthRepositoryImpl] с указанными data sources.
-  AuthRepositoryImpl({
-    required this.authDataSource,
-  });
+  AuthRepositoryImpl({required this.authDataSource});
 
   // === Стандартные методы авторизации ===
 
@@ -59,8 +57,10 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   @Deprecated('Используйте verifyPhoneOtp')
-  Future<User> verifyEmailOtp(
-      {required String email, required String code}) async {
+  Future<User> verifyEmailOtp({
+    required String email,
+    required String code,
+  }) async {
     final model = await authDataSource.verifyEmailOtp(email, code);
     return model.toDomain();
   }
@@ -91,9 +91,6 @@ class AuthRepositoryImpl implements AuthRepository {
     required String fullName,
     required String phone,
   }) async {
-    await authDataSource.updateProfile(
-      fullName: fullName,
-      phone: phone,
-    );
+    await authDataSource.updateProfile(fullName: fullName, phone: phone);
   }
 }
