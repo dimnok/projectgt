@@ -11,8 +11,8 @@
   <meta name="build-number" content="50">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0E0E10" media="(prefers-color-scheme: dark)">
+  <!-- theme-color не задаём в HTML: на iOS PWA #FFFFFF даёт непрозрачный белый status bar.
+       Android/Chrome получает цвет из WebStatusBar после старта Flutter. -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -35,6 +35,12 @@
       var darkMq = window.matchMedia('(prefers-color-scheme: dark)');
       var shellLight = '#FFFFFF';
       var shellDark = '#0E0E10';
+      var ua = navigator.userAgent || '';
+      var isIos = /iPhone|iPad|iPod/i.test(ua);
+      var isIosStandalone =
+        isIos &&
+        ((window.navigator.standalone === true) ||
+          window.matchMedia('(display-mode: standalone)').matches);
 
       function shellColor() {
         return darkMq.matches ? shellDark : shellLight;
@@ -47,9 +53,24 @@
         if (document.body) {
           document.body.style.backgroundColor = color;
         }
-        document.querySelectorAll('meta[name="theme-color"]').forEach(function (meta) {
-          meta.setAttribute('content', color);
-        });
+        // На iOS PWA theme-color перекрывает black-translucent непрозрачной заливкой.
+        if (!isIosStandalone) {
+          var metas = document.querySelectorAll('meta[name="theme-color"]');
+          if (metas.length === 0) {
+            var meta = document.createElement('meta');
+            meta.setAttribute('name', 'theme-color');
+            meta.setAttribute('content', color);
+            document.head.appendChild(meta);
+          } else {
+            metas.forEach(function (meta) {
+              meta.setAttribute('content', color);
+            });
+          }
+        } else {
+          document.querySelectorAll('meta[name="theme-color"]').forEach(function (m) {
+            m.parentNode.removeChild(m);
+          });
+        }
       }
 
       applyShellColor();

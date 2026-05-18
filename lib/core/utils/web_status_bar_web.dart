@@ -78,18 +78,45 @@ class WebStatusBar {
     _setCSSVariable('--app-surface-color', colorHex);
   }
 
+  /// iOS PWA: `theme-color` (#FFFFFF и т.п.) рисует **непрозрачную** полосу status bar
+  /// поверх `black-translucent`. На iOS обновляем только фон документа.
+  static bool _isIosStandalonePwa() {
+    try {
+      final ua = web.window.navigator.userAgent.toLowerCase();
+      final isIos =
+          ua.contains('iphone') || ua.contains('ipad') || ua.contains('ipod');
+      if (!isIos) return false;
+      if (web.window.matchMedia('(display-mode: standalone)').matches) {
+        return true;
+      }
+      // Safari iOS: `navigator.standalone` (не в типах universal_html).
+      final nav = web.window.navigator as dynamic;
+      return nav.standalone == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   static void _updateMetaTags(String colorHex, bool isDark) {
     try {
-      final metas = web.document.querySelectorAll('meta[name="theme-color"]');
-      if (metas.isEmpty) {
-        final metaTheme = web.document.createElement('meta');
-        metaTheme.setAttribute('name', 'theme-color');
-        metaTheme.setAttribute('content', colorHex);
-        web.document.head?.append(metaTheme);
+      final iosPwa = _isIosStandalonePwa();
+
+      if (iosPwa) {
+        web.document.querySelectorAll('meta[name="theme-color"]').forEach((m) {
+          m.remove();
+        });
       } else {
-        for (final meta in metas) {
-          meta.setAttribute('content', colorHex);
-          meta.removeAttribute('media');
+        final metas = web.document.querySelectorAll('meta[name="theme-color"]');
+        if (metas.isEmpty) {
+          final metaTheme = web.document.createElement('meta');
+          metaTheme.setAttribute('name', 'theme-color');
+          metaTheme.setAttribute('content', colorHex);
+          web.document.head?.append(metaTheme);
+        } else {
+          for (final meta in metas) {
+            meta.setAttribute('content', colorHex);
+            meta.removeAttribute('media');
+          }
         }
       }
 
@@ -124,6 +151,7 @@ class WebStatusBar {
   static void _addEdgeToEdgeStyles() {
     if (web.document.getElementById('gt-web-shell-style') != null) return;
 
+    final iosPwa = _isIosStandalonePwa();
     final style = web.StyleElement();
     style.id = 'gt-web-shell-style';
     style.text = '''
@@ -135,6 +163,11 @@ class WebStatusBar {
         overflow: hidden;
         background-color: var(--app-surface-color, #FFFFFF);
       }
+      ${iosPwa ? '''
+      flt-glass-pane, flt-scene-host, flt-scene {
+        background-color: transparent !important;
+      }
+      ''' : ''}
       body::-webkit-scrollbar { display: none; }
       body { -ms-overflow-style: none; scrollbar-width: none; transition: background-color 0.2s ease; }
     ''';
