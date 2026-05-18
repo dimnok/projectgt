@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/core/theme/theme_settings_provider.dart';
+import 'package:projectgt/core/utils/web_safe_area.dart';
 import 'package:projectgt/core/widgets/mobile_atmosphere_backdrop.dart';
+import 'package:projectgt/core/widgets/mobile_atmosphere_page_body.dart';
 import 'package:projectgt/core/widgets/mobile_atmosphere_screen_header.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 import 'package:projectgt/features/home/presentation/widgets/home_dashboard_constants.dart';
@@ -97,53 +99,45 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             : Brightness.dark,
       ),
       child: Scaffold(
-        backgroundColor: isDark
-            ? appearance.atmosphereBase
-            : Colors.transparent,
+        backgroundColor: Colors.transparent,
         drawer: const AppDrawer(activeRoute: AppRoute.home),
-        body: Stack(
-          fit: StackFit.expand,
-          children: [
-            const MobileAtmosphereBackdrop(),
-            SafeArea(
-              bottom: false,
-              child: CustomScrollView(
-                controller: _scrollController,
-                slivers: [
-                  // Прилипающая шапка (Hero)
-                  SliverPersistentHeader(
-                    pinned: true,
-                    delegate: HomeSliverHeroDelegate(
-                      pageTitle: 'Главная',
-                      title: fullGreeting,
-                      hour: hour,
-                      isDesktop: isDesktop,
-                      leading: Builder(
-                        builder: (ctx) => MobileAtmosphereChromeCircleButton(
-                          appearance: appearance,
-                          tooltip: 'Меню',
-                          icon: Icons.menu_rounded,
-                          onTap: () => Scaffold.of(ctx).openDrawer(),
-                        ),
-                      ),
-                      trailing: MobileAtmosphereChromeCircleButton(
-                        appearance: appearance,
-                        tooltip: isDark ? 'Светлая тема' : 'Тёмная тема',
-                        icon: isDark
-                            ? Icons.light_mode_outlined
-                            : Icons.dark_mode_outlined,
-                        onTap: () {
-                          ref
-                              .read(themeSettingsProvider.notifier)
-                              .setThemeMode(
-                                isDark ? ThemeMode.light : ThemeMode.dark,
-                              );
-                        },
-                      ),
+        body: MobileAtmospherePageBody(
+          child: CustomScrollView(
+            controller: _scrollController,
+            slivers: [
+              // Прилипающая шапка (Hero)
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: HomeSliverHeroDelegate(
+                  topInset: WebSafeArea.topOf(context),
+                  pageTitle: 'Главная',
+                  title: fullGreeting,
+                  hour: hour,
+                  isDesktop: isDesktop,
+                  leading: Builder(
+                    builder: (ctx) => MobileAtmosphereChromeCircleButton(
+                      appearance: appearance,
+                      tooltip: 'Меню',
+                      icon: Icons.menu_rounded,
+                      onTap: () => Scaffold.of(ctx).openDrawer(),
                     ),
                   ),
+                  trailing: MobileAtmosphereChromeCircleButton(
+                    appearance: appearance,
+                    tooltip: isDark ? 'Светлая тема' : 'Тёмная тема',
+                    icon: isDark
+                        ? Icons.light_mode_outlined
+                        : Icons.dark_mode_outlined,
+                    onTap: () {
+                      ref.read(themeSettingsProvider.notifier).setThemeMode(
+                            isDark ? ThemeMode.light : ThemeMode.dark,
+                          );
+                    },
+                  ),
+                ),
+              ),
 
-                  // Основной контент
+              // Основной контент
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                     sliver: SliverList(
@@ -157,10 +151,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ]),
                     ),
                   ),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

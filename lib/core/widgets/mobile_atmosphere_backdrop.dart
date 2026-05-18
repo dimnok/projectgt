@@ -31,7 +31,8 @@ class MobileAtmosphereAppearance {
   /// Фон статус-бара / низа и нижний слой атмосферы.
   Color get atmosphereBase {
     if (isDark) return const Color(0xFF0E0E10);
-    return scheme.surface;
+    // Не чистый #FFFFFF — чтобы под прозрачным status bar не было «белой полосы».
+    return scheme.surfaceContainerLowest;
   }
 
   /// Цвета центрального радиального «света» фона.

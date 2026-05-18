@@ -21,6 +21,9 @@ class HomeSliverHeroDelegate extends SliverPersistentHeaderDelegate {
   /// Если true — используются высоты и отступы для desktop-раскладки.
   final bool isDesktop;
 
+  /// Верхний safe area (status bar), чтобы [maxExtent]/[minExtent] совпадали с версткой.
+  final double topInset;
+
   /// Создаёт делегат с данными для [HomeAtmosphereHero].
   ///
   /// [title] и [hour] обязательны; [leading], [trailing], [pageTitle] опциональны.
@@ -32,6 +35,7 @@ class HomeSliverHeroDelegate extends SliverPersistentHeaderDelegate {
     this.trailing,
     this.pageTitle,
     this.isDesktop = false,
+    this.topInset = 0,
   });
 
   @override
@@ -57,14 +61,14 @@ class HomeSliverHeroDelegate extends SliverPersistentHeaderDelegate {
   }
 
   @override
-  double get maxExtent => isDesktop ? 200 : 250; // Увеличиваем для десктопа тоже
+  double get maxExtent => (isDesktop ? 200.0 : 250.0) + topInset;
 
   /// Высота в свернутом виде: строка с кнопками 44px + внешний отступ 12 +
   /// вертикальный padding контейнера (моб. 32, десктоп 40) + запас 4px.
   /// Запас нужен для предотвращения ошибок переполнения (RenderFlex overflow)
   /// на долю пикселя из-за особенностей рендеринга на разных экранах.
   @override
-  double get minExtent => isDesktop ? 100 : 96;
+  double get minExtent => (isDesktop ? 100.0 : 96.0) + topInset;
 
   @override
   bool shouldRebuild(covariant HomeSliverHeroDelegate oldDelegate) {
@@ -73,6 +77,7 @@ class HomeSliverHeroDelegate extends SliverPersistentHeaderDelegate {
         oldDelegate.isDesktop != isDesktop ||
         oldDelegate.leading != leading ||
         oldDelegate.trailing != trailing ||
-        oldDelegate.pageTitle != pageTitle;
+        oldDelegate.pageTitle != pageTitle ||
+        oldDelegate.topInset != topInset;
   }
 }
