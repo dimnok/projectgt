@@ -37,12 +37,7 @@ class WebStatusBar {
   }
 
   static String _toHex(Color color) {
-    return '#${(0xFF000000 |
-            (((color.r * 255.0).round() & 0xff) << 16) |
-            (((color.g * 255.0).round() & 0xff) << 8) |
-            ((color.b * 255.0).round() & 0xff))
-        .toRadixString(16)
-        .substring(2)}';
+    return '#${(0xFF000000 | (((color.r * 255.0).round() & 0xff) << 16) | (((color.g * 255.0).round() & 0xff) << 8) | ((color.b * 255.0).round() & 0xff)).toRadixString(16).substring(2)}';
   }
 
   static void _applyShellColor(String colorHex, {required bool isDark}) {
@@ -67,8 +62,9 @@ class WebStatusBar {
       // Для PWA-режима (когда приложение добавлено "На экран Домой")
       // используем 'black-translucent', чтобы контент заходил под статус-бар,
       // а фон под ним мы рисуем во Flutter.
-      final appleMeta = web.document
-          .querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+      final appleMeta = web.document.querySelector(
+        'meta[name="apple-mobile-web-app-status-bar-style"]',
+      );
       if (appleMeta != null) {
         appleMeta.setAttribute('content', 'black-translucent');
       }
@@ -77,9 +73,10 @@ class WebStatusBar {
 
   static void _setCSSVariable(String name, String value) {
     try {
-      (web.document.documentElement as web.HtmlElement?)
-          ?.style
-          .setProperty(name, value);
+      (web.document.documentElement as web.HtmlElement?)?.style.setProperty(
+        name,
+        value,
+      );
     } catch (_) {}
   }
 
@@ -88,7 +85,7 @@ class WebStatusBar {
     if (!kIsWeb) return;
     try {
       // Используем черный фон как самый стабильный для PWA
-      final initial = '#000000';
+      const initial = '#000000';
       _setCSSVariable('--app-surface-color', initial);
       _addEdgeToEdgeStyles();
     } catch (_) {}

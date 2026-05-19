@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../domain/entities/payroll_calculation.dart';
 import '../utils/balance_utils.dart';
+import '../providers/payroll_grid_selection_providers.dart';
 import 'payroll_card.dart';
+import 'payroll_grid_checkbox.dart';
 
 /// Суммарные показатели для мобильного вида.
 class PayrollMobileTotals {
@@ -52,6 +54,7 @@ class PayrollMobileView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final gridSelectedIds = ref.watch(payrollGridSelectedEmployeeIdsProvider);
 
     return Column(
       children: [
@@ -72,17 +75,34 @@ class PayrollMobileView extends ConsumerWidget {
                     balance: 0,
                   );
 
+              final empId = payroll.employeeId;
               return GestureDetector(
                 onLongPressStart: (details) =>
                     onRowLongPress(payroll, details.globalPosition),
-                child: PayrollCard(
-                  payroll: payroll,
-                  info: info,
-                  theme: theme,
-                  onLongPress: () {
-                    // Используем GestureDetector для получения позиции,
-                    // но здесь можно оставить пустое для срабатывания InkWell
-                  },
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (empId != null)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 4, top: 14),
+                        child: PayrollGridCheckbox(
+                          value: gridSelectedIds.contains(empId),
+                          semanticLabel: 'Выбрать ${info.name}',
+                          onChanged: (checked) => onPayrollRowCheckboxChanged(
+                            ref,
+                            empId,
+                            checked,
+                          ),
+                        ),
+                      ),
+                    Expanded(
+                      child: PayrollCard(
+                        payroll: payroll,
+                        info: info,
+                        theme: theme,
+                      ),
+                    ),
+                  ],
                 ),
               );
             },

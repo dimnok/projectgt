@@ -188,6 +188,7 @@ class WorkSearchExportServerService {
     required String companyId,
     List<String> objectIds = const [],
     String searchQuery = '',
+    List<String>? employeeIds,
   }) async {
     try {
       final body = <String, dynamic>{
@@ -201,6 +202,9 @@ class WorkSearchExportServerService {
       final q = searchQuery.trim();
       if (q.isNotEmpty) {
         body['searchQuery'] = q;
+      }
+      if (employeeIds != null && employeeIds.isNotEmpty) {
+        body['employeeIds'] = employeeIds;
       }
 
       final response = await client.functions.invoke(

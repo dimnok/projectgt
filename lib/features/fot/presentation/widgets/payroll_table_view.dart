@@ -16,6 +16,8 @@ import '../services/payroll_pdf_service.dart';
 import '../services/employee_financial_report_service.dart';
 import '../providers/payroll_filter_providers.dart';
 import '../providers/payroll_providers.dart';
+import '../providers/payroll_grid_selection_providers.dart';
+import 'payroll_grid_checkbox.dart';
 import 'payroll_transaction_form_modal.dart';
 import 'payroll_payout_form_modal.dart';
 import 'payroll_card.dart';
@@ -100,6 +102,12 @@ class _PayrollTableViewState extends ConsumerState<PayrollTableView> {
     );
 
     final totals = _calculateTotals(groupedPayrollsMap);
+    final gridSelectedIds = ref.watch(payrollGridSelectedEmployeeIdsProvider);
+
+    final visibleEmployeeIds = sortedEmployeeKeys.whereType<String>().toSet();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) prunePayrollGridSelection(ref, visibleEmployeeIds);
+    });
 
     // Если мобильный вид - возвращаем кастомное представление
     if (widget.isMobile) {
@@ -158,8 +166,14 @@ class _PayrollTableViewState extends ConsumerState<PayrollTableView> {
     for (final employeeId in sortedEmployeeKeys) {
       final employeePayrolls = groupedPayrollsMap[employeeId]!;
       final employeeInfo = _getEmployeeInfo(employeeId, counter);
-      for (final p in employeePayrolls) {
-        flatList.add(_PayrollFlatRow(payroll: p, info: employeeInfo));
+      for (var i = 0; i < employeePayrolls.length; i++) {
+        flatList.add(
+          _PayrollFlatRow(
+            payroll: employeePayrolls[i],
+            info: employeeInfo,
+            showSelectionCheckbox: i == 0,
+          ),
+        );
       }
       counter++;
     }
@@ -181,8 +195,9 @@ class _PayrollTableViewState extends ConsumerState<PayrollTableView> {
           final statusInfo = row.info.status != null
               ? EmployeeUIUtils.getStatusInfo(row.info.status!)
               : null;
+          final empId = row.payroll.employeeId;
 
-          return Text.rich(
+          final name = Text.rich(
             TextSpan(
               children: [
                 TextSpan(text: row.info.name),
@@ -207,14 +222,55 @@ class _PayrollTableViewState extends ConsumerState<PayrollTableView> {
               fontWeight: FontWeight.w600,
             ),
           );
+
+          if (!row.showSelectionCheckbox || empId == null) {
+            return Padding(
+              padding: const EdgeInsets.only(left: 32),
+              child: name,
+            );
+          }
+
+          return Row(
+            children: [
+              PayrollGridCheckbox(
+                value: gridSelectedIds.contains(empId),
+                semanticLabel: 'Выбрать ${row.info.name}',
+                onChanged: (checked) =>
+                    onPayrollRowCheckboxChanged(ref, empId, checked),
+              ),
+              const SizedBox(width: 4),
+              Expanded(child: name),
+            ],
+          );
         },
-        totalBuilder: (theme) => Text(
-          'ИТОГО',
-          style: theme.textTheme.bodySmall?.copyWith(
-            fontSize: 12,
-            height: 1.0,
-            fontWeight: FontWeight.bold,
-          ),
+        totalBuilder: (theme) => Row(
+          children: [
+            Tooltip(
+              message: 'Выбрать всех отображаемых сотрудников',
+              child: PayrollGridCheckbox(
+                value: payrollHeaderSelectAllValue(
+                  widget.employees,
+                  gridSelectedIds,
+                ),
+                tristate: true,
+                semanticLabel: 'Выбрать всех сотрудников в таблице',
+                onChanged: (value) => onPayrollHeaderSelectAllChanged(
+                  ref,
+                  widget.employees,
+                  value,
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              'ИТОГО',
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontSize: 12,
+                height: 1.0,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ),
       ),
       GTColumnConfig<_PayrollFlatRow>(
@@ -760,8 +816,13 @@ class _PayrollTableViewState extends ConsumerState<PayrollTableView> {
 class _PayrollFlatRow {
   final PayrollCalculation payroll;
   final _EmployeeRowInfo info;
+  final bool showSelectionCheckbox;
 
-  _PayrollFlatRow({required this.payroll, required this.info});
+  _PayrollFlatRow({
+    required this.payroll,
+    required this.info,
+    this.showSelectionCheckbox = true,
+  });
 }
 
 class _PayrollTotals {

@@ -9,6 +9,7 @@ import '../providers/payroll_filter_providers.dart';
 import 'package:projectgt/core/widgets/gt_month_picker.dart';
 import 'package:projectgt/core/widgets/gt_object_picker.dart';
 import '../utils/payroll_filter_helpers.dart';
+import 'payroll_employee_status_filter_segment.dart';
 import 'payroll_table_view.dart';
 import 'payroll_search_action.dart';
 
@@ -44,9 +45,20 @@ class PayrollTableWidget extends ConsumerWidget {
     // Получаем список сотрудников
     final allEmployees = ref.watch(employeeProvider.select((s) => s.employees));
     final searchQuery = ref.watch(payrollSearchQueryProvider);
+    final statusFilter = ref.watch(payrollEmployeeStatusFilterProvider);
 
-    // Фильтруем сотрудников по поисковому запросу
-    final employees = filterEmployeesBySearchQuery(allEmployees, searchQuery);
+    // Фильтруем сотрудников по поиску и статусу
+    final employeesBySearch =
+        filterEmployeesBySearchQuery(allEmployees, searchQuery);
+    final employees = filterEmployeesByPayrollStatus(
+      employeesBySearch,
+      statusFilter,
+    );
+    final filteredPayrolls = filterPayrollsByEmployeeStatus(
+      payrolls,
+      employeesBySearch,
+      statusFilter,
+    );
 
     // Получаем выплаты и балансы по сотрудникам (FIFO)
     final fifoDataAsync = ref.watch(
@@ -85,7 +97,7 @@ class PayrollTableWidget extends ConsumerWidget {
     final isDesktop = ResponsiveUtils.isDesktop(context);
     final isMobile = ResponsiveUtils.isMobile(context);
 
-    if (payrolls.isEmpty && employees.isEmpty) {
+    if (filteredPayrolls.isEmpty && employees.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -106,6 +118,10 @@ class PayrollTableWidget extends ConsumerWidget {
               child: Text(
                 searchQuery.isNotEmpty
                     ? 'По запросу "$searchQuery" ничего не найдено. Попробуйте изменить фильтры или выбрать другой период.'
+                    : statusFilter == PayrollEmployeeStatusFilter.fired
+                    ? 'Нет уволенных сотрудников за выбранный период и фильтры.'
+                    : statusFilter == PayrollEmployeeStatusFilter.working
+                    ? 'Нет работающих сотрудников за выбранный период и фильтры.'
                     : 'За выбранный период записей не найдено. Попробуйте выбрать другой месяц или добавить новую операцию.',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
@@ -169,6 +185,8 @@ class PayrollTableWidget extends ConsumerWidget {
                   onTap: () =>
                       PayrollFilterHelpers.showObjectSelection(context, ref),
                 ),
+                const Spacer(),
+                const PayrollEmployeeStatusFilterSegment(),
               ],
             ],
           ),
@@ -176,7 +194,7 @@ class PayrollTableWidget extends ConsumerWidget {
         ],
         Expanded(
           child: PayrollTableView(
-            payrolls: payrolls,
+            payrolls: filteredPayrolls,
             employees: employees,
             payoutsByEmployee: payoutsByEmployee,
             aggregatedBalance: aggregatedBalance,

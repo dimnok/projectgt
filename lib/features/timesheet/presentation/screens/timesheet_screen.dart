@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/theme/theme_settings_provider.dart';
 import 'package:projectgt/core/widgets/mobile_atmosphere_backdrop.dart';
-import 'package:projectgt/core/widgets/mobile_atmosphere_card_style.dart';
+import 'package:projectgt/core/widgets/mobile_atmosphere_main_surface.dart';
 import 'package:projectgt/core/widgets/mobile_atmosphere_screen_header.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 
@@ -14,75 +14,6 @@ import '../widgets/timesheet_calendar_view.dart';
 /// Отступы шапки и тела — как у экрана списка договоров ([gridGutter] 16).
 const _kTimesheetHeaderPadding = EdgeInsets.fromLTRB(16, 20, 16, 8);
 const _kTimesheetBodyPadding = EdgeInsets.fromLTRB(16, 0, 16, 10);
-
-/// Основная карточка календаря в том же визуальном языке, что [ContractAtmosphereCard],
-/// без зависимости модуля табеля от `contracts`.
-class _TimesheetMainSurface extends StatelessWidget {
-  /// Создаёт обёртку контента табеля.
-  const _TimesheetMainSurface({required this.child});
-
-  /// Календарь и оверлей загрузки.
-  final Widget child;
-
-  static const double _outerRadius = 16;
-  static const double _clipRadius = 15;
-
-  @override
-  Widget build(BuildContext context) {
-    final appearance = MobileAtmosphereAppearance.of(context);
-    final cardStyle = MobileAtmosphereCardStyle.fromAppearance(appearance);
-    final hi = cardStyle.cardHighlight;
-
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(_outerRadius),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [cardStyle.cardTop, cardStyle.cardBottom],
-        ),
-        boxShadow: cardStyle.cardShadows,
-      ),
-      foregroundDecoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(_outerRadius),
-        border: Border.fromBorderSide(
-          BorderSide(
-            color: cardStyle.cardBorder,
-            width: 1,
-            strokeAlign: BorderSide.strokeAlignInside,
-          ),
-        ),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(_clipRadius),
-        clipBehavior: Clip.antiAlias,
-        child: Stack(
-          clipBehavior: Clip.antiAlias,
-          children: [
-            Positioned(
-              left: 0,
-              right: 0,
-              top: 0,
-              height: 1,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      hi.withValues(alpha: 0),
-                      hi.withValues(alpha: 0.65),
-                      hi.withValues(alpha: 0),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            Padding(padding: const EdgeInsets.all(16), child: child),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 /// Основной экран модуля «Табель»: фон и шапка в стиле списка договоров
 /// ([MobileAtmosphereBackdrop], круглый «хром» для меню и темы).
@@ -230,7 +161,7 @@ class TimesheetScreen extends ConsumerWidget {
                   Expanded(
                     child: Padding(
                       padding: _kTimesheetBodyPadding,
-                      child: _TimesheetMainSurface(
+                      child: MobileAtmosphereMainSurface(
                         child: Stack(
                           children: [
                             TimesheetCalendarView(

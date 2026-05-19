@@ -198,6 +198,7 @@ serve(async (req: Request) => {
       companyId?: string;
       objectIds?: string[] | null;
       searchQuery?: string | null;
+      employeeIds?: string[] | null;
     };
 
     const year = Number(body.year);
@@ -210,6 +211,10 @@ serve(async (req: Request) => {
 
     const objectIds = Array.isArray(body.objectIds) && body.objectIds.length > 0 ? body.objectIds : null;
     const searchRaw = typeof body.searchQuery === "string" ? body.searchQuery.trim().toLowerCase() : "";
+    const employeeIdsFilter =
+      Array.isArray(body.employeeIds) && body.employeeIds.length > 0
+        ? new Set(body.employeeIds.map((id) => String(id)))
+        : null;
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -241,6 +246,10 @@ serve(async (req: Request) => {
 
     if (searchRaw.length > 0) {
       rows = rows.filter((r) => r.full_name.toLowerCase().includes(searchRaw));
+    }
+
+    if (employeeIdsFilter) {
+      rows = rows.filter((r) => employeeIdsFilter.has(r.employee_id));
     }
 
     if (rows.length === 0) {
