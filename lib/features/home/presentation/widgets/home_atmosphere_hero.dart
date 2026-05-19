@@ -1,7 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:projectgt/core/utils/web_safe_area.dart';
 import 'package:projectgt/core/widgets/mobile_atmosphere_backdrop.dart';
 import 'package:projectgt/features/home/presentation/providers/daily_tip_provider.dart';
 
@@ -67,12 +66,11 @@ class HomeAtmosphereHero extends ConsumerWidget {
     const horizontalMargin = 16.0;
     const topMargin = 12.0;
     const borderRadius = 24.0;
-    final topInset = WebSafeArea.topOf(context);
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(
+      padding: const EdgeInsets.fromLTRB(
         horizontalMargin,
-        topMargin + topInset,
+        topMargin,
         horizontalMargin,
         0,
       ),

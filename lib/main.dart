@@ -9,7 +9,6 @@ import 'package:projectgt/firebase_options.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:projectgt/core/common/app_router.dart';
 import 'package:projectgt/core/config/app_config.dart';
-import 'package:projectgt/core/utils/web_safe_area.dart';
 import 'package:projectgt/core/utils/web_status_bar.dart';
 import 'package:projectgt/presentation/theme/app_theme.dart';
 import 'package:projectgt/core/theme/theme_settings_provider.dart';
@@ -156,14 +155,6 @@ class _MyAppState extends ConsumerState<MyApp> {
       onResume: () => _handleRefresh(),
       onShow: () => _handleRefresh(),
     );
-    if (kIsWeb) {
-      WebStatusBar.listenToSystemColorScheme(() {
-        if (!mounted) return;
-        if (ref.read(themeSettingsProvider).themeMode == ThemeMode.system) {
-          setState(() {});
-        }
-      });
-    }
   }
 
   void _handleRefresh() {
@@ -263,15 +254,12 @@ class _MyAppState extends ConsumerState<MyApp> {
         Locale('en', 'US'),
       ],
       builder: (context, child) {
+        // Применяем масштабирование текста
         final mediaQuery = MediaQuery.of(context);
-        var data = mediaQuery.copyWith(
-          textScaler: TextScaler.linear(settings.textScale),
-        );
-        if (kIsWeb) {
-          data = WebSafeArea.resolveMediaQuery(data);
-        }
         return MediaQuery(
-          data: data,
+          data: mediaQuery.copyWith(
+            textScaler: TextScaler.linear(settings.textScale),
+          ),
           child: child!,
         );
       },

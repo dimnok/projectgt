@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:projectgt/core/utils/web_safe_area.dart';
+
 import 'package:projectgt/core/widgets/mobile_atmosphere_backdrop.dart';
 
 /// Круглая кнопка в стиле «хрома» мобильной атмосферы (44×44).
@@ -106,9 +106,8 @@ class MobileAtmosphereScreenHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = appearance.scheme;
-    final topInset = WebSafeArea.topOf(context);
     return Padding(
-      padding: EdgeInsets.fromLTRB(10, 6 + topInset, 10, 8),
+      padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
       child: Row(
         children: [
           leading,

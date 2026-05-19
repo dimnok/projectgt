@@ -7,7 +7,6 @@ import 'package:go_router/go_router.dart';
 import 'package:projectgt/core/error/failure.dart';
 import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/core/widgets/mobile_atmosphere_backdrop.dart';
-import 'package:projectgt/core/widgets/mobile_atmosphere_page_body.dart';
 import 'package:projectgt/core/widgets/mobile_atmosphere_screen_header.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
 import 'package:projectgt/features/work_plans/presentation/providers/work_plan_month_groups_provider.dart';
@@ -101,10 +100,17 @@ class _WorksListMobileScreenState extends ConsumerState<WorksListMobileScreen>
             : Brightness.dark,
       ),
       child: Scaffold(
-        backgroundColor: Colors.transparent,
+        backgroundColor: isDark
+            ? appearance.atmosphereBase
+            : Colors.transparent,
         drawer: const AppDrawer(activeRoute: AppRoute.works),
-        body: MobileAtmospherePageBody(
-          child: Column(
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            const MobileAtmosphereBackdrop(),
+            SafeArea(
+              bottom: false,
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   MobileAtmosphereScreenHeader(
@@ -202,7 +208,9 @@ class _WorksListMobileScreenState extends ConsumerState<WorksListMobileScreen>
                     ),
                   ),
                 ],
-          ),
+              ),
+            ),
+          ],
         ),
       ),
     );
