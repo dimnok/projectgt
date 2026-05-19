@@ -9,18 +9,16 @@ class VerifyPhoneOtpUseCase {
   /// Создает экземпляр [VerifyPhoneOtpUseCase].
   VerifyPhoneOtpUseCase(this.repository);
 
-  /// Выполняет проверку кода [code] для номера [phone] с использованием токена [token].
+  /// Выполняет проверку кода [code] для номера [phone].
   ///
   /// Возвращает объект [User] при успешной проверке.
   Future<User> execute({
     required String phone,
     required String code,
-    required String token,
   }) async {
     return await repository.verifyPhoneOtp(
       phone: phone,
       code: code,
-      token: token,
     );
   }
 }

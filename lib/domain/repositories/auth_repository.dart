@@ -51,15 +51,13 @@ abstract class AuthRepository {
   @Deprecated('Используйте verifyPhoneOtp')
   Future<User> verifyEmailOtp({required String email, required String code});
 
-  /// Отправляет 6-значный код подтверждения на указанный телефон через Notisend Telegram Gateway.
-  /// Возвращает токен верификации.
-  Future<String> requestPhoneOtp({required String phone});
+  /// Отправляет 6-значный OTP на телефон (Supabase Auth + Notisend).
+  Future<void> requestPhoneOtp({required String phone});
 
-  /// Подтверждает 6-значный код для указанного телефона и возвращает пользователя.
+  /// Подтверждает OTP для телефона и возвращает пользователя.
   Future<User> verifyPhoneOtp({
     required String phone,
     required String code,
-    required String token,
   });
 
   /// Обновляет профиль пользователя при первой авторизации.

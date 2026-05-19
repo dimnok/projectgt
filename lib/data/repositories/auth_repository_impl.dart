@@ -68,20 +68,18 @@ class AuthRepositoryImpl implements AuthRepository {
   // === OTP (Phone) methods ===
 
   @override
-  Future<String> requestPhoneOtp({required String phone}) async {
-    return await authDataSource.requestPhoneOtp(phone);
+  Future<void> requestPhoneOtp({required String phone}) async {
+    await authDataSource.requestPhoneOtp(phone);
   }
 
   @override
   Future<User> verifyPhoneOtp({
     required String phone,
     required String code,
-    required String token,
   }) async {
     final model = await authDataSource.verifyPhoneOtp(
       phone: phone,
       code: code,
-      token: token,
     );
     return model.toDomain();
   }

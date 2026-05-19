@@ -311,7 +311,7 @@ class _EmployeeMobileProfileEditorSheetState
             : _positionController.text.trim(),
         phone: _phoneController.text.trim().isEmpty
             ? null
-            : _phoneController.text.trim(),
+            : normalizeRuPhoneForStorage(_phoneController.text),
         status: _status ?? EmployeeStatus.working,
         employmentType: _employmentType ?? EmploymentType.official,
         employmentDate: _employmentDate,

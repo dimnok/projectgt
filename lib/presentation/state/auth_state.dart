@@ -264,13 +264,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// Отправляет код на телефон
   Future<void> requestPhoneOtp(String phone) async {
     try {
-      final token = await _ref
-          .read(requestPhoneOtpUseCaseProvider)
-          .execute(phone: phone);
-      state = state.copyWith(verificationToken: token, errorMessage: null);
+      await _ref.read(requestPhoneOtpUseCaseProvider).execute(phone: phone);
+      state = state.copyWith(verificationToken: 'supabase', errorMessage: null);
     } catch (e) {
       String message = e.toString();
-      if (message.contains('FunctionException')) {
+      if (message.contains('FunctionException') ||
+          message.contains('hook') ||
+          message.contains('SMS')) {
         message = 'Ошибка отправки кода. Попробуйте позже.';
       }
       state = state.copyWith(
@@ -284,7 +284,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// Подтверждает код и запускает процесс входа
   Future<void> verifyPhoneOtp(String phone, String code) async {
     if (state.verificationToken == null) {
-      const err = 'Токен верификации отсутствует';
+      const err = 'Сначала запросите код подтверждения';
       state = state.copyWith(
         status: AuthStatus.unauthenticated,
         errorMessage: err,
@@ -298,7 +298,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       // 1. Верификация самого кода (быстро)
       final user = await _ref
           .read(verifyPhoneOtpUseCaseProvider)
-          .execute(phone: phone, code: code, token: state.verificationToken!);
+          .execute(phone: phone, code: code);
 
       // 2. Сразу обновляем User, чтобы UI показал успех (анимация), статус оставляем старым
       state = state.copyWith(user: user, errorMessage: null);
@@ -310,7 +310,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       String message = e.toString();
       if (message.contains('Invalid or expired code')) {
         message = 'Неверный или просроченный код';
-      } else if (message.contains('otp-notisend')) {
+      } else if (message.contains('otp') || message.contains('SMS')) {
         message = 'Ошибка службы отправки кода';
       }
 

@@ -205,6 +205,36 @@ class GtFormatters {
     return '$firstPart-$secondPart';
   }
 
+  /// Нормализует российский мобильный для хранения: `7XXXXXXXXXX` (11 цифр).
+  ///
+  /// Убирает маску и символы; `8…` → `7…`; 10 цифр → с ведущей `7`.
+  /// Возвращает `null`, если номер пустой или не похож на RU mobile.
+  static String? normalizeRuPhoneForStorage(String? phone) {
+    if (phone == null || phone.trim().isEmpty) return null;
+
+    var digits = phone.replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) return null;
+
+    if (digits.length == 11 && digits.startsWith('8')) {
+      digits = '7${digits.substring(1)}';
+    } else if (digits.length == 10) {
+      digits = '7$digits';
+    }
+
+    if (digits.length == 11 && digits.startsWith('7')) {
+      return digits;
+    }
+
+    return null;
+  }
+
+  /// E.164 для Supabase Auth: `+7XXXXXXXXXX`.
+  static String? normalizeRuPhoneE164(String? phone) {
+    final digits = normalizeRuPhoneForStorage(phone);
+    if (digits == null) return null;
+    return '+$digits';
+  }
+
   /// Форматирует номер телефона для отображения.
   /// Пример: "79610092141" -> "+7 961 009 21 41"
   static String formatPhone(String? phone) {
@@ -584,6 +614,14 @@ DateTime? parseDate(String? text, String format) =>
 
 /// Алиас для форматирования номера телефона для отображения (+7 XXX XXX XX XX).
 String formatPhone(String? phone) => GtFormatters.formatPhone(phone);
+
+/// Алиас: канон для БД (`7XXXXXXXXXX`).
+String? normalizeRuPhoneForStorage(String? phone) =>
+    GtFormatters.normalizeRuPhoneForStorage(phone);
+
+/// Алиас: E.164 для Supabase Auth (`+7XXXXXXXXXX`).
+String? normalizeRuPhoneE164(String? phone) =>
+    GtFormatters.normalizeRuPhoneE164(phone);
 
 /// Алиас для получения форматтера СНИЛС (XXX-XXX-XXX XX).
 TextInputFormatter snilsFormatter() => GtFormatters.snilsFormatter();

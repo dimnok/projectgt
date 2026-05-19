@@ -266,7 +266,9 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
             ? null
             : _snilsController.text.replaceAll(RegExp(r'\D'), '').trim(),
         position: _positionController.text.trim().isEmpty ? null : _positionController.text.trim(),
-        phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
+        phone: _phoneController.text.trim().isEmpty
+            ? null
+            : normalizeRuPhoneForStorage(_phoneController.text),
         status: _status ?? EmployeeStatus.working,
         employmentType: _employmentType ?? EmploymentType.official,
         employmentDate: _employmentDate,

@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/data/models/user_model.dart';
 import 'package:logger/logger.dart';
 
@@ -43,18 +44,13 @@ abstract class AuthDataSource {
   @Deprecated('Используйте verifyPhoneOtp')
   Future<UserModel> verifyEmailOtp(String email, String code);
 
-  /// Отправляет 6-значный код подтверждения на телефон через Notisend Telegram Gateway.
-  /// Возвращает токен верификации, который нужно передать в [verifyPhoneOtp].
-  Future<String> requestPhoneOtp(String phone);
+  /// Отправляет 6-значный OTP на телефон через Supabase Auth (Send SMS Hook → Notisend).
+  Future<void> requestPhoneOtp(String phone);
 
-  /// Подтверждает 6-значный код с телефона и возвращает пользователя.
-  /// [phone] — номер телефона.
-  /// [code] — код из Telegram.
-  /// [token] — токен верификации из [requestPhoneOtp].
+  /// Подтверждает OTP и возвращает пользователя (сессия в Supabase Auth).
   Future<UserModel> verifyPhoneOtp({
     required String phone,
     required String code,
-    required String token,
   });
 
   /// Обновляет профиль пользователя при первой авторизации.
@@ -328,22 +324,21 @@ class SupabaseAuthDataSource implements AuthDataSource {
   }
 
   @override
-  Future<String> requestPhoneOtp(String phone) async {
-    try {
-      final response = await client.functions.invoke(
-        'otp-notisend',
-        body: {'action': 'send', 'phone': phone},
-      );
+  Future<void> requestPhoneOtp(String phone) async {
+    final phoneE164 = normalizeRuPhoneE164(phone);
+    if (phoneE164 == null) {
+      throw Exception('Некорректный номер телефона');
+    }
 
-      final data = response.data as Map<String, dynamic>;
-      if (data['success'] == true) {
-        return data['token'] as String;
-      } else {
-        throw Exception(data['error'] ?? 'Ошибка отправки кода');
-      }
+    try {
+      await client.auth.signInWithOtp(phone: phoneE164);
     } catch (e) {
       logger.e('Ошибка requestPhoneOtp: $e');
-      throw Exception('Не удалось отправить код в Telegram: $e');
+      final message = e.toString();
+      if (message.contains('network')) {
+        throw Exception('Ошибка сети. Проверьте подключение к интернету');
+      }
+      throw Exception('Не удалось отправить код: $e');
     }
   }
 
@@ -351,50 +346,22 @@ class SupabaseAuthDataSource implements AuthDataSource {
   Future<UserModel> verifyPhoneOtp({
     required String phone,
     required String code,
-    required String token,
   }) async {
+    final phoneE164 = normalizeRuPhoneE164(phone);
+    if (phoneE164 == null) {
+      throw Exception('Некорректный номер телефона');
+    }
+
     try {
-      // 1. Верифицируем код через Edge Function
-      final response = await client.functions.invoke(
-        'otp-notisend',
-        body: {
-          'action': 'verify',
-          'phone': phone,
-          'code': code,
-          'token': token,
-        },
+      final res = await client.auth.verifyOTP(
+        phone: phoneE164,
+        token: code.trim(),
+        type: OtpType.sms,
       );
 
-      final data = response.data as Map<String, dynamic>;
-      if (data['success'] != true) {
-        throw Exception(data['error'] ?? 'Неверный код');
-      }
-
-      // 2. Получаем временный пароль и email для входа
-      final tempPass = data['temp_pass']?.toString();
-      final email = data['email']?.toString();
-
-      if (tempPass == null || email == null) {
-        throw Exception(
-          'Ошибка данных авторизации: отсутствуют необходимые поля',
-        );
-      }
-
-      // ПРИНУДИТЕЛЬНО ОЧИЩАЕМ КЭШ СТАРЫХ СЕССИЙ
-      // Игнорируем ошибки (если сессии нет, signOut может выкинуть исключение)
-      try {
-        await client.auth.signOut();
-      } catch (_) {}
-
-      // 3. Выполняем вход по временному паролю
-      final authRes = await client.auth.signInWithPassword(
-        email: email,
-        password: tempPass,
-      );
-
-      final user = authRes.user;
+      final user = res.user ?? client.auth.currentUser;
       if (user == null) {
-        throw Exception('Ошибка авторизации после проверки кода');
+        throw Exception('Не удалось подтвердить код');
       }
 
       // [RBAC v3] Получаем роль пользователя строго из контекста компании.
@@ -425,7 +392,7 @@ class SupabaseAuthDataSource implements AuthDataSource {
 
       return UserModel(
         id: user.id,
-        email: user.email ?? email,
+        email: user.email ?? '',
         name: user.userMetadata?['name'] as String?,
         photoUrl: user.userMetadata?['photoUrl'] as String?,
         roleId: roleId,
@@ -433,6 +400,12 @@ class SupabaseAuthDataSource implements AuthDataSource {
       );
     } catch (e) {
       logger.e('Ошибка verifyPhoneOtp: $e');
+      final message = e.toString();
+      if (message.contains('Token has expired') ||
+          message.contains('Invalid token') ||
+          message.contains('otp_expired')) {
+        throw Exception('Неверный или просроченный код');
+      }
       throw Exception('Ошибка подтверждения кода: $e');
     }
   }
@@ -448,12 +421,17 @@ class SupabaseAuthDataSource implements AuthDataSource {
     }
 
     try {
+      final normalizedPhone = normalizeRuPhoneForStorage(phone);
+      if (normalizedPhone == null) {
+        throw Exception('Некорректный номер телефона');
+      }
+
       // Обновляем только поля full_name и phone для текущего пользователя
       await client
           .from('profiles')
           .update({
             'full_name': fullName.trim(),
-            'phone': phone.trim(),
+            'phone': normalizedPhone,
             'updated_at': DateTime.now().toIso8601String(),
           })
           .eq('id', currentUser.id);

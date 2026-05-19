@@ -124,7 +124,7 @@ class _AddEmployeeSimpleDialogState
         middleName: middleName,
         phone: _phoneController.text.trim().isEmpty
             ? null
-            : _phoneController.text.trim(),
+            : normalizeRuPhoneForStorage(_phoneController.text),
         objectIds: _selectedObjectIds,
         status: EmployeeStatus.working,
         employmentType: EmploymentType.unofficial,

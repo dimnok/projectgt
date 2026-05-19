@@ -28,8 +28,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   final _phoneController = TextEditingController(text: '+7 ');
   final _formKey = GlobalKey<FormState>();
 
-  /// Получает очищенный номер телефона (только цифры).
-  String get _cleanPhone => _phoneController.text.replaceAll(RegExp(r'\D'), '');
+  /// Канонический номер для OTP: `7XXXXXXXXXX`.
+  String get _cleanPhone =>
+      normalizeRuPhoneForStorage(_phoneController.text) ?? '';
 
   // Поля для ввода OTP
   late final TextEditingController _otpController;
@@ -145,8 +146,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     if (value == null || value.isEmpty || value == '+7 ') {
       return 'Введите номер телефона';
     }
-    final digits = value.replaceAll(RegExp(r'\D'), '');
-    if (digits.length < 11) {
+    if (normalizeRuPhoneForStorage(value) == null) {
       return 'Введите корректный номер телефона';
     }
     return null;
@@ -469,14 +469,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           ),
           const SizedBox(height: 24),
           GTPrimaryButton(
-            text: 'Получить код в Telegram',
+            text: 'Получить код по SMS',
             onPressed: _handleRequestCode,
             isLoading: isLoading,
             icon: CupertinoIcons.paperplane,
           ),
           const SizedBox(height: 16),
           Text(
-            'Код подтверждения будет отправлен в чат Telegram.\nУбедитесь, что у вас установлен мессенджер.',
+            'Код подтверждения будет отправлен SMS на указанный номер.',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
             ),

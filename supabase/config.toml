@@ -4,6 +4,12 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/process_telegram_outbox/index.ts"
 
+[functions.auth-send-sms]
+enabled = true
+verify_jwt = false
+import_map = "./functions/auth-send-sms/deno.json"
+entrypoint = "./functions/auth-send-sms/index.ts"
+
 [functions.otp-notisend]
 enabled = true
 verify_jwt = true
