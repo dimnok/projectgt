@@ -7,6 +7,19 @@ abstract class WorkItemDataSource {
   /// Возвращает список работ для смены по идентификатору [workId].
   Future<List<WorkItemModel>> fetchWorkItems(String workId);
 
+  /// Возвращает одну работу по [workItemId] или `null`, если не найдена.
+  Future<WorkItemModel?> fetchWorkItemById(String workItemId);
+
+  /// [estimate_id] позиций смены с той же комбинацией участок/этаж/система/подсистема/подрядчик.
+  Future<Set<String>> fetchEstimateIdsForCombo({
+    required String workId,
+    required String section,
+    required String floor,
+    required String system,
+    required String subsystem,
+    String? contractorId,
+  });
+
   /// Добавляет новую работу [item] в смену.
   Future<void> addWorkItem(WorkItemModel item);
 

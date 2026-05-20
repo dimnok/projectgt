@@ -14,6 +14,7 @@ import 'package:projectgt/core/widgets/gt_text_field.dart';
 import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
 import '../../domain/entities/work_item.dart';
 import '../providers/work_items_provider.dart';
+import '../providers/repositories_providers.dart';
 import '../../../../core/di/providers.dart';
 import '../../../../domain/entities/estimate.dart';
 import '../../../../core/widgets/gt_dropdown.dart';
@@ -36,6 +37,11 @@ class WorkItemFormImproved extends ConsumerStatefulWidget {
   /// Идентификатор объекта, если форма открывается вне экрана смены.
   final String? initialObjectId;
 
+  /// ID смет, уже занятых в смене для текущей комбинации фильтров (лёгкая загрузка).
+  ///
+  /// Если задан, форма не тянет все [work_items] смены для фильтра списка смет.
+  final Set<String>? occupiedEstimateIdsForCombo;
+
   /// Контроллер прокрутки для DraggableScrollableSheet (используется только на мобильных в bottom sheet).
   final ScrollController? scrollController;
 
@@ -45,6 +51,7 @@ class WorkItemFormImproved extends ConsumerStatefulWidget {
     required this.workId,
     this.initial,
     this.initialObjectId,
+    this.occupiedEstimateIdsForCombo,
     this.scrollController,
   });
 
@@ -121,6 +128,9 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
 
   /// Выбранный подрядчик (null — работа силами компании).
   Contractor? _selectedContractor;
+
+  /// Занятые estimate_id в смене (из [occupiedEstimateIdsForCombo] или провайдера).
+  Set<String>? _occupiedEstimateIdsForCombo;
 
   /// Ввод количества специалистов подрядчика (показывается при выбранном подрядчике).
   late final TextEditingController _specialistsCountController;
@@ -253,6 +263,11 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
       _selectedFloor = widget.initial!.floor;
       _selectedSystem = widget.initial!.system;
       _selectedSubsystem = widget.initial!.subsystem;
+    }
+
+    if (widget.occupiedEstimateIdsForCombo != null) {
+      _occupiedEstimateIdsForCombo =
+          Set<String>.from(widget.occupiedEstimateIdsForCombo!);
     }
 
     // Инициализируем выбранные элементы для редактирования
@@ -434,6 +449,29 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
     setState(() {});
   }
 
+  /// Перезагружает занятые estimate_id при смене подрядчика (режим лёгкой загрузки).
+  Future<void> _reloadOccupiedEstimateIdsIfNeeded() async {
+    if (widget.occupiedEstimateIdsForCombo == null) return;
+    if (_selectedSection == null ||
+        _selectedFloor == null ||
+        _selectedSystem == null ||
+        _selectedSubsystem == null) {
+      return;
+    }
+    final ids = await ref.read(workItemRepositoryProvider).fetchEstimateIdsForCombo(
+          workId: widget.workId,
+          section: _selectedSection!,
+          floor: _selectedFloor!,
+          system: _selectedSystem!,
+          subsystem: _selectedSubsystem!,
+          contractorId: _selectedContractor?.id,
+        );
+    if (!mounted) return;
+    setState(() {
+      _occupiedEstimateIdsForCombo = ids;
+    });
+  }
+
   /// Обновляет список сметных работ по выбранным фильтрам (система, подсистема, объект).
   void _updateFilteredEstimates() {
     final allEstimates = ref.read(estimateNotifierProvider).estimates;
@@ -466,23 +504,26 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
         _selectedFloor != null &&
         _selectedSystem != null &&
         _selectedSubsystem != null) {
-      final workItemsAsync = ref.read(workItemsProvider(widget.workId));
-      final existingItems = workItemsAsync.hasValue
-          ? (workItemsAsync.value ?? [])
-          : <WorkItem>[];
-
-      // Собираем множество estimateId уже добавленных материалов для выбранной комбинации
-      final existingEstimateIdsForCombo = existingItems
-          .where(
-            (item) =>
-                item.section == _selectedSection &&
-                item.floor == _selectedFloor &&
-                item.system == _selectedSystem &&
-                item.subsystem == _selectedSubsystem &&
-                item.contractorId == _selectedContractor?.id,
-          )
-          .map((e) => e.estimateId)
-          .toSet();
+      final Set<String> existingEstimateIdsForCombo;
+      if (_occupiedEstimateIdsForCombo != null) {
+        existingEstimateIdsForCombo = _occupiedEstimateIdsForCombo!;
+      } else {
+        final workItemsAsync = ref.read(workItemsProvider(widget.workId));
+        final existingItems = workItemsAsync.hasValue
+            ? (workItemsAsync.value ?? [])
+            : <WorkItem>[];
+        existingEstimateIdsForCombo = existingItems
+            .where(
+              (item) =>
+                  item.section == _selectedSection &&
+                  item.floor == _selectedFloor &&
+                  item.system == _selectedSystem &&
+                  item.subsystem == _selectedSubsystem &&
+                  item.contractorId == _selectedContractor?.id,
+            )
+            .map((e) => e.estimateId)
+            .toSet();
+      }
 
       // Убираем из отображаемого списка только те материалы, которые уже есть в этой комбинации
       // НО при редактировании не исключаем выбранную работу
@@ -768,6 +809,7 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
 
   /// Строит содержимое формы
   Widget _buildFormContent(ThemeData theme) {
+    final isDesktop = ResponsiveUtils.isDesktop(context);
     final showSelectionCollapsed =
         _selectionFieldsCollapsed &&
         allSelected &&
@@ -775,8 +817,10 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
     return CustomScrollView(
       controller: _listScrollController,
       primary: false,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+      shrinkWrap: !isDesktop,
+      physics: isDesktop
+          ? const ClampingScrollPhysics()
+          : const NeverScrollableScrollPhysics(),
       slivers: [
         SliverToBoxAdapter(
           child: AnimatedSize(
@@ -1076,7 +1120,15 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
                       _selectedEstimateItems.clear();
                     }
                   });
-                  _updateFilteredEstimates();
+                  if (widget.occupiedEstimateIdsForCombo != null) {
+                    unawaited(
+                      _reloadOccupiedEstimateIdsIfNeeded().then((_) {
+                        if (mounted) _updateFilteredEstimates();
+                      }),
+                    );
+                  } else {
+                    _updateFilteredEstimates();
+                  }
                 },
               ),
             ),

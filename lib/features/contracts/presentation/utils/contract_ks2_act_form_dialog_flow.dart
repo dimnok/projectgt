@@ -22,6 +22,7 @@ Future<void> openContractKs2ActFormDialog({
 }) async {
   if (!context.mounted) return;
   final formKey = GlobalKey<Ks2ActFormTemplateState>();
+  final positionsKey = GlobalKey<ContractKs2VorPositionsSectionState>();
 
   await DesktopDialogContent.show<void>(
     context,
@@ -55,7 +56,11 @@ Future<void> openContractKs2ActFormDialog({
     child: Ks2ActFormTemplate(
       key: formKey,
       contract: contract,
-      positionsSection: ContractKs2VorPositionsSection(contractId: contract.id),
+      getSelectedVorId: () => positionsKey.currentState?.selectedVorId,
+      positionsSection: ContractKs2VorPositionsSection(
+        key: positionsKey,
+        contractId: contract.id,
+      ),
     ),
   );
 }

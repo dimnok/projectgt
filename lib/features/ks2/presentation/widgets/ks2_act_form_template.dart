@@ -34,11 +34,15 @@ class Ks2ActFormTemplate extends ConsumerStatefulWidget {
   /// Блок под шапкой: таблица работ / позиции (опционально).
   final Widget? positionsSection;
 
+  /// Возвращает id выбранной ВОР для выгрузки таблицы работ в Excel (`null` — только шапка).
+  final String? Function()? getSelectedVorId;
+
   /// Создаёт виджет шаблона.
   const Ks2ActFormTemplate({
     super.key,
     required this.contract,
     this.positionsSection,
+    this.getSelectedVorId,
   });
 
   @override
@@ -151,6 +155,8 @@ class Ks2ActFormTemplateState extends ConsumerState<Ks2ActFormTemplate> {
           );
         }
       }
+      final vorId = widget.getSelectedVorId?.call();
+
       await Ks2FormHeaderExportService.exportDraftHeaderToDevice(
         client: client,
         companyId: widget.contract.companyId,
@@ -160,12 +166,16 @@ class Ks2ActFormTemplateState extends ConsumerState<Ks2ActFormTemplate> {
         reportingPeriodFrom: periodFrom,
         reportingPeriodTo: periodTo,
         addenda: addenda,
+        vorId: vorId,
       );
       if (!context.mounted) return;
+      final withPositions = vorId != null && vorId.isNotEmpty;
       AppSnackBar.show(
         context: context,
-        message:
-            'Черновик КС-2 сформирован. Если открылся диалог — выберите место сохранения.',
+        message: withPositions
+            ? 'КС-2 с таблицей работ сформирован. Если открылся диалог — выберите место сохранения.'
+            : 'Черновик КС-2 (только шапка) сформирован. Для таблицы работ выберите ВОР в форме. '
+                'Если открылся диалог — выберите место сохранения.',
         kind: AppSnackBarKind.success,
       );
     } catch (e) {

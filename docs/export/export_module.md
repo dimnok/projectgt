@@ -105,14 +105,16 @@ lib/features/export/
 ## 🗄️ База данных (Audit)
 
 ### SQL Функции (RPC):
-1. **`get_work_items_available_filters`**:
+1. **`get_distinct_work_object_ids`**:
+   - **Назначение:** Уникальные `object_id` смен компании (чипы объектов в выгрузке). Кэш: `objectsWithWorksProvider` + префетч при входе на экран.
+2. **`get_work_items_available_filters`**:
    - **Назначение:** Возвращает уникальные системы, участки и этажи с учетом каскада.
    - **RLS:** ✅ Включён (Security Defininer).
-2. **`get_work_items_aggregates`**:
-   - **Назначение:** Расчет `total_count`, `total_quantity` и `total_sum` по всей отфильтрованной выборке.
-3. **`search_work_items_paginated`**:
-   - **Назначение:** Пагинированный поиск с корректной серверной сортировкой по дате через `JOIN works`.
-   - **Параметры:** Все фильтры + `p_from`, `p_to`.
+3. **`search_work_items_with_aggregates`** (основной для UI поиска):
+   - **Назначение:** Пагинированный поиск + `total_count`, `total_quantity`, `total_sum` в одном ответе JSONB (`items`).
+   - **Клиент:** `WorkSearchDataSourceImpl.searchMaterials()`.
+4. **`get_work_items_aggregates`** / **`search_work_items_paginated`** (legacy):
+   - Сохранены для совместимости (например, Edge Function `export-work-search-all`).
 
 ### Индексы:
 - `idx_works_date_desc` — для быстрой сортировки по дате.
@@ -129,7 +131,7 @@ lib/features/export/
 1. Пользователь выбирает **Объект** (обязательно).
 2. Приложение запрашивает через RPC доступные фильтры для этого объекта.
 3. При выборе **Системы**, список **Участков** сужается (серверная фильтрация).
-4. При вводе текста в поиск, и фильтры, и результаты обновляются мгновенно (debounce 500ms).
+4. При вводе текста в поиск результаты и каскадные фильтры обновляются с debounce 500ms (`exportSearchQueryDebouncedProvider` / `kExportSearchDebounceMs`).
 5. **Сортировка:** Данные всегда сортируются по дате смены (`works.date`) в порядке убывания (новые сверху), затем по `id` записи. Реализовано на уровне БД через RPC.
 
 ## 🔌 Интеграции

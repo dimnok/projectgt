@@ -4,7 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/work_search_export_server_service.dart';
 import '../providers/work_search_provider.dart';
 import '../providers/work_search_date_provider.dart';
-import '../widgets/export_search_action.dart';
+import '../providers/export_search_providers.dart';
 
 /// Действие в AppBar: кнопка экспорта результатов поиска в Excel
 class WorkSearchExportAction extends ConsumerStatefulWidget {

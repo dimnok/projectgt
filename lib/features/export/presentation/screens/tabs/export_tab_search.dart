@@ -1,4 +1,3 @@
-import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,7 +14,7 @@ import '../../widgets/export_results_table_view.dart';
 import 'package:projectgt/presentation/state/auth_state.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
 import 'package:projectgt/features/roles/presentation/providers/roles_provider.dart';
-import '../../widgets/export_search_action.dart';
+import '../../providers/export_search_providers.dart';
 
 /// Таб "Поиск" для расширенного поиска и фильтрации данных.
 class ExportTabSearch extends ConsumerStatefulWidget {
@@ -232,18 +231,24 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
     WorkSearchResult result,
   ) async {
     try {
-      final workItems = await ref
-          .read(workItemRepositoryProvider)
-          .fetchWorkItems(result.workId!);
+      final repo = ref.read(workItemRepositoryProvider);
+      final workItem = await repo.fetchWorkItemById(result.workItemId!);
       if (!context.mounted) return;
 
-      final workItem = workItems.firstWhereOrNull(
-        (item) => item.id == result.workItemId,
-      );
       if (workItem == null) {
         SnackBarUtils.showError(context, 'Работа не найдена в смене');
         return;
       }
+
+      final occupiedEstimateIds = await repo.fetchEstimateIdsForCombo(
+        workId: result.workId!,
+        section: result.section,
+        floor: result.floor,
+        system: result.system,
+        subsystem: result.subsystem,
+        contractorId: workItem.contractorId,
+      );
+      if (!context.mounted) return;
 
       final saved = await showDialog<bool>(
         context: context,
@@ -252,6 +257,7 @@ class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
             workId: result.workId!,
             initial: workItem,
             initialObjectId: result.objectId,
+            occupiedEstimateIdsForCombo: occupiedEstimateIds,
           ),
         ),
       );

@@ -18,6 +18,58 @@ class WorkItemDataSourceImpl implements WorkItemDataSource {
   /// Создаёт источник данных для работы с работами в смене.
   WorkItemDataSourceImpl(this.client, this.activeCompanyId);
 
+  @override
+  Future<WorkItemModel?> fetchWorkItemById(String workItemId) async {
+    if (workItemId.isEmpty) return null;
+    try {
+      final response = await client
+          .from(table)
+          .select()
+          .eq('id', workItemId)
+          .eq('company_id', activeCompanyId)
+          .maybeSingle();
+      if (response == null) return null;
+      return WorkItemModel.fromJson(response);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Set<String>> fetchEstimateIdsForCombo({
+    required String workId,
+    required String section,
+    required String floor,
+    required String system,
+    required String subsystem,
+    String? contractorId,
+  }) async {
+    if (workId.isEmpty) return {};
+    try {
+      var query = client
+          .from(table)
+          .select('estimate_id')
+          .eq('work_id', workId)
+          .eq('company_id', activeCompanyId)
+          .eq('section', section)
+          .eq('floor', floor)
+          .eq('system', system)
+          .eq('subsystem', subsystem);
+
+      query = contractorId == null
+          ? query.isFilter('contractor_id', null)
+          : query.eq('contractor_id', contractorId);
+
+      final response = await query;
+      return response
+          .map((row) => row['estimate_id'] as String?)
+          .whereType<String>()
+          .toSet();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   /// Возвращает список работ для смены по идентификатору [workId].
   @override
   Future<List<WorkItemModel>> fetchWorkItems(String workId) async {

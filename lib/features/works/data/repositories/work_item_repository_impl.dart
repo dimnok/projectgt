@@ -11,13 +11,7 @@ class WorkItemRepositoryImpl implements WorkItemRepository {
   /// Создаёт репозиторий для работы с работами в смене.
   WorkItemRepositoryImpl(this.dataSource);
 
-  /// Возвращает список работ для смены по идентификатору [workId].
-  @override
-  Future<List<WorkItem>> fetchWorkItems(String workId) async {
-    final models = await dataSource.fetchWorkItems(workId);
-    return models
-        .map(
-          (e) => WorkItem(
+  WorkItem _mapModel(WorkItemModel e) => WorkItem(
             id: e.id,
             companyId: e.companyId,
             workId: e.workId,
@@ -36,9 +30,38 @@ class WorkItemRepositoryImpl implements WorkItemRepository {
             ks2Id: e.ks2Id,
             contractorId: e.contractorId,
             specialistsCount: e.specialistsCount,
-          ),
-        )
-        .toList();
+          );
+
+  @override
+  Future<WorkItem?> fetchWorkItemById(String workItemId) async {
+    final model = await dataSource.fetchWorkItemById(workItemId);
+    return model == null ? null : _mapModel(model);
+  }
+
+  @override
+  Future<Set<String>> fetchEstimateIdsForCombo({
+    required String workId,
+    required String section,
+    required String floor,
+    required String system,
+    required String subsystem,
+    String? contractorId,
+  }) {
+    return dataSource.fetchEstimateIdsForCombo(
+      workId: workId,
+      section: section,
+      floor: floor,
+      system: system,
+      subsystem: subsystem,
+      contractorId: contractorId,
+    );
+  }
+
+  /// Возвращает список работ для смены по идентификатору [workId].
+  @override
+  Future<List<WorkItem>> fetchWorkItems(String workId) async {
+    final models = await dataSource.fetchWorkItems(workId);
+    return models.map(_mapModel).toList();
   }
 
   /// Добавляет новую работу [item] в смену.
@@ -137,29 +160,6 @@ class WorkItemRepositoryImpl implements WorkItemRepository {
   @override
   Future<List<WorkItem>> getAllWorkItems() async {
     final models = await dataSource.getAllWorkItems();
-    return models
-        .map(
-          (e) => WorkItem(
-            id: e.id,
-            companyId: e.companyId,
-            workId: e.workId,
-            section: e.section,
-            floor: e.floor,
-            estimateId: e.estimateId,
-            name: e.name,
-            system: e.system,
-            subsystem: e.subsystem,
-            unit: e.unit,
-            quantity: e.quantity,
-            price: e.price,
-            total: e.total,
-            createdAt: e.createdAt,
-            updatedAt: e.updatedAt,
-            ks2Id: e.ks2Id,
-            contractorId: e.contractorId,
-            specialistsCount: e.specialistsCount,
-          ),
-        )
-        .toList();
+    return models.map(_mapModel).toList();
   }
 }

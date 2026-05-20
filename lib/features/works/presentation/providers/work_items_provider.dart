@@ -15,7 +15,13 @@ class WorkItemsNotifier extends StateNotifier<AsyncValue<List<WorkItem>>> {
   /// Идентификатор смены, для которой ведётся учёт работ.
   final String workId;
 
-  /// Создаёт [WorkItemsNotifier] и сразу инициирует загрузку работ для смены [workId].
+  /// Счётчик запросов [fetch]: устаревший ответ не перезаписывает [seed].
+  int _fetchGeneration = 0;
+
+  /// Создаёт [WorkItemsNotifier] и инициирует загрузку работ для смены [workId].
+  ///
+  /// Загрузка откладывается в microtask, чтобы вызывающий код успел вызвать [seed]
+  /// с уже полученными данными (без второго запроса и без мигания loading).
   WorkItemsNotifier(this.repository, this.workId, this.ref)
     : super(const AsyncValue.loading()) {
     if (workId.isEmpty) {
@@ -23,16 +29,34 @@ class WorkItemsNotifier extends StateNotifier<AsyncValue<List<WorkItem>>> {
       return;
     }
 
-    fetch();
+    Future.microtask(fetch);
+  }
+
+  /// Подставляет уже загруженный список работ (без сетевого запроса).
+  ///
+  /// Используется, когда данные получены снаружи (например, модуль «Выгрузка»
+  /// перед открытием формы редактирования).
+  void seed(List<WorkItem> items) {
+    _fetchGeneration++;
+    state = AsyncValue.data(items);
   }
 
   /// Загружает список работ для текущей смены.
-  Future<void> fetch() async {
-    state = const AsyncValue.loading();
+  ///
+  /// [force] — перезагрузить с сервера даже если список уже в памяти (после CRUD).
+  Future<void> fetch({bool force = false}) async {
+    if (!force && state.hasValue) return;
+
+    final generation = ++_fetchGeneration;
+    if (!state.hasValue) {
+      state = const AsyncValue.loading();
+    }
     try {
       final items = await repository.fetchWorkItems(workId);
+      if (generation != _fetchGeneration) return;
       state = AsyncValue.data(items);
     } catch (e, st) {
+      if (generation != _fetchGeneration) return;
       state = AsyncValue.error(e, st);
     }
   }
@@ -63,7 +87,7 @@ class WorkItemsNotifier extends StateNotifier<AsyncValue<List<WorkItem>>> {
   }
 
   Future<void> _refreshAfterMutation() async {
-    await fetch();
+    await fetch(force: true);
     await _refreshParentWork();
   }
 

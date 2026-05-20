@@ -7,6 +7,19 @@ abstract class WorkItemRepository {
   /// Возвращает список работ для смены по идентификатору [workId].
   Future<List<WorkItem>> fetchWorkItems(String workId);
 
+  /// Возвращает одну работу по [workItemId].
+  Future<WorkItem?> fetchWorkItemById(String workItemId);
+
+  /// ID смет, уже занятых в смене для комбинации фильтров позиции.
+  Future<Set<String>> fetchEstimateIdsForCombo({
+    required String workId,
+    required String section,
+    required String floor,
+    required String system,
+    required String subsystem,
+    String? contractorId,
+  });
+
   /// Добавляет новую работу [item] в смену.
   Future<void> addWorkItem(WorkItem item);
 

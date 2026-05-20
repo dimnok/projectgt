@@ -23,15 +23,19 @@ class ContractKs2VorPositionsSection extends ConsumerStatefulWidget {
 
   @override
   ConsumerState<ContractKs2VorPositionsSection> createState() =>
-      _ContractKs2VorPositionsSectionState();
+      ContractKs2VorPositionsSectionState();
 }
 
-class _ContractKs2VorPositionsSectionState
+/// Состояние [ContractKs2VorPositionsSection] (для [GlobalKey] при выгрузке Excel).
+class ContractKs2VorPositionsSectionState
     extends ConsumerState<ContractKs2VorPositionsSection> {
   Vor? _selectedVor;
   Ks2PreviewData? _preview;
   bool _loading = false;
   String? _error;
+
+  /// Выбранная утверждённая ВОР (`null`, если не выбрана).
+  String? get selectedVorId => _selectedVor?.id;
 
   Future<void> _loadPreview(String vorId) async {
     setState(() {

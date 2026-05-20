@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 
@@ -220,24 +218,11 @@ class DesktopDialogContent extends StatelessWidget {
                     ),
                   )
                 else
-                  Padding(
-                    padding: padding,
-                    child: Builder(
-                      builder: (context) {
-                        // Без скролла тело часто содержит [Expanded]; при [Column] с
-                        // [mainAxisSize.min] выше приходит h<=∞ — даём конечный maxHeight.
-                        final dialogMaxH =
-                            MediaQuery.sizeOf(context).height * 0.85;
-                        const reservedForDialogHeader = 120.0;
-                        final maxMiddle = math.min(
-                          math.max(160.0, dialogMaxH - reservedForDialogHeader),
-                          dialogMaxH,
-                        );
-                        return ConstrainedBox(
-                          constraints: BoxConstraints(maxHeight: maxMiddle),
-                          child: child,
-                        );
-                      },
+                  Flexible(
+                    fit: FlexFit.loose,
+                    child: Padding(
+                      padding: padding,
+                      child: child,
                     ),
                   ),
 

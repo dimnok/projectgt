@@ -5,12 +5,18 @@
  * доп. соглашений вставляются строки в лист перед блоком акта (`insertAddendumRowsIfNeeded`).
  * Список передаётся как `addenda` (массив `{ number, date }`); устаревшие поля `addendum1*` / `addendum2*`
  * учитываются, только если `addenda` не передан или пустой.
- * Таблица позиций не меняется.
+ *
+ * При передаче [vorId] таблица работ заполняется из утверждённой ВОР (та же логика, что `ks2_operations` preview).
  */
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { encode } from "https://deno.land/std@0.208.0/encoding/base64.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import ExcelJS from "npm:exceljs@4.4.0";
+import {
+  buildKs2PreviewPayload,
+  loadVorForKs2,
+  toNum,
+} from "./ks2_preview.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -30,12 +36,32 @@ const KS2_ROW_INSERT_BEFORE = 22;
 const KS2_BASE_ACT_ROW = 26;
 /** Строка с текстом сметной стоимости (A…). */
 const KS2_BASE_COST_ROW = 27;
+/** Первая строка данных таблицы работ (после заголовков 29–31). */
+const KS2_BASE_TABLE_FIRST_DATA_ROW = 32;
+/** Число зарезервированных в шаблоне строк под позиции (32…63). */
+const KS2_TEMPLATE_DATA_ROW_CAPACITY = 32;
+/** «Итого по разделу» / блок итогов акта в базовом шаблоне. */
+const KS2_BASE_FOOTER_SECTION_TOTAL_ROW = 64;
+const KS2_BASE_FOOTER_ACT_TOTAL_ROW = 65;
+const KS2_BASE_FOOTER_VAT_ROW = 66;
+const KS2_BASE_FOOTER_GRAND_TOTAL_ROW = 67;
 
 /** Единый шрифт заполняемого листа КС-2 (как в типовой форме). */
 const KS2_SHEET_FONT_NAME = "Times New Roman";
 const KS2_SHEET_FONT_SIZE = 10;
 /** Последняя колонка, на которую распространяется смена шрифта (в шаблоне — до AA). */
 const KS2_SHEET_FONT_LAST_COL = 30;
+/** Денежный формат: 2 знака, без символа валюты (Excel локализует под ru-RU). */
+const KS2_NUMFMT_MONEY = "#,##0.00";
+/** Количество: 2 знака после запятой (как цена/стоимость). */
+const KS2_NUMFMT_QUANTITY = "#,##0.00";
+/** Значение колонки «Номер ед. расценки» (F) по форме КС-2. */
+const KS2_ESTIMATE_CODE_COL_VALUE = "Х";
+/** Эталонная высота строки данных в шаблоне (pt). */
+const KS2_TEMPLATE_DATA_ROW_HEIGHT = 16;
+/** Символов в строке для колонки C (слито C:E). */
+const KS2_NAME_CHARS_PER_LINE = 44;
+const KS2_LINE_HEIGHT_PT = 11;
 
 interface Body {
   companyId: string;
@@ -58,6 +84,8 @@ interface Body {
   addendum2Number?: string | null;
   /** @deprecated Используйте [addenda]. Доп. соглашение 2: дата, ISO `yyyy-mm-dd`. */
   addendum2Date?: string | null;
+  /** Утверждённая ВОР: при указании заполняется таблица работ. */
+  vorId?: string | null;
 }
 
 const MAX_ADDENDA = 50;
@@ -155,7 +183,22 @@ serve(async (req) => {
       throw new Error("В шаблоне нет листов");
     }
 
-    applyKs2Header(sheet, payload, body);
+    const rowShift = applyKs2Header(sheet, payload, body);
+
+    const vorId = trimStr(body.vorId);
+    if (vorId) {
+      await loadVorForKs2(supabase, vorId, body.companyId, body.contractId);
+      const preview = await buildKs2PreviewPayload(supabase, vorId);
+      applyKs2PositionsTable(
+        sheet,
+        preview.candidates,
+        preview.totalAmount,
+        payload.contract,
+        rowShift,
+      );
+    }
+
+    applyTimesNewRoman10ToSheet(sheet);
 
     const buffer = await workbook.xlsx.writeBuffer();
     const file = encode(new Uint8Array(buffer));
@@ -285,6 +328,7 @@ async function loadKs2HeaderPayload(
  * При наличии доп. соглашений вставляются пары строк перед блоком «Вид операции» (строка 22),
  * блок акта и строка сметной стоимости сдвигаются вниз.
  */
+/** Заполняет шапку; возвращает сдвиг строк из-за доп. соглашений. */
 function applyKs2Header(
   sheet: ExcelJS.Worksheet,
   payload: {
@@ -294,7 +338,7 @@ function applyKs2Header(
     contractor: ContractorRow | null;
   },
   body: Body,
-) {
+): number {
   const { contract, company, object, contractor } = payload;
   const parties = resolveKs2Parties(contract, company, contractor);
 
@@ -347,7 +391,354 @@ function applyKs2Header(
     vatRate,
   );
 
-  applyTimesNewRoman10ToSheet(sheet);
+  return rowShift;
+}
+
+interface Ks2SectionBucket {
+  sectionKey: string;
+  rows: Record<string, unknown>[];
+}
+
+function groupCandidatesBySection(
+  candidates: Record<string, unknown>[],
+): Ks2SectionBucket[] {
+  const buckets: Ks2SectionBucket[] = [];
+  for (const c of candidates) {
+    const key = trimStr(c.sectionTitle as string | undefined) || "—";
+    if (buckets.length === 0 || buckets[buckets.length - 1]!.sectionKey !== key) {
+      buckets.push({ sectionKey: key, rows: [c] });
+    } else {
+      buckets[buckets.length - 1]!.rows.push(c);
+    }
+  }
+  return buckets;
+}
+
+function clearKs2DataRow(sheet: ExcelJS.Worksheet, row: number) {
+  for (const col of ["A", "B", "C", "F", "G", "H", "I", "J"] as const) {
+    sheet.getCell(`${col}${row}`).value = null;
+  }
+}
+
+/** Число для ячейки Excel: ноль остаётся нулём, а не пустой ячейкой. */
+function excelNumericCell(value: number): number {
+  return Number.isFinite(value) ? value : 0;
+}
+
+function ks2TableFont(bold: boolean): Partial<ExcelJS.Font> {
+  return {
+    name: KS2_SHEET_FONT_NAME,
+    size: KS2_SHEET_FONT_SIZE,
+    bold,
+  };
+}
+
+function applyKs2MoneyCellStyle(
+  cell: ExcelJS.Cell,
+  horizontal: "left" | "center" | "right",
+  bold = false,
+) {
+  cell.numFmt = KS2_NUMFMT_MONEY;
+  cell.font = ks2TableFont(bold);
+  cell.alignment = { horizontal, vertical: "middle" };
+}
+
+function applyKs2DataRowStyle(sheet: ExcelJS.Worksheet, row: number) {
+  const centerTextCols = ["B", "G"] as const;
+  for (const col of centerTextCols) {
+    const cell = sheet.getCell(`${col}${row}`);
+    cell.font = ks2TableFont(false);
+    cell.alignment = { horizontal: "center", vertical: "middle" };
+  }
+
+  applyKs2EstimateCodeColumn(sheet, row, false);
+
+  const aCell = sheet.getCell(`A${row}`);
+  aCell.font = ks2TableFont(false);
+  aCell.alignment = { horizontal: "center", vertical: "middle" };
+
+  const hCell = sheet.getCell(`H${row}`);
+  hCell.font = ks2TableFont(false);
+  hCell.numFmt = KS2_NUMFMT_QUANTITY;
+  hCell.alignment = { horizontal: "center", vertical: "middle" };
+
+  applyKs2MoneyCellStyle(sheet.getCell(`I${row}`), "right", false);
+  applyKs2MoneyCellStyle(sheet.getCell(`J${row}`), "right", false);
+}
+
+function applyKs2MergedDescriptionAlignment(
+  sheet: ExcelJS.Worksheet,
+  row: number,
+  opts: {
+    bold?: boolean;
+    horizontal?: "left" | "center" | "right";
+  } = {},
+) {
+  const cell = sheet.getCell(`C${row}`);
+  cell.font = ks2TableFont(opts.bold ?? false);
+  cell.alignment = {
+    horizontal: opts.horizontal ?? "left",
+    vertical: "middle",
+    wrapText: true,
+  };
+}
+
+/** Колонка F — «Номер ед. расценки»: везде «Х», по центру. */
+function applyKs2EstimateCodeColumn(
+  sheet: ExcelJS.Worksheet,
+  row: number,
+  bold = false,
+) {
+  const cell = sheet.getCell(`F${row}`);
+  cell.value = KS2_ESTIMATE_CODE_COL_VALUE;
+  cell.font = ks2TableFont(bold);
+  cell.alignment = { horizontal: "center", vertical: "middle" };
+}
+
+function applyKs2SectionTotalRowStyle(sheet: ExcelJS.Worksheet, row: number) {
+  mergeKs2RowCellsCE(sheet, row);
+  applyKs2MergedDescriptionAlignment(sheet, row, {
+    bold: true,
+    horizontal: "right",
+  });
+  applyKs2EstimateCodeColumn(sheet, row, true);
+  applyKs2MoneyCellStyle(sheet.getCell(`J${row}`), "right", true);
+}
+
+function applyKs2SectionHeadingStyle(sheet: ExcelJS.Worksheet, row: number) {
+  mergeKs2RowCellsCE(sheet, row);
+  applyKs2MergedDescriptionAlignment(sheet, row, {
+    bold: true,
+    horizontal: "center",
+  });
+  applyKs2EstimateCodeColumn(sheet, row, true);
+}
+
+function fillKs2DataRow(
+  sheet: ExcelJS.Worksheet,
+  row: number,
+  orderNum: number,
+  item: Record<string, unknown>,
+) {
+  const estimateNumber = trimStr(item.estimateNumber as string | undefined) ||
+    "—";
+  const name = trimStr(item.name as string | undefined) || "—";
+  const unit = trimStr(item.unit as string | undefined) || "—";
+  const qty = toNum(item.quantity as number | string | null | undefined);
+  const price = toNum(item.price as number | string | null | undefined);
+  const amount = toNum(item.amount as number | string | null | undefined);
+
+  sheet.getCell(`A${row}`).value = orderNum;
+  sheet.getCell(`B${row}`).value = estimateNumber === "—" ? null : estimateNumber;
+  sheet.getCell(`C${row}`).value = name;
+  sheet.getCell(`G${row}`).value = unit === "—" ? null : unit;
+  sheet.getCell(`H${row}`).value = excelNumericCell(qty);
+  sheet.getCell(`I${row}`).value = excelNumericCell(price);
+  sheet.getCell(`J${row}`).value = excelNumericCell(amount);
+
+  applyKs2DataRowStyle(sheet, row);
+  applyKs2DataRowLayout(sheet, row, name);
+}
+
+function fillKs2SectionHeadingRow(
+  sheet: ExcelJS.Worksheet,
+  row: number,
+  title: string,
+) {
+  sheet.getCell(`C${row}`).value = title;
+  for (const col of ["A", "B", "F", "G", "H", "I", "J"] as const) {
+    sheet.getCell(`${col}${row}`).value = null;
+  }
+  applyKs2SectionHeadingStyle(sheet, row);
+  sheet.getRow(row).height = Math.max(18, estimateKs2RowHeightPt(title, 18));
+}
+
+function fillKs2SectionTotalRow(
+  sheet: ExcelJS.Worksheet,
+  row: number,
+  sectionTotal: number,
+) {
+  sheet.getCell(`C${row}`).value = "Итого по разделу без учёта НДС";
+  sheet.getCell(`J${row}`).value = excelNumericCell(sectionTotal);
+  applyKs2SectionTotalRowStyle(sheet, row);
+}
+
+type Ks2TableLine =
+  | { kind: "heading"; title: string }
+  | { kind: "data"; item: Record<string, unknown> }
+  | { kind: "sectionTotal"; amount: number };
+
+/** Собирает строки таблицы при нескольких разделах сметы. */
+function buildKs2MultiSectionLines(
+  candidates: Record<string, unknown>[],
+): Ks2TableLine[] {
+  const buckets = groupCandidatesBySection(candidates);
+  const lines: Ks2TableLine[] = [];
+
+  for (const bucket of buckets) {
+    const title = bucket.sectionKey === "—"
+      ? "Без названия раздела"
+      : bucket.sectionKey;
+    lines.push({ kind: "heading", title });
+    for (const item of bucket.rows) {
+      lines.push({ kind: "data", item });
+    }
+    const sectionTotal = bucket.rows.reduce(
+      (s, r) => s + toNum(r.amount as number | string | null | undefined),
+      0,
+    );
+    lines.push({ kind: "sectionTotal", amount: sectionTotal });
+  }
+  return lines;
+}
+
+function shouldShowKs2SectionHeadings(
+  candidates: Record<string, unknown>[],
+): boolean {
+  const buckets = groupCandidatesBySection(candidates);
+  return buckets.length > 1 ||
+    (buckets.length === 1 && buckets[0]!.sectionKey !== "—");
+}
+
+/** Рисует последовательность [lines] начиная с [firstDataRow]; возвращает следующий свободный номер строки. */
+function renderKs2TableLines(
+  sheet: ExcelJS.Worksheet,
+  lines: Ks2TableLine[],
+  firstDataRow: number,
+): number {
+  let orderNum = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const row = firstDataRow + i;
+    const line = lines[i]!;
+
+    if (line.kind === "heading") {
+      copyRowFormattingFrom(sheet, KS2_BASE_TABLE_FIRST_DATA_ROW, row);
+      fillKs2SectionHeadingRow(sheet, row, line.title);
+      continue;
+    }
+
+    if (line.kind === "data") {
+      if (row !== KS2_BASE_TABLE_FIRST_DATA_ROW) {
+        copyRowFormattingFrom(sheet, KS2_BASE_TABLE_FIRST_DATA_ROW, row);
+      }
+      orderNum++;
+      fillKs2DataRow(sheet, row, orderNum, line.item);
+      continue;
+    }
+
+    copyRowFormattingFrom(sheet, KS2_BASE_FOOTER_SECTION_TOTAL_ROW, row);
+    fillKs2SectionTotalRow(sheet, row, line.amount);
+  }
+  return firstDataRow + lines.length;
+}
+
+/**
+ * Заполняет таблицу работ и итоги акта (строки 32+ и блок 64–67 с учётом [rowShift]).
+ */
+function applyKs2PositionsTable(
+  sheet: ExcelJS.Worksheet,
+  candidates: Record<string, unknown>[],
+  totalAmount: number,
+  contract: ContractRow,
+  rowShift: number,
+) {
+  if (candidates.length === 0) return;
+
+  const firstDataRow = KS2_BASE_TABLE_FIRST_DATA_ROW + rowShift;
+  let sectionTotalRow = KS2_BASE_FOOTER_SECTION_TOTAL_ROW + rowShift;
+  const showSectionHeadings = shouldShowKs2SectionHeadings(candidates);
+
+  if (showSectionHeadings) {
+    const lines = buildKs2MultiSectionLines(candidates);
+    const actFooterRows = 3;
+    const templateBlockSize = KS2_TEMPLATE_DATA_ROW_CAPACITY + 4;
+    const extraRows = Math.max(0, lines.length + actFooterRows - templateBlockSize);
+
+    const templateDataRow = firstDataRow;
+    if (extraRows > 0) {
+      insertKs2TableDataRows(sheet, sectionTotalRow, extraRows, templateDataRow);
+      sectionTotalRow += extraRows;
+    }
+
+    const nextRow = renderKs2TableLines(sheet, lines, firstDataRow);
+    normalizeKs2TableRowMerges(sheet, firstDataRow, nextRow - 1);
+    fillKs2ActFooterTotals(
+      sheet,
+      contract,
+      totalAmount,
+      nextRow,
+      nextRow + 1,
+      nextRow + 2,
+    );
+    return;
+  }
+
+  const dataCount = candidates.length;
+  const templateDataRow = firstDataRow;
+  const extraRows = Math.max(0, dataCount - KS2_TEMPLATE_DATA_ROW_CAPACITY);
+  if (extraRows > 0) {
+    insertKs2TableDataRows(sheet, sectionTotalRow, extraRows, templateDataRow);
+    sectionTotalRow += extraRows;
+  }
+
+  let orderNum = 0;
+  for (let i = 0; i < dataCount; i++) {
+    const row = firstDataRow + i;
+    if (row !== templateDataRow) {
+      copyRowFormattingFrom(sheet, templateDataRow, row);
+    }
+    orderNum++;
+    fillKs2DataRow(sheet, row, orderNum, candidates[i]!);
+  }
+
+  for (let row = firstDataRow + dataCount; row < sectionTotalRow; row++) {
+    clearKs2DataRow(sheet, row);
+  }
+
+  copyRowFormattingFrom(sheet, KS2_BASE_FOOTER_SECTION_TOTAL_ROW, sectionTotalRow);
+  fillKs2SectionTotalRow(sheet, sectionTotalRow, totalAmount);
+
+  normalizeKs2TableRowMerges(sheet, firstDataRow, sectionTotalRow);
+
+  fillKs2ActFooterTotals(
+    sheet,
+    contract,
+    totalAmount,
+    sectionTotalRow + 1,
+    sectionTotalRow + 2,
+    sectionTotalRow + 3,
+  );
+}
+
+function fillKs2ActFooterTotals(
+  sheet: ExcelJS.Worksheet,
+  contract: ContractRow,
+  totalAmount: number,
+  actTotalRow: number,
+  vatRow: number,
+  grandTotalRow: number,
+) {
+  const vatRate = toNumberOrNull(contract.vat_rate);
+  const vatAmount = vatRate != null && vatRate > 0
+    ? Math.round(totalAmount * vatRate / 100 * 100) / 100
+    : 0;
+  const grandTotal = Math.round((totalAmount + vatAmount) * 100) / 100;
+
+  sheet.getCell(`J${actTotalRow}`).value = excelNumericCell(totalAmount);
+  applyKs2MoneyCellStyle(sheet.getCell(`J${actTotalRow}`), "right", false);
+
+  if (vatRate != null && vatRate > 0) {
+    sheet.getCell(`C${vatRow}`).value =
+      `НДС ${formatVatRateDisplay(vatRate)}%`;
+    sheet.getCell(`J${vatRow}`).value = excelNumericCell(vatAmount);
+  } else {
+    sheet.getCell(`C${vatRow}`).value = "НДС";
+    sheet.getCell(`J${vatRow}`).value = excelNumericCell(0);
+  }
+  applyKs2MoneyCellStyle(sheet.getCell(`J${vatRow}`), "right", false);
+
+  sheet.getCell(`J${grandTotalRow}`).value = excelNumericCell(grandTotal);
+  applyKs2MoneyCellStyle(sheet.getCell(`J${grandTotalRow}`), "right", false);
 }
 
 function buildAddendaFromBody(body: Body): AddendumBlock[] {
@@ -391,6 +782,167 @@ function insertAddendumRowsIfNeeded(
   const blanks = Array.from({ length: count }, () => [] as unknown[]);
   sheet.spliceRows(KS2_ROW_INSERT_BEFORE, 0, ...blanks);
   return count;
+}
+
+/** Оценка высоты строки по длине текста в C (при wrapText). */
+function estimateKs2RowHeightPt(text: string, minPt = KS2_TEMPLATE_DATA_ROW_HEIGHT): number {
+  const t = text.trim();
+  if (!t) return minPt;
+  const lines = Math.max(1, Math.ceil(t.length / KS2_NAME_CHARS_PER_LINE));
+  return Math.max(minPt, lines * KS2_LINE_HEIGHT_PT + 6);
+}
+
+/** Индекс колонки Excel: A=1, B=2, C=3, … */
+function colLettersToIndex(col: string): number {
+  let n = 0;
+  for (const ch of col.toUpperCase()) {
+    n = n * 26 + (ch.charCodeAt(0) - 64);
+  }
+  return n;
+}
+
+/** Диапазон merge `A1:J10` или `null`. */
+function parseMergeRef(
+  ref: string,
+): { c1: number; r1: number; c2: number; r2: number } | null {
+  const m = /^([A-Z]+)(\d+):([A-Z]+)(\d+)$/i.exec(ref.trim());
+  if (!m) return null;
+  return {
+    c1: colLettersToIndex(m[1]!),
+    r1: Number(m[2]),
+    c2: colLettersToIndex(m[3]!),
+    r2: Number(m[4]),
+  };
+}
+
+/** Merge пересекает строку [row] и колонки C–F (наименование + пустые D–F в шаблоне). */
+function mergeTouchesRowColsCtoF(
+  ref: string,
+  row: number,
+): boolean {
+  const box = parseMergeRef(ref);
+  if (!box) return false;
+  if (row < box.r1 || row > box.r2) return false;
+  const colC = colLettersToIndex("C");
+  const colF = colLettersToIndex("F");
+  return box.c2 >= colC && box.c1 <= colF;
+}
+
+/** Merge пересекает вертикальный диапазон строк и колонки C–F. */
+function mergeIntersectsRowsColsCtoF(
+  ref: string,
+  fromRow: number,
+  toRow: number,
+): boolean {
+  const box = parseMergeRef(ref);
+  if (!box) return false;
+  if (box.r2 < fromRow || box.r1 > toRow) return false;
+  const colC = colLettersToIndex("C");
+  const colF = colLettersToIndex("F");
+  return box.c2 >= colC && box.c1 <= colF;
+}
+
+/** Снимает все merge на [row] в блоке C–F (иначе mergeCells молча не срабатывает). */
+function unmergeRowColsCtoF(sheet: ExcelJS.Worksheet, row: number) {
+  const merges = sheet.model.merges;
+  if (!Array.isArray(merges) || merges.length === 0) return;
+
+  const toDrop: string[] = [];
+  for (const ref of merges) {
+    if (mergeTouchesRowColsCtoF(ref, row)) {
+      toDrop.push(ref);
+    }
+  }
+  for (const ref of toDrop) {
+    try {
+      sheet.unMergeCells(ref);
+    } catch {
+      //
+    }
+  }
+  if (toDrop.length > 0) {
+    sheet.model.merges = merges.filter((ref) => !toDrop.includes(ref));
+  }
+}
+
+/** Объединяет C:E в одной строке (как в шаблоне `ks2_template.xlsx`). */
+function mergeKs2RowCellsCE(sheet: ExcelJS.Worksheet, row: number) {
+  unmergeRowColsCtoF(sheet, row);
+  sheet.mergeCells(`C${row}:E${row}`);
+}
+
+/** Объединение C:E и высота строки для позиции с наименованием. */
+function applyKs2DataRowLayout(
+  sheet: ExcelJS.Worksheet,
+  row: number,
+  name: string,
+) {
+  mergeKs2RowCellsCE(sheet, row);
+  applyKs2MergedDescriptionAlignment(sheet, row);
+  sheet.getRow(row).height = estimateKs2RowHeightPt(name);
+}
+
+/**
+ * После spliceRows адреса merge в модели не сдвигаются — снимаем все C–F в диапазоне и задаём C:E построчно.
+ */
+function normalizeKs2TableRowMerges(
+  sheet: ExcelJS.Worksheet,
+  fromRow: number,
+  toRow: number,
+) {
+  if (toRow < fromRow) return;
+
+  const merges = sheet.model.merges;
+  if (Array.isArray(merges) && merges.length > 0) {
+    const toDrop: string[] = [];
+    for (const ref of merges) {
+      if (mergeIntersectsRowsColsCtoF(ref, fromRow, toRow)) {
+        toDrop.push(ref);
+      }
+    }
+    for (const ref of toDrop) {
+      try {
+        sheet.unMergeCells(ref);
+      } catch {
+        //
+      }
+    }
+    sheet.model.merges = merges.filter((ref) => !toDrop.includes(ref));
+  }
+
+  for (let row = fromRow; row <= toRow; row++) {
+    const cVal = sheet.getCell(`C${row}`).value;
+    if (cVal == null || `${cVal}`.trim() === "") continue;
+    mergeKs2RowCellsCE(sheet, row);
+    const text = `${cVal}`;
+    const isTotal = text.includes("Итого по разделу");
+    const isHeading = !isTotal &&
+      sheet.getCell(`A${row}`).value == null &&
+      sheet.getCell(`B${row}`).value == null;
+    const bold = isTotal || isHeading;
+    const horizontal: "left" | "center" | "right" = isTotal
+      ? "right"
+      : isHeading
+      ? "center"
+      : "left";
+    applyKs2MergedDescriptionAlignment(sheet, row, { bold, horizontal });
+    applyKs2EstimateCodeColumn(sheet, row, bold);
+  }
+}
+
+/** Вставляет строки таблицы работ с копированием стиля эталонной строки данных. */
+function insertKs2TableDataRows(
+  sheet: ExcelJS.Worksheet,
+  insertAtRow: number,
+  count: number,
+  templateDataRow: number,
+) {
+  if (count <= 0) return;
+  for (let i = 0; i < count; i++) {
+    const row = insertAtRow + i;
+    sheet.spliceRows(row, 0, []);
+    copyRowFormattingFrom(sheet, templateDataRow, row);
+  }
 }
 
 /** Копирует высоту строки и стили ячеек с эталонной строки шаблона (как у строк 20–21 для договора). */

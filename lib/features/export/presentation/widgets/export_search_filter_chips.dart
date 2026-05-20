@@ -1,35 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/di/providers.dart';
+import '../providers/export_objects_with_works_provider.dart';
+import '../providers/export_search_providers.dart';
 import '../providers/work_search_provider.dart';
 import '../providers/work_search_date_provider.dart';
 import '../../data/datasources/work_search_data_source.dart';
-import 'export_search_action.dart';
 import '../providers/repositories_providers.dart';
-
-/// Провайдер для получения списка ID объектов, у которых есть работы.
-final objectsWithWorksProvider = FutureProvider<Set<String>>((ref) async {
-  final client = Supabase.instance.client;
-  final response = await client
-      .from('works')
-      .select('object_id')
-      .not('object_id', 'is', null);
-
-  final objectIds = response
-      .map((item) => item['object_id'] as String?)
-      .whereType<String>()
-      .toSet();
-
-  return objectIds;
-});
 
 /// Провайдер для получения уникальных значений фильтров для объекта.
 final workSearchFilterValuesProvider =
     FutureProvider.autoDispose<WorkSearchFilterValues?>((ref) async {
   final selectedObjectId = ref.watch(exportSelectedObjectIdProvider);
   final filters = ref.watch(exportSearchFilterProvider);
-  final searchQuery = ref.watch(exportSearchQueryProvider);
+  final searchQuery = ref.watch(exportSearchQueryDebouncedProvider);
   final dateRange = ref.watch(workSearchDateRangeProvider);
 
   if (selectedObjectId == null || selectedObjectId.isEmpty) {
@@ -45,7 +29,7 @@ final workSearchFilterValuesProvider =
       endDate: dateRange?.end,
       systemFilters: filters['system']?.toList(),
       sectionFilters: filters['section']?.toList(),
-      searchQuery: searchQuery,
+      searchQuery: searchQuery.trim().isEmpty ? null : searchQuery.trim(),
     );
   } catch (e) {
     debugPrint('Ошибка загрузки фильтров: $e');

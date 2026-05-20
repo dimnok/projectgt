@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
+import '../providers/export_objects_with_works_provider.dart';
+import '../providers/export_search_providers.dart';
 import '../widgets/export_search_action.dart';
 import '../widgets/export_search_filter_chips.dart';
 import '../widgets/work_search_date_filter.dart';
@@ -21,6 +23,15 @@ class ExportScreen extends ConsumerStatefulWidget {
 }
 
 class _ExportScreenState extends ConsumerState<ExportScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(objectsWithWorksProvider.future);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDesktop = ResponsiveUtils.isDesktop(context);

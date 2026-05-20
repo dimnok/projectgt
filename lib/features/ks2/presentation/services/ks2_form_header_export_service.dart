@@ -19,8 +19,8 @@ class Ks2HeaderAddendumInput {
   final DateTime? date;
 }
 
-/// Выгрузка черновика формы КС-2 с шапкой, сформированного на сервере (Edge Function
-/// [export-ks2-form-header]).
+/// Выгрузка черновика формы КС-2 (шапка и при [vorId] — таблица работ), сформированного на сервере
+/// (Edge Function [export-ks2-form-header]).
 ///
 /// Шаблон берётся из Storage (`ks2_templates` / `ks2_template.xlsx`); ответ — JSON с
 /// полями `file` (base64) и `filename`.
@@ -38,6 +38,8 @@ class Ks2FormHeaderExportService {
   /// [addenda] — список доп. соглашений (порядок сохраняется); не более [maxAddenda] элементов
   /// с непустым номером или датой попадут в запрос.
   ///
+  /// [vorId] — утверждённая ВОР: при указании в Excel попадает таблица работ (как в превью формы).
+  ///
   /// Бросает [Exception], если ответ некорректен или сервер вернул ошибку.
   static Future<void> exportDraftHeaderToDevice({
     required SupabaseClient client,
@@ -48,6 +50,7 @@ class Ks2FormHeaderExportService {
     DateTime? reportingPeriodFrom,
     DateTime? reportingPeriodTo,
     List<Ks2HeaderAddendumInput> addenda = const [],
+    String? vorId,
     int maxAddenda = 50,
   }) async {
     final token = client.auth.currentSession?.accessToken;
@@ -94,6 +97,11 @@ class Ks2FormHeaderExportService {
     }
     if (addendaPayload.isNotEmpty) {
       body['addenda'] = addendaPayload;
+    }
+
+    final trimmedVorId = vorId?.trim();
+    if (trimmedVorId != null && trimmedVorId.isNotEmpty) {
+      body['vorId'] = trimmedVorId;
     }
 
     final response = await client.functions.invoke(

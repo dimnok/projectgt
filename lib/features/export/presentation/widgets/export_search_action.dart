@@ -1,25 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
+import '../providers/export_search_providers.dart';
 import '../providers/work_search_date_provider.dart';
 import '../providers/work_search_provider.dart';
-
-/// Провайдер запроса поиска для таба поиска.
-final exportSearchQueryProvider = StateProvider<String>((ref) => '');
-
-/// Провайдер выбранного объекта для поиска.
-final exportSelectedObjectIdProvider = StateProvider<String?>((ref) => null);
-
-/// Видимость поля поиска.
-final exportSearchVisibleProvider = StateProvider<bool>((ref) => false);
-
-/// Фильтры для результатов поиска.
-final exportSearchFilterProvider =
-    StateProvider<Map<String, Set<String>>>((ref) => {
-          'system': <String>{},
-          'section': <String>{},
-          'floor': <String>{},
-        });
 
 /// Контроллер поля ввода с авто-диспозом.
 final _exportSearchControllerProvider =
@@ -50,7 +34,6 @@ class ExportSearchAction extends ConsumerStatefulWidget {
 
 class _ExportSearchActionState extends ConsumerState<ExportSearchAction> {
   Timer? _debounceTimer;
-  static const int _debounceDelayMs = 500;
 
   @override
   void dispose() {
@@ -60,7 +43,7 @@ class _ExportSearchActionState extends ConsumerState<ExportSearchAction> {
 
   void _performSearch(String query) {
     _debounceTimer?.cancel();
-    _debounceTimer = Timer(const Duration(milliseconds: _debounceDelayMs), () {
+    _debounceTimer = Timer(const Duration(milliseconds: kExportSearchDebounceMs), () {
       final selectedObjectId = ref.read(exportSelectedObjectIdProvider);
       final dateRange = ref.read(workSearchDateRangeProvider);
 

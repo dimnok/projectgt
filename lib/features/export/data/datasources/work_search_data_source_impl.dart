@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
 import '../../../../core/utils/formatters.dart';
@@ -39,7 +41,6 @@ class WorkSearchDataSourceImpl implements WorkSearchDataSource {
       final from = (page - 1) * pageSize;
       final to = from + pageSize - 1;
 
-      // Параметры для RPC и запросов
       final startDateStr = startDate != null
           ? GtFormatters.formatDateForApi(startDate)
           : null;
@@ -47,40 +48,8 @@ class WorkSearchDataSourceImpl implements WorkSearchDataSource {
           ? GtFormatters.formatDateForApi(endDate)
           : null;
 
-      // Шаг 1: Получаем агрегаты (общее кол-во, количество материалов и сумму) через RPC
-      final aggregatesResponse = await client.rpc(
-        'get_work_items_aggregates',
-        params: {
-          'p_object_id': objectId,
-          'p_start_date': startDateStr,
-          'p_end_date': endDateStr,
-          'p_system_filters': (systemFilters?.isEmpty ?? true)
-              ? null
-              : systemFilters,
-          'p_section_filters': (sectionFilters?.isEmpty ?? true)
-              ? null
-              : sectionFilters,
-          'p_floor_filters': (floorFilters?.isEmpty ?? true)
-              ? null
-              : floorFilters,
-          'p_search_query': searchQuery,
-        },
-      );
-
-      final List<dynamic> aggList = aggregatesResponse as List<dynamic>;
-      final int totalCount = aggList.isNotEmpty
-          ? (aggList[0]['total_count'] as num? ?? 0).toInt()
-          : 0;
-      final num totalQuantity = aggList.isNotEmpty
-          ? (aggList[0]['total_quantity'] as num? ?? 0)
-          : 0;
-      final double totalSum = aggList.isNotEmpty
-          ? (aggList[0]['total_sum'] as num? ?? 0).toDouble()
-          : 0.0;
-
-      // Шаг 2: Получаем пагинированные данные через новый RPC для корректной сортировки
-      final dataResponse = await client.rpc(
-        'search_work_items_paginated',
+      final response = await client.rpc(
+        'search_work_items_with_aggregates',
         params: {
           'p_object_id': objectId,
           'p_start_date': startDateStr,
@@ -100,34 +69,42 @@ class WorkSearchDataSourceImpl implements WorkSearchDataSource {
         },
       );
 
-      final List<dynamic> data = dataResponse as List<dynamic>;
+      final payload = _parseAggregatesRpcPayload(response);
+      final totalCount = (payload['total_count'] as num? ?? 0).toInt();
+      final totalQuantity = payload['total_quantity'] as num? ?? 0;
+      final totalSum = (payload['total_sum'] as num?)?.toDouble() ?? 0.0;
+
+      final List<dynamic> data = payload['items'] is List
+          ? payload['items'] as List<dynamic>
+          : const [];
 
       final results = data.map((item) {
-        final price = item['price'] as num?;
-        final quantity = item['quantity'] as num? ?? 0;
+        final row = Map<String, dynamic>.from(item as Map);
+        final price = row['price'] as num?;
+        final quantity = row['quantity'] as num? ?? 0;
         final total = price != null ? (price * quantity).toDouble() : null;
 
         return WorkSearchResult(
-          workDate: DateTime.parse(item['work_date'] as String),
-          objectName: item['object_name'] as String? ?? 'Неизвестный объект',
-          system: item['system'] as String? ?? '',
-          subsystem: item['subsystem'] as String? ?? '',
-          section: item['section'] as String? ?? '',
-          floor: item['floor'] as String? ?? '',
-          workName: item['work_name'] as String? ?? '',
-          materialName: item['work_name'] as String? ?? '',
-          unit: item['unit'] as String? ?? '',
+          workDate: DateTime.parse(row['work_date'] as String),
+          objectName: row['object_name'] as String? ?? 'Неизвестный объект',
+          system: row['system'] as String? ?? '',
+          subsystem: row['subsystem'] as String? ?? '',
+          section: row['section'] as String? ?? '',
+          floor: row['floor'] as String? ?? '',
+          workName: row['work_name'] as String? ?? '',
+          materialName: row['work_name'] as String? ?? '',
+          unit: row['unit'] as String? ?? '',
           quantity: quantity,
-          workItemId: item['work_item_id'] as String?,
-          workId: item['work_id'] as String?,
-          objectId: item['object_id'] as String?,
-          workStatus: item['work_status'] as String?,
-          estimateId: item['estimate_id'] as String?,
+          workItemId: row['work_item_id'] as String?,
+          workId: row['work_id'] as String?,
+          objectId: row['object_id'] as String?,
+          workStatus: row['work_status'] as String?,
+          estimateId: row['estimate_id'] as String?,
           price: price?.toDouble(),
           total: total,
-          positionNumber: item['position_number'] as String?,
-          contractNumber: item['contract_number'] as String?,
-          m15Name: item['m15_name'] as String?,
+          positionNumber: row['position_number'] as String?,
+          contractNumber: row['contract_number'] as String?,
+          m15Name: row['m15_name'] as String?,
         );
       }).toList();
 
@@ -143,6 +120,23 @@ class WorkSearchDataSourceImpl implements WorkSearchDataSource {
       debugPrint('❌ [WorkSearch] Ошибка поиска работ: $e');
       throw Exception('Ошибка поиска работ: $e');
     }
+  }
+
+  /// Разбирает ответ RPC [search_work_items_with_aggregates] (JSONB).
+  Map<String, dynamic> _parseAggregatesRpcPayload(dynamic response) {
+    if (response is Map<String, dynamic>) {
+      return response;
+    }
+    if (response is Map) {
+      return Map<String, dynamic>.from(response);
+    }
+    if (response is String) {
+      return jsonDecode(response) as Map<String, dynamic>;
+    }
+    throw Exception(
+      'Неизвестный формат ответа search_work_items_with_aggregates: '
+      '${response.runtimeType}',
+    );
   }
 
   @override
