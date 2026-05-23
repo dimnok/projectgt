@@ -1,5 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:projectgt/domain/entities/contract_act.dart';
+import 'package:projectgt/domain/entities/contract_act_kind.dart';
 import 'package:projectgt/domain/entities/contract_act_payment_status.dart';
 import 'package:projectgt/domain/entities/contract_act_workflow_status.dart';
 
@@ -16,6 +17,7 @@ abstract class ContractActModel with _$ContractActModel {
     required String id,
     @JsonKey(name: 'company_id') required String companyId,
     @JsonKey(name: 'contract_id') required String contractId,
+    @JsonKey(name: 'act_kind') @Default('manual') String actKind,
     required String title,
     required String number,
     @JsonKey(name: 'act_date') required DateTime actDate,
@@ -27,17 +29,32 @@ abstract class ContractActModel with _$ContractActModel {
     @JsonKey(name: 'warranty_retention') required double warrantyRetention,
     @JsonKey(name: 'other_retentions') required double otherRetentions,
     @JsonKey(name: 'total_to_pay') required double totalToPay,
+    @JsonKey(name: 'amount_source') @Default('manual') String amountSource,
     String? note,
     @JsonKey(name: 'workflow_status') required String workflowStatus,
     @JsonKey(name: 'payment_status') required String paymentStatus,
+    @JsonKey(name: 'vor_id') String? vorId,
+    @JsonKey(name: 'excel_path') String? excelPath,
     @JsonKey(name: 'created_at') DateTime? createdAt,
     @JsonKey(name: 'updated_at') DateTime? updatedAt,
     @JsonKey(name: 'created_by') String? createdBy,
+    @JsonKey(includeFromJson: false, includeToJson: false) String? vorNumber,
   }) = _ContractActModel;
 
   /// Десериализация из JSON строки таблицы `contract_acts`.
   factory ContractActModel.fromJson(Map<String, dynamic> json) =>
       _$ContractActModelFromJson(json);
+
+  /// Разбор строки с join `vors(number)`.
+  factory ContractActModel.fromJsonWithVorJoin(Map<String, dynamic> json) {
+    final row = Map<String, dynamic>.from(json);
+    String? vorNumber;
+    final nested = row.remove('vors');
+    if (nested is Map<String, dynamic> && nested['number'] != null) {
+      vorNumber = nested['number'].toString();
+    }
+    return ContractActModel.fromJson(row).copyWith(vorNumber: vorNumber);
+  }
 
   /// Преобразует строки статусов из API в доменную сущность.
   ContractAct toEntity() {
@@ -45,6 +62,7 @@ abstract class ContractActModel with _$ContractActModel {
       id: id,
       companyId: companyId,
       contractId: contractId,
+      actKind: ContractActKindApi.parse(actKind),
       title: title,
       number: number,
       actDate: actDate,
@@ -56,9 +74,13 @@ abstract class ContractActModel with _$ContractActModel {
       warrantyRetention: warrantyRetention,
       otherRetentions: otherRetentions,
       totalToPay: totalToPay,
+      amountSource: ContractActAmountSourceApi.parse(amountSource),
       note: note,
       workflowStatus: _parseWorkflow(workflowStatus),
       paymentStatus: _parsePayment(paymentStatus),
+      vorId: vorId,
+      vorNumber: vorNumber,
+      excelPath: excelPath,
       createdAt: createdAt,
       updatedAt: updatedAt,
       createdBy: createdBy,

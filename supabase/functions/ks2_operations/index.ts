@@ -19,6 +19,8 @@ interface Body {
   vorId?: string | null;
   actNumber?: string | null;
   actDate?: string | null;
+  periodFrom?: string | null;
+  periodTo?: string | null;
 }
 
 /** Текст ошибки для JSON-ответа (PostgREST-объекты не дают нормальный String()). */
@@ -42,6 +44,14 @@ function formatKs2Error(error: unknown): string {
   return String(error);
 }
 
+function parseDateOnly(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) {
+    throw new Error(`Некорректная дата: ${iso}`);
+  }
+  return d.toISOString().slice(0, 10);
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -54,7 +64,16 @@ serve(async (req) => {
     );
 
     const body = (await req.json()) as Body;
-    const { action, contractId, companyId, vorId, actNumber, actDate } = body;
+    const {
+      action,
+      contractId,
+      companyId,
+      vorId,
+      actNumber,
+      actDate,
+      periodFrom,
+      periodTo,
+    } = body;
 
     if (!contractId) {
       throw new Error("contractId is required");
@@ -75,13 +94,21 @@ serve(async (req) => {
       if (!actNumber?.trim() || !actDate?.trim()) {
         throw new Error("actNumber and actDate are required for creation");
       }
+      const periodFromIso = periodFrom?.trim()
+        ? parseDateOnly(periodFrom.trim())
+        : null;
+      const periodToIso = periodTo?.trim()
+        ? parseDateOnly(periodTo.trim())
+        : null;
       return await handleCreate(
         supabase,
         contractId,
         companyId,
         vid,
         actNumber.trim(),
-        actDate.trim(),
+        parseDateOnly(actDate.trim()),
+        periodFromIso,
+        periodToIso,
       );
     }
 
@@ -102,10 +129,11 @@ async function assertNoExistingActForVor(
   companyId: string,
 ) {
   const { data: existing, error } = await supabase
-    .from("ks2_acts")
+    .from("contract_acts")
     .select("id")
     .eq("vor_id", vorId)
     .eq("company_id", companyId)
+    .eq("act_kind", "ks2")
     .maybeSingle();
 
   if (error) throw error;
@@ -135,6 +163,8 @@ async function handleCreate(
   vorId: string,
   number: string,
   actDateIso: string,
+  periodFromIso: string | null,
+  periodToIso: string | null,
 ) {
   const vor = await loadVorForKs2(supabase, vorId, companyId, contractId);
   await assertNoExistingActForVor(supabase, vorId, companyId);
@@ -146,18 +176,34 @@ async function handleCreate(
     );
   }
 
+  const periodFrom = periodFromIso ?? vor.start_date;
+  const periodTo = periodToIso ?? vor.end_date;
+  if (periodTo < periodFrom) {
+    throw new Error(
+      "Дата окончания периода не может быть раньше даты начала",
+    );
+  }
+
   const { data: act, error: actError } = await supabase
-    .from("ks2_acts")
+    .from("contract_acts")
     .insert({
-      contract_id: contractId,
       company_id: companyId,
-      vor_id: vorId,
+      contract_id: contractId,
+      act_kind: "ks2",
+      title: "КС-2",
       number,
-      date: actDateIso,
-      period_from: vor.start_date,
-      period_to: vor.end_date,
-      total_amount: payload.totalAmount,
-      status: "draft",
+      act_date: actDateIso,
+      period_from: periodFrom,
+      period_to: periodTo,
+      amount: payload.totalAmount,
+      vat_amount: 0,
+      advance_retention: 0,
+      warranty_retention: 0,
+      other_retentions: 0,
+      amount_source: "vor_preview",
+      workflow_status: "pending_approval",
+      payment_status: "unpaid",
+      vor_id: vorId,
     })
     .select()
     .single();

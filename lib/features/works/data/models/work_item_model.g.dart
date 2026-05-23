@@ -27,7 +27,7 @@ _WorkItemModel _$WorkItemModelFromJson(Map<String, dynamic> json) =>
       updatedAt: json['updated_at'] == null
           ? null
           : DateTime.parse(json['updated_at'] as String),
-      ks2Id: json['ks2_id'] as String?,
+      contractActId: json['contract_act_id'] as String?,
       contractorId: json['contractor_id'] as String?,
       specialistsCount: (json['specialists_count'] as num?)?.toInt(),
     );
@@ -49,7 +49,7 @@ Map<String, dynamic> _$WorkItemModelToJson(_WorkItemModel instance) =>
       'total': instance.total,
       'created_at': instance.createdAt?.toIso8601String(),
       'updated_at': instance.updatedAt?.toIso8601String(),
-      'ks2_id': instance.ks2Id,
+      'contract_act_id': instance.contractActId,
       'contractor_id': instance.contractorId,
       'specialists_count': instance.specialistsCount,
     };

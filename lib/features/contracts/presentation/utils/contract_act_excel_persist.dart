@@ -1,12 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/di/providers.dart';
-import 'package:projectgt/features/contracts/presentation/providers/contract_ks2_providers.dart';
 import 'package:projectgt/features/ks2/presentation/services/ks2_form_header_export_service.dart';
 
 /// Генерирует Excel по полям формы и сохраняет в Storage для акта [actId].
 ///
-/// При ошибке загрузки файла удаляет созданную запись [ks2_acts] (откат).
-Future<void> persistKs2ActExcelAfterCreate({
+/// При ошибке загрузки файла удаляет созданную запись `contract_acts` (откат).
+Future<void> persistContractActExcelAfterCreate({
   required WidgetRef ref,
   required String companyId,
   required String contractId,
@@ -19,7 +18,7 @@ Future<void> persistKs2ActExcelAfterCreate({
   List<Ks2HeaderAddendumInput> addenda = const [],
 }) async {
   final client = ref.read(supabaseClientProvider);
-  final repository = ref.read(contractKs2RepositoryProvider);
+  final repository = ref.read(contractActRepositoryProvider);
 
   try {
     final generated = await Ks2FormHeaderExportService.generateDraftHeaderExcel(
@@ -34,14 +33,19 @@ Future<void> persistKs2ActExcelAfterCreate({
       vorId: vorId,
     );
 
-    await repository.attachActExcelFile(
+    await repository.attachKs2Excel(
       actId: actId,
+      contractId: contractId,
       bytes: generated.bytes,
       displayFileName: generated.fileName,
     );
   } catch (e) {
     try {
-      await repository.deleteAct(actId);
+      await repository.delete(
+        id: actId,
+        companyId: companyId,
+        contractId: contractId,
+      );
     } catch (_) {
       // Откат записи не удался.
     }

@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:projectgt/core/navigation/app_module_availability.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
 
 /// Компактная сетка быстрых переходов в ключевые модули (с учётом RBAC).
@@ -30,7 +31,13 @@ class HomeDesktopQuickActionsBar extends ConsumerWidget {
       const _QuickActionSpec(module: 'company', routeName: 'company', label: 'Компания', icon: CupertinoIcons.briefcase),
     ];
 
-    final visible = actions.where((a) => permissions.can(a.module, 'read')).toList();
+    final visible = actions
+        .where(
+          (a) =>
+              permissions.can(a.module, 'read') &&
+              AppModuleAvailability.canOpenModule(a.module, context),
+        )
+        .toList();
 
     if (visible.isEmpty) return const SizedBox.shrink();
 

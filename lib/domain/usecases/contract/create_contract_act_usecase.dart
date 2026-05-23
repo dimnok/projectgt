@@ -29,7 +29,7 @@ class CreateContractActUseCase {
     required ContractActWorkflowStatus workflowStatus,
     required ContractActPaymentStatus paymentStatus,
   }) {
-    return _repository.create(
+    return _repository.createManual(
       companyId: companyId,
       contractId: contractId,
       title: title,

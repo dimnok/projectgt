@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'dart:math' as math;
-import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:projectgt/core/navigation/app_module_availability.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:projectgt/presentation/state/auth_state.dart';
@@ -236,7 +235,6 @@ class AppDrawer extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final screenWidth = MediaQuery.of(context).size.width;
-    final isMobile = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
     final double drawerWidth = screenWidth >= 800
         ? 360.0
         : screenWidth >= 600
@@ -310,8 +308,10 @@ class AppDrawer extends ConsumerWidget {
                               activeRoute,
                             ),
                           ),
-                          // TODO: Добавить мобильный вид для модуля Cash Flow
-                          if (!isMobile)
+                          if (AppModuleAvailability.canOpenModule(
+                            'cash_flow',
+                            context,
+                          ))
                             _buildMenuItem(
                               context: context,
                               module: 'cash_flow',
@@ -328,8 +328,10 @@ class AppDrawer extends ConsumerWidget {
                             route: AppRoute.works,
                             routeName: 'works',
                           ),
-                          // TODO: Добавить мобильный вид для модуля Материалы
-                          if (!isMobile)
+                          if (AppModuleAvailability.canOpenModule(
+                            'materials',
+                            context,
+                          ))
                             _buildMenuItem(
                               context: context,
                               module: 'materials',
@@ -379,8 +381,10 @@ class AppDrawer extends ConsumerWidget {
                             route: AppRoute.payrolls,
                             routeName: 'payrolls',
                           ),
-                          // TODO: Добавить мобильный вид для модуля Выгрузка
-                          if (!isMobile)
+                          if (AppModuleAvailability.canOpenModule(
+                            'export',
+                            context,
+                          ))
                             _buildMenuItem(
                               context: context,
                               module: 'export',

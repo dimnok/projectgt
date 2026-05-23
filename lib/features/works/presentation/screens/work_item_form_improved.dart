@@ -201,7 +201,8 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
             total: quantity > 0 ? estimate.price * quantity : 0,
             createdAt: isModifying ? widget.initial!.createdAt : DateTime.now(),
             updatedAt: DateTime.now(),
-            ks2Id: isModifying ? widget.initial!.ks2Id : null,
+            contractActId:
+                isModifying ? widget.initial!.contractActId : null,
             contractorId: _selectedContractor?.id,
             specialistsCount: _selectedContractor == null
                 ? null

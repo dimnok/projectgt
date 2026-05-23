@@ -61,6 +61,7 @@ import 'package:projectgt/domain/usecases/contract/bulk_update_contract_files_do
 import 'package:projectgt/domain/usecases/contract/update_contract_file_metadata_usecase.dart';
 import 'package:projectgt/domain/usecases/contract/reorder_contract_files_usecase.dart';
 import 'package:projectgt/data/datasources/contract_act_data_source.dart';
+import 'package:projectgt/data/datasources/contract_act_ks2_remote_data_source.dart';
 import 'package:projectgt/data/datasources/supabase_contract_act_data_source.dart';
 import 'package:projectgt/data/repositories/contract_act_repository_impl.dart';
 import 'package:projectgt/domain/repositories/contract_act_repository.dart';
@@ -174,6 +175,14 @@ final contractActDataSourceProvider = Provider<ContractActDataSource>((ref) {
   return SupabaseContractActDataSource(client);
 });
 
+/// Провайдер удалённых операций КС-2 (Edge Function + Storage).
+final contractActKs2RemoteDataSourceProvider =
+    Provider<ContractActKs2RemoteDataSource>((ref) {
+  final client = ref.watch(supabaseClientProvider);
+  final activeCompanyId = ref.watch(activeCompanyIdProvider);
+  return ContractActKs2RemoteDataSource(client, activeCompanyId ?? '');
+});
+
 /// Провайдер для EstimateDataSource (Supabase).
 final estimateDataSourceProvider = Provider<EstimateDataSource>((ref) {
   final client = ref.watch(supabaseClientProvider);
@@ -239,8 +248,13 @@ final contractFileRepositoryProvider = Provider<ContractFileRepository>((ref) {
 /// Провайдер репозитория актов по договору.
 final contractActRepositoryProvider = Provider<ContractActRepository>((ref) {
   final dataSource = ref.watch(contractActDataSourceProvider);
+  final ks2Remote = ref.watch(contractActKs2RemoteDataSourceProvider);
   final activeCompanyId = ref.watch(activeCompanyIdProvider);
-  return ContractActRepositoryImpl(dataSource, activeCompanyId ?? '');
+  return ContractActRepositoryImpl(
+    dataSource,
+    ks2Remote,
+    activeCompanyId ?? '',
+  );
 });
 
 /// Провайдер репозитория смет.

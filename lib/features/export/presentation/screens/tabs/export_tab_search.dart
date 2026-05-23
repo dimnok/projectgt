@@ -3,7 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
-import 'package:projectgt/core/utils/responsive_utils.dart';
+import 'package:projectgt/core/navigation/app_module_availability.dart';
 import 'package:projectgt/features/export/domain/entities/work_search_result.dart';
 import 'package:projectgt/features/works/presentation/providers/work_items_provider.dart';
 import 'package:projectgt/features/works/presentation/providers/repositories_providers.dart';
@@ -28,8 +28,7 @@ class ExportTabSearch extends ConsumerStatefulWidget {
 class _ExportTabSearchState extends ConsumerState<ExportTabSearch> {
   @override
   Widget build(BuildContext context) {
-    // Проверяем, является ли устройство десктопом
-    if (!ResponsiveUtils.isDesktop(context)) {
+    if (!AppModuleAvailability.canOpenModule('export', context)) {
       return _buildMobileUnavailableMessage(context);
     }
 

@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:projectgt/core/navigation/app_module_availability.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
 
 /// Панель быстрых действий для мобильного экрана.
@@ -60,7 +61,11 @@ class HomeMobileQuickActions extends ConsumerWidget {
     ];
 
     final visible = actions
-        .where((a) => permissions.can(a.module, 'read'))
+        .where(
+          (a) =>
+              permissions.can(a.module, 'read') &&
+              AppModuleAvailability.canOpenModule(a.module, context),
+        )
         .toList();
 
     if (visible.isEmpty) {

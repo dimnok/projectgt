@@ -7,11 +7,13 @@ import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/gt_text_field.dart';
 import 'package:projectgt/domain/entities/contract.dart';
-import 'package:projectgt/features/contracts/presentation/providers/contract_ks2_providers.dart';
-import 'package:projectgt/features/contracts/presentation/utils/contract_ks2_act_excel_persist.dart';
+import 'package:projectgt/domain/entities/contract_act.dart';
+import 'package:projectgt/features/contracts/presentation/providers/contract_act_ks2_providers.dart';
+import 'package:projectgt/features/contracts/presentation/providers/contract_act_providers.dart';
+import 'package:projectgt/features/contracts/presentation/utils/contract_act_excel_persist.dart';
 import 'package:projectgt/features/ks2/presentation/services/ks2_form_header_export_service.dart';
 
-/// Шаблон шапки унифицированной формы № КС-2 в модуле «Договоры».
+/// Шапка унифицированной формы № КС-2 (модуль «Договоры»).
 ///
 /// Вверху — карточка контекста договора (объект, №, дата, сумма с НДС). Стороны в Excel
 /// подставляются на сервере по [Contract], в форме не показываются.
@@ -20,7 +22,7 @@ import 'package:projectgt/features/ks2/presentation/services/ks2_form_header_exp
 ///
 /// Ниже шапки можно передать [positionsSection] — например таблицу позиций по ВОР
 /// из модуля «Договоры».
-class Ks2ActFormTemplate extends ConsumerStatefulWidget {
+class ContractActKs2FormBody extends ConsumerStatefulWidget {
   /// Договор, в контексте которого открыт шаблон.
   final Contract contract;
 
@@ -31,7 +33,7 @@ class Ks2ActFormTemplate extends ConsumerStatefulWidget {
   final String? Function()? getSelectedVorId;
 
   /// Создаёт виджет шаблона.
-  const Ks2ActFormTemplate({
+  const ContractActKs2FormBody({
     super.key,
     required this.contract,
     this.positionsSection,
@@ -39,11 +41,12 @@ class Ks2ActFormTemplate extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<Ks2ActFormTemplate> createState() => Ks2ActFormTemplateState();
+  ConsumerState<ContractActKs2FormBody> createState() =>
+      ContractActKs2FormBodyState();
 }
 
-/// Состояние [Ks2ActFormTemplate]; публично для вызова экспорта через [GlobalKey].
-class Ks2ActFormTemplateState extends ConsumerState<Ks2ActFormTemplate> {
+/// Состояние [ContractActKs2FormBody]; публично для экспорта через [GlobalKey].
+class ContractActKs2FormBodyState extends ConsumerState<ContractActKs2FormBody> {
   final List<_Ks2AddendumRowControllers> _addendumRows = [];
   late final TextEditingController _docNumberController;
   late final TextEditingController _actDocDateDisplay;
@@ -127,7 +130,7 @@ class Ks2ActFormTemplateState extends ConsumerState<Ks2ActFormTemplate> {
     });
   }
 
-  /// Сохраняет акт КС-2 в [ks2_acts] по выбранной ВОР и полям формы.
+  /// Сохраняет акт КС-2 в [contract_acts] по выбранной ВОР и полям формы.
   ///
   /// Возвращает `true`, если запись создана. После `await` проверяет [BuildContext.mounted].
   Future<bool> saveAct(BuildContext context, WidgetRef ref) async {
@@ -162,9 +165,9 @@ class Ks2ActFormTemplateState extends ConsumerState<Ks2ActFormTemplate> {
 
     try {
       final acts = await ref.read(
-        contractKs2ActsProvider(widget.contract.id).future,
+        contractActsProvider(widget.contract.id).future,
       );
-      if (acts.any((a) => a.vorId == vorId)) {
+      if (acts.any((a) => a.isKs2 && a.vorId == vorId)) {
         if (!context.mounted) return false;
         AppSnackBar.show(
           context: context,
@@ -175,17 +178,18 @@ class Ks2ActFormTemplateState extends ConsumerState<Ks2ActFormTemplate> {
       }
 
       final exportInput = _collectHeaderExportInput();
+      final repository = ref.read(contractActRepositoryProvider);
 
-      final actId = await ref
-          .read(contractKs2CreationProvider.notifier)
-          .createAct(
-            contractId: widget.contract.id,
-            vorId: vorId,
-            number: actNumber,
-            date: _actDocDate,
-          );
+      final actId = await repository.createKs2Act(
+        contractId: widget.contract.id,
+        vorId: vorId,
+        number: actNumber,
+        actDate: _actDocDate,
+        periodFrom: _periodFrom,
+        periodTo: _periodTo,
+      );
 
-      await persistKs2ActExcelAfterCreate(
+      await persistContractActExcelAfterCreate(
         ref: ref,
         companyId: widget.contract.companyId,
         contractId: widget.contract.id,
@@ -198,8 +202,8 @@ class Ks2ActFormTemplateState extends ConsumerState<Ks2ActFormTemplate> {
         addenda: exportInput.addenda,
       );
 
-      ref.invalidate(contractKs2ActsProvider(widget.contract.id));
-      ref.invalidate(contractKs2ApprovedVorsProvider(widget.contract.id));
+      ref.invalidate(contractActsProvider(widget.contract.id));
+      ref.invalidate(contractActApprovedVorsProvider(widget.contract.id));
 
       if (!context.mounted) return false;
       AppSnackBar.show(
@@ -806,7 +810,7 @@ class Ks2ActFormTemplateState extends ConsumerState<Ks2ActFormTemplate> {
               padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
               child: Text(
                 'Таблицу позиций можно подключить снаружи через параметр '
-                '[Ks2ActFormTemplate.positionsSection] (см. модуль «Договоры»).',
+                '[ContractActKs2FormBody.positionsSection].',
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: scheme.onSurface.withValues(alpha: 0.55),

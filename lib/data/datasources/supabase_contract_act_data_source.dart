@@ -1,8 +1,9 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:projectgt/data/datasources/contract_act_data_source.dart';
 import 'package:projectgt/data/models/contract_act_model.dart';
+import 'package:projectgt/domain/entities/contract_act_kind.dart';
 import 'package:projectgt/domain/entities/contract_act_payment_status.dart';
 import 'package:projectgt/domain/entities/contract_act_workflow_status.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Реализация [ContractActDataSource] через Supabase.
 class SupabaseContractActDataSource implements ContractActDataSource {
@@ -10,7 +11,7 @@ class SupabaseContractActDataSource implements ContractActDataSource {
   final SupabaseClient _client;
 
   /// Создаёт источник данных.
-  SupabaseContractActDataSource(this._client);
+  const SupabaseContractActDataSource(this._client);
 
   String _dateOnly(DateTime d) {
     final local = d.toLocal();
@@ -27,13 +28,17 @@ class SupabaseContractActDataSource implements ContractActDataSource {
   }) async {
     final rows = await _client
         .from('contract_acts')
-        .select()
+        .select('*, vors(number)')
         .eq('contract_id', contractId)
         .eq('company_id', companyId)
         .order('act_date', ascending: false);
 
     return (rows as List<dynamic>)
-        .map((e) => ContractActModel.fromJson(Map<String, dynamic>.from(e as Map)))
+        .map(
+          (e) => ContractActModel.fromJsonWithVorJoin(
+            Map<String, dynamic>.from(e as Map),
+          ),
+        )
         .toList();
   }
 
@@ -41,6 +46,7 @@ class SupabaseContractActDataSource implements ContractActDataSource {
   Future<ContractActModel> insert({
     required String companyId,
     required String contractId,
+    required ContractActKind actKind,
     required String title,
     required String number,
     required DateTime actDate,
@@ -51,14 +57,18 @@ class SupabaseContractActDataSource implements ContractActDataSource {
     required double advanceRetention,
     required double warrantyRetention,
     required double otherRetentions,
+    required ContractActAmountSource amountSource,
     String? note,
     required ContractActWorkflowStatus workflowStatus,
     required ContractActPaymentStatus paymentStatus,
+    String? vorId,
+    String? excelPath,
   }) async {
     final uid = _client.auth.currentUser?.id;
     final payload = <String, dynamic>{
       'company_id': companyId,
       'contract_id': contractId,
+      'act_kind': actKind.apiValue,
       'title': title,
       'number': number,
       'act_date': _dateOnly(actDate),
@@ -69,19 +79,24 @@ class SupabaseContractActDataSource implements ContractActDataSource {
       'advance_retention': advanceRetention,
       'warranty_retention': warrantyRetention,
       'other_retentions': otherRetentions,
+      'amount_source': amountSource.apiValue,
       'note': note,
       'workflow_status': workflowStatus.apiValue,
       'payment_status': paymentStatus.apiValue,
+      if (vorId != null) 'vor_id': vorId,
+      if (excelPath != null) 'excel_path': excelPath,
       if (uid != null) 'created_by': uid,
     };
 
     final inserted = await _client
         .from('contract_acts')
         .insert(payload)
-        .select()
+        .select('*, vors(number)')
         .single();
 
-    return ContractActModel.fromJson(Map<String, dynamic>.from(inserted));
+    return ContractActModel.fromJsonWithVorJoin(
+      Map<String, dynamic>.from(inserted),
+    );
   }
 
   @override
@@ -99,6 +114,7 @@ class SupabaseContractActDataSource implements ContractActDataSource {
     required double advanceRetention,
     required double warrantyRetention,
     required double otherRetentions,
+    required ContractActAmountSource amountSource,
     String? note,
     required ContractActWorkflowStatus workflowStatus,
     required ContractActPaymentStatus paymentStatus,
@@ -114,6 +130,7 @@ class SupabaseContractActDataSource implements ContractActDataSource {
       'advance_retention': advanceRetention,
       'warranty_retention': warrantyRetention,
       'other_retentions': otherRetentions,
+      'amount_source': amountSource.apiValue,
       'note': note,
       'workflow_status': workflowStatus.apiValue,
       'payment_status': paymentStatus.apiValue,
@@ -125,10 +142,25 @@ class SupabaseContractActDataSource implements ContractActDataSource {
         .eq('id', id)
         .eq('company_id', companyId)
         .eq('contract_id', contractId)
-        .select()
+        .select('*, vors(number)')
         .single();
 
-    return ContractActModel.fromJson(Map<String, dynamic>.from(updated));
+    return ContractActModel.fromJsonWithVorJoin(
+      Map<String, dynamic>.from(updated),
+    );
+  }
+
+  @override
+  Future<void> updateExcelPath({
+    required String actId,
+    required String companyId,
+    required String excelPath,
+  }) async {
+    await _client
+        .from('contract_acts')
+        .update({'excel_path': excelPath})
+        .eq('id', actId)
+        .eq('company_id', companyId);
   }
 
   @override
@@ -143,5 +175,33 @@ class SupabaseContractActDataSource implements ContractActDataSource {
         .eq('id', id)
         .eq('company_id', companyId)
         .eq('contract_id', contractId);
+  }
+
+  @override
+  Future<void> unlinkWorkItems({
+    required String actId,
+    required String companyId,
+  }) async {
+    await _client
+        .from('work_items')
+        .update({'contract_act_id': null})
+        .eq('contract_act_id', actId)
+        .eq('company_id', companyId);
+  }
+
+  @override
+  Future<String?> fetchExcelPath({
+    required String actId,
+    required String companyId,
+  }) async {
+    final row = await _client
+        .from('contract_acts')
+        .select('excel_path')
+        .eq('id', actId)
+        .eq('company_id', companyId)
+        .maybeSingle();
+
+    if (row == null) return null;
+    return row['excel_path'] as String?;
   }
 }

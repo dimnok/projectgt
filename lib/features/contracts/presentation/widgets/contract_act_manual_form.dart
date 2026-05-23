@@ -14,8 +14,8 @@ import 'package:projectgt/domain/entities/contract_act_workflow_status.dart';
 import 'package:projectgt/features/contracts/presentation/providers/contract_act_providers.dart';
 import 'package:projectgt/features/contracts/presentation/utils/contract_act_ui_labels.dart';
 
-/// Диалог с формой создания или редактирования акта по договору.
-class ContractActAddDialog extends ConsumerStatefulWidget {
+/// Форма ручного ввода акта по договору (`act_kind = manual`).
+class ContractActManualForm extends ConsumerStatefulWidget {
   /// Договор, к которому относится акт.
   final Contract contract;
 
@@ -23,18 +23,18 @@ class ContractActAddDialog extends ConsumerStatefulWidget {
   final ContractAct? existingAct;
 
   /// Создаёт виджет диалога.
-  const ContractActAddDialog({
+  const ContractActManualForm({
     super.key,
     required this.contract,
     this.existingAct,
   });
 
   @override
-  ConsumerState<ContractActAddDialog> createState() =>
-      _ContractActAddDialogState();
+  ConsumerState<ContractActManualForm> createState() =>
+      _ContractActManualFormState();
 }
 
-class _ContractActAddDialogState extends ConsumerState<ContractActAddDialog> {
+class _ContractActManualFormState extends ConsumerState<ContractActManualForm> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _numberController = TextEditingController();

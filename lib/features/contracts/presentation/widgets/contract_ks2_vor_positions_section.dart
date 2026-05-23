@@ -7,11 +7,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:projectgt/core/widgets/gt_dropdown.dart';
 import 'package:projectgt/core/utils/formatters.dart';
-import 'package:projectgt/domain/entities/ks2_act.dart';
+import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/domain/entities/contract_act_ks2_preview.dart';
 import 'package:projectgt/domain/entities/vor.dart';
 import 'package:projectgt/core/utils/supabase_function_error.dart';
-import 'package:projectgt/features/contracts/presentation/providers/contract_ks2_providers.dart';
-import 'package:projectgt/features/ks2/domain/repositories/ks2_repository.dart';
+import 'package:projectgt/features/contracts/presentation/providers/contract_act_ks2_providers.dart';
 
 /// Таблица позиций КС-2 по выбранной утверждённой ВОР (данные превью `ks2_operations`).
 ///
@@ -32,7 +32,7 @@ class ContractKs2VorPositionsSection extends ConsumerStatefulWidget {
 class ContractKs2VorPositionsSectionState
     extends ConsumerState<ContractKs2VorPositionsSection> {
   Vor? _selectedVor;
-  Ks2PreviewData? _preview;
+  ContractActKs2Preview? _preview;
   bool _loading = false;
   String? _error;
 
@@ -46,8 +46,8 @@ class ContractKs2VorPositionsSectionState
       _preview = null;
     });
     try {
-      final repo = ref.read(contractKs2RepositoryProvider);
-      final data = await repo.previewAct(
+      final repo = ref.read(contractActRepositoryProvider);
+      final data = await repo.previewKs2(
         contractId: widget.contractId,
         vorId: vorId,
       );
@@ -82,9 +82,8 @@ class ContractKs2VorPositionsSectionState
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final vorsAsync = ref.watch(
-      contractKs2ApprovedVorsProvider(widget.contractId),
+      contractActApprovedVorsProvider(widget.contractId),
     );
-    final actsAsync = ref.watch(contractKs2ActsProvider(widget.contractId));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -110,34 +109,9 @@ class ContractKs2VorPositionsSectionState
             'Не удалось загрузить ВОР: $e',
             style: theme.textTheme.bodyMedium?.copyWith(color: scheme.error),
           ),
-          data: (vors) {
-            return actsAsync.when(
-              loading: () => const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: CircularProgressIndicator(),
-                ),
-              ),
-              error: (e, _) => Text(
-                'Не удалось загрузить акты: $e',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: scheme.error,
-                ),
-              ),
-              data: (acts) {
-                final usedVorIds = acts
-                    .map((Ks2Act a) => a.vorId)
-                    .whereType<String>()
-                    .toSet();
-                final approved = vors
-                    .where(
-                      (v) =>
-                          v.status == VorStatus.approved &&
-                          !usedVorIds.contains(v.id),
-                    )
-                    .toList();
+          data: (approved) {
                 if (_selectedVor != null &&
-                    usedVorIds.contains(_selectedVor!.id)) {
+                    !approved.any((v) => v.id == _selectedVor!.id)) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     if (!mounted) return;
                     setState(() {
@@ -193,11 +167,9 @@ class ContractKs2VorPositionsSectionState
                     ],
                   ],
                 );
-              },
-            );
           },
         ),
-        ),
+      ),
       ],
     );
   }
@@ -210,7 +182,7 @@ class _Ks2PositionsTable extends StatefulWidget {
     required this.theme,
   });
 
-  final Ks2PreviewData preview;
+  final ContractActKs2Preview preview;
   final ColorScheme scheme;
   final ThemeData theme;
 

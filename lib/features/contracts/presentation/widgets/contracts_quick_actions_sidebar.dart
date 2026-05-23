@@ -10,10 +10,9 @@ import 'package:projectgt/features/contracts/presentation/widgets/contract_list_
 import 'package:projectgt/features/contracts/presentation/utils/contract_estimate_addendum_flow.dart';
 import 'package:projectgt/features/contracts/presentation/utils/contract_estimate_with_addenda_export_flow.dart';
 import 'package:projectgt/features/contracts/presentation/utils/contract_document_upload_flow.dart';
-import 'package:projectgt/features/contracts/presentation/utils/contract_act_dialog_flow.dart';
 import 'package:projectgt/features/contracts/presentation/providers/contract_act_providers.dart';
 import 'package:projectgt/features/contracts/presentation/providers/contract_files_providers.dart';
-import 'package:projectgt/features/contracts/presentation/utils/contract_ks2_act_form_dialog_flow.dart';
+import 'package:projectgt/features/contracts/presentation/utils/contract_act_form_dialog_flow.dart';
 import 'package:projectgt/features/estimates/presentation/providers/estimate_providers.dart';
 import 'package:projectgt/features/estimates/presentation/screens/import_estimate_form_modal.dart';
 import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
@@ -26,8 +25,7 @@ import 'package:projectgt/features/roles/presentation/widgets/permission_guard.d
 /// Часть сценариев по-прежнему заглушки ([AppSnackBar]); реализованы: импорт сметы,
 /// доп. соглашение (LC/ДС), выгрузка сметы с колонками ДС, блок действий вкладки «Документы»
 /// (загрузка, упорядочивание с сохранением из «Готово», примечания), сводка сумм по актам
-/// на вкладке «Акты», форма КС-2 в UI (шапка + таблица позиций по ВОР) и выгрузка шапки в Excel
-/// через Edge [export-ks2-form-header].
+/// на вкладке «Акты» — единая форма акта (ручной ввод или КС-2 по ВОР).
 class ContractsQuickActionsSidebar extends ConsumerWidget {
   /// Горизонтальный зазор между списком и панелью — [ContractListScreenDesktopChrome.gridGutter].
   static const double preferredWidth = 295;
@@ -245,28 +243,12 @@ class ContractsQuickActionsSidebar extends ConsumerWidget {
                     permission: 'update',
                     child: actionTile(
                       icon: Icons.fact_check_outlined,
-                      label: 'Добавить акт',
-                      onPressed: () => openContractActAddDialog(
+                      label: 'Создать акт',
+                      onPressed: () => openContractActFormDialog(
                         context: context,
                         ref: ref,
                         contract: contextContract!,
                       ),
-                    ),
-                  ),
-                  PermissionGuard(
-                    module: 'contracts',
-                    permission: 'update',
-                    child: actionTile(
-                      icon: Icons.article_outlined,
-                      label: 'Форма КС-2',
-                      onPressed: () {
-                        final c = contextContract!;
-                        openContractKs2ActFormDialog(
-                          context: context,
-                          ref: ref,
-                          contract: c,
-                        );
-                      },
                     ),
                   ),
                 ],

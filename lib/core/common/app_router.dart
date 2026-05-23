@@ -36,7 +36,9 @@ import 'package:projectgt/features/work_plans/presentation/screens/work_plan_det
 import 'package:projectgt/features/materials/presentation/screens/material_screen.dart';
 import 'package:projectgt/features/cash_flow/presentation/screens/cash_flow_list_screen.dart';
 // Telegram moderation экраны удалены
+import 'package:projectgt/core/navigation/app_module_availability.dart';
 import 'package:projectgt/core/navigation/app_route_observer.dart';
+import 'package:projectgt/core/navigation/desktop_only_module_unavailable_screen.dart';
 import 'package:projectgt/core/widgets/auth_gate.dart';
 import 'package:projectgt/features/version_control/presentation/force_update_screen.dart';
 import 'package:projectgt/features/version_control/presentation/version_management_screen.dart';
@@ -63,6 +65,21 @@ bool _canViewEmployee(WidgetRef ref, String employeeId) {
   final linkedEmployeeId = profile?.object?['employee_id'] as String?;
 
   return linkedEmployeeId != null && linkedEmployeeId == employeeId;
+}
+
+/// Оборачивает [child] проверкой desktop-only политики модуля.
+Widget _guardDesktopOnlyModule({
+  required String moduleId,
+  required Widget child,
+}) {
+  return Builder(
+    builder: (context) {
+      if (!AppModuleAvailability.canOpenModule(moduleId, context)) {
+        return DesktopOnlyModuleUnavailableScreen(moduleId: moduleId);
+      }
+      return child;
+    },
+  );
 }
 
 /// Создаёт экран "Доступ запрещён" для неавторизованных пользователей.
@@ -535,7 +552,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, ref, child) {
               final service = ref.watch(permissionServiceProvider);
               if (service.can('export', 'read')) {
-                return const ExportScreen();
+                return _guardDesktopOnlyModule(
+                  moduleId: 'export',
+                  child: const ExportScreen(),
+                );
               }
               return _buildAccessDeniedScreen();
             },
@@ -547,7 +567,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.material,
         name: 'material',
-        builder: (context, state) => const MaterialScreen(),
+        builder: (context, state) => _guardDesktopOnlyModule(
+          moduleId: 'materials',
+          child: const MaterialScreen(),
+        ),
       ),
 
       // Маршрут для экрана принудительного обновления
@@ -600,7 +623,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, ref, child) {
               final service = ref.watch(permissionServiceProvider);
               if (service.can('cash_flow', 'read')) {
-                return const CashFlowListScreen();
+                return _guardDesktopOnlyModule(
+                  moduleId: 'cash_flow',
+                  child: const CashFlowListScreen(),
+                );
               }
               return _buildAccessDeniedScreen();
             },
