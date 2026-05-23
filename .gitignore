@@ -54,4 +54,5 @@ docs/api/
 android/app/google-services.json
 ios/Runner/GoogleService-Info.plist
 supabase/service_account.json
+supabase/.temp/
 ProGT v1.0.4.apk
