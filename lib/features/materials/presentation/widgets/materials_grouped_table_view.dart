@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/widgets/gt_adaptive_table.dart';
 import '../../data/models/grouped_material_item.dart';
+import '../providers/materials_context_providers.dart';
 import '../providers/materials_providers.dart';
+import 'materials_select_context_placeholder.dart';
 
 /// Таблица сгруппированных материалов по смете.
 /// 
@@ -157,6 +159,11 @@ class MaterialsGroupedTableWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final contractNumber = ref.watch(selectedContractNumberProvider);
+    if (!hasMaterialsContractSelection(contractNumber)) {
+      return const MaterialsSelectContextPlaceholder();
+    }
+
     final groupedState = ref.watch(materialsGroupedListProvider);
 
     return groupedState.when(

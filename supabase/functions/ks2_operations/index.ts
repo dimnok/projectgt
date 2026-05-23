@@ -21,6 +21,27 @@ interface Body {
   actDate?: string | null;
 }
 
+/** Текст ошибки для JSON-ответа (PostgREST-объекты не дают нормальный String()). */
+function formatKs2Error(error: unknown): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  if (error && typeof error === "object") {
+    const o = error as Record<string, unknown>;
+    const parts: string[] = [];
+    if (typeof o.message === "string" && o.message) parts.push(o.message);
+    if (typeof o.details === "string" && o.details) parts.push(o.details);
+    if (typeof o.hint === "string" && o.hint) parts.push(o.hint);
+    if (parts.length > 0) return parts.join(" — ");
+    try {
+      return JSON.stringify(error);
+    } catch {
+      /* ignore */
+    }
+  }
+  return String(error);
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -67,7 +88,7 @@ serve(async (req) => {
     throw new Error("Invalid action. Use 'preview' or 'create'");
   } catch (error) {
     console.error("ks2_operations error:", error);
-    const msg = error instanceof Error ? error.message : String(error);
+    const msg = formatKs2Error(error);
     return new Response(JSON.stringify({ error: msg }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

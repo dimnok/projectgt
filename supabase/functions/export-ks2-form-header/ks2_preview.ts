@@ -35,6 +35,28 @@ export function toNum(v: number | string | null | undefined): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/** Размер чанка для `.in(id, …)` — длинный GET-URL ломает PostgREST на крупных ВОР. */
+const ESTIMATE_IDS_CHUNK_SIZE = 80;
+
+async function fetchEstimatesMap(
+  supabase: SupabaseClient,
+  estimateIds: string[],
+): Promise<Map<string, EstimateRow>> {
+  const estimatesMap = new Map<string, EstimateRow>();
+  for (let i = 0; i < estimateIds.length; i += ESTIMATE_IDS_CHUNK_SIZE) {
+    const chunk = estimateIds.slice(i, i + ESTIMATE_IDS_CHUNK_SIZE);
+    const { data: estRows, error: estErr } = await supabase
+      .from("estimates")
+      .select("id, price, name, unit, estimate_title, number")
+      .in("id", chunk);
+    if (estErr) throw estErr;
+    for (const e of (estRows ?? []) as EstimateRow[]) {
+      estimatesMap.set(e.id, e);
+    }
+  }
+  return estimatesMap;
+}
+
 /** Состав акта КС-2 по строкам утверждённой ВОР (без превышения сметы). */
 export async function buildKs2PreviewPayload(
   supabase: SupabaseClient,
@@ -57,17 +79,10 @@ export async function buildKs2PreviewPayload(
     ),
   ];
 
-  const estimatesMap = new Map<string, EstimateRow>();
-  if (estimateIds.length > 0) {
-    const { data: estRows, error: estErr } = await supabase
-      .from("estimates")
-      .select("id, price, name, unit, estimate_title, number")
-      .in("id", estimateIds);
-    if (estErr) throw estErr;
-    for (const e of (estRows ?? []) as EstimateRow[]) {
-      estimatesMap.set(e.id, e);
-    }
-  }
+  const estimatesMap =
+    estimateIds.length > 0
+      ? await fetchEstimatesMap(supabase, estimateIds)
+      : new Map<string, EstimateRow>();
 
   const candidates: Record<string, unknown>[] = [];
   const skipped: Record<string, unknown>[] = [];

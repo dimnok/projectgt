@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -19,6 +20,21 @@ class Ks2HeaderAddendumInput {
   final DateTime? date;
 }
 
+/// Результат генерации Excel черновика КС-2 на сервере.
+class Ks2GeneratedExcelFile {
+  /// Создаёт результат с байтами и именем файла для сохранения.
+  const Ks2GeneratedExcelFile({
+    required this.bytes,
+    required this.fileName,
+  });
+
+  /// Содержимое `.xlsx`.
+  final Uint8List bytes;
+
+  /// Имя файла (латиница/кириллица — для диалога сохранения).
+  final String fileName;
+}
+
 /// Выгрузка черновика формы КС-2 (шапка и при [vorId] — таблица работ), сформированного на сервере
 /// (Edge Function [export-ks2-form-header]).
 ///
@@ -28,20 +44,78 @@ class Ks2FormHeaderExportService {
   Ks2FormHeaderExportService._();
 
   /// Вызывает Edge Function и сохраняет `.xlsx` на устройстве пользователя.
-  ///
-  /// [client] — клиент Supabase с сессией пользователя (для заголовка Authorization).
-  /// [companyId] и [contractId] должны соответствовать договору в БД.
-  ///
-  /// Необязательные поля шапки (номер акта, даты периода, доп. соглашения) передаются в Edge Function как ISO `yyyy-mm-dd`
-  /// для дат; номера — строки. Ячейки акта и строка сметной стоимости сдвигаются, если заданы доп. соглашения.
-  ///
-  /// [addenda] — список доп. соглашений (порядок сохраняется); не более [maxAddenda] элементов
-  /// с непустым номером или датой попадут в запрос.
-  ///
-  /// [vorId] — утверждённая ВОР: при указании в Excel попадает таблица работ (как в превью формы).
-  ///
-  /// Бросает [Exception], если ответ некорректен или сервер вернул ошибку.
   static Future<void> exportDraftHeaderToDevice({
+    required SupabaseClient client,
+    required String companyId,
+    required String contractId,
+    String? actNumber,
+    DateTime? actDocDate,
+    DateTime? reportingPeriodFrom,
+    DateTime? reportingPeriodTo,
+    List<Ks2HeaderAddendumInput> addenda = const [],
+    String? vorId,
+    int maxAddenda = 50,
+  }) async {
+    final generated = await generateDraftHeaderExcel(
+      client: client,
+      companyId: companyId,
+      contractId: contractId,
+      actNumber: actNumber,
+      actDocDate: actDocDate,
+      reportingPeriodFrom: reportingPeriodFrom,
+      reportingPeriodTo: reportingPeriodTo,
+      addenda: addenda,
+      vorId: vorId,
+      maxAddenda: maxAddenda,
+    );
+
+    await saveFileBytesToUserDevice(
+      fileName: generated.fileName,
+      bytes: generated.bytes,
+    );
+  }
+
+  /// Генерирует Excel на сервере и возвращает байты (для Storage или локального сохранения).
+  static Future<Ks2GeneratedExcelFile> generateDraftHeaderExcel({
+    required SupabaseClient client,
+    required String companyId,
+    required String contractId,
+    String? actNumber,
+    DateTime? actDocDate,
+    DateTime? reportingPeriodFrom,
+    DateTime? reportingPeriodTo,
+    List<Ks2HeaderAddendumInput> addenda = const [],
+    String? vorId,
+    int maxAddenda = 50,
+  }) async {
+    final map = await _invokeExportFunction(
+      client: client,
+      companyId: companyId,
+      contractId: contractId,
+      actNumber: actNumber,
+      actDocDate: actDocDate,
+      reportingPeriodFrom: reportingPeriodFrom,
+      reportingPeriodTo: reportingPeriodTo,
+      addenda: addenda,
+      vorId: vorId,
+      maxAddenda: maxAddenda,
+    );
+
+    final fileBase64 = map['file'] as String?;
+    if (fileBase64 == null || fileBase64.isEmpty) {
+      throw Exception('Ответ сервера не содержит Excel-файл');
+    }
+
+    final filename = map['filename'] as String? ?? 'КС-2_черновик.xlsx';
+    final bytes = base64Decode(fileBase64.replaceAll(RegExp(r'\s+'), ''));
+
+    return Ks2GeneratedExcelFile(
+      bytes: Uint8List.fromList(bytes),
+      fileName: filename,
+    );
+  }
+
+  static Future<Map<String, dynamic>> _invokeExportFunction({
     required SupabaseClient client,
     required String companyId,
     required String contractId,
@@ -122,20 +196,6 @@ class Ks2FormHeaderExportService {
     if (err != null) {
       throw Exception(err.toString());
     }
-
-    final fileBase64 = map['file'] as String?;
-    if (fileBase64 == null || fileBase64.isEmpty) {
-      throw Exception('Ответ сервера не содержит Excel-файл');
-    }
-
-    final filename =
-        map['filename'] as String? ?? 'КС-2_черновик.xlsx';
-
-    final bytes = base64Decode(fileBase64.replaceAll(RegExp(r'\s+'), ''));
-
-    await saveFileBytesToUserDevice(
-      fileName: filename,
-      bytes: bytes,
-    );
+    return map;
   }
 }

@@ -7,7 +7,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:projectgt/core/widgets/gt_dropdown.dart';
 import 'package:projectgt/core/utils/formatters.dart';
+import 'package:projectgt/domain/entities/ks2_act.dart';
 import 'package:projectgt/domain/entities/vor.dart';
+import 'package:projectgt/core/utils/supabase_function_error.dart';
 import 'package:projectgt/features/contracts/presentation/providers/contract_ks2_providers.dart';
 import 'package:projectgt/features/ks2/domain/repositories/ks2_repository.dart';
 
@@ -57,7 +59,7 @@ class ContractKs2VorPositionsSectionState
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = formatInvokeErrorMessage(e);
         _loading = false;
         _preview = null;
       });
@@ -79,8 +81,10 @@ class ContractKs2VorPositionsSectionState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final vorsAsync =
-        ref.watch(contractKs2ApprovedVorsProvider(widget.contractId));
+    final vorsAsync = ref.watch(
+      contractKs2ApprovedVorsProvider(widget.contractId),
+    );
+    final actsAsync = ref.watch(contractKs2ActsProvider(widget.contractId));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -94,7 +98,8 @@ class ContractKs2VorPositionsSectionState
           ),
         ),
         const SizedBox(height: 12),
-        vorsAsync.when(
+        Expanded(
+          child: vorsAsync.when(
           loading: () => const Center(
             child: Padding(
               padding: EdgeInsets.all(16),
@@ -106,56 +111,92 @@ class ContractKs2VorPositionsSectionState
             style: theme.textTheme.bodyMedium?.copyWith(color: scheme.error),
           ),
           data: (vors) {
-            final approved = vors
-                .where((v) => v.status == VorStatus.approved)
-                .toList();
-            if (approved.isEmpty) {
-              return Text(
-                'Нет утверждённых ВОР по этому договору — таблицу позиций '
-                'показать нельзя.',
+            return actsAsync.when(
+              loading: () => const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+              error: (e, _) => Text(
+                'Не удалось загрузить акты: $e',
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: scheme.onSurface.withValues(alpha: 0.7),
+                  color: scheme.error,
                 ),
-              );
-            }
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                GTDropdown<Vor>(
-                  items: approved,
-                  itemDisplayBuilder: (v) =>
-                      'ВОР №${v.number} (${formatRuDate(v.startDate)} — ${formatRuDate(v.endDate)})',
-                  labelText: 'Ведомость ВОР',
-                  hintText: 'Выберите ВОР для таблицы',
-                  selectedItem: _selectedVor,
-                  onSelectionChanged: _onVorChanged,
-                  prefixIcon: CupertinoIcons.doc_text,
-                  allowClear: true,
-                ),
-                if (_loading) ...[
-                  const SizedBox(height: 16),
-                  const Center(child: CircularProgressIndicator()),
-                ],
-                if (_error != null) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    _error!,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: scheme.error,
+              ),
+              data: (acts) {
+                final usedVorIds = acts
+                    .map((Ks2Act a) => a.vorId)
+                    .whereType<String>()
+                    .toSet();
+                final approved = vors
+                    .where(
+                      (v) =>
+                          v.status == VorStatus.approved &&
+                          !usedVorIds.contains(v.id),
+                    )
+                    .toList();
+                if (_selectedVor != null &&
+                    usedVorIds.contains(_selectedVor!.id)) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (!mounted) return;
+                    setState(() {
+                      _selectedVor = null;
+                      _preview = null;
+                    });
+                  });
+                }
+                if (approved.isEmpty) {
+                  return Text(
+                    'Нет утверждённых ВОР без сохранённого акта КС-2 по этому договору.',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: scheme.onSurface.withValues(alpha: 0.7),
                     ),
-                  ),
-                ],
-                if (!_loading && _preview != null) ...[
-                  const SizedBox(height: 16),
-                  _Ks2PositionsTable(
-                    preview: _preview!,
-                    scheme: scheme,
-                    theme: theme,
-                  ),
-                ],
-              ],
+                  );
+                }
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    GTDropdown<Vor>(
+                      items: approved,
+                      itemDisplayBuilder: (v) =>
+                          'ВОР №${v.number} (${formatRuDate(v.startDate)} — ${formatRuDate(v.endDate)})',
+                      labelText: 'Ведомость ВОР',
+                      hintText: 'Выберите ВОР для таблицы',
+                      selectedItem: _selectedVor,
+                      onSelectionChanged: _onVorChanged,
+                      prefixIcon: CupertinoIcons.doc_text,
+                      allowClear: true,
+                    ),
+                    if (_loading) ...[
+                      const SizedBox(height: 16),
+                      const Center(child: CircularProgressIndicator()),
+                    ],
+                    if (_error != null) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        _error!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: scheme.error,
+                        ),
+                      ),
+                    ],
+                    if (!_loading && _preview != null) ...[
+                      const SizedBox(height: 12),
+                      Expanded(
+                        child: _Ks2PositionsTable(
+                          preview: _preview!,
+                          scheme: scheme,
+                          theme: theme,
+                        ),
+                      ),
+                    ],
+                  ],
+                );
+              },
             );
           },
+        ),
         ),
       ],
     );
@@ -311,8 +352,7 @@ class _Ks2PositionsTableState extends State<_Ks2PositionsTable> {
               border: TableBorder.all(color: borderColor),
               columnWidths: columnWidths,
               children: [
-                for (final r in sec.rows)
-                  _buildDataTableRow(theme, scheme, r),
+                for (final r in sec.rows) _buildDataTableRow(theme, scheme, r),
                 _buildSectionTotalRow(
                   theme,
                   scheme,
@@ -332,6 +372,19 @@ class _Ks2PositionsTableState extends State<_Ks2PositionsTable> {
           ),
         );
 
+        final scrollableTable = needsHorizontalScroll
+            ? Scrollbar(
+                controller: _horizontalScroll,
+                thumbVisibility: true,
+                child: SingleChildScrollView(
+                  controller: _horizontalScroll,
+                  scrollDirection: Axis.horizontal,
+                  primary: false,
+                  child: table,
+                ),
+              )
+            : table;
+
         return DecoratedBox(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
@@ -341,11 +394,9 @@ class _Ks2PositionsTableState extends State<_Ks2PositionsTable> {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(11),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 420),
+                Expanded(
                   child: Scrollbar(
                     controller: _verticalScroll,
                     thumbVisibility: true,
@@ -353,30 +404,19 @@ class _Ks2PositionsTableState extends State<_Ks2PositionsTable> {
                       controller: _verticalScroll,
                       scrollDirection: Axis.vertical,
                       primary: false,
-                      child: needsHorizontalScroll
-                          ? Scrollbar(
-                              controller: _horizontalScroll,
-                              thumbVisibility: true,
-                              child: SingleChildScrollView(
-                                controller: _horizontalScroll,
-                                scrollDirection: Axis.horizontal,
-                                primary: false,
-                                child: table,
-                              ),
-                            )
-                          : table,
+                      child: scrollableTable,
                     ),
                   ),
                 ),
                 Container(
                   width: double.infinity,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
                     color: scheme.primaryContainer.withValues(alpha: 0.12),
-                    border: Border(
-                      top: BorderSide(color: borderColor),
-                    ),
+                    border: Border(top: BorderSide(color: borderColor)),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.end,
@@ -451,26 +491,10 @@ class _Ks2PositionsTableState extends State<_Ks2PositionsTable> {
           align: TextAlign.center,
           wrap: true,
         ),
-        _td(
-          theme,
-          scheme,
-          r.name,
-          align: TextAlign.start,
-          wrap: true,
-        ),
+        _td(theme, scheme, r.name, align: TextAlign.start, wrap: true),
         _td(theme, scheme, r.unit, align: TextAlign.center),
-        _td(
-          theme,
-          scheme,
-          formatQuantity(r.quantity),
-          align: TextAlign.end,
-        ),
-        _td(
-          theme,
-          scheme,
-          formatAmount(r.price),
-          align: TextAlign.end,
-        ),
+        _td(theme, scheme, formatQuantity(r.quantity), align: TextAlign.end),
+        _td(theme, scheme, formatAmount(r.price), align: TextAlign.end),
         _td(
           theme,
           scheme,

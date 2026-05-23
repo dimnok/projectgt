@@ -1,19 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/gt_confirmation_dialog.dart';
 import 'package:projectgt/core/widgets/gt_section_title.dart';
 import 'package:projectgt/domain/entities/contract.dart';
 import 'package:projectgt/domain/entities/contract_act.dart';
+import 'package:projectgt/domain/entities/ks2_act.dart';
 import 'package:projectgt/features/contracts/presentation/providers/contract_act_providers.dart';
+import 'package:projectgt/features/contracts/presentation/providers/contract_ks2_providers.dart';
 import 'package:projectgt/features/contracts/presentation/utils/contract_act_dialog_flow.dart';
+import 'package:projectgt/features/contracts/presentation/utils/contract_ks2_act_download_flow.dart';
+import 'package:projectgt/features/contracts/presentation/utils/contract_ks2_act_row_mapper.dart';
 import 'package:projectgt/features/contracts/presentation/widgets/contract_act_row_card.dart';
 
-/// Раздел «Акты»: список актов по договору.
+/// Раздел «Акты»: единый список реестра и актов КС-2 по договору.
 ///
-/// Редактирование и удаление по строке — как в разделе «Документы договора».
+/// Строки — [ContractActRowCard] (как у реестра). Редактирование и удаление
+/// реестра — по строке; удаление черновика КС-2 — только для [Ks2Status.draft].
 class ContractActsSection extends ConsumerStatefulWidget {
   /// Договор.
   final Contract contract;
@@ -33,6 +39,21 @@ class ContractActsSection extends ConsumerStatefulWidget {
       _ContractActsSectionState();
 }
 
+class _ActListEntry {
+  _ActListEntry.registry(this.act)
+      : ks2Act = null,
+        sortDate = act.actDate;
+
+  _ActListEntry.ks2(Ks2Act ks2)
+      : act = ks2ActToRegistryRowModel(ks2),
+        ks2Act = ks2,
+        sortDate = ks2.date;
+
+  final ContractAct act;
+  final Ks2Act? ks2Act;
+  final DateTime sortDate;
+}
+
 class _ContractActsSectionState extends ConsumerState<ContractActsSection> {
   Future<void> _handleEdit(BuildContext context, ContractAct act) async {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -45,7 +66,10 @@ class _ContractActsSectionState extends ConsumerState<ContractActsSection> {
     });
   }
 
-  Future<void> _handleDelete(BuildContext context, ContractAct act) async {
+  Future<void> _handleRegistryDelete(
+    BuildContext context,
+    ContractAct act,
+  ) async {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!context.mounted) return;
       final titleText = act.title.trim().isNotEmpty
@@ -90,10 +114,93 @@ class _ContractActsSectionState extends ConsumerState<ContractActsSection> {
     });
   }
 
+  Future<void> _handleKs2Delete(BuildContext context, Ks2Act act) async {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!context.mounted) return;
+      final confirmed = await GTConfirmationDialog.show(
+        context: context,
+        title: 'Удаление акта КС-2',
+        message: act.vorId != null
+            ? 'Акт сформирован по ВОР. Записи журнала работ не привязаны к этому акту напрямую.'
+            : 'Работы, привязанные к акту через журнал, будут снова доступны для включения в новый акт.',
+        emphasisText: 'КС-2 № ${act.number}',
+        detail: formatRuDate(act.date),
+        confirmText: 'Удалить',
+        cancelText: 'Отмена',
+        type: GTConfirmationType.danger,
+      );
+
+      if (confirmed == true) {
+        try {
+          await ref
+              .read(contractKs2ActsProvider(act.contractId).notifier)
+              .deleteAct(act.id);
+          if (!context.mounted) return;
+          AppSnackBar.show(
+            context: context,
+            message: 'Акт КС-2 удалён',
+            kind: AppSnackBarKind.success,
+          );
+        } catch (e) {
+          if (!context.mounted) return;
+          AppSnackBar.show(
+            context: context,
+            message: 'Ошибка при удалении: $e',
+            kind: AppSnackBarKind.error,
+          );
+        }
+      }
+    });
+  }
+
+  List<_ActListEntry> _mergeEntries(
+    List<ContractAct> registry,
+    List<Ks2Act> ks2,
+  ) {
+    final entries = <_ActListEntry>[
+      ...registry.map(_ActListEntry.registry),
+      ...ks2.map(_ActListEntry.ks2),
+    ];
+    entries.sort((a, b) => b.sortDate.compareTo(a.sortDate));
+    return entries;
+  }
+
+  Widget _buildRow(BuildContext context, _ActListEntry entry) {
+    final theme = Theme.of(context);
+    final ks2 = entry.ks2Act;
+    if (ks2 != null) {
+      return ContractActRowCard(
+        key: ValueKey('ks2-${ks2.id}'),
+        act: entry.act,
+        workflowStatusLabel: ks2ActWorkflowStatusLabel(ks2.status),
+        workflowStatusColor: ks2ActWorkflowStatusColor(theme, ks2.status),
+        onDownload: ks2.excelPath != null && ks2.excelPath!.isNotEmpty
+            ? () => downloadContractKs2ActExcelForUser(
+                  context: context,
+                  ref: ref,
+                  act: ks2,
+                )
+            : null,
+        onDelete: ks2.status == Ks2Status.draft
+            ? () => _handleKs2Delete(context, ks2)
+            : null,
+      );
+    }
+    final act = entry.act;
+    return ContractActRowCard(
+      key: ValueKey('registry-${act.id}'),
+      act: act,
+      onEdit: () => _handleEdit(context, act),
+      onDelete: () => _handleRegistryDelete(context, act),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final actsAsync = ref.watch(contractActsProvider(widget.contract.id));
+    final contractId = widget.contract.id;
+    final registryAsync = ref.watch(contractActsProvider(contractId));
+    final ks2Async = ref.watch(contractKs2ActsProvider(contractId));
 
     final Widget? header = widget.showSectionHeader
         ? const Align(
@@ -102,63 +209,12 @@ class _ContractActsSectionState extends ConsumerState<ContractActsSection> {
           )
         : null;
 
-    final body = actsAsync.when(
-      loading: () => const Padding(
-        padding: EdgeInsets.symmetric(vertical: 32),
-        child: Center(child: CircularProgressIndicator()),
-      ),
-      error: (e, _) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Не удалось загрузить акты: $e',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.error,
-              ),
-            ),
-            const SizedBox(height: 12),
-            GTSecondaryButton(
-              text: 'Повторить',
-              onPressed: () =>
-                  ref.invalidate(contractActsProvider(widget.contract.id)),
-            ),
-          ],
-        ),
-      ),
-      data: (List<ContractAct> acts) {
-        if (acts.isEmpty) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 28),
-            child: Center(
-              child: Text(
-                'Актов по договору пока нет. Добавьте их через «Быстрые действия» → «Добавить акт». '
-                'Акты КС-2 по утверждённой ВОР — отдельно: «Быстрые действия» → «Акты КС-2».',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-          );
-        }
-        return ListView.separated(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: acts.length,
-          separatorBuilder: (context, index) => const SizedBox(height: 6),
-          itemBuilder: (context, index) {
-            final act = acts[index];
-            return ContractActRowCard(
-              key: ValueKey(act.id),
-              act: act,
-              onEdit: () => _handleEdit(context, act),
-              onDelete: () => _handleDelete(context, act),
-            );
-          },
-        );
-      },
+    final body = _buildCombinedBody(
+      context,
+      theme,
+      registryAsync,
+      ks2Async,
+      contractId,
     );
 
     return Column(
@@ -170,6 +226,75 @@ class _ContractActsSectionState extends ConsumerState<ContractActsSection> {
         ],
         body,
       ],
+    );
+  }
+
+  Widget _buildCombinedBody(
+    BuildContext context,
+    ThemeData theme,
+    AsyncValue<List<ContractAct>> registryAsync,
+    AsyncValue<List<Ks2Act>> ks2Async,
+    String contractId,
+  ) {
+    final registryLoading = registryAsync.isLoading;
+    final ks2Loading = ks2Async.isLoading;
+    if (registryLoading && ks2Loading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 32),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final registryError = registryAsync.hasError;
+    final ks2Error = ks2Async.hasError;
+    if (registryError &&
+        ks2Error &&
+        !registryAsync.hasValue &&
+        !ks2Async.hasValue) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Не удалось загрузить акты: ${registryAsync.error}',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.error,
+              ),
+            ),
+            const SizedBox(height: 12),
+            GTSecondaryButton(
+              text: 'Повторить',
+              onPressed: () {
+                ref.invalidate(contractActsProvider(contractId));
+                ref.invalidate(contractKs2ActsProvider(contractId));
+              },
+            ),
+          ],
+        ),
+      );
+    }
+
+    final registry = registryAsync.valueOrNull ?? [];
+    final ks2 = ks2Async.valueOrNull ?? [];
+    final entries = _mergeEntries(registry, ks2);
+
+    if (entries.isEmpty) {
+      if (registryLoading || ks2Loading) {
+        return const Padding(
+          padding: EdgeInsets.symmetric(vertical: 32),
+          child: Center(child: CircularProgressIndicator()),
+        );
+      }
+      return const SizedBox.shrink();
+    }
+
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: entries.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 6),
+      itemBuilder: (context, index) => _buildRow(context, entries[index]),
     );
   }
 }

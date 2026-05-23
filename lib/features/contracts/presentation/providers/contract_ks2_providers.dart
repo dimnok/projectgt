@@ -94,20 +94,21 @@ class ContractKs2Creation extends _$ContractKs2Creation {
     }
   }
 
-  /// Создание акта КС-2.
-  Future<void> createAct({
+  /// Создание акта КС-2. Возвращает id записи [ks2_acts].
+  Future<String> createAct({
     required String contractId,
     required String vorId,
     required String number,
     required DateTime date,
   }) async {
     final repository = ref.read(contractKs2RepositoryProvider);
-    await repository.createAct(
+    final actId = await repository.createAct(
       contractId: contractId,
       vorId: vorId,
       number: number,
       date: date,
     );
     state = const AsyncValue.data(null);
+    return actId;
   }
 }

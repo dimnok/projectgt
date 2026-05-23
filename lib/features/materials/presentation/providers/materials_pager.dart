@@ -56,7 +56,18 @@ class MaterialsPager extends StateNotifier<AsyncValue<List<MaterialItem>>> {
     await _loadPage(reset: false);
   }
 
+  bool get _hasContractFilter =>
+      contractNumber != null && contractNumber!.trim().isNotEmpty;
+
   Future<void> _loadPage({required bool reset}) async {
+    if (!_hasContractFilter) {
+      if (!mounted) return;
+      _offset = 0;
+      hasMore = false;
+      state = const AsyncValue.data([]);
+      return;
+    }
+
     if (reset) {
       _offset = 0;
       hasMore = true;

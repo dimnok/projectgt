@@ -23,12 +23,14 @@ Future<void> openContractKs2ActFormDialog({
   if (!context.mounted) return;
   final formKey = GlobalKey<Ks2ActFormTemplateState>();
   final positionsKey = GlobalKey<ContractKs2VorPositionsSectionState>();
+  final dialogHeight = MediaQuery.sizeOf(context).height * 0.85;
 
   await DesktopDialogContent.show<void>(
     context,
     title: 'Акт КС-2',
     width: kKs2ActFormDialogWidth,
-    scrollable: true,
+    height: dialogHeight,
+    scrollable: false,
     footer: Row(
       children: [
         GTSecondaryButton(
@@ -46,8 +48,28 @@ Future<void> openContractKs2ActFormDialog({
             unawaited(state.exportHeaderDraftToDevice(context, ref));
           },
         ),
-        const Spacer(),
+        const SizedBox(width: 12),
         GTPrimaryButton(
+          text: 'Сохранить акт',
+          onPressed: () async {
+            final state = formKey.currentState;
+            if (state == null) {
+              AppSnackBar.show(
+                context: context,
+                message: 'Форма ещё не готова — подождите и повторите.',
+                kind: AppSnackBarKind.error,
+              );
+              return;
+            }
+            final saved = await state.saveAct(context, ref);
+            if (!context.mounted) return;
+            if (saved) {
+              Navigator.of(context).pop();
+            }
+          },
+        ),
+        const Spacer(),
+        GTSecondaryButton(
           text: 'Закрыть',
           onPressed: () => Navigator.of(context).pop(),
         ),

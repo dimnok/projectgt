@@ -7,7 +7,9 @@ import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/gt_adaptive_table.dart';
 import '../../data/models/material_item.dart';
 import '../providers/materials_pager.dart';
+import '../providers/materials_context_providers.dart';
 import '../providers/materials_providers.dart';
+import 'materials_select_context_placeholder.dart';
 
 /// Адаптивная таблица материалов на базе [GTAdaptiveTable].
 class MaterialsTableView extends ConsumerWidget {
@@ -297,6 +299,11 @@ class MaterialsTableWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final contractNumber = ref.watch(selectedContractNumberProvider);
+    if (!hasMaterialsContractSelection(contractNumber)) {
+      return const MaterialsSelectContextPlaceholder();
+    }
+
     final pagerState = ref.watch(materialsPagerProvider);
 
     return pagerState.when(

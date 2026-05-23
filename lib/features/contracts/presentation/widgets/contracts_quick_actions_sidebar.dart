@@ -14,7 +14,6 @@ import 'package:projectgt/features/contracts/presentation/utils/contract_act_dia
 import 'package:projectgt/features/contracts/presentation/providers/contract_act_providers.dart';
 import 'package:projectgt/features/contracts/presentation/providers/contract_files_providers.dart';
 import 'package:projectgt/features/contracts/presentation/utils/contract_ks2_act_form_dialog_flow.dart';
-import 'package:projectgt/features/contracts/presentation/widgets/contract_ks2_acts_sheet.dart';
 import 'package:projectgt/features/estimates/presentation/providers/estimate_providers.dart';
 import 'package:projectgt/features/estimates/presentation/screens/import_estimate_form_modal.dart';
 import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
@@ -28,8 +27,7 @@ import 'package:projectgt/features/roles/presentation/widgets/permission_guard.d
 /// доп. соглашение (LC/ДС), выгрузка сметы с колонками ДС, блок действий вкладки «Документы»
 /// (загрузка, упорядочивание с сохранением из «Готово», примечания), сводка сумм по актам
 /// на вкладке «Акты», форма КС-2 в UI (шапка + таблица позиций по ВОР) и выгрузка шапки в Excel
-/// через Edge [export-ks2-form-header],
-/// список и создание актов КС-2 по ВОР ([ContractKs2ActsSheet]).
+/// через Edge [export-ks2-form-header].
 class ContractsQuickActionsSidebar extends ConsumerWidget {
   /// Горизонтальный зазор между списком и панелью — [ContractListScreenDesktopChrome.gridGutter].
   static const double preferredWidth = 295;
@@ -271,53 +269,35 @@ class ContractsQuickActionsSidebar extends ConsumerWidget {
                       },
                     ),
                   ),
-                  PermissionGuard(
-                    module: 'contracts',
-                    permission: 'update',
-                    child: actionTile(
-                      icon: Icons.assignment_outlined,
-                      label: 'Акты КС-2',
-                      onPressed: () {
-                        final c = contextContract!;
-                        final h = MediaQuery.sizeOf(context).height * 0.85;
-                        showModalBottomSheet<void>(
-                          context: context,
-                          isScrollControlled: true,
-                          useSafeArea: true,
-                          builder: (ctx) => SizedBox(
-                            height: h,
-                            child: ContractKs2ActsSheet(contractId: c.id),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
                 ],
-                if (contextContract != null)
-                  PermissionGuard(
-                    module: 'estimates',
-                    permission: 'import',
-                    child: actionTile(
+                if (sidebarDetailSection !=
+                    ContractDetailNavigationSection.acts) ...[
+                  if (contextContract != null)
+                    PermissionGuard(
+                      module: 'estimates',
+                      permission: 'import',
+                      child: actionTile(
+                        icon: Icons.add_circle_outline_rounded,
+                        label: 'Доп. соглашение',
+                        onPressed: () => openContractEstimateAddendumFlow(
+                          context: context,
+                          ref: ref,
+                          contract: contextContract!,
+                        ),
+                      ),
+                    )
+                  else
+                    actionTile(
                       icon: Icons.add_circle_outline_rounded,
                       label: 'Доп. соглашение',
-                      onPressed: () => openContractEstimateAddendumFlow(
+                      onPressed: () => AppSnackBar.show(
                         context: context,
-                        ref: ref,
-                        contract: contextContract!,
+                        message:
+                            'Откройте договор из списка, чтобы оформить доп. соглашение',
+                        kind: AppSnackBarKind.info,
                       ),
                     ),
-                  )
-                else
-                  actionTile(
-                    icon: Icons.add_circle_outline_rounded,
-                    label: 'Доп. соглашение',
-                    onPressed: () => AppSnackBar.show(
-                      context: context,
-                      message:
-                          'Откройте договор из списка, чтобы оформить доп. соглашение',
-                      kind: AppSnackBarKind.info,
-                    ),
-                  ),
+                ],
                 if (contextContract != null &&
                     sidebarDetailSection ==
                         ContractDetailNavigationSection.estimates)
@@ -360,16 +340,19 @@ class ContractsQuickActionsSidebar extends ConsumerWidget {
                       },
                     ),
                   ),
-                actionTile(
-                  icon: Icons.upload_file_rounded,
-                  label: 'Импорт договоров',
-                  onPressed: () => _stub(context, 'Импорт договоров'),
-                ),
-                actionTile(
-                  icon: Icons.description_outlined,
-                  label: 'Шаблон договора',
-                  onPressed: () => _stub(context, 'Шаблон договора'),
-                ),
+                if (sidebarDetailSection !=
+                    ContractDetailNavigationSection.acts) ...[
+                  actionTile(
+                    icon: Icons.upload_file_rounded,
+                    label: 'Импорт договоров',
+                    onPressed: () => _stub(context, 'Импорт договоров'),
+                  ),
+                  actionTile(
+                    icon: Icons.description_outlined,
+                    label: 'Шаблон договора',
+                    onPressed: () => _stub(context, 'Шаблон договора'),
+                  ),
+                ],
               ],
               if (contextContract != null &&
                   sidebarDetailSection ==

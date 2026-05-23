@@ -12,12 +12,24 @@ abstract class Ks2Repository {
   });
 
   /// Создаёт акт КС-2 и привязывает его к ВОР (один акт на одну ВОР).
-  Future<void> createAct({
+  ///
+  /// Возвращает идентификатор созданной записи [ks2_acts].
+  Future<String> createAct({
     required String contractId,
     required String vorId,
     required String number,
     required DateTime date,
   });
+
+  /// Загружает Excel в Storage и записывает путь в [ks2_acts.excel_path].
+  Future<void> attachActExcelFile({
+    required String actId,
+    required List<int> bytes,
+    required String displayFileName,
+  });
+
+  /// Скачивает байты Excel из Storage по [ks2_acts.excel_path].
+  Future<List<int>> downloadActExcel(String actId);
 
   /// Удаляет акт КС-2 (только если черновик) и отвязывает работы.
   Future<void> deleteAct(String actId);

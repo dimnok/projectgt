@@ -17,7 +17,8 @@ mixin _$Ks2Act {
 
  String get id; String get companyId; String get contractId; String get number; DateTime get date; DateTime get periodFrom; DateTime get periodTo; Ks2Status get status; double get totalAmount; DateTime? get createdAt; DateTime? get updatedAt; String? get createdBy;/// Утверждённая ВОР, из которой сформирован акт (один акт на одну ВОР).
  String? get vorId;/// Номер ВОР для отображения (подгружается join’ом, не хранится отдельно в [ks2_acts]).
- String? get vorNumber;
+ String? get vorNumber;/// Путь к Excel формы КС-2 в Storage (`ks2_documents`).
+ String? get excelPath;
 /// Create a copy of Ks2Act
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +29,16 @@ $Ks2ActCopyWith<Ks2Act> get copyWith => _$Ks2ActCopyWithImpl<Ks2Act>(this as Ks2
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Ks2Act&&(identical(other.id, id) || other.id == id)&&(identical(other.companyId, companyId) || other.companyId == companyId)&&(identical(other.contractId, contractId) || other.contractId == contractId)&&(identical(other.number, number) || other.number == number)&&(identical(other.date, date) || other.date == date)&&(identical(other.periodFrom, periodFrom) || other.periodFrom == periodFrom)&&(identical(other.periodTo, periodTo) || other.periodTo == periodTo)&&(identical(other.status, status) || other.status == status)&&(identical(other.totalAmount, totalAmount) || other.totalAmount == totalAmount)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.createdBy, createdBy) || other.createdBy == createdBy)&&(identical(other.vorId, vorId) || other.vorId == vorId)&&(identical(other.vorNumber, vorNumber) || other.vorNumber == vorNumber));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Ks2Act&&(identical(other.id, id) || other.id == id)&&(identical(other.companyId, companyId) || other.companyId == companyId)&&(identical(other.contractId, contractId) || other.contractId == contractId)&&(identical(other.number, number) || other.number == number)&&(identical(other.date, date) || other.date == date)&&(identical(other.periodFrom, periodFrom) || other.periodFrom == periodFrom)&&(identical(other.periodTo, periodTo) || other.periodTo == periodTo)&&(identical(other.status, status) || other.status == status)&&(identical(other.totalAmount, totalAmount) || other.totalAmount == totalAmount)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.createdBy, createdBy) || other.createdBy == createdBy)&&(identical(other.vorId, vorId) || other.vorId == vorId)&&(identical(other.vorNumber, vorNumber) || other.vorNumber == vorNumber)&&(identical(other.excelPath, excelPath) || other.excelPath == excelPath));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,id,companyId,contractId,number,date,periodFrom,periodTo,status,totalAmount,createdAt,updatedAt,createdBy,vorId,vorNumber);
+int get hashCode => Object.hash(runtimeType,id,companyId,contractId,number,date,periodFrom,periodTo,status,totalAmount,createdAt,updatedAt,createdBy,vorId,vorNumber,excelPath);
 
 @override
 String toString() {
-  return 'Ks2Act(id: $id, companyId: $companyId, contractId: $contractId, number: $number, date: $date, periodFrom: $periodFrom, periodTo: $periodTo, status: $status, totalAmount: $totalAmount, createdAt: $createdAt, updatedAt: $updatedAt, createdBy: $createdBy, vorId: $vorId, vorNumber: $vorNumber)';
+  return 'Ks2Act(id: $id, companyId: $companyId, contractId: $contractId, number: $number, date: $date, periodFrom: $periodFrom, periodTo: $periodTo, status: $status, totalAmount: $totalAmount, createdAt: $createdAt, updatedAt: $updatedAt, createdBy: $createdBy, vorId: $vorId, vorNumber: $vorNumber, excelPath: $excelPath)';
 }
 
 
@@ -48,7 +49,7 @@ abstract mixin class $Ks2ActCopyWith<$Res>  {
   factory $Ks2ActCopyWith(Ks2Act value, $Res Function(Ks2Act) _then) = _$Ks2ActCopyWithImpl;
 @useResult
 $Res call({
- String id, String companyId, String contractId, String number, DateTime date, DateTime periodFrom, DateTime periodTo, Ks2Status status, double totalAmount, DateTime? createdAt, DateTime? updatedAt, String? createdBy, String? vorId, String? vorNumber
+ String id, String companyId, String contractId, String number, DateTime date, DateTime periodFrom, DateTime periodTo, Ks2Status status, double totalAmount, DateTime? createdAt, DateTime? updatedAt, String? createdBy, String? vorId, String? vorNumber, String? excelPath
 });
 
 
@@ -65,7 +66,7 @@ class _$Ks2ActCopyWithImpl<$Res>
 
 /// Create a copy of Ks2Act
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? companyId = null,Object? contractId = null,Object? number = null,Object? date = null,Object? periodFrom = null,Object? periodTo = null,Object? status = null,Object? totalAmount = null,Object? createdAt = freezed,Object? updatedAt = freezed,Object? createdBy = freezed,Object? vorId = freezed,Object? vorNumber = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? companyId = null,Object? contractId = null,Object? number = null,Object? date = null,Object? periodFrom = null,Object? periodTo = null,Object? status = null,Object? totalAmount = null,Object? createdAt = freezed,Object? updatedAt = freezed,Object? createdBy = freezed,Object? vorId = freezed,Object? vorNumber = freezed,Object? excelPath = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,companyId: null == companyId ? _self.companyId : companyId // ignore: cast_nullable_to_non_nullable
@@ -81,6 +82,7 @@ as DateTime?,updatedAt: freezed == updatedAt ? _self.updatedAt : updatedAt // ig
 as DateTime?,createdBy: freezed == createdBy ? _self.createdBy : createdBy // ignore: cast_nullable_to_non_nullable
 as String?,vorId: freezed == vorId ? _self.vorId : vorId // ignore: cast_nullable_to_non_nullable
 as String?,vorNumber: freezed == vorNumber ? _self.vorNumber : vorNumber // ignore: cast_nullable_to_non_nullable
+as String?,excelPath: freezed == excelPath ? _self.excelPath : excelPath // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
 }
@@ -92,7 +94,7 @@ as String?,
 
 
 class _Ks2Act implements Ks2Act {
-  const _Ks2Act({required this.id, required this.companyId, required this.contractId, required this.number, required this.date, required this.periodFrom, required this.periodTo, this.status = Ks2Status.draft, this.totalAmount = 0, this.createdAt, this.updatedAt, this.createdBy, this.vorId, this.vorNumber});
+  const _Ks2Act({required this.id, required this.companyId, required this.contractId, required this.number, required this.date, required this.periodFrom, required this.periodTo, this.status = Ks2Status.draft, this.totalAmount = 0, this.createdAt, this.updatedAt, this.createdBy, this.vorId, this.vorNumber, this.excelPath});
   
 
 @override final  String id;
@@ -111,6 +113,8 @@ class _Ks2Act implements Ks2Act {
 @override final  String? vorId;
 /// Номер ВОР для отображения (подгружается join’ом, не хранится отдельно в [ks2_acts]).
 @override final  String? vorNumber;
+/// Путь к Excel формы КС-2 в Storage (`ks2_documents`).
+@override final  String? excelPath;
 
 /// Create a copy of Ks2Act
 /// with the given fields replaced by the non-null parameter values.
@@ -122,16 +126,16 @@ _$Ks2ActCopyWith<_Ks2Act> get copyWith => __$Ks2ActCopyWithImpl<_Ks2Act>(this, _
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Ks2Act&&(identical(other.id, id) || other.id == id)&&(identical(other.companyId, companyId) || other.companyId == companyId)&&(identical(other.contractId, contractId) || other.contractId == contractId)&&(identical(other.number, number) || other.number == number)&&(identical(other.date, date) || other.date == date)&&(identical(other.periodFrom, periodFrom) || other.periodFrom == periodFrom)&&(identical(other.periodTo, periodTo) || other.periodTo == periodTo)&&(identical(other.status, status) || other.status == status)&&(identical(other.totalAmount, totalAmount) || other.totalAmount == totalAmount)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.createdBy, createdBy) || other.createdBy == createdBy)&&(identical(other.vorId, vorId) || other.vorId == vorId)&&(identical(other.vorNumber, vorNumber) || other.vorNumber == vorNumber));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Ks2Act&&(identical(other.id, id) || other.id == id)&&(identical(other.companyId, companyId) || other.companyId == companyId)&&(identical(other.contractId, contractId) || other.contractId == contractId)&&(identical(other.number, number) || other.number == number)&&(identical(other.date, date) || other.date == date)&&(identical(other.periodFrom, periodFrom) || other.periodFrom == periodFrom)&&(identical(other.periodTo, periodTo) || other.periodTo == periodTo)&&(identical(other.status, status) || other.status == status)&&(identical(other.totalAmount, totalAmount) || other.totalAmount == totalAmount)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.createdBy, createdBy) || other.createdBy == createdBy)&&(identical(other.vorId, vorId) || other.vorId == vorId)&&(identical(other.vorNumber, vorNumber) || other.vorNumber == vorNumber)&&(identical(other.excelPath, excelPath) || other.excelPath == excelPath));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,id,companyId,contractId,number,date,periodFrom,periodTo,status,totalAmount,createdAt,updatedAt,createdBy,vorId,vorNumber);
+int get hashCode => Object.hash(runtimeType,id,companyId,contractId,number,date,periodFrom,periodTo,status,totalAmount,createdAt,updatedAt,createdBy,vorId,vorNumber,excelPath);
 
 @override
 String toString() {
-  return 'Ks2Act(id: $id, companyId: $companyId, contractId: $contractId, number: $number, date: $date, periodFrom: $periodFrom, periodTo: $periodTo, status: $status, totalAmount: $totalAmount, createdAt: $createdAt, updatedAt: $updatedAt, createdBy: $createdBy, vorId: $vorId, vorNumber: $vorNumber)';
+  return 'Ks2Act(id: $id, companyId: $companyId, contractId: $contractId, number: $number, date: $date, periodFrom: $periodFrom, periodTo: $periodTo, status: $status, totalAmount: $totalAmount, createdAt: $createdAt, updatedAt: $updatedAt, createdBy: $createdBy, vorId: $vorId, vorNumber: $vorNumber, excelPath: $excelPath)';
 }
 
 
@@ -142,7 +146,7 @@ abstract mixin class _$Ks2ActCopyWith<$Res> implements $Ks2ActCopyWith<$Res> {
   factory _$Ks2ActCopyWith(_Ks2Act value, $Res Function(_Ks2Act) _then) = __$Ks2ActCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String companyId, String contractId, String number, DateTime date, DateTime periodFrom, DateTime periodTo, Ks2Status status, double totalAmount, DateTime? createdAt, DateTime? updatedAt, String? createdBy, String? vorId, String? vorNumber
+ String id, String companyId, String contractId, String number, DateTime date, DateTime periodFrom, DateTime periodTo, Ks2Status status, double totalAmount, DateTime? createdAt, DateTime? updatedAt, String? createdBy, String? vorId, String? vorNumber, String? excelPath
 });
 
 
@@ -159,7 +163,7 @@ class __$Ks2ActCopyWithImpl<$Res>
 
 /// Create a copy of Ks2Act
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? companyId = null,Object? contractId = null,Object? number = null,Object? date = null,Object? periodFrom = null,Object? periodTo = null,Object? status = null,Object? totalAmount = null,Object? createdAt = freezed,Object? updatedAt = freezed,Object? createdBy = freezed,Object? vorId = freezed,Object? vorNumber = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? companyId = null,Object? contractId = null,Object? number = null,Object? date = null,Object? periodFrom = null,Object? periodTo = null,Object? status = null,Object? totalAmount = null,Object? createdAt = freezed,Object? updatedAt = freezed,Object? createdBy = freezed,Object? vorId = freezed,Object? vorNumber = freezed,Object? excelPath = freezed,}) {
   return _then(_Ks2Act(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,companyId: null == companyId ? _self.companyId : companyId // ignore: cast_nullable_to_non_nullable
@@ -175,6 +179,7 @@ as DateTime?,updatedAt: freezed == updatedAt ? _self.updatedAt : updatedAt // ig
 as DateTime?,createdBy: freezed == createdBy ? _self.createdBy : createdBy // ignore: cast_nullable_to_non_nullable
 as String?,vorId: freezed == vorId ? _self.vorId : vorId // ignore: cast_nullable_to_non_nullable
 as String?,vorNumber: freezed == vorNumber ? _self.vorNumber : vorNumber // ignore: cast_nullable_to_non_nullable
+as String?,excelPath: freezed == excelPath ? _self.excelPath : excelPath // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
 }

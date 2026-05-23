@@ -325,7 +325,7 @@ class _ContractKs2ActsProviderElement
 }
 
 String _$contractKs2CreationHash() =>
-    r'68a1239ab4a946c7914c0a0eb4f7885773e5bf95';
+    r'cafae49335988041be411f5ba8d73de301f8c6ae';
 
 /// Состояние формы создания акта КС-2 по ВОР (модуль «Договоры»).
 ///

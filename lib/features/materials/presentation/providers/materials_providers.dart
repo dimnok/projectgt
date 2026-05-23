@@ -17,7 +17,10 @@ final materialsRepositoryProvider = Provider<MaterialsRepository>((ref) {
   return MaterialsRepository(client);
 });
 
-/// Выбранный номер договора для фильтрации материалов
+/// Номер договора для фильтрации материалов.
+///
+/// Синхронизируется с [selectedMaterialsContractIdProvider]
+/// через [MaterialsContractFilterField].
 final selectedContractNumberProvider = StateProvider<String?>((ref) => null);
 
 /// Провайдер списка материалов с учётом выбранного договора
@@ -27,6 +30,9 @@ final materialsListProvider = FutureProvider<List<MaterialItem>>((ref) async {
   if (activeId == null) return [];
 
   final contractNumber = ref.watch(selectedContractNumberProvider);
+  if (contractNumber == null || contractNumber.trim().isEmpty) {
+    return [];
+  }
   return repo.fetchAll(companyId: activeId, contractNumber: contractNumber);
 });
 
@@ -39,6 +45,9 @@ final materialsGroupedListProvider = FutureProvider<List<GroupedMaterialItem>>((
   if (activeId == null) return [];
 
   final contractNumber = ref.watch(selectedContractNumberProvider);
+  if (contractNumber == null || contractNumber.trim().isEmpty) {
+    return [];
+  }
   return repo.fetchGrouped(companyId: activeId, contractNumber: contractNumber);
 });
 

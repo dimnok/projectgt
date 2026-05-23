@@ -26,12 +26,32 @@ class ContractActRowCard extends StatefulWidget {
   /// Удалить акт (после подтверждения — на стороне вызывающего).
   final VoidCallback? onDelete;
 
+  /// Скачать сохранённый файл акта (например, Excel КС-2).
+  final VoidCallback? onDownload;
+
+  /// Подпись статуса согласования (например, акт КС-2 вместо реестра).
+  final String? workflowStatusLabel;
+
+  /// Цвет подписи статуса согласования; если `null` — из [ContractAct.workflowStatus].
+  final Color? workflowStatusColor;
+
+  /// Подпись статуса оплаты; если `null` — из [ContractAct.paymentStatus].
+  final String? paymentStatusLabel;
+
+  /// Цвет подписи оплаты; если `null` — из [ContractAct.paymentStatus].
+  final Color? paymentStatusColor;
+
   /// Создаёт строку акта.
   const ContractActRowCard({
     super.key,
     required this.act,
     this.onEdit,
     this.onDelete,
+    this.onDownload,
+    this.workflowStatusLabel,
+    this.workflowStatusColor,
+    this.paymentStatusLabel,
+    this.paymentStatusColor,
   });
 
   @override
@@ -91,7 +111,14 @@ class _ContractActRowCardState extends State<ContractActRowCard> {
     final act = widget.act;
     final hasCustomTitle = act.title.trim().isNotEmpty;
     final titleText = hasCustomTitle ? act.title.trim() : 'Акт № ${act.number}';
-    final workflowLabel = contractActWorkflowStatusLabel(act.workflowStatus);
+    final workflowLabel = widget.workflowStatusLabel ??
+        contractActWorkflowStatusLabel(act.workflowStatus);
+    final workflowColor = widget.workflowStatusColor ??
+        _workflowColor(theme, act.workflowStatus);
+    final paymentLabel = widget.paymentStatusLabel ??
+        contractActPaymentStatusLabel(act.paymentStatus);
+    final paymentColor = widget.paymentStatusColor ??
+        _paymentColor(theme, act.paymentStatus);
     final tailMeta = hasCustomTitle
         ? ' · № ${act.number} · ${formatRuDate(act.actDate)} · ${formatRuDate(act.periodFrom)}—${formatRuDate(act.periodTo)}'
         : ' · ${formatRuDate(act.actDate)} · ${formatRuDate(act.periodFrom)}—${formatRuDate(act.periodTo)}';
@@ -153,7 +180,7 @@ class _ContractActRowCardState extends State<ContractActRowCard> {
                                   text: workflowLabel,
                                   style: TextStyle(
                                     fontWeight: FontWeight.w600,
-                                    color: _workflowColor(theme, act.workflowStatus),
+                                    color: workflowColor,
                                   ),
                                 ),
                                 TextSpan(text: tailMeta, style: mutedMetaStyle),
@@ -178,11 +205,9 @@ class _ContractActRowCardState extends State<ContractActRowCard> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              contractActPaymentStatusLabel(
-                                act.paymentStatus,
-                              ),
+                              paymentLabel,
                               style: theme.textTheme.labelSmall?.copyWith(
-                                color: _paymentColor(theme, act.paymentStatus),
+                                color: paymentColor,
                                 fontWeight: FontWeight.w600,
                                 height: 1.15,
                               ),
@@ -207,12 +232,29 @@ class _ContractActRowCardState extends State<ContractActRowCard> {
                 ),
               ),
             ),
-            if (widget.onEdit != null || widget.onDelete != null)
+            if (widget.onEdit != null ||
+                widget.onDelete != null ||
+                widget.onDownload != null)
               Padding(
                 padding: const EdgeInsets.only(right: 4, left: 2),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    if (widget.onDownload != null)
+                      CupertinoButton(
+                        minimumSize: Size.zero,
+                        padding: const EdgeInsets.all(6),
+                        onPressed: widget.onDownload,
+                        child: Semantics(
+                          label: 'Скачать файл акта',
+                          button: true,
+                          child: Icon(
+                            CupertinoIcons.arrow_down_doc,
+                            size: 18,
+                            color: scheme.onSurface.withValues(alpha: 0.75),
+                          ),
+                        ),
+                      ),
                     if (widget.onEdit != null)
                       PermissionGuard(
                         module: 'contracts',
@@ -259,7 +301,6 @@ class _ContractActRowCardState extends State<ContractActRowCard> {
       ),
     );
 
-    final paymentLabel = contractActPaymentStatusLabel(act.paymentStatus);
     return Semantics(
       label:
           '$titleText · $workflowLabel$tailMeta, ${formatCurrency(amountWithVat)}, $paymentLabel',

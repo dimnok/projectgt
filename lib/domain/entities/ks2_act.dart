@@ -35,5 +35,7 @@ abstract class Ks2Act with _$Ks2Act {
     String? vorId,
     /// Номер ВОР для отображения (подгружается join’ом, не хранится отдельно в [ks2_acts]).
     String? vorNumber,
+    /// Путь к Excel формы КС-2 в Storage (`ks2_documents`).
+    String? excelPath,
   }) = _Ks2Act;
 }

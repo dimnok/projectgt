@@ -4,21 +4,30 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/di/providers.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/desktop_dialog_content.dart';
+import '../../../../core/widgets/mobile_atmosphere_backdrop.dart';
+import '../../../../core/widgets/mobile_atmosphere_screen_header.dart';
 import '../../../../features/company/presentation/providers/company_providers.dart';
 import '../../../estimates/presentation/providers/estimate_providers.dart';
-import '../providers/materials_providers.dart';
+import '../providers/materials_context_providers.dart';
 
 /// Кнопка экспорта отчета по списанию материалов на основании ВОР.
 class MaterialsVorExportAction extends ConsumerWidget {
-  /// Создает экземпляр [MaterialsVorExportAction].
-  const MaterialsVorExportAction({super.key});
+  /// Создаёт кнопку экспорта отчёта по ВОР.
+  const MaterialsVorExportAction({
+    super.key,
+    required this.appearance,
+  });
+
+  /// Оформление атмосферы экрана.
+  final MobileAtmosphereAppearance appearance;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return IconButton(
-      tooltip: 'Экспорт отчета по списанию (ВОР)',
-      icon: const Icon(Icons.description_outlined),
-      onPressed: () => _showVorSelectionDialog(context, ref),
+    return MobileAtmosphereChromeCircleButton(
+      appearance: appearance,
+      tooltip: 'Экспорт отчёта по списанию (ВОР)',
+      icon: Icons.description_outlined,
+      onTap: () => _showVorSelectionDialog(context, ref),
     );
   }
 
@@ -26,18 +35,15 @@ class MaterialsVorExportAction extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
   ) async {
-    final contractNumber = ref.read(selectedContractNumberProvider);
+    final contractId = ref.read(selectedMaterialsContractIdProvider);
     final contracts = ref.read(contractProvider).contracts;
-
-    // Пытаемся найти ID контракта по номеру из фильтра
-    final selectedContract = contracts
-        .where((c) => c.number == contractNumber)
-        .firstOrNull;
+    final selectedContract =
+        contracts.where((c) => c.id == contractId).firstOrNull;
 
     if (selectedContract == null) {
       AppSnackBar.show(
         context: context,
-        message: 'Выберите договор в фильтре',
+        message: 'Выберите объект и договор',
         kind: AppSnackBarKind.warning,
       );
       return;

@@ -13,20 +13,21 @@ class MaterialsImportRepository {
   Future<Map<String, dynamic>> importViaServer({
     required List<ReceiptParseResult> results,
     required String companyId,
+    /// Номер договора из выбранного контекста (справочник), не из Excel.
+    required String importContractNumber,
   }) async {
     final files = <Map<String, dynamic>>[];
     for (final r in results) {
       if (r.error != null) continue;
       final rn = (r.receiptNumber ?? '').trim();
       final rd = r.receiptDate;
-      final cn = r.contractNumber;
       if (rn.isEmpty || rd == null) continue;
       final dateStr = GtFormatters.formatDateForApi(rd);
       files.add({
         'fileName': r.fileName,
         'receiptNumber': rn,
         'receiptDate': dateStr,
-        'contractNumber': cn,
+        'contractNumber': importContractNumber,
         'items': r.items
             .map((it) => {
                   'name': it.name,

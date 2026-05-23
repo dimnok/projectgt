@@ -24,6 +24,7 @@ abstract class Ks2ActModel with _$Ks2ActModel {
     @JsonKey(name: 'updated_at') DateTime? updatedAt,
     @JsonKey(name: 'created_by') String? createdBy,
     @JsonKey(name: 'vor_id') String? vorId,
+    @JsonKey(name: 'excel_path') String? excelPath,
   }) = _Ks2ActModel;
 
   /// Создает экземпляр из JSON.
@@ -47,6 +48,7 @@ abstract class Ks2ActModel with _$Ks2ActModel {
       createdBy: createdBy,
       vorId: vorId,
       vorNumber: null,
+      excelPath: excelPath,
     );
   }
 
@@ -66,6 +68,7 @@ abstract class Ks2ActModel with _$Ks2ActModel {
       updatedAt: entity.updatedAt,
       createdBy: entity.createdBy,
       vorId: entity.vorId,
+      excelPath: entity.excelPath,
     );
   }
 }
