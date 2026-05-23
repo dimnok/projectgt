@@ -5,6 +5,7 @@ import '../../data/repositories/materials_repository.dart';
 import '../../data/models/material_item.dart';
 import '../../data/models/grouped_material_item.dart';
 import '../../data/models/material_binding_model.dart';
+import '../../data/models/materials_receipts_summary.dart';
 import '../../../../core/di/providers.dart';
 import '../../../../features/company/presentation/providers/company_providers.dart';
 
@@ -35,6 +36,24 @@ final materialsListProvider = FutureProvider<List<MaterialItem>>((ref) async {
   }
   return repo.fetchAll(companyId: activeId, contractNumber: contractNumber);
 });
+
+/// Сводка по накладным для выбранного договора.
+final materialsReceiptsSummaryProvider = FutureProvider.autoDispose
+    .family<MaterialsReceiptsSummary, String>((ref, contractNumber) async {
+      final repo = ref.watch(materialsRepositoryProvider);
+      final activeId = ref.watch(activeCompanyIdProvider);
+      if (activeId == null || contractNumber.trim().isEmpty) {
+        return const MaterialsReceiptsSummary(
+          receiptCount: 0,
+          grandTotal: 0,
+          items: [],
+        );
+      }
+      return repo.fetchReceiptsSummary(
+        companyId: activeId,
+        contractNumber: contractNumber,
+      );
+    });
 
 /// Провайдер сгруппированных материалов
 final materialsGroupedListProvider = FutureProvider<List<GroupedMaterialItem>>((

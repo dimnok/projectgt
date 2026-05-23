@@ -14,6 +14,7 @@ import '../widgets/materials_grouped_table_view.dart';
 import '../widgets/materials_import_action.dart';
 import '../widgets/materials_list_chrome.dart';
 import '../widgets/materials_list_filters_bar.dart';
+import '../widgets/materials_receipts_summary_dialog.dart';
 import '../widgets/materials_table_view.dart';
 import '../widgets/materials_vor_export_action.dart';
 
@@ -80,6 +81,8 @@ class _MaterialScreenState extends ConsumerState<MaterialScreen> {
             onTap: () => ref.read(isMaterialsGroupedProvider.notifier).state =
                 !isGrouped,
           ),
+          const SizedBox(width: 4),
+          MaterialsReceiptsSummaryAction(appearance: appearance),
           const SizedBox(width: 4),
           MaterialsVorExportAction(appearance: appearance),
           const SizedBox(width: 4),

@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/material_item.dart';
 import '../models/grouped_material_item.dart';
 import '../models/material_binding_model.dart';
+import '../models/materials_receipts_summary.dart';
 
 /// Репозиторий для работы с таблицей `public.materials` в Supabase.
 class MaterialsRepository {
@@ -54,6 +55,85 @@ class MaterialsRepository {
     return (data as List<dynamic>)
         .map((e) => GroupedMaterialItem.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  /// Сводка по накладным выбранного договора (агрегация из [materials]).
+  Future<MaterialsReceiptsSummary> fetchReceiptsSummary({
+    required String companyId,
+    required String contractNumber,
+  }) async {
+    final contract = contractNumber.trim();
+    if (contract.isEmpty) {
+      return const MaterialsReceiptsSummary(
+        receiptCount: 0,
+        grandTotal: 0,
+        items: [],
+      );
+    }
+
+    final rows = await client
+        .from('materials')
+        .select('receipt_number, receipt_date, total')
+        .eq('company_id', companyId)
+        .eq('contract_number', contract);
+
+    final grouped = <String, _ReceiptAggregate>{};
+    for (final row in rows as List) {
+      final number = row['receipt_number']?.toString().trim() ?? '';
+      if (number.isEmpty) continue;
+
+      final dateRaw = row['receipt_date']?.toString();
+      final date = dateRaw != null && dateRaw.isNotEmpty
+          ? DateTime.tryParse(dateRaw)
+          : null;
+      final key = '$number|${date?.toIso8601String() ?? ''}';
+
+      final total = (row['total'] as num?)?.toDouble() ?? 0;
+      final bucket = grouped.putIfAbsent(
+        key,
+        () => _ReceiptAggregate(
+          receiptNumber: number,
+          receiptDate: date,
+        ),
+      );
+      bucket.positionCount += 1;
+      bucket.totalAmount += total;
+    }
+
+    final items = grouped.values
+        .map(
+          (a) => MaterialsReceiptSummaryItem(
+            receiptNumber: a.receiptNumber,
+            receiptDate: a.receiptDate,
+            positionCount: a.positionCount,
+            totalAmount: a.totalAmount,
+          ),
+        )
+        .toList()
+      ..sort((a, b) {
+        final da = a.receiptDate;
+        final db = b.receiptDate;
+        if (da != null && db != null) {
+          final byDate = db.compareTo(da);
+          if (byDate != 0) return byDate;
+        } else if (da != null) {
+          return -1;
+        } else if (db != null) {
+          return 1;
+        }
+        return a.receiptNumber.compareTo(b.receiptNumber);
+      });
+
+    final grandTotal = items.fold<double>(
+      0,
+      (sum, item) => sum + item.totalAmount,
+    );
+
+    return MaterialsReceiptsSummary(
+      receiptCount: items.length,
+      grandTotal: grandTotal,
+      items: items,
+    );
   }
 
   /// Получить список уникальных номеров договоров из materials
@@ -190,4 +270,16 @@ class MaterialsRepository {
   Future<void> unlinkMaterialFromEstimate(String aliasId) async {
     await client.from('material_aliases').delete().eq('id', aliasId);
   }
+}
+
+class _ReceiptAggregate {
+  _ReceiptAggregate({
+    required this.receiptNumber,
+    this.receiptDate,
+  });
+
+  final String receiptNumber;
+  final DateTime? receiptDate;
+  int positionCount = 0;
+  double totalAmount = 0;
 }
