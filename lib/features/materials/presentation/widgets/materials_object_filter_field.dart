@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/di/providers.dart';
 import '../../../../core/widgets/gt_dropdown.dart';
+import '../../../../presentation/state/profile_state.dart';
 import '../../../objects/domain/entities/object.dart';
-import '../../../roles/application/permission_service.dart';
 import '../providers/materials_context_providers.dart';
 import '../providers/materials_providers.dart';
 
@@ -26,20 +26,16 @@ class MaterialsObjectFilterField extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final permissions = ref.watch(permissionServiceProvider);
-    if (!permissions.can('objects', 'read')) {
-      return Text(
-        'Нет доступа к объектам',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
-      );
-    }
+    final profile = ref.watch(currentUserProfileProvider).profile;
+    final allowedObjectIds = profile?.objectIds ?? const <String>[];
 
     final objectState = ref.watch(objectProvider);
-    final objects = objectState.objects;
+    final objects = (allowedObjectIds.isNotEmpty
+            ? objectState.objects
+                  .where((o) => allowedObjectIds.contains(o.id))
+                  .toList()
+            : List<ObjectEntity>.from(objectState.objects))
+          ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     final selectedId = ref.watch(selectedMaterialsObjectIdProvider);
     final ObjectEntity? selected = selectedId == null
         ? null

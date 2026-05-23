@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/di/providers.dart';
 import '../../../../core/widgets/gt_dropdown.dart';
 import '../../../../domain/entities/contract.dart';
-import '../../../roles/application/permission_service.dart';
 import '../providers/materials_context_providers.dart';
 import '../providers/materials_providers.dart';
 
@@ -28,18 +27,6 @@ class MaterialsContractFilterField extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final permissions = ref.watch(permissionServiceProvider);
-    if (!permissions.can('contracts', 'read')) {
-      return Text(
-        'Нет доступа к договорам',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
-      );
-    }
-
     final objectId = ref.watch(selectedMaterialsObjectIdProvider);
     final contractState = ref.watch(contractProvider);
     final items = objectId == null || objectId.isEmpty
