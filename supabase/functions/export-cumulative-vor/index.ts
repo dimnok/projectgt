@@ -107,25 +107,64 @@ serve(async (req) => {
       return (a.number || "").toLowerCase().localeCompare((b.number || "").toLowerCase());
     });
 
-    // 4. Получаем все vor_items для этих ВОР
+    // 4. Получаем все vor_items для этих ВОР (с пагинацией: лимит PostgREST 1000)
     const vorIds = vors.map((v: any) => v.id);
     let vorItems: any[] = [];
     if (vorIds.length > 0) {
-      const { data, error } = await supabase
-        .from("vor_items")
-        .select("estimate_item_id, vor_id, quantity")
-        .in("vor_id", vorIds);
-      if (error) throw error;
-      vorItems = data || [];
+      const pageSize = 1000;
+      let offset = 0;
+      while (true) {
+        const { data, error } = await supabase
+          .from("vor_items")
+          .select("estimate_item_id, vor_id, quantity")
+          .in("vor_id", vorIds)
+          .range(offset, offset + pageSize - 1);
+        if (error) throw error;
+        const page = data || [];
+        vorItems = vorItems.concat(page);
+        if (page.length < pageSize) break;
+        offset += pageSize;
+      }
     }
 
     // Группировка данных вор
     const completionMap: Record<string, Record<string, number>> = {};
+    const vorTotalMap: Record<string, number> = {};
     vorItems.forEach((item: any) => {
       const eId = item.estimate_item_id;
       const vId = item.vor_id;
-      if (!completionMap[eId]) completionMap[eId] = {};
-      completionMap[eId][vId] = (completionMap[eId][vId] || 0) + (item.quantity || 0);
+      if (eId) {
+        if (!completionMap[eId]) completionMap[eId] = {};
+        completionMap[eId][vId] = (completionMap[eId][vId] || 0) + (item.quantity || 0);
+        vorTotalMap[eId] = (vorTotalMap[eId] || 0) + (item.quantity || 0);
+      }
+    });
+
+    // 4b. Строки актов КС-2 по договору (с пагинацией)
+    let actLines: any[] = [];
+    {
+      const pageSize = 1000;
+      let offset = 0;
+      while (true) {
+        const { data, error } = await supabase
+          .from("contract_act_lines")
+          .select("estimate_item_id, quantity")
+          .eq("contract_id", contractId)
+          .eq("company_id", companyId)
+          .range(offset, offset + pageSize - 1);
+        if (error) throw error;
+        const page = data || [];
+        actLines = actLines.concat(page);
+        if (page.length < pageSize) break;
+        offset += pageSize;
+      }
+    }
+
+    const actTotalMap: Record<string, number> = {};
+    actLines.forEach((line: any) => {
+      const eId = line.estimate_item_id;
+      if (!eId) return;
+      actTotalMap[eId] = (actTotalMap[eId] || 0) + (line.quantity || 0);
     });
 
     // Группировка данных: Смета -> Позиции
@@ -400,6 +439,125 @@ serve(async (req) => {
       });
     };
 
+    const fillSummarySheet = () => {
+      const worksheet = workbook.addWorksheet("Свод");
+
+      const headers = [
+        "Система",
+        "Подсистема",
+        "№",
+        "Наименование",
+        "Ед. изм.",
+        "Кол-во по смете",
+        "Кол-во по ВОР",
+        "Кол-во по акту",
+        "Остаток",
+      ];
+
+      const headerRow = worksheet.addRow(headers);
+      headerRow.font = headerFont;
+      headerRow.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+      headerRow.height = 30;
+
+      worksheet.views = [{ state: "frozen", xSplit: 0, ySplit: 1, activeCell: "A2" }];
+      worksheet.autoFilter = {
+        from: { row: 1, column: 1 },
+        to: { row: 1, column: headers.length },
+      };
+
+      const totalCols = headers.length;
+
+      estimateTitlesOrder.forEach((estimateTitle) => {
+        const firstItem = groupedData[estimateTitle][0];
+        const systemName = firstItem?.system || "";
+
+        const titleRow = worksheet.addRow([systemName, "", "", estimateTitle]);
+        titleRow.height = 25;
+        for (let i = 1; i <= totalCols; i++) {
+          const cell = titleRow.getCell(i);
+          cell.font = titleFont;
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE9ECEF" } };
+          cell.border = {
+            top: { style: "thin" },
+            left: { style: "thin" },
+            bottom: { style: "thin" },
+            right: { style: "thin" },
+          };
+          cell.alignment = {
+            vertical: "middle",
+            horizontal: i === 1 || i === 4 ? "left" : "center",
+          };
+        }
+
+        groupedData[estimateTitle].forEach((item: any) => {
+          const estimateQty = item.quantity || 0;
+          const vorQty = vorTotalMap[item.id] || 0;
+          const actQty = actTotalMap[item.id] || 0;
+          // Не закрыто актом: выполнено по ВОР минус уже в актах.
+          const remainder = vorQty - actQty;
+
+          const rowData = [
+            item.system || "",
+            item.subsystem || "",
+            item.number || "",
+            item.name || "",
+            item.unit || "",
+            estimateQty,
+            vorQty,
+            actQty,
+            remainder,
+          ];
+
+          const newRow = worksheet.addRow(rowData);
+          newRow.font = defaultFont;
+
+          for (let i = 1; i <= totalCols; i++) {
+            const cell = newRow.getCell(i);
+            cell.border = {
+              top: { style: "thin" },
+              left: { style: "thin" },
+              bottom: { style: "thin" },
+              right: { style: "thin" },
+            };
+            cell.alignment = {
+              vertical: "middle",
+              horizontal: i === 4 ? "left" : "center",
+              wrapText: true,
+            };
+            if (i >= 6) cell.numFmt = "#,##0";
+          }
+
+          if (vorQty > estimateQty + 0.0001 || actQty > estimateQty + 0.0001) {
+            newRow.eachCell((cell) => {
+              cell.font = { ...defaultFont, color: { argb: "FFFF0000" } };
+            });
+          }
+        });
+      });
+
+      worksheet.columns = [
+        { width: 10 },
+        { width: 10 },
+        { width: 10 },
+        { width: 115 },
+        { width: 10 },
+        { width: 14 },
+        { width: 14 },
+        { width: 14 },
+        { width: 14 },
+      ];
+
+      headerRow.eachCell((cell) => {
+        cell.border = {
+          top: { style: "thin" },
+          left: { style: "thin" },
+          bottom: { style: "thin" },
+          right: { style: "thin" },
+        };
+      });
+    };
+
+    fillSummarySheet();
     fillSheet("Накопительная ВОР (объемы)", false);
     fillSheet("Накопительная ВОР (финансы)", true);
 

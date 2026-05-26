@@ -1,9 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import {
+  buildKs2PreviewFromActLines,
   buildKs2PreviewPayload,
+  insertContractActLines,
   loadVorForKs2,
 } from "./ks2_preview.ts";
+import {
+  loadContractVatTerms,
+  splitActAmountForStorage,
+} from "./vat_calc.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,10 +23,21 @@ interface Body {
   companyId: string;
   /** Идентификатор утверждённой ВОР (обязателен для preview/create). */
   vorId?: string | null;
+  /** Идентификатор сохранённого акта — превью из `contract_act_lines`. */
+  actId?: string | null;
   actNumber?: string | null;
   actDate?: string | null;
   periodFrom?: string | null;
   periodTo?: string | null;
+  advanceRetention?: number | null;
+  warrantyRetention?: number | null;
+  otherRetentions?: number | null;
+}
+
+function parseRetention(value: unknown): number {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.round(n * 100) / 100;
 }
 
 /** Текст ошибки для JSON-ответа (PostgREST-объекты не дают нормальный String()). */
@@ -69,10 +86,14 @@ serve(async (req) => {
       contractId,
       companyId,
       vorId,
+      actId,
       actNumber,
       actDate,
       periodFrom,
       periodTo,
+      advanceRetention,
+      warrantyRetention,
+      otherRetentions,
     } = body;
 
     if (!contractId) {
@@ -80,6 +101,11 @@ serve(async (req) => {
     }
     if (!companyId) {
       throw new Error("companyId is required");
+    }
+
+    const aid = typeof actId === "string" ? actId.trim() : "";
+    if (action === "preview" && aid) {
+      return await handlePreviewByAct(supabase, aid, companyId, contractId);
     }
 
     const vid = typeof vorId === "string" ? vorId.trim() : "";
@@ -109,6 +135,9 @@ serve(async (req) => {
         parseDateOnly(actDate.trim()),
         periodFromIso,
         periodToIso,
+        parseRetention(advanceRetention),
+        parseRetention(warrantyRetention),
+        parseRetention(otherRetentions),
       );
     }
 
@@ -142,6 +171,33 @@ async function assertNoExistingActForVor(
   }
 }
 
+async function handlePreviewByAct(
+  supabase: ReturnType<typeof createClient>,
+  actId: string,
+  companyId: string,
+  contractId: string,
+) {
+  const { data: act, error } = await supabase
+    .from("contract_acts")
+    .select("id, contract_id, company_id, act_kind")
+    .eq("id", actId)
+    .eq("company_id", companyId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!act) throw new Error("Акт не найден");
+  if (act.contract_id !== contractId) {
+    throw new Error("Акт не относится к выбранному договору");
+  }
+  if (act.act_kind !== "ks2") {
+    throw new Error("Строки доступны только для акта КС-2");
+  }
+
+  const payload = await buildKs2PreviewFromActLines(supabase, actId);
+  return new Response(JSON.stringify(payload), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 async function handlePreview(
   supabase: ReturnType<typeof createClient>,
   contractId: string,
@@ -165,6 +221,9 @@ async function handleCreate(
   actDateIso: string,
   periodFromIso: string | null,
   periodToIso: string | null,
+  advanceRetention: number,
+  warrantyRetention: number,
+  otherRetentions: number,
 ) {
   const vor = await loadVorForKs2(supabase, vorId, companyId, contractId);
   await assertNoExistingActForVor(supabase, vorId, companyId);
@@ -184,6 +243,12 @@ async function handleCreate(
     );
   }
 
+  const vatTerms = await loadContractVatTerms(supabase, contractId, companyId);
+  const { amount, vatAmount } = splitActAmountForStorage(
+    payload.totalAmount,
+    vatTerms,
+  );
+
   const { data: act, error: actError } = await supabase
     .from("contract_acts")
     .insert({
@@ -195,11 +260,11 @@ async function handleCreate(
       act_date: actDateIso,
       period_from: periodFrom,
       period_to: periodTo,
-      amount: payload.totalAmount,
-      vat_amount: 0,
-      advance_retention: 0,
-      warranty_retention: 0,
-      other_retentions: 0,
+      amount,
+      vat_amount: vatAmount,
+      advance_retention: advanceRetention,
+      warranty_retention: warrantyRetention,
+      other_retentions: otherRetentions,
       amount_source: "vor_preview",
       workflow_status: "pending_approval",
       payment_status: "unpaid",
@@ -209,6 +274,13 @@ async function handleCreate(
     .single();
 
   if (actError) throw actError;
+
+  await insertContractActLines(supabase, {
+    companyId,
+    contractId,
+    contractActId: act.id as string,
+    candidates: payload.candidates,
+  });
 
   return new Response(
     JSON.stringify({

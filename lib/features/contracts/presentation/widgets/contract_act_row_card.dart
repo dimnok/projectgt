@@ -29,6 +29,12 @@ class ContractActRowCard extends StatefulWidget {
   /// Скачать сохранённый файл акта (например, Excel КС-2).
   final VoidCallback? onDownload;
 
+  /// Сформировать или пересобрать Excel КС-2 на сервере.
+  final VoidCallback? onGenerateExcel;
+
+  /// Идёт генерация Excel (показать индикатор вместо иконки).
+  final bool isGeneratingExcel;
+
   /// Подпись статуса согласования (например, акт КС-2 вместо реестра).
   final String? workflowStatusLabel;
 
@@ -41,6 +47,12 @@ class ContractActRowCard extends StatefulWidget {
   /// Цвет подписи оплаты; если `null` — из [ContractAct.paymentStatus].
   final Color? paymentStatusColor;
 
+  /// Строка раскрыта (панель деталей под ней).
+  final bool isExpanded;
+
+  /// Нажатие по строке (раскрыть/свернуть детали).
+  final VoidCallback? onTap;
+
   /// Создаёт строку акта.
   const ContractActRowCard({
     super.key,
@@ -48,10 +60,14 @@ class ContractActRowCard extends StatefulWidget {
     this.onEdit,
     this.onDelete,
     this.onDownload,
+    this.onGenerateExcel,
+    this.isGeneratingExcel = false,
     this.workflowStatusLabel,
     this.workflowStatusColor,
     this.paymentStatusLabel,
     this.paymentStatusColor,
+    this.isExpanded = false,
+    this.onTap,
   });
 
   @override
@@ -131,11 +147,23 @@ class _ContractActRowCardState extends State<ContractActRowCard> {
     // Сумма на карточке: сумма акта + НДС (без удержаний).
     final amountWithVat = act.amount + act.vatAmount;
 
-    final borderColor = scheme.outline.withValues(alpha: 0.1);
-    final bg = _rowBackground(scheme, theme.brightness);
+    final borderColor = widget.isExpanded
+        ? scheme.primary.withValues(alpha: 0.35)
+        : scheme.outline.withValues(alpha: 0.1);
+    final bg = widget.isExpanded
+        ? Color.alphaBlend(
+            scheme.primary.withValues(alpha: theme.brightness == Brightness.dark ? 0.12 : 0.06),
+            _rowBackground(scheme, theme.brightness),
+          )
+        : _rowBackground(scheme, theme.brightness);
+
+    final radius = BorderRadius.vertical(
+      top: const Radius.circular(12),
+      bottom: widget.isExpanded ? Radius.zero : const Radius.circular(12),
+    );
 
     final row = ClipRRect(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: radius,
       child: IntrinsicHeight(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -143,12 +171,25 @@ class _ContractActRowCardState extends State<ContractActRowCard> {
             Container(
               width: 48,
               color: _stripeBackground(scheme),
-              child: Center(
-                child: Icon(
-                  contractActRowIcon(),
-                  color: _iconColor(scheme),
-                  size: 22,
-                ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    contractActRowIcon(),
+                    color: _iconColor(scheme),
+                    size: 22,
+                  ),
+                  if (widget.onTap != null) ...[
+                    const SizedBox(height: 4),
+                    Icon(
+                      widget.isExpanded
+                          ? CupertinoIcons.chevron_up
+                          : CupertinoIcons.chevron_down,
+                      size: 12,
+                      color: scheme.primary.withValues(alpha: 0.75),
+                    ),
+                  ],
+                ],
               ),
             ),
             Expanded(
@@ -234,12 +275,51 @@ class _ContractActRowCardState extends State<ContractActRowCard> {
             ),
             if (widget.onEdit != null ||
                 widget.onDelete != null ||
-                widget.onDownload != null)
+                widget.onDownload != null ||
+                widget.onGenerateExcel != null)
               Padding(
                 padding: const EdgeInsets.only(right: 4, left: 2),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    if (widget.onGenerateExcel != null)
+                      PermissionGuard(
+                        module: 'contracts',
+                        permission: 'update',
+                        child: CupertinoButton(
+                          minimumSize: Size.zero,
+                          padding: const EdgeInsets.all(6),
+                          onPressed: widget.isGeneratingExcel
+                              ? null
+                              : widget.onGenerateExcel,
+                          child: Semantics(
+                            label: widget.act.hasExcel
+                                ? 'Пересобрать Excel КС-2'
+                                : 'Сформировать Excel КС-2',
+                            button: true,
+                            child: widget.isGeneratingExcel
+                                ? SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: scheme.primary.withValues(
+                                        alpha: 0.85,
+                                      ),
+                                    ),
+                                  )
+                                : Icon(
+                                    widget.act.hasExcel
+                                        ? CupertinoIcons.arrow_2_circlepath
+                                        : CupertinoIcons.doc_text,
+                                    size: 18,
+                                    color: scheme.onSurface.withValues(
+                                      alpha: 0.75,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ),
                     if (widget.onDownload != null)
                       CupertinoButton(
                         minimumSize: Size.zero,
@@ -313,13 +393,17 @@ class _ContractActRowCardState extends State<ContractActRowCard> {
         onExit: (_) {
           if (_hover) setState(() => _hover = false);
         },
-        child: Container(
-          decoration: BoxDecoration(
-            color: bg,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: borderColor),
+        child: Material(
+          color: bg,
+          shape: RoundedRectangleBorder(
+            borderRadius: radius,
+            side: BorderSide(color: borderColor),
           ),
-          child: row,
+          child: InkWell(
+            onTap: widget.onTap,
+            borderRadius: radius,
+            child: row,
+          ),
         ),
       ),
     );

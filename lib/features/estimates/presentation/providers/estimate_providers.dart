@@ -346,19 +346,36 @@ final contractVorCompletionProvider = FutureProvider.autoDispose
         );
       }
 
-      // 2. Загружаем все vor_items для этих ВОР
+      // 2. Загружаем все vor_items для этих ВОР (с пагинацией: лимит PostgREST 1000)
+      const pageSize = 1000;
       final vorIds = vors.map((v) => v.id).toList();
-      final vorItemsResponse = await client
-          .from('vor_items')
-          .select('estimate_item_id, vor_id, quantity')
-          .filter('vor_id', 'in', vorIds);
+      final vorItemsResponse = <Map<String, dynamic>>[];
+      var offset = 0;
+      while (true) {
+        final page = await client
+            .from('vor_items')
+            .select('estimate_item_id, vor_id, quantity')
+            .inFilter('vor_id', vorIds)
+            .range(offset, offset + pageSize - 1);
+        if (page.isEmpty) {
+          break;
+        }
+        vorItemsResponse.addAll(
+          page.cast<Map<String, dynamic>>(),
+        );
+        if (page.length < pageSize) {
+          break;
+        }
+        offset += pageSize;
+      }
 
       final Map<String, Map<String, double>> completionMap = {};
 
       for (final item in vorItemsResponse) {
-        final estimateId = item['estimate_item_id'] as String;
-        final vorId = item['vor_id'] as String;
-        final quantity = (item['quantity'] as num).toDouble();
+        final estimateId = item['estimate_item_id'] as String?;
+        final vorId = item['vor_id'] as String?;
+        if (estimateId == null || vorId == null) continue;
+        final quantity = (item['quantity'] as num?)?.toDouble() ?? 0.0;
 
         completionMap.putIfAbsent(estimateId, () => {});
         final currentQty = completionMap[estimateId]![vorId] ?? 0.0;
@@ -380,6 +397,13 @@ final vorsProvider = FutureProvider.autoDispose.family<List<Vor>, String>((
   final repository = ref.watch(estimateRepositoryProvider);
   return repository.getVors(contractId);
 });
+
+/// Признак необходимости пересчёта для черновиков ВОР по договору.
+final draftVorNeedsRecalcProvider = FutureProvider.autoDispose
+    .family<Map<String, bool>, String>((ref, contractId) async {
+      final repository = ref.watch(estimateRepositoryProvider);
+      return repository.getDraftVorNeedsRecalc(contractId);
+    });
 
 /// Провайдер действий для работы с ВОР.
 final vorActionsProvider = Provider.autoDispose((ref) {
@@ -430,8 +454,17 @@ class VorActions {
     await repository.populateVorItems(id);
 
     ref.invalidate(vorsProvider(contractId));
+    ref.invalidate(draftVorNeedsRecalcProvider(contractId));
     ref.invalidate(contractVorCompletionProvider(contractId));
     return id;
+  }
+
+  /// Пересчитывает состав черновика ВОР из журналов работ.
+  Future<void> recalculateVor(String contractId, String vorId) async {
+    await repository.recalculateVor(vorId);
+    ref.invalidate(vorsProvider(contractId));
+    ref.invalidate(draftVorNeedsRecalcProvider(contractId));
+    ref.invalidate(contractVorCompletionProvider(contractId));
   }
 
   /// Обновляет статус ВОР.
@@ -484,6 +517,7 @@ class VorActions {
       }
 
       ref.invalidate(vorsProvider(contractId));
+      ref.invalidate(draftVorNeedsRecalcProvider(contractId));
       ref.invalidate(contractVorCompletionProvider(contractId));
     } catch (e) {
       debugPrint('❌ [VorActions] Ошибка при удалении ВОР: $e');

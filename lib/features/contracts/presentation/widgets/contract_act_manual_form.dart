@@ -13,6 +13,7 @@ import 'package:projectgt/domain/entities/contract_act_payment_status.dart';
 import 'package:projectgt/domain/entities/contract_act_workflow_status.dart';
 import 'package:projectgt/features/contracts/presentation/providers/contract_act_providers.dart';
 import 'package:projectgt/features/contracts/presentation/utils/contract_act_ui_labels.dart';
+import 'package:projectgt/features/contracts/presentation/widgets/contract_act_retentions_fields.dart';
 
 /// Форма ручного ввода акта по договору (`act_kind = manual`).
 class ContractActManualForm extends ConsumerStatefulWidget {
@@ -102,14 +103,14 @@ class _ContractActManualFormState extends ConsumerState<ContractActManualForm> {
   }
 
   void _refreshTotalDisplay() {
-    final total = computeContractActTotalToPay(
+    ContractActRetentionsFields.refreshTotalDisplay(
+      totalDisplayController: _totalDisplay,
+      advanceController: _advanceController,
+      warrantyController: _warrantyController,
+      otherController: _otherController,
       amount: _readAmount(_amountController),
       vatAmount: _readAmount(_vatController),
-      advanceRetention: _readAmount(_advanceController),
-      warrantyRetention: _readAmount(_warrantyController),
-      otherRetentions: _readAmount(_otherController),
     );
-    _totalDisplay.text = formatCurrency(total);
   }
 
   @override
@@ -241,8 +242,6 @@ class _ContractActManualFormState extends ConsumerState<ContractActManualForm> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Form(
       key: _formKey,
       child: Column(
@@ -372,73 +371,15 @@ class _ContractActManualFormState extends ConsumerState<ContractActManualForm> {
             ],
           ),
           const SizedBox(height: 16),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: GTTextField(
-                  controller: _advanceController,
-                  labelText: 'Авансовое удержание',
-                  hintText: '0,00',
-                  suffixText: '₽',
-                  prefixIcon: CupertinoIcons.arrow_down_circle,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  inputFormatters: [amountFormatter()],
-                  enabled: !_saving,
-                  onChanged: (_) => _onMoneyChanged(),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: GTTextField(
-                  controller: _warrantyController,
-                  labelText: 'Гарантийное удержание',
-                  hintText: '0,00',
-                  suffixText: '₽',
-                  prefixIcon: CupertinoIcons.shield,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  inputFormatters: [amountFormatter()],
-                  enabled: !_saving,
-                  onChanged: (_) => _onMoneyChanged(),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: GTTextField(
-                  controller: _otherController,
-                  labelText: 'Прочие удержания',
-                  hintText: '0,00',
-                  suffixText: '₽',
-                  prefixIcon: CupertinoIcons.list_bullet,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  inputFormatters: [amountFormatter()],
-                  enabled: !_saving,
-                  onChanged: (_) => _onMoneyChanged(),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          GTTextField(
-            labelText: 'Итого к оплате',
-            readOnly: true,
-            prefixIcon: CupertinoIcons.equal_circle_fill,
-            controller: _totalDisplay,
-          ),
-          Padding(
-            padding: const EdgeInsets.only(top: 6, left: 4),
-            child: Text(
-              'Сумма акта + НДС − удержания',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
-              ),
-            ),
+          ContractActRetentionsFields(
+            advanceController: _advanceController,
+            warrantyController: _warrantyController,
+            otherController: _otherController,
+            totalDisplayController: _totalDisplay,
+            amount: _readAmount(_amountController),
+            vatAmount: _readAmount(_vatController),
+            enabled: !_saving,
+            onChanged: _onMoneyChanged,
           ),
           const SizedBox(height: 16),
           GTEnumDropdown<ContractActWorkflowStatus>(

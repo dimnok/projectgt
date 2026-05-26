@@ -17,6 +17,8 @@ import {
   loadVorForKs2,
   toNum,
 } from "./ks2_preview.ts";
+import type { Ks2PreviewPayload } from "./ks2_preview.ts";
+import { splitActAmountForStorage } from "./vat_calc.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -95,6 +97,8 @@ interface Body {
   addendum2Date?: string | null;
   /** Утверждённая ВОР: при указании заполняется таблица работ. */
   vorId?: string | null;
+  /** Сохранённый акт: таблица работ из `contract_act_lines` (приоритет над пересчётом). */
+  actId?: string | null;
 }
 
 const MAX_ADDENDA = 50;
@@ -131,12 +135,61 @@ interface ContractRow {
   amount: string | number | null;
   vat_rate: string | number | null;
   vat_amount: string | number | null;
+  is_vat_included: boolean | null;
   contract_kind: string | null;
   company_id: string;
   customer_legal_name: string | null;
   contractor_legal_name: string | null;
   object: ObjectRow | ObjectRow[] | null;
   contractor: ContractorRow | ContractorRow[] | null;
+}
+
+/** Таблица работ: из строк акта (actId) или пересчёт по ВОР (vorId). */
+async function fillKs2PositionsTable(
+  supabase: ReturnType<typeof createClient>,
+  sheet: ExcelJS.Worksheet,
+  body: Body,
+  payload: { contract: ContractRow },
+  rowShift: number,
+): Promise<number> {
+  const actId = trimStr(body.actId);
+  const vorId = trimStr(body.vorId);
+
+  let preview: Ks2PreviewPayload | null = null;
+
+  if (actId) {
+    try {
+      const previewModule = await import("./ks2_preview.ts");
+      const fromAct = previewModule.buildKs2PreviewFromActLines;
+      if (typeof fromAct === "function") {
+        preview = await fromAct(supabase, actId);
+      }
+    } catch (e) {
+      console.warn("[export-ks2] actId preview:", e);
+    }
+  }
+
+  if (!preview && vorId) {
+    await loadVorForKs2(supabase, vorId, body.companyId, body.contractId);
+    preview = await buildKs2PreviewPayload(supabase, vorId);
+  }
+
+  if (!preview || preview.candidates.length === 0) {
+    if (actId && !vorId) {
+      throw new Error(
+        "Не удалось загрузить строки акта. Загрузите на сервер файл ks2_preview.ts (полная версия, ~746 строк).",
+      );
+    }
+    return 0;
+  }
+
+  return applyKs2PositionsTable(
+    sheet,
+    preview.candidates,
+    preview.totalAmount,
+    payload.contract,
+    rowShift,
+  );
 }
 
 serve(async (req) => {
@@ -195,18 +248,7 @@ serve(async (req) => {
     const rowShift = applyKs2Header(sheet, payload, body);
 
     let tableInsertShift = 0;
-    const vorId = trimStr(body.vorId);
-    if (vorId) {
-      await loadVorForKs2(supabase, vorId, body.companyId, body.contractId);
-      const preview = await buildKs2PreviewPayload(supabase, vorId);
-      tableInsertShift = applyKs2PositionsTable(
-        sheet,
-        preview.candidates,
-        preview.totalAmount,
-        payload.contract,
-        rowShift,
-      );
-    }
+    tableInsertShift = await fillKs2PositionsTable(supabase, sheet, body, payload, rowShift);
 
     const parties = resolveKs2Parties(
       payload.contract,
@@ -312,7 +354,7 @@ async function loadKs2HeaderPayload(
   const { data: row, error } = await supabase
     .from("contracts")
     .select(
-      "number, date, amount, vat_rate, vat_amount, contract_kind, company_id, customer_legal_name, contractor_legal_name, object:objects(name, address), contractor:contractors(short_name, full_name, legal_address, actual_address, okpo)",
+      "number, date, amount, vat_rate, vat_amount, is_vat_included, contract_kind, company_id, customer_legal_name, contractor_legal_name, object:objects(name, address), contractor:contractors(short_name, full_name, legal_address, actual_address, okpo)",
     )
     .eq("id", contractId)
     .eq("company_id", companyId)
@@ -934,11 +976,12 @@ function fillKs2ActFooterTotals(
   grandTotalRow: number,
   sectionTotalRows: number[],
 ) {
-  const vatRate = toNumberOrNull(contract.vat_rate);
-  const vatAmount = vatRate != null && vatRate > 0
-    ? Math.round(totalAmount * vatRate / 100 * 100) / 100
-    : 0;
-  const grandTotal = Math.round((totalAmount + vatAmount) * 100) / 100;
+  const vatRate = toNumberOrNull(contract.vat_rate) ?? 0;
+  const split = splitActAmountForStorage(totalAmount, {
+    vatRate,
+    isVatIncluded: false,
+  });
+  const grandTotal = split.amount + split.vatAmount;
 
   const actTotalFormula = ks2ActTotalFromSectionsFormula(sectionTotalRows);
 
@@ -952,7 +995,7 @@ function fillKs2ActFooterTotals(
     ks2FormulaCellValue(actTotalFormula, totalAmount),
   );
 
-  if (vatRate != null && vatRate > 0) {
+  if (vatRate > 0) {
     sheet.getCell(`C${vatRow}`).value =
       `НДС ${formatVatRateDisplay(vatRate)}%`;
     setKs2ActFooterMoneyCell(
@@ -960,7 +1003,7 @@ function fillKs2ActFooterTotals(
       vatRow,
       ks2FormulaCellValue(
         `ROUND(J${actTotalRow}*${vatRate}/100,2)`,
-        vatAmount,
+        split.vatAmount,
       ),
     );
     setKs2ActFooterMoneyCell(

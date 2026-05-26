@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/desktop_dialog_content.dart';
 import '../../../../core/widgets/gt_buttons.dart';
 import '../../../../core/utils/formatters.dart';
@@ -10,6 +11,7 @@ import '../utils/vor_pdf_actions.dart';
 import 'vor_approve_dialog.dart';
 import 'vor_card_details.dart';
 import 'vor_create_dialog.dart';
+import 'vor_recalculate_confirm_dialog.dart';
 
 /// Окно со списком ведомостей ВОР.
 ///
@@ -64,7 +66,20 @@ class _VorListDialogState extends ConsumerState<VorListDialog> {
   String? _expandedVorId;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.invalidate(draftVorNeedsRecalcProvider(widget.contractId));
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    ref.listen(vorsProvider(widget.contractId), (_, _) {
+      ref.invalidate(draftVorNeedsRecalcProvider(widget.contractId));
+    });
+
     final vorsAsync = ref.watch(vorsProvider(widget.contractId));
 
     return Column(
@@ -644,6 +659,11 @@ class _CardActions extends ConsumerWidget {
     final isDraft = vor.status == VorStatus.draft;
     final isApproved = vor.status == VorStatus.approved;
     final hasPdf = vor.pdfUrl != null && vor.pdfUrl!.isNotEmpty;
+    final needsRecalcAsync = ref.watch(
+      draftVorNeedsRecalcProvider(vor.contractId),
+    );
+    final showRecalcButton =
+        isDraft && (needsRecalcAsync.valueOrNull?[vor.id] ?? false);
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -670,6 +690,25 @@ class _CardActions extends ConsumerWidget {
           tooltip: 'Excel файл',
           onPressed: () => exportService.exportVorToExcel(vor.id),
         ),
+        if (showRecalcButton)
+          _ActionButton(
+            icon: CupertinoIcons.arrow_clockwise,
+            tooltip: 'Пересчитать (есть новые работы за период)',
+            onPressed: () async {
+              final recalculated = await VorRecalculateConfirmDialog.show(
+                context: context,
+                vor: vor,
+                actions: actions,
+              );
+              if (recalculated == true && context.mounted) {
+                AppSnackBar.show(
+                  context: context,
+                  message: 'Состав ведомости пересчитан',
+                  kind: AppSnackBarKind.success,
+                );
+              }
+            },
+          ),
         if (isDraft)
           _ActionButton(
             icon: CupertinoIcons.trash,

@@ -73,7 +73,7 @@ class VorCardDetails extends ConsumerWidget {
                         (item) => _HistoryRow(
                           date: item.createdAt,
                           user: item.userName ?? 'Система',
-                          content: Vor.getStatusText(item.status),
+                          content: _formatHistoryContent(item),
                           icon: CupertinoIcons.tag,
                         ),
                       )
@@ -125,6 +125,14 @@ class VorCardDetails extends ConsumerWidget {
       ),
     );
   }
+}
+
+String _formatHistoryContent(VorHistoryItem item) {
+  final comment = item.comment?.trim();
+  if (comment != null && comment.isNotEmpty) {
+    return comment;
+  }
+  return Vor.getStatusText(item.status);
 }
 
 VorHistoryItem? _getLatestPdfUploadHistory(Vor vor) {

@@ -54,6 +54,7 @@ class Ks2FormHeaderExportService {
     DateTime? reportingPeriodTo,
     List<Ks2HeaderAddendumInput> addenda = const [],
     String? vorId,
+    String? actId,
     int maxAddenda = 50,
   }) async {
     final generated = await generateDraftHeaderExcel(
@@ -66,6 +67,7 @@ class Ks2FormHeaderExportService {
       reportingPeriodTo: reportingPeriodTo,
       addenda: addenda,
       vorId: vorId,
+      actId: actId,
       maxAddenda: maxAddenda,
     );
 
@@ -86,6 +88,7 @@ class Ks2FormHeaderExportService {
     DateTime? reportingPeriodTo,
     List<Ks2HeaderAddendumInput> addenda = const [],
     String? vorId,
+    String? actId,
     int maxAddenda = 50,
   }) async {
     final map = await _invokeExportFunction(
@@ -98,6 +101,7 @@ class Ks2FormHeaderExportService {
       reportingPeriodTo: reportingPeriodTo,
       addenda: addenda,
       vorId: vorId,
+      actId: actId,
       maxAddenda: maxAddenda,
     );
 
@@ -125,6 +129,7 @@ class Ks2FormHeaderExportService {
     DateTime? reportingPeriodTo,
     List<Ks2HeaderAddendumInput> addenda = const [],
     String? vorId,
+    String? actId,
     int maxAddenda = 50,
   }) async {
     final token = client.auth.currentSession?.accessToken;
@@ -176,6 +181,11 @@ class Ks2FormHeaderExportService {
     final trimmedVorId = vorId?.trim();
     if (trimmedVorId != null && trimmedVorId.isNotEmpty) {
       body['vorId'] = trimmedVorId;
+    }
+
+    final trimmedActId = actId?.trim();
+    if (trimmedActId != null && trimmedActId.isNotEmpty) {
+      body['actId'] = trimmedActId;
     }
 
     final response = await client.functions.invoke(

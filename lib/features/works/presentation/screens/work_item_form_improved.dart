@@ -201,8 +201,7 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
             total: quantity > 0 ? estimate.price * quantity : 0,
             createdAt: isModifying ? widget.initial!.createdAt : DateTime.now(),
             updatedAt: DateTime.now(),
-            contractActId:
-                isModifying ? widget.initial!.contractActId : null,
+            contractActId: isModifying ? widget.initial!.contractActId : null,
             contractorId: _selectedContractor?.id,
             specialistsCount: _selectedContractor == null
                 ? null
@@ -267,8 +266,9 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
     }
 
     if (widget.occupiedEstimateIdsForCombo != null) {
-      _occupiedEstimateIdsForCombo =
-          Set<String>.from(widget.occupiedEstimateIdsForCombo!);
+      _occupiedEstimateIdsForCombo = Set<String>.from(
+        widget.occupiedEstimateIdsForCombo!,
+      );
     }
 
     // Инициализируем выбранные элементы для редактирования
@@ -292,9 +292,8 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
 
     // Загружаем сметы и данные для dropdown'ов
     Future.microtask(() async {
-      if (ref.read(estimateNotifierProvider).estimates.isEmpty) {
-        await ref.read(estimateNotifierProvider.notifier).loadEstimates();
-      }
+      // Всегда перезагружаем смету: кэш мог содержать дубли из постраничной выборки.
+      await ref.read(estimateNotifierProvider.notifier).loadEstimates();
       await ref.read(contractorNotifierProvider.notifier).loadContractors();
       if (!mounted) return;
       if (isModifying && widget.initial?.contractorId != null) {
@@ -459,7 +458,9 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
         _selectedSubsystem == null) {
       return;
     }
-    final ids = await ref.read(workItemRepositoryProvider).fetchEstimateIdsForCombo(
+    final ids = await ref
+        .read(workItemRepositoryProvider)
+        .fetchEstimateIdsForCombo(
           workId: widget.workId,
           section: _selectedSection!,
           floor: _selectedFloor!,
@@ -537,6 +538,11 @@ class _WorkItemFormImprovedState extends ConsumerState<WorkItemFormImproved> {
         return !existingEstimateIdsForCombo.contains(estimate.id);
       }).toList();
     }
+
+    final seenIds = <String>{};
+    filteredList = filteredList
+        .where((estimate) => seenIds.add(estimate.id))
+        .toList();
 
     setState(() {
       _filteredEstimates = filteredList;

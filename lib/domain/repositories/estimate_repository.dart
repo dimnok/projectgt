@@ -3,6 +3,7 @@ import '../entities/estimate_bulk_update.dart';
 import '../entities/estimate_completion_history.dart';
 import '../entities/estimate_revision.dart';
 import '../entities/vor.dart';
+import '../entities/vor_recalc_preview.dart';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -69,6 +70,15 @@ abstract class EstimateRepository {
 
   /// Наполняет состав ведомости ВОР фактически выполненными работами.
   Future<void> populateVorItems(String vorId);
+
+  /// Пересчитывает состав черновика ВОР из журналов работ без удаления ведомости.
+  Future<void> recalculateVor(String vorId);
+
+  /// Возвращает признак необходимости пересчёта для черновиков ВОР по договору.
+  Future<Map<String, bool>> getDraftVorNeedsRecalc(String contractId);
+
+  /// Возвращает список отличий для окна подтверждения пересчёта ВОР.
+  Future<VorRecalcPreview> getVorRecalcChanges(String vorId);
 
   /// Загружает подписанный PDF-файл для ведомости ВОР.
   Future<void> uploadVorPdf({

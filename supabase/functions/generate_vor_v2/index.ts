@@ -19,7 +19,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const { vorId } = await req.json();
+    const { vorId, forceRegenerate } = await req.json();
 
     if (!vorId) {
       throw new Error("Не указан vorId");
@@ -42,8 +42,8 @@ serve(async (req) => {
     if (vorError) throw vorError;
     if (!vor) throw new Error("Ведомость не найдена");
 
-    // Если файл уже сгенерирован, возвращаем его путь
-    if (vor.excel_url) {
+    // Если файл уже сгенерирован, возвращаем его путь (кроме принудительной пересборки)
+    if (vor.excel_url && !forceRegenerate) {
       const filesToReturn = [];
       const { data: fileData, error: downloadError } = await supabase.storage
         .from("vor_documents")

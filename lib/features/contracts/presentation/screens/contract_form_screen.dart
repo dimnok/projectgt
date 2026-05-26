@@ -6,6 +6,7 @@ import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/features/contractors/presentation/state/contractor_state.dart';
 import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 import 'package:projectgt/core/utils/formatters.dart';
+import 'package:projectgt/domain/utils/vat_calc.dart';
 import 'package:uuid/uuid.dart';
 import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
@@ -149,16 +150,11 @@ class _ContractFormModalState extends ConsumerState<ContractFormModal> {
   void _calculateVat() {
     final amount = parseAmount(_amountController.text) ?? 0.0;
     final rate = parseAmount(_vatRateController.text) ?? 0.0;
-    if (rate == 0) {
-      _vatAmountController.text = '0.00';
-      return;
-    }
-    double vat;
-    if (_isVatIncluded) {
-      vat = amount * rate / (100 + rate);
-    } else {
-      vat = amount * rate / 100;
-    }
+    final vat = computeVatAmount(
+      baseAmount: amount,
+      vatRate: rate,
+      isVatIncluded: _isVatIncluded,
+    );
     final newVatText = vat.toStringAsFixed(2);
     if (_vatAmountController.text != newVatText) {
       _vatAmountController.text = newVatText;

@@ -1,4 +1,6 @@
+import 'package:projectgt/data/models/contract_act_line_model.dart';
 import 'package:projectgt/data/models/contract_act_model.dart';
+import 'package:projectgt/domain/utils/vat_calc.dart';
 import 'package:projectgt/domain/entities/contract_act_kind.dart';
 import 'package:projectgt/domain/entities/contract_act_payment_status.dart';
 import 'package:projectgt/domain/entities/contract_act_workflow_status.dart';
@@ -32,6 +34,15 @@ abstract class ContractActDataSource {
     required ContractActPaymentStatus paymentStatus,
     String? vorId,
     String? excelPath,
+  });
+
+  /// Обновляет только статусы согласования и оплаты.
+  Future<ContractActModel> updateStatusesRow({
+    required String id,
+    required String companyId,
+    required String contractId,
+    required ContractActWorkflowStatus workflowStatus,
+    required ContractActPaymentStatus paymentStatus,
   });
 
   /// Обновление строки акта.
@@ -75,6 +86,40 @@ abstract class ContractActDataSource {
   /// Путь к Excel перед удалением.
   Future<String?> fetchExcelPath({
     required String actId,
+    required String companyId,
+  });
+
+  /// Строки акта КС-2 из `contract_act_lines`.
+  Future<List<ContractActLineModel>> listLinesByActId({
+    required String actId,
+    required String companyId,
+  });
+
+  /// Обновляет количество и сумму строки акта.
+  Future<void> updateActLineQuantities({
+    required String lineId,
+    required String companyId,
+    required double quantity,
+    required double amount,
+    required double backlogQuantity,
+    required double currentPeriodQuantity,
+  });
+
+  /// Сбрасывает путь к Excel (после правки строк нужна пересборка файла).
+  Future<void> clearActExcelPath({
+    required String actId,
+    required String companyId,
+  });
+
+  /// Удаляет строку акта.
+  Future<void> deleteActLine({
+    required String lineId,
+    required String companyId,
+  });
+
+  /// Ставка и режим НДС договора для пересчёта акта.
+  Future<ContractVatTerms> fetchContractVatTerms({
+    required String contractId,
     required String companyId,
   });
 }

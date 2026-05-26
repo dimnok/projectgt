@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 
@@ -148,14 +150,19 @@ class DesktopDialogContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    final screen = MediaQuery.sizeOf(context);
+    final maxDialogHeight = height != null
+        ? math.min(height!, screen.height * 0.92)
+        : screen.height * 0.85;
+
     return Material(
       type: MaterialType.transparency,
       child: Container(
         width: width,
         height: height,
         constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.85,
-          maxWidth: MediaQuery.of(context).size.width * 0.9,
+          maxHeight: maxDialogHeight,
+          maxWidth: screen.width * 0.9,
         ),
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,

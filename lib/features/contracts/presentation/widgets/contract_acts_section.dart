@@ -9,7 +9,9 @@ import 'package:projectgt/domain/entities/contract.dart';
 import 'package:projectgt/domain/entities/contract_act.dart';
 import 'package:projectgt/features/contracts/presentation/providers/contract_act_providers.dart';
 import 'package:projectgt/features/contracts/presentation/utils/contract_act_excel_download_flow.dart';
+import 'package:projectgt/features/contracts/presentation/utils/contract_act_excel_generate_flow.dart';
 import 'package:projectgt/features/contracts/presentation/utils/contract_act_form_dialog_flow.dart';
+import 'package:projectgt/features/contracts/presentation/widgets/contract_act_detail_panel.dart';
 import 'package:projectgt/features/contracts/presentation/widgets/contract_act_row_card.dart';
 
 /// Раздел «Акты»: единый список актов договора (`contract_acts`).
@@ -33,8 +35,36 @@ class ContractActsSection extends ConsumerStatefulWidget {
 }
 
 class _ContractActsSectionState extends ConsumerState<ContractActsSection> {
+  final Set<String> _generatingExcelActIds = {};
+  String? _expandedActId;
+
+  bool _canGenerateKs2Excel(ContractAct act) {
+    if (!act.isKs2) return false;
+    if (act.canEditFull) return true;
+    return !act.hasExcel;
+  }
+
+  Future<void> _handleGenerateExcel(
+    BuildContext context,
+    ContractAct act,
+  ) async {
+    if (_generatingExcelActIds.contains(act.id)) return;
+    setState(() => _generatingExcelActIds.add(act.id));
+    try {
+      await generateContractActExcelForUser(
+        context: context,
+        ref: ref,
+        act: act,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _generatingExcelActIds.remove(act.id));
+      }
+    }
+  }
+
   Future<void> _handleEdit(BuildContext context, ContractAct act) async {
-    if (!act.canEditFull) return;
+    if (!act.isKs2 && !act.canEditFull) return;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!context.mounted) return;
       await openContractActEditDialog(
@@ -75,6 +105,9 @@ class _ContractActsSectionState extends ConsumerState<ContractActsSection> {
             contractId: act.contractId,
           );
           if (!context.mounted) return;
+          if (_expandedActId == act.id) {
+            setState(() => _expandedActId = null);
+          }
           ref.invalidate(contractActsProvider(widget.contract.id));
           AppSnackBar.show(
             context: context,
@@ -93,19 +126,51 @@ class _ContractActsSectionState extends ConsumerState<ContractActsSection> {
     });
   }
 
-  Widget _buildRow(BuildContext context, ContractAct act) {
-    return ContractActRowCard(
-      key: ValueKey('act-${act.id}'),
-      act: act,
-      onEdit: act.canEditFull ? () => _handleEdit(context, act) : null,
-      onDelete: act.canDelete ? () => _handleDelete(context, act) : null,
-      onDownload: act.isKs2 && act.hasExcel
-          ? () => downloadContractActExcelForUser(
-                context: context,
-                ref: ref,
-                act: act,
-              )
-          : null,
+  void _toggleActDetails(String actId) {
+    setState(() {
+      _expandedActId = _expandedActId == actId ? null : actId;
+    });
+  }
+
+  Widget _buildActTile(BuildContext context, ContractAct act) {
+    final expanded = _expandedActId == act.id;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ContractActRowCard(
+          key: ValueKey('act-${act.id}'),
+          act: act,
+          isExpanded: expanded,
+          onTap: () => _toggleActDetails(act.id),
+          onEdit: (act.isKs2 || act.canEditFull)
+              ? () => _handleEdit(context, act)
+              : null,
+          onDelete: act.canDelete ? () => _handleDelete(context, act) : null,
+          onDownload: act.isKs2 && act.hasExcel
+              ? () => downloadContractActExcelForUser(
+                    context: context,
+                    ref: ref,
+                    act: act,
+                  )
+              : null,
+          onGenerateExcel: _canGenerateKs2Excel(act)
+              ? () => _handleGenerateExcel(context, act)
+              : null,
+          isGeneratingExcel: _generatingExcelActIds.contains(act.id),
+        ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          alignment: Alignment.topCenter,
+          child: expanded
+              ? ContractActDetailPanel(
+                  key: ValueKey('act-detail-${act.id}'),
+                  act: act,
+                )
+              : const SizedBox(width: double.infinity, height: 0),
+        ),
+      ],
     );
   }
 
@@ -157,7 +222,7 @@ class _ContractActsSectionState extends ConsumerState<ContractActsSection> {
           physics: const NeverScrollableScrollPhysics(),
           itemCount: acts.length,
           separatorBuilder: (context, index) => const SizedBox(height: 6),
-          itemBuilder: (context, index) => _buildRow(context, acts[index]),
+          itemBuilder: (context, index) => _buildActTile(context, acts[index]),
         );
       },
     );

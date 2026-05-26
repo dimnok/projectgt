@@ -3,6 +3,7 @@ import '../../domain/entities/estimate_bulk_update.dart';
 import '../../domain/entities/estimate_completion_history.dart';
 import '../../domain/entities/estimate_revision.dart';
 import '../../domain/entities/vor.dart';
+import '../../domain/entities/vor_recalc_preview.dart';
 import '../../domain/repositories/estimate_repository.dart';
 import 'dart:io';
 import 'dart:typed_data';
@@ -178,6 +179,24 @@ class EstimateRepositoryImpl implements EstimateRepository {
   @override
   Future<void> populateVorItems(String vorId) async {
     await dataSource.populateVorItems(vorId);
+  }
+
+  @override
+  Future<void> recalculateVor(String vorId) async {
+    await dataSource.recalculateVor(vorId);
+  }
+
+  @override
+  Future<Map<String, bool>> getDraftVorNeedsRecalc(String contractId) async {
+    return dataSource.getDraftVorNeedsRecalc(contractId);
+  }
+
+  @override
+  Future<VorRecalcPreview> getVorRecalcChanges(String vorId) async {
+    final raw = await dataSource.getVorRecalcChangesRaw(vorId);
+    return VorRecalcPreview(
+      changes: raw.map(VorRecalcChange.fromJson).toList(),
+    );
   }
 
   @override

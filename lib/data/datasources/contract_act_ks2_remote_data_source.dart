@@ -14,6 +14,34 @@ class ContractActKs2RemoteDataSource {
   final SupabaseClient _client;
   final String _activeCompanyId;
 
+  /// Предпросмотр сохранённых строк акта.
+  Future<ContractActKs2Preview> previewByAct({
+    required String contractId,
+    required String actId,
+  }) async {
+    try {
+      final response = await _client.functions.invoke(
+        'ks2_operations',
+        body: {
+          'action': 'preview',
+          'contractId': contractId,
+          'companyId': _activeCompanyId,
+          'actId': actId,
+        },
+      );
+
+      if (response.status != 200) {
+        throw _responseError(response.data, 'Не удалось загрузить строки акта');
+      }
+
+      return ContractActKs2Preview.fromJson(
+        Map<String, dynamic>.from(response.data as Map),
+      );
+    } on FunctionException catch (e) {
+      throw Exception(formatFunctionExceptionMessage(e));
+    }
+  }
+
   /// Предпросмотр состава акта по ВОР.
   Future<ContractActKs2Preview> preview({
     required String contractId,
@@ -50,6 +78,9 @@ class ContractActKs2RemoteDataSource {
     required DateTime actDate,
     required DateTime periodFrom,
     required DateTime periodTo,
+    double advanceRetention = 0,
+    double warrantyRetention = 0,
+    double otherRetentions = 0,
   }) async {
     try {
       final response = await _client.functions.invoke(
@@ -63,6 +94,9 @@ class ContractActKs2RemoteDataSource {
           'actDate': actDate.toIso8601String(),
           'periodFrom': _dateOnly(periodFrom),
           'periodTo': _dateOnly(periodTo),
+          'advanceRetention': advanceRetention,
+          'warrantyRetention': warrantyRetention,
+          'otherRetentions': otherRetentions,
         },
       );
 

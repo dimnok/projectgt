@@ -15,7 +15,8 @@ Future<void> downloadContractActExcelForUser({
   if (!act.hasExcel) {
     AppSnackBar.show(
       context: context,
-      message: 'Файл акта не найден — сохраните акт заново из формы КС-2',
+      message:
+          'Файл акта не найден — нажмите «Сформировать Excel» в строке акта',
       kind: AppSnackBarKind.warning,
     );
     return;

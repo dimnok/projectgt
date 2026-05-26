@@ -8,10 +8,18 @@ import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/gt_text_field.dart';
 import 'package:projectgt/domain/entities/contract.dart';
 import 'package:projectgt/domain/entities/contract_act.dart';
+import 'package:projectgt/domain/entities/contract_act_payment_status.dart';
+import 'package:projectgt/domain/entities/contract_act_workflow_status.dart';
+import 'package:projectgt/domain/utils/vat_calc.dart';
+import 'package:projectgt/features/contracts/presentation/widgets/contract_act_lines_editor_section.dart';
+import 'package:projectgt/features/contracts/presentation/widgets/contract_act_ks2_summary_scope.dart';
+import 'package:projectgt/features/contracts/presentation/widgets/contract_act_ks2_status_documents_section.dart';
+import 'package:projectgt/features/contracts/presentation/widgets/contract_act_retentions_fields.dart';
 import 'package:projectgt/features/contracts/presentation/providers/contract_act_ks2_providers.dart';
 import 'package:projectgt/features/contracts/presentation/providers/contract_act_providers.dart';
 import 'package:projectgt/features/contracts/presentation/utils/contract_act_excel_persist.dart';
 import 'package:projectgt/features/ks2/presentation/services/ks2_form_header_export_service.dart';
+import 'package:projectgt/presentation/widgets/custom_sliding_segmented_control.dart';
 
 /// Шапка унифицированной формы № КС-2 (модуль «Договоры»).
 ///
@@ -32,12 +40,29 @@ class ContractActKs2FormBody extends ConsumerStatefulWidget {
   /// Возвращает id выбранной ВОР для выгрузки таблицы работ в Excel (`null` — только шапка).
   final String? Function()? getSelectedVorId;
 
+  /// Сумма строк превью по выбранной ВОР (без НДС), если таблица загружена.
+  final double? Function()? getPreviewLineTotal;
+
+  /// Редактируемый акт (режим просмотра/правки существующей записи).
+  final ContractAct? existingAct;
+
+  /// Ключ секции строк акта (`contract_act_lines`).
+  final GlobalKey<ContractActLinesEditorSectionState>? actLinesSectionKey;
+
+  /// Ключ вкладки «Статус» (сохранение статусов с нижней кнопки).
+  final GlobalKey<ContractActKs2StatusDocumentsSectionState>?
+      statusDocumentsSectionKey;
+
   /// Создаёт виджет шаблона.
   const ContractActKs2FormBody({
     super.key,
     required this.contract,
     this.positionsSection,
     this.getSelectedVorId,
+    this.getPreviewLineTotal,
+    this.existingAct,
+    this.actLinesSectionKey,
+    this.statusDocumentsSectionKey,
   });
 
   @override
@@ -46,18 +71,25 @@ class ContractActKs2FormBody extends ConsumerStatefulWidget {
 }
 
 /// Состояние [ContractActKs2FormBody]; публично для экспорта через [GlobalKey].
-class ContractActKs2FormBodyState extends ConsumerState<ContractActKs2FormBody> {
+class ContractActKs2FormBodyState extends ConsumerState<ContractActKs2FormBody>
+    with SingleTickerProviderStateMixin {
   final List<_Ks2AddendumRowControllers> _addendumRows = [];
   late final TextEditingController _docNumberController;
   late final TextEditingController _actDocDateDisplay;
   late final TextEditingController _periodFromDisplay;
   late final TextEditingController _periodToDisplay;
+  late final TextEditingController _advanceController;
+  late final TextEditingController _warrantyController;
+  late final TextEditingController _otherController;
+  late final TextEditingController _totalDisplayController;
 
   late DateTime _actDocDate;
   late DateTime _periodFrom;
   late DateTime _periodTo;
 
   static const int _kMaxAddendumRows = 50;
+
+  late final TabController _tabController;
 
   void _addAddendumRow() {
     if (_addendumRows.length >= _kMaxAddendumRows) return;
@@ -73,22 +105,58 @@ class ContractActKs2FormBodyState extends ConsumerState<ContractActKs2FormBody> 
     });
   }
 
+  bool get _canEditHeader => widget.existingAct?.canEditFull ?? true;
+
   @override
   void initState() {
     super.initState();
+    final existing = widget.existingAct;
     final now = DateTime.now();
-    _actDocDate = DateTime(now.year, now.month, now.day);
-    _periodFrom = DateTime(now.year, now.month, 1);
-    _periodTo = _actDocDate;
-    _docNumberController = TextEditingController();
+    if (existing != null) {
+      _actDocDate = _dateOnly(existing.actDate);
+      _periodFrom = _dateOnly(existing.periodFrom);
+      _periodTo = _dateOnly(existing.periodTo);
+    } else {
+      _actDocDate = DateTime(now.year, now.month, now.day);
+      _periodFrom = DateTime(now.year, now.month, 1);
+      _periodTo = _actDocDate;
+    }
+    _docNumberController = TextEditingController(
+      text: existing?.number ?? '',
+    );
     _actDocDateDisplay = TextEditingController();
     _periodFromDisplay = TextEditingController();
     _periodToDisplay = TextEditingController();
+    _advanceController = TextEditingController(
+      text: existing != null
+          ? existing.advanceRetention.toStringAsFixed(2)
+          : '0',
+    );
+    _warrantyController = TextEditingController(
+      text: existing != null
+          ? existing.warrantyRetention.toStringAsFixed(2)
+          : '0',
+    );
+    _otherController = TextEditingController(
+      text: existing != null
+          ? existing.otherRetentions.toStringAsFixed(2)
+          : '0',
+    );
+    _totalDisplayController = TextEditingController();
     _syncActDateDisplays();
+    _refreshTotalDisplay();
+    _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(_onTabIndexChanged);
+  }
+
+  void _onTabIndexChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_onTabIndexChanged);
+    _tabController.dispose();
     for (final row in _addendumRows) {
       row.dispose();
     }
@@ -97,7 +165,59 @@ class ContractActKs2FormBodyState extends ConsumerState<ContractActKs2FormBody> 
     _actDocDateDisplay.dispose();
     _periodFromDisplay.dispose();
     _periodToDisplay.dispose();
+    _advanceController.dispose();
+    _warrantyController.dispose();
+    _otherController.dispose();
+    _totalDisplayController.dispose();
     super.dispose();
+  }
+
+  double _readAmount(TextEditingController c) => parseAmount(c.text) ?? 0;
+
+  /// База и НДС для расчёта «Итого к оплате» в шапке формы.
+  ({double amount, double vatAmount}) _moneyPartsForTotal() {
+    final existing = widget.existingAct;
+    if (existing != null) {
+      return (amount: existing.amount, vatAmount: existing.vatAmount);
+    }
+    final lineTotal = widget.getPreviewLineTotal?.call();
+    if (lineTotal == null || lineTotal <= 0) {
+      return (amount: 0, vatAmount: 0);
+    }
+    final split = splitActAmountForStorage(
+      lineTotal: lineTotal,
+      vatTerms: ContractVatTerms(
+        vatRate: widget.contract.vatRate,
+        isVatIncluded: widget.contract.isVatIncluded,
+      ),
+    );
+    return (amount: split.amount, vatAmount: split.vatAmount);
+  }
+
+  /// Пересчитывает «Итого к оплате» после загрузки таблицы ВОР.
+  void onPreviewLineTotalUpdated() {
+    if (!mounted) return;
+    setState(_refreshTotalDisplay);
+  }
+
+  void _refreshTotalDisplay() {
+    final parts = _moneyPartsForTotal();
+    ContractActRetentionsFields.refreshTotalDisplay(
+      totalDisplayController: _totalDisplayController,
+      advanceController: _advanceController,
+      warrantyController: _warrantyController,
+      otherController: _otherController,
+      amount: parts.amount,
+      vatAmount: parts.vatAmount,
+    );
+  }
+
+  ContractActRetentionInput _collectRetentionInput() {
+    return ContractActRetentionInput(
+      advanceRetention: _readAmount(_advanceController),
+      warrantyRetention: _readAmount(_warrantyController),
+      otherRetentions: _readAmount(_otherController),
+    );
   }
 
   static const String _ruDatePattern = 'dd.MM.yyyy';
@@ -180,6 +300,7 @@ class ContractActKs2FormBodyState extends ConsumerState<ContractActKs2FormBody> 
       final exportInput = _collectHeaderExportInput();
       final repository = ref.read(contractActRepositoryProvider);
 
+      final retentions = _collectRetentionInput();
       final actId = await repository.createKs2Act(
         contractId: widget.contract.id,
         vorId: vorId,
@@ -187,6 +308,9 @@ class ContractActKs2FormBodyState extends ConsumerState<ContractActKs2FormBody> 
         actDate: _actDocDate,
         periodFrom: _periodFrom,
         periodTo: _periodTo,
+        advanceRetention: retentions.advanceRetention,
+        warrantyRetention: retentions.warrantyRetention,
+        otherRetentions: retentions.otherRetentions,
       );
 
       await persistContractActExcelAfterCreate(
@@ -214,6 +338,193 @@ class ContractActKs2FormBodyState extends ConsumerState<ContractActKs2FormBody> 
       return true;
     } catch (e) {
       if (!context.mounted) return false;
+      final msg = e.toString();
+      final actSavedButNoExcel = msg.contains('Акт сохранён');
+      if (actSavedButNoExcel) {
+        ref.invalidate(contractActsProvider(widget.contract.id));
+        ref.invalidate(contractActApprovedVorsProvider(widget.contract.id));
+        AppSnackBar.show(
+          context: context,
+          message:
+              'Акт и строки в базе сохранены. Excel не сформирован — обновите Edge Function export-ks2-form-header на сервере.',
+          kind: AppSnackBarKind.warning,
+        );
+        return true;
+      }
+      AppSnackBar.show(
+        context: context,
+        message: 'Не удалось сохранить акт: $e',
+        kind: AppSnackBarKind.error,
+      );
+      return false;
+    }
+  }
+
+  bool _validateActHeaderFields(BuildContext context) {
+    if (_docNumberController.text.trim().isEmpty) {
+      AppSnackBar.show(
+        context: context,
+        message: 'Введите номер акта',
+        kind: AppSnackBarKind.warning,
+      );
+      return false;
+    }
+    if (_periodTo.isBefore(_periodFrom)) {
+      AppSnackBar.show(
+        context: context,
+        message: 'Дата окончания периода не может быть раньше даты начала',
+        kind: AppSnackBarKind.warning,
+      );
+      return false;
+    }
+    return true;
+  }
+
+  ({ContractActWorkflowStatus workflow, ContractActPaymentStatus payment})
+      _resolveStatusesForSave(ContractAct act) {
+    final pending =
+        widget.statusDocumentsSectionKey?.currentState?.pendingStatuses;
+    if (pending != null) {
+      return (workflow: pending.workflow, payment: pending.payment);
+    }
+    return (workflow: act.workflowStatus, payment: act.paymentStatus);
+  }
+
+  /// Сохраняет удержания и реквизиты (без строк, Excel не сбрасывается).
+  Future<bool> saveHeaderAndRetentions(BuildContext context, WidgetRef ref) async {
+    final act = widget.existingAct;
+    if (act == null) return false;
+    if (!_validateActHeaderFields(context)) return false;
+
+    try {
+      final repository = ref.read(contractActRepositoryProvider);
+      final retentions = _collectRetentionInput();
+      final statuses = _resolveStatusesForSave(act);
+      await repository.saveKs2HeaderAndRetentions(
+        act: act,
+        number: _docNumberController.text.trim(),
+        actDate: _actDocDate,
+        periodFrom: _periodFrom,
+        periodTo: _periodTo,
+        advanceRetention: retentions.advanceRetention,
+        warrantyRetention: retentions.warrantyRetention,
+        otherRetentions: retentions.otherRetentions,
+        workflowStatus: statuses.workflow,
+        paymentStatus: statuses.payment,
+      );
+
+      ref.invalidate(contractActsProvider(widget.contract.id));
+
+      if (!context.mounted) return false;
+      AppSnackBar.show(
+        context: context,
+        message: 'Удержания и реквизиты сохранены',
+        kind: AppSnackBarKind.success,
+      );
+      return true;
+    } catch (e) {
+      if (!context.mounted) return false;
+      AppSnackBar.show(
+        context: context,
+        message: 'Не удалось сохранить: $e',
+        kind: AppSnackBarKind.error,
+      );
+      return false;
+    }
+  }
+
+  /// Сохраняет реквизиты и объёмы строк существующего акта КС-2.
+  Future<bool> saveExistingAct(BuildContext context, WidgetRef ref) async {
+    final act = widget.existingAct;
+    if (act == null) return false;
+    if (!_validateActHeaderFields(context)) return false;
+
+    final tabIndex = _tabController.index;
+    final retentions = _collectRetentionInput();
+
+    if (tabIndex == 2) {
+      final statusSaved =
+          await widget.statusDocumentsSectionKey?.currentState
+              ?.saveStatusesIfDirty() ??
+          false;
+      if (!context.mounted) return statusSaved;
+      if (statusSaved) return true;
+      if (!statusSaved) {
+        AppSnackBar.show(
+          context: context,
+          message: 'Измените статус или нажмите «Сохранить статусы»',
+          kind: AppSnackBarKind.warning,
+        );
+      }
+      return false;
+    }
+
+    if (!act.canEditFull || tabIndex == 1) {
+      return saveHeaderAndRetentions(context, ref);
+    }
+
+    try {
+      final repository = ref.read(contractActRepositoryProvider);
+      final linesState = widget.actLinesSectionKey?.currentState;
+
+      late final Map<String, double> quantities;
+      late final Set<String> deletedLineIds;
+
+      if (linesState != null) {
+        quantities = linesState.buildQuantitiesByLineId();
+        deletedLineIds = linesState.buildDeletedLineIds();
+      } else {
+        final lines = await repository.listActLines(act.id);
+        quantities = {for (final l in lines) l.id: l.quantity};
+        deletedLineIds = {};
+      }
+
+      if (!context.mounted) return false;
+
+      if (quantities.isEmpty && deletedLineIds.isNotEmpty) {
+        AppSnackBar.show(
+          context: context,
+          message: 'Нельзя удалить все строки акта',
+          kind: AppSnackBarKind.warning,
+        );
+        return false;
+      }
+
+      await repository.saveKs2ActEdits(
+        act: act,
+        number: _docNumberController.text.trim(),
+        actDate: _actDocDate,
+        periodFrom: _periodFrom,
+        periodTo: _periodTo,
+        quantitiesByLineId: quantities,
+        deletedLineIds: deletedLineIds,
+        advanceRetention: retentions.advanceRetention,
+        warrantyRetention: retentions.warrantyRetention,
+        otherRetentions: retentions.otherRetentions,
+      );
+
+      ref.invalidate(contractActsProvider(widget.contract.id));
+      ref.invalidate(contractActLinesProvider(act.id));
+      ref.invalidate(contractActApprovedVorsProvider(widget.contract.id));
+
+      if (!context.mounted) return false;
+      AppSnackBar.show(
+        context: context,
+        message:
+            'Акт сохранён. Сформируйте Excel заново — старый файл сброшен.',
+        kind: AppSnackBarKind.success,
+      );
+      return true;
+    } on FormatException catch (e) {
+      if (!context.mounted) return false;
+      AppSnackBar.show(
+        context: context,
+        message: e.message,
+        kind: AppSnackBarKind.warning,
+      );
+      return false;
+    } catch (e) {
+      if (!context.mounted) return false;
       AppSnackBar.show(
         context: context,
         message: 'Не удалось сохранить акт: $e',
@@ -226,6 +537,19 @@ class ContractActKs2FormBodyState extends ConsumerState<ContractActKs2FormBody> 
   /// Выгружает шапку КС-2 в Excel с полями из текущей формы (номер акта, даты, отчётный период, доп. соглашения).
   ///
   /// Показывает [AppSnackBar] об успехе или ошибке; после `await` использует [BuildContext.mounted].
+  /// Поля шапки для Excel (вкладка «Статус»).
+  ContractActKs2HeaderExportInput collectHeaderExportInput() {
+    final i = _collectHeaderExportInput();
+    return ContractActKs2HeaderExportInput(
+      actNumber: i.actNumber,
+      actDocDate: i.actDocDate,
+      reportingPeriodFrom: i.reportingPeriodFrom,
+      reportingPeriodTo: i.reportingPeriodTo,
+      addenda: i.addenda,
+      vorId: i.vorId,
+    );
+  }
+
   _Ks2HeaderExportInput _collectHeaderExportInput() {
     final actNumber = _docNumberController.text.trim();
     final actDocDate = _actDocDate;
@@ -252,6 +576,7 @@ class ContractActKs2FormBodyState extends ConsumerState<ContractActKs2FormBody> 
     );
   }
 
+  /// Выгружает КС-2 на устройство (черновик или сохранённый акт по [existingAct]).
   Future<void> exportHeaderDraftToDevice(
     BuildContext context,
     WidgetRef ref,
@@ -269,7 +594,8 @@ class ContractActKs2FormBodyState extends ConsumerState<ContractActKs2FormBody> 
         reportingPeriodFrom: input.reportingPeriodFrom,
         reportingPeriodTo: input.reportingPeriodTo,
         addenda: input.addenda,
-        vorId: input.vorId,
+        vorId: input.vorId ?? widget.existingAct?.vorId,
+        actId: widget.existingAct?.id,
       );
       if (!context.mounted) return;
       final withPositions = input.vorId != null && input.vorId!.isNotEmpty;
@@ -289,18 +615,6 @@ class ContractActKs2FormBodyState extends ConsumerState<ContractActKs2FormBody> 
         kind: AppSnackBarKind.error,
       );
     }
-  }
-
-  Widget _sectionTitle(ThemeData theme, String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12, top: 8),
-      child: Text(
-        text,
-        style: theme.textTheme.titleSmall?.copyWith(
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
   }
 
   /// Компактное поле реквизитов акта ([readOnly] — выбор даты из календаря).
@@ -339,487 +653,365 @@ class ContractActKs2FormBodyState extends ConsumerState<ContractActKs2FormBody> 
     );
   }
 
-  /// Компактная строка: номер, дата и период акта (даты — через календарь).
-  Widget _buildActDetailsInputSection({
+  /// Всегда видимая строка: №, даты, период.
+  Widget _buildStickyActHeaderRow({
     required BuildContext context,
     required ThemeData theme,
     required ColorScheme scheme,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionTitle(theme, 'Реквизиты акта'),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              flex: 28,
-              child: _actCompactField(
-                theme: theme,
-                scheme: scheme,
-                controller: _docNumberController,
-                labelText: '№ акта',
-                prefixIcon: CupertinoIcons.number,
-                required: true,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              flex: 24,
-              child: _actCompactField(
-                theme: theme,
-                scheme: scheme,
-                controller: _actDocDateDisplay,
-                labelText: 'Дата',
-                prefixIcon: CupertinoIcons.calendar,
-                required: true,
-                readOnly: true,
-                onTap: () => _pickActDate(
-                  context: context,
-                  title: 'Дата составления акта',
-                  initial: _actDocDate,
-                  onPick: (d) => _actDocDate = d,
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              flex: 24,
-              child: _actCompactField(
-                theme: theme,
-                scheme: scheme,
-                controller: _periodFromDisplay,
-                labelText: 'Период с',
-                prefixIcon: CupertinoIcons.calendar_badge_plus,
-                readOnly: true,
-                onTap: () => _pickActDate(
-                  context: context,
-                  title: 'Начало отчётного периода',
-                  initial: _periodFrom,
-                  onPick: (d) => _periodFrom = d,
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              flex: 24,
-              child: _actCompactField(
-                theme: theme,
-                scheme: scheme,
-                controller: _periodToDisplay,
-                labelText: 'Период по',
-                prefixIcon: CupertinoIcons.calendar_today,
-                readOnly: true,
-                onTap: () => _pickActDate(
-                  context: context,
-                  title: 'Окончание отчётного периода',
-                  initial: _periodTo,
-                  onPick: (d) => _periodTo = d,
-                ),
-              ),
-            ),
-          ],
+        Expanded(
+          flex: 22,
+          child: _actCompactField(
+            theme: theme,
+            scheme: scheme,
+            controller: _docNumberController,
+            labelText: '№ акта',
+            prefixIcon: CupertinoIcons.number,
+            required: true,
+            readOnly: !_canEditHeader,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          flex: 20,
+          child: _actCompactField(
+            theme: theme,
+            scheme: scheme,
+            controller: _actDocDateDisplay,
+            labelText: 'Дата',
+            prefixIcon: CupertinoIcons.calendar,
+            required: true,
+            readOnly: true,
+            onTap: _canEditHeader
+                ? () => _pickActDate(
+                      context: context,
+                      title: 'Дата составления акта',
+                      initial: _actDocDate,
+                      onPick: (d) => _actDocDate = d,
+                    )
+                : null,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          flex: 20,
+          child: _actCompactField(
+            theme: theme,
+            scheme: scheme,
+            controller: _periodFromDisplay,
+            labelText: 'Период с',
+            prefixIcon: CupertinoIcons.calendar_badge_plus,
+            readOnly: true,
+            onTap: _canEditHeader
+                ? () => _pickActDate(
+                      context: context,
+                      title: 'Начало отчётного периода',
+                      initial: _periodFrom,
+                      onPick: (d) => _periodFrom = d,
+                    )
+                : null,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          flex: 20,
+          child: _actCompactField(
+            theme: theme,
+            scheme: scheme,
+            controller: _periodToDisplay,
+            labelText: 'Период по',
+            prefixIcon: CupertinoIcons.calendar_today,
+            readOnly: true,
+            onTap: _canEditHeader
+                ? () => _pickActDate(
+                      context: context,
+                      title: 'Окончание отчётного периода',
+                      initial: _periodTo,
+                      onPick: (d) => _periodTo = d,
+                    )
+                : null,
+          ),
         ),
       ],
     );
   }
 
-  /// Фрагменты контекста договора для шапки формы КС-2.
-  static ({
-    String objectName,
-    String contractNumber,
-    String contractDate,
-    String amountTotal,
-    String? amountVatDetail,
-  })
-  _contractContextParts(Contract contract) {
-    final objectName = contract.objectName?.trim() ?? '';
-    final contractNumber = contract.number.trim();
-    final contractDate = formatRuDate(contract.date);
-
-    if (contract.amount <= 0) {
-      return (
-        objectName: objectName,
-        contractNumber: contractNumber,
-        contractDate: contractDate,
-        amountTotal: '',
-        amountVatDetail: null,
-      );
-    }
-
-    final amountTotal = formatCurrency(contract.amount);
-    final hasVat = contract.vatAmount > 0 || contract.vatRate > 0;
-    if (!hasVat) {
-      return (
-        objectName: objectName,
-        contractNumber: contractNumber,
-        contractDate: contractDate,
-        amountTotal: amountTotal,
-        amountVatDetail: null,
-      );
-    }
-
-    final vatSum = contract.vatAmount > 0
-        ? formatCurrency(contract.vatAmount)
-        : '';
-    final ratePart = contract.vatRate > 0
-        ? ' (${contract.vatRate.toStringAsFixed(0)}%)'
-        : '';
-
-    String? amountVatDetail;
-    if (contract.isVatIncluded) {
-      if (vatSum.isNotEmpty) {
-        amountVatDetail = 'в том числе НДС $vatSum$ratePart';
-      }
-    } else if (vatSum.isNotEmpty) {
-      amountVatDetail = 'НДС сверху $vatSum$ratePart';
-    } else if (ratePart.isNotEmpty) {
-      amountVatDetail = 'НДС сверху$ratePart';
-    }
-
-    return (
-      objectName: objectName,
-      contractNumber: contractNumber,
-      contractDate: contractDate,
-      amountTotal: amountTotal,
-      amountVatDetail: amountVatDetail,
+  Widget _buildRetentionsPanel(ThemeData theme) {
+    final parts = _moneyPartsForTotal();
+    ContractActRetentionsFields.refreshTotalDisplay(
+      totalDisplayController: _totalDisplayController,
+      advanceController: _advanceController,
+      warrantyController: _warrantyController,
+      otherController: _otherController,
+      amount: parts.amount,
+      vatAmount: parts.vatAmount,
+    );
+    return ContractActRetentionsFields(
+      advanceController: _advanceController,
+      warrantyController: _warrantyController,
+      otherController: _otherController,
+      totalDisplayController: _totalDisplayController,
+      amount: parts.amount,
+      vatAmount: parts.vatAmount,
+      enabled: _canEditHeader,
+      compact: true,
+      onChanged: () => setState(_refreshTotalDisplay),
     );
   }
 
-  /// Карточка контекста договора: объект слева, сумма справа (KPI-блок).
-  Widget _buildContractContextBanner({
-    required ThemeData theme,
-    required ColorScheme scheme,
-    required Contract contract,
-  }) {
-    final parts = _contractContextParts(contract);
+  Widget _buildAddendaExpansion(ThemeData theme, ColorScheme scheme) {
     final isDark = scheme.brightness == Brightness.dark;
-    final cardFill = scheme.surfaceContainerHighest.withValues(
-      alpha: isDark ? 0.38 : 0.72,
-    );
-    final amountFill = scheme.primary.withValues(alpha: isDark ? 0.14 : 0.08);
-    final muted = scheme.onSurface.withValues(alpha: 0.55);
-
-    Widget metaLine(IconData icon, String text) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: scheme.primary.withValues(alpha: 0.82)),
-          const SizedBox(width: 6),
-          Text(
-            text,
-            style: theme.textTheme.bodySmall?.copyWith(
-              fontWeight: FontWeight.w600,
-              height: 1.25,
-            ),
-          ),
-        ],
-      );
-    }
-
-    final metaRows = <Widget>[];
-    if (parts.contractNumber.isNotEmpty) {
-      metaRows.add(
-        metaLine(CupertinoIcons.doc_text, '№ ${parts.contractNumber}'),
-      );
-    }
-    metaRows.add(metaLine(CupertinoIcons.calendar, parts.contractDate));
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        color: cardFill,
-        border: Border.all(
-          color: scheme.primary.withValues(alpha: isDark ? 0.22 : 0.16),
+        color: scheme.surfaceContainerLow.withValues(
+          alpha: isDark ? 0.45 : 0.65,
         ),
-        boxShadow: [
-          BoxShadow(
-            offset: const Offset(0, 8),
-            blurRadius: 20,
-            color: Colors.black.withValues(alpha: isDark ? 0.28 : 0.06),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: scheme.outline.withValues(alpha: 0.12)),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(14),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                width: 4,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      scheme.primary.withValues(alpha: 0.35),
-                      scheme.primary,
-                      scheme.primary.withValues(alpha: 0.5),
-                    ],
-                  ),
-                ),
+      child: Theme(
+        data: theme.copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+          childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+          shape: const RoundedRectangleBorder(),
+          collapsedShape: const RoundedRectangleBorder(),
+          leading: Icon(
+            CupertinoIcons.doc_on_doc,
+            size: 18,
+            color: scheme.primary.withValues(alpha: 0.85),
+          ),
+          title: Text(
+            'Доп. соглашения',
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          subtitle: Text(
+            _addendumRows.isEmpty
+                ? 'Не указаны — нажмите, чтобы добавить'
+                : 'Записей: ${_addendumRows.length}',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: scheme.onSurface.withValues(alpha: 0.55),
+            ),
+          ),
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: GTTextButton(
+                text: 'Добавить',
+                icon: CupertinoIcons.add,
+                color: scheme.primary,
+                fontSize: 13,
+                dense: true,
+                onPressed: _addendumRows.length >= _kMaxAddendumRows
+                    ? null
+                    : _addAddendumRow,
               ),
-              Expanded(
-                flex: 58,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 14, 12, 14),
+            ),
+            if (_addendumRows.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              ..._addendumRows.asMap().entries.map((e) {
+                final i = e.key;
+                final row = e.value;
+                return Padding(
+                  padding: EdgeInsets.only(top: i > 0 ? 8 : 0),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: scheme.primary.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: scheme.primary.withValues(alpha: 0.2),
-                          ),
-                        ),
-                        child: Icon(
-                          CupertinoIcons.building_2_fill,
-                          size: 22,
-                          color: scheme.primary.withValues(alpha: 0.92),
+                      Expanded(
+                        child: GTTextField(
+                          controller: row.number,
+                          labelText: 'Номер ${i + 1}',
+                          prefixIcon: CupertinoIcons.doc_append,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 8),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'ДОГОВОР',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 1.05,
-                                fontSize: 9.5,
-                                color: scheme.primary.withValues(alpha: 0.9),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              parts.objectName.isNotEmpty
-                                  ? parts.objectName
-                                  : 'Объект не указан',
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                height: 1.2,
-                                letterSpacing: -0.25,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            Wrap(
-                              spacing: 16,
-                              runSpacing: 6,
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              children: metaRows,
-                            ),
-                          ],
+                        child: GTTextField(
+                          controller: row.date,
+                          labelText: 'Дата',
+                          hintText: 'дд.мм.гггг',
+                          prefixIcon: CupertinoIcons.calendar,
                         ),
+                      ),
+                      IconButton(
+                        tooltip: 'Удалить',
+                        icon: Icon(CupertinoIcons.trash, color: scheme.error),
+                        onPressed: () => _removeAddendumAt(i),
                       ),
                     ],
                   ),
-                ),
-              ),
-              VerticalDivider(
-                width: 1,
-                thickness: 1,
-                color: scheme.outline.withValues(alpha: 0.12),
-              ),
-              Expanded(
-                flex: 42,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(color: amountFill),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 14, 16, 14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'СУММА ДОГОВОРА',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.85,
-                            fontSize: 9,
-                            color: muted,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        SelectableText(
-                          parts.amountTotal.isNotEmpty
-                              ? parts.amountTotal
-                              : '—',
-                          textAlign: TextAlign.right,
-                          style: theme.textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            height: 1.1,
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                        if (parts.amountVatDetail != null &&
-                            parts.amountVatDetail!.isNotEmpty) ...[
-                          const SizedBox(height: 8),
-                          DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: scheme.surface.withValues(
-                                alpha: isDark ? 0.35 : 0.65,
-                              ),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: scheme.outline.withValues(alpha: 0.1),
-                              ),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              child: Text(
-                                parts.amountVatDetail!,
-                                textAlign: TextAlign.right,
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  height: 1.25,
-                                  color: scheme.onSurface.withValues(
-                                    alpha: 0.72,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+                );
+              }),
             ],
-          ),
+          ],
         ),
       ),
     );
+  }
+
+  Widget _ks2TabSegment({
+    required ThemeData theme,
+    required ColorScheme scheme,
+    required String label,
+    required IconData icon,
+    required bool selected,
+  }) {
+    final color = selected
+        ? scheme.primary
+        : scheme.onSurface.withValues(alpha: 0.52);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 15, color: color),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: theme.textTheme.labelLarge?.copyWith(
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              fontSize: 13,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Переключатель вкладок «Позиции» / «Удержания» (сегментный контрол).
+  Widget _buildKs2TabSwitcher(ThemeData theme, ColorScheme scheme) {
+    final isDark = scheme.brightness == Brightness.dark;
+    final selected = _tabController.index;
+
+    return CustomSlidingSegmentedControl<int>(
+      groupValue: selected,
+      onValueChanged: _tabController.animateTo,
+      backgroundColor: scheme.surfaceContainerHighest.withValues(
+        alpha: isDark ? 0.48 : 0.72,
+      ),
+      thumbColor: scheme.surface,
+      borderRadius: 10,
+      padding: const EdgeInsets.all(3),
+      border: Border.all(color: scheme.outline.withValues(alpha: 0.14)),
+      children: {
+        0: _ks2TabSegment(
+          theme: theme,
+          scheme: scheme,
+          label: 'Позиции',
+          icon: CupertinoIcons.list_bullet,
+          selected: selected == 0,
+        ),
+        1: _ks2TabSegment(
+          theme: theme,
+          scheme: scheme,
+          label: 'Удержания',
+          icon: CupertinoIcons.minus_rectangle,
+          selected: selected == 1,
+        ),
+        2: _ks2TabSegment(
+          theme: theme,
+          scheme: scheme,
+          label: 'Статус',
+          icon: CupertinoIcons.flag_fill,
+          selected: selected == 2,
+        ),
+      },
+    );
+  }
+
+  String _contractOneLine(Contract contract) {
+    final object = contract.objectName?.trim();
+    final parts = <String>[
+      'Договор № ${contract.number.trim()}',
+      if (object != null && object.isNotEmpty) object,
+    ];
+    return parts.join(' · ');
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Flexible(
-          fit: FlexFit.loose,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+    final isCreate = widget.existingAct == null;
+
+    final positionsChild = widget.positionsSection != null
+        ? RepaintBoundary(child: widget.positionsSection!)
+        : Center(
+            child: Text(
+              'Таблица позиций не подключена.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: scheme.onSurface.withValues(alpha: 0.55),
+              ),
+            ),
+          );
+
+    return ContractActKs2SummaryScope(
+      vatTerms: ContractVatTerms(
+        vatRate: widget.contract.vatRate,
+        isVatIncluded: widget.contract.isVatIncluded,
+      ),
+      advanceRetention: _readAmount(_advanceController),
+      warrantyRetention: _readAmount(_warrantyController),
+      otherRetentions: _readAmount(_otherController),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (isCreate) ...[
+            Text(
+              _contractOneLine(widget.contract),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: scheme.onSurface.withValues(alpha: 0.62),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+          _buildStickyActHeaderRow(
+            context: context,
+            theme: theme,
+            scheme: scheme,
+          ),
+          const SizedBox(height: 10),
+          _buildKs2TabSwitcher(theme, scheme),
+          const SizedBox(height: 10),
+          Expanded(
+            child: IndexedStack(
+              index: _tabController.index,
+              sizing: StackFit.expand,
               children: [
-                _buildContractContextBanner(
-                  theme: theme,
-                  scheme: scheme,
-                  contract: widget.contract,
-                ),
-                const SizedBox(height: 20),
-                _sectionTitle(theme, 'Доп. соглашения'),
-                Semantics(
-                  button: true,
-                  label: 'Добавить дополнительное соглашение к договору',
-                  hint: _addendumRows.length >= _kMaxAddendumRows
-                      ? 'Достигнуто максимальное число записей'
-                      : null,
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: GTTextButton(
-                      text: 'Доп. соглашение',
-                      icon: CupertinoIcons.add,
-                      color: scheme.primary,
-                      fontSize: 13,
-                      dense: true,
-                      onPressed: _addendumRows.length >= _kMaxAddendumRows
-                          ? null
-                          : _addAddendumRow,
-                    ),
+                positionsChild,
+                SingleChildScrollView(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildRetentionsPanel(theme),
+                      const SizedBox(height: 8),
+                      _buildAddendaExpansion(theme, scheme),
+                    ],
                   ),
                 ),
-                if (_addendumRows.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  ..._addendumRows.asMap().entries.expand((e) {
-                    final i = e.key;
-                    final row = e.value;
-                    return [
-                      if (i > 0) const SizedBox(height: 12),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: GTTextField(
-                              controller: row.number,
-                              labelText: 'Доп. соглашение ${i + 1} — номер',
-                              prefixIcon: CupertinoIcons.doc_append,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: GTTextField(
-                              controller: row.date,
-                              labelText: 'Дата',
-                              hintText: 'дд.мм.гггг',
-                              prefixIcon: CupertinoIcons.calendar,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Padding(
-                            padding: const EdgeInsets.only(top: 6),
-                            child: GTTextButton(
-                              text: 'Удалить',
-                              icon: CupertinoIcons.trash,
-                              color: scheme.error,
-                              fontSize: 13,
-                              onPressed: () => _removeAddendumAt(i),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ];
-                  }),
-                ],
-                const SizedBox(height: 20),
-                _buildActDetailsInputSection(
-                  context: context,
-                  theme: theme,
-                  scheme: scheme,
+                ContractActKs2StatusDocumentsSection(
+                  key: widget.statusDocumentsSectionKey,
+                  contract: widget.contract,
+                  act: widget.existingAct,
+                  collectHeaderExportInput: collectHeaderExportInput,
                 ),
-                const SizedBox(height: 20),
-                _sectionTitle(theme, 'Таблица работ (позиции)'),
               ],
             ),
           ),
-        ),
-        if (widget.positionsSection != null)
-          Expanded(child: widget.positionsSection!)
-        else
-          DecoratedBox(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: scheme.outline.withValues(alpha: 0.18)),
-              color: scheme.surfaceContainerLow.withValues(alpha: 0.35),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
-              child: Text(
-                'Таблицу позиций можно подключить снаружи через параметр '
-                '[ContractActKs2FormBody.positionsSection].',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: scheme.onSurface.withValues(alpha: 0.55),
-                  height: 1.35,
-                ),
-              ),
-            ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }

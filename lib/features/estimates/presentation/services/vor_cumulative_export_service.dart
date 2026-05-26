@@ -8,7 +8,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart' as path_provider;
 import '../../../../core/utils/formatters.dart';
 
-/// Сервис для генерации накопительного Excel отчета по всем ВОР договора.
+/// Сервис для генерации накопительного Excel по договору (листы «Свод», объёмы, финансы).
 class VorCumulativeExportService {
   /// Клиент Supabase.
   final SupabaseClient client;

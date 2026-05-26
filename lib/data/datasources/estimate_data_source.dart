@@ -83,6 +83,15 @@ abstract class EstimateDataSource {
   /// Наполняет состав ведомости ВОР фактически выполненными работами.
   Future<void> populateVorItems(String vorId);
 
+  /// Пересчитывает состав черновика ВОР без удаления ведомости.
+  Future<void> recalculateVor(String vorId);
+
+  /// Флаги необходимости пересчёта черновиков ВОР по договору.
+  Future<Map<String, bool>> getDraftVorNeedsRecalc(String contractId);
+
+  /// Отличия состава ВОР для окна подтверждения пересчёта.
+  Future<List<Map<String, dynamic>>> getVorRecalcChangesRaw(String vorId);
+
   /// Загружает подписанный PDF-файл для ведомости ВОР.
   Future<void> uploadVorPdf({
     required String vorId,
@@ -205,6 +214,23 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
   /// Создаёт экземпляр [SupabaseEstimateDataSource] с клиентом [client].
   const SupabaseEstimateDataSource(this.client, this.activeCompanyId);
 
+  /// Убирает дубликаты позиций по `id` (первое вхождение сохраняется).
+  static List<EstimateModel> dedupeEstimatesById(List<EstimateModel> items) {
+    final seen = <String>{};
+    final unique = <EstimateModel>[];
+    for (final item in items) {
+      final id = item.id;
+      if (id == null || id.isEmpty) {
+        unique.add(item);
+        continue;
+      }
+      if (seen.add(id)) {
+        unique.add(item);
+      }
+    }
+    return unique;
+  }
+
   @override
   Future<List<EstimateModel>> getEstimates() async {
     final allEstimates = <EstimateModel>[];
@@ -218,6 +244,8 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
           .select('*')
           .eq('company_id', activeCompanyId)
           .order('system')
+          .order('number')
+          .order('id')
           .range(offset, offset + _postgrestPageSize - 1);
 
       if (response.isEmpty) {
@@ -238,7 +266,7 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
       }
     }
 
-    return allEstimates;
+    return dedupeEstimatesById(allEstimates);
   }
 
   @override
@@ -375,6 +403,7 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
       final response = await baseQuery()
           .order('system')
           .order('number')
+          .order('id')
           .range(offset, offset + _postgrestPageSize - 1);
       if (response.isEmpty) {
         break;
@@ -389,7 +418,7 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
         offset += _postgrestPageSize;
       }
     }
-    return all;
+    return dedupeEstimatesById(all);
   }
 
   @override
@@ -516,6 +545,7 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
           .eq('company_id', activeCompanyId)
           .order('system')
           .order('number')
+          .order('id')
           .range(offset, offset + _postgrestPageSize - 1);
       if (response.isEmpty) {
         break;
@@ -530,7 +560,7 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
         offset += _postgrestPageSize;
       }
     }
-    return all;
+    return dedupeEstimatesById(all);
   }
 
   @override
@@ -1633,6 +1663,52 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
   @override
   Future<void> populateVorItems(String vorId) async {
     await client.rpc('populate_vor_items', params: {'p_vor_id': vorId});
+  }
+
+  @override
+  Future<void> recalculateVor(String vorId) async {
+    await client.rpc('recalculate_vor', params: {'p_vor_id': vorId});
+  }
+
+  @override
+  Future<Map<String, bool>> getDraftVorNeedsRecalc(String contractId) async {
+    final response = await client.rpc(
+      'get_draft_vor_needs_recalc',
+      params: {'p_contract_id': contractId},
+    );
+
+    final rows = response as List<dynamic>;
+    return {
+      for (final row in rows)
+        row['vor_id'] as String: row['needs_recalc'] as bool? ?? false,
+    };
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getVorRecalcChangesRaw(
+    String vorId,
+  ) async {
+    final response = await client.rpc(
+      'get_vor_recalc_changes',
+      params: {'p_vor_id': vorId},
+    );
+
+    if (response == null) return const [];
+
+    final List<dynamic> rows;
+    if (response is List) {
+      rows = response;
+    } else if (response is String) {
+      final decoded = jsonDecode(response);
+      if (decoded is! List) return const [];
+      rows = decoded;
+    } else if (response is Map && response['changes'] is List) {
+      rows = response['changes'] as List<dynamic>;
+    } else {
+      return const [];
+    }
+
+    return rows.map((item) => Map<String, dynamic>.from(item as Map)).toList();
   }
 
   @override

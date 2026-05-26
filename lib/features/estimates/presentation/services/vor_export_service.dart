@@ -22,13 +22,17 @@ class VorExportService {
       // 1. Проверяем, есть ли уже ссылка на файл в БД
       final vorData = await client
           .from('vors')
-          .select('excel_url, excel_combined_url, include_combined_sheet, number, contracts(objects(name))')
+          .select(
+            'excel_url, excel_combined_url, include_combined_sheet, number, status, contracts(objects(name))',
+          )
           .eq('id', vorId)
           .single();
 
       final String? excelUrl = vorData['excel_url'];
       final String? excelCombinedUrl = vorData['excel_combined_url'];
       final bool includeCombinedSheet = vorData['include_combined_sheet'] ?? false;
+      final String vorStatus = vorData['status'] as String? ?? 'draft';
+      final bool isDraft = vorStatus == 'draft';
       final String vorNumber = vorData['number'] ?? 'б/н';
       final String objectName =
           vorData['contracts']?['objects']?['name'] ?? 'Объект';
@@ -36,7 +40,8 @@ class VorExportService {
       final String filename = '${objectName}_${vorNumber}_$dateStr.xlsx';
       final String combinedFilename = '${objectName}_${vorNumber}_Общая_$dateStr.xlsx';
 
-      if (excelUrl != null && excelUrl.isNotEmpty) {
+      // Для черновика всегда пересобираем Excel из актуальных vor_items.
+      if (!isDraft && excelUrl != null && excelUrl.isNotEmpty) {
         debugPrint(
           '📂 [VorExport] Файл найден в Storage, скачиваем: $excelUrl',
         );
@@ -76,10 +81,10 @@ class VorExportService {
         }
       }
 
-      debugPrint('⚙️ [VorExport] Файл не найден, запускаем генерацию...');
+      debugPrint('⚙️ [VorExport] Запускаем генерацию Excel...');
       final response = await client.functions.invoke(
         'generate_vor_v2',
-        body: {'vorId': vorId},
+        body: {'vorId': vorId, 'forceRegenerate': isDraft},
       );
 
       final data = response.data;
