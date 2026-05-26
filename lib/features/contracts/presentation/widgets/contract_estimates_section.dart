@@ -8,6 +8,7 @@ import 'package:projectgt/features/contracts/presentation/widgets/contract_estim
 import 'package:projectgt/features/contracts/presentation/widgets/contract_list_shared.dart';
 import 'package:projectgt/features/contracts/presentation/utils/contract_estimate_addendum_flow.dart';
 import 'package:projectgt/features/contracts/presentation/utils/contract_estimate_with_addenda_export_flow.dart';
+import 'package:projectgt/features/contracts/presentation/utils/contract_estimate_with_execution_export_flow.dart';
 import 'package:projectgt/features/estimates/presentation/providers/estimate_providers.dart';
 import 'package:projectgt/features/estimates/presentation/screens/import_estimate_form_modal.dart';
 import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
@@ -90,6 +91,19 @@ class ContractEstimatesSection extends ConsumerWidget {
                       text: 'Скачать смету',
                       onPressed: () =>
                           openContractEstimateWithAddendaExportFlow(
+                        context: context,
+                        ref: ref,
+                        contract: contract,
+                      ),
+                    ),
+                  ),
+                  PermissionGuard(
+                    module: 'estimates',
+                    permission: 'read',
+                    child: GTSecondaryButton(
+                      text: 'Смета с выполнением',
+                      onPressed: () =>
+                          openContractEstimateWithExecutionExportFlow(
                         context: context,
                         ref: ref,
                         contract: contract,

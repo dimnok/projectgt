@@ -6,6 +6,7 @@ import '../../../../presentation/state/employee_state.dart';
 import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
+import 'payroll_payout_excel_import_dialog.dart';
 import 'payroll_payout_form_modal.dart';
 import 'payroll_payout_table_view.dart';
 import 'payroll_search_action.dart';
@@ -20,6 +21,40 @@ import '../utils/payroll_filter_helpers.dart';
 class PayrollPayoutTableWidget extends ConsumerWidget {
   /// Конструктор [PayrollPayoutTableWidget].
   const PayrollPayoutTableWidget({super.key});
+
+  static void _openPayoutForm(BuildContext context) {
+    final isDesktop = ResponsiveUtils.isDesktop(context);
+    if (isDesktop) {
+      showDialog(
+        context: context,
+        builder: (ctx) => const PayrollPayoutFormModal(),
+      );
+    } else {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (ctx) => const PayrollPayoutFormModal(),
+      );
+    }
+  }
+
+  static void _openPayoutExcelImport(BuildContext context) {
+    final isDesktop = ResponsiveUtils.isDesktop(context);
+    if (isDesktop) {
+      showDialog(
+        context: context,
+        builder: (ctx) => const PayrollPayoutExcelImportDialog(),
+      );
+    } else {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (ctx) => const PayrollPayoutExcelImportDialog(),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -93,25 +128,21 @@ class PayrollPayoutTableWidget extends ConsumerWidget {
               PermissionGuard(
                 module: 'payroll',
                 permission: 'create',
-                child: GTTextButton(
-                  text: 'Добавить',
-                  icon: Icons.add_circle_outline,
-                  onPressed: () {
-                    final isDesktop = ResponsiveUtils.isDesktop(context);
-                    if (isDesktop) {
-                      showDialog(
-                        context: context,
-                        builder: (ctx) => const PayrollPayoutFormModal(),
-                      );
-                    } else {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (ctx) => const PayrollPayoutFormModal(),
-                      );
-                    }
-                  },
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GTTextButton(
+                      text: 'Импорт из Excel',
+                      icon: Icons.upload_file_outlined,
+                      onPressed: () => _openPayoutExcelImport(context),
+                    ),
+                    const SizedBox(width: 8),
+                    GTTextButton(
+                      text: 'Добавить',
+                      icon: Icons.add_circle_outline,
+                      onPressed: () => _openPayoutForm(context),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -127,17 +158,21 @@ class PayrollPayoutTableWidget extends ConsumerWidget {
                 PermissionGuard(
                   module: 'payroll',
                   permission: 'create',
-                  child: GTTextButton(
-                    text: 'Добавить',
-                    icon: Icons.add_circle_outline,
-                    onPressed: () {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (ctx) => const PayrollPayoutFormModal(),
-                      );
-                    },
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      GTTextButton(
+                        text: 'Импорт',
+                        icon: Icons.upload_file_outlined,
+                        onPressed: () => _openPayoutExcelImport(context),
+                      ),
+                      const SizedBox(width: 8),
+                      GTTextButton(
+                        text: 'Добавить',
+                        icon: Icons.add_circle_outline,
+                        onPressed: () => _openPayoutForm(context),
+                      ),
+                    ],
                   ),
                 ),
               ],

@@ -583,24 +583,31 @@
 ## Таблица `payroll_payout`
 
 **Описание:**
-Выплаты по расчёту зарплаты (факт перевода денег сотруднику).
+Фактические выплаты сотрудникам (модуль ФОТ). Создаются вручную, через массовую форму или **импорт из Excel** (клиент, без хранения файла). Подробнее: `docs/fot/fot_module.md`.
 
-**Структура:**
-- id: UUID, PK — уникальный идентификатор выплаты
-- payroll_id: UUID, FK — внешний ключ на payroll_calculation.id
-- employee_id: UUID, FK — внешний ключ на employees.id (новое поле, 2024-05-21)
+**Структура (актуально по коду `PayrollPayoutModel`, 2026):**
+- id: UUID, PK — идентификатор (генерируется на клиенте при создании)
+- company_id: UUID, FK — компания (RLS, мультикомпания)
+- employee_id: UUID, FK — сотрудник (`employees.id`)
 - amount: NUMERIC — сумма выплаты
-- payout_date: DATE — дата выплаты
-- method: TEXT — способ выплаты
-- status: TEXT — статус выплаты (`pending`, `paid`)
-- created_at: TIMESTAMP — дата и время создания записи
+- payout_date: DATE / TIMESTAMPTZ — дата выплаты
+- method: TEXT — способ: `card`, `cash`, `bank_transfer`
+- type: TEXT — тип: `salary`, `advance`
+- comment: TEXT, nullable — комментарий
+- created_at: TIMESTAMPTZ, nullable — дата создания записи
 
 **Связи:**
-- payroll_id → payroll_calculation.id (FK)
 - employee_id → employees.id (FK)
+- company_id → companies.id (FK)
+
+**Индексы:**
+- `idx_payroll_payout_employee_id (employee_id)`
+- `idx_payroll_payout_company_date (company_id, payout_date)`
 
 **RLS-политики:**
-- (RLS не включён)
+- ✅ Включён (доступ по `company_id` / `get_my_company_ids()`)
+
+**Устаревшие поля (удалены из приложения):** `payroll_id`, `status` — в текущем Dart-коде не используются.
 
 ---
 

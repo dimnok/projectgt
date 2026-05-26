@@ -113,6 +113,13 @@ abstract class EstimateRepository {
     String? objectId,
   });
 
+  /// Excel со сметой по договору и колонками выполнения (Edge Function `export-contract-estimate-execution`).
+  Future<Map<String, dynamic>> exportContractEstimateWithExecutionExcel({
+    required String estimateTitle,
+    required String contractId,
+    String? objectId,
+  });
+
   /// Read-only история позиции по ревизиям (базовая + ДС), без изменения [estimates].
   Future<List<EstimatePositionAddendumHistoryEntry>>
   getEstimatePositionAddendumHistory({

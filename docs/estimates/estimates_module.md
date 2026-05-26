@@ -1,8 +1,8 @@
 # Модуль Сметы (Estimates)
 
-**Дата актуализации:** 8 марта 2026 года  
-**Изменения:** Внедрение системы версионирования смет (LC / ДС). Добавлены таблицы `estimate_revisions`, `estimate_revision_items`, поддержка `position_id` для отслеживания изменений, Edge Function для генерации шаблонов ДС, механизм авто-миграции старых смет.
-**Статус:** Актуально (Clean Architecture, Riverpod, Strict Multi-tenancy, RBAC, VOR Excel/PDF Storage Flow, VOR Tab Dynamic Columns, Cumulative Excel with Excess Column, Estimate Revisions/Addendums)
+**Дата актуализации:** 26 мая 2026 года  
+**Изменения:** Фильтр по подсистеме в desktop-деталях сметы — текстовые переключатели над таблицей (`EstimateSubsystemFilterBar`). Внедрение системы версионирования смет (LC / ДС). Таблицы `estimate_revisions`, `estimate_revision_items`, `position_id`, Edge Function шаблонов ДС, авто-миграция старых смет.
+**Статус:** Актуально (Clean Architecture, Riverpod, Strict Multi-tenancy, RBAC, Subsystem Filter Bar, VOR Excel/PDF Storage Flow, VOR Tab Dynamic Columns, Cumulative Excel with Excess Column, Estimate Revisions/Addendums)
 
 ---
 
@@ -29,6 +29,7 @@
 - **Версионирование (LC / ДС):** отслеживание изменений сметы через ревизии (`estimate_revisions`). Поддержка дополнительных соглашений с сохранением истории изменений каждой позиции по `position_id`.
 - **Авто-миграция:** автоматическое создание базовой ревизии ("Основная") для старых смет при первом обращении к функционалу ДС.
 - **Таб `ВОР` в деталях сметы:** динамические колонки `ВОР-*`, расчет `ИТОГО`, сортировка по номеру ВОР, визуализация превышений.
+- **Фильтр по подсистеме (desktop):** над таблицей позиций — горизонтальная полоса текстовых переключателей «Все» + уникальные значения колонки `subsystem`; клиентская фильтрация без запросов к БД.
 
 ---
 
@@ -66,7 +67,11 @@
 
 ### Слой Presentation
 - `lib/features/estimates/presentation/screens/estimates_list_screen.dart` — реестр смет, вход в модуль, refresh-target.
-- `lib/features/estimates/presentation/screens/estimate_desktop_view.dart` — основной desktop-экран смет и табов.
+- `lib/features/estimates/presentation/screens/estimate_desktop_view.dart` — основной desktop-экран смет и табов; состояние фильтра подсистемы, комбинирование с поиском и фильтрами выполнения.
+- `lib/features/estimates/presentation/widgets/estimate_subsystem_filter_bar.dart` — текстовые переключатели подсистем над таблицей; утилиты `estimateSubsystemFilterLabel`, `collectEstimateSubsystemLabels`.
+- `lib/features/estimates/presentation/widgets/estimate_table_view.dart` — таблица позиций (колонки «Система», «Подсистема»), режимы «Смета» / «Выполнение».
+- `lib/features/estimates/presentation/widgets/estimate_filter_buttons.dart` — фильтры статуса выполнения (перевыполнение / 100% / 0%) на вкладке «Выполнение».
+- `lib/features/estimates/presentation/widgets/estimate_search_field.dart` — поиск по наименованию и номеру позиции.
 - `lib/features/estimates/presentation/screens/import_estimate_form_modal.dart` — импорт Excel в модуль.
 - `lib/features/estimates/presentation/widgets/vor_list_dialog.dart` — реестр ВОР, статусы, действия, удаление, кнопки Excel/PDF.
 - `lib/features/estimates/presentation/widgets/vor_card_details.dart` — история статусов и файлов, отображение signed PDF metadata.
@@ -107,8 +112,12 @@ lib/features/estimates/
 │   │   ├── estimate_form_screen.dart
 │   │   ├── estimate_mobile_view.dart
 │   │   ├── estimates_list_screen.dart
-│   │   └── import_estimate_form_modal.dart
+│   │   ├── import_estimate_form_modal.dart
+│   │   ├── import_estimate_addendum_modal.dart
+│   │   └── import_estimate_bulk_update_modal.dart
 │   ├── services/
+│   │   ├── estimate_addendum_excel_service.dart
+│   │   ├── estimate_bulk_update_excel_service.dart
 │   │   ├── vor_cumulative_export_service.dart
 │   │   └── vor_export_service.dart
 │   ├── utils/
@@ -120,16 +129,19 @@ lib/features/estimates/
 │       ├── estimate_details_modal.dart
 │       ├── estimate_edit_dialog.dart
 │       ├── estimate_filter_buttons.dart
+│       ├── estimate_subsystem_filter_bar.dart
 │       ├── estimate_item_card.dart
 │       ├── estimate_item_details_dialog.dart
 │       ├── estimate_mobile_header.dart
 │       ├── estimate_search_field.dart
 │       ├── estimate_table_view.dart
+│       ├── export_cumulative_vor_button.dart
 │       ├── material_from_receipts_picker.dart
 │       ├── vor_approve_dialog.dart
 │       ├── vor_card_details.dart
 │       ├── vor_create_dialog.dart
 │       ├── vor_list_dialog.dart
+│       ├── vor_recalculate_confirm_dialog.dart
 │       └── vor_tab_table_view.dart
 ```
 
@@ -278,6 +290,15 @@ lib/features/estimates/
 3. Парсинг выполняется через `excel_parse`.
 4. Сметные позиции сохраняются в `public.estimates` с tenant binding по `company_id`.
 
+### Фильтр по подсистеме (desktop, вкладки «Смета» и «Выполнение»)
+1. Уникальные подсистемы собираются из загруженных позиций сметы (`collectEstimateSubsystemLabels`): значение колонки `subsystem`, пустое — подпись **«Без подсистемы»**.
+2. Полоса переключателей (`EstimateSubsystemFilterBar`) показывается **только если подсистем больше одной**; на вкладке **«ВОР»** не отображается.
+3. По умолчанию активен пункт **«Все»** (`selectedSubsystem == null`).
+4. Выбор подсистемы фильтрует строки таблицы на клиенте; повторное нажатие на активный переключатель сбрасывает фильтр на «Все».
+5. Фильтр комбинируется с текстовым поиском (`EstimateSearchField`) и, на вкладке «Выполнение», с фильтрами статуса (`EstimateFilterButtons`).
+6. При смене сметы в боковом списке выбор подсистемы сбрасывается.
+7. Если выбранная подсистема исчезла из данных (обновление позиций), фильтр автоматически трактуется как «Все» без записи в state.
+
 ### Создание ВОР
 1. Пользователь выбирает договор, период и список систем.
 2. `createVor(...)` создает заголовок ВОР в `public.vors`.
@@ -365,6 +386,8 @@ lib/features/estimates/
 - 🟢 Система версионирования смет (LC / ДС) — **Done**
 - 🟢 Авто-миграция старых смет в базовую ревизию — **Done**
 - 🟢 Серверная генерация шаблонов ДС (Times New Roman 12) — **Done**
+- 🟢 Фильтр по подсистеме (текстовые переключатели над таблицей, desktop) — **Done**
+- 🟡 Фильтр по подсистеме на mobile — **Planned**
 - 🟡 Интерфейс просмотра и утверждения ревизий — **Planned**
 - 🟡 Backfill старых PDF-загрузок в `vor_status_history` — **Planned**
 - 🟡 Массовое редактирование позиций ВОР — **Planned**

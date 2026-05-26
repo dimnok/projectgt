@@ -253,6 +253,19 @@ class EstimateRepositoryImpl implements EstimateRepository {
   }
 
   @override
+  Future<Map<String, dynamic>> exportContractEstimateWithExecutionExcel({
+    required String estimateTitle,
+    required String contractId,
+    String? objectId,
+  }) {
+    return dataSource.exportContractEstimateWithExecutionExcel(
+      estimateTitle: estimateTitle,
+      contractId: contractId,
+      objectId: objectId,
+    );
+  }
+
+  @override
   Future<List<EstimatePositionAddendumHistoryEntry>>
   getEstimatePositionAddendumHistory({
     required String contractId,

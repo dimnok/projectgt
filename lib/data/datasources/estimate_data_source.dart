@@ -123,6 +123,13 @@ abstract class EstimateDataSource {
     String? objectId,
   });
 
+  /// Excel со сметой по договору и колонками выполнения (Edge Function `export-contract-estimate-execution`).
+  Future<Map<String, dynamic>> exportContractEstimateWithExecutionExcel({
+    required String estimateTitle,
+    required String contractId,
+    String? objectId,
+  });
+
   /// Read-only история позиции по базовой ревизии и ДС ([estimate_revision_items]).
   Future<List<EstimatePositionAddendumHistoryEntry>>
   getEstimatePositionAddendumHistory({
@@ -705,6 +712,57 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
         base64Decode(base64File.replaceAll(RegExp(r'\s+'), '')),
       ),
       'filename': data['filename'] as String? ?? 'Смета.xlsx',
+    };
+  }
+
+  @override
+  Future<Map<String, dynamic>> exportContractEstimateWithExecutionExcel({
+    required String estimateTitle,
+    required String contractId,
+    String? objectId,
+  }) async {
+    final trimmedTitle = estimateTitle.trim();
+    if (trimmedTitle.isEmpty) {
+      throw Exception('Не задан заголовок сметы для выгрузки');
+    }
+
+    final response = await client.functions.invoke(
+      'export-contract-estimate-execution',
+      body: <String, dynamic>{
+        'companyId': activeCompanyId,
+        'contractId': contractId,
+        'estimateTitle': trimmedTitle,
+        if (objectId != null && objectId.isNotEmpty) 'objectId': objectId,
+      },
+      headers: <String, String>{
+        'Authorization':
+            'Bearer ${client.auth.currentSession?.accessToken ?? ''}',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    final raw = response.data;
+    if (raw is! Map) {
+      throw Exception('Некорректный ответ сервера');
+    }
+    final data = Map<String, dynamic>.from(raw);
+    final success = data['success'] as bool? ?? false;
+    if (!success) {
+      throw Exception(
+        data['message']?.toString() ?? 'Не удалось сформировать Excel',
+      );
+    }
+
+    final base64File = data['base64']?.toString();
+    if (base64File == null || base64File.isEmpty) {
+      throw Exception('Ответ сервера не содержит Excel-файл');
+    }
+
+    return {
+      'bytes': Uint8List.fromList(
+        base64Decode(base64File.replaceAll(RegExp(r'\s+'), '')),
+      ),
+      'filename': data['filename'] as String? ?? 'Смета_выполнение.xlsx',
     };
   }
 

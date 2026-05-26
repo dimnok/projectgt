@@ -134,7 +134,9 @@ class _VorRecalculateConfirmDialogState
         Text(
           'Обновятся только позиции, по которым в журнале работ изменился объём '
           'или появились новые работы. Уже записанная раскладка «по смете / превышение» '
-          'для остальных позиций сохранится.',
+          'для остальных позиций сохранится. '
+          'Если объём не менялся, а отличается только единица или написание строки, '
+          'пересчёт синхронизирует ведомость с журналом без изменения количества.',
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
@@ -236,7 +238,7 @@ class _ChangesList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final grouped = preview.groupedBySection;
+    final grouped = preview.groupedDisplayEntries;
     final sections = grouped.keys.toList()..sort();
 
     return Column(
@@ -265,8 +267,8 @@ class _ChangesList extends StatelessWidget {
               separatorBuilder: (_, _) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
                 final section = sections[index];
-                final changes = grouped[section]!;
-                return _SectionBlock(section: section, changes: changes);
+                final entries = grouped[section]!;
+                return _SectionBlock(section: section, entries: entries);
               },
             ),
           ),
@@ -278,9 +280,9 @@ class _ChangesList extends StatelessWidget {
 
 class _SectionBlock extends StatelessWidget {
   final String section;
-  final List<VorRecalcChange> changes;
+  final List<VorRecalcListEntry> entries;
 
-  const _SectionBlock({required this.section, required this.changes});
+  const _SectionBlock({required this.section, required this.entries});
 
   @override
   Widget build(BuildContext context) {
@@ -296,16 +298,83 @@ class _SectionBlock extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 6),
-        ...changes.map((change) => _ChangeRow(change: change)),
+        ...entries.map(
+          (entry) => switch (entry) {
+            VorRecalcMetadataSyncEntry() => _MetadataSyncRow(entry: entry),
+            VorRecalcVolumeEntry(:final change) => _VolumeChangeRow(change: change),
+          },
+        ),
       ],
     );
   }
 }
 
-class _ChangeRow extends StatelessWidget {
+class _MetadataSyncRow extends StatelessWidget {
+  final VorRecalcMetadataSyncEntry entry;
+
+  const _MetadataSyncRow({required this.entry});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final unitLabel = entry.journalUnit.isNotEmpty
+        ? entry.journalUnit
+        : entry.vorUnit;
+    final unitSuffix = unitLabel.isNotEmpty ? ' $unitLabel' : '';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6, left: 4),
+      child: Tooltip(
+        message: entry.tooltipMessage,
+        preferBelow: true,
+        waitDuration: const Duration(milliseconds: 250),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              CupertinoIcons.info_circle,
+              size: 14,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text.rich(
+                TextSpan(
+                  style: theme.textTheme.bodySmall,
+                  children: [
+                    TextSpan(
+                      text: entry.rowLabel,
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                    TextSpan(
+                      text:
+                          ' · ${formatQuantity(entry.quantity)}$unitSuffix · ',
+                      style: TextStyle(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    TextSpan(
+                      text: 'требуется синхронизация с журналом',
+                      style: TextStyle(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _VolumeChangeRow extends StatelessWidget {
   final VorRecalcChange change;
 
-  const _ChangeRow({required this.change});
+  const _VolumeChangeRow({required this.change});
 
   @override
   Widget build(BuildContext context) {

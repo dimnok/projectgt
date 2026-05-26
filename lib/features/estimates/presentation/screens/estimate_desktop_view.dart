@@ -18,6 +18,7 @@ import '../mixins/estimate_actions_mixin.dart';
 import '../providers/estimate_providers.dart';
 import '../widgets/estimate_search_field.dart';
 import '../widgets/estimate_filter_buttons.dart';
+import '../widgets/estimate_subsystem_filter_bar.dart';
 import '../widgets/estimate_table_view.dart';
 import '../widgets/acts_table_view.dart';
 import '../widgets/vor_tab_table_view.dart';
@@ -54,6 +55,7 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
   String? _displayedCompletionKey;
   String _searchQuery = '';
   EstimateStatusFilter _statusFilter = EstimateStatusFilter.none;
+  String? _selectedSubsystem;
   Estimate? _selectedHistoryEstimate;
 
   // Состояние свернутых групп
@@ -239,6 +241,8 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
                                                         _selectedEstimateFile =
                                                             file;
                                                         _selectedHistoryEstimate =
+                                                            null;
+                                                        _selectedSubsystem =
                                                             null;
                                                         _isContractDetailMode =
                                                             false;
@@ -469,6 +473,17 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
       completionMap = _displayedCompletion!;
     }
 
+    final subsystemLabels = effectiveItems != null
+        ? collectEstimateSubsystemLabels(effectiveItems)
+        : <String>[];
+    final showSubsystemFilter =
+        _viewMode != EstimateViewMode.vor && subsystemLabels.length > 1;
+    final activeSubsystemFilter =
+        _selectedSubsystem != null &&
+            subsystemLabels.contains(_selectedSubsystem)
+        ? _selectedSubsystem
+        : null;
+
     // Расчет общего процента выполнения по объему
     double totalPercent = 0.0;
     if (effectiveItems != null && effectiveItems.isNotEmpty) {
@@ -529,7 +544,14 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
           }
         }
 
-        // 2. Фильтрация по статусу
+        // 2. Фильтр по подсистеме
+        if (activeSubsystemFilter != null &&
+            estimateSubsystemFilterLabel(item) !=
+                activeSubsystemFilter) {
+          return false;
+        }
+
+        // 3. Фильтрация по статусу
         if (_statusFilter != EstimateStatusFilter.none) {
           final completion = completionMap[item.id];
           final percentage = completion?.percentage ?? 0;
@@ -775,6 +797,12 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
             ),
           ),
           const Divider(height: 1),
+          if (showSubsystemFilter)
+            EstimateSubsystemFilterBar(
+              subsystems: subsystemLabels,
+              selectedSubsystem: activeSubsystemFilter,
+              onSelected: (value) => setState(() => _selectedSubsystem = value),
+            ),
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(16.0),

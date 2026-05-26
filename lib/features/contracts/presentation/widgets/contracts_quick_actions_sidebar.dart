@@ -9,6 +9,7 @@ import 'package:projectgt/features/contracts/presentation/widgets/contract_detai
 import 'package:projectgt/features/contracts/presentation/widgets/contract_list_shared.dart';
 import 'package:projectgt/features/contracts/presentation/utils/contract_estimate_addendum_flow.dart';
 import 'package:projectgt/features/contracts/presentation/utils/contract_estimate_with_addenda_export_flow.dart';
+import 'package:projectgt/features/contracts/presentation/utils/contract_estimate_with_execution_export_flow.dart';
 import 'package:projectgt/features/contracts/presentation/utils/contract_document_upload_flow.dart';
 import 'package:projectgt/features/contracts/presentation/providers/contract_act_providers.dart';
 import 'package:projectgt/features/contracts/presentation/providers/contract_files_providers.dart';
@@ -282,7 +283,7 @@ class ContractsQuickActionsSidebar extends ConsumerWidget {
                 ],
                 if (contextContract != null &&
                     sidebarDetailSection ==
-                        ContractDetailNavigationSection.estimates)
+                        ContractDetailNavigationSection.estimates) ...[
                   PermissionGuard(
                     module: 'estimates',
                     permission: 'read',
@@ -297,6 +298,21 @@ class ContractsQuickActionsSidebar extends ConsumerWidget {
                           ),
                     ),
                   ),
+                  PermissionGuard(
+                    module: 'estimates',
+                    permission: 'read',
+                    child: actionTile(
+                      icon: Icons.fact_check_outlined,
+                      label: 'Скачать смету с выполнением',
+                      onPressed: () =>
+                          openContractEstimateWithExecutionExportFlow(
+                            context: context,
+                            ref: ref,
+                            contract: contextContract!,
+                          ),
+                    ),
+                  ),
+                ],
                 if (contextContract != null &&
                     sidebarDetailSection ==
                         ContractDetailNavigationSection.estimates)

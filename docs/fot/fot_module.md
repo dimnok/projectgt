@@ -1,7 +1,14 @@
 # Модуль ФОТ (Фонд оплаты труда, Payroll)
 
-**Дата актуализации:** 19 апреля 2026 года
-**Статус:** Актуально (Clean Architecture, Cumulative FIFO Balance, Parallel Batch Processing, Unified Reporting, Hardened Rate Periods)
+**Дата актуализации:** 26 мая 2026 года
+**Статус:** Актуально (Clean Architecture, Cumulative FIFO Balance, Parallel Batch Processing, Unified Reporting, Hardened Rate Periods, Excel Import Payouts)
+
+> **Изменения 26.05.2026:**
+> - **Импорт выплат из Excel** на вкладке «Выплаты»: загрузка банковской ведомости `.xlsx` без сохранения файла (парсинг только в памяти на клиенте).
+> - Предпросмотр со статусами сопоставления ФИО: `Найден` / `Не найден` / `Неоднозначно`; при расхождениях — предупреждение и импорт только найденных строк (с подтверждением).
+> - Сопоставление по справочнику `employees` (включая уволенных); формат ФИО в файле: **Фамилия Имя Отчество**; регистр и «ё» не учитываются.
+> - Пакетное создание записей в `payroll_payout` через `savePayrollPayoutBatch` (те же поля, что при ручном вводе).
+> - Юнит-тесты матчинга ФИО: `test/features/fot/payroll_payout_excel_import_service_test.dart`.
 
 > **Изменения 19.04.2026:**
 > - Восстановлена корректность данных в `employee_rates` (исправлен дубликат для одного сотрудника).
@@ -27,6 +34,14 @@
     - **Ultra-Clean Header:** Удалены дублирующие заголовки периодов над списками.
     - **AppBar De-cluttering:** Скрытие поиска и экспорта на мобильных устройствах.
     - **Loading States:** Добавлена индикация «Расчет выплат и балансов...» для сложных FIFO-вычислений.
+- **Импорт выплат из Excel (26.05.2026):** Массовое создание выплат из банковской ведомости на вкладке «Выплаты». Файл не сохраняется на сервере и в Storage.
+
+---
+
+## ⚠️ Важное замечание
+- **Owner таблиц:** `payroll_payout`, `payroll_bonus`, `payroll_penalty`, `employee_rates` — модуль ФОТ; `employees` — модуль «Сотрудники» (используется при импорте для сопоставления ФИО).
+- **Мультикомпания:** все операции фильтруются по `activeCompanyId`; RLS на `company_id`.
+- **Импорт Excel:** только клиент (`file_picker` + пакет `excel`); Edge Function **не** используется. После импорта инвалидируются `filteredPayrollPayoutsProvider`, `payrollPayoutsByFilterProvider`, `employeeAggregatedBalanceProvider`.
 
 ---
 
@@ -35,12 +50,28 @@
 
 ### Слой Presentation (UI)
 - `lib/features/fot/presentation/screens/payroll_list_screen.dart` — Основной экран с табами (ФОТ, Премии, Штрафы, Выплаты).
-- `lib/features/fot/presentation/widgets/payroll_table_view.dart` — Основная таблица. Теперь использует унифицированный сервис `EmployeeFinancialReportService` для формирования детальных отчетов.
-- `lib/features/fot/presentation/providers/payroll_providers.dart` — Сердце модуля. Содержит `payoutsByEmployeeAndMonthFIFOProvider`, который консолидирует начисления и выплаты.
+- `lib/features/fot/presentation/widgets/payroll_table_view.dart` — Основная таблица. Использует `EmployeeFinancialReportService` для детальных отчётов; контекстное меню → «Выплата».
+- `lib/features/fot/presentation/widgets/payroll_payout_table_widget.dart` — Вкладка «Выплаты»: кнопки **«Импорт из Excel»** и **«Добавить»** (`PermissionGuard`: `payroll` / `create`).
+- `lib/features/fot/presentation/widgets/payroll_payout_form_modal.dart` — Ручное создание/редактирование выплаты (шаг 1: параметры и сотрудники).
+- `lib/features/fot/presentation/widgets/payroll_payout_amount_modal.dart` — Шаг 2: индивидуальные суммы при ручном массовом вводе.
+- `lib/features/fot/presentation/widgets/payroll_payout_excel_import_dialog.dart` — Параметры выплаты + выбор файла `.xlsx`.
+- `lib/features/fot/presentation/widgets/payroll_payout_import_preview_dialog.dart` — Предпросмотр строк импорта (Стр. / Статус / ФИО / Сумма).
+- `lib/features/fot/presentation/providers/payroll_providers.dart` — FIFO, CRUD выплат (`createPayoutUseCaseProvider` и др.).
+- `lib/features/fot/presentation/providers/balance_providers.dart` — `employeeAggregatedBalanceProvider` (RPC балансов).
+
+### Слой Domain
+- `lib/features/fot/domain/entities/payroll_payout_import.dart` — `PayrollPayoutImportRow`, `PayrollPayoutImportParseResult`, `PayrollPayoutImportMatchStatus`.
+- `lib/features/fot/domain/repositories/payroll_payout_repository.dart` — интерфейс CRUD выплат.
+
+### Слой Data
+- `lib/features/fot/data/models/payroll_payout_model.dart` — DTO выплаты (`employee_id`, `amount`, `payout_date`, `method`, `type`, `comment`).
+- `lib/features/fot/data/repositories/payroll_payout_repository_impl.dart` — Supabase `payroll_payout`.
 
 ### Слой Application/Services
-- `lib/features/fot/presentation/services/employee_financial_report_service.dart` — Единый сервис сбора данных за год. Принимает данные FIFO для обеспечения точности балансов в отчетах.
-- `lib/features/fot/presentation/services/payroll_pdf_service.dart` — Генерация PDF. Добавлена колонка кумулятивного остатка на конец каждого месяца.
+- `lib/features/fot/presentation/services/employee_financial_report_service.dart` — Единый сервис сбора данных за год (FIFO).
+- `lib/features/fot/presentation/services/payroll_pdf_service.dart` — Генерация PDF с кумулятивным остатком.
+- `lib/features/fot/presentation/services/payroll_payout_excel_import_service.dart` — Парсинг `.xlsx`, автопоиск колонок «ФИО» / «Сумма», сопоставление ФИО.
+- `lib/features/fot/presentation/utils/payroll_payout_batch_save.dart` — Пакетное создание выплат и инвалидация провайдеров.
 
 ---
 
@@ -93,24 +124,53 @@
 - Добавлена строка «ОСТАТОК К ВЫПЛАТЕ на конец месяца», которая отображает кумулятивный долг.
 - Итоговый баланс года соответствует финальному значению из FIFO-цепочки.
 
+### Импорт выплат из Excel (вкладка «Выплаты»)
+1. **Параметры:** дата выплаты, способ (`card` / `cash` / `bank_transfer`), тип (`salary` / `advance`), комментарий — как при ручном вводе.
+2. **Файл:** только `.xlsx`, байты в памяти (`file_picker`, `withData: true`). Предобработка: `sanitizeXlsxForExcelNumberFormats` (`lib/core/utils/xlsx_excel_compatibility.dart`).
+3. **Колонки:** автопоиск заголовков по подстрокам `фио` и `сумм|перевод` в первых 15 строках; иначе — колонки B (ФИО) и C (сумма), данные с 2-й строки.
+4. **Сумма:** `parseAmount` из `formatters.dart` (пробелы, запятая, символ ₽).
+5. **Сопоставление ФИО** (`normalizePayrollImportFio`: lower case, `ё`→`е`, схлопывание пробелов):
+   - точное совпадение с `Employee.fullName`;
+   - иначе — фамилия + имя (2 токена в файле → любое отчество в справочнике; 3+ токена → полное отчество);
+   - 0 кандидатов → `notFound`; 2+ → `ambiguous`.
+   - Участвуют **все** сотрудники компании из `employeeProvider` (в т.ч. `EmployeeStatus.fired`).
+6. **Предпросмотр:** таблица на всю ширину диалога; при `hasIssues` — баннер и подтверждение «Импортировать только найденных».
+7. **Сохранение:** для каждой matched-строки — `PayrollPayoutModel` + `createPayoutUseCaseProvider` (UUID на клиенте).
+
+**Права:** `PermissionGuard(module: 'payroll', permission: 'create')`.
+
 ---
 
 ## 🌲 Дерево файлов
 ```text
 lib/features/fot/
 ├── data/
-│   ├── models/             # DTO (bonus, penalty, payout)
-│   └── repositories/       # Реализации API (Supabase)
+│   ├── models/             # payroll_payout_model, bonus, penalty
+│   └── repositories/       # *_repository_impl.dart (Supabase)
 ├── domain/
-│   ├── entities/           # PayrollCalculation, PayrollTransaction
-│   └── repositories/       # Интерфейсы
+│   ├── entities/           # payroll_calculation, payroll_transaction, payroll_payout_import
+│   └── repositories/       # Интерфейсы CRUD
 └── presentation/
-    ├── providers/          # Riverpod State (FIFO logic, filters)
-    ├── screens/            # UI Экраны и Табы
-    ├── services/           # PDF, Excel & Unified Report Services
-    ├── widgets/            # Адаптивные таблицы и модальные формы
-    └── utils/              # BalanceUtils, PayoutConverters
+    ├── providers/          # payroll_providers, balance_providers, filters
+    ├── screens/            # payroll_list_screen, tabs/
+    ├── services/           # PDF, financial report, payroll_payout_excel_import_service
+    ├── widgets/            # tables, modals, excel import/preview dialogs
+    └── utils/              # payroll_payout_batch_save, payout_utils, balance_utils
+
+test/features/fot/
+└── payroll_payout_excel_import_service_test.dart
 ```
+
+---
+
+## 🔗 Интеграции
+| Направление | Компонент | Назначение |
+|-------------|-----------|------------|
+| **Сотрудники** | `employeeProvider` / таблица `employees` | Сопоставление ФИО при импорте Excel |
+| **Компания** | `activeCompanyIdProvider` | `company_id` в выплатах, RLS |
+| **Экспорт Excel (ведомость)** | Edge Function `export-payroll` | Серверный Excel FIFO-ведомости (`PayrollExportAction`) |
+| **Импорт Excel (выплаты)** | Клиент: `excel`, `file_picker` | Только вкладка «Выплаты»; файл **не** сохраняется |
+| **Core** | `formatters.parseAmount`, `xlsx_excel_compatibility` | Парсинг сумм и совместимость xlsx |
 
 ---
 
@@ -120,7 +180,8 @@ lib/features/fot/
 - 🟢 Cumulative FIFO Balance — **Done**
 - 🟢 Parallel Loading Optimization — **Done**
 - 🟢 Унификация логики отчетов (Table + Profile + PDF) — **Done**
-- 🟢 Экспорт в Excel — **Done**
+- 🟢 Экспорт в Excel (ведомость ФОТ, Edge Function `export-payroll`) — **Done**
+- 🟢 Импорт выплат из Excel (вкладка «Выплаты», клиентский парсинг) — **Done (26.05.2026)**
 - 🟢 Унификация приоритета суточных во всех RPC — **Done (19.04.2026)**
 - 🟢 Жёсткая защита от пересечения периодов ставок (UI + БД) — **Done (19.04.2026)**
 - 🟢 Очистка и обезопасивание реестра RPC ФОТ — **Done (19.04.2026)**
