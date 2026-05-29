@@ -17,6 +17,7 @@ import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/utils/ui_utils.dart';
 import 'package:projectgt/features/company/presentation/screens/company_screen_mobile.dart';
+import 'package:projectgt/features/company/presentation/widgets/company_invitations_card.dart';
 
 /// Экран модуля "Компания".
 ///
@@ -247,6 +248,8 @@ class CompanyScreen extends ConsumerWidget {
               children: [
                 // 1. Хедер секция
                 _CompanyHeaderSection(profile: profile),
+                const SizedBox(height: 24),
+                const CompanyInvitationsCard(),
                 const SizedBox(height: 32),
 
                 // 2. Основной ряд: Организация и Юридические данные (60/40)

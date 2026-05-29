@@ -19,6 +19,7 @@ import 'package:projectgt/features/roles/application/permission_service.dart';
 import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
 
 import 'timesheet_excel_action.dart';
+import 'timesheet_hours_loading_indicator.dart';
 
 /// Календарная сетка табеля: своя [Table], шапка закреплена над вертикальным скроллом,
 /// горизонтальный скролл шапки и тела синхронизирован (как в таблице модуля «Подрядчики»).
@@ -74,7 +75,7 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
 
   /// Сотрудники после фильтров табеля (должность, объект, уволенные), без учёта поиска по ФИО.
   ///
-  /// Заполняется в [_loadEmployees]; при вводе в поиск обновляется только [_allEmployees]
+  /// Заполняется в [_syncEmployeeRows]; при вводе в поиск обновляется только [_allEmployees]
   /// через [_applyVisibleEmployeesFromCache] без повторного запроса списка сотрудников.
   List<Employee> _employeesBase = [];
 
@@ -85,7 +86,7 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
   /// `yyyy-MM-dd` → все записи за день (итоги по дням).
   final Map<String, List<TimesheetEntry>> _entriesByDay = {};
 
-  ProviderSubscription<String>? _filtersSub;
+  ProviderSubscription<TimesheetState>? _timesheetSub;
   ProviderSubscription<TimesheetEmployeeListScope>? _employeeScopeSub;
 
   @override
@@ -94,21 +95,22 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
     _horizontalController.addListener(_syncHeaderScroll);
     _buildDateRange();
     _rebuildEntryIndex();
-    _loadEmployees();
+    _scheduleSyncEmployeeRows();
 
-    _filtersSub = ref.listenManual<String>(
-      timesheetProvider.select((s) {
-        return s.selectedObjectIds?.join('\x1e') ?? '';
-      }),
+    _timesheetSub = ref.listenManual<TimesheetState>(
+      timesheetProvider,
       (previous, next) {
-        if (previous != next) _loadEmployees();
+        if (previous?.employees != next.employees ||
+            previous?.entries != next.entries) {
+          _scheduleSyncEmployeeRows();
+        }
       },
     );
 
     _employeeScopeSub = ref.listenManual<TimesheetEmployeeListScope>(
       timesheetEmployeeListScopeProvider,
       (previous, next) {
-        if (previous != next) _loadEmployees();
+        if (previous != next) _scheduleSyncEmployeeRows();
       },
     );
   }
@@ -116,12 +118,9 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
   @override
   void didUpdateWidget(TimesheetCalendarView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    var needsNetworkEmployeeReload = false;
-
     if (oldWidget.startDate != widget.startDate ||
         oldWidget.endDate != widget.endDate) {
       _buildDateRange();
-      needsNetworkEmployeeReload = true;
     }
 
     final entriesChanged = !identical(oldWidget.entries, widget.entries) ||
@@ -132,6 +131,9 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
 
     if (entriesChanged) {
       _rebuildEntryIndex();
+      if (!searchChanged) {
+        _scheduleSyncEmployeeRows();
+      }
     }
 
     if (searchChanged) {
@@ -141,18 +143,11 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
         _applyVisibleEmployeesFromCache();
       });
     }
-
-    if (needsNetworkEmployeeReload) {
-      _loadEmployees();
-    } else if (entriesChanged && !searchChanged) {
-      // Обновились записи табеля с сервера при неизменной строке поиска.
-      _loadEmployees();
-    }
   }
 
   @override
   void dispose() {
-    _filtersSub?.close();
+    _timesheetSub?.close();
     _employeeScopeSub?.close();
     _horizontalController.removeListener(_syncHeaderScroll);
     _verticalController.dispose();
@@ -179,6 +174,14 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
     return _employeesBase.where((e) => ids.contains(e.id)).toList();
   }
 
+  /// Откладывает [_syncEmployeeRows] после кадра (нельзя менять провайдеры в life-cycle).
+  void _scheduleSyncEmployeeRows() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _syncEmployeeRows();
+    });
+  }
+
   /// Сужает [_allEmployees] после ввода в поиск без запроса [getEmployees].
   void _applyVisibleEmployeesFromCache() {
     if (!mounted) return;
@@ -186,24 +189,27 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
     setState(() {
       _allEmployees = visible;
     });
-    final sel = ref.read(timesheetGridSelectedEmployeeIdsProvider);
-    ref.read(timesheetGridSelectedEmployeeIdsProvider.notifier).state =
-        sel.where((id) => visible.any((e) => e.id == id)).toSet();
+    _trimGridSelectionTo(visible);
   }
 
-  Future<void> _loadEmployees() async {
-    final employeeRepository = ref.read(employeeRepositoryProvider);
-    final timesheetState = ref.read(timesheetProvider);
-    final allEmployees = await employeeRepository.getEmployees();
+  void _trimGridSelectionTo(List<Employee> visible) {
+    final visibleIds = visible.map((e) => e.id).toSet();
+    final sel = ref.read(timesheetGridSelectedEmployeeIdsProvider);
+    ref.read(timesheetGridSelectedEmployeeIdsProvider.notifier).state =
+        sel.where(visibleIds.contains).toSet();
+  }
 
-    // Идентификаторы с часами в периоде — из полного состояния табеля (поиск не должен
-    // сужать набор для фильтра по объекту и для уволенных с часами).
-    final employeeIdsWithHours = timesheetState.entries
-        .map((entry) => entry.employeeId)
-        .toSet();
+  /// Пересчитывает строки таблицы из [widget.entries] и [timesheetProvider] (без сети).
+  void _syncEmployeeRows() {
+    final timesheetState = ref.read(timesheetProvider);
+    final allEmployees = timesheetState.employees;
+    final entries = widget.entries;
+
+    final employeeIdsWithHours =
+        entries.map((entry) => entry.employeeId).toSet();
 
     final hoursSumByEmployee = <String, num>{};
-    for (final e in timesheetState.entries) {
+    for (final e in entries) {
       hoursSumByEmployee[e.employeeId] =
           (hoursSumByEmployee[e.employeeId] ?? 0) + e.hours;
     }
@@ -214,9 +220,8 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
 
     final listScope = ref.read(timesheetEmployeeListScopeProvider);
 
-    final selectedObjectIds = timesheetState.selectedObjectIds;
     final hasObjectFilter =
-        selectedObjectIds != null && selectedObjectIds.isNotEmpty;
+        (timesheetState.selectedObjectIds?.isNotEmpty ?? false);
 
     var baseFiltered = allEmployees.where((e) {
       if (hasObjectFilter) {
@@ -254,10 +259,7 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
       _employeesBase = baseFiltered;
       _allEmployees = _computeVisibleEmployees();
     });
-    final visible = _allEmployees;
-    final sel = ref.read(timesheetGridSelectedEmployeeIdsProvider);
-    ref.read(timesheetGridSelectedEmployeeIdsProvider.notifier).state =
-        sel.where((id) => visible.any((e) => e.id == id)).toSet();
+    _trimGridSelectionTo(_allEmployees);
   }
 
   /// Состояние чекбокса «все» в шапке: `null` — выбрана часть строк.
@@ -474,7 +476,7 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
         _buildTimesheetTitleRow(theme),
         Expanded(
           child: _allEmployees.isEmpty
-              ? const Center(child: CircularProgressIndicator())
+              ? const TimesheetHoursLoadingIndicator()
               : LayoutBuilder(
                   builder: (context, constraints) {
                     final availableWidth = constraints.maxWidth.isFinite

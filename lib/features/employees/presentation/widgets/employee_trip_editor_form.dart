@@ -7,7 +7,7 @@ import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:projectgt/domain/entities/employee.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/features/employees/presentation/utils/employees_layout_utils.dart';
-import 'package:projectgt/core/utils/snackbar_utils.dart';
+import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/core/widgets/gt_dropdown.dart';
 import 'package:projectgt/core/widgets/gt_text_field.dart';
 import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
@@ -141,7 +141,11 @@ class EmployeeTripEditorFormState extends ConsumerState<EmployeeTripEditorForm> 
   Future<void> _handleSave() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedObject == null) {
-      SnackBarUtils.showError(context, 'Выберите объект');
+      AppSnackBar.show(
+        context: context,
+        message: 'Выберите объект',
+        kind: AppSnackBarKind.error,
+      );
       return;
     }
 
@@ -178,13 +182,21 @@ class EmployeeTripEditorFormState extends ConsumerState<EmployeeTripEditorForm> 
           // Запись в БД уже успешна; при сбое перечитывания всё равно закрываем форму.
         }
         if (!mounted) return;
-        SnackBarUtils.showSuccess(context, 'Суточные сохранены');
+        AppSnackBar.show(
+          context: context,
+          message: 'Суточные сохранены',
+          kind: AppSnackBarKind.success,
+        );
         widget.onSaved?.call();
         Navigator.of(context).pop(true);
       }
     } catch (e) {
       if (mounted) {
-        SnackBarUtils.showError(context, 'Ошибка сохранения: $e');
+        AppSnackBar.show(
+          context: context,
+          message: 'Ошибка сохранения: $e',
+          kind: AppSnackBarKind.error,
+        );
       }
     } finally {
       if (mounted) {

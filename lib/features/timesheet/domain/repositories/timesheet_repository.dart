@@ -1,19 +1,14 @@
-import '../entities/timesheet_entry.dart';
+import '../entities/timesheet_load_result.dart';
 
 /// Интерфейс репозитория для работы с данными табеля рабочего времени.
 abstract class TimesheetRepository {
-  /// Получает записи табеля с возможностью фильтрации.
+  /// Загружает записи табеля и справочник сотрудников за период.
   ///
-  /// [startDate] - начальная дата для фильтрации
-  /// [endDate] - конечная дата для фильтрации
-  /// [employeeId] - ID сотрудника для фильтрации
-  /// [objectIds] - список ID объектов для фильтрации (мультивыбор)
-  /// [positions] - список должностей для фильтрации
-  Future<List<TimesheetEntry>> getTimesheetEntries({
+  /// [startDate] — начало периода, [endDate] — конец.
+  /// [employeeId] — только для точечных запросов (диалог посещаемости).
+  Future<TimesheetLoadResult> loadTimesheet({
     DateTime? startDate,
     DateTime? endDate,
     String? employeeId,
-    List<String>? objectIds,
-    List<String>? positions,
   });
 }

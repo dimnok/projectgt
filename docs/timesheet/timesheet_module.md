@@ -1,14 +1,23 @@
 # Модуль Timesheet (Табель рабочего времени)
 
-**Дата актуализации:** 04 мая 2026 года
+**Дата актуализации:** 29 мая 2026 года
 
 **Изменения в этой версии:**
+- **UI загрузки:** виджет [`TimesheetHoursLoadingIndicator`](../../lib/features/timesheet/presentation/widgets/timesheet_hours_loading_indicator.dart) — `CupertinoActivityIndicator` и подпись «Загрузка часов...» (по умолчанию); оверлей на [`timesheet_screen.dart`](../../lib/features/timesheet/presentation/screens/timesheet_screen.dart) при `TimesheetState.isLoading`; центр сетки в [`timesheet_calendar_view.dart`](../../lib/features/timesheet/presentation/widgets/timesheet_calendar_view.dart), пока `_allEmployees` пуст; блок календаря в [`employee_attendance_dialog.dart`](../../lib/features/timesheet/presentation/widgets/employee_attendance_dialog.dart) при `_isLoading`. На кнопке «Сохранить» в диалоге посещаемости — только компактный спиннер (`radius: 7`), без подписи. Material `CircularProgressIndicator` в модуле не используется
+- **RLS [`20260529200000_timesheet_read_without_works.sql`](../../supabase/migrations/20260529200000_timesheet_read_without_works.sql):** `timesheet.read` даёт SELECT закрытых смен (`works.status = closed`) без `works.read` и без `profiles.object_ids`; picklist объектов — через обновлённую политику `objects_select` + `timesheet.read` (аналог «Сотрудники / Объекты»)
+- **Производительность загрузки:** параллельная выборка в `TimesheetRepositoryImpl.loadTimesheet()` (`work_hours`, `employee_attendance`, `employees`, `objects` через `.wait`); параллельная загрузка `employees` + `employee_rates` в `SupabaseEmployeeDataSource.getEmployees()`
+- **Единая загрузка сотрудников:** сущность [`TimesheetLoadResult`](../../lib/features/timesheet/domain/entities/timesheet_load_result.dart) (`entries` + `employees`); `TimesheetState.employees`; сетка табеля не вызывает повторный `getEmployees()`
+- **Клиентский фильтр объектов:** `setSelectedObjects()` без перезапроса; `filterTimesheetByObjects()` в [`timesheet_filter_widget.dart`](../../lib/features/timesheet/presentation/widgets/timesheet_filter_widget.dart); цепочка фильтров в [`timesheet_screen.dart`](../../lib/features/timesheet/presentation/screens/timesheet_screen.dart)
+- **Riverpod:** синхронизация строк сетки через `addPostFrameCallback` (`_scheduleSyncEmployeeRows`) — без модификации провайдеров во время build
+- **UI:** уведомления через `AppSnackBar` (диалог посещаемости, Excel, сетка); виджеты `TimesheetObjectsBarDropdown`, `TimesheetEmployeeListScopeSegment`, `TimesheetHoursLoadingIndicator`
+- **Picklist объектов:** [`availableObjectsForTimesheetProvider`](../../lib/features/timesheet/presentation/providers/timesheet_filters_providers.dart) — типизированный список объектов компании без сужения по `profiles.object_ids`
+
+**Предыдущая версия (04.05.2026):**
 - удалён клиентский экспорт табеля в PDF (`timesheet_pdf_action`, `timesheet_pdf_service`)
 - удалена неиспользуемая data-модель `timesheet_entry_model` (маппинг строк из `work_hours` остаётся через `Map` в репозитории)
 - Excel-экспорт (`export-timesheet`): постраничная выборка через `.range()` для обхода лимита PostgREST `max-rows` (~1000 строк на ответ); стабильный порядок сортировки и нормализация даты для ключей ячеек
 - добавлен серверный Excel-экспорт табеля через Supabase Edge Function `export-timesheet`
 - подтверждено использование `employee_attendance` как второго источника часов помимо `work_hours`
-- актуализирован audit по таблицам, RLS-политикам и Edge Functions
 - зафиксирован текущий формат Excel: только ФИО без должности, числовые ячейки часов, заливка по объектам и легенда внизу файла
 
 ---
@@ -28,20 +37,23 @@
 - ручные часы из `employee_attendance` подмешиваются в общий поток записей
 - активные сотрудники отображаются даже без часов
 - уволенные сотрудники отображаются только если в периоде есть часы
+- роль с `timesheet.read` без `works.read` видит табель по закрытым сменам (RLS `timesheet_read_closed_works_select`)
 
 ---
 
 ## Описание модуля
 
-Модуль `Timesheet` отвечает за отображение и экспорт рабочего времени сотрудников по дням, объектам и должностям. UI построен на календарной таблице, состояние управляется через `Riverpod`, а данные обогащаются в `repository`-слое за счёт связей с модулями сотрудников, объектов и ручной посещаемости.
+Модуль `Timesheet` отвечает за отображение и экспорт рабочего времени сотрудников по дням и объектам. UI построен на календарной таблице, состояние управляется через `Riverpod`, данные обогащаются в `repository`-слое за счёт связей с модулями сотрудников, объектов и ручной посещаемости.
 
 Ключевые функции:
 - поиск по ФИО сотрудников
-- фильтрация по году, месяцу, объектам и должностям
+- фильтрация по году, месяцу и объектам (объекты — на клиенте, без перезапроса)
+- сегмент «Все / С часами / Без часов» для списка строк
 - календарное представление часов по дням
 - просмотр деталей записи по клику
 - ручной ввод часов вне смен
 - экспорт в Excel с генерацией файла на стороне сервера
+- чекбоксы выбора сотрудников (для экспорта и будущих действий)
 
 Архитектурные особенности:
 - Clean Architecture: `presentation` / `domain` / `data`
@@ -49,12 +61,13 @@
 - иммутабельные сущности через `Freezed`
 - Supabase как источник данных
 - отдельная Edge Function для тяжёлой генерации Excel
+- параллельная загрузка независимых источников данных
 
 ---
 
 ## Зависимости
 
-### Основные таблицы
+### Таблицы модуля (usage, не owner)
 - `work_hours`
 - `works`
 - `employee_attendance`
@@ -63,79 +76,68 @@
 
 ### Таблицы безопасности и доступа
 - `company_members`
+- `profiles` (косвенно — `object_ids` для других модулей; для табеля picklist объектов не сужается)
 
 ### Связанные модули
-- `works`
-- `employees`
-- `objects`
-- `company`
-- `roles`
+- `works` — источник сменных часов
+- `employees` — ФИО, статус, должность
+- `objects` — названия объектов
+- `company` — активная компания
+- `roles` — permission guard (`timesheet.read`, `timesheet.update` и др.)
 
 ---
 
 ## Presentation
 
-- `lib/features/timesheet/presentation/screens/timesheet_screen.dart`
-  Основной экран табеля. Содержит поиск, фильтры и кнопку Excel.
+| Файл | Назначение |
+|------|------------|
+| `screens/timesheet_screen.dart` | Основной экран: шапка, фильтры, цепочка клиентских фильтров (объекты → ФИО), календарная сетка; оверлей `TimesheetHoursLoadingIndicator` при `isLoading` |
+| `widgets/timesheet_hours_loading_indicator.dart` | Единый индикатор загрузки: Cupertino-спиннер + подпись (по умолчанию «Загрузка часов...»); параметр `message` для переопределения текста |
+| `widgets/timesheet_calendar_view.dart` | Календарная таблица; строки сотрудников из `TimesheetState.employees`; синхронизация через `addPostFrameCallback`; `TimesheetHoursLoadingIndicator`, пока список строк сотрудников не собран |
+| `widgets/timesheet_filter_widget.dart` | Поиск по ФИО; утилиты `filterTimesheetByObjects`, `filterTimesheetByEmployeeName` |
+| `widgets/timesheet_objects_bar_dropdown.dart` | Мультивыбор объектов; вызывает `setSelectedObjects()` |
+| `widgets/timesheet_employee_list_scope_segment.dart` | Сегмент «Все / С часами / Без часов» |
+| `widgets/timesheet_excel_action.dart` | Действие Excel в `AppBar` |
+| `widgets/employee_attendance_dialog.dart` | Ручной ввод часов вне смен; `TimesheetHoursLoadingIndicator` при загрузке календаря; на «Сохранить» — `CupertinoActivityIndicator(radius: 7)`; ошибки через `AppSnackBar` |
+| `services/timesheet_excel_export_service.dart` | Вызов Edge Function `export-timesheet`, сохранение `.xlsx` |
+| `providers/timesheet_provider.dart` | `TimesheetState` (`entries`, `employees`, фильтры); `loadTimesheet()`, `setSelectedObjects()` |
+| `providers/timesheet_filters_providers.dart` | `availableObjectsForTimesheetProvider` — picklist объектов |
+| `providers/repositories_providers.dart` | DI data/repository слоя |
+| `providers/timesheetGridSelectedEmployeeIdsProvider` | Выбранные чекбоксами сотрудники |
 
-- `lib/features/timesheet/presentation/widgets/timesheet_calendar_view.dart`
-  Календарная таблица по сотрудникам и дням месяца. Загружает всех активных сотрудников и уволенных с часами.
+### Состояния загрузки (UI)
 
-- `lib/features/timesheet/presentation/widgets/timesheet_filter_widget.dart`
-  Панель фильтров и поиск по ФИО.
+| Место | Условие | Отображение |
+|-------|---------|-------------|
+| `timesheet_screen` | `timesheetProvider.isLoading` | Полупрозрачный `ColoredBox` поверх сетки + `TimesheetHoursLoadingIndicator` |
+| `timesheet_calendar_view` | `_allEmployees.isEmpty` (данные ещё не синхронизированы в сетку) | `TimesheetHoursLoadingIndicator` по центру области таблицы |
+| `employee_attendance_dialog` | `_isLoading` после выбора объекта / при открытии | `TimesheetHoursLoadingIndicator` вместо календаря |
+| `employee_attendance_dialog` | `_isSaving` | Только спиннер в `FilledButton` «Сохранить», без подписи |
 
-- `lib/features/timesheet/presentation/widgets/timesheet_excel_action.dart`
-  Действие `AppBar` для Excel-экспорта.
-
-- `lib/features/timesheet/presentation/widgets/employee_attendance_dialog.dart`
-  Диалог ручного ввода часов вне смен.
-
-- `lib/features/timesheet/presentation/services/timesheet_excel_export_service.dart`
-  Вызов Edge Function `export-timesheet`, обработка ответа и сохранение `.xlsx` на устройство.
-
-- `lib/features/timesheet/presentation/providers/timesheet_provider.dart`
-  Состояние, загрузка, фильтры, ошибки.
-
-- `lib/features/timesheet/presentation/providers/timesheet_filters_providers.dart`
-  Данные для фильтров.
-
-- `lib/features/timesheet/presentation/providers/repositories_providers.dart`
-  DI-провайдеры для `data` и `repository` слоя.
+Стиль подписи: `bodyMedium`, цвет `onSurface` с `alpha: 0.65`, отступ под спиннером 12 px. Соответствует паттерну модулей «Сметы» / «ФОТ» (Cupertino + текст при блокирующей загрузке).
 
 ---
 
 ## Domain / Data
 
 ### Domain
-- `lib/features/timesheet/domain/entities/timesheet_entry.dart`
-  Единая доменная сущность записи табеля.
-
-- `lib/features/timesheet/domain/entities/employee_attendance_entry.dart`
-  Сущность ручной записи часов вне смен.
-
-- `lib/features/timesheet/domain/repositories/timesheet_repository.dart`
-  Контракт основного репозитория табеля.
-
-- `lib/features/timesheet/domain/repositories/employee_attendance_repository.dart`
-  Контракт репозитория ручного ввода часов.
+- `domain/entities/timesheet_entry.dart` — единая доменная сущность записи табеля
+- `domain/entities/timesheet_load_result.dart` — результат загрузки: `entries` + `employees`
+- `domain/entities/employee_attendance_entry.dart` — ручная запись часов вне смен
+- `domain/repositories/timesheet_repository.dart` — контракт: `loadTimesheet()` → `TimesheetLoadResult`
+- `domain/repositories/employee_attendance_repository.dart` — контракт ручного ввода
 
 ### Data
-- `lib/features/timesheet/data/datasources/timesheet_data_source.dart`
-- `lib/features/timesheet/data/datasources/timesheet_data_source_impl.dart`
-  Получение часов из `work_hours` + `works`, фильтрация закрытых смен.
+- `data/datasources/timesheet_data_source_impl.dart` — `work_hours` + join `works`; фильтр `works.status = 'closed'`
+- `data/datasources/employee_attendance_data_source_impl.dart` — `employee_attendance`
+- `data/repositories/timesheet_repository_impl.dart` — параллельная загрузка 4 источников, обогащение, фильтр активных/уволенных
+- `data/repositories/employee_attendance_repository_impl.dart` — CRUD ручных записей
+- `data/models/employee_attendance_model.dart` — DTO для `employee_attendance`
 
-- `lib/features/timesheet/data/datasources/employee_attendance_data_source.dart`
-- `lib/features/timesheet/data/datasources/employee_attendance_data_source_impl.dart`
-  Получение ручных записей из `employee_attendance`.
+Строки табеля из `work_hours` маппятся из `Map` в домен в репозитории без отдельной data-модели.
 
-- `lib/features/timesheet/data/repositories/timesheet_repository_impl.dart`
-  Объединяет `work_hours` и `employee_attendance`, обогащает объектами и сотрудниками, фильтрует активных/уволенных.
-
-- `lib/features/timesheet/data/repositories/employee_attendance_repository_impl.dart`
-  Репозиторий для ручных записей.
-
-- `lib/features/timesheet/data/models/employee_attendance_model.dart`
-  DTO для `employee_attendance`. Строки табеля из `work_hours` маппятся из `Map` в домен в репозитории без отдельной data-модели.
+### Внешний data-слой (модуль «Сотрудники»)
+- `lib/data/datasources/employee_data_source.dart` — `getEmployees()` параллельно загружает `employees` и `employee_rates` (`.wait`)
 
 ---
 
@@ -159,7 +161,8 @@ lib/
         ├── domain/
         │   ├── entities/
         │   │   ├── employee_attendance_entry.dart
-        │   │   └── timesheet_entry.dart
+        │   │   ├── timesheet_entry.dart
+        │   │   └── timesheet_load_result.dart
         │   └── repositories/
         │       ├── employee_attendance_repository.dart
         │       └── timesheet_repository.dart
@@ -175,10 +178,15 @@ lib/
             └── widgets/
                 ├── employee_attendance_dialog.dart
                 ├── timesheet_calendar_view.dart
+                ├── timesheet_employee_list_scope_segment.dart
                 ├── timesheet_excel_action.dart
-                └── timesheet_filter_widget.dart
+                ├── timesheet_filter_widget.dart
+                ├── timesheet_hours_loading_indicator.dart
+                └── timesheet_objects_bar_dropdown.dart
 
 supabase/
+├── migrations/
+│   └── 20260529200000_timesheet_read_without_works.sql
 └── functions/
     └── export-timesheet/
         └── index.ts
@@ -188,136 +196,53 @@ supabase/
 
 ## База данных (Audit)
 
+> Объёмы — `pg_stat_user_tables` / `COUNT(*)` на 29.05.2026 (self-hosted `api.progt.ru`).
+
 ### Таблица `work_hours`
 
-Назначение:
-- хранение часов сотрудников внутри смен
+Назначение: хранение часов сотрудников внутри смен.
 
-Ключевые колонки:
-- `id UUID`
-- `work_id UUID`
-- `employee_id UUID`
-- `hours NUMERIC`
-- `comment TEXT`
-- `created_at TIMESTAMPTZ`
-- `updated_at TIMESTAMPTZ`
-- `company_id UUID`
+Ключевые колонки: `id`, `work_id`, `employee_id`, `hours`, `comment`, `created_at`, `updated_at`, `company_id`.
 
-RLS:
-- ✅ включён
-
-Оценка объёма:
-- ~2504 строк (`pg_stat_user_tables`)
+RLS: ✅ включён (~5453 строк).
 
 ### Таблица `works`
 
-Назначение:
-- хранение смен, дат, объектов и статусов
+Назначение: смены, даты, объекты, статусы.
 
-Ключевые колонки:
-- `id UUID`
-- `date DATE`
-- `object_id UUID`
-- `opened_by UUID`
-- `status TEXT`
-- `photo_url TEXT`
-- `evening_photo_url TEXT`
-- `total_amount NUMERIC`
-- `items_count INTEGER`
-- `employees_count INTEGER`
-- `telegram_message_id INTEGER`
-- `company_id UUID`
+Ключевые колонки: `id`, `date`, `object_id`, `opened_by`, `status`, `photo_url`, `evening_photo_url`, `total_amount`, `items_count`, `employees_count`, `telegram_message_id`, `company_id`.
 
-RLS:
-- ✅ включён
-
-Оценка объёма:
-- ~325 строк
+RLS: ✅ включён (~624 строки).
 
 ### Таблица `employee_attendance`
 
-Назначение:
-- хранение ручных записей часов вне смен
+Назначение: ручные записи часов вне смен.
 
-Ключевые колонки:
-- `id UUID`
-- `employee_id UUID`
-- `object_id UUID`
-- `date DATE`
-- `hours NUMERIC`
-- `attendance_type TEXT`
-- `comment TEXT`
-- `created_by UUID`
-- `created_at TIMESTAMPTZ`
-- `updated_at TIMESTAMPTZ`
-- `company_id UUID`
+Ключевые колонки: `id`, `employee_id`, `object_id`, `date`, `hours`, `attendance_type`, `comment`, `created_by`, `created_at`, `updated_at`, `company_id`.
 
-RLS:
-- ✅ включён
-
-Оценка объёма:
-- ~302 строки
+RLS: ✅ включён (~45 строк).
 
 ### Таблица `employees`
 
-Назначение:
-- источник ФИО, статуса, должности
+Назначение: ФИО, статус, должность.
 
-Ключевые колонки:
-- `id UUID`
-- `last_name TEXT`
-- `first_name TEXT`
-- `middle_name TEXT`
-- `position TEXT`
-- `status TEXT`
-- `object_ids TEXT[]`
-- `company_id UUID`
+Ключевые колонки: `id`, `last_name`, `first_name`, `middle_name`, `position`, `status`, `object_ids`, `company_id`.
 
-RLS:
-- ✅ включён
-
-Оценка объёма:
-- ~73 строки
+RLS: ✅ включён (~118 строк).
 
 ### Таблица `objects`
 
-Назначение:
-- источник названий объектов
+Назначение: названия объектов.
 
-Ключевые колонки:
-- `id UUID`
-- `name TEXT`
-- `address TEXT`
-- `description TEXT`
-- `company_id UUID`
+Ключевые колонки: `id`, `name`, `address`, `description`, `company_id`.
 
-RLS:
-- ✅ включён
-
-Оценка объёма:
-- ~6 строк
+RLS: ✅ включён (~7 строк).
 
 ### Таблица `company_members`
 
-Назначение:
-- RBAC-таблица участия пользователей в компаниях
-- используется Edge Function `export-timesheet` для дополнительной серверной проверки доступа к `companyId`
+Назначение: RBAC; Edge Function `export-timesheet` проверяет участие пользователя в `companyId`.
 
-Ключевые колонки:
-- `id UUID`
-- `company_id UUID`
-- `user_id UUID`
-- `role_id UUID`
-- `is_owner BOOLEAN`
-- `is_active BOOLEAN`
-- `joined_at TIMESTAMPTZ`
-- `system_role TEXT`
-
-RLS:
-- ✅ включён
-
-Оценка объёма:
-- ~12 строк
+RLS: ✅ включён.
 
 ### Связи
 
@@ -333,33 +258,37 @@ company_members ──> companies
 company_members ──> profiles
 ```
 
-### Политики RLS
+### Политики RLS (аудит `pg_policies`, 29.05.2026)
 
-По результатам аудита `pg_policies`:
+**`work_hours`**
+- `Strict SELECT/INSERT/UPDATE/DELETE for work_hours`
+- `work_hours_select/insert/update/delete`
+- `Users can manage/view work_hours of their companies`
+- функции: `check_work_access(work_id)`, `check_work_editable(work_id, auth.uid())`
 
-- `work_hours`
-  - активны строгие политики `Strict SELECT/INSERT/UPDATE/DELETE for work_hours`
-  - используются функции `check_work_access(work_id)` и `check_work_editable(work_id, auth.uid())`
-  - также есть компании-ориентированные политики `Users can manage/view work_hours of their companies`
+**`works`**
+- `Strict SELECT/INSERT/UPDATE/DELETE for works`
+- **`timesheet_read_closed_works_select`:** при `check_permission(uid(), 'timesheet', 'read')` — SELECT только `status = 'closed'` в компаниях пользователя; **без** `works.read` и **без** `profiles.object_ids`
 
-- `works`
-  - активны строгие политики `Strict SELECT/INSERT/UPDATE/DELETE for works`
-  - используются `get_my_company_ids()`, permission-проверки модуля `works` и доступ к объектам через `profiles.object_ids`
+**`employee_attendance`**
+- `Users can manage/view attendance of their companies`
+- `employee_attendance_select/insert/update/delete`
+- проверка: `check_permission(auth.uid(), 'timesheet', <action>)`
 
-- `employee_attendance`
-  - активны компании-ориентированные политики `Users can manage/view attendance of their companies`
-  - активны модульные политики `employee_attendance_select/insert/update/delete`
-  - проверка идёт через `check_permission(auth.uid(), 'timesheet', <action>)`
+**`employees`**
+- доступ через `get_my_company_ids()` и права модуля `employees`
 
-- `employees`
-  - доступ ограничен `get_my_company_ids()` и permission-правами модуля `employees`
+**`objects`**
+- `objects_select` допускает чтение при `timesheet.read` (без `objects.read`) — picklist фильтра табеля
+- также: `objects.read`, `employees.read/create/update`, `profiles.object_ids`
 
-- `objects`
-  - доступ ограничен `get_my_company_ids()` и permission-правами модуля `objects`
+**`company_members`**
+- чтение ограничено компаниями пользователя (критично для `export-timesheet`)
 
-- `company_members`
-  - чтение ограничено компаниями пользователя
-  - это критично для безопасной работы `export-timesheet`
+### Миграция `20260529200000_timesheet_read_without_works.sql`
+
+1. Политика `timesheet_read_closed_works_select` на `works`
+2. Пересоздание `objects_select` с веткой `timesheet.read`
 
 ---
 
@@ -367,84 +296,64 @@ company_members ──> profiles
 
 ### Формирование табеля
 
-1. `TimesheetNotifier.loadTimesheet()` передаёт фильтры в `TimesheetRepository`.
-2. `TimesheetDataSourceImpl` получает часы из `work_hours` и делает join с `works`.
-3. На уровне `dataSource` применяется фильтр `works.status = 'closed'`.
-4. `EmployeeAttendanceRepository` подмешивает ручные записи из `employee_attendance`.
-5. `TimesheetRepositoryImpl`:
-   - загружает сотрудников и объекты
-   - обогащает записи именами и названиями объектов
-   - оставляет всех активных сотрудников
-   - добавляет уволенных только если в периоде есть часы
-6. `TimesheetCalendarView` рендерит итоговую календарную таблицу.
+1. `TimesheetNotifier.loadTimesheet()` вызывает `TimesheetRepository.loadTimesheet(startDate, endDate)`.
+2. `TimesheetRepositoryImpl.loadTimesheet()` **параллельно** (`.wait`):
+   - `dataSource.getTimesheetEntries()` — `work_hours` + join `works`, только `status = 'closed'`
+   - `attendanceRepository.getAttendanceRecords()` — `employee_attendance`
+   - `employeeRepository.getEmployees()` — все сотрудники компании (внутри — параллельно `employees` + `employee_rates`)
+   - `objectRepository.getObjects()` — справочник объектов
+3. Репозиторий объединяет источники, обогащает ФИО и названия объектов, формирует список сотрудников:
+   - все активные
+   - уволенные — только если в периоде есть часы (из смен или attendance)
+4. Возвращается `TimesheetLoadResult(entries, employees)`.
+5. `TimesheetState` сохраняет оба списка; `TimesheetCalendarView` синхронизирует строки из `state.employees` без повторного сетевого запроса.
+6. Синхронизация строк — в `addPostFrameCallback` (`_scheduleSyncEmployeeRows`), чтобы не модифицировать провайдеры во время build.
 
 ### Фильтрация
 
-Поддерживаются:
-- период: `startDate`, `endDate`
-- объекты: `selectedObjectIds`
-- должности: `selectedPositions`
-- поиск по ФИО
+| Фильтр | Где применяется | Перезапрос |
+|--------|-----------------|------------|
+| Период (месяц/год) | `setDateRange` → `loadTimesheet()` | ✅ сервер |
+| Объекты | `filterTimesheetByObjects()` в `timesheet_screen` | ❌ клиент |
+| Поиск по ФИО | `filterTimesheetByEmployeeName()` | ❌ клиент |
+| «Все / С часами / Без часов» | `TimesheetEmployeeListScopeSegment` в сетке | ❌ клиент |
+| `employee_id` (точечный) | repository/datasource | ✅ сервер |
 
-Модель фильтрации гибридная:
-- серверная: `employee_id`, `works.status = 'closed'`
-- клиентская: диапазон дат, список объектов, список должностей
+Серверная фильтрация: период, `works.status = 'closed'`, опционально `employee_id`.
+
+Клиентская фильтрация: объекты, ФИО, состав видимых строк, сегмент по наличию часов.
 
 ### Экспорт в Excel
 
-Компоненты:
-- `TimesheetExcelAction`
-- `TimesheetExcelExportService`
-- `supabase/functions/export-timesheet/index.ts`
+Компоненты: `TimesheetExcelAction`, `TimesheetExcelExportService`, `supabase/functions/export-timesheet/index.ts`.
 
 Pipeline:
-1. Flutter вызывает `export-timesheet` и передаёт `companyId`, период и фильтры.
-2. Edge Function валидирует JWT.
-3. Edge Function дополнительно проверяет участие пользователя в компании через `company_members`.
-4. Загружаются (каждый список циклически, страница **POSTGREST_PAGE_SIZE** строк, пока ответ не станет короче страницы — иначе при больших месяцах ответ API обрезается по **max-rows**):
-   - сотрудники (`employees`: порядок `last_name`, `id`)
-   - объекты (`objects`: порядок `name`, `id`)
-   - сменные часы из `work_hours` (порядок `created_at`, `id`)
-   - ручные часы из `employee_attendance` (порядок `date`, `id`)
-5. Из набора сотрудников исключаются уволенные без часов.
-6. На сервере через `ExcelJS` собирается XLSX-файл:
-   - колонка сотрудника содержит только ФИО
-   - отдельная колонка на каждый день месяца
-   - ячейки часов и итогов остаются числовыми
-   - для целых значений используется формат `0`
-   - для дробных значений используется формат `0.###`
-   - ячейки получают заливку по объектам
-   - внизу файла строится легенда цветов объектов
-7. Файл возвращается в base64 и сохраняется на устройстве пользователя.
-
-Важно:
-- UI самой таблицы табеля не менялся под Excel-раскраску
-- цветовая кодировка применяется только внутри XLSX-файла
+1. Flutter вызывает `export-timesheet` с `companyId`, периодом, `objectIds`, `positions` (сейчас `positions: null` из UI).
+2. Edge Function валидирует JWT и membership через `company_members`.
+3. Постраничная загрузка (`.range()`, **POSTGREST_PAGE_SIZE**) для обхода `max-rows`:
+   - `employees` (`last_name`, `id`)
+   - `objects` (`name`, `id`)
+   - `work_hours` (`created_at`, `id`)
+   - `employee_attendance` (`date`, `id`)
+4. Исключаются уволенные без часов.
+5. Сборка XLSX через `ExcelJS`: ФИО без должности, числовые ячейки, заливка по объектам, легенда.
 
 ---
 
 ## Интеграции
 
 ### Внутренние модули
-- `works` — источник сменных часов
-- `employees` — источник ФИО, статуса и должностей
-- `objects` — источник названий объектов
-- `company` — активная компания
-- `roles` — permission guard на экспорт и редактирование
+- `works` — сменные часы (join в datasource)
+- `employees` — список сотрудников и ставки (общий `EmployeeRepository`)
+- `objects` — picklist и обогащение названий
+- `company` — `activeCompanyId`
+- `roles` — `PermissionGuard`, `timesheet.read/update`
 
 ### Внешние зависимости
-- `supabase_flutter`
-- `riverpod`
-- `freezed`
-- `json_serializable`
-- `file_saver`
-- `file_picker`
-- `path_provider`
-- `share_plus`
+- `supabase_flutter`, `riverpod`, `freezed`, `json_serializable`
+- `file_saver`, `file_picker`, `path_provider`, `share_plus`
 
 ### Edge Functions
-
-По аудиту `project-0-projectgt-supabase-list_edge_functions` для модуля релевантна:
 - `export-timesheet` — `ACTIVE`, `verify_jwt = true`
 
 ---
@@ -453,55 +362,61 @@ Pipeline:
 
 ### Реализовано
 - ✅ поиск по ФИО
-- ✅ фильтрация по месяцу, объектам и должностям
-- ✅ отображение только закрытых смен
-- ✅ подмешивание ручных часов из `employee_attendance`
-- ✅ показ всех активных сотрудников
-- ✅ показ уволенных сотрудников только при наличии часов
-- ✅ экспорт в Excel с серверной генерацией
-- ✅ платформа-специфичное сохранение файла на Web/Desktop/Mobile
+- ✅ фильтрация по месяцу и объектам (объекты — клиент)
+- ✅ сегмент «Все / С часами / Без часов»
+- ✅ только закрытые смены в отчёте
+- ✅ ручные часы из `employee_attendance`
+- ✅ активные + уволенные с часами
+- ✅ Excel через Edge Function
+- ✅ доступ `timesheet.read` без `works.read` (RLS)
+- ✅ параллельная загрузка источников
+- ✅ единая загрузка сотрудников (`TimesheetLoadResult`)
+- ✅ `AppSnackBar` для уведомлений
+- ✅ единый индикатор загрузки `TimesheetHoursLoadingIndicator` (Cupertino + «Загрузка часов...»)
 
 ### Ограничения
-- 🟡 Excel генерируется отдельной Edge Function и требует корректного `companyId`
-- 🟡 формат таблицы Excel ориентирован на календарное представление месяца, а не на плоский реестр записей
-- 🟡 клиентская часть всё ещё зависит от корректной работы локального сохранения файла на конкретной платформе
+- 🟡 Excel требует корректного `companyId` и membership
+- 🟡 фильтр объектов только на клиенте — при очень больших объёмах возможна задержка UI
+- 🟡 `getEmployees()` тянет ставки — для табеля избыточно
+- 🟡 календарная сетка рендерит все строки × дни (нет виртуализации)
+- 🟡 фильтр по должностям в UI не реализован (поле есть в сущности и Excel API)
 
 ### Планы
+- 🔄 лёгкий запрос сотрудников для табеля (без `employee_rates`)
+- 🔄 ленивая отрисовка сетки (ListView / viewport)
+- 🔄 RPC «табель за месяц» одним запросом
 - 🔄 CSV-экспорт
-- 🔄 unit/integration tests для Excel-экспорта
-- 🔄 вынос общей логики экспорта табличных отчётов в reusable слой
+- 🔄 unit/integration tests для Excel и фильтров
 
 ---
 
 ## Примечания для разработчиков
 
-- Модуль использует Clean Architecture и `Riverpod DI`.
-- При изменениях в структуре `employee_attendance` необходимо синхронно обновлять:
-  - `employee_attendance_data_source_*`
-  - `employee_attendance_repository_*`
-  - `TimesheetRepositoryImpl`
-  - Excel export service
-- При изменениях в серверном Excel-экспорте необходимо проверять:
-  - формат числовых ячеек
-  - RBAC-проверку через `company_members`
-  - совместимость с русской локалью Excel
-- Для генерации кода:
-  - `flutter pub run build_runner build --delete-conflicting-outputs`
+- При изменении `employee_attendance` синхронизировать: datasource, repository, `TimesheetRepositoryImpl`, Edge `export-timesheet`.
+- При изменении RLS на `works`/`objects` проверять роль «Тестирование» (`timesheet.read` без `works.read`).
+- Смена фильтра объектов **не** должна вызывать `loadTimesheet()` — только `setSelectedObjects()`.
+- Синхронизация строк сетки и провайдеров — только после кадра (`addPostFrameCallback`).
+- Индикаторы загрузки в модуле — только через `TimesheetHoursLoadingIndicator` или `CupertinoActivityIndicator` (кнопки); не возвращать `CircularProgressIndicator`.
+- Генерация кода: `flutter pub run build_runner build --delete-conflicting-outputs`
 
-**Последняя актуализация:** 04 мая 2026 года
+---
 
-**Ключевые обновления:**
+## История изменений
 
-**04.05.2026 — Удаление PDF-экспорта табеля**
-- убраны `TimesheetPdfAction` и `TimesheetPdfService`; экспорт табеля только в Excel через Edge `export-timesheet`
+**29.05.2026 — Индикаторы загрузки (UI)**
+- `TimesheetHoursLoadingIndicator`: Cupertino-спиннер и подпись «Загрузка часов...»
+- оверлей экрана табеля, сетка до синхронизации строк, диалог посещаемости
 
-**07.03.2026 — Серверный Excel-экспорт табеля**
-- добавлен `TimesheetExcelAction` в `AppBar`
-- добавлен `TimesheetExcelExportService`
-- добавлена Edge Function `export-timesheet`
-- реализована серверная RBAC-проверка через `company_members`
-- добавлена генерация XLSX с числовыми ячейками часов, без должности в ФИО, с заливкой по объектам и легендой
+**29.05.2026 — Доступ без модуля «Смены» и оптимизация загрузки**
+- RLS `timesheet_read_closed_works_select`, picklist объектов для `timesheet.read`
+- `TimesheetLoadResult`, параллельная загрузка, клиентский фильтр объектов
+- `AppSnackBar`, новые виджеты фильтра и сегмента списка
 
-**05.10.2025 — Логика отображения активных и уволенных сотрудников**
-- оставлены все активные сотрудники
-- уволенные показываются только при наличии часов
+**04.05.2026 — Удаление PDF-экспорта**
+- экспорт только в Excel через Edge `export-timesheet`
+
+**07.03.2026 — Серверный Excel-экспорт**
+- `TimesheetExcelAction`, `TimesheetExcelExportService`, Edge Function `export-timesheet`
+
+**05.10.2025 — Логика активных и уволенных**
+- все активные; уволенные — только при наличии часов

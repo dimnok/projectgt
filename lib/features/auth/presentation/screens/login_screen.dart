@@ -221,8 +221,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
       // Успехом считаем либо переход в финальный статус, либо появление пользователя в стейте
       if (currentState.status == AuthStatus.authenticated ||
-          currentState.status == AuthStatus.pendingApproval ||
           currentState.status == AuthStatus.onboarding ||
+          currentState.status == AuthStatus.disabled ||
           currentState.user != null) {
         HapticFeedback.mediumImpact();
         setState(() {

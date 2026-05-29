@@ -165,7 +165,7 @@ lib/features/objects/
 | updated_at  | TIMESTAMPTZ | Дата последнего изменения               |
 
 **RLS:** ✅ Включён.
-- **SELECT (`objects_select`):** Разрешен пользователям компании ИЛИ если ID объекта в `profiles.object_ids`.
+- **SELECT (`objects_select`):** `objects.read` **или** объект из `profiles.object_ids` **или** права модуля «Сотрудники» (`employees.read` / `create` / `update`) для picklist без доступа к экрану «Объекты» — миграция [`20260529190000_employees_objects_picklist_rls.sql`](../../supabase/migrations/20260529190000_employees_objects_picklist_rls.sql). На клиенте picklist в модуле «Сотрудники» — [`employeesModuleObjectsProvider`](../employees/employees_module.md#провайдеры-presentation) (не экран «Объекты»).
 - **INSERT/UPDATE/DELETE:** Разрешен пользователям компании с соответствующими правами. 
     * *Примечание:* Функция `check_permission` автоматически предоставляет доступ владельцам компании (`is_owner = true`).
 

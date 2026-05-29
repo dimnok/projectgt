@@ -2,8 +2,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/presentation/state/auth_state.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/gt_text_field.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
@@ -102,6 +102,8 @@ class _ProfileCompletionFormState extends ConsumerState<ProfileCompletionForm>
           .read(currentUserProfileProvider.notifier)
           .updateCurrentUserProfile(updatedProfile);
 
+      await ref.read(authProvider.notifier).checkAuthStatus(force: true);
+
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -110,8 +112,6 @@ class _ProfileCompletionFormState extends ConsumerState<ProfileCompletionForm>
           backgroundColor: Theme.of(context).colorScheme.primary,
         ),
       );
-
-      context.go('/home');
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

@@ -1,3 +1,4 @@
+import 'package:projectgt/features/company/domain/entities/company_invitation.dart';
 import 'package:projectgt/features/company/domain/entities/company_profile.dart';
 import 'package:projectgt/features/company/domain/entities/company_bank_account.dart';
 import 'package:projectgt/features/company/domain/entities/company_document.dart';
@@ -43,8 +44,20 @@ abstract class CompanyRepository {
     Map<String, dynamic>? additionalData,
   });
 
-  /// Добавляет пользователя в компанию по коду приглашения.
+  /// Добавляет пользователя в компанию по одноразовому коду.
   Future<void> joinCompany({required String invitationCode});
+
+  /// Создаёт одноразовое приглашение.
+  Future<CompanyInvitation> createInvitation({
+    required String companyId,
+    int expiresInDays = 7,
+  });
+
+  /// Список приглашений компании.
+  Future<List<CompanyInvitation>> listInvitations(String companyId);
+
+  /// Отзывает приглашение.
+  Future<void> revokeInvitation(String invitationId);
 
   /// Получает список компаний пользователя.
   Future<List<CompanyProfile>> getMyCompanies();

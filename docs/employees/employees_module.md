@@ -1,8 +1,33 @@
 # Модуль Employees (Сотрудники)
 
-**Дата актуализации:** 16 апреля 2026 года
+**Дата актуализации:** 29 мая 2026 года
 
-**Изменения в этой версии (16.04.2026, perf-аудит запросов):**
+**Изменения в этой версии (29.05.2026, UX: индикаторы загрузки и кнопка редактирования):**
+- **Индикаторы загрузки:** во всём presentation-слое модуля `employees` вместо `CircularProgressIndicator` используется **`CupertinoActivityIndicator`** (списки table/mobile, экран деталей по URL, аватар в карточке, история ставок, фильтр объектов в toolbar, кнопки сохранения в [`form_widgets.dart`](../../lib/features/employees/presentation/widgets/form_widgets.dart) и [`employee_edit_form.dart`](../../lib/features/employees/presentation/widgets/employee_edit_form.dart)). Кнопки `GTPrimaryButton` / `GTSecondaryButton` с `isLoading: true` — через Design System ([`gt_buttons.dart`](../../lib/core/widgets/gt_buttons.dart), уже Cupertino).
+- **Карточка сотрудника (desktop):** в секции «Личные данные» вместо иконки карандаша — текстовая кнопка **`GTTextButton` «Редактировать»** ([`employee_details_modal.dart`](../../lib/features/employees/presentation/widgets/employee_details_modal.dart)); видна только при `employees.update`. На mobile в bottom sheet по-прежнему компактные иконки «изменить» у секций ([`_sectionEditButton`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_details_sheet.dart)).
+
+**Предыдущая версия (29.05.2026, UX: фото на Web и уведомления):**
+- **Фото сотрудника на Flutter Web:** [`EmployeeAvatarController.uploadAvatar`](../../lib/features/employees/presentation/providers/employee_avatar_controller.dart) при `kIsWeb` использует `PhotoService.pickImageBytes` + `uploadPhotoBytes` (без `dart:io` `File`). На mobile/desktop — прежний путь `pickImage` + `uploadPhoto`. Устранена ошибка `Unsupported operation: _Namespace` при загрузке аватара в браузере.
+- **Единые уведомления:** во всём модуле `employees` только [`AppSnackBar`](../../lib/core/widgets/app_snackbar.dart) (`success` / `error` / `warning`). Удалены вызовы `SnackBarUtils` и `ScaffoldMessenger.showSnackBar` в presentation-слое модуля (таблица, формы, диалоги, мобильные блоки, аватар).
+
+**Предыдущая версия (29.05.2026, жизненный цикл экранов / Flutter Web):**
+- **Исправление `EngineFlutterView disposed` (web):** убраны отложенные обновления провайдеров после `dispose` (`Future` + `setSearchQuery`); сброс поиска перенесён на **вход** в модуль (`initState` → первый кадр), а не на уход с экрана.
+- **Фильтры без `addPostFrameCallback` в `build`:** сброс фильтра по объекту — `ref.listen(employeesModuleObjectsProvider)` в [`employees_table_screen.dart`](../../lib/features/employees/presentation/screens/employees_table_screen.dart); сброс чипа статуса на mobile — `ref.listen(employeeProvider)` в [`employees_list_mobile_screen.dart`](../../lib/features/employees/presentation/screens/employees_list_mobile_screen.dart).
+- **Карточка сотрудника:** синхронизация данных и выход из режима редактирования при отзыве `employees.update` — через `ref.listen` в [`employee_details_modal.dart`](../../lib/features/employees/presentation/widgets/employee_details_modal.dart) (без побочных эффектов в `build`).
+- **Форма редактирования:** флаг `_hasChanges` обновляется синхронно в [`employee_edit_form.dart`](../../lib/features/employees/presentation/widgets/employee_edit_form.dart).
+- **Экран деталей по URL:** [`employee_details_screen.dart`](../../lib/features/employees/presentation/screens/employee_details_screen.dart) — только загрузка `getEmployee` + `loadObjects`; сброс поиска при закрытии **не выполняется** (не ломает фильтр списка при возврате «назад»).
+
+**Предыдущая версия (29.05.2026, picklist объектов без `objects.read`):**
+- **RLS [`20260529190000_employees_objects_picklist_rls.sql`](../../supabase/migrations/20260529190000_employees_objects_picklist_rls.sql):** `objects_select` допускает чтение справочника при `employees.read` / `create` / `update` (экран «Объекты» по-прежнему только при `objects.read`).
+- **Клиент:** [`employeesModuleObjectsProvider`](../../lib/features/employees/presentation/providers/employees_module_objects_provider.dart) — единый список объектов для фильтров и форм модуля (с учётом `profiles.object_ids`, если заданы).
+
+**Предыдущая версия (29.05.2026, RBAC карточки сотрудника):**
+- **Карточка сотрудника (read-only):** элементы изменения скрываются без права `employees` + `update` — desktop [`EmployeeDetailsModal`](../../lib/features/employees/presentation/widgets/employee_details_modal.dart), mobile [`EmployeesMobileEmployeeDetailsSheet`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_details_sheet.dart); кнопка «+» ставки — флаг [`EmployeeRateSummaryWidget.canManageRates`](../../lib/features/employees/presentation/widgets/employee_rate_summary_widget.dart); суточные — коллбэки `onAddBusinessTrip` / `onEditBusinessTrip` только при `update`.
+- **Защита сохранения в UI:** перед записью проверка `PermissionService` в [`EmployeeEditForm`](../../lib/features/employees/presentation/widgets/employee_edit_form.dart) и [`_persistEmployeeUpdate`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_edit_blocks.dart) (мобильные редакторы).
+- **RLS (миграция [`20260529180000_tighten_employees_card_rls.sql`](../../supabase/migrations/20260529180000_tighten_employees_card_rls.sql)):** удалены политики «участник компании может всё» на `employees` / `employee_rates`; на `business_trip_rates` — убраны слабые `authenticated`-политики, CRUD суточных привязан к `employees.read` (SELECT) и `employees.update` (INSERT/UPDATE/DELETE). Канонические политики `employees_*` через `check_permission()` — единственный путь изменения карточки.
+- **Storage (фото):** bucket `employees` — UPDATE/DELETE только при `employees.update` ([`20260509000000_add_employees_bucket_policies.sql`](../../supabase/migrations/20260509000000_add_employees_bucket_policies.sql)).
+
+**Предыдущая версия (16.04.2026, perf-аудит запросов):**
 - **Индексы по `company_id`** ([`20260416120000_employees_company_id_indexes.sql`](../../supabase/migrations/20260416120000_employees_company_id_indexes.sql)): `idx_employees_company_id`, `idx_employees_company_last_name`, `idx_employee_rates_company_id`. До этого планировщик выбирал Seq Scan на `employees` при фильтре по `company_id`, что линейно деградирует с ростом справочника. Дополнительно прогнан `ANALYZE` по двум таблицам.
 - **RPC `get_employee_positions(p_company_id uuid)`** ([`20260416120500_get_employee_positions_rpc.sql`](../../supabase/migrations/20260416120500_get_employee_positions_rpc.sql), `SECURITY INVOKER`, `STABLE`): уникальные должности считаются на сервере вместо fetch‑all + клиентский `DISTINCT`. Возвращаемая колонка названа `position_name`, т.к. `position` — зарезервированный идентификатор в контексте `RETURNS TABLE`.
 - **`EmployeeRepositoryImpl`** больше **не использует `Supabase.instance.client` напрямую** — метод `getPositions` делегирован в `EmployeeDataSource.getPositions()` (вызов RPC). Конструктор репозитория упрощён: параметр `activeCompanyId` удалён, провайдер `employeeRepositoryProvider` обновлён.
@@ -33,6 +58,7 @@
 - `work_hours`, `employee_attendance` — учёт часов
 - `work_plan_blocks` — `responsible_id`, `worker_ids`
 - `work_plans` — в т.ч. колонка `responsible_id` (FK на `employees`)
+- `business_trip_rates` — суточные в карточке сотрудника (owner схемы — модуль **FOT** / объекты; RLS в карточке — `employees.read` / `employees.update`)
 - таблицы **FOT** (`payroll_*`, функции расчёта) — чтение ставок и сотрудников
 
 Особенности реализации:
@@ -57,7 +83,7 @@
 - переключение **`can_be_responsible`**
 - inline на таблице: **статус**, **объекты** (`object_ids`)
 - экспорт XLSX на сервере (**Edge Function** + клиентский сервис)
-- фото: загрузка / удаление / сохранение (платформенно) через **Storage** и `PhotoService`
+- фото: загрузка / удаление / сохранение (платформенно) через **Storage** и `PhotoService` (Web — bytes, не `File`)
 
 Архитектура: Clean Architecture (`presentation` / `domain` / `data`), **Riverpod**, **Freezed**, **json_serializable**, транспорт **Supabase PostgREST**, мультитенантность по **`company_id`**.
 
@@ -76,7 +102,7 @@
 
 | Объект               | Использование                                      |
 |----------------------|----------------------------------------------------|
-| `objects`            | Имена объектов, фильтры, `object_ids`              |
+| `objects`            | Picklist для фильтров и форм (`employeesModuleObjectsProvider`; RLS без `objects.read`) |
 | `profiles`           | Привязка `employee_id`, навигационные проверки     |
 | `company_members`    | Проверка доступа к компании в `export-employees`   |
 | `work_plan_blocks`   | `responsible_id`, `worker_ids`                     |
@@ -97,9 +123,9 @@
 
 | Файл | Назначение |
 |------|------------|
-| [`employees_table_screen.dart`](../../lib/features/employees/presentation/screens/employees_table_screen.dart) | Полноэкранная таблица: sticky header, поиск, фильтр статуса (счётчики), фильтр по объекту, multi-select, inline `status` / `object_ids`, детали в модалке, права `read` / `create` / `update` / `export` |
-| [`employees_list_mobile_screen.dart`](../../lib/features/employees/presentation/screens/employees_list_mobile_screen.dart) | Мобильный список карточек, чипы статусов, bottom sheet объектов и деталей |
-| [`employee_details_screen.dart`](../../lib/features/employees/presentation/screens/employee_details_screen.dart) | Маршрут по `employeeId`; общий UI с модалкой деталей |
+| [`employees_table_screen.dart`](../../lib/features/employees/presentation/screens/employees_table_screen.dart) | Полноэкранная таблица: sticky header, поиск, фильтр статуса (счётчики), фильтр по объекту (`ref.listen` при устаревании picklist), multi-select, inline `status` / `object_ids`, детали в модалке, права `read` / `create` / `update` / `export`; загрузка списка — `CupertinoActivityIndicator`; при входе — `setSearchQuery('')` + `getEmployees` + `loadObjects` |
+| [`employees_list_mobile_screen.dart`](../../lib/features/employees/presentation/screens/employees_list_mobile_screen.dart) | Мобильный список карточек, чипы статусов (`ref.listen` — сброс при пустом пересечении с поиском), bottom sheet объектов и деталей; загрузка — `CupertinoActivityIndicator` + подпись «Загружаем список»; при входе — сброс поиска и загрузка данных |
+| [`employee_details_screen.dart`](../../lib/features/employees/presentation/screens/employee_details_screen.dart) | Маршрут по `employeeId`; общий UI с модалкой деталей; `employeesModuleObjectsProvider` для picklist объектов; состояние загрузки — `CupertinoActivityIndicator` |
 
 ### Утилиты и сервисы UI
 
@@ -107,30 +133,30 @@
 |------|------------|
 | [`employees_layout_utils.dart`](../../lib/features/employees/presentation/utils/employees_layout_utils.dart) | `useEmployeesMobileList`, `useEmployeesDesktopModal` (shortestSide + ширина) |
 | [`employee_server_excel_export_service.dart`](../../lib/features/employees/presentation/services/employee_server_excel_export_service.dart) | Вызов `export-employees`, сохранение base64 XLSX (веб / десктоп / share) |
-| [`employee_avatar_controller.dart`](../../lib/features/employees/presentation/providers/employee_avatar_controller.dart) | Загрузка / удаление аватара, сохранение в галерею на мобильных |
+| [`employee_avatar_controller.dart`](../../lib/features/employees/presentation/providers/employee_avatar_controller.dart) | Загрузка / удаление аватара; Web — `pickImageBytes` / `uploadPhotoBytes`; mobile/desktop — `File`; скачивание: web/desktop — файл, iOS/Android — галерея |
 
 ### Виджеты (основные)
 
 | Файл | Назначение |
 |------|------------|
 | [`employees_table_actions_bar.dart`](../../lib/features/employees/presentation/widgets/employees_table_actions_bar.dart) | Панель действий таблицы |
-| [`employees_table_filters_toolbar.dart`](../../lib/features/employees/presentation/widgets/employees_table_filters_toolbar.dart) | Фильтры; `EmployeesObjectTableFilterValue.toExportFilterJson()` для экспорта |
-| [`employee_details_modal.dart`](../../lib/features/employees/presentation/widgets/employee_details_modal.dart) | Детальная карточка, действия, `can_be_responsible` |
-| [`employee_edit_form.dart`](../../lib/features/employees/presentation/widgets/employee_edit_form.dart) | Форма редактирования |
+| [`employees_table_filters_toolbar.dart`](../../lib/features/employees/presentation/widgets/employees_table_filters_toolbar.dart) | Фильтры; индикатор загрузки picklist объектов в триггере dropdown — `CupertinoActivityIndicator`; `EmployeesObjectTableFilterValue.toExportFilterJson()` для экспорта |
+| [`employee_details_modal.dart`](../../lib/features/employees/presentation/widgets/employee_details_modal.dart) | Детальная карточка (desktop); вход в редактирование — `GTTextButton` «Редактировать» (секция «Личные данные»); загрузка аватара — `CupertinoActivityIndicator`; «+» ставки и суточных только при `employees.update`; `ref.listen` на `employeeProvider` и `permissionServiceProvider` |
+| [`employee_edit_form.dart`](../../lib/features/employees/presentation/widgets/employee_edit_form.dart) | Форма редактирования; кнопка «Сохранить» при отправке — `CupertinoActivityIndicator`; `_saveChanges` — guard `employees.update` |
 | [`add_employee_simple_dialog.dart`](../../lib/features/employees/presentation/widgets/add_employee_simple_dialog.dart) | Быстрое добавление |
 | [`add_employee_rate_dialog.dart`](../../lib/features/employees/presentation/widgets/add_employee_rate_dialog.dart) | Добавление ставки |
-| [`employee_rate_summary_widget.dart`](../../lib/features/employees/presentation/widgets/employee_rate_summary_widget.dart) | Сводка по ставкам |
-| [`employee_business_trip_summary_widget.dart`](../../lib/features/employees/presentation/widgets/employee_business_trip_summary_widget.dart) | Сводка по командировкам |
+| [`employee_rate_summary_widget.dart`](../../lib/features/employees/presentation/widgets/employee_rate_summary_widget.dart) | Сводка по ставкам; `canManageRates` — кнопка добавления ставки; история ставок (`FutureBuilder`) — `CupertinoActivityIndicator` |
+| [`employee_business_trip_summary_widget.dart`](../../lib/features/employees/presentation/widgets/employee_business_trip_summary_widget.dart) | Сводка по суточным; add/edit через опциональные коллбэки (передаются только при `update`) |
 | [`employee_trip_editor_form.dart`](../../lib/features/employees/presentation/widgets/employee_trip_editor_form.dart) | Редактор поездок |
-| [`form_widgets.dart`](../../lib/features/employees/presentation/widgets/form_widgets.dart) | Общие блоки формы |
+| [`form_widgets.dart`](../../lib/features/employees/presentation/widgets/form_widgets.dart) | Общие блоки формы; кнопка «Сохранить» в состоянии загрузки — `CupertinoActivityIndicator` |
 | [`editable_inline_text_row.dart`](../../lib/features/employees/presentation/widgets/editable_inline_text_row.dart) | Inline-редактирование |
 | [`employees_mobile_atmosphere.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_atmosphere.dart) | Визуальный фон мобильного списка |
 | [`employees_mobile_search_field.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_search_field.dart) | Поиск на мобильном |
 | [`employees_mobile_add_employee_button.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_add_employee_button.dart) | FAB / кнопка добавления |
 | [`employees_mobile_employee_card.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_card.dart) | Карточка в списке |
 | [`employees_mobile_swipeable_employee_card.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_swipeable_employee_card.dart) | Свайп по карточке |
-| [`employees_mobile_employee_details_sheet.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_details_sheet.dart) | Bottom sheet деталей |
-| [`employees_mobile_employee_edit_blocks.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_edit_blocks.dart) | Блоки редактирования на мобильном |
+| [`employees_mobile_employee_details_sheet.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_details_sheet.dart) | Bottom sheet деталей; загрузка аватара — `CupertinoActivityIndicator`; кнопки «Изменить» (иконка у секций) и редакторы — при `employees.update` |
+| [`employees_mobile_employee_edit_blocks.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_edit_blocks.dart) | Блоки редактирования на мобильном; `_persistEmployeeUpdate` — guard `employees.update` |
 
 ### Design System (`lib/core/widgets/`)
 
@@ -140,10 +166,11 @@
 |--------------|-------------|-------------------------------------|
 | `GTTextField` | [`gt_text_field.dart`](../../lib/core/widgets/gt_text_field.dart) | диалоги добавления/ставки, мобильные блоки редактирования, поиск |
 | `GTDropdown` | [`gt_dropdown.dart`](../../lib/core/widgets/gt_dropdown.dart) | формы, редактор поездок, мобильные блоки |
-| `GTPrimaryButton` / `GTSecondaryButton` / `GTTextButton` | [`gt_buttons.dart`](../../lib/core/widgets/gt_buttons.dart) | диалоги, bottom sheet, мобильный список |
+| `GTPrimaryButton` / `GTSecondaryButton` / `GTTextButton` | [`gt_buttons.dart`](../../lib/core/widgets/gt_buttons.dart) | диалоги, bottom sheet, мобильный список; **«Редактировать»** в desktop-карточке (`EmployeeDetailsModal`); `isLoading` на кнопках — встроенный `CupertinoActivityIndicator` |
+| `CupertinoActivityIndicator` | `package:flutter/cupertino.dart` | загрузка списков, карточки, аватара, фильтра объектов, inline-кнопок сохранения в формах модуля (не Material `CircularProgressIndicator`) |
 | `DesktopDialogContent` | [`desktop_dialog_content.dart`](../../lib/core/widgets/desktop_dialog_content.dart) | детали, добавление сотрудника/ставки, формы на desktop |
 | `MobileBottomSheetContent` | [`mobile_bottom_sheet_content.dart`](../../lib/core/widgets/mobile_bottom_sheet_content.dart) | те же сценарии на mobile / узкой ширине |
-| `AppSnackBar` | [`app_snackbar.dart`](../../lib/core/widgets/app_snackbar.dart) | [`employees_list_mobile_screen.dart`](../../lib/features/employees/presentation/screens/employees_list_mobile_screen.dart) |
+| `AppSnackBar` | [`app_snackbar.dart`](../../lib/core/widgets/app_snackbar.dart) | **Весь модуль:** таблица, mobile-список, формы, диалоги (добавление, ставка, суточные), [`EmployeeAvatarController`](../../lib/features/employees/presentation/providers/employee_avatar_controller.dart). Типы: `success`, `error`, `warning`. Overlay через `rootOverlay: true` — виден поверх модалок и bottom sheet |
 | `GTContextMenu` | [`gt_context_menu.dart`](../../lib/core/widgets/gt_context_menu.dart) | [`employee_details_modal.dart`](../../lib/features/employees/presentation/widgets/employee_details_modal.dart) |
 
 Табличный экран построен на кастомной вёрстке (`Table` / `LayoutBuilder` и т.д.), без внешних grid-библиотек — в духе правил проекта (см. [`flutter.mdc`](../../.cursor/rules/flutter.mdc)).
@@ -153,7 +180,39 @@
 - Маршруты: `AppRoutes.employees = '/employees'`, `employee_details` — `${AppRoutes.employees}/:employeeId` ([`app_router.dart`](../../lib/core/common/app_router.dart))
 - Список: при `employees` + `read` показывается таблица или мобильный список в зависимости от [`EmployeesLayoutUtils`](../../lib/features/employees/presentation/utils/employees_layout_utils.dart)
 - Детали: доступ при `employees` + `read` **или** если `profiles` содержит тот же `employee_id`, что и маршрут
-- [`AppDrawer`](../../lib/presentation/widgets/app_drawer.dart): пункт «Сотрудники» (без ограничения «только desktop», в отличие от части других модулей)
+- [`AppDrawer`](../../lib/presentation/widgets/app_drawer.dart): пункт «Сотрудники» через [`PermissionGuard`](../../lib/features/roles/presentation/widgets/permission_guard.dart) (`employees` + `read`)
+
+### RBAC в карточке сотрудника
+
+| Право | Список (таблица / mobile) | Карточка (modal / bottom sheet) |
+|-------|---------------------------|----------------------------------|
+| `read` | Просмотр списка, открытие карточки | Просмотр всех секций |
+| `create` | «Добавить сотрудника» | — |
+| `update` | Inline статус/объекты, свайпы (mobile), редактирование | Desktop: **«Редактировать»** → форма; mobile: иконки «изменить» у секций; «+» ставки, суточные, фото (кроме скачивания) |
+| `delete` | Удаление выбранных | — |
+| `export` | «Экспорт» в toolbar таблицы | — |
+
+Источник прав в UI: [`PermissionService`](../../lib/features/roles/application/permission_service.dart). Роль с одним `read` (например, «Тестирование») видит модуль и карточку **без** элементов изменения; запись в БД дополнительно блокируется RLS (`check_permission`).
+
+### Провайдеры presentation
+
+| Провайдер | Файл | Назначение |
+|-----------|------|------------|
+| `employeesModuleObjectsProvider` | [`employees_module_objects_provider.dart`](../../lib/features/employees/presentation/providers/employees_module_objects_provider.dart) | Picklist `objects` для фильтров, форм добавления/редактирования, экрана деталей; сортировка по имени; опционально фильтр по `profiles.object_ids` |
+| `employeeAvatarControllerProvider` | [`employee_avatar_controller.dart`](../../lib/features/employees/presentation/providers/employee_avatar_controller.dart) | Загрузка / удаление / скачивание фото; уведомления через `AppSnackBar` |
+
+### Жизненный цикл экранов (Riverpod / Web)
+
+Правила, применённые с 29.05.2026 для стабильности **Flutter Web**:
+
+| Правило | Реализация |
+|---------|------------|
+| Не вызывать `setState` / менять провайдеры из `build` через `addPostFrameCallback` | Фильтры и права — `ref.listen` в `build` (срабатывает только при смене провайдера) |
+| Не обновлять глобальный `employeeProvider` после `dispose` экрана | Убран `Future(() => setSearchQuery(''))` в `dispose`; поиск сбрасывается при **открытии** списка (table / mobile) |
+| Загрузка данных при входе | Один `addPostFrameCallback` в `initState`: `setSearchQuery('')` (только списки), `getEmployees` / `getEmployee`, `objectProvider.loadObjects()` |
+| Синхронизация карточки с списком | `ref.listen(employeeProvider)` в модалке — обновление локального `_employee` при изменении в notifier |
+
+Типичная причина ошибки `Trying to render a disposed EngineFlutterView`: асинхронное завершение `loadObjects()` / перерисовка **после** ухода с маршрута; исправление — не планировать кадры и не трогать провайдеры, когда виджет уже снят с дерева.
 
 ### Вспомогательный UI вне фичи
 
@@ -200,7 +259,16 @@
 
 ### Фото (Storage)
 
-[`PhotoService`](../../lib/core/services/photo_service.dart): `entity: 'employee'`, загрузка в bucket Supabase Storage, используется модулем и при удалении сотрудника.
+[`PhotoService`](../../lib/core/services/photo_service.dart): `entity: 'employee'`, bucket `employees`, путь `{employee_id}/avatar_{timestamp}.{ext}`.
+
+| Платформа | Выбор | Загрузка |
+|-----------|--------|----------|
+| **Web** | `pickImageBytes` | `uploadPhotoBytes` |
+| **iOS / Android / desktop** | `pickImage` → `File` | `uploadPhoto` (внутри — `readAsBytes` + `uploadPhotoBytes`) |
+
+Точка входа в UI: [`EmployeeAvatarController`](../../lib/features/employees/presentation/providers/employee_avatar_controller.dart) (контекстное меню в [`employee_details_modal.dart`](../../lib/features/employees/presentation/widgets/employee_details_modal.dart), mobile sheet). Удаление — `deletePhotoByUrl` + `deletePhoto`; при `deleteEmployee` в notifier — очистка Storage.
+
+> **Не использовать** `File` / `pickImage` на Web: `dart:io` недоступен, ошибка `Unsupported operation: _Namespace`.
 
 ---
 
@@ -235,7 +303,8 @@ lib/
 ├── features/employees/
 │   └── presentation/
 │       ├── providers/
-│       │   └── employee_avatar_controller.dart
+│       │   ├── employee_avatar_controller.dart
+│       │   └── employees_module_objects_provider.dart
 │       ├── screens/
 │       │   ├── employees_table_screen.dart
 │       │   ├── employees_list_mobile_screen.dart
@@ -294,18 +363,20 @@ lib/
 
 Ранняя миграция [`20240101000002_employees_migration.sql`](../../supabase/migrations/20240101000002_employees_migration.sql) содержит иные поля (`hourly_rate`, `facility`); **текущая** доменная модель их **не** использует — фактическая схема на деплое должна быть сверена с продакшеном (`pg_dump` / Supabase Studio).
 
-**RLS:** ✅ Включён (`ALTER TABLE ... ENABLE ROW LEVEL SECURITY`).
+**RLS:** ✅ Включён.
 
-**Политики** (файл [`20251015_fix_rls_performance_auth_initplan.sql`](../../supabase/migrations/20251015_fix_rls_performance_auth_initplan.sql)):
+**Политики (актуально на проде, `check_permission`):**
 
 | Имя | Операция | Суть |
 |-----|----------|------|
-| `Users can view employees` | SELECT | `auth.role() = 'authenticated'` |
-| `Only admins can create employees` | INSERT | authenticated и `profiles.role = 'admin'` |
-| `Only admins can update employees` | UPDATE | то же |
-| `Only admins can delete employees` | DELETE | то же |
+| `employees_select` | SELECT | `employees.read` **или** своя карточка (`profiles.employee_id`) **или** пересечение `object_ids` с профилем |
+| `employees_insert` | INSERT | `employees.create` |
+| `employees_update` | UPDATE | `employees.update` |
+| `employees_delete` | DELETE | `employees.delete` |
 
-> **Замечание RBAC:** политики опираются на legacy-поле `profiles.role`. Матрица прав приложения ([`PermissionService`](../../lib/features/roles/application/permission_service.dart), ключ `employees`) задаёт UX, но **PostgREST** ограничен политиками выше.
+Удалены обходные политики «участник компании» и legacy `profiles.role = 'admin'` ([`20260529180000_tighten_employees_card_rls.sql`](../../supabase/migrations/20260529180000_tighten_employees_card_rls.sql)). Исторические имена — в [`20251015_fix_rls_performance_auth_initplan.sql`](../../supabase/migrations/20251015_fix_rls_performance_auth_initplan.sql) (заменены на проде).
+
+> **RBAC:** UI ([`PermissionService`](../../lib/features/roles/application/permission_service.dart)) и PostgREST согласованы через `check_permission(uid(), 'employees', …)`.
 
 **Индексы** (упоминания в миграциях):
 
@@ -348,12 +419,19 @@ lib/
 
 **RLS:** ✅ Включён.
 
-**Политики** ([`20251015_fix_rls_performance_auth_initplan.sql`](../../supabase/migrations/20251015_fix_rls_performance_auth_initplan.sql)):
+**Политики (актуально на проде):**
 
 | Имя | Операция | Суть |
 |-----|----------|------|
-| `Users can view employee rates` | SELECT | authenticated |
-| `Only admins can modify employee rates` | ALL | authenticated + `profiles.role = 'admin'` |
+| `employee_rates_select` | SELECT | `payroll.read` **или** ставки своего `employee_id` из `profiles` |
+| `employee_rates_insert` | INSERT | `payroll.create` |
+| `employee_rates_update` | UPDATE | `payroll.update` |
+| `employee_rates_delete` | DELETE | `payroll.delete` |
+| `Users can view employee rates of their companies` | SELECT | `company_id IN get_my_company_ids()` (дополнительный путь чтения в компании) |
+
+Кнопка «+» ставки в карточке сотрудника скрыта без `employees.update`; запись в `employee_rates` на сервере требует прав модуля **payroll** (см. [`AddEmployeeRateDialog`](../../lib/features/employees/presentation/widgets/add_employee_rate_dialog.dart)).
+
+Удалена политика `Users can manage employee rates of their companies` ([`20260529180000_tighten_employees_card_rls.sql`](../../supabase/migrations/20260529180000_tighten_employees_card_rls.sql)).
 
 **Индексы / изменения в миграциях:**
 
@@ -371,6 +449,23 @@ lib/
 
 Те же зоны, что и для `employees`: расчёты ФОТ, балансы, отчёты по часам и ставкам (`calculate_employee_balances`, payroll-RPC, `get_payroll_report_data` и др. в `supabase/migrations/`).
 
+### Таблица `business_trip_rates` (суточные в карточке)
+
+**Назначение:** ставки суточных по объекту / сотруднику; UI в модуле Employees, доменная схема — **FOT** (см. [`fot_module.md`](../fot/fot_module.md)).
+
+**RLS:** ✅ Включён.
+
+**Политики (актуально на проде, [`20260529180000_tighten_employees_card_rls.sql`](../../supabase/migrations/20260529180000_tighten_employees_card_rls.sql)):**
+
+| Имя | Операция | Суть |
+|-----|----------|------|
+| `business_trip_rates_select` | SELECT | `company_id IN get_my_company_ids()` AND (`employees.read` OR `payroll.read`) |
+| `business_trip_rates_insert` | INSERT | `company_id IN get_my_company_ids()` AND `employees.update` |
+| `business_trip_rates_update` | UPDATE | то же для USING / WITH CHECK |
+| `business_trip_rates_delete` | DELETE | `company_id IN get_my_company_ids()` AND `employees.update` |
+
+Удалены политики «любой authenticated» и «manage trip rates of their companies» без `check_permission`.
+
 ### Связанные таблицы (кратко)
 
 | Таблица | RLS в миграциях | Комментарий |
@@ -382,7 +477,10 @@ lib/
 
 ### Storage
 
-[`20240101000005_storage_policy_migration.sql`](../../supabase/migrations/20240101000005_storage_policy_migration.sql): политики для префикса bucket `employees/` (исторически под роль admin в storage).
+| Bucket / политика | Суть |
+|-------------------|------|
+| `employees_bucket_update` / `employees_bucket_delete` | [`20260509000000_add_employees_bucket_policies.sql`](../../supabase/migrations/20260509000000_add_employees_bucket_policies.sql): `check_permission(uid(), 'employees', 'update')` |
+| Исторические политики | [`20240101000005_storage_policy_migration.sql`](../../supabase/migrations/20240101000005_storage_policy_migration.sql) — могут сосуществовать; загрузка фото в UI доступна только при `employees.update` |
 
 ---
 
@@ -397,16 +495,20 @@ lib/
 
 Денежные расчёты начислений (часы × ставка за период, командировочные, премии) **не входят в модуль Employees** — см. модуль **FOT** и SQL-функции в миграциях.
 
-1. После первого кадра экраны списка вызывают `employeeProvider.notifier.getEmployees()` и загрузку объектов (`objectProvider`).
+1. После первого кадра экраны **списка** (`EmployeesTableScreen`, `EmployeesListMobileScreen`) сбрасывают `searchQuery` в `''`, вызывают `getEmployees()` и `objectProvider.notifier.loadObjects()`. Экран деталей по URL — только `getEmployee(id)` и `loadObjects()` (поиск списка не трогается).
 2. `EmployeeNotifier.getEmployees()` не перезагружает список, если уже `success` и список не пуст; параметр `includeResponsibilityMap` по умолчанию `false` — отдельный запрос за картой `can_be_responsible` не выполняется (поле в UI не потребляется; при смене флага мапа обновляется точечно).
 3. `SupabaseEmployeeDataSource.getEmployees()` читает `employees` по `company_id`, затем одним запросом — текущие ставки (`employee_rates`, `valid_to IS NULL`) и обогащает `currentHourlyRate`.
 4. Поиск: `EmployeeState.filteredEmployees` (ФИО, должность, телефон).
-5. Таблица: дополнительно фильтр по статусу, объекту, сортировка по фамилии, счётчики по статусам — на клиенте.
+5. Таблица: дополнительно фильтр по статусу, объекту, сортировка по фамилии, счётчики по статусам — на клиенте. Если выбранный объект исчез из picklist (смена прав / профиля), фильтр сбрасывается в «Все объекты» через `ref.listen(employeesModuleObjectsProvider)`.
 6. Inline: `Employee.copyWith` + `updateEmployee` для `status` и `object_ids`.
 7. `can_be_responsible`: отдельные вызовы datasource + обновление `canBeResponsibleMap` (не через полную перезагрузку карточки из одного JSON).
 8. Ответственный по объекту для планов: `getResponsibleEmployees` — `status = working`, `can_be_responsible = true`, объект в `object_ids`.
 9. При удалении сотрудника — удаление файла фото в Storage и строки в БД.
 10. Экспорт: те же фильтры, что UI, плюс проверка членства в `company_members` на Edge.
+11. **Карточка сотрудника:** `PermissionService.can('employees', 'update')` управляет видимостью редактирования; при отсутствии права PostgREST отклоняет UPDATE/INSERT суточных и сотрудника даже при обходе UI.
+12. **Аватар:** после выбора изображения — ветка `kIsWeb` в `EmployeeAvatarController`; URL из Storage пишется в `employees.photo_url` через `updateEmployee`.
+13. **Уведомления пользователю:** только `AppSnackBar.show(context:, message:, kind:)` — без `SnackBarUtils` и Material `SnackBar` в модуле.
+14. **Индикаторы загрузки:** единый стиль **`CupertinoActivityIndicator`** в presentation-слое; Material `CircularProgressIndicator` в модуле не используется.
 
 ---
 
@@ -415,11 +517,13 @@ lib/
 ### UI / Router / RBAC
 
 - [`app_router.dart`](../../lib/core/common/app_router.dart): `/employees`, детали, `_canViewEmployee` для «своей» карточки
-- [`PermissionService`](../../lib/features/roles/application/permission_service.dart): `employees` → `read`, `create`, `update`, `export`
+- [`PermissionService`](../../lib/features/roles/application/permission_service.dart): `employees` → `read`, `create`, `update`, `delete`, `export`; карточка и список — см. раздел **RBAC в карточке сотрудника**
+- Модуль в матрице ролей: код `employees` (единый, без `employees_table`; миграция [`20260411140000_remove_employees_table_rbac_module.sql`](../../supabase/migrations/20260411140000_remove_employees_table_rbac_module.sql))
 
 ### Объекты
 
-- `objectProvider` для имён и фильтров
+- [`employeesModuleObjectsProvider`](../../lib/features/employees/presentation/providers/employees_module_objects_provider.dart) — единый picklist для UI модуля (источник — `objectProvider`, RLS `objects_select` с веткой `employees.read` / `create` / `update`)
+- `objectProvider.notifier.loadObjects()` при входе на экраны списка и деталей
 
 ### Works / Work Plans
 
@@ -446,15 +550,26 @@ lib/
 ### Реализовано
 
 - Табличный и мобильный списки, адаптивный выбор раскладки
-- Inline статус / объекты, фильтры, экспорт, аватар, детали и редактирование
+- Inline статус / объекты, фильтры, экспорт, аватар, детали и редактирование (с RBAC в UI и RLS)
 - Кэш деталей, `canBeResponsibleMap`, сохранение ставки при обновлении анкеты
 - Серверный Excel через `export-employees`
+- Read-only карточка: скрытие edit-контролов и `check_permission` на `employees` / `business_trip_rates`
+- Picklist объектов без `objects.read`; корректный жизненный цикл экранов на Flutter Web (`ref.listen`, без отложенного `dispose`)
+- Загрузка фото сотрудника на Web (`pickImageBytes` / `uploadPhotoBytes`)
+- Единый `AppSnackBar` во всём presentation-слое модуля
+- Единые индикаторы загрузки (`CupertinoActivityIndicator`) в списках, карточке и формах
+- Desktop-карточка: кнопка «Редактировать» вместо иконки карандаша в секции «Личные данные»
 
 ### Известные баги (приоритет)
 
 | Приоритет | Описание |
 |-----------|----------|
-| 🟢 | Зарегистрированных багов, специфичных для модуля Employees, в документе не зафиксировано. |
+| 🟡 | **`export-employees`:** проверяется только членство в `company_members`, не `employees.export` (кнопка в UI скрыта без права). |
+| 🟢 | Обход RLS «участник компании может менять employees» и слабые политики `business_trip_rates` — исправлено 29.05.2026. |
+| 🟢 | **`EngineFlutterView disposed` на web** при быстром уходе с «Сотрудников» после подгрузки объектов — исправлено 29.05.2026 (жизненный цикл экранов). |
+| 🟢 | **Загрузка фото на Web** (`Unsupported operation: _Namespace`) — исправлено 29.05.2026 (bytes вместо `File`). |
+| 🟢 | **Два стиля снекбаров** в модуле (`SnackBarUtils` + `AppSnackBar`) — унифицировано 29.05.2026. |
+| 🟢 | **Разные индикаторы загрузки** (Material vs Cupertino) — унифицировано 29.05.2026 (`CupertinoActivityIndicator` в модуле). |
 
 При появлении регрессий строки выше заменяются конкретикой: 🔴 критичный, 🟡 средний, 🟢 низкий / косметика.
 
@@ -462,12 +577,12 @@ lib/
 
 - Поиск и фильтры списка без server-side pagination
 - `object_ids` как `text[]` в БД
-- RLS на `employees` / `employee_rates` завязан на `profiles.role`, не на матрицу `PermissionService`
+- Добавление **ставки** в UI карточки требует прав **payroll** на уровне БД, хотя кнопка привязана к `employees.update`
 - Схема `employee_rates` и часть индексов не воспроизводятся из одного `CREATE` в репозитории
 
 ### Возможные шаги
 
 - Серверная пагинация и фильтрация PostgREST
-- Выравнивание RLS с `company_members` + матрицей прав
+- Проверка `employees.export` в Edge Function `export-employees`
 - Явный partial unique index на «активную» ставку в миграции
 - Audit trail изменений карточки и ставок

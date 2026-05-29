@@ -186,8 +186,7 @@
 - company_id → companies.id (FK)
 
 **RLS-политики:**
-- ✅ Доступна только участникам компании (через `get_my_company_ids()`)
-- ✅ Изоляция данных гарантирована через `company_id`
+- ✅ Изоляция по `company_id` + матрица прав: `employees_select` / `employees_insert` / `employees_update` / `employees_delete` через `check_permission(uid(), 'employees', …)` ([`20260529180000_tighten_employees_card_rls.sql`](../supabase/migrations/20260529180000_tighten_employees_card_rls.sql), подробнее — [`employees/employees_module.md`](employees/employees_module.md))
 
 ---
 
@@ -309,6 +308,7 @@
 **RLS-политики:**
 - ✅ Видна только участникам компании (через `get_my_company_ids()`)
 - ✅ Изоляция данных гарантирована через `company_id`
+- ✅ **`objects_select`:** `objects.read` **или** объект из `profiles.object_ids` **или** `employees.read` / `create` / `update` (picklist в модуле «Сотрудники» без экрана «Объекты») — [`20260529190000_employees_objects_picklist_rls.sql`](../supabase/migrations/20260529190000_employees_objects_picklist_rls.sql), см. [`objects/objects_module.md`](objects/objects_module.md)
 
 ---
 

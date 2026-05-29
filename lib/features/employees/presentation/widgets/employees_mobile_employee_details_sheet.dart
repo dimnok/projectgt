@@ -16,6 +16,7 @@ import 'package:projectgt/features/employees/presentation/widgets/employee_rate_
 import 'package:projectgt/features/employees/presentation/widgets/employee_trip_editor_form.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employees_mobile_atmosphere.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employees_mobile_employee_edit_blocks.dart';
+import 'package:projectgt/features/roles/application/permission_service.dart';
 import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:projectgt/presentation/state/employee_state.dart'
     as employee_state;
@@ -83,6 +84,9 @@ class EmployeesMobileEmployeeDetailsSheet {
                   fontWeight: FontWeight.w600,
                 ) ??
                 const TextStyle(fontWeight: FontWeight.w600);
+            final canUpdate = ref
+                .watch(permissionServiceProvider)
+                .can('employees', 'update');
 
             return MobileBottomSheetContent(
               title: 'Сотрудник',
@@ -95,8 +99,9 @@ class EmployeesMobileEmployeeDetailsSheet {
                 theme: theme,
                 labelStyle: labelStyle,
                 valueStyle: valueStyle,
-                onAddBusinessTrip: () => showTripEditor(),
-                onEditBusinessTrip: showTripEditor,
+                canUpdate: canUpdate,
+                onAddBusinessTrip: canUpdate ? () => showTripEditor() : null,
+                onEditBusinessTrip: canUpdate ? showTripEditor : null,
               ),
             );
           },
@@ -114,8 +119,9 @@ class _EmployeesMobileEmployeeDetailsBody extends ConsumerWidget {
     required this.theme,
     required this.labelStyle,
     required this.valueStyle,
-    required this.onAddBusinessTrip,
-    required this.onEditBusinessTrip,
+    required this.canUpdate,
+    this.onAddBusinessTrip,
+    this.onEditBusinessTrip,
   });
 
   final Employee employee;
@@ -123,8 +129,9 @@ class _EmployeesMobileEmployeeDetailsBody extends ConsumerWidget {
   final ThemeData theme;
   final TextStyle labelStyle;
   final TextStyle valueStyle;
-  final VoidCallback onAddBusinessTrip;
-  final void Function(BusinessTripRate rate) onEditBusinessTrip;
+  final bool canUpdate;
+  final VoidCallback? onAddBusinessTrip;
+  final void Function(BusinessTripRate rate)? onEditBusinessTrip;
 
   static const double _avatarSide = 72;
   static const double _avatarRadius = 12;
@@ -205,8 +212,9 @@ class _EmployeesMobileEmployeeDetailsBody extends ConsumerWidget {
   static Future<void> _openAvatarActionsSheet(
     BuildContext context,
     WidgetRef ref,
-    Employee employee,
-  ) async {
+    Employee employee, {
+    required bool canUpdate,
+  }) async {
     final hasPhoto =
         employee.photoUrl != null && employee.photoUrl!.trim().isNotEmpty;
     final scheme = Theme.of(context).colorScheme;
@@ -257,26 +265,28 @@ class _EmployeesMobileEmployeeDetailsBody extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              tile(
-                icon: CupertinoIcons.photo_on_rectangle,
-                title: 'Выбрать из галереи',
-                onTap: () => runAfterClose(() {
-                  ref
-                      .read(employeeAvatarControllerProvider.notifier)
-                      .uploadAvatar(employee, ImageSource.gallery, context);
-                }),
-              ),
-              tile(
-                icon: CupertinoIcons.camera,
-                title: 'Сделать фото',
-                onTap: () => runAfterClose(() {
-                  ref
-                      .read(employeeAvatarControllerProvider.notifier)
-                      .uploadAvatar(employee, ImageSource.camera, context);
-                }),
-              ),
+              if (canUpdate) ...[
+                tile(
+                  icon: CupertinoIcons.photo_on_rectangle,
+                  title: 'Выбрать из галереи',
+                  onTap: () => runAfterClose(() {
+                    ref
+                        .read(employeeAvatarControllerProvider.notifier)
+                        .uploadAvatar(employee, ImageSource.gallery, context);
+                  }),
+                ),
+                tile(
+                  icon: CupertinoIcons.camera,
+                  title: 'Сделать фото',
+                  onTap: () => runAfterClose(() {
+                    ref
+                        .read(employeeAvatarControllerProvider.notifier)
+                        .uploadAvatar(employee, ImageSource.camera, context);
+                  }),
+                ),
+              ],
               if (hasPhoto) ...[
-                const Divider(height: 1),
+                if (canUpdate) const Divider(height: 1),
                 tile(
                   icon: CupertinoIcons.cloud_download,
                   title: 'Сохранить фото',
@@ -287,14 +297,15 @@ class _EmployeesMobileEmployeeDetailsBody extends ConsumerWidget {
                     notifier.downloadAvatar(context, employee);
                   }),
                 ),
-                tile(
-                  icon: CupertinoIcons.delete,
-                  title: 'Удалить фото',
-                  titleColor: scheme.error,
-                  onTap: () => runAfterClose(() {
-                    _confirmDeleteAvatar(context, ref, employee);
-                  }),
-                ),
+                if (canUpdate)
+                  tile(
+                    icon: CupertinoIcons.delete,
+                    title: 'Удалить фото',
+                    titleColor: scheme.error,
+                    onTap: () => runAfterClose(() {
+                      _confirmDeleteAvatar(context, ref, employee);
+                    }),
+                  ),
               ],
             ],
           ),
@@ -374,13 +385,19 @@ class _EmployeesMobileEmployeeDetailsBody extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Semantics(
-                  button: true,
+                  button: canUpdate || hasPhoto,
                   label: 'Фото сотрудника, открыть действия',
                   child: Material(
                     type: MaterialType.transparency,
                     child: InkWell(
-                      onTap: () =>
-                          _openAvatarActionsSheet(context, ref, employee),
+                      onTap: canUpdate || hasPhoto
+                          ? () => _openAvatarActionsSheet(
+                              context,
+                              ref,
+                              employee,
+                              canUpdate: canUpdate,
+                            )
+                          : null,
                       borderRadius: BorderRadius.circular(_avatarRadius),
                       child: SizedBox(
                         width: _avatarSide,
@@ -438,13 +455,9 @@ class _EmployeesMobileEmployeeDetailsBody extends ConsumerWidget {
                                   child: ColoredBox(
                                     color: scheme.scrim.withValues(alpha: 0.45),
                                     child: Center(
-                                      child: SizedBox(
-                                        width: 28,
-                                        height: 28,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2.5,
-                                          color: scheme.onSurface,
-                                        ),
+                                      child: CupertinoActivityIndicator(
+                                        color: scheme.onSurface,
+                                        radius: 14,
                                       ),
                                     ),
                                   ),
@@ -495,17 +508,18 @@ class _EmployeesMobileEmployeeDetailsBody extends ConsumerWidget {
                               ),
                             ),
                           ),
-                          _sectionEditButton(
-                            context,
-                            tooltip: 'Изменить ФИО, работу и контакты',
-                            onPressed: () {
-                              EmployeesMobileEmployeeEditBlocks.showProfileEditor(
-                                context,
-                                employee: employee,
-                                objects: objects,
-                              );
-                            },
-                          ),
+                          if (canUpdate)
+                            _sectionEditButton(
+                              context,
+                              tooltip: 'Изменить ФИО, работу и контакты',
+                              onPressed: () {
+                                EmployeesMobileEmployeeEditBlocks.showProfileEditor(
+                                  context,
+                                  employee: employee,
+                                  objects: objects,
+                                );
+                              },
+                            ),
                         ],
                       ),
                       const SizedBox(height: 6),
@@ -596,6 +610,7 @@ class _EmployeesMobileEmployeeDetailsBody extends ConsumerWidget {
               labelStyle: labelStyle,
               valueStyle: valueStyle,
               theme: theme,
+              canManageRates: canUpdate,
             ),
             EmployeeBusinessTripSummaryWidget(
               employee: employee,
@@ -610,16 +625,18 @@ class _EmployeesMobileEmployeeDetailsBody extends ConsumerWidget {
         _sectionCard(
           theme,
           title: 'Документы',
-          titleTrailing: _sectionEditButton(
-            context,
-            tooltip: 'Изменить документы',
-            onPressed: () {
-              EmployeesMobileEmployeeEditBlocks.showDocumentsEditor(
-                context,
-                employee: employee,
-              );
-            },
-          ),
+          titleTrailing: canUpdate
+              ? _sectionEditButton(
+                  context,
+                  tooltip: 'Изменить документы',
+                  onPressed: () {
+                    EmployeesMobileEmployeeEditBlocks.showDocumentsEditor(
+                      context,
+                      employee: employee,
+                    );
+                  },
+                )
+              : null,
           children: [
             _kv(theme, 'Паспорт', _passportLine(employee)),
             _kv(theme, 'Кем выдан', _dashIfEmpty(employee.passportIssuedBy)),
@@ -647,16 +664,18 @@ class _EmployeesMobileEmployeeDetailsBody extends ConsumerWidget {
         _sectionCard(
           theme,
           title: 'Личные данные',
-          titleTrailing: _sectionEditButton(
-            context,
-            tooltip: 'Изменить личные данные',
-            onPressed: () {
-              EmployeesMobileEmployeeEditBlocks.showPersonalEditor(
-                context,
-                employee: employee,
-              );
-            },
-          ),
+          titleTrailing: canUpdate
+              ? _sectionEditButton(
+                  context,
+                  tooltip: 'Изменить личные данные',
+                  onPressed: () {
+                    EmployeesMobileEmployeeEditBlocks.showPersonalEditor(
+                      context,
+                      employee: employee,
+                    );
+                  },
+                )
+              : null,
           children: [
             _kv(
               theme,

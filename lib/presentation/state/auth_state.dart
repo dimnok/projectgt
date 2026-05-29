@@ -12,7 +12,7 @@ enum AuthStatus {
   /// Начальное состояние при запуске приложения.
   initial,
 
-  /// Пользователь успешно аутентифицирован.
+  /// Пользователь успешно аутентифицирован и привязан к компании.
   authenticated,
 
   /// Пользователь не аутентифицирован.
@@ -24,13 +24,10 @@ enum AuthStatus {
   /// Произошла ошибка в процессе аутентификации.
   error,
 
-  /// Регистрация успешна, ожидается одобрение администратором.
-  pendingApproval,
-
-  /// Аккаунт пользователя заблокирован.
+  /// Аккаунт пользователя заблокирован (глобально или в компании).
   disabled,
 
-  /// Пользователь вошел, но еще не завершил настройку профиля/компании.
+  /// Пользователь вошёл, но ещё не выбрал/не создал компанию.
   onboarding,
 }
 
@@ -79,7 +76,6 @@ class AuthState {
 class AuthNotifier extends StateNotifier<AuthState> {
   final Ref _ref;
 
-  // Флаги состояния
   bool _isCheckingAuth = false;
   bool _isManualVerifying = false;
 
@@ -102,8 +98,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
     } catch (_) {}
   }
 
-  // --- Методы управления состоянием ---
-
   /// Сбрасывает ошибку в состоянии.
   void resetError() {
     if (state.status == AuthStatus.error) {
@@ -114,13 +108,24 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  /// Определяет [AuthStatus] по загруженному профилю.
+  AuthStatus _authStatusFromProfile(entity.Profile? profile) {
+    if (profile == null) return AuthStatus.error;
+    if (!profile.status) return AuthStatus.disabled;
+    if (profile.lastCompanyId == null) return AuthStatus.onboarding;
+    return AuthStatus.authenticated;
+  }
+
+  User _userWithProfileRoles(User base, entity.Profile profile) {
+    return base.copyWith(
+      roleId: profile.roleId,
+      systemRole: profile.systemRole,
+    );
+  }
+
   /// Проверяет текущий статус аутентификации.
-  /// Делает легкую проверку сессии. Тяжелые данные загружает только при необходимости.
   Future<void> checkAuthStatus({bool force = false}) async {
-    // Защита от повторных вызовов
-    if (!force &&
-        (state.status == AuthStatus.pendingApproval ||
-            state.status == AuthStatus.disabled)) {
+    if (!force && state.status == AuthStatus.disabled) {
       return;
     }
     if (_isCheckingAuth) return;
@@ -128,13 +133,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
     _isCheckingAuth = true;
 
-    // Показываем лоадер только если у нас точно нет пользователя
     if (state.user == null) {
       state = state.copyWith(status: AuthStatus.loading);
     }
 
     try {
-      // 1. Обработка Web URL (OAuth callback)
       if (kIsWeb) {
         final hash = web.window.location.hash;
         if (hash.contains('access_token')) {
@@ -145,7 +148,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
         }
       }
 
-      // 2. Проверка сессии Supabase (локальная, быстрая)
       final currentUser = supa.Supabase.instance.client.auth.currentUser;
 
       if (currentUser == null) {
@@ -153,7 +155,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
         return;
       }
 
-      // 3. Формируем базовую модель пользователя
       var user = User(
         id: currentUser.id,
         email: currentUser.email ?? '',
@@ -161,27 +162,26 @@ class AuthNotifier extends StateNotifier<AuthState> {
         photoUrl: currentUser.userMetadata?['photoUrl'] as String?,
       );
 
-      // 4. Если мы не заставляем (force), пытаемся взять роли из текущего состояния
-      // (чтобы не дергать базу при каждом чихе, например при onAuthStateChange)
-      if (!force && state.user?.id == user.id && state.user?.roleId != null) {
-        state = state.copyWith(
-          status: AuthStatus.authenticated,
-          user: state.user,
-        );
+      if (!force &&
+          state.user?.id == user.id &&
+          state.status == AuthStatus.authenticated &&
+          state.user?.roleId != null) {
         return;
       }
 
-      // 5. Если нужно (при старте или force) - загружаем полный контекст.
-      // Чтобы избежать лоадера в AuthGate, дожидаемся загрузки данных профиля через UseCase.
-      final profileFuture = _ref.read(getProfileUseCaseProvider).call(user.id);
-      final enrichedUserFuture = _fetchUserContext(user);
+      final profile = await _ref.read(getProfileUseCaseProvider).call(user.id);
+      if (profile != null) {
+        user = _userWithProfileRoles(user, profile);
+      }
 
-      final results = await Future.wait([profileFuture, enrichedUserFuture]);
-      final enrichedUser = results[1] as User;
+      final authStatus = profile == null
+          ? AuthStatus.error
+          : _authStatusFromProfile(profile);
 
       state = state.copyWith(
-        status: AuthStatus.authenticated,
-        user: enrichedUser,
+        status: authStatus,
+        user: user,
+        errorMessage: profile == null ? 'Профиль не найден' : null,
       );
     } catch (e) {
       state = state.copyWith(
@@ -193,75 +193,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  /// Универсальный метод для загрузки контекста пользователя (Профиль + Роли + Статус).
-  /// Возвращает enriched User с roleId, systemRole и правильным AuthStatus.
-  Future<User> _fetchUserContext(User baseUser) async {
-    try {
-      final client = supa.Supabase.instance.client;
-
-      // 1. Получаем профиль (статус, approved_at, last_company_id)
-      final profileData = await client
-          .from('profiles')
-          .select('status, approved_at, last_company_id')
-          .eq('id', baseUser.id)
-          .single();
-
-      final bool statusFlag = (profileData['status'] as bool?) ?? true;
-      final bool everApproved = profileData['approved_at'] != null;
-      final String? lastCompanyId = profileData['last_company_id'] as String?;
-
-      // 2. Проверяем блокировку
-      if (!statusFlag) {
-        final newStatus = everApproved
-            ? AuthStatus.disabled
-            : AuthStatus.pendingApproval;
-        // Важно: обновляем глобальный статус сразу, так как метод может вызываться из разных мест
-        if (state.status != newStatus) {
-          state = state.copyWith(status: newStatus, user: baseUser);
-        }
-        return baseUser; // Возвращаем базового юзера, роли ему не нужны
-      }
-
-      // 3. Загружаем роль (roleId, systemRole) из активной компании
-      String? roleId;
-      String? systemRole;
-
-      if (lastCompanyId != null) {
-        try {
-          final memberData = await client
-              .from('company_members')
-              .select('role_id, system_role')
-              .eq('user_id', baseUser.id)
-              .eq('company_id', lastCompanyId)
-              .eq('is_active', true)
-              .single();
-          roleId = memberData['role_id'] as String?;
-          systemRole = memberData['system_role'] as String?;
-        } catch (_) {
-          // Fallback: если последняя компания не найдена или неактивна, берем любую активную
-          try {
-            final memberData = await client
-                .from('company_members')
-                .select('role_id, system_role, company_id')
-                .eq('user_id', baseUser.id)
-                .eq('is_active', true)
-                .limit(1)
-                .single();
-            roleId = memberData['role_id'] as String?;
-            systemRole = memberData['system_role'] as String?;
-            // Можно обновить last_company_id здесь, если нужно
-          } catch (_) {}
-        }
-      }
-
-      return baseUser.copyWith(roleId: roleId, systemRole: systemRole);
-    } catch (e) {
-      // При ошибке базы возвращаем базового юзера, чтобы не ломать вход
-      return baseUser;
-    }
-  }
-
-  /// Отправляет код на телефон
+  /// Отправляет код на телефон.
   Future<void> requestPhoneOtp(String phone) async {
     try {
       await _ref.read(requestPhoneOtpUseCaseProvider).execute(phone: phone);
@@ -281,7 +213,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  /// Подтверждает код и запускает процесс входа
+  /// Подтверждает код и запускает процесс входа.
   Future<void> verifyPhoneOtp(String phone, String code) async {
     if (state.verificationToken == null) {
       const err = 'Сначала запросите код подтверждения';
@@ -295,16 +227,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
     _isManualVerifying = true;
 
     try {
-      // 1. Верификация самого кода (быстро)
       final user = await _ref
           .read(verifyPhoneOtpUseCaseProvider)
           .execute(phone: phone, code: code);
 
-      // 2. Сразу обновляем User, чтобы UI показал успех (анимация), статус оставляем старым
       state = state.copyWith(user: user, errorMessage: null);
-
-      // 3. Запускаем фоновую загрузку данных и переход
-      _finalizeAuthWithDelay(user);
+      await _finalizeAuthWithDelay(user);
     } catch (e) {
       _isManualVerifying = false;
       String message = e.toString();
@@ -322,17 +250,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  /// Фоновый процесс: подгрузка профиля + задержка для анимации + редирект
+  /// Подгрузка профиля после OTP и установка финального [AuthStatus].
   Future<void> _finalizeAuthWithDelay(User user) async {
     try {
-      // 1. Запускаем параллельно: таймер 1.5 сек и загрузку профиля через UseCase.
-      // Мы НЕ используем currentUserProfileProvider напрямую здесь, чтобы избежать круговой зависимости.
-      // CurrentUserProfileNotifier сам подхватит загрузку, так как он слушает изменения authProvider.
-
       final profileFuture = _ref.read(getProfileUseCaseProvider).call(user.id);
       final timerFuture = Future.delayed(const Duration(milliseconds: 1500));
 
-      // Ждем завершения обоих задач (минимум 1.5 сек)
       final results = await Future.wait([profileFuture, timerFuture]);
       final profile = results[0] as entity.Profile?;
 
@@ -345,26 +268,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
         return;
       }
 
-      // 3. Определяем финальный статус на основе профиля.
-      if (!profile.status) {
-        await _fetchUserContext(user);
-        _isManualVerifying = false;
-        return;
-      }
-
-      final finalStatus = profile.lastCompanyId == null
-          ? AuthStatus.onboarding
-          : AuthStatus.authenticated;
-
       state = state.copyWith(
-        status: finalStatus,
-        user: user.copyWith(
-          roleId: profile.roleId,
-          systemRole: profile.systemRole,
-        ),
+        status: _authStatusFromProfile(profile),
+        user: _userWithProfileRoles(user, profile),
       );
 
-      // 4. Снимаем блокировку авто-чека с небольшой задержкой
       Future.delayed(const Duration(milliseconds: 500), () {
         _isManualVerifying = false;
       });
@@ -379,7 +287,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  /// Выход из системы
+  /// Выход из системы.
   Future<void> logout() async {
     state = state.copyWith(status: AuthStatus.loading);
     try {
@@ -393,7 +301,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  /// Переключение компании
+  /// Переключение компании.
   Future<void> switchCompany(String companyId) async {
     final user = state.user;
     if (user == null) return;
@@ -405,12 +313,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
           .update({'last_company_id': companyId})
           .eq('id', user.id);
 
-      // Обновляем профиль в другом провайдере
       await _ref
           .read(currentUserProfileProvider.notifier)
           .refreshCurrentUserProfile(user.id);
 
-      // Перечитываем статус Auth с учетом новой компании (force)
       await checkAuthStatus(force: true);
     } catch (e) {
       state = state.copyWith(

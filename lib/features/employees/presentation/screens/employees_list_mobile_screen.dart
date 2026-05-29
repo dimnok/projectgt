@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,6 +18,7 @@ import 'package:projectgt/features/employees/presentation/widgets/employees_mobi
 import 'package:projectgt/features/employees/presentation/widgets/employees_mobile_swipeable_employee_card.dart';
 import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/features/employees/presentation/providers/employees_module_objects_provider.dart';
 import 'package:projectgt/core/widgets/mobile_atmosphere_backdrop.dart';
 import 'package:projectgt/core/widgets/mobile_atmosphere_screen_header.dart';
 
@@ -67,7 +69,9 @@ class _EmployeesListMobileScreenState
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      ref.read(emp_state.employeeProvider.notifier).getEmployees();
+      final employeeNotifier = ref.read(emp_state.employeeProvider.notifier);
+      employeeNotifier.setSearchQuery('');
+      employeeNotifier.getEmployees();
       ref.read(objectProvider.notifier).loadObjects();
     });
   }
@@ -332,11 +336,20 @@ class _EmployeesListMobileScreenState
 
     final appearance = EmployeesMobileAppearance.of(context);
     final employeeState = ref.watch(emp_state.employeeProvider);
-    final objectState = ref.watch(objectProvider);
+    final picklistObjects = ref.watch(employeesModuleObjectsProvider);
     final allEmployees = List<Employee>.from(employeeState.employees)
       ..sort((a, b) => a.lastName.compareTo(b.lastName));
     final afterSearch = List<Employee>.from(employeeState.filteredEmployees)
       ..sort((a, b) => a.lastName.compareTo(b.lastName));
+
+    ref.listen<emp_state.EmployeeState>(emp_state.employeeProvider, (_, next) {
+      if (_statusFilter == null) return;
+      final filtered = next.filteredEmployees;
+      if (filtered.isEmpty) return;
+      if (filtered.every((e) => e.status != _statusFilter)) {
+        setState(() => _statusFilter = null);
+      }
+    });
 
     final isLoading =
         employeeState.status == emp_state.EmployeeStatus.loading &&
@@ -409,7 +422,7 @@ class _EmployeesListMobileScreenState
                       employeeState.errorMessage,
                       allEmployees,
                       afterSearch,
-                      objectState.objects,
+                      picklistObjects,
                       permissions.can('employees', 'update'),
                     ),
                   ),
@@ -439,13 +452,9 @@ class _EmployeesListMobileScreenState
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SizedBox(
-              width: 28,
-              height: 28,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.5,
-                color: scheme.primary,
-              ),
+            CupertinoActivityIndicator(
+              color: scheme.primary,
+              radius: 14,
             ),
             const SizedBox(height: 18),
             Text(
@@ -505,14 +514,6 @@ class _EmployeesListMobileScreenState
           ),
         ),
       );
-    }
-
-    if (_statusFilter != null &&
-        afterSearch.every((e) => e.status != _statusFilter)) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        setState(() => _statusFilter = null);
-      });
     }
 
     final filtered = _statusFilter == null

@@ -1,14 +1,12 @@
 /// Расчёт НДС по правилам договора (`vat_rate`, `is_vat_included`).
 ///
 /// Используется в карточке договора, актах КС-2 и сводках.
+library;
 
 /// Параметры НДС договора для расчёта актов.
 class ContractVatTerms {
   /// Создаёт параметры НДС.
-  const ContractVatTerms({
-    required this.vatRate,
-    required this.isVatIncluded,
-  });
+  const ContractVatTerms({required this.vatRate, required this.isVatIncluded});
 
   /// Ставка НДС, %.
   final double vatRate;
@@ -22,10 +20,7 @@ class ContractVatTerms {
 /// Сумма акта и НДС для записи в `contract_acts`.
 class ActAmountVatSplit {
   /// Создаёт пару сумм для сохранения акта.
-  const ActAmountVatSplit({
-    required this.amount,
-    required this.vatAmount,
-  });
+  const ActAmountVatSplit({required this.amount, required this.vatAmount});
 
   /// База акта без начисляемого «сверху» НДС (при включённом НДС — нетто).
   final double amount;

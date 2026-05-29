@@ -1,7 +1,10 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/presentation/state/employee_state.dart' as state;
 import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/features/employees/presentation/providers/employees_module_objects_provider.dart';
+import 'package:projectgt/features/objects/presentation/state/object_state.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_details_modal.dart';
 
@@ -20,38 +23,14 @@ class EmployeeDetailsScreen extends ConsumerStatefulWidget {
 }
 
 class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
-  /// Кэш контейнера Riverpod: [ProviderScope.containerOf] в [dispose] недопустим;
-  /// также нужен для отложенного сброса поиска вне фазы построения дерева.
-  ProviderContainer? _providerContainer;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _providerContainer ??= ProviderScope.containerOf(context);
-  }
-
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      Future(() {
-        if (!mounted) return;
-        ref.read(state.employeeProvider.notifier).getEmployee(widget.employeeId);
-        ref.read(objectProvider.notifier).loadObjects();
-      });
+      ref.read(state.employeeProvider.notifier).getEmployee(widget.employeeId);
+      ref.read(objectProvider.notifier).loadObjects();
     });
-  }
-
-  @override
-  void dispose() {
-    final container = _providerContainer;
-    super.dispose();
-    if (container != null) {
-      Future(() {
-        container.read(state.employeeProvider.notifier).setSearchQuery('');
-      });
-    }
   }
 
   @override
@@ -66,10 +45,13 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
 
     final isLoading = employee == null && employeeState.status == state.EmployeeStatus.loading;
 
-    if (isLoading || objectState.objects.isEmpty) {
+    final picklistObjects = ref.watch(employeesModuleObjectsProvider);
+
+    if (isLoading ||
+        (objectState.status == ObjectStatus.loading && picklistObjects.isEmpty)) {
       return const Scaffold(
         appBar: AppBarWidget(title: 'Загрузка...', leading: BackButton(), showThemeSwitch: false),
-        body: Center(child: CircularProgressIndicator()),
+        body: Center(child: CupertinoActivityIndicator()),
       );
     }
 
@@ -107,7 +89,7 @@ class _EmployeeDetailsScreenState extends ConsumerState<EmployeeDetailsScreen> {
             // Переиспользуем UI модального окна, но показываем его как часть экрана
             child: EmployeeDetailsModal(
               employee: employee,
-              objects: objectState.objects,
+              objects: picklistObjects,
             ),
           ),
         ),

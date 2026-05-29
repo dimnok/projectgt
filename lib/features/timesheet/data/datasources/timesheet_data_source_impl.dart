@@ -98,8 +98,6 @@ class TimesheetDataSourceImpl implements TimesheetDataSource {
     DateTime? startDate,
     DateTime? endDate,
     String? employeeId,
-    List<String>? objectIds,
-    List<String>? positions,
   }) async {
     try {
       // Базовый запрос с join для получения данных из связанных таблиц
@@ -151,21 +149,6 @@ class TimesheetDataSourceImpl implements TimesheetDataSource {
           'updated_at': record['updated_at'],
         };
       }).toList();
-
-      // Клиентская фильтрация по объектам (мультивыбор)
-      if (objectIds != null && objectIds.isNotEmpty) {
-        flatResults = flatResults
-            .where((record) => objectIds.contains(record['object_id']))
-            .toList();
-      }
-
-      // Клиентская фильтрация по должностям
-      if (positions != null && positions.isNotEmpty) {
-        flatResults = flatResults.where((record) {
-          final position = record['employee_position'];
-          return position != null && positions.contains(position);
-        }).toList();
-      }
 
       return flatResults;
     } catch (e) {

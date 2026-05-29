@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/features/employees/presentation/utils/employees_layout_utils.dart';
-import 'package:projectgt/core/utils/snackbar_utils.dart';
+import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
 import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
@@ -13,7 +13,7 @@ import 'package:projectgt/domain/entities/employee.dart';
 import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:projectgt/presentation/state/employee_state.dart' as state;
 import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
-import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/features/employees/presentation/providers/employees_module_objects_provider.dart';
 import 'package:uuid/uuid.dart';
 
 /// Где отображается форма быстрого добавления сотрудника.
@@ -138,12 +138,20 @@ class _AddEmployeeSimpleDialogState
           .createEmployee(newEmployee);
 
       if (mounted) {
-        SnackBarUtils.showSuccess(context, 'Сотрудник успешно добавлен');
+        AppSnackBar.show(
+          context: context,
+          message: 'Сотрудник успешно добавлен',
+          kind: AppSnackBarKind.success,
+        );
         Navigator.of(context).pop(true);
       }
     } catch (e) {
       if (mounted) {
-        SnackBarUtils.showError(context, 'Ошибка при добавлении: $e');
+        AppSnackBar.show(
+          context: context,
+          message: 'Ошибка при добавлении: $e',
+          kind: AppSnackBarKind.error,
+        );
       }
     } finally {
       if (mounted) {
@@ -153,8 +161,7 @@ class _AddEmployeeSimpleDialogState
   }
 
   Widget _buildForm() {
-    final objectState = ref.watch(objectProvider);
-    final objects = objectState.objects;
+    final objects = ref.watch(employeesModuleObjectsProvider);
 
     return Form(
       key: _formKey,

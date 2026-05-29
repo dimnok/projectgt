@@ -62,9 +62,11 @@ class SplashController extends _$SplashController {
       });
 
       final authState = ref.read(authProvider);
-      // Если после ожидания всё еще не авторизован или ошибка - идем на логин
-      if (authState.status != AuthStatus.authenticated ||
-          authState.user == null) {
+      final hasSession = authState.user != null;
+      final canContinue = hasSession &&
+          authState.status != AuthStatus.unauthenticated &&
+          authState.status != AuthStatus.error;
+      if (!canContinue) {
         navigate('/login');
         return;
       }

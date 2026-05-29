@@ -10,6 +10,7 @@ import 'package:projectgt/presentation/widgets/app_drawer.dart';
 import '../providers/timesheet_provider.dart';
 import '../widgets/timesheet_filter_widget.dart';
 import '../widgets/timesheet_calendar_view.dart';
+import '../widgets/timesheet_hours_loading_indicator.dart';
 
 /// Отступы шапки и тела — как у экрана списка договоров ([gridGutter] 16).
 const _kTimesheetHeaderPadding = EdgeInsets.fromLTRB(16, 20, 16, 8);
@@ -30,7 +31,10 @@ class TimesheetScreen extends ConsumerWidget {
     final isDark = appearance.isDark;
 
     final filteredEntries = filterTimesheetByEmployeeName(
-      timesheetState.entries,
+      filterTimesheetByObjects(
+        timesheetState.entries,
+        timesheetState.selectedObjectIds,
+      ),
       searchQuery,
     );
 
@@ -173,9 +177,7 @@ class TimesheetScreen extends ConsumerWidget {
                             if (timesheetState.isLoading)
                               ColoredBox(
                                 color: scheme.surface.withValues(alpha: 0.8),
-                                child: const Center(
-                                  child: CircularProgressIndicator(),
-                                ),
+                                child: const TimesheetHoursLoadingIndicator(),
                               ),
                           ],
                         ),

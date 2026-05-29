@@ -10,7 +10,7 @@ class JoinCompanyUseCase {
 
   /// Выполняет вступление в компанию.
   ///
-  /// [invitationCode] — уникальный код приглашения.
+  /// [invitationCode] — одноразовый код приглашения (8 символов).
   Future<void> execute({required String invitationCode}) async {
     return await repository.joinCompany(invitationCode: invitationCode);
   }

@@ -1,4 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:projectgt/features/company/data/invitation_error_messages.dart';
+import 'package:projectgt/features/company/domain/entities/company_invitation.dart';
 import 'package:projectgt/features/company/domain/entities/company_profile.dart';
 import 'package:projectgt/features/company/domain/entities/company_bank_account.dart';
 import 'package:projectgt/features/company/domain/entities/company_document.dart';
@@ -53,9 +55,20 @@ abstract class CompanyDataSource {
 
   /// Регистрирует текущего пользователя в существующей компании.
   ///
-  /// [invitationCode] — уникальный строковый код приглашения организации.
-  /// Проверяет существование кода и отсутствие пользователя в списке участников.
+  /// [invitationCode] — одноразовый код приглашения (8 символов).
   Future<void> joinCompany({required String invitationCode});
+
+  /// Создаёт одноразовый код приглашения (owner/admin).
+  Future<CompanyInvitation> createInvitation({
+    required String companyId,
+    int expiresInDays = 7,
+  });
+
+  /// Список приглашений компании.
+  Future<List<CompanyInvitation>> listInvitations(String companyId);
+
+  /// Отзывает неиспользованное приглашение.
+  Future<void> revokeInvitation(String invitationId);
 
   /// Возвращает список всех компаний, участником которых является текущий пользователь.
   ///
@@ -239,47 +252,65 @@ class SupabaseCompanyDataSource implements CompanyDataSource {
 
   @override
   Future<void> joinCompany({required String invitationCode}) async {
-    final user = client.auth.currentUser;
-    if (user == null) throw Exception('Пользователь не авторизован');
-
-    // 1. Ищем компанию по коду
-    final companyData = await client
-        .from('companies')
-        .select('id')
-        .eq('invitation_code', invitationCode)
-        .eq('is_active', true)
-        .maybeSingle();
-
-    if (companyData == null) {
-      throw Exception('Компания с таким кодом не найдена или неактивна');
+    if (client.auth.currentUser == null) {
+      throw Exception('not_authenticated');
     }
 
-    final companyId = companyData['id'];
+    try {
+      await client.rpc(
+        'redeem_company_invitation',
+        params: {'p_code': invitationCode.trim().toUpperCase()},
+      );
+    } on PostgrestException catch (e) {
+      throw Exception(invitationErrorMessage(e));
+    }
+  }
 
-    // 2. Проверяем, не состоит ли уже пользователь в этой компании
-    final existingMember = await client
-        .from('company_members')
+  @override
+  Future<CompanyInvitation> createInvitation({
+    required String companyId,
+    int expiresInDays = 7,
+  }) async {
+    try {
+      final response = await client.rpc(
+        'create_company_invitation',
+        params: {
+          'p_company_id': companyId,
+          'p_expires_in_days': expiresInDays,
+        },
+      );
+      return CompanyInvitation.fromJson(
+        Map<String, dynamic>.from(response as Map),
+      );
+    } on PostgrestException catch (e) {
+      throw Exception(invitationErrorMessage(e));
+    }
+  }
+
+  @override
+  Future<List<CompanyInvitation>> listInvitations(String companyId) async {
+    final response = await client
+        .from('company_invitations')
         .select()
         .eq('company_id', companyId)
-        .eq('user_id', user.id)
-        .maybeSingle();
+        .order('created_at', ascending: false)
+        .limit(20);
 
-    if (existingMember != null) {
-      throw Exception('Вы уже являетесь участником этой организации');
+    return (response as List)
+        .map((row) => CompanyInvitation.fromJson(row as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<void> revokeInvitation(String invitationId) async {
+    try {
+      await client.rpc(
+        'revoke_company_invitation',
+        params: {'p_invitation_id': invitationId},
+      );
+    } on PostgrestException catch (e) {
+      throw Exception(invitationErrorMessage(e));
     }
-
-    // 3. Добавляем в участники
-    await client.from('company_members').insert({
-      'company_id': companyId,
-      'user_id': user.id,
-      'is_owner': false,
-    });
-
-    // 4. Устанавливаем компанию как активную в профиле
-    await client
-        .from('profiles')
-        .update({'last_company_id': companyId})
-        .eq('id', user.id);
   }
 
   @override

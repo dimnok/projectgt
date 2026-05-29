@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/utils/employee_ui_utils.dart';
@@ -576,11 +577,7 @@ class _ToolbarObjectMenu extends StatelessWidget {
                       ),
                       const SizedBox(width: 2),
                       if (objectsLoading)
-                        const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
+                        const CupertinoActivityIndicator(radius: 9)
                       else
                         Icon(
                           menuController.isOpen

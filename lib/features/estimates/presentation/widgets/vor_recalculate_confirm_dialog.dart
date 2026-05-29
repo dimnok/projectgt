@@ -88,10 +88,7 @@ class _VorRecalculateConfirmDialogState
   Future<void> _onConfirm() async {
     setState(() => _isRecalculating = true);
     try {
-      await widget.actions.recalculateVor(
-        widget.vor.contractId,
-        widget.vor.id,
-      );
+      await widget.actions.recalculateVor(widget.vor.contractId, widget.vor.id);
       if (!mounted) return;
       Navigator.of(context).pop(true);
     } catch (_) {
@@ -117,7 +114,7 @@ class _VorRecalculateConfirmDialogState
         _VorSummaryCard(vor: widget.vor),
         const SizedBox(height: 16),
         if (_loadError != null)
-          _ErrorBlock(message: 'Не удалось загрузить список изменений')
+          const _ErrorBlock(message: 'Не удалось загрузить список изменений')
         else if (preview == null)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 24),
@@ -154,7 +151,8 @@ class _VorRecalculateConfirmDialogState
             const SizedBox(width: 8),
             GTPrimaryButton(
               text: _isRecalculating ? 'Пересчёт…' : 'Пересчитать',
-              onPressed: _isRecalculating || preview == null || _loadError != null
+              onPressed:
+                  _isRecalculating || preview == null || _loadError != null
                   ? null
                   : _onConfirm,
             ),
@@ -301,7 +299,9 @@ class _SectionBlock extends StatelessWidget {
         ...entries.map(
           (entry) => switch (entry) {
             VorRecalcMetadataSyncEntry() => _MetadataSyncRow(entry: entry),
-            VorRecalcVolumeEntry(:final change) => _VolumeChangeRow(change: change),
+            VorRecalcVolumeEntry(:final change) => _VolumeChangeRow(
+              change: change,
+            ),
           },
         ),
       ],
@@ -386,7 +386,7 @@ class _VolumeChangeRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(meta.icon, size: 14, color: meta.color,),
+          Icon(meta.icon, size: 14, color: meta.color),
           const SizedBox(width: 8),
           Expanded(
             child: Column(

@@ -1,6 +1,7 @@
 import 'package:projectgt/domain/repositories/employee_repository.dart';
 import 'package:projectgt/features/objects/domain/repositories/object_repository.dart';
 import 'package:projectgt/domain/entities/employee.dart';
+import '../../domain/entities/timesheet_load_result.dart';
 import '../../domain/entities/timesheet_entry.dart';
 import '../../domain/repositories/timesheet_repository.dart';
 import '../../domain/repositories/employee_attendance_repository.dart';
@@ -41,36 +42,32 @@ class TimesheetRepositoryImpl implements TimesheetRepository {
   });
 
   @override
-  Future<List<TimesheetEntry>> getTimesheetEntries({
+  Future<TimesheetLoadResult> loadTimesheet({
     DateTime? startDate,
     DateTime? endDate,
     String? employeeId,
-    List<String>? objectIds,
-    List<String>? positions,
   }) async {
-    // 1. Получаем данные из смен (work_hours)
-    final workEntries = await dataSource.getTimesheetEntries(
-      startDate: startDate,
-      endDate: endDate,
-      employeeId: employeeId,
-      objectIds: objectIds,
-      positions: positions,
-    );
+    final (
+      workEntries,
+      attendanceEntries,
+      allEmployees,
+      objects,
+    ) = await (
+      dataSource.getTimesheetEntries(
+        startDate: startDate,
+        endDate: endDate,
+        employeeId: employeeId,
+      ),
+      attendanceRepository.getAttendanceRecords(
+        startDate: startDate,
+        endDate: endDate,
+        employeeId: employeeId,
+      ),
+      employeeRepository.getEmployees(),
+      objectRepository.getObjects(),
+    ).wait;
 
-    // 2. Получаем данные из посещаемости (employee_attendance)
-    final attendanceEntries = await attendanceRepository.getAttendanceRecords(
-      startDate: startDate,
-      endDate: endDate,
-      employeeId: employeeId,
-      objectId:
-          objectIds != null && objectIds.isNotEmpty ? objectIds.first : null,
-    );
-
-    // 3. Получаем список всех сотрудников и объектов для обогащения данных
-    final allEmployees = await employeeRepository.getEmployees();
-    final objects = await objectRepository.getObjects();
-
-    // 4. Фильтруем сотрудников: все, кроме уволенных
+    // Фильтруем сотрудников: все, кроме уволенных
     final activeEmployees =
         allEmployees.where((e) => e.status != EmployeeStatus.fired).toList();
 
@@ -156,6 +153,9 @@ class TimesheetRepositoryImpl implements TimesheetRepository {
     // 8. Сортируем по дате
     allEntries.sort((a, b) => a.date.compareTo(b.date));
 
-    return allEntries;
+    return TimesheetLoadResult(
+      entries: allEntries,
+      employees: allEmployees,
+    );
   }
 }

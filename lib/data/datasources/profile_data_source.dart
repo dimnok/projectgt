@@ -139,9 +139,6 @@ class SupabaseProfileDataSource implements ProfileDataSource {
       return ProfileModel.fromJson(json);
     } catch (e) {
       Logger().e('Error fetching profile: $e');
-      if (e.toString().contains('PGRST116')) {
-        await client.auth.signOut();
-      }
       return null;
     }
   }

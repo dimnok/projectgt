@@ -3,6 +3,7 @@ import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
 import 'package:projectgt/features/company/data/datasources/company_data_source.dart';
 import 'package:projectgt/features/company/data/repositories/company_repository_impl.dart';
+import 'package:projectgt/features/company/domain/entities/company_invitation.dart';
 import 'package:projectgt/features/company/domain/entities/company_profile.dart';
 import 'package:projectgt/features/company/domain/entities/company_bank_account.dart';
 import 'package:projectgt/features/company/domain/entities/company_document.dart';
@@ -77,4 +78,12 @@ final activeCompanyIdProvider = Provider<String?>((ref) {
 final userCompaniesProvider = FutureProvider<List<CompanyProfile>>((ref) async {
   final repository = ref.watch(companyRepositoryProvider);
   return repository.getMyCompanies();
+});
+
+/// Одноразовые приглашения активной компании.
+final companyInvitationsProvider =
+    FutureProvider.autoDispose<List<CompanyInvitation>>((ref) async {
+  final companyId = ref.watch(activeCompanyIdProvider);
+  if (companyId == null) return [];
+  return ref.read(companyRepositoryProvider).listInvitations(companyId);
 });

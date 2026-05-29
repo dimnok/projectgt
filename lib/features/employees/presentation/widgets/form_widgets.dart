@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -225,11 +226,7 @@ class FormButtons extends StatelessWidget {
               ),
             ),
             child: isLoading
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
+                ? const CupertinoActivityIndicator(radius: 12)
                 : Text(saveText),
           ),
         ),

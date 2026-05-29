@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/core/utils/employee_ui_utils.dart';
 import 'package:projectgt/core/utils/formatters.dart';
-import 'package:projectgt/core/utils/snackbar_utils.dart';
+import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/gt_dropdown.dart';
 import 'package:projectgt/core/widgets/gt_text_field.dart';
@@ -11,6 +11,7 @@ import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
 import 'package:projectgt/domain/entities/employee.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employees_mobile_atmosphere.dart';
 import 'package:projectgt/features/objects/domain/entities/object.dart';
+import 'package:projectgt/features/roles/application/permission_service.dart';
 import 'package:projectgt/presentation/state/employee_state.dart'
     as employee_state;
 
@@ -25,6 +26,10 @@ Future<bool> _persistEmployeeUpdate(
   required String employeeId,
   required Employee Function(Employee latest) apply,
 }) async {
+  if (!ref.read(permissionServiceProvider).can('employees', 'update')) {
+    return false;
+  }
+
   try {
     final latest = ref
         .read(employee_state.employeeProvider)
@@ -37,11 +42,19 @@ Future<bool> _persistEmployeeUpdate(
         .read(employee_state.employeeProvider.notifier)
         .updateEmployee(updated);
     if (!context.mounted) return false;
-    SnackBarUtils.showSuccess(context, 'Сохранено');
+    AppSnackBar.show(
+      context: context,
+      message: 'Сохранено',
+      kind: AppSnackBarKind.success,
+    );
     return true;
   } catch (e) {
     if (context.mounted) {
-      SnackBarUtils.showError(context, 'Ошибка при сохранении: $e');
+      AppSnackBar.show(
+        context: context,
+        message: 'Ошибка при сохранении: $e',
+        kind: AppSnackBarKind.error,
+      );
     }
     return false;
   }
@@ -292,7 +305,11 @@ class _EmployeeMobileProfileEditorSheetState
   Future<void> _save() async {
     if (_lastNameController.text.trim().isEmpty ||
         _firstNameController.text.trim().isEmpty) {
-      SnackBarUtils.showError(context, 'Укажите фамилию и имя');
+      AppSnackBar.show(
+        context: context,
+        message: 'Укажите фамилию и имя',
+        kind: AppSnackBarKind.error,
+      );
       return;
     }
     setState(() => _loading = true);

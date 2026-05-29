@@ -425,13 +425,17 @@ class CurrentUserProfileNotifier extends StateNotifier<ProfileState> {
         // так как в логине используется своя логика задержек для анимации.
         final authNotifier = _ref.read(authProvider.notifier);
         if (!authNotifier.isManualVerifying) {
-          if (profile.status == false) {
-            authNotifier.state = authNotifier.state.copyWith(
-              status: AuthStatus.disabled,
-            );
+          final AuthStatus nextStatus;
+          if (!profile.status) {
+            nextStatus = AuthStatus.disabled;
           } else if (profile.lastCompanyId == null) {
+            nextStatus = AuthStatus.onboarding;
+          } else {
+            nextStatus = AuthStatus.authenticated;
+          }
+          if (authNotifier.state.status != nextStatus) {
             authNotifier.state = authNotifier.state.copyWith(
-              status: AuthStatus.onboarding,
+              status: nextStatus,
             );
           }
         }
@@ -476,11 +480,13 @@ class CurrentUserProfileNotifier extends StateNotifier<ProfileState> {
           callback: (payload) {
             final status = payload.newRecord['status'] as bool?;
 
+            final authNotifier = _ref.read(authProvider.notifier);
             if (status == false) {
-              final authNotifier = _ref.read(authProvider.notifier);
               authNotifier.state = authNotifier.state.copyWith(
                 status: AuthStatus.disabled,
               );
+            } else if (status == true) {
+              authNotifier.checkAuthStatus(force: true);
             }
           },
         )

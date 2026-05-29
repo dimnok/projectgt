@@ -9,7 +9,7 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:projectgt/core/di/providers.dart';
-import 'package:projectgt/core/utils/snackbar_utils.dart';
+import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/domain/entities/employee.dart';
 import 'package:projectgt/presentation/state/employee_state.dart';
 
@@ -36,31 +36,53 @@ class EmployeeAvatarController extends StateNotifier<AsyncValue<void>> {
     state = const AsyncValue.loading();
     try {
       final photoService = _ref.read(photoServiceProvider);
-      final file = await photoService.pickImage(source);
-      if (file == null) {
-        state = const AsyncValue.data(null);
-        return;
+      final String? url;
+      if (kIsWeb) {
+        final bytes = await photoService.pickImageBytes(source);
+        if (bytes == null) {
+          state = const AsyncValue.data(null);
+          return;
+        }
+        url = await photoService.uploadPhotoBytes(
+          entity: 'employee',
+          id: employee.id,
+          bytes: bytes,
+          displayName: employee.fullName,
+        );
+      } else {
+        final file = await photoService.pickImage(source);
+        if (file == null) {
+          state = const AsyncValue.data(null);
+          return;
+        }
+        url = await photoService.uploadPhoto(
+          entity: 'employee',
+          id: employee.id,
+          file: file,
+          displayName: employee.fullName,
+        );
       }
-
-      final url = await photoService.uploadPhoto(
-        entity: 'employee',
-        id: employee.id,
-        file: file,
-        displayName: employee.fullName,
-      );
 
       if (url != null) {
         final updatedEmployee = employee.copyWith(photoUrl: url);
         await _ref.read(employeeProvider.notifier).updateEmployee(updatedEmployee);
         if (context.mounted) {
-          SnackBarUtils.showSuccessOverlay(context, 'Фото успешно обновлено');
+          AppSnackBar.show(
+            context: context,
+            message: 'Фото успешно обновлено',
+            kind: AppSnackBarKind.success,
+          );
         }
       }
       state = const AsyncValue.data(null);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
       if (context.mounted) {
-        SnackBarUtils.showErrorOverlay(context, 'Ошибка загрузки фото: $e');
+        AppSnackBar.show(
+          context: context,
+          message: 'Ошибка загрузки фото: $e',
+          kind: AppSnackBarKind.error,
+        );
       }
     }
   }
@@ -88,12 +110,20 @@ class EmployeeAvatarController extends StateNotifier<AsyncValue<void>> {
 
       state = const AsyncValue.data(null);
       if (context.mounted) {
-        SnackBarUtils.showSuccessOverlay(context, 'Фото успешно удалено');
+        AppSnackBar.show(
+          context: context,
+          message: 'Фото успешно удалено',
+          kind: AppSnackBarKind.success,
+        );
       }
     } catch (e, st) {
       state = AsyncValue.error(e, st);
       if (context.mounted) {
-        SnackBarUtils.showErrorOverlay(context, 'Ошибка удаления фото: $e');
+        AppSnackBar.show(
+          context: context,
+          message: 'Ошибка удаления фото: $e',
+          kind: AppSnackBarKind.error,
+        );
       }
     }
   }
@@ -162,12 +192,20 @@ class EmployeeAvatarController extends StateNotifier<AsyncValue<void>> {
             : (Platform.isAndroid || Platform.isIOS)
                 ? 'Фото сохранено в галерею'
                 : 'Фото сохранено в папку «Загрузки»';
-        SnackBarUtils.showSuccessOverlay(context, message);
+        AppSnackBar.show(
+          context: context,
+          message: message,
+          kind: AppSnackBarKind.success,
+        );
       }
     } catch (e, st) {
       state = AsyncValue.error(e, st);
       if (context.mounted) {
-        SnackBarUtils.showErrorOverlay(context, 'Ошибка скачивания: ${e.toString()}');
+        AppSnackBar.show(
+          context: context,
+          message: 'Ошибка скачивания: ${e.toString()}',
+          kind: AppSnackBarKind.error,
+        );
       }
     }
   }

@@ -1,4 +1,5 @@
 import 'package:projectgt/features/company/data/datasources/company_data_source.dart';
+import 'package:projectgt/features/company/domain/entities/company_invitation.dart';
 import 'package:projectgt/features/company/domain/entities/company_profile.dart';
 import 'package:projectgt/features/company/domain/entities/company_bank_account.dart';
 import 'package:projectgt/features/company/domain/entities/company_document.dart';
@@ -103,6 +104,27 @@ class CompanyRepositoryImpl implements CompanyRepository {
   @override
   Future<void> joinCompany({required String invitationCode}) {
     return dataSource.joinCompany(invitationCode: invitationCode);
+  }
+
+  @override
+  Future<CompanyInvitation> createInvitation({
+    required String companyId,
+    int expiresInDays = 7,
+  }) {
+    return dataSource.createInvitation(
+      companyId: companyId,
+      expiresInDays: expiresInDays,
+    );
+  }
+
+  @override
+  Future<List<CompanyInvitation>> listInvitations(String companyId) {
+    return dataSource.listInvitations(companyId);
+  }
+
+  @override
+  Future<void> revokeInvitation(String invitationId) {
+    return dataSource.revokeInvitation(invitationId);
   }
 
   @override

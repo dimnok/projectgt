@@ -26,9 +26,9 @@ import 'package:projectgt/features/employees/presentation/widgets/add_employee_s
 import 'package:projectgt/features/employees/presentation/widgets/employees_table_actions_bar.dart';
 import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employees_table_filters_toolbar.dart';
-import 'package:projectgt/presentation/state/profile_state.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_details_modal.dart';
 import 'package:projectgt/domain/entities/business_trip_rate.dart';
+import 'package:projectgt/features/employees/presentation/providers/employees_module_objects_provider.dart';
 import 'package:projectgt/features/employees/presentation/services/employee_server_excel_export_service.dart';
 
 /// Отступы шапки и тела — как у экрана табеля ([TimesheetScreen]).
@@ -121,10 +121,6 @@ class _EmployeesTableScreenState extends ConsumerState<EmployeesTableScreen> {
   EmployeesObjectTableFilterValue _objectFilter =
       EmployeesObjectTableFilterValue.all;
 
-  /// Кэш контейнера Riverpod: [ProviderScope.containerOf] в [dispose] недопустим;
-  /// также нужен для отложенного сброса поиска вне фазы построения дерева.
-  ProviderContainer? _providerContainer;
-
   /// ID сотрудника, для которого сейчас открыто меню (для подсветки строки)
   String? _activeMenuEmployeeId;
 
@@ -133,33 +129,15 @@ class _EmployeesTableScreenState extends ConsumerState<EmployeesTableScreen> {
   static const _tableBorderRadius = 12.0;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _providerContainer ??= ProviderScope.containerOf(context);
-  }
-
-  @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      Future(() {
-        if (!mounted) return;
-        ref.read(state.employeeProvider.notifier).getEmployees();
-        ref.read(objectProvider.notifier).loadObjects();
-      });
+      final employeeNotifier = ref.read(state.employeeProvider.notifier);
+      employeeNotifier.setSearchQuery('');
+      employeeNotifier.getEmployees();
+      ref.read(objectProvider.notifier).loadObjects();
     });
-  }
-
-  @override
-  void dispose() {
-    final container = _providerContainer;
-    super.dispose();
-    if (container != null) {
-      Future(() {
-        container.read(state.employeeProvider.notifier).setSearchQuery('');
-      });
-    }
   }
 
   @override
@@ -177,22 +155,14 @@ class _EmployeesTableScreenState extends ConsumerState<EmployeesTableScreen> {
 
     final allFilteredBySearch = employeeState.filteredEmployees;
 
-    final profile = ref.watch(currentUserProfileProvider).profile;
-    final allowedObjectIds = profile?.objectIds ?? const <String>[];
-    final objectsForFilter = (allowedObjectIds.isNotEmpty
-            ? objectState.objects
-                  .where((o) => allowedObjectIds.contains(o.id))
-                  .toList()
-            : List<ObjectEntity>.from(objectState.objects))
-          ..sort((a, b) => a.name.compareTo(b.name));
+    final picklistObjects = ref.watch(employeesModuleObjectsProvider);
 
-    if (!_objectFilter.isStillValid(objectsForFilter) &&
-        _objectFilter != EmployeesObjectTableFilterValue.all) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
+    ref.listen<List<ObjectEntity>>(employeesModuleObjectsProvider, (_, next) {
+      if (_objectFilter == EmployeesObjectTableFilterValue.all) return;
+      if (!_objectFilter.isStillValid(next)) {
         setState(() => _objectFilter = EmployeesObjectTableFilterValue.all);
-      });
-    }
+      }
+    });
 
     final afterObjectFilter = allFilteredBySearch
         .where((e) => _objectFilter.matches(e))
@@ -209,7 +179,7 @@ class _EmployeesTableScreenState extends ConsumerState<EmployeesTableScreen> {
         (employeeState.status == state.EmployeeStatus.loading &&
             employees.isEmpty) ||
         (objectState.status == ObjectStatus.loading &&
-            objectState.objects.isEmpty);
+            picklistObjects.isEmpty);
 
     final appearance = MobileAtmosphereAppearance.of(context);
     final scheme = appearance.scheme;
@@ -311,9 +281,9 @@ class _EmployeesTableScreenState extends ConsumerState<EmployeesTableScreen> {
                             _buildFiltersRow(
                               context,
                               afterObjectFilter,
-                              objectsForFilter,
+                              picklistObjects,
                               objectState.status == ObjectStatus.loading &&
-                                  objectState.objects.isEmpty,
+                                  picklistObjects.isEmpty,
                               permissions,
                             ),
                             EmployeesTableActionsBar(
@@ -330,7 +300,7 @@ class _EmployeesTableScreenState extends ConsumerState<EmployeesTableScreen> {
                               child: _buildTableContainer(
                                 theme,
                                 employees,
-                                objectState.objects,
+                                picklistObjects,
                                 isLoading,
                                 permissions,
                               ),
@@ -464,8 +434,10 @@ class _EmployeesTableScreenState extends ConsumerState<EmployeesTableScreen> {
     final companyId = ref.read(activeCompanyIdProvider);
     if (companyId == null || companyId.isEmpty) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Не выбрана компания')),
+      AppSnackBar.show(
+        context: context,
+        message: 'Не выбрана компания',
+        kind: AppSnackBarKind.warning,
       );
       return;
     }
@@ -484,14 +456,18 @@ class _EmployeesTableScreenState extends ConsumerState<EmployeesTableScreen> {
       );
       if (!context.mounted) return;
       if (path != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Файл сохранен: $path')),
+        AppSnackBar.show(
+          context: context,
+          message: 'Файл сохранен: $path',
+          kind: AppSnackBarKind.success,
         );
       }
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка при экспорте: $e')),
+      AppSnackBar.show(
+        context: context,
+        message: 'Ошибка при экспорте: $e',
+        kind: AppSnackBarKind.error,
       );
     }
   }
@@ -531,7 +507,7 @@ class _EmployeesTableScreenState extends ConsumerState<EmployeesTableScreen> {
     PermissionService permissions,
   ) {
     if (isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: CupertinoActivityIndicator());
     }
 
     const columnWidths = {
@@ -953,9 +929,11 @@ class _EmployeesTableScreenState extends ConsumerState<EmployeesTableScreen> {
           .updateEmployee(updatedEmployee);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Ошибка при обновлении: $e')));
+        AppSnackBar.show(
+          context: context,
+          message: 'Ошибка при обновлении: $e',
+          kind: AppSnackBarKind.error,
+        );
       }
     }
   }

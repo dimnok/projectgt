@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/features/employees/presentation/utils/employees_layout_utils.dart';
-import 'package:projectgt/core/utils/snackbar_utils.dart';
+import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/gt_text_field.dart';
@@ -101,7 +101,11 @@ class _AddEmployeeRateDialogState extends ConsumerState<AddEmployeeRateDialog> {
     final newRate = double.tryParse(rateText);
 
     if (newRate == null || newRate <= 0) {
-      SnackBarUtils.showError(context, 'Введите корректную сумму ставки');
+      AppSnackBar.show(
+        context: context,
+        message: 'Введите корректную сумму ставки',
+        kind: AppSnackBarKind.error,
+      );
       return;
     }
 
@@ -118,9 +122,10 @@ class _AddEmployeeRateDialogState extends ConsumerState<AddEmployeeRateDialog> {
       );
     } catch (e) {
       if (!mounted) return;
-      SnackBarUtils.showError(
-        context,
-        'Не удалось проверить существующие ставки: $e',
+      AppSnackBar.show(
+        context: context,
+        message: 'Не удалось проверить существующие ставки: $e',
+        kind: AppSnackBarKind.error,
       );
       return;
     }
@@ -150,12 +155,20 @@ class _AddEmployeeRateDialogState extends ConsumerState<AddEmployeeRateDialog> {
           .getEmployee(widget.employee.id);
 
       if (mounted) {
-        SnackBarUtils.showSuccess(context, 'Ставка успешно обновлена');
+        AppSnackBar.show(
+          context: context,
+          message: 'Ставка успешно обновлена',
+          kind: AppSnackBarKind.success,
+        );
         Navigator.of(context).pop(true);
       }
     } catch (e) {
       if (mounted) {
-        SnackBarUtils.showError(context, 'Ошибка при сохранении ставки: $e');
+        AppSnackBar.show(
+          context: context,
+          message: 'Ошибка при сохранении ставки: $e',
+          kind: AppSnackBarKind.error,
+        );
       }
     } finally {
       if (mounted) {

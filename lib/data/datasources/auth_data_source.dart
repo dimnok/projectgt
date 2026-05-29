@@ -224,9 +224,6 @@ class SupabaseAuthDataSource implements AuthDataSource {
       }
     } catch (e) {
       Logger().e('Ошибка при получении роли (getCurrentUser): $e');
-      if (e.toString().contains('PGRST116')) {
-        await client.auth.signOut();
-      }
     }
 
     return UserModel(

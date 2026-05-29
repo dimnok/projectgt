@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:projectgt/domain/entities/employee.dart';
 import '../../domain/entities/timesheet_entry.dart';
 import '../../domain/repositories/timesheet_repository.dart';
 import 'repositories_providers.dart';
@@ -7,6 +8,9 @@ import 'repositories_providers.dart';
 class TimesheetState {
   /// Список записей табеля
   final List<TimesheetEntry> entries;
+
+  /// Сотрудники компании (загружаются вместе с табелем).
+  final List<Employee> employees;
 
   /// Флаг загрузки данных
   final bool isLoading;
@@ -36,6 +40,7 @@ class TimesheetState {
   /// [selectedObjectIds] — выбранные объекты для фильтрации (мультивыбор, по умолчанию null).
   TimesheetState({
     this.entries = const [],
+    this.employees = const [],
     this.isLoading = false,
     this.error,
     required this.startDate,
@@ -57,6 +62,7 @@ class TimesheetState {
   /// Возвращает новый экземпляр [TimesheetState] с обновлёнными значениями.
   TimesheetState copyWith({
     List<TimesheetEntry>? entries,
+    List<Employee>? employees,
     bool? isLoading,
     String? error,
     DateTime? startDate,
@@ -65,6 +71,7 @@ class TimesheetState {
   }) {
     return TimesheetState(
       entries: entries ?? this.entries,
+      employees: employees ?? this.employees,
       isLoading: isLoading ?? this.isLoading,
       error: error,
       startDate: startDate ?? this.startDate,
@@ -92,25 +99,18 @@ class TimesheetNotifier extends StateNotifier<TimesheetState> {
     loadTimesheet();
   }
 
-  /// Загружает данные табеля с учетом текущих фильтров.
-  ///
-  /// Все фильтры применяются на серверной стороне для оптимизации производительности.
+  /// Загружает данные табеля за текущий период (фильтр объектов — на клиенте).
   Future<void> loadTimesheet() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      // Передаём все фильтры в репозиторий для обработки на сервере
-      final entries = await repository.getTimesheetEntries(
+      final result = await repository.loadTimesheet(
         startDate: state.startDate,
         endDate: state.endDate,
-        employeeId: null,
-        objectIds: state.selectedObjectIds?.isNotEmpty == true
-            ? state.selectedObjectIds
-            : null,
-        positions: null,
       );
 
       state = state.copyWith(
-        entries: entries,
+        entries: result.entries,
+        employees: result.employees,
         isLoading: false,
       );
     } catch (e) {
@@ -127,10 +127,9 @@ class TimesheetNotifier extends StateNotifier<TimesheetState> {
     loadTimesheet();
   }
 
-  /// Устанавливает выбранные объекты для фильтрации (мультивыбор)
+  /// Выбранные объекты для клиентского фильтра (без перезапроса к серверу).
   void setSelectedObjects(List<String> objectIds) {
     state = state.copyWith(selectedObjectIds: objectIds);
-    loadTimesheet();
   }
 
   /// Сбрасывает все фильтры

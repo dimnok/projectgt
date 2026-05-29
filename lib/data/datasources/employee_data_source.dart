@@ -95,27 +95,26 @@ class SupabaseEmployeeDataSource implements EmployeeDataSource {
       return [];
     }
     try {
-      final response = await client
-          .from('employees')
-          .select('*')
-          .eq('company_id', activeCompanyId)
-          .order('last_name');
-
-      final employees = response
-          .map<EmployeeModel>((json) => EmployeeModel.fromJson(json))
-          .toList();
-
-      // Загружаем текущие ставки для всех сотрудников одним запросом
-      try {
-        final ratesResponse = await client
+      final (employeesResponse, ratesResponse) = await (
+        client
+            .from('employees')
+            .select('*')
+            .eq('company_id', activeCompanyId)
+            .order('last_name'),
+        client
             .from('employee_rates')
             .select('employee_id, hourly_rate')
             .eq('company_id', activeCompanyId)
-            .isFilter('valid_to', null);
+            .isFilter('valid_to', null),
+      ).wait;
 
-        // Создаем мапу employee_id -> hourly_rate
+      final employees = (employeesResponse as List)
+          .map<EmployeeModel>((json) => EmployeeModel.fromJson(json))
+          .toList();
+
+      try {
         final ratesMap = <String, double>{};
-        for (final rate in ratesResponse) {
+        for (final rate in ratesResponse as List) {
           final employeeId = rate['employee_id'] as String;
           final hourlyRate = (rate['hourly_rate'] as num?)?.toDouble();
           if (hourlyRate != null) {
@@ -123,7 +122,6 @@ class SupabaseEmployeeDataSource implements EmployeeDataSource {
           }
         }
 
-        // Обновляем сотрудников с их текущими ставками
         return employees.map((employee) {
           final currentRate = ratesMap[employee.id];
           return currentRate != null

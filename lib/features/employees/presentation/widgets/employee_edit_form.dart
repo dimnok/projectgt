@@ -1,12 +1,14 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/utils/employee_ui_utils.dart';
-import 'package:projectgt/core/utils/snackbar_utils.dart';
+import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/core/widgets/gt_dropdown.dart';
 import 'package:projectgt/domain/entities/employee.dart';
 import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:projectgt/features/employees/presentation/widgets/editable_inline_text_row.dart';
+import 'package:projectgt/features/roles/application/permission_service.dart';
 import 'package:projectgt/presentation/state/employee_state.dart' as employee_state;
 import 'package:projectgt/core/di/providers.dart';
 
@@ -203,14 +205,8 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
         _employmentDate != _employee.employmentDate ||
         isListChanged(_employee.objectIds, _objectIds);
 
-    if (_hasChanges != hasChanges) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          setState(() {
-            _hasChanges = hasChanges;
-          });
-        }
-      });
+    if (_hasChanges != hasChanges && mounted) {
+      setState(() => _hasChanges = hasChanges);
     }
   }
 
@@ -234,6 +230,10 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
   }
 
   Future<void> _saveChanges() async {
+    if (!ref.read(permissionServiceProvider).can('employees', 'update')) {
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -283,12 +283,20 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
       await ref.read(employee_state.employeeProvider.notifier).updateEmployee(updatedEmployee);
 
       if (mounted) {
-        SnackBarUtils.showSuccess(context, 'Данные сохранены');
+        AppSnackBar.show(
+          context: context,
+          message: 'Данные сохранены',
+          kind: AppSnackBarKind.success,
+        );
         widget.onSaved(updatedEmployee);
       }
     } catch (e) {
       if (mounted) {
-        SnackBarUtils.showError(context, 'Ошибка при сохранении: $e');
+        AppSnackBar.show(
+          context: context,
+          message: 'Ошибка при сохранении: $e',
+          kind: AppSnackBarKind.error,
+        );
       }
     } finally {
       if (mounted) {
@@ -353,13 +361,9 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
                       elevation: 0,
                     ),
                     child: _isLoading
-                        ? const SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
+                        ? const CupertinoActivityIndicator(
+                            radius: 7,
+                            color: Colors.white,
                           )
                         : const Text(
                             'Сохранить',

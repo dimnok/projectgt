@@ -1,14 +1,18 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:projectgt/core/utils/formatters.dart';
+import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/core/widgets/gt_dropdown.dart';
 import 'package:projectgt/domain/entities/employee.dart';
 import 'package:projectgt/features/objects/domain/entities/object.dart'
     as project_object;
 import '../../domain/entities/employee_attendance_entry.dart';
+import '../../domain/entities/timesheet_load_result.dart';
 import '../providers/repositories_providers.dart';
+import 'timesheet_hours_loading_indicator.dart';
 
 /// Модальное окно для управления посещаемостью сотрудника (вне смен).
 ///
@@ -105,7 +109,7 @@ class _EmployeeAttendanceDialogState
           startDate: widget.startDate,
           endDate: widget.endDate,
         ),
-        timesheetRepository.getTimesheetEntries(
+        timesheetRepository.loadTimesheet(
           startDate: widget.startDate,
           endDate: widget.endDate,
           employeeId: widget.employee.id,
@@ -113,7 +117,7 @@ class _EmployeeAttendanceDialogState
       ]);
 
       final records = results[0] as List<EmployeeAttendanceEntry>;
-      final shiftEntries = results[1] as List<dynamic>;
+      final shiftEntries = (results[1] as TimesheetLoadResult).entries;
 
       if (mounted) {
         setState(() {
@@ -216,14 +220,13 @@ class _EmployeeAttendanceDialogState
     }
   }
 
-  /// Показывает ошибку
+  /// Показывает ошибку через [AppSnackBar].
   void _showError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Theme.of(context).colorScheme.error,
-      ),
+    AppSnackBar.show(
+      context: context,
+      message: message,
+      kind: AppSnackBarKind.error,
     );
   }
 
@@ -337,7 +340,7 @@ class _EmployeeAttendanceDialogState
 
             // Календарь с часами (берёт оставшееся место)
             _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const TimesheetHoursLoadingIndicator()
                 : _buildCalendar(theme, isMobile),
 
             SizedBox(height: isMobile ? 8 : 16),
@@ -362,7 +365,7 @@ class _EmployeeAttendanceDialogState
                       ? const SizedBox(
                           height: 20,
                           width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: CupertinoActivityIndicator(radius: 7),
                         )
                       : Text(
                           'Сохранить',

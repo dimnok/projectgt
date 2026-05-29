@@ -135,6 +135,16 @@ class TimesheetSearchAction extends ConsumerWidget {
   }
 }
 
+/// Фильтр записей табеля по выбранным объектам (только UI, без перезапроса).
+List<TimesheetEntry> filterTimesheetByObjects(
+  List<TimesheetEntry> entries,
+  List<String>? objectIds,
+) {
+  if (objectIds == null || objectIds.isEmpty) return entries;
+  final ids = objectIds.toSet();
+  return entries.where((e) => ids.contains(e.objectId)).toList();
+}
+
 /// Утилита фильтрации записей табеля по ФИО сотрудника
 List<TimesheetEntry> filterTimesheetByEmployeeName(
   List<TimesheetEntry> entries,

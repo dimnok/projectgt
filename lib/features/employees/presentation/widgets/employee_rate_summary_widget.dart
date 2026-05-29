@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/domain/entities/employee.dart';
@@ -24,6 +25,9 @@ class EmployeeRateSummaryWidget extends ConsumerStatefulWidget {
   /// Тема приложения.
   final ThemeData theme;
 
+  /// Разрешено добавлять ставки (модуль «Сотрудники», update).
+  final bool canManageRates;
+
   /// Конструктор [EmployeeRateSummaryWidget].
   const EmployeeRateSummaryWidget({
     super.key,
@@ -31,6 +35,7 @@ class EmployeeRateSummaryWidget extends ConsumerStatefulWidget {
     required this.labelStyle,
     required this.valueStyle,
     required this.theme,
+    this.canManageRates = false,
   });
 
   @override
@@ -104,43 +109,45 @@ class _EmployeeRateSummaryWidgetState
                     style: widget.valueStyle,
                   ),
                 ),
-                // Кнопка добавления ставки (круглая зелёная)
-                Padding(
-                  padding: const EdgeInsets.only(left: 8),
-                  child: GestureDetector(
-                    onTap: () async {
-                      final result = await AddEmployeeRateDialog.show(context, widget.employee);
-                      if (result == true) {
-                        // Инвалидируем провайдер истории ставок
-                        ref.invalidate(getEmployeeRatesUseCaseProvider);
-                        // Вместо инвалидации всего провайдера сотрудников (что сбрасывает список),
-                        // просто обновляем данные конкретного сотрудника
-                        ref.read(employee_state.employeeProvider.notifier).getEmployee(widget.employee.id);
-                        setState(() {});
-                      }
-                    },
-                    child: Container(
-                      width: 24,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        color: Colors.green,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.green.withValues(alpha: 0.3),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.add,
-                        color: Colors.white,
-                        size: 16,
+                if (widget.canManageRates)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: GestureDetector(
+                      onTap: () async {
+                        final result = await AddEmployeeRateDialog.show(
+                          context,
+                          widget.employee,
+                        );
+                        if (result == true) {
+                          ref.invalidate(getEmployeeRatesUseCaseProvider);
+                          ref
+                              .read(employee_state.employeeProvider.notifier)
+                              .getEmployee(widget.employee.id);
+                          setState(() {});
+                        }
+                      },
+                      child: Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: Colors.green,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.green.withValues(alpha: 0.3),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.add,
+                          color: Colors.white,
+                          size: 16,
+                        ),
                       ),
                     ),
                   ),
-                ),
                 Padding(
                   padding: const EdgeInsets.only(left: 8),
                   child: Icon(
@@ -195,7 +202,7 @@ class _EmployeeRateSummaryWidgetState
           return const Center(
             child: Padding(
               padding: EdgeInsets.all(16),
-              child: CircularProgressIndicator(),
+              child: CupertinoActivityIndicator(),
             ),
           );
         }

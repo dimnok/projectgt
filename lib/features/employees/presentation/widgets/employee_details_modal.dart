@@ -6,11 +6,13 @@ import 'package:image_picker/image_picker.dart';
 import 'package:projectgt/core/utils/employee_ui_utils.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
+import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/gt_context_menu.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:projectgt/domain/entities/business_trip_rate.dart';
 import 'package:projectgt/domain/entities/employee.dart';
 import 'package:projectgt/features/employees/presentation/providers/employee_avatar_controller.dart';
+import 'package:projectgt/features/roles/application/permission_service.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_business_trip_summary_widget.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_edit_form.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_rate_summary_widget.dart';
@@ -85,13 +87,25 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
-    // Подписываемся на обновления сотрудника из провайдера
-    final employeeState = ref.watch(employee_state.employeeProvider);
-    final updatedEmployee = employeeState.employees.where((e) => e.id == _employee.id).firstOrNull;
-    if (updatedEmployee != null) {
-      _employee = updatedEmployee;
-    }
+    final canUpdate =
+        ref.watch(permissionServiceProvider).can('employees', 'update');
+
+    ref.listen(permissionServiceProvider, (_, next) {
+      if (!next.can('employees', 'update') && _isEditing) {
+        setState(() {
+          _isEditing = false;
+          _syncDialogCloseButton();
+        });
+      }
+    });
+
+    ref.listen(employee_state.employeeProvider, (_, next) {
+      final updatedEmployee =
+          next.employees.where((e) => e.id == _employee.id).firstOrNull;
+      if (updatedEmployee != null && updatedEmployee != _employee) {
+        setState(() => _employee = updatedEmployee);
+      }
+    });
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -110,7 +124,7 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
               ),
             );
           },
-          child: _isEditing
+          child: _isEditing && canUpdate
               ? EmployeeEditForm(
                   key: const ValueKey('edit_form'),
                   employee: _employee,
@@ -133,9 +147,9 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
                   children: [
                     _buildMainInfo(theme),
                     const SizedBox(height: 24),
-                    _buildFinancialInfo(theme),
+                    _buildFinancialInfo(theme, canUpdate: canUpdate),
                     const SizedBox(height: 24),
-                    _buildAdditionalInfo(theme),
+                    _buildAdditionalInfo(theme, canUpdate: canUpdate),
                   ],
                 ),
         ),
@@ -235,7 +249,7 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
                 radius: 48,
                 backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
                 child: isLoadingAvatar
-                    ? const CircularProgressIndicator()
+                    ? const CupertinoActivityIndicator(radius: 20)
                     : (!hasPhoto
                         ? Icon(
                             CupertinoIcons.person,
@@ -495,7 +509,7 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
     );
   }
 
-  Widget _buildFinancialInfo(ThemeData theme) {
+  Widget _buildFinancialInfo(ThemeData theme, {required bool canUpdate}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -515,11 +529,12 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
               ) ??
               const TextStyle(),
           theme: theme,
+          canManageRates: canUpdate,
         ),
         EmployeeBusinessTripSummaryWidget(
           employee: _employee,
-          onAddBusinessTrip: _showBusinessTripModal,
-          onEditBusinessTrip: _showBusinessTripModal,
+          onAddBusinessTrip: canUpdate ? _showBusinessTripModal : null,
+          onEditBusinessTrip: canUpdate ? _showBusinessTripModal : null,
           labelStyle: theme.textTheme.bodyMedium ?? const TextStyle(),
           valueStyle:
               theme.textTheme.bodyMedium?.copyWith(
@@ -532,7 +547,7 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
     );
   }
 
-  Widget _buildAdditionalInfo(ThemeData theme) {
+  Widget _buildAdditionalInfo(ThemeData theme, {required bool canUpdate}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -545,15 +560,16 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            IconButton(
-              icon: const Icon(CupertinoIcons.pencil, size: 20),
-              color: theme.colorScheme.primary,
-              tooltip: 'Редактировать личные данные',
-              onPressed: () {
-                setState(() => _isEditing = true);
-                _syncDialogCloseButton();
-              },
-            ),
+            if (canUpdate)
+              GTTextButton(
+                text: 'Редактировать',
+                fontSize: 12,
+                color: theme.colorScheme.primary,
+                onPressed: () {
+                  setState(() => _isEditing = true);
+                  _syncDialogCloseButton();
+                },
+              ),
           ],
         ),
         const SizedBox(height: 16),

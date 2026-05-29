@@ -6,6 +6,7 @@ import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/gt_text_field.dart';
 import 'package:projectgt/core/widgets/app_snackbar.dart';
+import 'package:projectgt/features/company/data/invitation_error_messages.dart';
 import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 import 'package:projectgt/presentation/state/profile_state.dart';
 import 'package:projectgt/presentation/state/auth_state.dart';
@@ -91,9 +92,12 @@ class _CompanyJoinDialogState extends ConsumerState<CompanyJoinDialog> {
       }
     } catch (e) {
       if (mounted) {
+        final msg = e.toString();
         AppSnackBar.show(
           context: context,
-          message: 'Ошибка при вступлении: Код недействителен или уже использован',
+          message: msg.startsWith('Exception: ')
+              ? msg.substring(11)
+              : invitationErrorMessage(e),
           kind: AppSnackBarKind.error,
         );
       }
@@ -112,7 +116,8 @@ class _CompanyJoinDialogState extends ConsumerState<CompanyJoinDialog> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'Введите уникальный код приглашения, полученный от администратора организации.',
+          'Введите одноразовый код из 8 символов, который выдал владелец '
+          'или администратор компании.',
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
           ),
@@ -121,8 +126,9 @@ class _CompanyJoinDialogState extends ConsumerState<CompanyJoinDialog> {
         GTTextField(
           controller: _codeController,
           labelText: 'Код приглашения',
-          hintText: 'GT-XXXXXX',
+          hintText: 'AB12CD34',
           prefixIcon: CupertinoIcons.ticket,
+          textCapitalization: TextCapitalization.characters,
           onSubmitted: (_) => _submit(),
         ),
         const SizedBox(height: 8),

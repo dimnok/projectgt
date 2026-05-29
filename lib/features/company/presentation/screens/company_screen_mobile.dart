@@ -6,6 +6,7 @@ import 'package:projectgt/features/company/presentation/widgets/company_profile_
 import 'package:projectgt/features/company/presentation/widgets/company_bank_account_edit_dialog.dart';
 import 'package:projectgt/features/company/presentation/widgets/company_document_edit_dialog.dart';
 import 'package:projectgt/features/company/presentation/widgets/company_info_widgets.dart';
+import 'package:projectgt/features/company/presentation/widgets/company_invitations_card.dart';
 import 'package:projectgt/features/company/domain/entities/company_bank_account.dart';
 import 'package:projectgt/features/company/domain/entities/company_document.dart';
 import 'package:projectgt/core/utils/formatters.dart';
@@ -59,6 +60,8 @@ class CompanyScreenMobile extends ConsumerWidget {
                     sliver: SliverList(
                       delegate: SliverChildListDelegate([
                         const SizedBox(height: 16),
+                        const CompanyInvitationsCard(),
+                        const SizedBox(height: 12),
                         CompanyInfoCard(
                           title: 'Организация',
                           icon: CupertinoIcons.info_circle,
