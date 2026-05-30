@@ -1,35 +1,19 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'timesheet_entry.freezed.dart';
-part 'timesheet_entry.g.dart';
 
 /// Сущность записи в табеле рабочего времени сотрудника.
 ///
-/// Представляет собой запись рабочих часов сотрудника с привязкой к смене (workId), объекту и дополнительной информацией для отображения.
+/// Представляет запись рабочих часов с привязкой к смене ([workId]), объекту
+/// и полями для отображения (ФИО, объект, должность).
 @freezed
 abstract class TimesheetEntry with _$TimesheetEntry {
-  @JsonSerializable(fieldRename: FieldRename.snake)
-
-  /// Создаёт сущность записи в табеле рабочего времени сотрудника.
-  ///
-  /// [id] — идентификатор записи (совпадает с id в work_hours)
-  /// [workId] — идентификатор смены
-  /// [employeeId] — идентификатор сотрудника
-  /// [hours] — количество отработанных часов
-  /// [comment] — комментарий к записи (опционально)
-  /// [date] — дата смены (добавляется из works)
-  /// [objectId] — идентификатор объекта (добавляется из works)
-  /// [employeeName] — имя сотрудника для отображения (опционально)
-  /// [objectName] — название объекта для отображения (опционально)
-  /// [employeePosition] — должность сотрудника (опционально)
-  /// [createdAt] — дата создания записи (опционально)
-  /// [updatedAt] — дата обновления записи (опционально)
-  /// [isManualEntry] — признак ручного ввода (true = employee_attendance, false = work_hours)
+  /// Создаёт запись табеля.
   const factory TimesheetEntry({
-    /// Идентификатор записи (совпадает с id в work_hours).
+    /// Идентификатор записи (`work_hours.id` или `employee_attendance.id`).
     required String id,
 
-    /// Идентификатор смены.
+    /// Идентификатор смены; для ручной посещаемости совпадает с [id].
     required String workId,
 
     /// Идентификатор сотрудника.
@@ -41,13 +25,13 @@ abstract class TimesheetEntry with _$TimesheetEntry {
     /// Комментарий к записи.
     String? comment,
 
-    /// Дата смены (не хранится в work_hours, добавляется из works).
+    /// Дата (из `works.date` или `employee_attendance.date`).
     required DateTime date,
 
-    /// Идентификатор объекта (не хранится в work_hours, добавляется из works).
+    /// Идентификатор объекта.
     required String objectId,
 
-    /// Имя сотрудника для отображения (не хранится в БД).
+    /// ФИО для отображения (не хранится в БД).
     String? employeeName,
 
     /// Название объекта для отображения (не хранится в БД).
@@ -62,13 +46,7 @@ abstract class TimesheetEntry with _$TimesheetEntry {
     /// Дата обновления записи.
     DateTime? updatedAt,
 
-    /// Признак ручного ввода часов (не хранится в БД).
-    /// true = часы введены вручную (employee_attendance)
-    /// false = часы из смен (work_hours)
+    /// `true` — ручной ввод (`employee_attendance`), `false` — смена (`work_hours`).
     @Default(false) bool isManualEntry,
   }) = _TimesheetEntry;
-
-  /// Создаёт сущность записи в табеле рабочего времени сотрудника из JSON.
-  factory TimesheetEntry.fromJson(Map<String, dynamic> json) =>
-      _$TimesheetEntryFromJson(json);
 }

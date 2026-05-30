@@ -1,25 +1,27 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/domain/entities/employee.dart';
 import 'package:projectgt/features/timesheet/domain/entities/timesheet_entry.dart';
+import 'package:projectgt/features/timesheet/domain/timesheet_employee_visibility.dart';
+import 'package:projectgt/features/timesheet/domain/timesheet_hours_index.dart';
 import 'package:projectgt/presentation/widgets/cupertino_dialog_widget.dart';
-import 'package:projectgt/core/di/providers.dart';
 import 'employee_attendance_dialog.dart';
+import '../providers/timesheet_filters_providers.dart';
 import 'timesheet_employee_list_scope_segment.dart';
 import 'timesheet_objects_bar_dropdown.dart';
 import 'timesheet_filter_widget.dart';
 import '../providers/timesheet_provider.dart';
+import '../state/timesheet_state.dart';
+import 'package:projectgt/features/employees/presentation/utils/employees_layout_utils.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
 import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
+import 'package:projectgt/features/timesheet/presentation/widgets/timesheet_filters_toolbar.dart';
 
+import 'timesheet_calendar_grid.dart';
 import 'timesheet_excel_action.dart';
-import 'timesheet_hours_loading_indicator.dart';
 
 /// Календарная сетка табеля: своя [Table], шапка закреплена над вертикальным скроллом,
 /// горизонтальный скролл шапки и тела синхронизирован (как в таблице модуля «Подрядчики»).
@@ -29,10 +31,14 @@ import 'timesheet_hours_loading_indicator.dart';
 ///
 /// Слева от ФИО — чекбоксы выбора строки; в шапке — общий выбор (частичный / полный).
 ///
-/// Если [employeeNameSearchQuery] не пустой, список строк ограничивается сотрудниками,
-/// присутствующими в [entries] (например после клиентской фильтрации по ФИО).
+/// Строки сетки — из справочника ([timesheetProvider].employees) с правилами
+/// [visibleTimesheetGridEmployees] и [filterEmployeesByTimesheetNameSearch].
+///
+/// [entries] — записи за период (фильтр объектов — на сервере при загрузке).
+/// Поиск по ФИО — только строки ([timesheetSearchQueryProvider]).
+/// Часы в ячейках и «Итого по дням» — для отображаемых строк после поиска.
 class TimesheetCalendarView extends ConsumerStatefulWidget {
-  /// Записи табеля.
+  /// Записи табеля (фильтр объектов — на [TimesheetScreen]).
   final List<TimesheetEntry> entries;
 
   /// Начало периода.
@@ -41,16 +47,12 @@ class TimesheetCalendarView extends ConsumerStatefulWidget {
   /// Конец периода.
   final DateTime endDate;
 
-  /// Непустая строка — показывать только сотрудников из [entries] (поиск по ФИО).
-  final String employeeNameSearchQuery;
-
   /// Создаёт сетку табеля.
   const TimesheetCalendarView({
     super.key,
     required this.entries,
     required this.startDate,
     required this.endDate,
-    this.employeeNameSearchQuery = '',
   });
 
   @override
@@ -59,12 +61,6 @@ class TimesheetCalendarView extends ConsumerStatefulWidget {
 }
 
 class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
-  static const double _kSelectColWidth = 44;
-  static const double _kEmployeeColWidth = 240;
-  static const double _kDayColWidth = 40;
-  static const double _kTotalColWidth = 64;
-  static const double _kHeaderGap = 4;
-
   final ScrollController _verticalController = ScrollController();
   final ScrollController _horizontalController = ScrollController();
   final ScrollController _headerHorizontalController = ScrollController();
@@ -73,10 +69,9 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
   List<DateTime> _daysInRange = [];
   List<Employee> _allEmployees = [];
 
-  /// Сотрудники после фильтров табеля (должность, объект, уволенные), без учёта поиска по ФИО.
+  /// Сотрудники после фильтров табеля (объект, сегмент, уволенные), без учёта поиска по ФИО.
   ///
-  /// Заполняется в [_syncEmployeeRows]; при вводе в поиск обновляется только [_allEmployees]
-  /// через [_applyVisibleEmployeesFromCache] без повторного запроса списка сотрудников.
+  /// Заполняется в [_syncEmployeeRows]; поиск сужает [_allEmployees] в [_applySearchFilter].
   List<Employee> _employeesBase = [];
 
   /// `employeeId` → (`yyyy-MM-dd` → записи за день).
@@ -86,26 +81,30 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
   /// `yyyy-MM-dd` → все записи за день (итоги по дням).
   final Map<String, List<TimesheetEntry>> _entriesByDay = {};
 
+  /// После [_syncEmployeeRows] список строк актуален (не путать с загрузкой).
+  bool _employeeRowsSynced = false;
+
   ProviderSubscription<TimesheetState>? _timesheetSub;
   ProviderSubscription<TimesheetEmployeeListScope>? _employeeScopeSub;
+  ProviderSubscription<String>? _searchSub;
 
   @override
   void initState() {
     super.initState();
     _horizontalController.addListener(_syncHeaderScroll);
     _buildDateRange();
-    _rebuildEntryIndex();
     _scheduleSyncEmployeeRows();
 
-    _timesheetSub = ref.listenManual<TimesheetState>(
-      timesheetProvider,
-      (previous, next) {
-        if (previous?.employees != next.employees ||
-            previous?.entries != next.entries) {
-          _scheduleSyncEmployeeRows();
-        }
-      },
-    );
+    _timesheetSub = ref.listenManual<TimesheetState>(timesheetProvider, (
+      previous,
+      next,
+    ) {
+      if (previous?.employees != next.employees ||
+          previous?.entries != next.entries ||
+          previous?.selectedObjectIds != next.selectedObjectIds) {
+        _scheduleSyncEmployeeRows();
+      }
+    });
 
     _employeeScopeSub = ref.listenManual<TimesheetEmployeeListScope>(
       timesheetEmployeeListScopeProvider,
@@ -113,6 +112,14 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
         if (previous != next) _scheduleSyncEmployeeRows();
       },
     );
+
+    _searchSub = ref.listenManual<String>(timesheetSearchQueryProvider, (
+      previous,
+      next,
+    ) {
+      if (previous == next) return;
+      _applySearchFilter();
+    });
   }
 
   @override
@@ -123,25 +130,9 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
       _buildDateRange();
     }
 
-    final entriesChanged = !identical(oldWidget.entries, widget.entries) ||
-        oldWidget.entries.length != widget.entries.length;
-
-    final searchChanged =
-        oldWidget.employeeNameSearchQuery != widget.employeeNameSearchQuery;
-
-    if (entriesChanged) {
-      _rebuildEntryIndex();
-      if (!searchChanged) {
-        _scheduleSyncEmployeeRows();
-      }
-    }
-
-    if (searchChanged) {
-      // Нельзя менять провайдер из didUpdateWidget — откладываем после кадра (поиск по ФИО).
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        _applyVisibleEmployeesFromCache();
-      });
+    if (!identical(oldWidget.entries, widget.entries) ||
+        oldWidget.entries.length != widget.entries.length) {
+      _scheduleSyncEmployeeRows();
     }
   }
 
@@ -149,6 +140,7 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
   void dispose() {
     _timesheetSub?.close();
     _employeeScopeSub?.close();
+    _searchSub?.close();
     _horizontalController.removeListener(_syncHeaderScroll);
     _verticalController.dispose();
     _horizontalController.dispose();
@@ -164,39 +156,38 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
     _isSyncingScroll = false;
   }
 
-  /// Строки таблицы по ФИО: подмножество [_employeesBase] по [widget.entries], если поиск не пустой.
-  List<Employee> _computeVisibleEmployees() {
-    if (_employeesBase.isEmpty) return const [];
-    if (widget.employeeNameSearchQuery.trim().isEmpty) {
-      return List<Employee>.from(_employeesBase);
-    }
-    final ids = widget.entries.map((e) => e.employeeId).toSet();
-    return _employeesBase.where((e) => ids.contains(e.id)).toList();
+  List<Employee> _employeesMatchingSearch(List<Employee> source) {
+    if (source.isEmpty) return const [];
+    return filterEmployeesByTimesheetNameSearch(
+      source,
+      ref.read(timesheetSearchQueryProvider),
+    );
   }
 
   /// Откладывает [_syncEmployeeRows] после кадра (нельзя менять провайдеры в life-cycle).
   void _scheduleSyncEmployeeRows() {
+    _employeeRowsSynced = false;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _syncEmployeeRows();
     });
   }
 
-  /// Сужает [_allEmployees] после ввода в поиск без запроса [getEmployees].
-  void _applyVisibleEmployeesFromCache() {
+  /// Пересчёт строк и индекса часов при смене поиска (без пересчёта сегмента/объектов).
+  void _applySearchFilter() {
     if (!mounted) return;
-    final visible = _computeVisibleEmployees();
-    setState(() {
-      _allEmployees = visible;
-    });
+    final visible = _employeesMatchingSearch(_employeesBase);
+    _rebuildEntryIndex(visible.map((e) => e.id).toSet());
+    setState(() => _allEmployees = visible);
     _trimGridSelectionTo(visible);
   }
 
   void _trimGridSelectionTo(List<Employee> visible) {
     final visibleIds = visible.map((e) => e.id).toSet();
     final sel = ref.read(timesheetGridSelectedEmployeeIdsProvider);
-    ref.read(timesheetGridSelectedEmployeeIdsProvider.notifier).state =
-        sel.where(visibleIds.contains).toSet();
+    ref.read(timesheetGridSelectedEmployeeIdsProvider.notifier).state = sel
+        .where(visibleIds.contains)
+        .toSet();
   }
 
   /// Пересчитывает строки таблицы из [widget.entries] и [timesheetProvider] (без сети).
@@ -205,61 +196,28 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
     final allEmployees = timesheetState.employees;
     final entries = widget.entries;
 
-    final employeeIdsWithHours =
-        entries.map((entry) => entry.employeeId).toSet();
-
-    final hoursSumByEmployee = <String, num>{};
-    for (final e in entries) {
-      hoursSumByEmployee[e.employeeId] =
-          (hoursSumByEmployee[e.employeeId] ?? 0) + e.hours;
-    }
-    final employeeIdsWithPositiveHours = hoursSumByEmployee.entries
-        .where((e) => e.value > 0)
-        .map((e) => e.key)
-        .toSet();
-
+    final hoursIndex = TimesheetHoursIndex.fromEntries(entries);
     final listScope = ref.read(timesheetEmployeeListScopeProvider);
-
     final hasObjectFilter =
-        (timesheetState.selectedObjectIds?.isNotEmpty ?? false);
+        timesheetState.selectedObjectIds?.isNotEmpty ?? false;
 
-    var baseFiltered = allEmployees.where((e) {
-      if (hasObjectFilter) {
-        return employeeIdsWithHours.contains(e.id);
-      }
+    final baseFiltered = visibleTimesheetGridEmployees(
+      employees: allEmployees,
+      hoursIndex: hoursIndex,
+      hasObjectFilter: hasObjectFilter,
+      listScope: listScope,
+    );
 
-      if (e.status != EmployeeStatus.fired) {
-        return true;
-      }
-      return employeeIdsWithHours.contains(e.id);
-    }).toList();
-
-    switch (listScope) {
-      case TimesheetEmployeeListScope.withHours:
-        baseFiltered = baseFiltered
-            .where((e) => employeeIdsWithPositiveHours.contains(e.id))
-            .toList();
-      case TimesheetEmployeeListScope.withoutHours:
-        baseFiltered = baseFiltered.where((e) {
-          final sum = hoursSumByEmployee[e.id] ?? 0;
-          return sum <= 0;
-        }).toList();
-      case TimesheetEmployeeListScope.all:
-        break;
-    }
-
-    baseFiltered.sort((a, b) {
-      final nameA = '${a.lastName} ${a.firstName} ${a.middleName ?? ''}';
-      final nameB = '${b.lastName} ${b.firstName} ${b.middleName ?? ''}';
-      return nameA.compareTo(nameB);
-    });
+    final visible = _employeesMatchingSearch(baseFiltered);
 
     if (!mounted) return;
+    _rebuildEntryIndex(visible.map((e) => e.id).toSet());
     setState(() {
       _employeesBase = baseFiltered;
-      _allEmployees = _computeVisibleEmployees();
+      _allEmployees = visible;
+      _employeeRowsSynced = true;
     });
-    _trimGridSelectionTo(_allEmployees);
+    _trimGridSelectionTo(visible);
   }
 
   /// Состояние чекбокса «все» в шапке: `null` — выбрана часть строк.
@@ -272,8 +230,9 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
   }
 
   void _onHeaderSelectAllChanged(bool? value) {
-    final notifier =
-        ref.read(timesheetGridSelectedEmployeeIdsProvider.notifier);
+    final notifier = ref.read(
+      timesheetGridSelectedEmployeeIdsProvider.notifier,
+    );
     if (value == true) {
       notifier.state = _allEmployees.map((e) => e.id).toSet();
     } else {
@@ -282,8 +241,9 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
   }
 
   void _onRowCheckboxChanged(Employee employee, bool? checked) {
-    final notifier =
-        ref.read(timesheetGridSelectedEmployeeIdsProvider.notifier);
+    final notifier = ref.read(
+      timesheetGridSelectedEmployeeIdsProvider.notifier,
+    );
     final next = Set<String>.from(
       ref.read(timesheetGridSelectedEmployeeIdsProvider),
     );
@@ -293,35 +253,6 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
       next.remove(employee.id);
     }
     notifier.state = next;
-  }
-
-  /// Компактный чекбокс в стиле таблицы подрядчиков.
-  Widget _compactCheckbox({
-    required bool? value,
-    required ValueChanged<bool?> onChanged,
-    required String semanticLabel,
-    bool tristate = false,
-  }) {
-    return Semantics(
-      label: semanticLabel,
-      child: SizedBox.square(
-        dimension: 32,
-        child: Center(
-          child: SizedBox.square(
-            dimension: 20,
-            child: Checkbox(
-              value: value,
-              tristate: tristate,
-              visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              overlayColor: const WidgetStatePropertyAll(Colors.transparent),
-              splashRadius: 0,
-              onChanged: onChanged,
-            ),
-          ),
-        ),
-      ),
-    );
   }
 
   void _buildDateRange() {
@@ -334,10 +265,11 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
     }
   }
 
-  void _rebuildEntryIndex() {
+  void _rebuildEntryIndex(Set<String> visibleEmployeeIds) {
     _entriesByEmployeeDay.clear();
     _entriesByDay.clear();
     for (final e in widget.entries) {
+      if (!visibleEmployeeIds.contains(e.employeeId)) continue;
       final key = _dayKey(e.date);
       _entriesByDay.putIfAbsent(key, () => []).add(e);
       _entriesByEmployeeDay
@@ -347,211 +279,229 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
     }
   }
 
-  static String _dayKey(DateTime d) =>
-      '${d.year.toString().padLeft(4, '0')}-'
-      '${d.month.toString().padLeft(2, '0')}-'
-      '${d.day.toString().padLeft(2, '0')}';
+  static String _dayKey(DateTime d) => TimesheetGridLayout.dayKey(d);
 
-  String _getEmployeeFullName(Employee employee) {
-    if (employee.middleName != null && employee.middleName!.isNotEmpty) {
-      return '${employee.lastName} ${employee.firstName} ${employee.middleName}';
+  /// Пустой список строк после синхронизации (фильтры / поиск / сегмент).
+  Widget _buildEmptyEmployeesState(ThemeData theme) {
+    final timesheetState = ref.read(timesheetProvider);
+    final search = ref.read(timesheetSearchQueryProvider).trim();
+    final scope = ref.read(timesheetEmployeeListScopeProvider);
+    final hasObjectFilter =
+        timesheetState.selectedObjectIds?.isNotEmpty ?? false;
+
+    final String title;
+    final String subtitle;
+
+    if (search.isNotEmpty) {
+      title = 'Никого не найдено';
+      subtitle = 'Измените поиск или сбросьте фильтры';
+    } else if (hasObjectFilter) {
+      title = 'Нет сотрудников на выбранных объектах';
+      subtitle = 'Выберите другие объекты или сбросьте фильтр';
+    } else {
+      switch (scope) {
+        case TimesheetEmployeeListScope.withHours:
+          title = 'Нет сотрудников с часами';
+          subtitle = 'За период ни у кого нет отработанных часов';
+        case TimesheetEmployeeListScope.withoutHours:
+          title = 'Нет сотрудников без часов';
+          subtitle = 'У всех отображаемых сотрудников есть часы за период';
+        case TimesheetEmployeeListScope.all:
+          title = 'Нет сотрудников для отображения';
+          subtitle = 'Проверьте состав компании или выберите другой период';
+      }
     }
-    return '${employee.lastName} ${employee.firstName}';
-  }
 
-  /// Подпись «Май-2026» для переключателя периода табеля.
-  static String _timesheetMonthYearLabel(DateTime monthStart) {
-    final s = formatMonthYear(monthStart);
-    if (s.isEmpty) return '';
-    return s.replaceFirst(RegExp(r'\s+'), '-');
-  }
+    final variant = theme.colorScheme.onSurfaceVariant;
 
-  void _shiftTableMonth(int monthsDelta) {
-    final d = widget.startDate;
-    final next = DateTime(d.year, d.month + monthsDelta, 1);
-    final end = DateTime(next.year, next.month + 1, 0);
-    ref.read(timesheetProvider.notifier).setDateRange(next, end);
-  }
-
-  /// Переключатель месяца/года и панель фильтров над таблицей.
-  Widget _buildTimesheetTitleRow(ThemeData theme) {
-    final scheme = theme.colorScheme;
-    final label = _timesheetMonthYearLabel(widget.startDate);
-    final iconColor = scheme.onSurface.withValues(alpha: 0.85);
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          IconButton(
-            tooltip: 'Предыдущий месяц',
-            onPressed: () => _shiftTableMonth(-1),
-            icon: Icon(
-              Icons.chevron_left_rounded,
-              color: iconColor,
-              size: 28,
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.people_outline, size: 64, color: variant),
+            const SizedBox(height: 16),
+            Text(title, style: theme.textTheme.titleMedium, textAlign: TextAlign.center),
+            const SizedBox(height: 8),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(color: variant),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Text(
-              label,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: scheme.onSurface,
-              ),
-            ),
-          ),
-          IconButton(
-            tooltip: 'Следующий месяц',
-            onPressed: () => _shiftTableMonth(1),
-            icon: Icon(
-              Icons.chevron_right_rounded,
-              color: iconColor,
-              size: 28,
-            ),
-          ),
-          const SizedBox(width: 12),
-          const TimesheetObjectsBarDropdown(),
-          const SizedBox(width: 8),
-          const TimesheetEmployeeListScopeSegment(),
-          const Spacer(),
-          const PermissionGuard(
-            module: 'timesheet',
-            permission: 'export',
-            child: TimesheetExcelAction(),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  String _formatHours(num hours) => formatQuantity(hours);
+  /// Одна строка: месяц, поиск (на ПК), фильтры и экспорт.
+  ///
+  /// На телефоне поиск в шапке экрана; здесь — компактный месяц и фильтры.
+  Widget _buildTimesheetTitleRow(ThemeData theme) {
+    final useMobileList = EmployeesLayoutUtils.useEmployeesMobileList(context);
+
+    Widget toolbarRow({required bool includeSearch}) {
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final rowW = constraints.maxWidth;
+          final searchW = includeSearch
+              ? timesheetToolbarSearchWidth(rowW, hasMonthSwitcher: true)
+              : 0.0;
+
+          final row = Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const TimesheetCompactMonthSwitcher(),
+              if (includeSearch) ...[
+                const SizedBox(width: 12),
+                SizedBox(width: searchW, child: const TimesheetToolbarSearch()),
+              ],
+              const SizedBox(width: 8),
+              const TimesheetObjectsBarDropdown(),
+              const SizedBox(width: 8),
+              if (useMobileList)
+                const TimesheetEmployeeListScopeSegment()
+              else
+                const Expanded(
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: TimesheetEmployeeListScopeSegment(),
+                  ),
+                ),
+              if (useMobileList) const SizedBox(width: 12),
+              const PermissionGuard(
+                module: 'timesheet',
+                permission: 'export',
+                child: TimesheetExcelAction(),
+              ),
+            ],
+          );
+
+          if (!useMobileList) return row;
+
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: row,
+          );
+        },
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: toolbarRow(includeSearch: !useMobileList),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final gridSelectedIds = ref.watch(timesheetGridSelectedEmployeeIdsProvider);
-
-    if (widget.entries.isEmpty) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildTimesheetTitleRow(theme),
-          Expanded(
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.event_busy,
-                    size: 64,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Нет данных для отображения',
-                    style: theme.textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Попробуйте изменить фильтры или выбрать другой период',
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      );
-    }
+    final isLoading = ref.watch(timesheetProvider.select((s) => s.isLoading));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildTimesheetTitleRow(theme),
         Expanded(
-          child: _allEmployees.isEmpty
-              ? const TimesheetHoursLoadingIndicator()
+          child: isLoading || !_employeeRowsSynced
+              ? const SizedBox.shrink()
+              : _allEmployees.isEmpty
+              ? _buildEmptyEmployeesState(theme)
               : LayoutBuilder(
                   builder: (context, constraints) {
-                    final availableWidth = constraints.maxWidth.isFinite
+                    final dayCount = _daysInRange.length;
+                    final viewportWidth = constraints.maxWidth.isFinite
                         ? constraints.maxWidth
                         : MediaQuery.sizeOf(context).width;
-                    final dayCount = _daysInRange.length;
-                    final minTableWidth =
-                        _kSelectColWidth +
-                        _kEmployeeColWidth +
-                        dayCount * _kDayColWidth +
-                        _kTotalColWidth;
-                    final minWidth = math.max(availableWidth, minTableWidth);
-
+                    final layoutWidth = TimesheetGridLayout.layoutWidth(
+                      dayCount,
+                      viewportWidth,
+                    );
                     final dividerColor = theme.colorScheme.outline.withValues(
                       alpha: 0.18,
                     );
-                    final columnWidths = _buildColumnWidths(dayCount);
-
-                    Widget buildTable(List<TableRow> rows) {
-                      return ConstrainedBox(
-                        constraints: BoxConstraints(minWidth: minWidth),
-                        child: Table(
-                          defaultVerticalAlignment:
-                              TableCellVerticalAlignment.middle,
-                          border: TableBorder(
-                            top: BorderSide(color: dividerColor, width: 1),
-                            bottom: BorderSide(color: dividerColor, width: 1),
-                            left: BorderSide(color: dividerColor, width: 1),
-                            right: BorderSide(color: dividerColor, width: 1),
-                            horizontalInside: BorderSide(
-                              color: dividerColor,
-                              width: 1,
-                            ),
-                            verticalInside: BorderSide(
-                              color: dividerColor,
-                              width: 1,
-                            ),
-                          ),
-                          columnWidths: columnWidths,
-                          children: rows,
-                        ),
-                      );
-                    }
-
-                    final headerRow = _buildHeaderRow(theme, gridSelectedIds);
-                    final bodyRows = _buildDataRows(theme, gridSelectedIds);
                     final headerBackground = theme.brightness == Brightness.dark
                         ? theme.colorScheme.surfaceContainerHigh
                         : Colors.grey.shade200;
 
-                    final header = ColoredBox(
-                      color: headerBackground,
-                      child: SingleChildScrollView(
-                        controller: _headerHorizontalController,
-                        physics: const NeverScrollableScrollPhysics(),
-                        scrollDirection: Axis.horizontal,
-                        child: buildTable([headerRow]),
+                    final header = SingleChildScrollView(
+                      controller: _headerHorizontalController,
+                      physics: const NeverScrollableScrollPhysics(),
+                      scrollDirection: Axis.horizontal,
+                      child: SizedBox(
+                        width: layoutWidth,
+                        child: TimesheetGridHeader(
+                          daysInRange: _daysInRange,
+                          dividerColor: dividerColor,
+                          headerBackground: headerBackground,
+                          selectAllValue: _headerSelectAllValue(gridSelectedIds),
+                          onSelectAllChanged: _onHeaderSelectAllChanged,
+                        ),
                       ),
                     );
 
                     final body = Expanded(
                       child: Scrollbar(
-                        controller: _verticalController,
+                        controller: _horizontalController,
                         thumbVisibility: true,
+                        notificationPredicate: (n) => n.depth == 0,
                         child: SingleChildScrollView(
-                          controller: _verticalController,
-                          child: Scrollbar(
-                            controller: _horizontalController,
-                            thumbVisibility: true,
-                            notificationPredicate: (notification) =>
-                                notification.depth == 1,
-                            child: SingleChildScrollView(
-                              controller: _horizontalController,
-                              scrollDirection: Axis.horizontal,
-                              child: buildTable(bodyRows),
+                          controller: _horizontalController,
+                          scrollDirection: Axis.horizontal,
+                          child: SizedBox(
+                            width: layoutWidth,
+                            child: Scrollbar(
+                              controller: _verticalController,
+                              thumbVisibility: true,
+                              child: CustomScrollView(
+                                controller: _verticalController,
+                                primary: false,
+                                slivers: [
+                                  SliverFixedExtentList(
+                                    itemExtent:
+                                        TimesheetGridLayout.dataRowHeight,
+                                    delegate: SliverChildBuilderDelegate(
+                                      (context, index) {
+                                        final employee =
+                                            _allEmployees[index];
+                                        return TimesheetGridEmployeeRow(
+                                          employee: employee,
+                                          daysInRange: _daysInRange,
+                                          entriesByDayKey:
+                                              _entriesByEmployeeDay[
+                                                  employee.id] ??
+                                              const {},
+                                          isSelected: gridSelectedIds
+                                              .contains(employee.id),
+                                          dividerColor: dividerColor,
+                                          onSelectionChanged: (v) =>
+                                              _onRowCheckboxChanged(
+                                                employee,
+                                                v,
+                                              ),
+                                          onEmployeeTap: () =>
+                                              _showAttendanceDialog(
+                                                employee,
+                                              ),
+                                          onDayWithHoursTap:
+                                              _showEntryDetails,
+                                        );
+                                      },
+                                      childCount: _allEmployees.length,
+                                      addRepaintBoundaries: true,
+                                    ),
+                                  ),
+                                  SliverToBoxAdapter(
+                                    child: TimesheetGridTotalsRow(
+                                      daysInRange: _daysInRange,
+                                      entriesByDayKey: _entriesByDay,
+                                      dividerColor: dividerColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
@@ -562,361 +512,12 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         header,
-                        const SizedBox(height: _kHeaderGap),
+                        const SizedBox(height: TimesheetGridLayout.headerGap),
                         body,
                       ],
                     );
                   },
                 ),
-        ),
-      ],
-    );
-  }
-
-  Map<int, TableColumnWidth> _buildColumnWidths(int dayCount) {
-    final m = <int, TableColumnWidth>{
-      0: const FixedColumnWidth(_kSelectColWidth),
-      1: const FixedColumnWidth(_kEmployeeColWidth),
-    };
-    for (var i = 0; i < dayCount; i++) {
-      m[i + 2] = const FixedColumnWidth(_kDayColWidth);
-    }
-    m[dayCount + 2] = const FixedColumnWidth(_kTotalColWidth);
-    return m;
-  }
-
-  TableRow _buildHeaderRow(ThemeData theme, Set<String> selectedIds) {
-    final headerStyle = theme.textTheme.titleSmall?.copyWith(
-      fontWeight: FontWeight.bold,
-    );
-
-    return TableRow(
-      children: [
-        TableCell(
-          verticalAlignment: TableCellVerticalAlignment.middle,
-          child: Padding(
-            padding: const EdgeInsets.only(
-              left: 6,
-              right: 2,
-              top: 8,
-              bottom: 8,
-            ),
-            child: Tooltip(
-              message: 'Выбрать всех отображаемых сотрудников',
-              child: _compactCheckbox(
-                value: _headerSelectAllValue(selectedIds),
-                tristate: true,
-                semanticLabel: 'Выбрать всех сотрудников в таблице',
-                onChanged: _onHeaderSelectAllChanged,
-              ),
-            ),
-          ),
-        ),
-        TableCell(
-          verticalAlignment: TableCellVerticalAlignment.middle,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text('Сотрудник', style: headerStyle),
-            ),
-          ),
-        ),
-        ..._daysInRange.map((day) => _dayHeaderCell(theme, day, headerStyle)),
-        TableCell(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
-            child: Center(
-              child: Text(
-                'Итого',
-                style: headerStyle,
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  TableCell _dayHeaderCell(
-    ThemeData theme,
-    DateTime day,
-    TextStyle? headerStyle,
-  ) {
-    final isWeekend =
-        day.weekday == DateTime.saturday || day.weekday == DateTime.sunday;
-    final scheme = theme.colorScheme;
-    final dayColor = isWeekend
-        ? scheme.error.withValues(alpha: 0.18)
-        : scheme.surface.withValues(alpha: 0.5);
-    final textColor = isWeekend
-        ? scheme.error
-        : theme.textTheme.bodySmall?.color;
-
-    final weekdayLabel = formatRuWeekdayShort(day).toLowerCase();
-
-    return TableCell(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              '${day.day}',
-              style: headerStyle?.copyWith(fontSize: 15, color: textColor),
-            ),
-            const SizedBox(height: 2),
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: dayColor,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                child: Text(
-                  weekdayLabel,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 10,
-                    color: textColor,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  List<TableRow> _buildDataRows(ThemeData theme, Set<String> selectedIds) {
-    final rows = <TableRow>[];
-    final scheme = theme.colorScheme;
-
-    for (final employee in _allEmployees) {
-      final employeeName = _getEmployeeFullName(employee);
-      final byDay = _entriesByEmployeeDay[employee.id] ?? {};
-
-      num totalHours = 0;
-      final dayCells = <Widget>[];
-
-      for (final day in _daysInRange) {
-        final key = _dayKey(day);
-        final dayEntries = List<TimesheetEntry>.from(byDay[key] ?? const []);
-        final dayHours = dayEntries.fold<num>(
-          0,
-          (sum, entry) => sum + entry.hours,
-        );
-        totalHours += dayHours;
-
-        dayCells.add(
-          TableCell(
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () {
-                  if (dayHours > 0) {
-                    _showEntryDetails(dayEntries, employeeName, day);
-                  }
-                  HapticFeedback.selectionClick();
-                },
-                borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 6,
-                    horizontal: 2,
-                  ),
-                  child: SizedBox(
-                    width: _kDayColWidth,
-                    child: Center(
-                      child: dayHours > 0
-                          ? DecoratedBox(
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: dayEntries.any((e) => e.isManualEntry)
-                                    ? Border.all(
-                                        color: scheme.primary,
-                                        width: 2,
-                                      )
-                                    : null,
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(4),
-                                child: Text(
-                                  _formatHours(dayHours),
-                                  style: theme.textTheme.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            )
-                          : const SizedBox.shrink(),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      }
-
-      rows.add(
-        TableRow(
-          children: [
-            TableCell(
-              verticalAlignment: TableCellVerticalAlignment.middle,
-              child: Padding(
-                padding: const EdgeInsets.only(left: 6, right: 2),
-                child: Tooltip(
-                  message: 'Выбрать строку',
-                  child: _compactCheckbox(
-                    value: selectedIds.contains(employee.id),
-                    semanticLabel: 'Выбрать $employeeName',
-                    onChanged: (v) => _onRowCheckboxChanged(employee, v),
-                  ),
-                ),
-              ),
-            ),
-            TableCell(
-              verticalAlignment: TableCellVerticalAlignment.middle,
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () => _showAttendanceDialog(employee),
-                  borderRadius: BorderRadius.circular(8),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 8,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                employeeName,
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            Icon(
-                              Icons.edit_calendar_outlined,
-                              size: 16,
-                              color: scheme.primary.withValues(alpha: 0.6),
-                            ),
-                          ],
-                        ),
-                        if (employee.position != null &&
-                            employee.position!.isNotEmpty)
-                          Text(
-                            employee.position!,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: scheme.onSurface.withValues(alpha: 0.72),
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            ...dayCells,
-            TableCell(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Center(
-                  child: Text(
-                    _formatHours(totalHours),
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    rows.add(_buildTotalsRow(theme));
-    return rows;
-  }
-
-  TableRow _buildTotalsRow(ThemeData theme) {
-    final scheme = theme.colorScheme;
-    num grandTotal = 0;
-    final dayCells = <Widget>[];
-
-    for (final day in _daysInRange) {
-      final key = _dayKey(day);
-      final dayEntries = _entriesByDay[key] ?? const <TimesheetEntry>[];
-      final dayHours = dayEntries.fold<num>(
-        0,
-        (sum, entry) => sum + entry.hours,
-      );
-      grandTotal += dayHours;
-
-      dayCells.add(
-        TableCell(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Center(
-              child: Text(
-                _formatHours(dayHours),
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return TableRow(
-      children: [
-        const TableCell(
-          verticalAlignment: TableCellVerticalAlignment.middle,
-          child: SizedBox.shrink(),
-        ),
-        TableCell(
-          verticalAlignment: TableCellVerticalAlignment.middle,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-            child: Text(
-              'Итого по дням',
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ),
-        ...dayCells,
-        TableCell(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            child: Center(
-              child: Text(
-                _formatHours(grandTotal),
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: scheme.primary,
-                ),
-              ),
-            ),
-          ),
         ),
       ],
     );
@@ -965,7 +566,7 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(width: 8),
-                    Text(_formatHours(entry.hours)),
+                    Text(formatQuantity(entry.hours)),
                   ],
                 ),
                 if (entry.comment != null && entry.comment!.isNotEmpty) ...[
@@ -1037,10 +638,7 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
       return;
     }
 
-    final objectRepository = ref.read(objectRepositoryProvider);
-    final objects = await objectRepository.getObjects();
-
-    if (!mounted) return;
+    final objects = ref.read(availableObjectsForTimesheetProvider);
 
     final result = await showDialog<bool>(
       context: context,
@@ -1053,7 +651,7 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
     );
 
     if (result == true && mounted) {
-      ref.read(timesheetProvider.notifier).loadTimesheet();
+      await ref.read(timesheetProvider.notifier).reloadHoursEntries();
     }
   }
 }

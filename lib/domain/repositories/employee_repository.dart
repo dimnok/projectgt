@@ -3,10 +3,13 @@ import 'package:projectgt/domain/entities/employee_blocking_shift.dart';
 
 /// Абстракция репозитория для работы с сотрудниками.
 abstract class EmployeeRepository {
-  /// Получи список всех сотрудников.
+  /// Получи список всех сотрудников с текущими ставками.
   ///
   /// Возвращает список [Employee]. Бросает [Exception] при ошибке.
   Future<List<Employee>> getEmployees();
+
+  /// Справочник сотрудников компании без ставок (табель, picklist и т.п.).
+  Future<List<Employee>> getEmployeesCatalog();
 
   /// Получи сотрудника по [id].
   ///

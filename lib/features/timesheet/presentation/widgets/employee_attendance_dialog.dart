@@ -9,8 +9,9 @@ import 'package:projectgt/core/widgets/gt_dropdown.dart';
 import 'package:projectgt/domain/entities/employee.dart';
 import 'package:projectgt/features/objects/domain/entities/object.dart'
     as project_object;
+import '../../data/timesheet_company_scope.dart';
 import '../../domain/entities/employee_attendance_entry.dart';
-import '../../domain/entities/timesheet_load_result.dart';
+import '../../domain/entities/timesheet_entry.dart';
 import '../providers/repositories_providers.dart';
 import 'timesheet_hours_loading_indicator.dart';
 
@@ -102,22 +103,21 @@ class _EmployeeAttendanceDialogState
       );
       final timesheetRepository = ref.read(timesheetRepositoryProvider);
 
-      // Загружаем данные ПАРАЛЛЕЛЬНО (одновременно)
-      final results = await Future.wait([
+      final results = await Future.wait<Object>([
         attendanceRepository.getAttendanceRecords(
           employeeId: widget.employee.id,
           startDate: widget.startDate,
           endDate: widget.endDate,
         ),
-        timesheetRepository.loadTimesheet(
+        timesheetRepository.getShiftHoursForEmployee(
+          employeeId: widget.employee.id,
           startDate: widget.startDate,
           endDate: widget.endDate,
-          employeeId: widget.employee.id,
         ),
       ]);
 
       final records = results[0] as List<EmployeeAttendanceEntry>;
-      final shiftEntries = (results[1] as TimesheetLoadResult).entries;
+      final shiftEntries = results[1] as List<TimesheetEntry>;
 
       if (mounted) {
         setState(() {
@@ -134,13 +134,9 @@ class _EmployeeAttendanceDialogState
             _selectedObjectId ??= record.objectId;
           }
 
-          // Сохраняем часы из смен (они защищены от редактирования)
-          // Фильтруем только записи из смен, исключая ручной ввод
           for (final entry in shiftEntries) {
-            if (!entry.isManualEntry) {
-              final date = _normalizeDate(entry.date);
-              _shiftHoursMap[date] = entry.hours;
-            }
+            final date = _normalizeDate(entry.date);
+            _shiftHoursMap[date] = entry.hours;
           }
 
           // Загружаем часы для первого объекта
@@ -212,6 +208,11 @@ class _EmployeeAttendanceDialogState
       if (mounted) {
         Navigator.of(context).pop(true); // Возвращаем true как сигнал об успехе
       }
+    } on TimesheetCompanyNotSelectedException catch (e) {
+      if (mounted) {
+        _showError(e.toString());
+        setState(() => _isSaving = false);
+      }
     } catch (e) {
       if (mounted) {
         _showError('Ошибка при сохранении: $e');
@@ -245,8 +246,11 @@ class _EmployeeAttendanceDialogState
         ? BoxConstraints(maxWidth: maxDialogWidth)
         : BoxConstraints(maxWidth: maxDialogWidth);
 
-    final employeeName =
-        '${widget.employee.lastName} ${widget.employee.firstName}${widget.employee.middleName != null && widget.employee.middleName!.isNotEmpty ? ' ${widget.employee.middleName}' : ''}';
+    final employeeName = formatFullName(
+      widget.employee.lastName,
+      widget.employee.firstName,
+      widget.employee.middleName,
+    );
 
     // Фильтруем объекты - показываем только те, что есть у сотрудника
     final employeeObjects = widget.objects

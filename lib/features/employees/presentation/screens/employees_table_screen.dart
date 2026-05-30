@@ -178,8 +178,7 @@ class _EmployeesTableScreenState extends ConsumerState<EmployeesTableScreen> {
     final isLoading =
         (employeeState.status == state.EmployeeStatus.loading &&
             employees.isEmpty) ||
-        (objectState.status == ObjectStatus.loading &&
-            picklistObjects.isEmpty);
+        (objectState.status == ObjectStatus.loading && picklistObjects.isEmpty);
 
     final appearance = MobileAtmosphereAppearance.of(context);
     final scheme = appearance.scheme;
@@ -710,7 +709,11 @@ class _EmployeesTableScreenState extends ConsumerState<EmployeesTableScreen> {
     );
   }
 
-  Widget _buildEmployeeInfoCell(ThemeData theme, Employee emp, List<ObjectEntity> objects) {
+  Widget _buildEmployeeInfoCell(
+    ThemeData theme,
+    Employee emp,
+    List<ObjectEntity> objects,
+  ) {
     final hasPhone = emp.phone != null && emp.phone!.trim().isNotEmpty;
 
     return Padding(
@@ -718,12 +721,18 @@ class _EmployeesTableScreenState extends ConsumerState<EmployeesTableScreen> {
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
-          onTap: () => EmployeeDetailsModal.show(context, employee: emp, objects: objects),
+          onTap: () => EmployeeDetailsModal.show(
+            context,
+            employee: emp,
+            objects: objects,
+          ),
           child: Row(
             children: [
               CircleAvatar(
                 radius: 20,
-                backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+                backgroundColor: theme.colorScheme.primary.withValues(
+                  alpha: 0.1,
+                ),
                 child: emp.photoUrl != null && emp.photoUrl!.trim().isNotEmpty
                     ? ClipOval(
                         child: CachedNetworkImage(
@@ -781,7 +790,9 @@ class _EmployeesTableScreenState extends ConsumerState<EmployeesTableScreen> {
                       Text(
                         emp.position!,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.6,
+                          ),
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -1034,7 +1045,11 @@ class _BusinessTripCell extends ConsumerStatefulWidget {
 class _BusinessTripCellState extends ConsumerState<_BusinessTripCell> {
   bool _isHovered = false;
 
-  void _showRatesMenu(BuildContext context, List<BusinessTripRate> rates, ThemeData theme) {
+  void _showRatesMenu(
+    BuildContext context,
+    List<BusinessTripRate> rates,
+    ThemeData theme,
+  ) {
     final RenderBox renderBox = context.findRenderObject() as RenderBox;
     final Offset offset = renderBox.localToGlobal(Offset.zero);
 
@@ -1049,11 +1064,18 @@ class _BusinessTripCellState extends ConsumerState<_BusinessTripCell> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       constraints: const BoxConstraints(minWidth: 200, maxWidth: 350),
       items: rates.map((rate) {
-        final objName = widget.objects.firstWhere(
-          (o) => o.id == rate.objectId,
-          orElse: () => const ObjectEntity(id: '', companyId: '', name: 'Неизвестно', address: ''),
-        ).name;
-        
+        final objName = widget.objects
+            .firstWhere(
+              (o) => o.id == rate.objectId,
+              orElse: () => const ObjectEntity(
+                id: '',
+                companyId: '',
+                name: 'Неизвестно',
+                address: '',
+              ),
+            )
+            .name;
+
         return PopupMenuItem<String>(
           value: rate.id,
           child: Row(
@@ -1069,7 +1091,9 @@ class _BusinessTripCellState extends ConsumerState<_BusinessTripCell> {
               const SizedBox(width: 16),
               Text(
                 '${rate.rate.toStringAsFixed(0)} ₽',
-                style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
@@ -1080,8 +1104,10 @@ class _BusinessTripCellState extends ConsumerState<_BusinessTripCell> {
 
   @override
   Widget build(BuildContext context) {
-    final ratesAsync = ref.watch(employeeBusinessTripRatesProvider(widget.employee.id));
-    
+    final ratesAsync = ref.watch(
+      employeeBusinessTripRatesProvider(widget.employee.id),
+    );
+
     return ratesAsync.when(
       loading: () => const Padding(
         padding: EdgeInsets.symmetric(horizontal: 12),
@@ -1093,12 +1119,12 @@ class _BusinessTripCellState extends ConsumerState<_BusinessTripCell> {
       ),
       data: (allRates) {
         final assignedObjectIds = widget.employee.objectIds;
-        
+
         // Берем только активные ставки для объектов, к которым привязан сотрудник
         final relevantRates = allRates
             .where((r) => assignedObjectIds.contains(r.objectId) && r.isActive)
             .toList();
-        
+
         String text = '—';
         bool isClickable = false;
 
@@ -1116,11 +1142,15 @@ class _BusinessTripCellState extends ConsumerState<_BusinessTripCell> {
         Widget cellContent = Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           child: Text(
-            text, 
+            text,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontWeight: _isHovered && isClickable ? FontWeight.bold : FontWeight.normal,
-              color: _isHovered && isClickable ? theme.colorScheme.primary : null,
+              fontWeight: _isHovered && isClickable
+                  ? FontWeight.bold
+                  : FontWeight.normal,
+              color: _isHovered && isClickable
+                  ? theme.colorScheme.primary
+                  : null,
             ),
           ),
         );
@@ -1153,7 +1183,8 @@ class _ObjectCell extends ConsumerStatefulWidget {
   final List<ObjectEntity> objects;
   final PermissionService permissions;
   final ThemeData theme;
-  final Function(BuildContext, ThemeData, Employee, List<ObjectEntity>) onShowMenu;
+  final Function(BuildContext, ThemeData, Employee, List<ObjectEntity>)
+  onShowMenu;
 
   const _ObjectCell({
     required this.employee,
@@ -1172,39 +1203,54 @@ class _ObjectCellState extends ConsumerState<_ObjectCell> {
 
   @override
   Widget build(BuildContext context) {
-    final ratesAsync = ref.watch(employeeBusinessTripRatesProvider(widget.employee.id));
-    
+    final ratesAsync = ref.watch(
+      employeeBusinessTripRatesProvider(widget.employee.id),
+    );
+
     final assignedObjectIds = widget.employee.objectIds;
     final allRates = ratesAsync.valueOrNull ?? [];
-    
+
     final relevantRates = allRates
         .where((r) => assignedObjectIds.contains(r.objectId) && r.isActive)
         .toList();
-    
+
     final rateObjectIds = relevantRates.map((r) => r.objectId).toSet();
 
     List<InlineSpan> spans = [];
     for (int i = 0; i < assignedObjectIds.length; i++) {
       final objId = assignedObjectIds[i];
-      final objName = widget.objects.firstWhere(
-        (o) => o.id == objId,
-        orElse: () => const ObjectEntity(id: '', companyId: '', name: '—', address: ''),
-      ).name;
+      final objName = widget.objects
+          .firstWhere(
+            (o) => o.id == objId,
+            orElse: () => const ObjectEntity(
+              id: '',
+              companyId: '',
+              name: '—',
+              address: '',
+            ),
+          )
+          .name;
 
       if (objName == '—') continue;
 
       // Если у объекта есть активная ставка, выделяем его зеленым цветом и жирным шрифтом
       final hasRate = rateObjectIds.contains(objId);
 
-      spans.add(TextSpan(
-        text: objName + (i < assignedObjectIds.length - 1 ? ', ' : ''),
-        style: TextStyle(
-          fontWeight: hasRate ? FontWeight.bold : (_isHovered ? FontWeight.bold : FontWeight.normal),
-          color: hasRate 
-              ? Colors.green 
-              : (_isHovered ? widget.theme.colorScheme.primary : widget.theme.colorScheme.onSurface),
+      spans.add(
+        TextSpan(
+          text: objName + (i < assignedObjectIds.length - 1 ? ', ' : ''),
+          style: TextStyle(
+            fontWeight: hasRate
+                ? FontWeight.bold
+                : (_isHovered ? FontWeight.bold : FontWeight.normal),
+            color: hasRate
+                ? Colors.green
+                : (_isHovered
+                      ? widget.theme.colorScheme.primary
+                      : widget.theme.colorScheme.onSurface),
+          ),
         ),
-      ));
+      );
     }
 
     if (spans.isEmpty) {
@@ -1212,13 +1258,20 @@ class _ObjectCellState extends ConsumerState<_ObjectCell> {
     }
 
     final onTap = widget.permissions.can('employees', 'update')
-        ? () => widget.onShowMenu(context, widget.theme, widget.employee, widget.objects)
+        ? () => widget.onShowMenu(
+            context,
+            widget.theme,
+            widget.employee,
+            widget.objects,
+          )
         : null;
 
     return MouseRegion(
       onEnter: onTap != null ? (_) => setState(() => _isHovered = true) : null,
       onExit: onTap != null ? (_) => setState(() => _isHovered = false) : null,
-      cursor: onTap != null ? SystemMouseCursors.click : SystemMouseCursors.basic,
+      cursor: onTap != null
+          ? SystemMouseCursors.click
+          : SystemMouseCursors.basic,
       child: GestureDetector(
         onTap: onTap,
         child: AnimatedContainer(

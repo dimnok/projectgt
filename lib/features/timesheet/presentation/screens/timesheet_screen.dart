@@ -5,11 +5,12 @@ import 'package:projectgt/core/theme/theme_settings_provider.dart';
 import 'package:projectgt/core/widgets/mobile_atmosphere_backdrop.dart';
 import 'package:projectgt/core/widgets/mobile_atmosphere_main_surface.dart';
 import 'package:projectgt/core/widgets/mobile_atmosphere_screen_header.dart';
+import 'package:projectgt/features/employees/presentation/utils/employees_layout_utils.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 
 import '../providers/timesheet_provider.dart';
-import '../widgets/timesheet_filter_widget.dart';
 import '../widgets/timesheet_calendar_view.dart';
+import '../widgets/timesheet_mobile_search_field.dart';
 import '../widgets/timesheet_hours_loading_indicator.dart';
 
 /// Отступы шапки и тела — как у экрана списка договоров ([gridGutter] 16).
@@ -25,18 +26,10 @@ class TimesheetScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final timesheetState = ref.watch(timesheetProvider);
-    final searchQuery = ref.watch(timesheetSearchQueryProvider);
+    final gridEntries = ref.watch(timesheetGridEntriesProvider);
     final appearance = MobileAtmosphereAppearance.of(context);
     final scheme = appearance.scheme;
     final isDark = appearance.isDark;
-
-    final filteredEntries = filterTimesheetByEmployeeName(
-      filterTimesheetByObjects(
-        timesheetState.entries,
-        timesheetState.selectedObjectIds,
-      ),
-      searchQuery,
-    );
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
@@ -66,6 +59,10 @@ class TimesheetScreen extends ConsumerWidget {
                     padding: _kTimesheetHeaderPadding,
                     child: LayoutBuilder(
                       builder: (context, constraints) {
+                        final useMobileList =
+                            EmployeesLayoutUtils.useEmployeesMobileList(
+                              context,
+                            );
                         final narrow = constraints.maxWidth < 560;
                         final menuButton = Builder(
                           builder: (ctx) => MobileAtmosphereChromeCircleButton(
@@ -89,24 +86,28 @@ class TimesheetScreen extends ConsumerWidget {
                                 );
                           },
                         );
-                        final actions = Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const TimesheetSearchAction(),
-                            const SizedBox(width: 4),
-                            themeButton,
-                          ],
-                        );
+                        const titleText = 'Табель рабочего времени';
+
+                        if (useMobileList) {
+                          return Row(
+                            children: [
+                              menuButton,
+                              const SizedBox(width: 8),
+                              const Expanded(
+                                child: TimesheetMobileSearchField(),
+                              ),
+                              const SizedBox(width: 8),
+                              themeButton,
+                            ],
+                          );
+                        }
 
                         if (narrow) {
                           return MobileAtmosphereScreenHeader(
                             appearance: appearance,
-                            title: 'Табель рабочего времени',
+                            title: titleText,
                             leading: menuButton,
-                            trailing: SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: actions,
-                            ),
+                            trailing: themeButton,
                           );
                         }
 
@@ -117,7 +118,7 @@ class TimesheetScreen extends ConsumerWidget {
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
-                                'Табель рабочего времени',
+                                titleText,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: Theme.of(context).textTheme.titleLarge
@@ -125,16 +126,9 @@ class TimesheetScreen extends ConsumerWidget {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            Flexible(
-                              fit: FlexFit.loose,
-                              child: Align(
-                                alignment: Alignment.centerRight,
-                                child: SingleChildScrollView(
-                                  scrollDirection: Axis.horizontal,
-                                  reverse: true,
-                                  child: actions,
-                                ),
-                              ),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: themeButton,
                             ),
                           ],
                         );
@@ -169,10 +163,9 @@ class TimesheetScreen extends ConsumerWidget {
                         child: Stack(
                           children: [
                             TimesheetCalendarView(
-                              entries: filteredEntries,
+                              entries: gridEntries,
                               startDate: timesheetState.startDate,
                               endDate: timesheetState.endDate,
-                              employeeNameSearchQuery: searchQuery,
                             ),
                             if (timesheetState.isLoading)
                               ColoredBox(

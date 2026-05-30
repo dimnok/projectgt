@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:logger/logger.dart';
 import '../models/employee_attendance_model.dart';
+import '../timesheet_company_scope.dart';
 import 'employee_attendance_data_source.dart';
 
 /// Реализация источника данных для посещаемости сотрудников с использованием Supabase.
@@ -8,8 +9,8 @@ class EmployeeAttendanceDataSourceImpl implements EmployeeAttendanceDataSource {
   /// Клиент Supabase для работы с базой данных.
   final SupabaseClient client;
 
-  /// ID активной компании.
-  final String activeCompanyId;
+  /// ID активной компании (`null` — компания не выбрана).
+  final String? activeCompanyId;
 
   /// Логгер для отладки и отслеживания ошибок.
   final Logger _logger = Logger();
@@ -20,25 +21,47 @@ class EmployeeAttendanceDataSourceImpl implements EmployeeAttendanceDataSource {
   /// Максимум строк в одном ответе PostgREST; без пагинации остальные строки отбрасываются.
   static const int _postgrestPageSize = 1000;
 
+  /// Имя RPC пакетного upsert ([upsert_employee_attendance_batch]).
+  static const String batchUpsertRpc = 'upsert_employee_attendance_batch';
+
   /// Создает экземпляр [EmployeeAttendanceDataSourceImpl].
   EmployeeAttendanceDataSourceImpl(this.client, this.activeCompanyId);
+
+  String get _scopedCompanyId {
+    final id = activeCompanyId;
+    if (!timesheetHasActiveCompany(id)) {
+      throw const TimesheetCompanyNotSelectedException();
+    }
+    return id!;
+  }
+
+  /// Строка для [batchUpsertRpc]: без id и служебных полей.
+  Map<String, dynamic> _rowForBatchUpsert(EmployeeAttendanceModel model) {
+    final data = model.toJson()
+      ..remove('id')
+      ..remove('created_at')
+      ..remove('updated_at')
+      ..remove('created_by');
+    data['company_id'] = _scopedCompanyId;
+    return data;
+  }
 
   /// Создаёт запрос по таблице посещаемости с фильтрами (без сортировки и [PostgrestFilterBuilder.range]).
   dynamic _attendanceRecordsQuery({
     String? employeeId,
-    String? objectId,
+    List<String>? objectIds,
     DateTime? startDate,
     DateTime? endDate,
   }) {
     var queryBuilder =
-        client.from(tableName).select().eq('company_id', activeCompanyId);
+        client.from(tableName).select().eq('company_id', _scopedCompanyId);
 
     if (employeeId != null) {
       queryBuilder = queryBuilder.eq('employee_id', employeeId);
     }
 
-    if (objectId != null) {
-      queryBuilder = queryBuilder.eq('object_id', objectId);
+    if (objectIds != null && objectIds.isNotEmpty) {
+      queryBuilder = queryBuilder.inFilter('object_id', objectIds);
     }
 
     if (startDate != null) {
@@ -59,8 +82,11 @@ class EmployeeAttendanceDataSourceImpl implements EmployeeAttendanceDataSource {
     DateTime? startDate,
     DateTime? endDate,
     String? employeeId,
-    String? objectId,
+    List<String>? objectIds,
   }) async {
+    if (!timesheetHasActiveCompany(activeCompanyId)) {
+      return [];
+    }
     try {
       final allRows = <Map<String, dynamic>>[];
       var offset = 0;
@@ -69,7 +95,7 @@ class EmployeeAttendanceDataSourceImpl implements EmployeeAttendanceDataSource {
       while (hasMore) {
         final response = await _attendanceRecordsQuery(
           employeeId: employeeId,
-          objectId: objectId,
+          objectIds: objectIds,
           startDate: startDate,
           endDate: endDate,
         )
@@ -102,119 +128,16 @@ class EmployeeAttendanceDataSourceImpl implements EmployeeAttendanceDataSource {
   }
 
   @override
-  Future<EmployeeAttendanceModel> createAttendance(
-      EmployeeAttendanceModel model) async {
-    try {
-      final data = model.toJson();
-      data.remove('id'); // ID генерируется автоматически
-      data.remove('created_at'); // Устанавливается автоматически
-      data.remove('updated_at'); // Устанавливается автоматически
-
-      final response =
-          await client.from(tableName).insert(data).select().single();
-
-      return EmployeeAttendanceModel.fromJson(response);
-    } catch (e) {
-      _logger.e('Ошибка при создании записи посещаемости: $e');
-      rethrow;
-    }
-  }
-
-  @override
-  Future<EmployeeAttendanceModel> updateAttendance(
-      EmployeeAttendanceModel model) async {
-    try {
-      final data = model.toJson();
-      data.remove('created_at'); // Не обновляем дату создания
-      data.remove('updated_at'); // Обновляется автоматически триггером
-
-      final response = await client
-          .from(tableName)
-          .update(data)
-          .eq('id', model.id)
-          .select()
-          .single();
-
-      return EmployeeAttendanceModel.fromJson(response);
-    } catch (e) {
-      _logger.e('Ошибка при обновлении записи посещаемости: $e');
-      rethrow;
-    }
-  }
-
-  @override
-  Future<void> deleteAttendance(String id) async {
-    try {
-      await client.from(tableName).delete().eq('id', id);
-    } catch (e) {
-      _logger.e('Ошибка при удалении записи посещаемости: $e');
-      rethrow;
-    }
-  }
-
-  @override
-  Future<EmployeeAttendanceModel?> getAttendanceById(String id) async {
-    try {
-      final response = await client
-          .from(tableName)
-          .select()
-          .eq('id', id)
-          .eq('company_id', activeCompanyId)
-          .maybeSingle();
-
-      if (response == null) {
-        return null;
-      }
-
-      return EmployeeAttendanceModel.fromJson(response);
-    } catch (e) {
-      _logger.e('Ошибка при получении записи посещаемости по ID: $e');
-      rethrow;
-    }
-  }
-
-  @override
   Future<void> batchUpsertAttendance(
-      List<EmployeeAttendanceModel> models) async {
+    List<EmployeeAttendanceModel> models,
+  ) async {
+    if (models.isEmpty) return;
+    if (!timesheetHasActiveCompany(activeCompanyId)) {
+      throw const TimesheetCompanyNotSelectedException();
+    }
     try {
-      // Обрабатываем каждую запись отдельно для надёжности
-      for (final model in models) {
-        final employeeId = model.employeeId;
-        final objectId = model.objectId;
-        final date = model.date;
-
-        // Проверяем, существует ли запись
-        final existing = await client
-            .from(tableName)
-            .select('id')
-            .eq('employee_id', employeeId)
-            .eq('company_id', activeCompanyId)
-            .eq('object_id', objectId)
-            .eq('date', date)
-            .maybeSingle();
-
-        final data = model.toJson();
-        data.remove('created_at');
-        data.remove('updated_at');
-        data.remove('created_by');
-
-        if (existing != null) {
-          // Запись существует - обновляем
-          data.remove('id'); // Не обновляем id
-          await client
-              .from(tableName)
-              .update(data)
-              .eq('employee_id', employeeId)
-              .eq('company_id', activeCompanyId)
-              .eq('object_id', objectId)
-              .eq('date', date);
-        } else {
-          // Записи нет - вставляем новую
-          data.remove('id'); // Пусть БД сгенерирует id
-          data['company_id'] = activeCompanyId;
-          await client.from(tableName).insert(data);
-        }
-      }
+      final rows = models.map(_rowForBatchUpsert).toList();
+      await client.rpc(batchUpsertRpc, params: {'p_rows': rows});
     } catch (e) {
       _logger.e('Ошибка при массовом обновлении записей посещаемости: $e');
       rethrow;

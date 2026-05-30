@@ -12,25 +12,22 @@ part of 'timesheet_entry.dart';
 
 // dart format off
 T _$identity<T>(T value) => value;
-
 /// @nodoc
 mixin _$TimesheetEntry {
 
-/// Идентификатор записи (совпадает с id в work_hours).
- String get id;/// Идентификатор смены.
+/// Идентификатор записи (`work_hours.id` или `employee_attendance.id`).
+ String get id;/// Идентификатор смены; для ручной посещаемости совпадает с [id].
  String get workId;/// Идентификатор сотрудника.
  String get employeeId;/// Количество отработанных часов.
  num get hours;/// Комментарий к записи.
- String? get comment;/// Дата смены (не хранится в work_hours, добавляется из works).
- DateTime get date;/// Идентификатор объекта (не хранится в work_hours, добавляется из works).
- String get objectId;/// Имя сотрудника для отображения (не хранится в БД).
+ String? get comment;/// Дата (из `works.date` или `employee_attendance.date`).
+ DateTime get date;/// Идентификатор объекта.
+ String get objectId;/// ФИО для отображения (не хранится в БД).
  String? get employeeName;/// Название объекта для отображения (не хранится в БД).
  String? get objectName;/// Должность сотрудника (не хранится в БД).
  String? get employeePosition;/// Дата создания записи.
  DateTime? get createdAt;/// Дата обновления записи.
- DateTime? get updatedAt;/// Признак ручного ввода часов (не хранится в БД).
-/// true = часы введены вручную (employee_attendance)
-/// false = часы из смен (work_hours)
+ DateTime? get updatedAt;/// `true` — ручной ввод (`employee_attendance`), `false` — смена (`work_hours`).
  bool get isManualEntry;
 /// Create a copy of TimesheetEntry
 /// with the given fields replaced by the non-null parameter values.
@@ -38,8 +35,6 @@ mixin _$TimesheetEntry {
 @pragma('vm:prefer-inline')
 $TimesheetEntryCopyWith<TimesheetEntry> get copyWith => _$TimesheetEntryCopyWithImpl<TimesheetEntry>(this as TimesheetEntry, _$identity);
 
-  /// Serializes this TimesheetEntry to a JSON map.
-  Map<String, dynamic> toJson();
 
 
 @override
@@ -47,7 +42,7 @@ bool operator ==(Object other) {
   return identical(this, other) || (other.runtimeType == runtimeType&&other is TimesheetEntry&&(identical(other.id, id) || other.id == id)&&(identical(other.workId, workId) || other.workId == workId)&&(identical(other.employeeId, employeeId) || other.employeeId == employeeId)&&(identical(other.hours, hours) || other.hours == hours)&&(identical(other.comment, comment) || other.comment == comment)&&(identical(other.date, date) || other.date == date)&&(identical(other.objectId, objectId) || other.objectId == objectId)&&(identical(other.employeeName, employeeName) || other.employeeName == employeeName)&&(identical(other.objectName, objectName) || other.objectName == objectName)&&(identical(other.employeePosition, employeePosition) || other.employeePosition == employeePosition)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.isManualEntry, isManualEntry) || other.isManualEntry == isManualEntry));
 }
 
-@JsonKey(includeFromJson: false, includeToJson: false)
+
 @override
 int get hashCode => Object.hash(runtimeType,id,workId,employeeId,hours,comment,date,objectId,employeeName,objectName,employeePosition,createdAt,updatedAt,isManualEntry);
 
@@ -105,14 +100,14 @@ as bool,
 
 /// @nodoc
 
-@JsonSerializable(fieldRename: FieldRename.snake)
+
 class _TimesheetEntry implements TimesheetEntry {
   const _TimesheetEntry({required this.id, required this.workId, required this.employeeId, required this.hours, this.comment, required this.date, required this.objectId, this.employeeName, this.objectName, this.employeePosition, this.createdAt, this.updatedAt, this.isManualEntry = false});
-  factory _TimesheetEntry.fromJson(Map<String, dynamic> json) => _$TimesheetEntryFromJson(json);
+  
 
-/// Идентификатор записи (совпадает с id в work_hours).
+/// Идентификатор записи (`work_hours.id` или `employee_attendance.id`).
 @override final  String id;
-/// Идентификатор смены.
+/// Идентификатор смены; для ручной посещаемости совпадает с [id].
 @override final  String workId;
 /// Идентификатор сотрудника.
 @override final  String employeeId;
@@ -120,11 +115,11 @@ class _TimesheetEntry implements TimesheetEntry {
 @override final  num hours;
 /// Комментарий к записи.
 @override final  String? comment;
-/// Дата смены (не хранится в work_hours, добавляется из works).
+/// Дата (из `works.date` или `employee_attendance.date`).
 @override final  DateTime date;
-/// Идентификатор объекта (не хранится в work_hours, добавляется из works).
+/// Идентификатор объекта.
 @override final  String objectId;
-/// Имя сотрудника для отображения (не хранится в БД).
+/// ФИО для отображения (не хранится в БД).
 @override final  String? employeeName;
 /// Название объекта для отображения (не хранится в БД).
 @override final  String? objectName;
@@ -134,9 +129,7 @@ class _TimesheetEntry implements TimesheetEntry {
 @override final  DateTime? createdAt;
 /// Дата обновления записи.
 @override final  DateTime? updatedAt;
-/// Признак ручного ввода часов (не хранится в БД).
-/// true = часы введены вручную (employee_attendance)
-/// false = часы из смен (work_hours)
+/// `true` — ручной ввод (`employee_attendance`), `false` — смена (`work_hours`).
 @override@JsonKey() final  bool isManualEntry;
 
 /// Create a copy of TimesheetEntry
@@ -145,17 +138,14 @@ class _TimesheetEntry implements TimesheetEntry {
 @pragma('vm:prefer-inline')
 _$TimesheetEntryCopyWith<_TimesheetEntry> get copyWith => __$TimesheetEntryCopyWithImpl<_TimesheetEntry>(this, _$identity);
 
-@override
-Map<String, dynamic> toJson() {
-  return _$TimesheetEntryToJson(this, );
-}
+
 
 @override
 bool operator ==(Object other) {
   return identical(this, other) || (other.runtimeType == runtimeType&&other is _TimesheetEntry&&(identical(other.id, id) || other.id == id)&&(identical(other.workId, workId) || other.workId == workId)&&(identical(other.employeeId, employeeId) || other.employeeId == employeeId)&&(identical(other.hours, hours) || other.hours == hours)&&(identical(other.comment, comment) || other.comment == comment)&&(identical(other.date, date) || other.date == date)&&(identical(other.objectId, objectId) || other.objectId == objectId)&&(identical(other.employeeName, employeeName) || other.employeeName == employeeName)&&(identical(other.objectName, objectName) || other.objectName == objectName)&&(identical(other.employeePosition, employeePosition) || other.employeePosition == employeePosition)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.isManualEntry, isManualEntry) || other.isManualEntry == isManualEntry));
 }
 
-@JsonKey(includeFromJson: false, includeToJson: false)
+
 @override
 int get hashCode => Object.hash(runtimeType,id,workId,employeeId,hours,comment,date,objectId,employeeName,objectName,employeePosition,createdAt,updatedAt,isManualEntry);
 

@@ -7,11 +7,16 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 ///
 /// Определяет контракт для получения, создания, обновления и удаления сотрудников.
 abstract class EmployeeDataSource {
-  /// Получает список всех сотрудников.
+  /// Получает список всех сотрудников с текущими ставками ([employee_rates]).
   ///
   /// Возвращает список [EmployeeModel].
   /// Генерирует исключение при ошибке.
   Future<List<EmployeeModel>> getEmployees();
+
+  /// Справочник сотрудников компании без загрузки [employee_rates].
+  ///
+  /// Для табеля, выпадающих списков и других сценариев, где ставка не нужна.
+  Future<List<EmployeeModel>> getEmployeesCatalog();
 
   /// Получает сотрудника по идентификатору.
   ///
@@ -89,49 +94,78 @@ class SupabaseEmployeeDataSource implements EmployeeDataSource {
   /// [activeCompanyId] — ID активной компании.
   SupabaseEmployeeDataSource(this.client, this.activeCompanyId);
 
+  bool get _hasActiveCompany =>
+      activeCompanyId.isNotEmpty && activeCompanyId != 'null';
+
+  /// Строки таблицы `employees` активной компании (без ставок).
+  Future<List<EmployeeModel>> _fetchCompanyEmployees() async {
+    final employeesResponse = await client
+        .from('employees')
+        .select('*')
+        .eq('company_id', activeCompanyId)
+        .order('last_name');
+
+    return (employeesResponse as List)
+        .map<EmployeeModel>((json) => EmployeeModel.fromJson(json))
+        .toList();
+  }
+
+  /// Текущие ставки: `employee_id` → `hourly_rate`.
+  Future<Map<String, double>> _fetchCurrentRatesByEmployeeId() async {
+    final ratesResponse = await client
+        .from('employee_rates')
+        .select('employee_id, hourly_rate')
+        .eq('company_id', activeCompanyId)
+        .isFilter('valid_to', null);
+
+    final ratesMap = <String, double>{};
+    for (final rate in ratesResponse as List) {
+      final employeeId = rate['employee_id'] as String;
+      final hourlyRate = (rate['hourly_rate'] as num?)?.toDouble();
+      if (hourlyRate != null) {
+        ratesMap[employeeId] = hourlyRate;
+      }
+    }
+    return ratesMap;
+  }
+
+  List<EmployeeModel> _mergeEmployeesWithRates(
+    List<EmployeeModel> employees,
+    Map<String, double> ratesByEmployeeId,
+  ) {
+    return employees.map((employee) {
+      final currentRate = ratesByEmployeeId[employee.id];
+      return currentRate != null
+          ? employee.copyWith(currentHourlyRate: currentRate)
+          : employee;
+    }).toList();
+  }
+
   @override
-  Future<List<EmployeeModel>> getEmployees() async {
-    if (activeCompanyId.isEmpty || activeCompanyId == 'null') {
+  Future<List<EmployeeModel>> getEmployeesCatalog() async {
+    if (!_hasActiveCompany) {
       return [];
     }
     try {
-      final (employeesResponse, ratesResponse) = await (
-        client
-            .from('employees')
-            .select('*')
-            .eq('company_id', activeCompanyId)
-            .order('last_name'),
-        client
-            .from('employee_rates')
-            .select('employee_id, hourly_rate')
-            .eq('company_id', activeCompanyId)
-            .isFilter('valid_to', null),
+      return await _fetchCompanyEmployees();
+    } catch (e) {
+      Logger().e('Error fetching employees catalog: $e');
+      return [];
+    }
+  }
+
+  @override
+  Future<List<EmployeeModel>> getEmployees() async {
+    if (!_hasActiveCompany) {
+      return [];
+    }
+    try {
+      final (employees, ratesByEmployeeId) = await (
+        _fetchCompanyEmployees(),
+        _fetchCurrentRatesByEmployeeId(),
       ).wait;
 
-      final employees = (employeesResponse as List)
-          .map<EmployeeModel>((json) => EmployeeModel.fromJson(json))
-          .toList();
-
-      try {
-        final ratesMap = <String, double>{};
-        for (final rate in ratesResponse as List) {
-          final employeeId = rate['employee_id'] as String;
-          final hourlyRate = (rate['hourly_rate'] as num?)?.toDouble();
-          if (hourlyRate != null) {
-            ratesMap[employeeId] = hourlyRate;
-          }
-        }
-
-        return employees.map((employee) {
-          final currentRate = ratesMap[employee.id];
-          return currentRate != null
-              ? employee.copyWith(currentHourlyRate: currentRate)
-              : employee;
-        }).toList();
-      } catch (e) {
-        Logger().e('Error fetching current rates: $e');
-        return employees;
-      }
+      return _mergeEmployeesWithRates(employees, ratesByEmployeeId);
     } catch (e) {
       Logger().e('Error fetching employees: $e');
       return [];

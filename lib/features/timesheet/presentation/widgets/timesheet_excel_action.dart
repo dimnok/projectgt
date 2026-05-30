@@ -8,6 +8,7 @@ import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 
+import '../../data/timesheet_company_scope.dart';
 import '../providers/timesheet_provider.dart';
 import '../services/timesheet_excel_export_service.dart';
 
@@ -111,14 +112,15 @@ class _TimesheetExcelActionState extends ConsumerState<TimesheetExcelAction> {
     final companyId = ref.read(activeCompanyIdProvider);
     final context = this.context;
 
-    if (companyId == null || companyId.isEmpty) {
+    if (!timesheetHasActiveCompany(companyId)) {
       AppSnackBar.show(
         context: context,
-        message: 'Не выбрана активная компания для экспорта',
+        message: timesheetNoActiveCompanyMessage,
         kind: AppSnackBarKind.error,
       );
       return;
     }
+    final scopedCompanyId = companyId!;
 
     final service = TimesheetExcelExportService(
       client: ref.read(supabaseClientProvider),
@@ -126,11 +128,10 @@ class _TimesheetExcelActionState extends ConsumerState<TimesheetExcelAction> {
 
     try {
       final filePath = await service.exportToExcel(
-        companyId: companyId,
+        companyId: scopedCompanyId,
         startDate: state.startDate,
         endDate: state.endDate,
         objectIds: state.selectedObjectIds,
-        positions: null,
         employeeIds: employeeIds,
       );
 

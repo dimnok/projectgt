@@ -386,10 +386,8 @@ class _EmployeesListMobileScreenState
                     child: Row(
                       children: [
                         Builder(
-                          builder: (ctx) =>
-                              MobileAtmosphereChromeCircleButton(
-                            appearance:
-                                MobileAtmosphereAppearance.of(context),
+                          builder: (ctx) => MobileAtmosphereChromeCircleButton(
+                            appearance: MobileAtmosphereAppearance.of(context),
                             tooltip: 'Меню',
                             icon: Icons.menu_rounded,
                             onTap: () {
@@ -452,10 +450,7 @@ class _EmployeesListMobileScreenState
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CupertinoActivityIndicator(
-              color: scheme.primary,
-              radius: 14,
-            ),
+            CupertinoActivityIndicator(color: scheme.primary, radius: 14),
             const SizedBox(height: 18),
             Text(
               'Загружаем список',

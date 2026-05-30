@@ -14,7 +14,7 @@ import '../../domain/repositories/employee_attendance_repository.dart';
 final timesheetDataSourceProvider = Provider<TimesheetDataSource>((ref) {
   final client = ref.watch(supabaseClientProvider);
   final activeCompanyId = ref.watch(activeCompanyIdProvider);
-  return TimesheetDataSourceImpl(client, activeCompanyId ?? '');
+  return TimesheetDataSourceImpl(client, activeCompanyId);
 });
 
 /// Провайдер источника данных для посещаемости сотрудников
@@ -22,7 +22,7 @@ final employeeAttendanceDataSourceProvider =
     Provider<EmployeeAttendanceDataSource>((ref) {
   final client = ref.watch(supabaseClientProvider);
   final activeCompanyId = ref.watch(activeCompanyIdProvider);
-  return EmployeeAttendanceDataSourceImpl(client, activeCompanyId ?? '');
+  return EmployeeAttendanceDataSourceImpl(client, activeCompanyId);
 });
 
 /// Провайдер репозитория таймшита

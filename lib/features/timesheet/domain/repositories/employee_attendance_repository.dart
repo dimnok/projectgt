@@ -1,33 +1,17 @@
 import '../entities/employee_attendance_entry.dart';
 
-/// Абстракция репозитория для работы с посещаемостью сотрудников.
+/// Репозиторий ручной посещаемости сотрудников (вне смен).
 abstract class EmployeeAttendanceRepository {
-  /// Получить записи посещаемости за период.
+  /// Записи посещаемости за период.
+  ///
+  /// [objectIds] — при непустом списке только записи на этих объектах.
   Future<List<EmployeeAttendanceEntry>> getAttendanceRecords({
     DateTime? startDate,
     DateTime? endDate,
     String? employeeId,
-    String? objectId,
+    List<String>? objectIds,
   });
 
-  /// Создать запись посещаемости.
-  Future<EmployeeAttendanceEntry> createAttendance(
-      EmployeeAttendanceEntry entry);
-
-  /// Обновить запись посещаемости.
-  Future<EmployeeAttendanceEntry> updateAttendance(
-      EmployeeAttendanceEntry entry);
-
-  /// Удалить запись посещаемости.
-  Future<void> deleteAttendance(String id);
-
-  /// Получить запись посещаемости по ID.
-  Future<EmployeeAttendanceEntry?> getAttendanceById(String id);
-
-  /// Массовое создание/обновление записей посещаемости.
-  ///
-  /// Используется для быстрого заполнения часов в календаре.
-  /// Возвращает список созданных/обновлённых записей.
-  Future<List<EmployeeAttendanceEntry>> batchUpsertAttendance(
-      List<EmployeeAttendanceEntry> entries);
+  /// Пакетный upsert через RPC `upsert_employee_attendance_batch`.
+  Future<void> batchUpsertAttendance(List<EmployeeAttendanceEntry> entries);
 }

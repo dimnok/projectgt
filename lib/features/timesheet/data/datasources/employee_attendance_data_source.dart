@@ -1,37 +1,17 @@
 import '../models/employee_attendance_model.dart';
 
-/// Абстракция источника данных для работы с посещаемостью сотрудников.
+/// Источник данных таблицы `employee_attendance`.
 abstract class EmployeeAttendanceDataSource {
-  /// Получить записи посещаемости за период.
+  /// Записи посещаемости за период.
   ///
-  /// Параметры:
-  /// - [startDate] — дата начала периода
-  /// - [endDate] — дата окончания периода
-  /// - [employeeId] — ID сотрудника (опционально)
-  /// - [objectId] — ID объекта (опционально)
+  /// [objectIds] — при непустом списке только записи на этих объектах.
   Future<List<EmployeeAttendanceModel>> getAttendanceRecords({
     DateTime? startDate,
     DateTime? endDate,
     String? employeeId,
-    String? objectId,
+    List<String>? objectIds,
   });
 
-  /// Создать запись посещаемости.
-  Future<EmployeeAttendanceModel> createAttendance(
-      EmployeeAttendanceModel model);
-
-  /// Обновить запись посещаемости.
-  Future<EmployeeAttendanceModel> updateAttendance(
-      EmployeeAttendanceModel model);
-
-  /// Удалить запись посещаемости.
-  Future<void> deleteAttendance(String id);
-
-  /// Получить запись посещаемости по ID.
-  Future<EmployeeAttendanceModel?> getAttendanceById(String id);
-
-  /// Массовое создание/обновление записей посещаемости.
-  ///
-  /// Используется для быстрого заполнения часов в календаре.
+  /// Пакетный upsert через RPC `upsert_employee_attendance_batch`.
   Future<void> batchUpsertAttendance(List<EmployeeAttendanceModel> models);
 }

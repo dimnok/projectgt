@@ -1,117 +1,65 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:projectgt/domain/entities/employee.dart';
+import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
+import 'package:projectgt/features/objects/domain/entities/object.dart';
+
+import '../../data/timesheet_company_scope.dart';
 import '../../domain/entities/timesheet_entry.dart';
 import '../../domain/repositories/timesheet_repository.dart';
+import '../state/timesheet_state.dart';
 import 'repositories_providers.dart';
+import 'timesheet_filters_providers.dart';
 
-/// Состояние для таймшита
-class TimesheetState {
-  /// Список записей табеля
-  final List<TimesheetEntry> entries;
-
-  /// Сотрудники компании (загружаются вместе с табелем).
-  final List<Employee> employees;
-
-  /// Флаг загрузки данных
-  final bool isLoading;
-
-  /// Текст ошибки, если есть
-  final String? error;
-
-  /// Начальная дата для фильтрации
-  final DateTime startDate;
-
-  /// Конечная дата для фильтрации
-  final DateTime endDate;
-
-  /// Выбранные объекты для фильтрации (мультивыбор)
-  final List<String>? selectedObjectIds;
-
-  /// Специальный sentinel-объект для различения null и отсутствия значения в copyWith.
-  static const _sentinel = Object();
-
-  /// Создает экземпляр состояния [TimesheetState].
-  ///
-  /// [entries] — список записей табеля (по умолчанию пустой).
-  /// [isLoading] — флаг загрузки данных (по умолчанию false).
-  /// [error] — текст ошибки, если есть (по умолчанию null).
-  /// [startDate] — начальная дата для фильтрации (обязательный параметр).
-  /// [endDate] — конечная дата для фильтрации (обязательный параметр).
-  /// [selectedObjectIds] — выбранные объекты для фильтрации (мультивыбор, по умолчанию null).
-  TimesheetState({
-    this.entries = const [],
-    this.employees = const [],
-    this.isLoading = false,
-    this.error,
-    required this.startDate,
-    required this.endDate,
-    this.selectedObjectIds,
-  });
-
-  /// Создаёт копию состояния [TimesheetState] с обновлёнными свойствами.
-  ///
-  /// Позволяет частично изменить поля состояния без необходимости указывать все параметры.
-  ///
-  /// [entries] — новый список записей табеля (опционально).
-  /// [isLoading] — новое состояние загрузки (опционально).
-  /// [error] — новый текст ошибки (опционально).
-  /// [startDate] — новая начальная дата фильтрации (опционально).
-  /// [endDate] — новая конечная дата фильтрации (опционально).
-  /// [selectedObjectIds] — новые выбранные объекты для фильтрации (опционально, поддерживает sentinel для различения null и отсутствия значения).
-  ///
-  /// Возвращает новый экземпляр [TimesheetState] с обновлёнными значениями.
-  TimesheetState copyWith({
-    List<TimesheetEntry>? entries,
-    List<Employee>? employees,
-    bool? isLoading,
-    String? error,
-    DateTime? startDate,
-    DateTime? endDate,
-    Object? selectedObjectIds = _sentinel,
-  }) {
-    return TimesheetState(
-      entries: entries ?? this.entries,
-      employees: employees ?? this.employees,
-      isLoading: isLoading ?? this.isLoading,
-      error: error,
-      startDate: startDate ?? this.startDate,
-      endDate: endDate ?? this.endDate,
-      selectedObjectIds: selectedObjectIds == _sentinel
-          ? this.selectedObjectIds
-          : selectedObjectIds as List<String>?,
-    );
-  }
-}
-
-/// StateNotifier для управления состоянием табеля учёта рабочего времени (таймшита).
-///
-/// Позволяет загружать, фильтровать, группировать и сбрасывать данные табеля, а также управлять ошибками и состоянием загрузки.
+/// StateNotifier для управления состоянием табеля учёта рабочего времени.
 class TimesheetNotifier extends StateNotifier<TimesheetState> {
-  /// Репозиторий таймшита
+  /// Репозиторий табеля.
   final TimesheetRepository repository;
 
-  /// Создает экземпляр [TimesheetNotifier]
-  TimesheetNotifier(this.repository)
-      : super(TimesheetState(
-          startDate: DateTime(DateTime.now().year, DateTime.now().month, 1),
-          endDate: DateTime(DateTime.now().year, DateTime.now().month + 1, 0),
-        )) {
+  /// Возвращает ID активной компании из профиля (может быть `null`).
+  final String? Function() readActiveCompanyId;
+
+  /// Объекты компании для обогащения записей при точечном обновлении часов.
+  final List<ObjectEntity> Function() readObjectsForEnrichment;
+
+  /// Создаёт [TimesheetNotifier] и загружает данные за текущий месяц.
+  TimesheetNotifier({
+    required this.repository,
+    required this.readActiveCompanyId,
+    required this.readObjectsForEnrichment,
+  }) : super(TimesheetState.initial()) {
     loadTimesheet();
   }
 
-  /// Загружает данные табеля за текущий период (фильтр объектов — на клиенте).
+  List<String>? get _objectIdsFilter {
+    final ids = state.selectedObjectIds;
+    if (ids == null || ids.isEmpty) return null;
+    return ids;
+  }
+
+  /// Загружает табель за текущий период (включая справочник сотрудников).
   Future<void> loadTimesheet() async {
+    if (!timesheetHasActiveCompany(readActiveCompanyId())) {
+      state = state.copyWith(
+        isLoading: false,
+        entries: [],
+        employees: [],
+        error: timesheetNoActiveCompanyMessage,
+      );
+      return;
+    }
+
     state = state.copyWith(isLoading: true, error: null);
     try {
       final result = await repository.loadTimesheet(
         startDate: state.startDate,
         endDate: state.endDate,
+        objectIds: _objectIdsFilter,
       );
 
       state = state.copyWith(
         entries: result.entries,
         employees: result.employees,
         isLoading: false,
+        error: null,
       );
     } catch (e) {
       state = state.copyWith(
@@ -121,38 +69,69 @@ class TimesheetNotifier extends StateNotifier<TimesheetState> {
     }
   }
 
-  /// Устанавливает диапазон дат для фильтрации
+  /// Перезагружает только записи часов (после диалога посещаемости).
+  Future<void> reloadHoursEntries() async {
+    if (!timesheetHasActiveCompany(readActiveCompanyId())) return;
+    if (state.employees.isEmpty) {
+      await loadTimesheet();
+      return;
+    }
+
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final entries = await repository.reloadHoursEntries(
+        startDate: state.startDate,
+        endDate: state.endDate,
+        objectIds: _objectIdsFilter,
+        employees: state.employees,
+        objects: readObjectsForEnrichment(),
+      );
+
+      state = state.copyWith(
+        entries: entries,
+        isLoading: false,
+        error: null,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        error: 'Ошибка обновления часов: $e',
+        isLoading: false,
+      );
+    }
+  }
+
+  /// Устанавливает диапазон дат и перезагружает табель.
   void setDateRange(DateTime startDate, DateTime endDate) {
     state = state.copyWith(startDate: startDate, endDate: endDate);
     loadTimesheet();
   }
 
-  /// Выбранные объекты для клиентского фильтра (без перезапроса к серверу).
+  /// Выбранные объекты — серверный фильтр, перезагрузка табеля.
   void setSelectedObjects(List<String> objectIds) {
-    state = state.copyWith(selectedObjectIds: objectIds);
-  }
-
-  /// Сбрасывает все фильтры
-  void resetFilters() {
-    final now = DateTime.now();
     state = state.copyWith(
-      startDate: DateTime(now.year, now.month, 1),
-      endDate: DateTime(now.year, now.month + 1, 0),
-      selectedObjectIds: <String>[],
+      selectedObjectIds: objectIds.isEmpty ? null : objectIds,
     );
     loadTimesheet();
   }
 }
 
-/// Глобальный провайдер состояния табеля учёта рабочего времени (таймшита).
-///
-/// Позволяет получать и изменять состояние табеля, управлять фильтрами, загрузкой и ошибками.
+/// Провайдер состояния табеля.
 final timesheetProvider =
     StateNotifierProvider<TimesheetNotifier, TimesheetState>((ref) {
   final repository = ref.watch(timesheetRepositoryProvider);
-  return TimesheetNotifier(repository);
+  return TimesheetNotifier(
+    repository: repository,
+    readActiveCompanyId: () => ref.read(activeCompanyIdProvider),
+    readObjectsForEnrichment: () =>
+        ref.read(availableObjectsForTimesheetProvider),
+  );
 });
 
-/// ID сотрудников, отмеченных чекбоксами в сетке табеля (экспорт, будущие действия).
+/// Записи табеля для сетки (стабильная ссылка между rebuild, пока не меняется state).
+final timesheetGridEntriesProvider = Provider<List<TimesheetEntry>>((ref) {
+  return ref.watch(timesheetProvider.select((s) => s.entries));
+});
+
+/// ID сотрудников, отмеченных чекбоксами в сетке табеля (экспорт и др.).
 final timesheetGridSelectedEmployeeIdsProvider =
     StateProvider<Set<String>>((ref) => <String>{});

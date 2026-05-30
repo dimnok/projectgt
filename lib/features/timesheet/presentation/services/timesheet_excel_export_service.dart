@@ -33,7 +33,6 @@ class TimesheetExcelExportService {
     required DateTime startDate,
     required DateTime endDate,
     List<String>? objectIds,
-    List<String>? positions,
     List<String>? employeeIds,
   }) async {
     final response = await client.functions.invoke(
@@ -43,7 +42,6 @@ class TimesheetExcelExportService {
         'startDate': GtFormatters.formatDateForApi(startDate),
         'endDate': GtFormatters.formatDateForApi(endDate),
         'objectIds': objectIds,
-        'positions': positions,
         if (employeeIds != null && employeeIds.isNotEmpty)
           'employeeIds': employeeIds,
       },

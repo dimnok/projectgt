@@ -21,6 +21,12 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
   }
 
   @override
+  Future<List<Employee>> getEmployeesCatalog() async {
+    final employeeModels = await dataSource.getEmployeesCatalog();
+    return employeeModels.map((model) => model.toDomain()).toList();
+  }
+
+  @override
   Future<Employee?> getEmployee(String id) async {
     final employeeModel = await dataSource.getEmployee(id);
     return employeeModel?.toDomain();

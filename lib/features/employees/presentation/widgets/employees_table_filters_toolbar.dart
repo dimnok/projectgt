@@ -45,11 +45,7 @@ double _measureEmployeesStatusTrackWidth(
 ) {
   final scaler = MediaQuery.textScalerOf(context);
   final style = (theme.textTheme.labelLarge ?? theme.textTheme.bodyMedium!)
-      .copyWith(
-        fontWeight: FontWeight.w600,
-        fontSize: 12.5,
-        height: 1.1,
-      );
+      .copyWith(fontWeight: FontWeight.w600, fontSize: 12.5, height: 1.1);
   var w = 4.0;
   for (var i = 0; i < labels.length; i++) {
     if (i > 0) {
@@ -128,10 +124,7 @@ class EmployeesObjectTableFilterValue {
       case _kUnassigned:
         return <String, dynamic>{'kind': 'unassigned'};
       case _kObject:
-        return <String, dynamic>{
-          'kind': 'object',
-          'objectId': _objectId,
-        };
+        return <String, dynamic>{'kind': 'object', 'objectId': _objectId};
       default:
         return <String, dynamic>{'kind': 'all'};
     }
@@ -286,22 +279,20 @@ class _EmployeesTableFiltersToolbarState
       child: LayoutBuilder(
         builder: (context, constraints) {
           final rowW = constraints.maxWidth;
-          final showToolbarActions = (widget.canCreate &&
-                  widget.onAddEmployee != null) ||
+          final showToolbarActions =
+              (widget.canCreate && widget.onAddEmployee != null) ||
               (widget.canExport && widget.onExport != null);
           const gapsReserveBase = 212.0;
           // Резерв под «Добавить сотрудника» и «Экспорт» справа в строке.
           const trailingActionsReserve = 300.0;
-          final gapsReserve = gapsReserveBase +
+          final gapsReserve =
+              gapsReserveBase +
               (showToolbarActions ? trailingActionsReserve : 0);
           final computedSearch = rowW.isFinite
               ? math.min(380.0, math.max(220.0, rowW * 0.34))
               : 380.0;
           final searchW = rowW.isFinite
-              ? math.min(
-                  computedSearch,
-                  math.max(160.0, rowW - gapsReserve),
-                )
+              ? math.min(computedSearch, math.max(160.0, rowW - gapsReserve))
               : computedSearch;
 
           return Row(
@@ -674,8 +665,9 @@ class _EmployeesObjectFilterMenu extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: rowTextStyle?.copyWith(
-                        fontWeight:
-                            isSelected ? FontWeight.w600 : FontWeight.w400,
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.w400,
                       ),
                     ),
                   ),
@@ -774,15 +766,10 @@ class _EmployeesStatusSegmentBar extends StatelessWidget {
     }
 
     final visibleStatuses = EmployeeStatus.values
-        .where(
-          (s) => (counts[s] ?? 0) > 0 || selectedStatus == s,
-        )
+        .where((s) => (counts[s] ?? 0) > 0 || selectedStatus == s)
         .toList(growable: false);
 
-    final statusLabels = [
-      'Все',
-      ...visibleStatuses.map(_statusLabel),
-    ];
+    final statusLabels = ['Все', ...visibleStatuses.map(_statusLabel)];
 
     TextStyle segmentText(bool selected) {
       final base = theme.textTheme.labelLarge ?? theme.textTheme.bodyMedium!;
@@ -841,10 +828,7 @@ class _EmployeesStatusSegmentBar extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(_kBarRadius - 3),
               color: fillColor,
-              border: Border.all(
-                color: outlineColor,
-                width: 1,
-              ),
+              border: Border.all(color: outlineColor, width: 1),
               boxShadow: selected
                   ? [
                       BoxShadow(
@@ -912,11 +896,11 @@ class _EmployeesStatusSegmentBar extends StatelessWidget {
             final useScroll = hasWidthCap && scrollThreshold > maxOuter;
             final barWidth = hasWidthCap
                 ? (useScroll
-                    ? maxOuter
-                    : math.min(
-                        intrinsicMeasured + _kStatusTrackHugMicroSlack,
-                        maxOuter,
-                      ))
+                      ? maxOuter
+                      : math.min(
+                          intrinsicMeasured + _kStatusTrackHugMicroSlack,
+                          maxOuter,
+                        ))
                 : null;
 
             final inner = useScroll
@@ -944,10 +928,7 @@ class _EmployeesStatusSegmentBar extends StatelessWidget {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(_kBarRadius),
-                child: Padding(
-                  padding: const EdgeInsets.all(2),
-                  child: inner,
-                ),
+                child: Padding(padding: const EdgeInsets.all(2), child: inner),
               ),
             );
 

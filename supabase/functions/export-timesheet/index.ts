@@ -2,6 +2,10 @@ import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { encode } from "https://deno.land/std@0.208.0/encoding/base64.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import ExcelJS from "npm:exceljs@4.4.0";
+import {
+  buildTimesheetHoursIndex,
+  filterTimesheetGridEmployees,
+} from "./timesheet_employee_visibility.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -49,7 +53,6 @@ interface ExportTimesheetRequest {
   startDate: string;
   endDate: string;
   objectIds?: string[];
-  positions?: string[];
   /** Только эти сотрудники (пересечение с правилами видимости). */
   employeeIds?: string[];
 }
@@ -148,25 +151,17 @@ serve(async (req) => {
         objectNameById,
       );
 
-    const employeeIdsWithHours = new Set(entries.map((entry) => entry.employeeId));
-    
-    const hasObjectFilter = request.objectIds && request.objectIds.length > 0;
+    const hoursIndex = buildTimesheetHoursIndex(entries);
+    const hasObjectFilter = Boolean(
+      request.objectIds && request.objectIds.length > 0,
+    );
 
-    let visibleEmployees = employeeRows
-      .filter((employee) => {
-        // Если включен фильтр по объектам, показываем ТОЛЬКО тех, у кого есть часы
-        if (hasObjectFilter) {
-          return employeeIdsWithHours.has(employee.id);
-        }
-        // Иначе показываем всех активных + уволенных с часами
-        return employee.status !== "fired" || employeeIdsWithHours.has(employee.id);
-      })
-      .sort((a, b) => a.fullName.localeCompare(b.fullName, "ru"));
-
-    if (request.employeeIds && request.employeeIds.length > 0) {
-      const pick = new Set(request.employeeIds);
-      visibleEmployees = visibleEmployees.filter((e) => pick.has(e.id));
-    }
+    const visibleEmployees = filterTimesheetGridEmployees(
+      employeeRows,
+      hoursIndex,
+      hasObjectFilter,
+      request.employeeIds,
+    );
 
     if (visibleEmployees.length === 0) {
       return jsonResponse({
@@ -472,10 +467,6 @@ async function loadEmployees(
       .from("employees")
       .select("id, last_name, first_name, middle_name, position, status")
       .eq("company_id", request.companyId);
-
-    if (request.positions && request.positions.length > 0) {
-      q = q.in("position", request.positions);
-    }
 
     return q.order("last_name", { ascending: true }).order("id", { ascending: true }).range(from, to);
   });
