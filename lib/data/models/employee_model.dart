@@ -38,6 +38,9 @@ abstract class EmployeeModel with _$EmployeeModel {
     EmploymentType employmentType,
     String? position,
     @Default(EmployeeStatus.working) EmployeeStatus status,
+    @JsonKey(name: 'include_in_timesheet')
+    @Default(true)
+    bool includeInTimesheet,
     @JsonKey(name: 'object_ids') @Default(<String>[]) List<String> objectIds,
     @JsonKey(name: 'passport_series') String? passportSeries,
     @JsonKey(name: 'passport_number') String? passportNumber,
@@ -82,6 +85,7 @@ abstract class EmployeeModel with _$EmployeeModel {
         employmentType: employee.employmentType,
         position: employee.position,
         status: employee.status,
+        includeInTimesheet: employee.includeInTimesheet,
         objectIds: employee.objectIds,
         passportSeries: employee.passportSeries,
         passportNumber: employee.passportNumber,
@@ -115,6 +119,7 @@ abstract class EmployeeModel with _$EmployeeModel {
         employmentType: employmentType,
         position: position,
         status: status,
+        includeInTimesheet: includeInTimesheet,
         objectIds: objectIds,
         passportSeries: passportSeries,
         passportNumber: passportNumber,

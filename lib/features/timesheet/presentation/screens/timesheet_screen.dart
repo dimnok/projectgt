@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +10,7 @@ import 'package:projectgt/core/widgets/mobile_atmosphere_screen_header.dart';
 import 'package:projectgt/features/employees/presentation/utils/employees_layout_utils.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 
+import '../providers/timesheet_employees_catalog_sync.dart';
 import '../providers/timesheet_provider.dart';
 import '../widgets/timesheet_calendar_view.dart';
 import '../widgets/timesheet_mobile_search_field.dart';
@@ -19,12 +22,32 @@ const _kTimesheetBodyPadding = EdgeInsets.fromLTRB(16, 0, 16, 10);
 
 /// Основной экран модуля «Табель»: фон и шапка в стиле списка договоров
 /// ([MobileAtmosphereBackdrop], круглый «хром» для меню и темы).
-class TimesheetScreen extends ConsumerWidget {
+class TimesheetScreen extends ConsumerStatefulWidget {
   /// Создаёт экран табеля.
   const TimesheetScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TimesheetScreen> createState() => _TimesheetScreenState();
+}
+
+class _TimesheetScreenState extends ConsumerState<TimesheetScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _refreshEmployeesCatalog());
+  }
+
+  /// Подтягивает актуальный справочник после правок в модуле «Сотрудники».
+  void _refreshEmployeesCatalog() {
+    if (!mounted) return;
+    final ts = ref.read(timesheetProvider);
+    if (ts.employees.isEmpty && ts.entries.isEmpty) return;
+    unawaited(ref.read(timesheetProvider.notifier).reloadEmployeesCatalog());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.watch(timesheetEmployeesCatalogSyncProvider);
     final timesheetState = ref.watch(timesheetProvider);
     final gridEntries = ref.watch(timesheetGridEntriesProvider);
     final appearance = MobileAtmosphereAppearance.of(context);

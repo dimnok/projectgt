@@ -64,6 +64,7 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
   EmployeeStatus? _status;
   EmploymentType? _employmentType;
   DateTime? _employmentDate;
+  bool _includeInTimesheet = true;
 
   // Даты и размеры
   DateTime? _birthDate;
@@ -156,6 +157,7 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
     _status = emp.status;
     _employmentType = emp.employmentType;
     _employmentDate = emp.employmentDate;
+    _includeInTimesheet = emp.includeInTimesheet;
     _objectIds = List<String>.from(emp.objectIds);
   }
 
@@ -203,6 +205,7 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
         _status != _employee.status ||
         _employmentType != _employee.employmentType ||
         _employmentDate != _employee.employmentDate ||
+        _includeInTimesheet != _employee.includeInTimesheet ||
         isListChanged(_employee.objectIds, _objectIds);
 
     if (_hasChanges != hasChanges && mounted) {
@@ -272,6 +275,7 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
         status: _status ?? EmployeeStatus.working,
         employmentType: _employmentType ?? EmploymentType.official,
         employmentDate: _employmentDate,
+        includeInTimesheet: _includeInTimesheet,
         birthDate: _birthDate,
         passportIssueDate: _passportIssueDate,
         clothingSize: _clothingSize,
@@ -307,6 +311,54 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
 
   Widget _buildDivider() {
     return const Divider(height: 1, thickness: 1);
+  }
+
+  /// Чекбокс «Учитывать в табеле» под блоком «Работа».
+  Widget _buildIncludeInTimesheetCheckbox(ThemeData theme) {
+    final hintColor = theme.colorScheme.onSurface.withValues(alpha: 0.55);
+    const hint =
+        'Если снять — сотрудник не отображается в табеле без часов за период';
+
+    void toggle(bool? value) {
+      setState(() => _includeInTimesheet = value ?? false);
+      _checkForChanges();
+    }
+
+    return Semantics(
+      toggled: _includeInTimesheet,
+      label: hint,
+      child: InkWell(
+        onTap: () => toggle(!_includeInTimesheet),
+        borderRadius: BorderRadius.circular(6),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Row(
+            children: [
+              Checkbox(
+                value: _includeInTimesheet,
+                onChanged: toggle,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
+              ),
+              Expanded(
+                child: Text(
+                  'Учитывать в табеле',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              Tooltip(
+                message: hint,
+                waitDuration: const Duration(milliseconds: 400),
+                child: Icon(Icons.info_outline, size: 16, color: hintColor),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -501,23 +553,26 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
               _buildDivider(),
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Expanded(
-                      flex: 2,
-                      child: Text(
-                        'Работа',
-                        style: TextStyle(
-                          color: Colors.grey,
-                          fontWeight: FontWeight.w500,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const Expanded(
+                          flex: 2,
+                          child: Text(
+                            'Работа',
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                    Expanded(
-                      flex: 5,
-                      child: Row(
-                        children: [
+                        Expanded(
+                          flex: 5,
+                          child: Row(
+                            children: [
                           Expanded(
                             flex: 2,
                             child: SizedBox(
@@ -587,8 +642,21 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
                               ),
                             ),
                           ),
-                        ],
-                      ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const Expanded(flex: 2, child: SizedBox.shrink()),
+                        Expanded(
+                          flex: 5,
+                          child: _buildIncludeInTimesheetCheckbox(theme),
+                        ),
+                      ],
                     ),
                   ],
                 ),

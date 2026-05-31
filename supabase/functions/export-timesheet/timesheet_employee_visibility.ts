@@ -31,11 +31,14 @@ export function buildTimesheetHoursIndex(
 }
 
 export function isTimesheetGridEmployeeVisible(
-  employee: { id: string; status: string },
+  employee: { id: string; status: string; includeInTimesheet: boolean },
   hoursIndex: TimesheetHoursIndex,
   hasObjectFilter: boolean,
 ): boolean {
   if (hasObjectFilter) {
+    return hoursIndex.employeeIdsWithEntries.has(employee.id);
+  }
+  if (!employee.includeInTimesheet) {
     return hoursIndex.employeeIdsWithEntries.has(employee.id);
   }
   if (employee.status !== "fired") return true;
@@ -45,6 +48,7 @@ export function isTimesheetGridEmployeeVisible(
 export function filterTimesheetGridEmployees<T extends {
   id: string;
   status: string;
+  includeInTimesheet: boolean;
   fullName: string;
 }>(
   employees: T[],

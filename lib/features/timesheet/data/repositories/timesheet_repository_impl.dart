@@ -153,6 +153,10 @@ class TimesheetRepositoryImpl implements TimesheetRepository {
   }
 
   @override
+  Future<List<Employee>> loadEmployeesCatalog() =>
+      employeeRepository.getEmployeesCatalog();
+
+  @override
   Future<TimesheetLoadResult> loadTimesheet({
     DateTime? startDate,
     DateTime? endDate,

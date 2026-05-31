@@ -36,6 +36,7 @@ _EmployeeModel _$EmployeeModelFromJson(Map<String, dynamic> json) =>
       status:
           $enumDecodeNullable(_$EmployeeStatusEnumMap, json['status']) ??
           EmployeeStatus.working,
+      includeInTimesheet: json['include_in_timesheet'] as bool? ?? true,
       objectIds:
           (json['object_ids'] as List<dynamic>?)
               ?.map((e) => e as String)
@@ -78,6 +79,7 @@ Map<String, dynamic> _$EmployeeModelToJson(_EmployeeModel instance) =>
       'employment_type': _$EmploymentTypeEnumMap[instance.employmentType]!,
       'position': instance.position,
       'status': _$EmployeeStatusEnumMap[instance.status]!,
+      'include_in_timesheet': instance.includeInTimesheet,
       'object_ids': instance.objectIds,
       'passport_series': instance.passportSeries,
       'passport_number': instance.passportNumber,

@@ -7,11 +7,13 @@ import 'package:projectgt/domain/entities/employee.dart';
 import 'package:projectgt/features/timesheet/domain/entities/timesheet_entry.dart';
 import 'package:projectgt/features/timesheet/domain/timesheet_employee_visibility.dart';
 import 'package:projectgt/features/timesheet/domain/timesheet_hours_index.dart';
+import 'package:projectgt/features/timesheet/domain/timesheet_position_filter.dart';
 import 'package:projectgt/presentation/widgets/cupertino_dialog_widget.dart';
 import 'employee_attendance_dialog.dart';
 import '../providers/timesheet_filters_providers.dart';
 import 'timesheet_employee_list_scope_segment.dart';
 import 'timesheet_objects_bar_dropdown.dart';
+import 'timesheet_positions_bar_dropdown.dart';
 import 'timesheet_filter_widget.dart';
 import '../providers/timesheet_provider.dart';
 import '../state/timesheet_state.dart';
@@ -21,6 +23,7 @@ import 'package:projectgt/features/roles/presentation/widgets/permission_guard.d
 import 'package:projectgt/features/timesheet/presentation/widgets/timesheet_filters_toolbar.dart';
 
 import 'timesheet_calendar_grid.dart';
+import 'timesheet_attendance_stats.dart';
 import 'timesheet_excel_action.dart';
 
 /// Календарная сетка табеля: своя [Table], шапка закреплена над вертикальным скроллом,
@@ -86,6 +89,7 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
 
   ProviderSubscription<TimesheetState>? _timesheetSub;
   ProviderSubscription<TimesheetEmployeeListScope>? _employeeScopeSub;
+  ProviderSubscription<Set<String>>? _positionFilterSub;
   ProviderSubscription<String>? _searchSub;
 
   @override
@@ -110,6 +114,14 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
       timesheetEmployeeListScopeProvider,
       (previous, next) {
         if (previous != next) _scheduleSyncEmployeeRows();
+      },
+    );
+
+    _positionFilterSub = ref.listenManual<Set<String>>(
+      timesheetSelectedPositionKeysProvider,
+      (previous, next) {
+        if (previous == next) return;
+        _scheduleSyncEmployeeRows();
       },
     );
 
@@ -140,6 +152,7 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
   void dispose() {
     _timesheetSub?.close();
     _employeeScopeSub?.close();
+    _positionFilterSub?.close();
     _searchSub?.close();
     _horizontalController.removeListener(_syncHeaderScroll);
     _verticalController.dispose();
@@ -201,11 +214,17 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
     final hasObjectFilter =
         timesheetState.selectedObjectIds?.isNotEmpty ?? false;
 
-    final baseFiltered = visibleTimesheetGridEmployees(
+    final scopeFiltered = visibleTimesheetGridEmployees(
       employees: allEmployees,
       hoursIndex: hoursIndex,
       hasObjectFilter: hasObjectFilter,
       listScope: listScope,
+    );
+
+    final positionKeys = ref.read(timesheetSelectedPositionKeysProvider);
+    final baseFiltered = filterEmployeesByTimesheetPositionKeys(
+      scopeFiltered,
+      positionKeys,
     );
 
     final visible = _employeesMatchingSearch(baseFiltered);
@@ -288,6 +307,9 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
     final scope = ref.read(timesheetEmployeeListScopeProvider);
     final hasObjectFilter =
         timesheetState.selectedObjectIds?.isNotEmpty ?? false;
+    final hasPositionFilter = hasActiveTimesheetPositionFilter(
+      ref.read(timesheetSelectedPositionKeysProvider),
+    );
 
     final String title;
     final String subtitle;
@@ -298,6 +320,9 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
     } else if (hasObjectFilter) {
       title = 'Нет сотрудников на выбранных объектах';
       subtitle = 'Выберите другие объекты или сбросьте фильтр';
+    } else if (hasPositionFilter) {
+      title = 'Нет сотрудников с выбранными должностями';
+      subtitle = 'Выберите другие должности или сбросьте фильтр';
     } else {
       switch (scope) {
         case TimesheetEmployeeListScope.withHours:
@@ -360,6 +385,8 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
               const SizedBox(width: 8),
               const TimesheetObjectsBarDropdown(),
               const SizedBox(width: 8),
+              const TimesheetPositionsBarDropdown(),
+              const SizedBox(width: 8),
               if (useMobileList)
                 const TimesheetEmployeeListScopeSegment()
               else
@@ -370,6 +397,8 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
                   ),
                 ),
               if (useMobileList) const SizedBox(width: 12),
+              const TimesheetAttendanceStatsAction(),
+              const SizedBox(width: 8),
               const PermissionGuard(
                 module: 'timesheet',
                 permission: 'export',

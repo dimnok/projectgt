@@ -1,8 +1,12 @@
 # Модуль Employees (Сотрудники)
 
-**Дата актуализации:** 29 мая 2026 года
+**Дата актуализации:** 31 мая 2026 года
 
-**Изменения в этой версии (29.05.2026, UX: индикаторы загрузки и кнопка редактирования):**
+**Изменения в этой версии (31.05.2026, табель):**
+- **`employees.include_in_timesheet`** (миграция [`20260531120000_employees_include_in_timesheet.sql`](../../supabase/migrations/20260531120000_employees_include_in_timesheet.sql), default `true`): **чекбокс** «Учитывать в табеле» под блоком «Работа» в [`employee_edit_form.dart`](../../lib/features/employees/presentation/widgets/employee_edit_form.dart) и в мобильном редакторе ([`employees_mobile_employee_edit_blocks.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_edit_blocks.dart)). Редактирование — при `employees.update`. Правила видимости — [`timesheet_employee_visibility`](../../lib/features/timesheet/domain/timesheet_employee_visibility.dart) (экран + Excel).
+- **Связь с табелем:** после сохранения карточки модуль Timesheet вызывает `reloadEmployeesCatalog()` ([`timesheet_employees_catalog_sync.dart`](../../lib/features/timesheet/presentation/providers/timesheet_employees_catalog_sync.dart)) — перезапуск приложения не нужен.
+
+**Предыдущая версия (29.05.2026, UX: индикаторы загрузки и кнопка редактирования):**
 - **Индикаторы загрузки:** во всём presentation-слое модуля `employees` вместо `CircularProgressIndicator` используется **`CupertinoActivityIndicator`** (списки table/mobile, экран деталей по URL, аватар в карточке, история ставок, фильтр объектов в toolbar, кнопки сохранения в [`form_widgets.dart`](../../lib/features/employees/presentation/widgets/form_widgets.dart) и [`employee_edit_form.dart`](../../lib/features/employees/presentation/widgets/employee_edit_form.dart)). Кнопки `GTPrimaryButton` / `GTSecondaryButton` с `isLoading: true` — через Design System ([`gt_buttons.dart`](../../lib/core/widgets/gt_buttons.dart), уже Cupertino).
 - **Карточка сотрудника (desktop):** в секции «Личные данные» вместо иконки карандаша — текстовая кнопка **`GTTextButton` «Редактировать»** ([`employee_details_modal.dart`](../../lib/features/employees/presentation/widgets/employee_details_modal.dart)); видна только при `employees.update`. На mobile в bottom sheet по-прежнему компактные иконки «изменить» у секций ([`_sectionEditButton`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_details_sheet.dart)).
 

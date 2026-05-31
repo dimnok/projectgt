@@ -6,7 +6,7 @@ part of 'splash_controller.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$splashControllerHash() => r'ac5498cb289ad29900cbbf891d50826cf24be450';
+String _$splashControllerHash() => r'21624c2d083671cc9ca3e84466bb681c0f2ec5dc';
 
 /// Контроллер экрана заставки (Splash Screen).
 ///

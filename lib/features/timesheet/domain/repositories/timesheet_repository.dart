@@ -15,6 +15,9 @@ abstract class TimesheetRepository {
     List<String>? objectIds,
   });
 
+  /// Справочник сотрудников компании (без ставок), как в [loadTimesheet].
+  Future<List<Employee>> loadEmployeesCatalog();
+
   /// Перезагружает только часы (смены + посещаемость), без справочника сотрудников.
   ///
   /// [employees] и [objects] — для обогащения имён (из текущего состояния UI).

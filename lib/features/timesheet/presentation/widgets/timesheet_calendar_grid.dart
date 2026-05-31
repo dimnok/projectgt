@@ -48,6 +48,23 @@ abstract final class TimesheetGridLayout {
       '${date.year.toString().padLeft(4, '0')}-'
       '${date.month.toString().padLeft(2, '0')}-'
       '${date.day.toString().padLeft(2, '0')}';
+
+  /// Лёгкий фон строки при выборе чекбоксом.
+  static Color selectedRowBackground(ColorScheme scheme, Brightness brightness) {
+    return scheme.primary.withValues(
+      alpha: brightness == Brightness.dark ? 0.14 : 0.08,
+    );
+  }
+
+  /// Цвет уголкового маркера примечания в ячейке дня.
+  static Color commentCornerColor(ColorScheme scheme, Brightness brightness) {
+    return brightness == Brightness.dark
+        ? scheme.primary
+        : scheme.primary.withValues(alpha: 0.92);
+  }
+
+  /// Размер уголкового маркера примечания.
+  static const double commentCornerSize = 9;
 }
 
 /// Фиксированные и гибкая (ФИО) ячейки строки сетки.
@@ -311,6 +328,7 @@ class TimesheetGridEmployeeRow extends StatelessWidget {
       final dayEntries = entriesByDayKey[key] ?? const <TimesheetEntry>[];
       final dayHours = dayEntries.fold<num>(0, (s, e) => s + e.hours);
       totalHours += dayHours;
+      final commentTooltip = _timesheetDayCommentsTooltip(dayEntries);
 
       dayWidgets.add(
         _TimesheetGridCells.fixed(
@@ -326,30 +344,13 @@ class TimesheetGridEmployeeRow extends StatelessWidget {
                 HapticFeedback.selectionClick();
               },
               borderRadius: BorderRadius.circular(8),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
-                child: Center(
-                  child: dayHours > 0
-                      ? DecoratedBox(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: dayEntries.any((e) => e.isManualEntry)
-                                ? Border.all(color: scheme.primary, width: 1.5)
-                                : null,
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(2),
-                            child: Text(
-                              formatQuantity(dayHours),
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        )
-                      : const SizedBox.shrink(),
-                ),
+              child: _timesheetDayCellBody(
+                commentTooltip: commentTooltip,
+                scheme: scheme,
+                brightness: theme.brightness,
+                dayHours: dayHours,
+                dayEntries: dayEntries,
+                theme: theme,
               ),
             ),
           ),
@@ -357,10 +358,20 @@ class TimesheetGridEmployeeRow extends StatelessWidget {
       );
     }
 
+    final rowBackground = isSelected
+        ? TimesheetGridLayout.selectedRowBackground(
+            scheme,
+            theme.brightness,
+          )
+        : Colors.transparent;
+
     return SizedBox(
       height: TimesheetGridLayout.dataRowHeight,
-      child: DecoratedBox(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
         decoration: BoxDecoration(
+          color: rowBackground,
           border: Border(
             left: BorderSide(color: dividerColor),
             right: BorderSide(color: dividerColor),
@@ -584,6 +595,117 @@ class TimesheetGridTotalsRow extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Текст подсказки при наведении: уникальные примечания за день.
+String? _timesheetDayCommentsTooltip(Iterable<TimesheetEntry> entries) {
+  final lines = <String>[];
+  final seen = <String>{};
+  for (final entry in entries) {
+    final text = entry.comment?.trim();
+    if (text == null || text.isEmpty || !seen.add(text)) continue;
+    final object = entry.objectName?.trim();
+    lines.add(
+      object != null && object.isNotEmpty ? '$object: $text' : text,
+    );
+  }
+  if (lines.isEmpty) return null;
+  return lines.join('\n');
+}
+
+Widget _timesheetDayCellBody({
+  required String? commentTooltip,
+  required ColorScheme scheme,
+  required Brightness brightness,
+  required num dayHours,
+  required List<TimesheetEntry> dayEntries,
+  required ThemeData theme,
+}) {
+  final body = Stack(
+    clipBehavior: Clip.hardEdge,
+    children: [
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+        child: Center(
+          child: dayHours > 0
+              ? DecoratedBox(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: dayEntries.any((e) => e.isManualEntry)
+                        ? Border.all(color: scheme.primary, width: 1.5)
+                        : null,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(2),
+                    child: Text(
+                      formatQuantity(dayHours),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                )
+              : const SizedBox.shrink(),
+        ),
+      ),
+      if (commentTooltip != null)
+        Positioned(
+          top: 0,
+          right: 0,
+          child: _TimesheetCommentCornerMark(
+            color: TimesheetGridLayout.commentCornerColor(scheme, brightness),
+          ),
+        ),
+    ],
+  );
+
+  if (commentTooltip == null) return body;
+
+  return Tooltip(
+    message: commentTooltip,
+    preferBelow: true,
+    verticalOffset: 12,
+    child: Semantics(label: commentTooltip, child: body),
+  );
+}
+
+/// Уголковый маркер примечания в ячейке дня.
+class _TimesheetCommentCornerMark extends StatelessWidget {
+  const _TimesheetCommentCornerMark({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final size = TimesheetGridLayout.commentCornerSize;
+    return ExcludeSemantics(
+      child: CustomPaint(
+        size: Size(size, size),
+        painter: _TimesheetCommentCornerPainter(color: color),
+      ),
+    );
+  }
+}
+
+class _TimesheetCommentCornerPainter extends CustomPainter {
+  const _TimesheetCommentCornerPainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..moveTo(size.width, 0)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, 0)
+      ..close();
+    canvas.drawPath(path, Paint()..color = color);
+  }
+
+  @override
+  bool shouldRepaint(covariant _TimesheetCommentCornerPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 class _TimesheetGridCheckbox extends StatelessWidget {

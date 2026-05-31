@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/features/timesheet/presentation/providers/timesheet_provider.dart';
+import 'package:projectgt/features/timesheet/presentation/widgets/timesheet_attendance_stats.dart';
 import 'package:projectgt/features/timesheet/presentation/widgets/timesheet_filter_widget.dart';
 
 // Геометрия как у [EmployeesTableFiltersToolbar] и панели табеля.
@@ -329,14 +330,17 @@ class _TimesheetToolbarSearchField extends StatelessWidget {
 double timesheetToolbarSearchWidth(
   double rowWidth, {
   bool hasTrailingExport = true,
+  bool hasAttendanceStats = true,
   bool hasMonthSwitcher = true,
 }) {
   const gapsReserveBase = 212.0;
   const monthSwitcherReserve = kTimesheetMonthSwitcherOuterWidth + 12;
   const trailingActionsReserve = 88.0;
+  const attendanceStatsReserve = kTimesheetAttendanceStatsTriggerWidth + 8;
   final gapsReserve =
       gapsReserveBase +
       (hasMonthSwitcher ? monthSwitcherReserve : 0) +
+      (hasAttendanceStats ? attendanceStatsReserve : 0) +
       (hasTrailingExport ? trailingActionsReserve : 0);
   final computedSearch = rowWidth.isFinite
       ? math.min(380.0, math.max(220.0, rowWidth * 0.34))

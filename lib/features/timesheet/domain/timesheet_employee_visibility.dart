@@ -12,14 +12,21 @@ import 'timesheet_hours_index.dart';
 /// Сегмент [TimesheetEmployeeListScope] (`С часами` / `Без часов`) — **только UI**;
 /// экспорт Excel его не применяет (всегда [TimesheetEmployeeListScope.all]).
 
-/// Показывать ли сотрудника в сетке/Excel по базовым правилам (объекты + уволенные).
+/// Показывать ли сотрудника в сетке/Excel по базовым правилам.
+///
+/// Объекты, мягкое исключение из табеля (`includeInTimesheet == false`) и уволенные:
+/// без записей часов за период — строка скрыта (кроме режима «только с объектами»).
 bool isTimesheetGridEmployeeVisible({
   required bool isFired,
+  required bool includeInTimesheet,
   required String employeeId,
   required TimesheetHoursIndex hoursIndex,
   required bool hasObjectFilter,
 }) {
   if (hasObjectFilter) {
+    return hoursIndex.employeeIdsWithEntries.contains(employeeId);
+  }
+  if (!includeInTimesheet) {
     return hoursIndex.employeeIdsWithEntries.contains(employeeId);
   }
   if (!isFired) return true;
@@ -56,6 +63,7 @@ List<Employee> visibleTimesheetGridEmployees({
       .where(
         (e) => isTimesheetGridEmployeeVisible(
           isFired: e.status == EmployeeStatus.fired,
+          includeInTimesheet: e.includeInTimesheet,
           employeeId: e.id,
           hoursIndex: hoursIndex,
           hasObjectFilter: hasObjectFilter,

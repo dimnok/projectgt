@@ -216,6 +216,7 @@ class _EmployeeMobileProfileEditorSheetState
   EmployeeStatus? _status;
   EmploymentType? _employmentType;
   DateTime? _employmentDate;
+  bool _includeInTimesheet = true;
   List<String> _objectIds = [];
   List<String> _positions = [];
   bool _positionsLoading = false;
@@ -247,6 +248,7 @@ class _EmployeeMobileProfileEditorSheetState
     _status = e.status;
     _employmentType = e.employmentType;
     _employmentDate = e.employmentDate;
+    _includeInTimesheet = e.includeInTimesheet;
     _objectIds = List<String>.from(e.objectIds);
   }
 
@@ -299,6 +301,7 @@ class _EmployeeMobileProfileEditorSheetState
         _status != e.status ||
         _employmentType != e.employmentType ||
         _employmentDate != e.employmentDate ||
+        _includeInTimesheet != e.includeInTimesheet ||
         _listChanged(e.objectIds, _objectIds);
   }
 
@@ -332,6 +335,7 @@ class _EmployeeMobileProfileEditorSheetState
         status: _status ?? EmployeeStatus.working,
         employmentType: _employmentType ?? EmploymentType.official,
         employmentDate: _employmentDate,
+        includeInTimesheet: _includeInTimesheet,
         objectIds: _objectIds,
       ),
     );
@@ -531,6 +535,40 @@ class _EmployeeMobileProfileEditorSheetState
             labelText: 'Статус',
             hintText: 'Статус',
             borderRadius: 12,
+          ),
+          const SizedBox(height: 8),
+          Semantics(
+            toggled: _includeInTimesheet,
+            label:
+                'Учитывать в табеле. Без часов за период сотрудник не отображается в табеле',
+            child: InkWell(
+              onTap: () => setState(
+                () => _includeInTimesheet = !_includeInTimesheet,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    Checkbox(
+                      value: _includeInTimesheet,
+                      onChanged: (value) {
+                        if (value == null) return;
+                        setState(() => _includeInTimesheet = value);
+                      },
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    const Expanded(
+                      child: Text(
+                        'Учитывать в табеле',
+                        style: TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
           const SizedBox(height: 12),
           GTTextField(

@@ -61,6 +61,7 @@ interface EmployeeRow {
   id: string;
   fullName: string;
   status: string;
+  includeInTimesheet: boolean;
 }
 
 interface TimesheetEntryRow {
@@ -465,7 +466,7 @@ async function loadEmployees(
   const data = await fetchAllPages((from, to) => {
     let q = supabase
       .from("employees")
-      .select("id, last_name, first_name, middle_name, position, status")
+      .select("id, last_name, first_name, middle_name, position, status, include_in_timesheet")
       .eq("company_id", request.companyId);
 
     return q.order("last_name", { ascending: true }).order("id", { ascending: true }).range(from, to);
@@ -475,6 +476,7 @@ async function loadEmployees(
     id: String(employee.id),
     fullName: buildFullName(employee),
     status: String(employee.status ?? ""),
+    includeInTimesheet: employee.include_in_timesheet !== false,
   }));
 }
 

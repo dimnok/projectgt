@@ -8,6 +8,7 @@ Employee _employee({
   required String id,
   required String lastName,
   EmployeeStatus status = EmployeeStatus.working,
+  bool includeInTimesheet = true,
 }) {
   return Employee(
     id: id,
@@ -16,6 +17,7 @@ Employee _employee({
     firstName: 'И',
     employmentType: EmploymentType.official,
     status: status,
+    includeInTimesheet: includeInTimesheet,
   );
 }
 
@@ -30,6 +32,7 @@ void main() {
       expect(
         isTimesheetGridEmployeeVisible(
           isFired: false,
+          includeInTimesheet: true,
           employeeId: 'nobody',
           hoursIndex: index,
           hasObjectFilter: false,
@@ -38,10 +41,34 @@ void main() {
       );
     });
 
+    test('без фильтра объектов: исключён из табеля только с записями', () {
+      expect(
+        isTimesheetGridEmployeeVisible(
+          isFired: false,
+          includeInTimesheet: false,
+          employeeId: 'active-with',
+          hoursIndex: index,
+          hasObjectFilter: false,
+        ),
+        isTrue,
+      );
+      expect(
+        isTimesheetGridEmployeeVisible(
+          isFired: false,
+          includeInTimesheet: false,
+          employeeId: 'nobody',
+          hoursIndex: index,
+          hasObjectFilter: false,
+        ),
+        isFalse,
+      );
+    });
+
     test('без фильтра объектов: уволенный только с записями', () {
       expect(
         isTimesheetGridEmployeeVisible(
           isFired: true,
+          includeInTimesheet: true,
           employeeId: 'fired-with',
           hoursIndex: index,
           hasObjectFilter: false,
@@ -51,6 +78,7 @@ void main() {
       expect(
         isTimesheetGridEmployeeVisible(
           isFired: true,
+          includeInTimesheet: true,
           employeeId: 'fired-empty',
           hoursIndex: index,
           hasObjectFilter: false,
@@ -63,6 +91,7 @@ void main() {
       expect(
         isTimesheetGridEmployeeVisible(
           isFired: false,
+          includeInTimesheet: true,
           employeeId: 'active-with',
           hoursIndex: index,
           hasObjectFilter: true,
@@ -72,6 +101,7 @@ void main() {
       expect(
         isTimesheetGridEmployeeVisible(
           isFired: false,
+          includeInTimesheet: true,
           employeeId: 'nobody',
           hoursIndex: index,
           hasObjectFilter: true,
@@ -82,6 +112,26 @@ void main() {
   });
 
   group('visibleTimesheetGridEmployees', () {
+    test('исключён из табеля без часов не в списке', () {
+      final employees = [
+        _employee(id: 'x', lastName: 'Офис'),
+        _employee(
+          id: 'y',
+          lastName: 'Смена',
+          includeInTimesheet: false,
+        ),
+      ];
+      final index = TimesheetHoursIndex.fromEmployeeHours([
+        (employeeId: 'y', hours: 8),
+      ]);
+      final visible = visibleTimesheetGridEmployees(
+        employees: employees,
+        hoursIndex: index,
+        hasObjectFilter: false,
+      );
+      expect(visible.map((e) => e.id).toList(), ['x', 'y']);
+    });
+
     final employees = [
       _employee(id: 'a', lastName: 'Антонов'),
       _employee(id: 'b', lastName: 'Борисов', status: EmployeeStatus.fired),

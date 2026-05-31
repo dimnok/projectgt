@@ -102,6 +102,9 @@ abstract class Employee with _$Employee {
     /// Статус сотрудника ([EmployeeStatus]).
     @Default(EmployeeStatus.working) EmployeeStatus status,
 
+    /// Учитывать в табеле. При `false` — мягкое исключение: не показывать без часов за период.
+    @Default(true) bool includeInTimesheet,
+
     /// Список идентификаторов объектов, к которым привязан сотрудник.
     @Default(<String>[]) List<String> objectIds,
 

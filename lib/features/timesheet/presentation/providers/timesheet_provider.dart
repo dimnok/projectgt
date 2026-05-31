@@ -69,6 +69,18 @@ class TimesheetNotifier extends StateNotifier<TimesheetState> {
     }
   }
 
+  /// Обновляет справочник сотрудников без перезагрузки часов (после правки карточки).
+  Future<void> reloadEmployeesCatalog() async {
+    if (!timesheetHasActiveCompany(readActiveCompanyId())) return;
+
+    try {
+      final employees = await repository.loadEmployeesCatalog();
+      state = state.copyWith(employees: employees);
+    } catch (_) {
+      // Каталог не критичен для оверлея; сетка остаётся на прежних данных.
+    }
+  }
+
   /// Перезагружает только записи часов (после диалога посещаемости).
   Future<void> reloadHoursEntries() async {
     if (!timesheetHasActiveCompany(readActiveCompanyId())) return;
