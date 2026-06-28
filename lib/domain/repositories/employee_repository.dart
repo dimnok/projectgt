@@ -16,6 +16,9 @@ abstract class EmployeeRepository {
   /// Возвращает [Employee] или null, если не найден. Бросает [Exception] при ошибке.
   Future<Employee?> getEmployee(String id);
 
+  /// Текущая почасовая ставка сотрудника без повторной загрузки строки `employees`.
+  Future<double?> getCurrentHourlyRate(String employeeId);
+
   /// Создай нового сотрудника [employee] в источнике данных.
   ///
   /// Возвращает созданного [Employee]. Бросает [Exception] при ошибке.

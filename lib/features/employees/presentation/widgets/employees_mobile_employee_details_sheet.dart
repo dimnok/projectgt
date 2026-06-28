@@ -49,9 +49,12 @@ class EmployeesMobileEmployeeDetailsSheet {
         return Consumer(
           builder: (_, ref, __) {
             final state = ref.watch(employee_state.employeeProvider);
-            final emp =
-                state.employees.where((e) => e.id == employee.id).firstOrNull ??
-                employee;
+            final emp = state.employee?.id == employee.id
+                ? state.employee!
+                : state.employees
+                          .where((e) => e.id == employee.id)
+                          .firstOrNull ??
+                      employee;
 
             void closeSheet() {
               if (sheetContext.mounted) Navigator.pop(sheetContext);

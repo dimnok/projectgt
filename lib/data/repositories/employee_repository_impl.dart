@@ -33,6 +33,11 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
   }
 
   @override
+  Future<double?> getCurrentHourlyRate(String employeeId) async {
+    return dataSource.getCurrentHourlyRate(employeeId);
+  }
+
+  @override
   Future<Employee> createEmployee(Employee employee) async {
     final employeeModel =
         await dataSource.createEmployee(EmployeeModel.fromDomain(employee));

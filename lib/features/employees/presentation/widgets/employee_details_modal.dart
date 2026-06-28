@@ -100,8 +100,9 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
     });
 
     ref.listen(employee_state.employeeProvider, (_, next) {
-      final updatedEmployee =
-          next.employees.where((e) => e.id == _employee.id).firstOrNull;
+      final Employee? updatedEmployee = next.employee?.id == _employee.id
+          ? next.employee
+          : next.employees.where((e) => e.id == _employee.id).firstOrNull;
       if (updatedEmployee != null && updatedEmployee != _employee) {
         setState(() => _employee = updatedEmployee);
       }

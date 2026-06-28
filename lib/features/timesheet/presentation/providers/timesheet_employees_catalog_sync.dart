@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/presentation/state/employee_state.dart';
 
+import '../../domain/timesheet_employee_catalog_diff.dart';
 import 'timesheet_provider.dart';
 
 /// Синхронизирует каталог табеля после изменений в модуле «Сотрудники».
@@ -25,6 +26,9 @@ final timesheetEmployeesCatalogSyncProvider = Provider<void>((ref) {
     if (!timesheetHasData || previous == null) return;
     if (next.status != EmployeeStatus.success) return;
     if (identical(previous.employees, next.employees)) return;
+    if (!timesheetEmployeeCatalogChanged(previous.employees, next.employees)) {
+      return;
+    }
 
     unawaited(ref.read(timesheetProvider.notifier).reloadEmployeesCatalog());
   });

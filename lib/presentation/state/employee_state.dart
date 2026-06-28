@@ -149,18 +149,20 @@ class EmployeeNotifier extends StateNotifier<EmployeeState> {
   /// Загружает отдельного сотрудника по [id].
   ///
   /// Сначала ищет в кэше, затем в списке, затем асинхронно обновляет детали с сервера.
+  /// При [forceRefresh] кэш игнорируется и данные запрашиваются заново.
   /// При успешном ответе обновляет и [EmployeeState.employee], и соответствующую
   /// запись в [EmployeeState.employees] (актуальные ставки и прочие денормализованные поля).
-  /// В случае успеха — статус [EmployeeStatus.success], иначе — [EmployeeStatus.error] с сообщением.
-  Future<void> getEmployee(String id) async {
-    // 1. Сначала ищем в кэше
-    if (_employeeDetailsCache.containsKey(id)) {
+  Future<void> getEmployee(String id, {bool forceRefresh = false}) async {
+    if (!forceRefresh && _employeeDetailsCache.containsKey(id)) {
       state = state.copyWith(
         status: EmployeeStatus.success,
         employee: _employeeDetailsCache[id],
       );
-    } else {
-      // 2. Если нет в кэше — ищем в списке
+      return;
+    }
+
+    // 1. Если нет в кэше — ищем в списке для мгновенного отображения.
+    if (!forceRefresh) {
       final fromList = state.employees.where((e) => e.id == id).toList();
       if (fromList.isNotEmpty) {
         state = state.copyWith(
@@ -168,21 +170,23 @@ class EmployeeNotifier extends StateNotifier<EmployeeState> {
           employee: fromList.first,
         );
       } else {
-        // Если нет даже в списке — показываем загрузку
         state = state.copyWith(status: EmployeeStatus.loading);
       }
+    } else {
+      state = state.copyWith(status: EmployeeStatus.loading);
     }
 
-    // 3. Асинхронно обновляем детали с сервера
+    // 2. Асинхронно обновляем детали с сервера.
     try {
       final employee = await _ref.read(getEmployeeUseCaseProvider).execute(id);
       if (employee != null) {
         _employeeDetailsCache[id] = employee;
-        // Список сотрудников держит устаревшие ставки/суточные, пока его не
-        // обновить — карточки и таблица читают из [employees], а не из [employee].
-        final updatedEmployees = state.employees
-            .map((e) => e.id == employee.id ? employee : e)
-            .toList();
+        final employees = state.employees;
+        final updatedEmployees = employees.any((e) => e.id == employee.id)
+            ? employees
+                .map((e) => e.id == employee.id ? employee : e)
+                .toList()
+            : employees;
         state = state.copyWith(
           status: EmployeeStatus.success,
           employee: employee,
@@ -195,12 +199,47 @@ class EmployeeNotifier extends StateNotifier<EmployeeState> {
         );
       }
     } catch (e) {
-      // Не сбрасываем employee, только статус и ошибку
       state = state.copyWith(
         status: EmployeeStatus.error,
         errorMessage: e.toString(),
       );
     }
+  }
+
+  /// Подготавливает данные для карточки из уже известного справочника (табель и т.п.).
+  ///
+  /// Не перезагружает строку `employees`, если она уже есть в [known].
+  /// Запрашивает с сервера только текущую ставку, если её нет в кэше.
+  Future<void> ensureEmployeeCardDetails(Employee known) async {
+    final cached = _employeeDetailsCache[known.id];
+    if (cached != null) {
+      _setEmployeeDetail(cached);
+      return;
+    }
+
+    if (known.currentHourlyRate != null) {
+      _employeeDetailsCache[known.id] = known;
+      _setEmployeeDetail(known);
+      return;
+    }
+
+    try {
+      final rate = await _ref
+          .read(employeeRepositoryProvider)
+          .getCurrentHourlyRate(known.id);
+      final detailed = known.copyWith(currentHourlyRate: rate);
+      _employeeDetailsCache[known.id] = detailed;
+      _setEmployeeDetail(detailed);
+    } catch (e) {
+      _setEmployeeDetail(known);
+    }
+  }
+
+  void _setEmployeeDetail(Employee employee) {
+    state = state.copyWith(
+      status: EmployeeStatus.success,
+      employee: employee,
+    );
   }
 
   /// Загружает список всех сотрудников.
@@ -285,6 +324,8 @@ class EmployeeNotifier extends StateNotifier<EmployeeState> {
         currentHourlyRate: result.currentHourlyRate ?? employee.currentHourlyRate,
       );
 
+      _employeeDetailsCache[updatedEmployee.id] = updatedEmployee;
+
       // Обновляем сотрудника в текущем списке
       final updatedEmployees = state.employees
           .map((e) => e.id == updatedEmployee.id ? updatedEmployee : e)
@@ -365,7 +406,7 @@ class EmployeeNotifier extends StateNotifier<EmployeeState> {
 
   /// Принудительно обновляет данные сотрудника по [id].
   Future<void> refreshEmployee(String id) async {
-    return getEmployee(id);
+    return getEmployee(id, forceRefresh: true);
   }
 
   /// Принудительно обновляет список сотрудников.

@@ -282,6 +282,70 @@ class _DayHeaderCell extends StatelessWidget {
   }
 }
 
+/// ФИО и должность в колонке «Сотрудник»; кликабельно только при [onTap].
+class _TimesheetEmployeeNameCell extends StatelessWidget {
+  const _TimesheetEmployeeNameCell({
+    required this.employeeName,
+    required this.position,
+    this.onTap,
+  });
+
+  final String employeeName;
+  final String? position;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          employeeName,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            height: 1.15,
+            decoration: onTap != null ? TextDecoration.underline : null,
+            decorationColor: scheme.primary.withValues(alpha: 0.45),
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        if (position != null && position!.isNotEmpty)
+          Text(
+            position!,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: scheme.onSurface.withValues(alpha: 0.72),
+              fontSize: 10,
+              height: 1.1,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+      ],
+    );
+
+    if (onTap == null) return content;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(6),
+        child: Semantics(
+          button: true,
+          label: 'Карточка сотрудника: $employeeName',
+          child: content,
+        ),
+      ),
+    );
+  }
+}
+
 /// Одна строка сотрудника в виртуализированной сетке.
 class TimesheetGridEmployeeRow extends StatelessWidget {
   /// Сотрудник строки.
@@ -305,8 +369,11 @@ class TimesheetGridEmployeeRow extends StatelessWidget {
   /// Переключение чекбокса строки.
   final ValueChanged<bool?> onSelectionChanged;
 
-  /// Открыть диалог посещаемости.
-  final VoidCallback onEmployeeTap;
+  /// Открыть карточку сотрудника по нажатию на ФИО (`null` — ФИО не кликабельно).
+  final VoidCallback? onEmployeeNameTap;
+
+  /// Открыть диалог проставления часов (иконка календаря).
+  final VoidCallback onAttendanceTap;
 
   /// Тап по ячейке дня с часами.
   final void Function(
@@ -326,7 +393,8 @@ class TimesheetGridEmployeeRow extends StatelessWidget {
     required this.isSelected,
     required this.dividerColor,
     required this.onSelectionChanged,
-    required this.onEmployeeTap,
+    this.onEmployeeNameTap,
+    required this.onAttendanceTap,
     required this.onDayWithHoursTap,
   });
 
@@ -426,57 +494,38 @@ class TimesheetGridEmployeeRow extends StatelessWidget {
             ),
             _TimesheetGridCells.employee(
               dividerColor: dividerColor,
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: onEmployeeTap,
-                  borderRadius: BorderRadius.circular(8),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 4,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: _TimesheetEmployeeNameCell(
+                        employeeName: employeeName,
+                        position: employee.position,
+                        onTap: onEmployeeNameTap,
+                      ),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                employeeName,
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                  height: 1.15,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            Icon(
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: onAttendanceTap,
+                        borderRadius: BorderRadius.circular(6),
+                        child: Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: Semantics(
+                            button: true,
+                            label: 'Проставить часы: $employeeName',
+                            child: Icon(
                               Icons.edit_calendar_outlined,
                               size: 14,
                               color: scheme.primary.withValues(alpha: 0.6),
                             ),
-                          ],
-                        ),
-                        if (employee.position != null &&
-                            employee.position!.isNotEmpty)
-                          Text(
-                            employee.position!,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: scheme.onSurface.withValues(alpha: 0.72),
-                              fontSize: 10,
-                              height: 1.1,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
-                      ],
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ),
             ),

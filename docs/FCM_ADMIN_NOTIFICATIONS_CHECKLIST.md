@@ -1,69 +1,111 @@
-## FCM: чек‑лист внедрения PUSH для админов (iOS/Android)
+## FCM: чек‑лист PUSH для админов и владельцев (iOS / Android / PWA)
 
-Статус: АКТИВНО. Минимальная схема развернута и работает в прод-среде FCM HTTP v1.
+**Статус:** ✅ АКТИВНО (июнь 2026)  
+**Последний успешный тест:** PWA iPhone — open/close смены, tap без 403, multi-device (phone + PC).
 
-Последняя сводка (успешный вызов): admin_count=1, raw_tokens_count=1, tokens_total=1, sent=1.
+---
+
+### Кому отправляется
+
+- [x] **Владельцы** компании (`company_members.is_owner = true`)
+- [x] **Админы** (роли: Администратор, Админ, Супер-админ)
+- [x] Фильтр: `profiles.status !== false`
+- [x] Клиент передаёт `notify_all: false` (не всем участникам компании)
+
+### Платформы
+
+- [x] **PWA iPhone / iPad** (iOS 16.4+, platform=`web`, «На экран Домой»)
+- [x] **Web-браузер** (Chrome, Edge, Safari desktop — platform=`web`)
+- [x] **Native iOS** (platform=`ios`)
+- [x] **Native Android** (platform=`android`)
+
+---
 
 ### Примеры уведомлений
 
-- Открытие смены:
+**Открытие:**
 ```text
-Title: 🔓 Смена - ОТКРЫТА
-Body:
-📍 Объект: {objectName}
-👤 Пользователь: {userName}
-👥 Сотрудников: {employeesCount}
+🔓 Смена - ОТКРЫТА
+📍 Объект: …
+👤 Пользователь: …
+👥 Сотрудников: N
 ```
 
-- Закрытие смены:
+**Закрытие:**
 ```text
-Title: 🔒 Смена - ЗАКРЫТА
-Body:
-📍 Объект: {objectName}
-👤 Пользователь: {userName}
-💰 Сумма: 125 000 ₽ (форматировано с пробелами)
-⚙️ Выработка: 25 000 ₽ (форматировано с пробелами)
+🔒 Смена - ЗАКРЫТА
+📍 Объект: …
+👤 Пользователь: …
+💰 Сумма: 125 000 ₽
+⚙️ Выработка: 25 000 ₽
 ```
 
-### Область и ограничения
-- [x] Отправляем PUSH только админам (`profiles.role='admin'`), статус `status=true` или `NULL`.
-- [x] Поддерживаем платформы iOS и Android (web без изменений).
-- [x] Используем Supabase Edge Function `send_admin_work_event` (v32). CORS включён, `verify_jwt=true`. Форматирование сумм с пробелами.
+---
 
-### Текущее состояние (минимум)
-- [x] Клиент: вызов `send_admin_work_event` с заголовком `Authorization: Bearer <accessToken>`; результат логируется через `debugPrint`.
-- [x] БД: `public.user_tokens` с RLS и уникальностью `(installation_id, platform)`; `token` глобально уникален; `is_active` поддерживается.
-- [x] Edge Function: читает БД через отдельный service‑клиент (обходит RLS), отправляет через FCM HTTP v1.
-- [x] iOS: `aps-environment=production` (Ad Hoc/TestFlight), APNs .p8 (Key ID `TYMLTYTH4P`, Team ID `L37HR2KV4M`, Sandbox & Production) загружен в Firebase.
-- [x] Android: `google-services.json` подключён, FCM активен.
+### Клиент (Flutter + Web)
 
-### Требуемые секреты (Supabase → Secrets)
-- `SERVICE_ACCOUNT` — сервисный JSON для FCM HTTP v1.
-- `SERVICE_ROLE_KEY` — ключ сервера для Supabase (используется внутри функции для обхода RLS при чтении `profiles`/`user_tokens`).
+- [x] `FcmTokenService` — регистрация токена, VAPID на Web
+- [x] `admin_work_notification_service.dart` — вызов Edge Function
+- [x] `work_form_screen` → open; `work_data_tab` → close
+- [x] `firebase-messaging-sw.js` — без дубля баннера
+- [x] Deep link `/?work_id=` (не `/works/:id`)
+- [x] Multi-device: телефон + ПК не вытесняют друг друга
+- [x] Refresh token при возврате в приложение
 
-### Поведение Edge Function `send_admin_work_event`
-- Вход: `{ action: 'open' | 'close', work_id: UUID }`, JWT обязателен (`verify_jwt=true`).
-- Фильтр получателей: берём `profiles.role='admin'` со `status=true|NULL`; получаем их активные токены из `user_tokens` по платформам iOS/Android.
-- Ответ (JSON): включает минимум `{ sent, total, admin_count, raw_tokens_count, tokens_total }`.
-- Логи: `start`, `no_tokens` (если не найдено), `summary` с ключами выше.
+### Edge Function `send_admin_work_event`
 
-### Диагностика (если `tokens_total: 0`)
-1) Убедиться, что клиент передаёт `Authorization: Bearer <accessToken>` при вызове функции.
-2) Проверить в БД:
-   - `profiles`: у нужного пользователя `role='admin'` и `status=true` или `NULL`.
-   - `user_tokens`: есть строка с его `user_id`, `is_active=true`, `platform in ('ios','android')`.
-3) Убедиться, что секреты `SERVICE_ROLE_KEY` и `SERVICE_ACCOUNT` заданы в проекте Supabase.
-4) iOS: проверять соответствие сборки и среды APNs (Ad Hoc/TestFlight → production), `.p8` ключ загружен, bundle id корректен.
-5) При необходимости отправить тест на конкретный токен через FCM v1 (проверка доставки вне функции).
+- [x] JWT обязателен (`verify_jwt=true`)
+- [x] Платформы: `ios`, `android`, `web`
+- [x] Dedup по `installation_id`, не по platform целиком
+- [x] Web payload: `webpush` only (без top-level `notification`)
+- [x] CORS включён
 
-### Нюансы записи токенов
-- Одна запись на установку/платформу за счёт `UNIQUE (installation_id, platform)`.
-- Перепривязка при смене пользователя обновляет строку; старые записи помечаются `is_active=false`.
-- `onTokenRefresh` обрабатывается с debounce; `token` уникален глобально.
+### Секреты (Supabase → Edge Functions)
 
-### Минимальные next steps (опционально)
-- Показ SnackBar `{sent}/{total}` в клиента при успешном открытии/закрытии смены.
-- Единый стиль текстов уведомлений и (по согласованию) эмодзи.
+- [x] `SERVICE_ACCOUNT` — Firebase service account JSON
+- [x] `SERVICE_ROLE_KEY` — чтение токенов админов
 
-### История
-- v29: фикс «невидимых» токенов из-за RLS — чтение `profiles`/`user_tokens` через service‑клиент; оставлены расширенные логи и CORS.
+### Деплой (self-hosted)
+
+- [ ] **PWA** на Timeweb — после каждого изменения `web/` или Flutter web build
+- [ ] **Edge Function** `send_admin_work_event` — вручную на `api.progt.ru`
+
+---
+
+### PWA iPhone — чек-лист для пользователя
+
+1. [ ] iOS 16.4+
+2. [ ] Safari → Поделиться → **На экран Домой**
+3. [ ] Запуск **с иконки**, не из вкладки
+4. [ ] Разрешить уведомления
+5. [ ] После входа с ПК — **открыть PWA на телефоне** (обновит токен)
+
+---
+
+### Диагностика
+
+| Симптом | Проверка |
+|---------|----------|
+| `tokens_total: 0` | owner/admin в company_members; active user_tokens |
+| Push не на телефон после ПК | multi-device fix задеплоен; открыть PWA на телефоне |
+| Два баннера | SW не дублирует showNotification |
+| 403 при tap | link = `/?work_id=`, PWA задеплоен |
+| «from Стройка PRO» | ограничение iOS, норма |
+
+**Тест curl:**
+```bash
+curl -X POST 'https://api.progt.ru/functions/v1/send_admin_work_event' \
+  -H 'Content-Type: application/json' \
+  -H 'apikey: <ANON_KEY>' \
+  -H 'Authorization: Bearer <ANON_KEY>' \
+  -d '{"action":"open","work_id":"<UUID>","notify_all":false}'
+```
+
+---
+
+### Связанные документы
+
+- [admin_notifications.md](./admin_notifications.md) — полная документация PWA push
+- [FCM_INTEGRATION_STATUS.md](./FCM_INTEGRATION_STATUS.md) — статус интеграции
+
+**Актуализация:** 28 июня 2026

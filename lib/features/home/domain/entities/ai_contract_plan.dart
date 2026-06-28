@@ -6,6 +6,7 @@ part 'ai_contract_plan.g.dart';
 /// Модель данных, возвращаемая AI-агентом для анализа плана по договору.
 @freezed
 abstract class AiContractPlan with _$AiContractPlan {
+  /// Создаёт экземпляр [AiContractPlan].
   const factory AiContractPlan({
     /// Номер анализируемого договора
     @JsonKey(name: 'contract_number') String? contractNumber,
@@ -38,6 +39,7 @@ abstract class AiContractPlan with _$AiContractPlan {
     required String recommendation,
   }) = _AiContractPlan;
 
+  /// Создаёт экземпляр из JSON ответа AI-агента.
   factory AiContractPlan.fromJson(Map<String, dynamic> json) =>
       _$AiContractPlanFromJson(json);
 }

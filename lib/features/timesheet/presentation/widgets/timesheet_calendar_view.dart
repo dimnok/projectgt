@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -9,6 +11,7 @@ import 'package:projectgt/features/timesheet/domain/timesheet_employee_visibilit
 import 'package:projectgt/features/timesheet/domain/timesheet_hours_index.dart';
 import 'package:projectgt/features/timesheet/domain/timesheet_position_filter.dart';
 import 'package:projectgt/features/timesheet/domain/timesheet_today_open_shift.dart';
+import 'package:projectgt/presentation/state/employee_state.dart' as employee_state;
 import 'package:projectgt/presentation/widgets/cupertino_dialog_widget.dart';
 import 'employee_attendance_dialog.dart';
 import '../providers/timesheet_filters_providers.dart';
@@ -18,7 +21,10 @@ import 'timesheet_positions_bar_dropdown.dart';
 import 'timesheet_filter_widget.dart';
 import '../providers/timesheet_provider.dart';
 import '../state/timesheet_state.dart';
+import 'package:projectgt/features/employees/presentation/providers/employees_module_objects_provider.dart';
 import 'package:projectgt/features/employees/presentation/utils/employees_layout_utils.dart';
+import 'package:projectgt/features/employees/presentation/widgets/employee_details_modal.dart';
+import 'package:projectgt/features/employees/presentation/widgets/employees_mobile_employee_details_sheet.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
 import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
 import 'package:projectgt/features/timesheet/presentation/widgets/timesheet_filters_toolbar.dart';
@@ -199,8 +205,10 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
   }
 
   /// Откладывает [_syncEmployeeRows] после кадра (нельзя менять провайдеры в life-cycle).
+  ///
+  /// Сетка остаётся на экране с прежними строками до завершения пересчёта —
+  /// без кратковременного скрытия всей таблицы.
   void _scheduleSyncEmployeeRows() {
-    _employeeRowsSynced = false;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _syncEmployeeRows();
@@ -592,13 +600,16 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
     final todayOpenShift = ref.watch(
       timesheetProvider.select((s) => s.todayOpenShift),
     );
+    final canViewEmployees = ref
+        .watch(permissionServiceProvider)
+        .can('employees', 'read');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildTimesheetTitleRow(theme),
         Expanded(
-          child: isLoading || !_employeeRowsSynced
+          child: _allEmployees.isEmpty && (isLoading || !_employeeRowsSynced)
               ? const SizedBox.shrink()
               : _allEmployees.isEmpty
               ? _buildEmptyEmployeesState(theme)
@@ -677,7 +688,12 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
                                                 employee,
                                                 v,
                                               ),
-                                          onEmployeeTap: () =>
+                                          onEmployeeNameTap: canViewEmployees
+                                              ? () => _showEmployeeDetails(
+                                                  employee,
+                                                )
+                                              : null,
+                                          onAttendanceTap: () =>
                                               _showAttendanceDialog(employee),
                                           onDayWithHoursTap: _showEntryDetails,
                                         );
@@ -785,6 +801,31 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
       contentWidget: SingleChildScrollView(child: contentWidget),
       buttonText: 'Закрыть',
     );
+  }
+
+  Future<void> _showEmployeeDetails(Employee employee) async {
+    unawaited(
+      ref
+          .read(employee_state.employeeProvider.notifier)
+          .ensureEmployeeCardDetails(employee),
+    );
+    if (!mounted) return;
+
+    final objects = ref.read(employeesModuleObjectsProvider);
+
+    if (EmployeesLayoutUtils.useEmployeesDesktopModal(context)) {
+      await EmployeeDetailsModal.show(
+        context,
+        employee: employee,
+        objects: objects,
+      );
+    } else {
+      await EmployeesMobileEmployeeDetailsSheet.show(
+        context,
+        employee: employee,
+        objects: objects,
+      );
+    }
   }
 
   Future<void> _showAttendanceDialog(Employee employee) async {

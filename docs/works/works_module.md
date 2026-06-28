@@ -165,7 +165,7 @@ lib/features/
 
 ## Интеграции
 **Edge Functions (Supabase):**
-- `send_admin_work_event` — push при открытии/закрытии смены (Edge `send_admin_work_event/`): **клиент больше не вызывает** при сменах; функция может оставаться на сервере для других сценариев. Ранее по умолчанию **всем активным участникам компании**; `notify_all: false` — только админам.
+- `send_admin_work_event` — **FCM push** владельцам и админам при открытии/закрытии смены. Клиент: `notifyAdminsWorkOpened` / `notifyAdminsWorkClosed` (`admin_work_notification_service.dart`), `notify_all: false`. Поддержка PWA (platform=`web`), iOS, Android. См. [admin_notifications.md](../admin_notifications.md).
 - `process_telegram_outbox` — воркер очереди `telegram_outbox`: по JWT пользователя обрабатывает задачи компаний пользователя; по HTTP с заголовком `Authorization: Bearer <OUTBOX_WORKER_SECRET>` — фоновый cron по всем компаниям (секрет задаётся в окружении Edge).
 - `send_work_report_to_telegram` — ежедневный отчет по закрытой смене (вызывается воркером).
 - `send_work_opening_report_to_telegram` — уведомление об открытии смены (вызывается воркером).
@@ -178,6 +178,7 @@ lib/features/
 При переходе смены в `closed` триггер добавляет задачу `work_close_telegram`. Прямые вызовы Telegram из Flutter для этих сценариев не используются.
 
 ## Roadmap
+- ✅ **Завершено (28.06.2026):** FCM push владельцам/админам при open/close смены, включая PWA iPhone — см. [admin_notifications.md](../admin_notifications.md).
 - ✅ **Завершено (16.04.2026):** Разделение мобильного и десктопного представлений модуля (`WorksListMobileScreen`), вынос общей бизнес-логики в `WorksScreenActionsMixin` и общих sliver-делегатов месяцев в `widgets/`.
 - ✅ **Завершено:** Редактирование и удаление планов в десктопной версии `WorksMasterDetailScreen`.
 - ✅ **Завершено:** Переход на отображение количества специалистов в списках планов с корректным склонением.

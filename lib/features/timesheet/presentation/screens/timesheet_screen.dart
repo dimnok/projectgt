@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,20 +29,6 @@ class TimesheetScreen extends ConsumerStatefulWidget {
 }
 
 class _TimesheetScreenState extends ConsumerState<TimesheetScreen> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _refreshEmployeesCatalog());
-  }
-
-  /// Подтягивает актуальный справочник после правок в модуле «Сотрудники».
-  void _refreshEmployeesCatalog() {
-    if (!mounted) return;
-    final ts = ref.read(timesheetProvider);
-    if (ts.employees.isEmpty && ts.entries.isEmpty) return;
-    unawaited(ref.read(timesheetProvider.notifier).reloadEmployeesCatalog());
-  }
-
   @override
   Widget build(BuildContext context) {
     ref.watch(timesheetEmployeesCatalogSyncProvider);

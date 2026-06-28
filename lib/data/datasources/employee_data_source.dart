@@ -25,6 +25,9 @@ abstract class EmployeeDataSource {
   /// Генерирует исключение при ошибке.
   Future<EmployeeModel?> getEmployee(String id);
 
+  /// Текущая почасовая ставка сотрудника (`employee_rates`, `valid_to IS NULL`).
+  Future<double?> getCurrentHourlyRate(String employeeId);
+
   /// Создаёт нового сотрудника.
   ///
   /// [employee] — модель сотрудника.
@@ -172,36 +175,47 @@ class SupabaseEmployeeDataSource implements EmployeeDataSource {
     }
   }
 
+  Future<Map<String, dynamic>?> _fetchCurrentRateRow(String employeeId) async {
+    try {
+      return await client
+          .from('employee_rates')
+          .select('hourly_rate')
+          .eq('employee_id', employeeId)
+          .eq('company_id', activeCompanyId)
+          .isFilter('valid_to', null)
+          .maybeSingle();
+    } catch (e) {
+      Logger().e('Error fetching current rate: $e');
+      return null;
+    }
+  }
+
+  @override
+  Future<double?> getCurrentHourlyRate(String employeeId) async {
+    final rateResponse = await _fetchCurrentRateRow(employeeId);
+    if (rateResponse == null) return null;
+    return (rateResponse['hourly_rate'] as num?)?.toDouble();
+  }
+
   @override
   Future<EmployeeModel?> getEmployee(String id) async {
     try {
-      final response = await client
-          .from('employees')
-          .select('*')
-          .eq('id', id)
-          .eq('company_id', activeCompanyId)
-          .single();
+      final (response, rateResponse) = await (
+        client
+            .from('employees')
+            .select('*')
+            .eq('id', id)
+            .eq('company_id', activeCompanyId)
+            .single(),
+        _fetchCurrentRateRow(id),
+      ).wait;
 
       final employee = EmployeeModel.fromJson(response);
-
-      // Загружаем текущую ставку сотрудника
-      try {
-        final rateResponse = await client
-            .from('employee_rates')
-            .select('hourly_rate')
-            .eq('employee_id', id)
-            .eq('company_id', activeCompanyId)
-            .isFilter('valid_to', null)
-            .maybeSingle();
-
-        if (rateResponse != null) {
-          final currentRate = rateResponse['hourly_rate'] as num?;
-          return employee.copyWith(
-            currentHourlyRate: currentRate?.toDouble(),
-          );
-        }
-      } catch (e) {
-        Logger().e('Error fetching current rate: $e');
+      if (rateResponse != null) {
+        final currentRate = rateResponse['hourly_rate'] as num?;
+        return employee.copyWith(
+          currentHourlyRate: currentRate?.toDouble(),
+        );
       }
 
       return employee;
