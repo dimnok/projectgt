@@ -24,6 +24,7 @@ import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
 import 'package:projectgt/features/works/presentation/widgets/work_distribution_card.dart';
 import 'package:projectgt/features/works/presentation/providers/month_groups_provider.dart';
 import 'package:projectgt/core/utils/telegram_outbox_worker.dart';
+import 'package:projectgt/data/services/admin_work_notification_service.dart';
 import 'package:projectgt/features/works/presentation/providers/repositories_providers.dart';
 import 'package:projectgt/features/works/presentation/widgets/work_data_skeleton.dart';
 import 'package:projectgt/features/works/presentation/widgets/work_stats_card.dart';
@@ -235,6 +236,11 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
           ref.read(monthGroupsProvider.notifier).updateWorkInGroup(freshWork);
           // ✅ Разгружаем клиент: не ждем завершения Edge Function
           kickProcessTelegramOutbox(Supabase.instance.client).ignore();
+          // Push админам и владельцам о закрытии смены (PWA / Android)
+          await notifyAdminsWorkClosed(
+            client: Supabase.instance.client,
+            workId: work.id!,
+          );
         } else {
           AppSnackBar.show(
             context: context,
