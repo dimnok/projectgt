@@ -134,21 +134,43 @@ async function resolveAllCompanyMemberUserIds(
 }
 
 /**
- * UUID пользователей, которым нужно отправить push: члены компании смены с нужными ролями
- * + все активные «Супер-админ» (любая компания в `company_members`), затем фильтр `profiles.status`.
+ * UUID пользователей, которым нужно отправить push: владельцы компании смены,
+ * члены с ролями «Администратор» / «Супер-админ» / «Админ»,
+ * все активные «Супер-админ» (глобально), затем фильтр `profiles.status`.
  */
 async function resolveAdminUserIds(
   svc: SupabaseSvc,
   companyId: string,
 ): Promise<string[]> {
+  const adminUserIds = new Set<string>();
+
+  const { data: ownerRows, error: ownerErr } = await svc
+    .from("company_members")
+    .select("user_id")
+    .eq("company_id", companyId)
+    .eq("is_active", true)
+    .eq("is_owner", true);
+
+  if (ownerErr) {
+    console.error("send_admin_work_event: company_owners_error", ownerErr);
+  } else {
+    for (const row of ownerRows ?? []) {
+      adminUserIds.add((row as { user_id: string }).user_id);
+    }
+  }
+
   const { data: roleRows, error: rolesErr } = await svc
     .from("roles")
     .select("id, role_name, company_id")
     .in("role_name", [...NOTIFY_ROLE_NAMES]);
 
-  if (rolesErr || !roleRows?.length) {
+  if (rolesErr) {
     console.error("send_admin_work_event: roles_error", rolesErr);
-    return [];
+    return filterProfilesEligible(svc, [...adminUserIds]);
+  }
+
+  if (!roleRows?.length) {
+    return filterProfilesEligible(svc, [...adminUserIds]);
   }
 
   const roleIdsForCompany = roleRows.filter(
@@ -160,8 +182,6 @@ async function resolveAdminUserIds(
     (r: { role_name: string; company_id: string | null }) =>
       r.role_name === "Супер-админ" && r.company_id == null,
   ) as { id: string } | undefined;
-
-  const adminUserIds = new Set<string>();
 
   if (roleIdsForCompany.length > 0) {
     const { data: companyRows, error: cmErr } = await svc
