@@ -150,6 +150,15 @@ class FcmTokenService {
         : 'android';
 
     try {
+      // На Web Firebase Installations часто создаёт новый installation_id —
+      // деактивируем все прочие активные токены пользователя на этой платформе.
+      await Supabase.instance.client
+          .from('user_tokens')
+          .update({'is_active': false})
+          .eq('user_id', user.id)
+          .eq('platform', platform)
+          .neq('token', token);
+
       // Деактивируем старые записи этой установки/платформы с другим токеном
       if (installationId != null && installationId.isNotEmpty) {
         try {

@@ -345,7 +345,31 @@ Deno.serve(async (req) => {
       is_active: boolean;
       platform: string;
     }) => t.is_active === true && PUSH_PLATFORMS.has(t.platform));
-    const tokens = activeTokens.map((t: { token: string }) => t.token).filter(Boolean);
+
+    // Один актуальный токен на пользователя и платформу (избегаем сотен дублей web).
+    const latestByUserPlatform = new Map<string, {
+      token: string;
+      updated_at: string;
+    }>();
+    for (const t of activeTokens as Array<{
+      user_id: string;
+      token: string;
+      platform: string;
+      updated_at: string;
+    }>) {
+      const key = `${t.user_id}:${t.platform}`;
+      const existing = latestByUserPlatform.get(key);
+      if (!existing || t.updated_at > existing.updated_at) {
+        latestByUserPlatform.set(key, {
+          token: t.token,
+          updated_at: t.updated_at,
+        });
+      }
+    }
+
+    const tokens = [...latestByUserPlatform.values()]
+      .map((entry) => entry.token)
+      .filter(Boolean);
 
     const diag = {
       admin_count: recipientIds.length,
