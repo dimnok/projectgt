@@ -10,6 +10,9 @@ const corsHeaders = {
 /** Роли в `public.roles`, которым шлём push (как в legacy; плюс «Админ»). */
 const NOTIFY_ROLE_NAMES = ["Администратор", "Супер-админ", "Админ"] as const;
 
+/** Платформы FCM, на которые отправляем push. */
+const PUSH_PLATFORMS = new Set(["ios", "android", "web"]);
+
 // Функция форматирования суммы: 245766 -> "245 766 ₽"
 const formatCurrency = (num: number) => {
   const rounded = Math.round(num);
@@ -321,7 +324,7 @@ Deno.serve(async (req) => {
     const activeTokens = (rawTokens ?? []).filter((t: {
       is_active: boolean;
       platform: string;
-    }) => t.is_active === true && (t.platform === "ios" || t.platform === "android"));
+    }) => t.is_active === true && PUSH_PLATFORMS.has(t.platform));
     const tokens = activeTokens.map((t: { token: string }) => t.token).filter(Boolean);
 
     const diag = {
@@ -415,6 +418,19 @@ Deno.serve(async (req) => {
             priority: "HIGH",
             notification: {
               sound: "default",
+            },
+          },
+          webpush: {
+            headers: {
+              Urgency: "high",
+            },
+            notification: {
+              title,
+              body,
+              icon: "/icons/Icon-192.png",
+            },
+            fcm_options: {
+              link: `/works/${work_id}`,
             },
           },
         },

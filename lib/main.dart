@@ -18,6 +18,7 @@ import 'package:projectgt/core/notifications/notification_service.dart';
 import 'package:projectgt/core/utils/global_keys.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:projectgt/data/services/fcm_token_service.dart';
+import 'package:projectgt/core/notifications/fcm_push_handler.dart';
 import 'package:projectgt/features/version_control/providers/version_providers.dart';
 import 'package:projectgt/core/utils/version_utils.dart';
 import 'package:projectgt/core/constants/app_constants.dart';
@@ -145,6 +146,7 @@ class MyApp extends ConsumerStatefulWidget {
 
 class _MyAppState extends ConsumerState<MyApp> {
   late final AppLifecycleListener _lifecycleListener;
+  bool _fcmPushHandlerInitialized = false;
 
   @override
   void initState() {
@@ -154,6 +156,25 @@ class _MyAppState extends ConsumerState<MyApp> {
       onRestart: () => _handleRefresh(),
       onResume: () => _handleRefresh(),
       onShow: () => _handleRefresh(),
+    );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeFcmPushHandler();
+    });
+  }
+
+  Future<void> _initializeFcmPushHandler() async {
+    if (_fcmPushHandlerInitialized) return;
+    if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
+      return;
+    }
+    _fcmPushHandlerInitialized = true;
+
+    await initializeFcmPushHandler(
+      onWorkEventTap: (workId) {
+        if (!mounted) return;
+        ref.read(routerProvider).push('/works/$workId');
+      },
     );
   }
 

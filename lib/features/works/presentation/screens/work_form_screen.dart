@@ -11,6 +11,7 @@ import 'package:projectgt/core/notifications/notification_service.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/core/utils/telegram_outbox_worker.dart';
+import 'package:projectgt/data/services/admin_work_notification_service.dart';
 import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/gt_dropdown.dart';
@@ -372,6 +373,12 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
                       // ✅ Разгружаем клиент: не ждем завершения Edge Function
                       kickProcessTelegramOutbox(supabase).ignore();
                     } catch (_) {}
+
+                  // Push админам об открытии смены (iOS/Android/Web PWA)
+                  await notifyAdminsWorkOpened(
+                    client: ref.read(supabaseClientProvider),
+                    workId: createdWork.id!,
+                  );
 
                   // Обновляем список смен
                   ref.read(monthGroupsProvider.notifier).refresh().ignore();

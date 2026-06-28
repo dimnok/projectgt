@@ -96,8 +96,6 @@ class FcmTokenService {
   }
 
   Future<void> _requestPushPermissionsIfNeeded() async {
-    if (kIsWeb) return; // Web не требует явного запроса
-
     final settings = await FirebaseMessaging.instance.requestPermission(
       alert: true,
       announcement: false,

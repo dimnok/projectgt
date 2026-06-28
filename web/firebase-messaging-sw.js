@@ -1,6 +1,5 @@
 /* eslint-disable no-undef */
-// Firebase Messaging Service Worker for Flutter Web
-// Uses compat SDK for broader compatibility with Flutter web builds
+// Firebase Messaging Service Worker for Flutter Web PWA push notifications.
 
 importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js');
@@ -17,11 +16,52 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// Optional: handle background messages (shows basic notification)
+function buildWorkUrl(workId) {
+  if (!workId) return '/';
+  return '/works/' + workId;
+}
+
 messaging.onBackgroundMessage((payload) => {
-  const title = (payload && payload.notification && payload.notification.title) || 'Notification';
-  const body = (payload && payload.notification && payload.notification.body) || '';
-  self.registration.showNotification(title, { body });
+  const title =
+    (payload && payload.notification && payload.notification.title) ||
+    'Стройка PRO';
+  const body =
+    (payload && payload.notification && payload.notification.body) || '';
+  const workId = payload && payload.data && payload.data.work_id;
+
+  return self.registration.showNotification(title, {
+    body,
+    icon: '/icons/Icon-192.png',
+    data: {
+      workId: workId || '',
+      url: buildWorkUrl(workId),
+    },
+  });
 });
 
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
 
+  const targetPath =
+    (event.notification.data && event.notification.data.url) || '/';
+  const targetUrl = new URL(targetPath, self.location.origin).href;
+
+  event.waitUntil(
+    clients
+      .matchAll({ type: 'window', includeUncontrolled: true })
+      .then((clientList) => {
+        for (const client of clientList) {
+          if ('focus' in client) {
+            if ('navigate' in client) {
+              return client.navigate(targetUrl).then(() => client.focus());
+            }
+            client.postMessage({ type: 'notification_navigate', url: targetPath });
+            return client.focus();
+          }
+        }
+        if (clients.openWindow) {
+          return clients.openWindow(targetUrl);
+        }
+      }),
+  );
+});
