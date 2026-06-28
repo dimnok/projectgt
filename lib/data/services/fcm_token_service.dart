@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_app_installations/firebase_app_installations.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:projectgt/data/services/fcm_device_info_platform.dart';
 
 /// Провайдер сервиса управления FCM токенами.
 ///
@@ -149,16 +150,26 @@ class FcmTokenService {
         ? 'ios'
         : 'android';
 
+    String? resolvedInstallationId = installationId;
+    if (resolvedInstallationId == null || resolvedInstallationId.isEmpty) {
+      try {
+        resolvedInstallationId = await FirebaseInstallations.instance.getId();
+      } catch (_) {}
+    }
+    final installationKey = resolvedInstallationId ?? '';
+
+    final device = await collectFcmDeviceMetadata();
+
     try {
       // Деактивируем только старые записи этой же установки с другим токеном.
       // Не трогаем другие устройства (iPhone PWA и ПК — оба platform=web).
-      if (installationId != null && installationId.isNotEmpty) {
+      if (installationKey.isNotEmpty) {
         try {
           await Supabase.instance.client
               .from('user_tokens')
               .update({'is_active': false})
               .eq('user_id', user.id)
-              .eq('installation_id', installationId)
+              .eq('installation_id', installationKey)
               .eq('platform', platform)
               .neq('token', token);
         } catch (_) {}
@@ -168,7 +179,11 @@ class FcmTokenService {
         'user_id': user.id,
         'token': token,
         'platform': platform,
-        'installation_id': installationId,
+        'installation_id': installationKey.isEmpty ? null : installationKey,
+        'device_id': device.deviceId,
+        'device_model': device.deviceModel,
+        'os_version': device.osVersion,
+        'app_version': device.appVersion,
         'is_active': true,
         'updated_at': DateTime.now().toIso8601String(),
       }, onConflict: 'installation_id,platform');

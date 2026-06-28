@@ -1,790 +1,463 @@
-# Система Push-уведомлений для администраторов
+# Push-уведомления админам и владельцам (Admin Notifications / PWA)
 
-**Дата актуализации:** 11 октября 2025 года (обновлено: добавлено форматирование сумм с пробелами; 17 апреля 2026: поиск админов через `company_members` + `roles`; исходники в `supabase/functions/send_admin_work_event/` **совпадают по стилю с self-hosted**: `jsr` types, ручной JWT к FCM, тот же FCM payload / CORS)
+**Дата актуализации:** 28 июня 2026  
+**Изменения:** полный аудит PWA push (iOS Safari PWA, Web, Android/iOS native); мультиустройство; deep link `/?work_id=`; получатели — владельцы + админы.
 
-## Обзор
+---
 
-В ProjectGT реализована система push-уведомлений для администраторов о событиях открытия и закрытия смен. Система построена на Firebase Cloud Messaging (FCM) API v1 и Supabase Edge Functions.
+## Важное замечание
 
-**Статус:** ✅ АКТИВНО. Минимальная схема развернута и работает в production-среде FCM HTTP v1.
+- **Owner таблиц push-токенов:** `public.user_tokens` (клиент пишет, Edge Function читает через `SERVICE_ROLE_KEY`).
+- **PWA на iPhone** использует платформу `web` в `user_tokens`, **не** `ios`. Native iOS-приложение — отдельная платформа `ios`.
+- **Self-hosted Supabase:** `https://api.progt.ru`
+- **Деплой:** PWA (Timeweb) + Edge Function `send_admin_work_event` обновляются **вручную** на сервере после push в GitHub.
 
-**Версия Edge Function:** v32 (с форматированием сумм)
+---
 
-**Последняя сводка:** admin_count=1, raw_tokens_count=1, tokens_total=1, sent=1.
+## Описание
 
-## Ключевые компоненты
+Система отправляет **push-уведомления** владельцам компании и администраторам при **открытии** и **закрытии** смены.
 
-### 1. **Flutter-клиент**
-- `lib/data/services/fcm_token_service.dart` — управление FCM токенами
-- `lib/main.dart` — инициализация Firebase и фоновых обработчиков
-- `lib/features/works/presentation/screens/work_form_screen.dart` — отправка уведомлений при открытии смены
-- `lib/features/works/presentation/screens/tabs/work_data_tab.dart` — отправка уведомлений при закрытии смены
+| Событие | Заголовок | Содержание |
+|---------|-----------|------------|
+| Открытие | 🔓 Смена - ОТКРЫТА | объект, пользователь, число сотрудников |
+| Закрытие | 🔒 Смена - ЗАКРЫТА | объект, пользователь, сумма, выработка |
 
-### 2. **База данных**
-- Таблица `public.user_tokens` — хранение FCM токенов пользователей
-- Таблицы `public.company_members`, `public.roles` — роль пользователя в компании (источник для «кто админ»)
-- Таблица `public.profiles` — ФИО и `status` (фильтр «не слать отключённым»)
+**Ключевые возможности (июнь 2026):**
 
-### 3. **Backend (Supabase Edge Functions)**
-- `send_admin_work_event` — отправка уведомлений админам о событиях смены
-- `send-fcm` — низкоуровневая отправка FCM сообщений через API v1
+- ✅ PWA на iPhone (iOS 16.4+, «На экран Домой»)
+- ✅ Web-браузер (Chrome / Edge / Safari desktop)
+- ✅ Native Android / iOS
+- ✅ Несколько устройств одного пользователя (телефон + ПК)
+- ✅ Переход по tap на экран смены без ошибки 403
+- ✅ Один баннер (без дублей на PWA)
 
-## Архитектура системы
+**Статус:** ✅ работает в production (FCM HTTP v1, проект `pgtmess`).
+
+---
+
+## Зависимости
+
+### Таблицы модуля (usage / owner)
+
+| Таблица | Роль |
+|---------|------|
+| `user_tokens` | **owner** — FCM-токены устройств |
+| `works` | usage — данные смены |
+| `objects` | usage — название объекта |
+| `profiles` | usage — ФИО, `status` |
+| `work_hours` | usage — число сотрудников |
+| `work_items` | usage — сумма при закрытии |
+| `company_members` | usage — кто админ / владелец |
+| `roles` | usage — `role_name` для фильтра админов |
+
+### Edge Functions
+
+| Функция | Назначение |
+|---------|------------|
+| `send_admin_work_event` | Формирует и отправляет push админам/владельцам |
+| `send-fcm` | Низкоуровневая отправка FCM (legacy / тесты) |
+
+### Внешние сервисы
+
+- **Firebase Cloud Messaging** (API v1) — доставка на все платформы
+- **Apple Push Notification service** — iOS native и Web Push для PWA (через FCM)
+
+---
+
+## Архитектура
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Flutter Client                            │
-│                                                                   │
-│  ┌─────────────────┐         ┌──────────────────┐               │
-│  │ FcmTokenService │────────▶│  Firebase SDK    │               │
-│  │  - init()       │         │  - getToken()    │               │
-│  │  - saveToken()  │         │  - onTokenRefresh│               │
-│  └─────────────────┘         └──────────────────┘               │
-│           │                                                       │
-│           │ save token                                           │
-│           ▼                                                       │
-│  ┌─────────────────────────────────────────────┐                │
-│  │  User opens/closes shift                    │                │
-│  │  → invoke('send_admin_work_event')          │                │
-│  └─────────────────────────────────────────────┘                │
-└───────────────────────────┬─────────────────────────────────────┘
-                            │ HTTPS
-                            ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      Supabase Backend                            │
-│                                                                   │
-│  ┌─────────────────────────────────────────────┐                │
-│  │    Edge Function: send_admin_work_event     │                │
-│  │                                              │                │
-│  │  1. Получает work_id и action               │                │
-│  │  2. Читает данные смены из БД               │                │
-│  │  3. Находит админов по company_members+roles │               │
-│  │  4. Получает активные токены админов        │                │
-│  │  5. Формирует notification payload          │                │
-│  │  6. Отправляет через FCM API v1             │                │
-│  └─────────────────────────────────────────────┘                │
-│           │                          ▲                           │
-│           │                          │                           │
-│           ▼                          │                           │
-│  ┌─────────────────┐    ┌──────────────────────┐               │
-│  │  user_tokens    │    │ company_members,roles│               │
-│  │  - token        │    │  - role_name …      │               │
-│  │  - platform     │    │  - status = true     │               │
-│  │  - is_active    │    └──────────────────────┘               │
-│  └─────────────────┘                                             │
-└───────────────────────────┬─────────────────────────────────────┘
-                            │ FCM API v1
-                            ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                   Firebase Cloud Messaging                       │
-│                                                                   │
-│  ┌────────────────────────────────────────────┐                 │
-│  │  FCM отправляет push-уведомления на        │                 │
-│  │  устройства админов (iOS/Android)          │                 │
-│  └────────────────────────────────────────────┘                 │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                         Flutter Client                                │
+│                                                                       │
+│  FcmTokenService ──► Firebase (getToken / onTokenRefresh)            │
+│       │ save upsert user_tokens (per installation_id)                 │
+│       │ refresh on app resume                                         │
+│                                                                       │
+│  work_form_screen ──► notifyAdminsWorkOpened() ──┐                   │
+│  work_data_tab    ──► notifyAdminsWorkClosed()  ──┼──► Edge Function │
+│                                                                       │
+│  fcm_push_handler + firebase-messaging-sw.js ◄─── push delivery      │
+│  push_work_navigation ──► /works/:id (in-app router)                 │
+└───────────────────────────────┬──────────────────────────────────────┘
+                                │ HTTPS + JWT
+                                ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│              Edge Function: send_admin_work_event                     │
+│  1. work_id + action (open|close)                                     │
+│  2. Данные смены из БД                                                │
+│  3. Получатели: owners + admins (notify_all: false)                   │
+│  4. Активные токены ios / android / web                               │
+│  5. Dedup: один токен на installation_id (не один на всю platform)    │
+│  6. FCM payload: web → webpush only; native → notification + apns     │
+└───────────────────────────────┬──────────────────────────────────────┘
+                                │ FCM API v1
+                                ▼
+                    Firebase → APNs / Web Push / Android
 ```
 
-## Детальный процесс работы
+---
 
-### Этап 1: Регистрация FCM токенов
+## PWA на iPhone — требования и особенности
 
-#### 1.1. Инициализация Firebase (при запуске приложения)
+### Что нужно пользователю
 
-**Файл:** `lib/main.dart`
+1. **iOS / iPadOS 16.4+**
+2. Открыть сайт в **Safari** (или Chrome/Edge на iOS)
+3. **«Поделиться» → «На экран Домой»** — установить PWA
+4. Запускать приложение **с иконки на домашнем экране**, не из вкладки Safari
+5. Разрешить уведомления при запросе внутри PWA
 
-```dart
-// Инициализация Firebase с опциями для текущей платформы
-await Firebase.initializeApp(
-  options: DefaultFirebaseOptions.currentPlatform,
-);
+### manifest.json (обязательно)
 
-// Регистрация фонового обработчика сообщений FCM
-FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+Файл: `web/manifest.json`
 
-// Показ уведомлений в форграунде на iOS/macOS
-await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
-  alert: true,
-  badge: true,
-  sound: true,
-);
+- `display: "standalone"` — без этого Web Push на iOS **не работает**
+- `name` / `short_name` — имя на домашнем экране («Стройка PRO»)
+- Иконки 192×192 и 512×512
+
+### Service Worker
+
+Файл: `web/firebase-messaging-sw.js`
+
+- Регистрируется Firebase Messaging для Web
+- **Не вызывает** `showNotification`, если FCM уже передал `webpush.notification` (иначе **два баннера**)
+- Обрабатывает `notificationclick` → открывает `/?work_id=UUID`
+
+### Строка «from Стройка PRO»
+
+На iOS PWA Apple **всегда** показывает подпись `from {имя приложения}` под заголовком. Это **системное ограничение**, убрать нельзя (ни manifest, ни payload). Можно только изменить `short_name` в manifest — слово «from» останется.
+
+### Deep link и ошибка 403
+
+**Проблема:** ссылка `/works/uuid` на статическом хостинге (Timeweb S3) не существует как файл → **403 AccessDenied**.
+
+**Решение (реализовано):**
+
+- FCM `fcm_options.link` = `/?work_id={uuid}`
+- Service worker и `lib/core/notifications/push_work_navigation.dart` — тот же формат
+- `lib/main.dart` читает query при старте и делает `router.push('/works/$workId')`
+
+---
+
+## Слой Presentation / Client
+
+### Дерево файлов (уведомления о сменах)
+
+```
+lib/
+├── data/services/
+│   ├── fcm_token_service.dart          # регистрация FCM-токена
+│   └── admin_work_notification_service.dart  # вызов Edge Function
+├── core/notifications/
+│   ├── fcm_push_handler.dart           # tap / foreground web
+│   ├── push_work_navigation.dart       # ?work_id= deep link
+│   ├── push_work_navigation_platform.dart
+│   ├── push_work_navigation_web.dart
+│   └── web_foreground_notification*.dart
+├── features/works/presentation/screens/
+│   ├── work_form_screen.dart           # notifyAdminsWorkOpened
+│   └── tabs/work_data_tab.dart         # notifyAdminsWorkClosed
+└── main.dart                           # init FCM, resume refresh, navigation
+
+web/
+├── firebase-messaging-sw.js
+├── manifest.json
+└── index.html
 ```
 
-#### 1.2. Инициализация FcmTokenService
-
-**Файл:** `lib/main.dart` (внутри MyApp)
-
-```dart
-// FCM: регистрируем токен при запуске
-WidgetsBinding.instance.addPostFrameCallback((_) {
-  ref.read(fcmTokenServiceProvider).initialize();
-});
-```
-
-#### 1.3. Получение и сохранение токена
+### FcmTokenService — регистрация токена
 
 **Файл:** `lib/data/services/fcm_token_service.dart`
 
-Процесс:
+| Шаг | Действие |
+|-----|----------|
+| Init | `requestPermission`, `getToken` (на Web — с VAPID key) |
+| Save | upsert в `user_tokens` по `(installation_id, platform)` |
+| Device label | `device_model`, `os_version`, `app_version` — см. `fcm_device_info_*.dart` |
+| Multi-device | **не деактивирует** токены других устройств на той же platform `web` |
+| Same device | деактивирует только старые записи **этого** `installation_id` |
+| Logout | `is_active = false` для текущего token |
+| Resume | `refreshCurrentDeviceToken()` при возврате в приложение (`main.dart`) |
 
-1. **Запрос разрешений** на push-уведомления (iOS/Android)
-   ```dart
-   await FirebaseMessaging.instance.requestPermission(
-     alert: true,
-     badge: true,
-     sound: true,
-   );
-   ```
+**Платформы в БД:**
 
-2. **Получение FCM токена** от Firebase
-   ```dart
-   final String? token = await FirebaseMessaging.instance.getToken(
-     vapidKey: kIsWeb ? 'YOUR_VAPID_KEY' : null,
-   );
-   ```
+| Устройство | `platform` |
+|------------|------------|
+| PWA iPhone / браузер | `web` |
+| Native iPhone app | `ios` |
+| Native Android | `android` |
 
-3. **Получение Installation ID** для уникальной привязки устройства
-   ```dart
-   String? installationId = await FirebaseInstallations.instance.getId();
-   ```
+### Вызов push при смене
 
-4. **Сохранение в таблицу `user_tokens`**
-   ```dart
-   await Supabase.instance.client.from('user_tokens').upsert(
-     {
-       'user_id': user.id,
-       'token': token,
-       'platform': platform, // 'ios', 'android', 'web'
-       'installation_id': installationId,
-       'is_active': true,
-       'updated_at': DateTime.now().toIso8601String(),
-     },
-     onConflict: 'installation_id,platform',
-   );
-   ```
-
-**Особенности:**
-- Одна запись на установку/платформу за счёт `UNIQUE (installation_id, platform)`
-- При смене токена строка обновляется (не создаётся новая)
-- При смене пользователя токен перепривязывается автоматически
-- При выходе из аккаунта токен помечается как `is_active=false`
-
-#### 1.4. Обновление токена
+**Файл:** `lib/data/services/admin_work_notification_service.dart`
 
 ```dart
-// Автоматическое обновление при изменении токена (с debounce 1 сек)
-FirebaseMessaging.instance.onTokenRefresh.listen((token) async {
-  pendingToken = token;
-  await Future<void>.delayed(const Duration(seconds: 1));
-  _saveToken(token);
-});
+await notifyAdminsWorkOpened(client: supabase, workId: workId);
+await notifyAdminsWorkClosed(client: supabase, workId: workId);
 ```
 
-### Этап 2: Отправка уведомлений при событиях смены
+Тело запроса к Edge Function:
 
-#### 2.1. Открытие смены
-
-**Файл:** `lib/features/works/presentation/screens/work_form_screen.dart`
-
-**Триггер:** Пользователь нажимает кнопку "Открыть смену"
-
-```dart
-// Отправка PUSH админам о открытии смены через Edge Function
-try {
-  final supabase = ref.read(supabaseClientProvider);
-  final accessToken = supabase.auth.currentSession?.accessToken;
-  
-  if (accessToken != null) {
-    final resp = await supabase.functions.invoke(
-      'send_admin_work_event',
-      body: {
-        'action': 'open',
-        'work_id': createdWork.id!,
-        // Опционально: `notify_all: false` — только админам (по умолчанию на Edge — всем участникам компании).
-      },
-      headers: {
-        'Authorization': 'Bearer $accessToken',
-      },
-    );
-    
-    debugPrint('send_admin_work_event(open): status=${resp.status}, data=${resp.data}');
-  }
-} catch (_) {
-  // Не блокируем UX из-за уведомления
+```json
+{
+  "action": "open",
+  "work_id": "uuid",
+  "notify_all": false
 }
 ```
 
-#### 2.2. Закрытие смены
+`notify_all: false` — **только владельцы (`is_owner`) + админы** (роли «Администратор», «Админ», «Супер-админ»).  
+Ошибки **не блокируют** UX (try/catch + debugPrint).
 
-**Файл:** `lib/features/works/presentation/screens/tabs/work_data_tab.dart`
+### Обработка нажатия на уведомление
 
-**Триггер:** Пользователь подтверждает закрытие смены
+1. **Native / FCM data:** `fcm_push_handler.dart` → `onMessageOpenedApp` → `/works/:id`
+2. **PWA cold start:** URL `/?work_id=` → `extractWorkIdFromPushUri` → `/works/:id`
+3. **Service worker:** `notificationclick` → focus/navigate или `postMessage` → listener в `main.dart`
 
-```dart
-// Отправка PUSH админам о закрытии смены
-try {
-  if (updatedWork.id != null) {
-    final token = Supabase.instance.client.auth.currentSession?.accessToken;
-    
-    if (token != null) {
-      await Supabase.instance.client.functions.invoke(
-        'send_admin_work_event',
-        body: {
-          'action': 'close',
-          'work_id': updatedWork.id!
-        },
-        headers: {
-          'Authorization': 'Bearer $token'
-        },
-      );
-    }
-  }
-} catch (_) {
-  // Не блокируем UX
-}
-```
+---
 
-### Этап 3: Обработка на сервере (Edge Function)
+## Edge Function: send_admin_work_event
 
-**Edge Function:** `send_admin_work_event` (v32)
+**Путь:** `supabase/functions/send_admin_work_event/index.ts`  
+**Auth:** `verify_jwt=true`, заголовок `Authorization: Bearer <accessToken>`
 
-**Настройки:**
-- `verify_jwt=true` — требуется JWT токен авторизации
-- CORS включён
-- Использует `SERVICE_ROLE_KEY` для обхода RLS при чтении БД
-- Форматирование сумм с разделителями тысяч (пробелами) и символом ₽
+### Вход
 
-**Алгоритм работы:**
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `action` | `'open' \| 'close'` | событие |
+| `work_id` | UUID | смена |
+| `notify_all` | boolean? | `false` = только admins+owners; иначе все участники компании |
 
-1. **Валидация входных данных**
-   ```javascript
-   const { action, work_id } = await req.json();
-   // action: 'open' | 'close'
-   // work_id: UUID
-   ```
+### Получатели (`notify_all: false`)
 
-2. **Чтение данных смены из БД**
-   - Получение информации о смене (`works`)
-   - Получение объекта (`objects`)
-   - Получение пользователя, открывшего смену (`profiles`)
-   - Подсчёт сотрудников (`work_hours`)
-   - Подсчёт суммы и выработки (для закрытия)
+1. `company_members.is_owner = true` для `works.company_id`
+2. `company_members` с ролями: Администратор, Админ, Супер-админ (глобально)
+3. Фильтр `profiles.status !== false`
+4. Токены: `user_tokens` где `is_active` и `platform IN ('ios','android','web')`
 
-3. **Кому слать push** (логика в Edge; тело запроса может содержать `notify_all`)
-   - **По умолчанию** (`notify_all` не передан или не `false`): все активные участники компании смены — `company_members` по `works.company_id`, `is_active`, затем фильтр `profiles.status !== false`, токены `user_tokens` (`ios` / `android`, `is_active`).
-   - **`notify_all: false`** (для будущей настройки в UI): только админы — `company_members` + роли `Администратор`, `Админ`, плюс глобальный `Супер-админ` по всем строкам membership, с тем же фильтром профилей и токенов.
+### Dedup токенов
 
-4. **Получение активных токенов админов**
-   ```sql
-   SELECT token, platform 
-   FROM user_tokens 
-   WHERE user_id IN (admin_ids)
-     AND is_active = true
-     AND platform IN ('ios', 'android')
-   ```
+Один push на **устройство** (ключ `user_id:platform:installation_id`), не один на всю platform `web`.  
+Fallback без `installation_id`: ключ включает сам `token`.
 
-5. **Формирование notification payload**
+### FCM payload
 
-6. **Отправка через FCM HTTP v1 API**
-   ```javascript
-   await fetch('https://fcm.googleapis.com/v1/projects/pgtmess/messages:send', {
-     method: 'POST',
-     headers: {
-       'Authorization': `Bearer ${accessToken}`,
-       'Content-Type': 'application/json',
-     },
-     body: JSON.stringify({ message: fcmMessage }),
-   });
-   ```
+**Web / PWA** — только `data` + `webpush.notification` (без top-level `notification`):
 
-7. **Возврат результата**
-   ```json
-   {
-     "sent": 1,
-     "total": 1,
-     "admin_count": 1,
-     "raw_tokens_count": 1,
-     "tokens_total": 1
-   }
-   ```
-
-### Этап 4: Доставка push-уведомлений
-
-Firebase Cloud Messaging доставляет уведомления на устройства администраторов через:
-- **APNs** (Apple Push Notification service) для iOS
-- **FCM** (Firebase Cloud Messaging) для Android
-- **Web Push** для веб-приложений
-
-## Примеры уведомлений
-
-### Открытие смены
-
-```text
-Title: 🔓 Смена - ОТКРЫТА
-
-Body:
-📍 Объект: ТЦ "Галерея"
-👤 Пользователь: Иван Иванов
-👥 Сотрудников: 5
-```
-
-**Код формирования (Edge Function):**
 ```javascript
 {
-  notification: {
-    title: '🔓 Смена - ОТКРЫТА',
-    body: `📍 Объект: ${objectName}\n👤 Пользователь: ${userName}\n👥 Сотрудников: ${employeesCount}`
-  },
-  data: {
-    type: 'work_event',
-    action: 'open',
-    work_id: workId,
-    object_id: objectId,
-    employees_count: employeesCount.toString()
-  },
-  apns: {
-    payload: {
-      aps: {
-        sound: 'default',
-        badge: 1
-      }
-    }
-  },
-  android: {
-    priority: 'high',
-    notification: {
-      sound: 'default',
-      channelId: 'work_events'
+  message: {
+    token,
+    data: { type, action, work_id, object_id },
+    webpush: {
+      notification: { title, body, icon: "/icons/Icon-192.png" },
+      fcm_options: { link: "/?work_id={work_id}" }
     }
   }
 }
 ```
 
-### Закрытие смены
+**iOS / Android native** — `notification` + `apns` / `android` priority HIGH.
 
-```text
-Title: 🔒 Смена - ЗАКРЫТА
+### Ответ
 
-Body:
-📍 Объект: ТЦ "Галерея"
-👤 Пользователь: Иван Иванов
-💰 Сумма: 125 000 ₽
-⚙️ Выработка: 25 000 ₽
-```
-
-**Форматирование сумм:**
-```javascript
-// Функция форматирования: 245766 -> "245 766 ₽"
-const formatCurrency = (num) => {
-  const rounded = Math.round(num);
-  const formatted = rounded.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-  return `${formatted} ₽`;
-};
-```
-
-**Расчёт выработки:**
-```javascript
-// Выработка = Сумма / Количество сотрудников
-const production = employeesCount > 0 ? sumRaw / employeesCount : 0;
-```
-
-**Код формирования (Edge Function):**
-```javascript
+```json
 {
-  notification: {
-    title: '🔒 Смена - ЗАКРЫТА',
-    body: `📍 Объект: ${objectName}\n👤 Пользователь: ${userName}\n💰 Сумма: ${formatCurrency(sum)}\n⚙️ Выработка: ${formatCurrency(production)}`
-  },
-  data: {
-    type: 'work_event',
-    action: 'close',
-    work_id: workId,
-    object_id: objectId,
-    employees_count: employeesCount.toString(),
-    sum: sum.toString(),
-    production: production.toString()
-  },
-  apns: {
-    payload: {
-      aps: {
-        sound: 'default',
-        badge: 1
-      }
-    }
-  },
-  android: {
-    priority: 'high',
-    notification: {
-      sound: 'default',
-      channelId: 'work_events'
-    }
-  }
+  "sent": 2,
+  "total": 5,
+  "admin_count": 2,
+  "notify_all": false,
+  "raw_tokens_count": 240,
+  "tokens_total": 5
 }
 ```
 
-## Структура базы данных
+### Секреты Supabase
+
+| Secret | Назначение |
+|--------|------------|
+| `SERVICE_ACCOUNT` | JSON service account Firebase (FCM v1) |
+| `SERVICE_ROLE_KEY` | чтение `user_tokens` / `company_members` (обход RLS) |
+
+---
+
+## База данных (Audit)
 
 ### Таблица `public.user_tokens`
 
-Хранит FCM токены пользователей для push-уведомлений.
+| Колонка | Тип | Описание |
+|---------|-----|----------|
+| id | uuid | PK |
+| user_id | uuid | FK → auth.users |
+| token | text | FCM token, UNIQUE |
+| platform | text | `ios` \| `android` \| `web` |
+| installation_id | text | Firebase Installation ID |
+| is_active | boolean | default true |
+| created_at / updated_at | timestamptz | |
 
-**Количество записей:** зависит от количества активных пользователей
+**RLS:** ✅ включён — пользователь CRUD только свои токены. Edge Function читает через service role.
 
-**RLS:** ✅ Включён
+**Уникальность:** `(installation_id, platform)` — одна активная запись на установку.
 
-| Колонка          | Тип          | Описание                                    | Ограничения        |
-|------------------|--------------|---------------------------------------------|--------------------|
-| id               | uuid         | Уникальный идентификатор записи            | PRIMARY KEY        |
-| user_id          | uuid         | ID пользователя                             | FK auth.users(id)  |
-| token            | text         | FCM токен устройства                        | NOT NULL, UNIQUE   |
-| platform         | text         | Платформа (ios/android/web)                 | NOT NULL, CHECK    |
-| installation_id  | text         | ID установки Firebase                       | -                  |
-| is_active        | boolean      | Активен ли токен                            | DEFAULT true       |
-| device_id        | text         | ID устройства                               | -                  |
-| device_model     | text         | Модель устройства                           | -                  |
-| os_version       | text         | Версия ОС                                   | -                  |
-| app_version      | text         | Версия приложения                           | -                  |
-| created_at       | timestamptz  | Дата создания                               | DEFAULT now()      |
-| updated_at       | timestamptz  | Дата обновления                             | DEFAULT now()      |
+### Проверочные SQL
 
-**Индексы:**
 ```sql
-CREATE UNIQUE INDEX user_tokens_token_unique ON user_tokens(token);
-CREATE UNIQUE INDEX user_tokens_installation_platform_unique ON user_tokens(installation_id, platform);
-CREATE INDEX user_tokens_user_id_idx ON user_tokens(user_id);
-CREATE INDEX user_tokens_active_idx ON user_tokens(is_active);
+-- Активные web-токены пользователя
+SELECT platform, is_active, updated_at, LEFT(token, 20)
+FROM user_tokens
+WHERE user_id = '<uuid>' AND is_active
+ORDER BY updated_at DESC;
+
+-- Кому уйдёт push для смены (admins+owners)
+SELECT u.email, cm.is_owner, r.role_name
+FROM company_members cm
+JOIN auth.users u ON u.id = cm.user_id
+LEFT JOIN roles r ON r.id = cm.role_id
+WHERE cm.company_id = (SELECT company_id FROM works WHERE id = '<work_uuid>')
+  AND cm.is_active
+  AND (cm.is_owner OR r.role_name IN ('Администратор', 'Супер-админ', 'Админ'));
 ```
 
-**Триггеры:**
-```sql
--- Автоматическое обновление updated_at
-CREATE TRIGGER user_tokens_set_updated_at
-BEFORE UPDATE ON user_tokens
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+---
+
+## Бизнес-логика (пошагово)
+
+### Открытие смены
+
+1. Пользователь нажимает «Открыть смену» → `work_form_screen`
+2. Смена сохраняется в `works`
+3. `notifyAdminsWorkOpened(workId)` → Edge Function `action: open`
+4. Edge собирает объект, автора, число сотрудников
+5. Push всем активным токенам получателей
+
+### Закрытие смены
+
+1. Пользователь закрывает смену → `work_data_tab._closeWork`
+2. `updateWork` → `notifyAdminsWorkClosed(workId)`
+3. Edge считает сумму (`work_items.total`) и выработку = сумма / число сотрудников
+4. Push с форматированными суммами (`245 766 ₽`)
+
+### Форматирование сумм (Edge)
+
+```javascript
+// 245766 → "245 766 ₽"
+const formatCurrency = (num) => { /* ... */ };
 ```
 
-**RLS Политики:**
-```sql
--- Пользователи могут видеть только свои токены
-CREATE POLICY "Users can view own tokens"
-  ON user_tokens FOR SELECT
-  USING (auth.uid() = user_id);
+---
 
--- Пользователи могут добавлять только свои токены
-CREATE POLICY "Users can insert own tokens"
-  ON user_tokens FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
+## Интеграции
 
--- Пользователи могут обновлять только свои токены
-CREATE POLICY "Users can update own tokens"
-  ON user_tokens FOR UPDATE
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
+| Модуль | Связь |
+|--------|-------|
+| **works** | триггер open/close из UI смен |
+| **profile** | локальные напоминания о смене — отдельно, см. `notifications_integration.md` |
+| **Telegram** | параллельный канал через `telegram_outbox`, не заменяет FCM |
+| **Firebase** | проект `pgtmess`, VAPID для Web |
 
--- Пользователи могут удалять только свои токены
-CREATE POLICY "Users can delete own tokens"
-  ON user_tokens FOR DELETE
-  USING (auth.uid() = user_id);
-```
+**PWA URL (production):** `https://e65ccfca-5800-40ab-b157-ac33d7a5f026.website.twcstorage.ru`
 
-**⚠️ Важно:** Edge Function использует `SERVICE_ROLE_KEY` для обхода RLS при чтении токенов всех админов.
-
-### Связь с таблицей `profiles`
-
-```
-profiles (1) ──────< user_tokens (N)
-  │
-  ├── id (PK)
-  │
-  └── role = 'admin'  ──→ Фильтр для получателей уведомлений
-      status = true/NULL
-```
-
-## Конфигурация Firebase
-
-### Проект Firebase
-- **Project ID:** `pgtmess`
-- **Статус:** ACTIVE
-
-### iOS
-- **Bundle ID:** `com.projectgt.stroyka`
-- **Team ID:** `L37HR2KV4M`
-- **APNs Authentication Key:** `.p8` файл загружен
-  - **Key ID:** `TYMLTYTH4P`
-  - **Scope:** Sandbox & Production
-- **Entitlements:** `aps-environment: production`
-- **Config:** `ios/Runner/GoogleService-Info.plist`
-
-### Android
-- **Package:** `com.projectgt.stroyka`
-- **Config:** `android/app/google-services.json`
-- **Min SDK:** 23
-
-### Web
-- **VAPID Key:** `BGPPZr58sdNUlGT4RFTLiteNdyOxQWI9mJdxnP4ycqEA0qUrGh6sDRKdkvXN6O1jpdmeH1ETcwn8ePeTPocORW4`
-- **Service Worker:** `web/firebase-messaging-sw.js`
-
-## Секреты Supabase
-
-Для работы Edge Functions требуются следующие секреты (Supabase Dashboard → Project Settings → Edge Functions → Secrets):
-
-1. **SERVICE_ACCOUNT** — JSON-файл сервисного аккаунта Firebase для FCM HTTP v1 API
-   ```json
-   {
-     "type": "service_account",
-     "project_id": "pgtmess",
-     "private_key_id": "...",
-     "private_key": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n",
-     "client_email": "firebase-adminsdk-...@pgtmess.iam.gserviceaccount.com",
-     "client_id": "...",
-     "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-     "token_uri": "https://oauth2.googleapis.com/token",
-     "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-     "client_x509_cert_url": "..."
-   }
-   ```
-
-2. **SERVICE_ROLE_KEY** — Ключ сервера Supabase для обхода RLS при чтении `profiles` и `user_tokens`
+---
 
 ## Диагностика проблем
 
-### Проблема: `tokens_total: 0` (токены не найдены)
+### Push не приходит на телефон после входа с компьютера
 
-**Причины и решения:**
+**Причина (исправлено 28.06.2026):** раньше при входе с ПК деактивировались **все** `web`-токены, включая iPhone PWA.
 
-1. **Клиент не передаёт Authorization header**
-   ```dart
-   // ✅ Правильно:
-   headers: {
-     'Authorization': 'Bearer $accessToken',
-   }
-   ```
+**Сейчас:** каждое устройство — свой `installation_id`. После деплика открыть PWA на телефоне (обновит токен).
 
-2. **У пользователя нет роли admin**
-   ```sql
-   -- Проверка в БД:
-   SELECT id, email, role, status 
-   FROM profiles 
-   WHERE role = 'admin';
-   ```
+### Два уведомления сразу (PWA)
 
-3. **Нет активных токенов в user_tokens**
-   ```sql
-   -- Проверка токенов админа:
-   SELECT * 
-   FROM user_tokens 
-   WHERE user_id = '<admin_user_id>' 
-     AND is_active = true;
-   ```
+**Причина:** дубль `showNotification` в SW + FCM `webpush.notification`.  
+**Fix:** SW пропускает show, если payload уже содержит `notification`.
 
-4. **Секреты не установлены в Supabase**
-   - Проверить наличие `SERVICE_ACCOUNT` и `SERVICE_ROLE_KEY`
-   - Перезапустить Edge Functions после установки секретов
+### Ошибка 403 при tap
 
-5. **iOS: несоответствие среды APNs**
-   - Debug build требует Sandbox APNs
-   - Ad Hoc/TestFlight/App Store требуют Production APNs
-   - Убедиться, что `.p8` ключ поддерживает нужную среду
+**Причина:** прямой URL `/works/:id` на S3-хостинге.  
+**Fix:** `/?work_id=` + роутинг в приложении. Нужен деплой PWA + Edge Function.
 
-### Проблема: Уведомления не приходят на устройство
+### `tokens_total: 0` / `sent: 0`
 
-1. **Проверка FCM токена**
-   ```dart
-   // Добавить логирование:
-   final token = await FirebaseMessaging.instance.getToken();
-   debugPrint('FCM Token: $token');
-   ```
+1. JWT в заголовке `Authorization: Bearer ...`
+2. Пользователь — owner или admin в `company_members`
+3. `user_tokens.is_active = true`, platform ∈ {web, ios, android}
+4. Секреты `SERVICE_ACCOUNT`, `SERVICE_ROLE_KEY` на сервере
+5. PWA: приложение установлено на домашний экран, разрешения выданы
 
-2. **Проверка разрешений на уведомления**
-   ```dart
-   final settings = await FirebaseMessaging.instance.getNotificationSettings();
-   debugPrint('Authorization status: ${settings.authorizationStatus}');
-   // AuthorizationStatus.authorized - разрешено
-   // AuthorizationStatus.denied - запрещено
-   ```
+### iOS PWA: push не работает в Safari-вкладке
 
-3. **Тест отправки напрямую через FCM**
-   - Использовать Firebase Console → Cloud Messaging → Send test message
-   - Вставить токен устройства и отправить тестовое сообщение
+Web Push на iOS **только** для приложения с домашнего экрана (`display-mode: standalone`).
 
-4. **Проверка логов Edge Function**
-   ```bash
-   # В Supabase Dashboard → Edge Functions → Logs
-   # Искать строки:
-   # - "start" - функция запущена
-   # - "no_tokens" - токены не найдены
-   # - "summary" - итоговая статистика отправки
-   ```
+### Тестовый вызов (curl)
 
-### Проблема: Дублирование токенов
-
-**Решение:** Уже реализовано через уникальность `(installation_id, platform)`:
-```dart
-// При сохранении токена сначала деактивируются старые записи этой установки:
-await Supabase.instance.client
-  .from('user_tokens')
-  .update({'is_active': false})
-  .eq('installation_id', installationId)
-  .eq('platform', platform)
-  .neq('token', token);
+```bash
+curl -X POST 'https://api.progt.ru/functions/v1/send_admin_work_event' \
+  -H 'Content-Type: application/json' \
+  -H 'apikey: <SUPABASE_ANON_KEY>' \
+  -H 'Authorization: Bearer <SUPABASE_ANON_KEY>' \
+  -d '{"action":"open","work_id":"<UUID>","notify_all":false}'
 ```
 
-## Ограничения и особенности
+Логи: Supabase Dashboard → Edge Functions → Logs (`send_admin_work_event: start`, `summary`).
 
-### Область применения
-- ✅ Отправляем PUSH **только админам** (`profiles.role='admin'`)
-- ✅ Только активным админам (`status=true` или `status IS NULL`)
-- ✅ Поддерживаем платформы **iOS** и **Android**
-- ⚠️ **Web** токены игнорируются Edge Function (можно добавить при необходимости)
-
-### Производительность
-- Отправка уведомлений **не блокирует UX**
-- Ошибки отправки **молча игнорируются** (try-catch без re-throw)
-- Дебаунс 1 секунда для `onTokenRefresh` предотвращает дубликаты
-
-### Безопасность
-- JWT токен **обязателен** (`verify_jwt=true`)
-- RLS на `user_tokens` защищает токены пользователей
-- Edge Function использует `SERVICE_ROLE_KEY` только для чтения админских токенов
-
-## Планы развития
-
-### ✅ Реализовано
-- [x] Базовая отправка уведомлений при открытии/закрытии смены
-- [x] FCM токены с автоматической синхронизацией
-- [x] Уникальность токенов по `(installation_id, platform)`
-- [x] Перепривязка токенов при смене пользователя
-- [x] Деактивация токенов при logout
-- [x] Фильтрация по ролям (только админы)
-- [x] Поддержка iOS (Production APNs) и Android
-- [x] Подробное логирование в Edge Function
-- [x] Форматирование денежных сумм с пробелами (245 766 ₽)
-
-### 🔄 Планируется
-- [ ] Показ SnackBar с результатом отправки (`{sent}/{total}`)
-- [ ] Настройки уведомлений для админов (включить/отключить)
-- [ ] Группировка уведомлений (если несколько смен за короткое время)
-- [ ] Отложенные уведомления (например, напоминание закрыть смену)
-- [ ] Богатые уведомления с картинками объектов
-- [ ] Действия в уведомлениях ("Открыть смену", "Игнорировать")
-- [ ] Уведомления о других событиях (новый сотрудник, материалы и т.д.)
-- [ ] Поддержка Web push-уведомлений для админов
-- [ ] Статистика доставки уведомлений в админ-панели
-- [ ] A/B тестирование текстов уведомлений
-
-### 🟡 Технические улучшения
-- [ ] Покрытие тестами (unit + integration)
-- [ ] Мониторинг доставляемости FCM
-- [ ] Retry механизм для failed отправок
-- [ ] Rate limiting для предотвращения спама
-- [ ] Аналитика: сколько админов открыли уведомление
+---
 
 ## Тестирование
 
-### Сценарий 1: Регистрация токена
+| # | Сценарий | Ожидание |
+|---|----------|----------|
+| 1 | Установить PWA на iPhone, войти как owner/admin, разрешить push | запись в `user_tokens`, platform=web |
+| 2 | Другой пользователь открывает смену | один push «ОТКРЫТА» на iPhone |
+| 3 | Tap по push | открывается экран смены, без 403 |
+| 4 | Закрытие смены | push «ЗАКРЫТА» с суммой и выработкой |
+| 5 | Вход с ПК после телефона → событие смены | push приходит **и на телефон, и на ПК** (если разрешения на обоих) |
+| 6 | Открыть PWA после долгого простоя | `refreshCurrentDeviceToken` восстанавливает доставку |
 
-1. Установить приложение на устройство
-2. Войти под учётной записью админа
-3. Дать разрешение на push-уведомления
-4. Проверить в БД:
-   ```sql
-   SELECT * 
-   FROM user_tokens 
-   WHERE user_id = '<your_user_id>';
-   ```
-5. Убедиться, что `is_active = true` и `platform` соответствует устройству
+---
 
-### Сценарий 2: Уведомление при открытии смены
+## Roadmap
 
-1. Войти под учётной записью обычного пользователя (не админа)
-2. Открыть смену (выбрать объект, добавить сотрудников)
-3. Нажать "Открыть смену"
-4. На устройстве админа должно прийти уведомление:
-   ```
-   🔓 Смена - ОТКРЫТА
-   📍 Объект: [название]
-   👤 Пользователь: [имя]
-   👥 Сотрудников: [N]
-   ```
+### ✅ Реализовано (июнь 2026)
 
-### Сценарий 3: Уведомление при закрытии смены
+- [x] PWA push iOS 16.4+ (Safari PWA)
+- [x] Web FCM + service worker
+- [x] Push при open/close смены
+- [x] Получатели: owners + admins (`notify_all: false`)
+- [x] Dedup без дублей баннера
+- [x] Deep link `/?work_id=` (fix 403)
+- [x] Multi-device web tokens (phone + desktop)
+- [x] Refresh token on app resume
+- [x] Подпись устройства в `device_model` (iPhone PWA / Chrome Windows и т.д.)
+- [x] Форматирование сумм в push при закрытии
 
-1. Открыть существующую смену
-2. Добавить работы и материалы (общая сумма, например, 345766 ₽)
-3. Добавить несколько сотрудников (например, 3 человека)
-4. Закрыть смену
-5. На устройстве админа должно прийти уведомление:
-   ```
-   🔒 Смена - ЗАКРЫТА
-   📍 Объект: [название]
-   👤 Пользователь: [имя]
-   💰 Сумма: 345 766 ₽ (с пробелами!)
-   ⚙️ Выработка: 115 255 ₽ (345766 / 3, с пробелами!)
-   ```
-6. **Проверить форматирование:** суммы должны содержать пробелы между тысячами
+### 🔄 Планируется
 
-### Сценарий 4: Смена пользователя
+- [ ] UI-настройка «кому слать» (`notify_all` из профиля)
+- [ ] Деактивация токенов по FCM 410 (UNREGISTERED)
+- [ ] SnackBar `{sent}/{total}` для отладки у админов
+- [ ] SPA fallback на Timeweb (все пути → index.html) — опционально для прямых URL
+- [ ] Статистика доставки push
 
-1. Войти под одним пользователем
-2. Проверить токен в БД
-3. Выйти и войти под другим пользователем
-4. Проверить, что токен перепривязан к новому `user_id`
-5. Старый токен помечен как `is_active = false`
+### 🔴 Известные ограничения iOS PWA
 
-### Сценарий 5: Logout
+- Нельзя убрать «from Стройка PRO»
+- Нет silent push / badge без показа баннера
+- `notification.close()` не убирает из центра уведомлений до tap
 
-1. Войти в приложение
-2. Проверить токен в БД (`is_active = true`)
-3. Выйти из приложения
-4. Проверить, что токен помечен как `is_active = false`
-
-## Примечания для разработчиков
-
-### Общие рекомендации
-- Всегда используйте `try-catch` при вызове `send_admin_work_event` — не блокируйте UX
-- Используйте `debugPrint` для логирования результатов в dev-режиме
-- Не забывайте передавать `Authorization: Bearer $accessToken`
-- Проверяйте `accessToken != null` перед вызовом Edge Function
-
-### Безопасность
-- Никогда не коммитьте `SERVICE_ACCOUNT` JSON в репозиторий
-- Используйте Supabase Secrets для хранения чувствительных данных
-- RLS на `user_tokens` защищает токены — не отключайте его
-
-### Производительность
-- FCM имеет лимиты: 500 сообщений в секунду на проект
-- Используйте batch-отправку для больших групп получателей (будущая оптимизация)
-- Кэшируйте списки админов, если запросы частые
-
-### Debugging
-- Используйте Firebase Console → Cloud Messaging для тестовых отправок
-- Логи Edge Functions доступны в Supabase Dashboard → Functions → Logs
-- Используйте `flutter logs` для просмотра FCM событий на устройстве
-
-### Форматирование
-- Все денежные суммы в уведомлениях автоматически форматируются с пробелами
-- Форматирование происходит на сервере (Edge Function v32)
-- Формат: `245 766 ₽` (число с пробелами между тысячами + символ рубля)
-- Клиентский код не требует изменений — форматирование прозрачно
+---
 
 ## Связанные документы
 
-- [FCM_ADMIN_NOTIFICATIONS_CHECKLIST.md](./FCM_ADMIN_NOTIFICATIONS_CHECKLIST.md) — чек-лист внедрения
+- [FCM_ADMIN_NOTIFICATIONS_CHECKLIST.md](./FCM_ADMIN_NOTIFICATIONS_CHECKLIST.md) — чек-лист внедрения и деплоя
 - [FCM_INTEGRATION_STATUS.md](./FCM_INTEGRATION_STATUS.md) — статус интеграции FCM
-- [notifications_integration.md](./notifications_integration.md) — локальные уведомления
+- [notifications_integration.md](./notifications_integration.md) — **локальные** напоминания (слоты времени), не путать с admin push
 - [works/works_module.md](./works/works_module.md) — модуль смен
 
-## Последняя актуализация
+---
 
-**Дата:** 11 октября 2025 года
-
-**Ключевые обновления:**
-- ✅ Создан полный обзор системы уведомлений для админов
-- ✅ Описан детальный процесс работы всех компонентов
-- ✅ Добавлены примеры кода и уведомлений
-- ✅ Задокументирована структура БД и RLS политики
-- ✅ Добавлены инструкции по диагностике и тестированию
-- ✅ **Обновлено форматирование сумм**: 345766 → 345 766 ₽ (Edge Function v32)
-
-**Статус:** Документация актуальна и соответствует текущей реализации в production.
-
+**Последний аудит:** код (`lib/data/services/`, `lib/core/notifications/`, `web/firebase-messaging-sw.js`), Edge Function, `user_tokens` / `company_members` / RLS — **28.06.2026**. Документ соответствует production.
