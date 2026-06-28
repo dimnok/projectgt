@@ -8,6 +8,8 @@ import 'package:projectgt/core/utils/pdf_utils.dart';
 class ProfilePdfGenerator {
   const ProfilePdfGenerator._();
 
+  static const _employerOrganization = 'ООО «ГТ Инжиниринг»';
+
   /// Генерирует заявление на ежегодный отпуск.
   static Future<Uint8List> generateVacationPdf({
     required PdfPageFormat format,
@@ -46,7 +48,7 @@ class ProfilePdfGenerator {
                         style: const pw.TextStyle(fontSize: 14),
                       ),
                       pw.Text(
-                        'ООО "Грандтелеком"',
+                        _employerOrganization,
                         style: const pw.TextStyle(fontSize: 14),
                       ),
                       pw.Text(
@@ -170,7 +172,7 @@ class ProfilePdfGenerator {
                         style: const pw.TextStyle(fontSize: 14),
                       ),
                       pw.Text(
-                        'ООО "Грандтелеком"',
+                        _employerOrganization,
                         style: const pw.TextStyle(fontSize: 14),
                       ),
                       pw.Text(
@@ -223,6 +225,119 @@ class ProfilePdfGenerator {
               pw.SizedBox(height: 40),
 
               // Подпись
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: pw.CrossAxisAlignment.end,
+                children: [
+                  pw.Text(dateStr, style: const pw.TextStyle(fontSize: 14)),
+                  pw.Column(
+                    children: [
+                      pw.Container(
+                        width: 100,
+                        decoration: const pw.BoxDecoration(
+                          border: pw.Border(bottom: pw.BorderSide(width: 1)),
+                        ),
+                      ),
+                      pw.SizedBox(height: 4),
+                      pw.Text(
+                        '(подпись)',
+                        style: const pw.TextStyle(fontSize: 10),
+                      ),
+                    ],
+                  ),
+                  pw.Text(
+                    _getInitials(fullName),
+                    style: const pw.TextStyle(fontSize: 14),
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    return pdf.save();
+  }
+
+  /// Генерирует заявление об увольнении по собственному желанию.
+  static Future<Uint8List> generateResignationPdf({
+    required PdfPageFormat format,
+    required String fullName,
+    required DateTime dismissalDate,
+    required DateTime date,
+  }) async {
+    final pdf = pw.Document();
+    final font = await PdfUtils.loadSerifFont();
+    final boldFont = await PdfUtils.loadSerifBoldFont();
+
+    final dismissalDateStr = formatRuDate(dismissalDate);
+    final dateStr = formatRuDate(date);
+
+    pdf.addPage(
+      pw.Page(
+        pageFormat: format,
+        theme: pw.ThemeData.withFont(base: font, bold: boldFont),
+        build: (pw.Context context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Align(
+                alignment: pw.Alignment.topRight,
+                child: pw.SizedBox(
+                  width: format.availableWidth / 2,
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        'Генеральному директору',
+                        style: const pw.TextStyle(fontSize: 14),
+                      ),
+                      pw.Text(
+                        _employerOrganization,
+                        style: const pw.TextStyle(fontSize: 14),
+                      ),
+                      pw.Text(
+                        'Тельнову Д.А.',
+                        style: const pw.TextStyle(fontSize: 14),
+                      ),
+                      pw.SizedBox(height: 12),
+                      pw.Text(
+                        'от сотрудника',
+                        style: const pw.TextStyle(fontSize: 14),
+                      ),
+                      pw.Text(
+                        fullName,
+                        style: const pw.TextStyle(fontSize: 14),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              pw.SizedBox(height: 60),
+              pw.Center(
+                child: pw.Text(
+                  'ЗАЯВЛЕНИЕ',
+                  style: pw.TextStyle(
+                    fontSize: 16,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ),
+              pw.SizedBox(height: 20),
+              pw.Paragraph(
+                margin: const pw.EdgeInsets.only(bottom: 10),
+                padding: const pw.EdgeInsets.only(left: 35),
+                text:
+                    'Прошу уволить меня по собственному желанию '
+                    'с $dismissalDateStr г.',
+                style: const pw.TextStyle(
+                  fontSize: 14,
+                  lineSpacing: 1.5,
+                ),
+                textAlign: pw.TextAlign.justify,
+              ),
+              pw.SizedBox(height: 40),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: pw.CrossAxisAlignment.end,

@@ -1,9 +1,19 @@
 # Модуль Timesheet (Табель рабочего времени)
 
-**Дата актуализации:** 28 июня 2026 года (открытые смены сегодня, фильтр «Состав», раскладка панели)
+**Дата актуализации:** 28 июня 2026 года (карточка сотрудника по ФИО, оптимизация запросов)
 
 **Изменения в этой версии:**
-- **Контроль выхода (открытые смены сегодня):** пользователь с `timesheet.read` видит, кто назначен в **открытые** смены на **текущий календарный день**, без доступа к модулю «Смены»
+- **Карточка сотрудника из табеля:** клик по **ФИО** открывает карточку (`EmployeeDetailsModal` / `EmployeesMobileEmployeeDetailsSheet`) — только при `employees.read` (`PermissionService`); без права ФИО не кликабельно
+- **Проставление часов:** только по иконке `edit_calendar_outlined` в колонке «Сотрудник» → `EmployeeAttendanceDialog` (права `timesheet.create` / `timesheet.update`); логика `_showAttendanceDialog` без изменений
+- **Сетка:** `TimesheetGridEmployeeRow` — раздельные колбэки `onEmployeeNameTap` / `onAttendanceTap`; виджет `_TimesheetEmployeeNameCell` (подчёркивание ФИО при доступе к карточке)
+- **Загрузка ставки для карточки:** `EmployeeNotifier.ensureEmployeeCardDetails(known)` — **не** перезагружает строку `employees`; 1 запрос `EmployeeRepository.getCurrentHourlyRate()` при отсутствии кэша; карточка открывается **сразу**, ставка подтягивается в фоне через `employeeProvider.employee` (слушатели в `EmployeeDetailsModal` / mobile sheet)
+- **Кэш карточки:** `EmployeeNotifier._employeeDetailsCache`; повторный `getEmployee(id)` без `forceRefresh` — без сети; `refreshEmployee` → `forceRefresh: true`
+- **Оптимизация `getEmployee` (data):** параллельный `.wait` на `employees` + `employee_rates`; отдельный API `getCurrentHourlyRate(employeeId)`
+- **Синхронизация каталога:** `timesheetEmployeeCatalogChanged()` в `domain/timesheet_employee_catalog_diff.dart` — `reloadEmployeesCatalog()` **не** вызывается при смене только ставки / полей карточки; убран дублирующий `postFrame` → `reloadEmployeesCatalog()` в `TimesheetScreen`
+- **UX сетки:** `_scheduleSyncEmployeeRows` не сбрасывает видимость таблицы; пустой виджет только при `_allEmployees.isEmpty && (isLoading || !_employeeRowsSynced)`
+- **Тесты:** `test/timesheet_employee_catalog_diff_test.dart`
+
+**Предыдущая версия (28.06.2026 — открытые смены сегодня, фильтр «Состав»):**
 - **БД:** RLS `timesheet_read_open_works_today_select` на `works` — SELECT только `status = 'open'` и `date = CURRENT_DATE` при `timesheet.read` — миграция [`20260628120000_timesheet_read_open_works_today.sql`](../../supabase/migrations/20260628120000_timesheet_read_open_works_today.sql) (применена на self-hosted)
 - **Data:** `TimesheetDataSource.getOpenWorksForDate()` — `works` + `work_hours(employee_id)` + `objects(name)`; `TimesheetRepository.loadTodayOpenShiftIndex()`
 - **Domain:** `timesheet_today_open_shift.dart` — `TimesheetTodayOpenShiftIndex`, `parseTodayOpenShiftWorksResponse`, `timesheetPeriodContainsToday`; `timesheet_open_shift_filter.dart` — `TimesheetOpenShiftFilterScope`, `filterEmployeesByOpenShiftScope`, `employeesInTodayOpenShift`
@@ -15,7 +25,7 @@
 - **Тесты:** `timesheet_today_open_shift_test.dart`, `timesheet_open_shift_filter_test.dart`, `timesheet_list_filter_dropdown_test.dart`
 
 **Предыдущая версия (31.05.2026 — статистика посещаемости):**
-- **Синхронизация каталога с «Сотрудники»:** `TimesheetNotifier.reloadEmployeesCatalog()` + `TimesheetRepository.loadEmployeesCatalog()`; `timesheet_employees_catalog_sync.dart` (`ref.listen` на `employeeProvider`); при входе на экран табеля — `postFrame` обновление каталога. После смены «Учитывать в табеле» сетка обновляется **без перезапуска приложения**
+- **Синхронизация каталога с «Сотрудники»:** `TimesheetNotifier.reloadEmployeesCatalog()` + `timesheet_employees_catalog_sync.dart` (`ref.listen` на `employeeProvider` с фильтром `timesheetEmployeeCatalogChanged`). После смены «Учитывать в табеле» сетка обновляется **без перезапуска приложения**
 - **`employees.include_in_timesheet`:** мягкое исключение — в сетке и Excel сотрудник скрыт без часов за период; при наличии часов строка видна. **Чекбокс** «Учитывать в табеле» под блоком «Работа» в карточке сотрудника (модуль «Сотрудники», `employees.update`). Правила в `timesheet_employee_visibility` (Dart) и `timesheet_employee_visibility.ts` (Excel)
 - **Фильтр по должностям (только UI):** `TimesheetPositionsBarDropdown` — мультивыбор в панели над сеткой (паттерн как у объектов); Excel **не** применяет
 - **Domain:** `timesheet_position_filter.dart` — ключи должностей (нормализация регистра), `buildTimesheetPositionFilterOptions`, `filterEmployeesByTimesheetPositionKeys`, строка «Без должности» (`kTimesheetNoPositionFilterKey`)
@@ -83,7 +93,8 @@
 - фильтр объектов (сервер + UI), фильтр должностей (мультивыбор, только UI) и фильтр **«Состав»** (часы за период + смена сегодня, только UI)
 - контроль выхода: звёздочка `*` в ячейке сегодня + фильтр «В открытой смене» / «Не в смене»
 - календарное представление часов по дням
-- ручной ввод часов вне смен (диалог посещаемости)
+- ручной ввод часов вне смен (диалог посещаемости — иконка календаря в колонке ФИО)
+- просмотр карточки сотрудника по ФИО (при `employees.read`, без отдельного маршрута)
 - экспорт Excel через Edge Function
 - чекбоксы выбора сотрудников для экспорта
 - статистика посещаемости: топ-5 «высокая» / топ-5 «низкая» за месяц (клиентский расчёт по загруженным часам)
@@ -96,7 +107,7 @@
 - параллельная загрузка независимых источников (`.wait`); фильтр `objectIds` на сервере
 - календарная сетка: **виртуализированный** список строк + фиксированная шапка и строка «Итого по дням»
 - после диалога посещаемости — `reloadHoursEntries()` (без перезагрузки каталога сотрудников)
-- после правки карточки в «Сотрудники» — `reloadEmployeesCatalog()` (только справочник, без оверлея загрузки)
+- после правки карточки в «Сотрудники» — `reloadEmployeesCatalog()` при **смысловом** изменении справочника (`timesheetEmployeeCatalogChanged`), без оверлея загрузки
 
 ---
 
@@ -126,9 +137,9 @@
 
 | Файл | Назначение |
 |------|------------|
-| `screens/timesheet_screen.dart` | `ConsumerStatefulWidget`: шапка, сетка, оверлей; `ref.watch(timesheetEmployeesCatalogSyncProvider)`; `postFrame` → `reloadEmployeesCatalog()` при повторном входе |
-| `widgets/timesheet_calendar_view.dart` | Оркестрация сетки: панель фильтров (`Spacer` → действия справа), `_syncEmployeeRows` (часы + смена + merge), индексы часов, виртуализация, скролл |
-| `widgets/timesheet_calendar_grid.dart` | Вёрстка ячеек; звёздочка открытой смены в колонке «сегодня»; `TimesheetGridLayout.openShiftStarColor` |
+| `screens/timesheet_screen.dart` | `ConsumerStatefulWidget`: шапка, сетка, оверлей; `ref.watch(timesheetEmployeesCatalogSyncProvider)` |
+| `widgets/timesheet_calendar_view.dart` | Оркестрация сетки; `_showEmployeeDetails` / `_showAttendanceDialog`; `canViewEmployees` (`employees.read`); `ensureEmployeeCardDetails` в фоне; `_syncEmployeeRows` без скрытия сетки при пересчёте |
+| `widgets/timesheet_calendar_grid.dart` | Вёрстка ячеек; `_TimesheetEmployeeNameCell`; раздельные тапы ФИО / иконка календаря; звёздочка открытой смены |
 | `widgets/timesheet_filters_toolbar.dart` | `TimesheetCompactMonthSwitcher`, `TimesheetToolbarSearch` |
 | `widgets/timesheet_mobile_search_field.dart` | Поиск в шапке (`GTTextField`) |
 | `widgets/timesheet_filter_widget.dart` | Провайдеры поиска, `timesheetEmployeeListScopeProvider`, `timesheetOpenShiftFilterScopeProvider`; `hasActiveTimesheetListFilters`, `timesheetListFilterTriggerLabel`; `filterEmployeesByTimesheetNameSearch` |
@@ -143,7 +154,7 @@
 | `services/timesheet_excel_export_service.dart` | Edge Function `export-timesheet` |
 | `state/timesheet_state.dart` | Freezed: `entries`, `employees`, `isLoading`, `error`, период, `selectedObjectIds`, `todayOpenShift` |
 | `providers/timesheet_provider.dart` | `TimesheetNotifier`: `loadTimesheet()`, `reloadHoursEntries()`, `reloadEmployeesCatalog()`, `setDateRange()`, `setSelectedObjects()`; параллельно `_loadTodayOpenShiftIfNeeded()`; `timesheetGridEntriesProvider` |
-| `providers/timesheet_employees_catalog_sync.dart` | Слушает `employeeProvider` → `reloadEmployeesCatalog()` при успешном обновлении списка (если табель уже загружал данные) |
+| `providers/timesheet_employees_catalog_sync.dart` | Слушает `employeeProvider` → `reloadEmployeesCatalog()` только если `timesheetEmployeeCatalogChanged(previous.employees, next.employees)` |
 | `providers/timesheet_filters_providers.dart` | `availableObjectsForTimesheetProvider`, `availablePositionsForTimesheetProvider`, `timesheetSelectedPositionKeysProvider` |
 | `providers/repositories_providers.dart` | DI data/repository; `activeCompanyId` передаётся как `String?` (без подстановки `''`) |
 | `providers/timesheetGridSelectedEmployeeIdsProvider` | Выбранные в сетке `employeeId` |
@@ -177,7 +188,7 @@
 |-----------|------------|
 | `TimesheetGridLayout` | Константы колонок, `minTableWidth(dayCount)`, `layoutWidth(dayCount, viewportWidth)`, `dayKey()`, высоты строк |
 | `TimesheetGridHeader` | Закреплённая шапка (чекбокс «все», дни, «Итого») |
-| `TimesheetGridEmployeeRow` | Одна строка сотрудника (чекбокс, ФИО + должность, ячейки дней с `*` в колонке сегодня при назначении в открытую смену, итог по строке) |
+| `TimesheetGridEmployeeRow` | Строка: чекбокс; **ФИО** (`onEmployeeNameTap`, опционально) + **иконка календаря** (`onAttendanceTap`); ячейки дней; итог |
 | `TimesheetGridTotalsRow` | Строка «Итого по дням» сразу под последней строкой сотрудника (`SliverToBoxAdapter` в общем вертикальном скролле) |
 | `_TimesheetGridCells` | `fixed` — чекбокс, день, «Итого»; `employee` — `Expanded` с `minWidth: 240` |
 
@@ -202,7 +213,7 @@
 |-------|---------|-------------|
 | `timesheet_screen` | `error == timesheetNoActiveCompanyMessage` | Баннер с текстом ошибки над сеткой (без сетевой загрузки) |
 | `timesheet_screen` | `isLoading` | Оверлей + `TimesheetHoursLoadingIndicator` |
-| `timesheet_calendar_view` | после `_syncEmployeeRows`, пустой `_allEmployees` | Контекстная заглушка (в т.ч. «Никого в открытых сменах», «Нет сотрудников вне смены») |
+| `timesheet_calendar_view` | после первой синхронизации, пустой `_allEmployees` | Контекстная заглушка; при пересчёте строк сетка **остаётся** на экране |
 | `employee_attendance_dialog` | `_isLoading` / `_isSaving` | Индикатор в блоке / на кнопке |
 | `timesheet_excel_action` | `!timesheetHasActiveCompany(companyId)` | `AppSnackBar` с `timesheetNoActiveCompanyMessage` |
 
@@ -223,6 +234,7 @@
 | `timesheet_today_open_shift.dart` | `TimesheetTodayOpenShiftIndex`, парсер ответа `works`, `timesheetPeriodContainsToday` |
 | `timesheet_hours_index.dart` | `TimesheetHoursIndex.fromEntries()` — суммы часов и id с записями для правил видимости |
 | `timesheet_employee_visibility.dart` | `isTimesheetGridEmployeeVisible`, `visibleTimesheetGridEmployees`, `filterEmployeesByTimesheetListScope`, `visibleTimesheetExportEmployees` |
+| `timesheet_employee_catalog_diff.dart` | `timesheetEmployeeCatalogChanged` — сравнение справочника для sync (без учёта `currentHourlyRate`) |
 | `timesheet_position_filter.dart` | Ключи и опции фильтра должностей; `filterEmployeesByTimesheetPositionKeys` (**только UI**, Excel не использует) |
 | `timesheet_attendance_stats.dart` | `computeTimesheetAttendanceStats` — топ-5 high/low по `workedDays`, затем по сумме часов (**только UI**, без Edge Function) |
 
@@ -239,11 +251,25 @@
 Строки из `work_hours` **не** имеют отдельной data-модели — маппинг в репозитории из `Map`.
 
 ### Внешний слой (employees)
+
 | API | Назначение |
 |-----|------------|
 | `EmployeeRepository.getEmployeesCatalog()` | Справочник для табеля — **без** `employee_rates` |
+| `EmployeeRepository.getCurrentHourlyRate(employeeId)` | Одна текущая ставка (`valid_to IS NULL`) — для карточки из табеля |
 | `EmployeeRepository.getEmployees()` | Сотрудники + текущие ставки (модуль «Сотрудники», ФОТ) |
-| `SupabaseEmployeeDataSource._fetchCompanyEmployees()` | Общая выборка `employees` по `company_id`; используется в catalog и в `getEmployees()` |
+| `EmployeeNotifier.ensureEmployeeCardDetails(known)` | Карточка из табеля: кэш → 0–1 запрос ставки; **не** трогает `employees` в state |
+| `EmployeeNotifier.getEmployee(id, {forceRefresh})` | Полная карточка (модуль «Сотрудники», deep link); кэш без повторной сети |
+| `SupabaseEmployeeDataSource._fetchCompanyEmployees()` | Общая выборка `employees` по `company_id` |
+| `employeesModuleObjectsProvider` | Picklist объектов для карточки из табеля (RLS `objects_select`) |
+
+**UI карточки (модуль Employees, переиспользуется табелем):**
+
+| Платформа | Открытие из табеля |
+|-----------|-------------------|
+| Desktop / широкий | `EmployeeDetailsModal.show` (`EmployeesLayoutUtils.useEmployeesDesktopModal`) |
+| Mobile / узкий | `EmployeesMobileEmployeeDetailsSheet.show` |
+
+Маршрут `go_router` `/employees/:employeeId` из табеля **не** используется — только модальные поверхности.
 
 ---
 
@@ -272,6 +298,7 @@ lib/features/timesheet/
 │   │   └── timesheet_load_result.dart
 │   ├── timesheet_employee_list_scope.dart
 │   ├── timesheet_employee_visibility.dart
+│   ├── timesheet_employee_catalog_diff.dart
 │   ├── timesheet_hours_index.dart
 │   ├── timesheet_position_filter.dart
 │   ├── timesheet_attendance_stats.dart
@@ -316,7 +343,8 @@ test/
 ├── timesheet_attendance_stats_test.dart
 ├── timesheet_today_open_shift_test.dart
 ├── timesheet_open_shift_filter_test.dart
-└── timesheet_list_filter_dropdown_test.dart
+├── timesheet_list_filter_dropdown_test.dart
+└── timesheet_employee_catalog_diff_test.dart
 ```
 
 ---
@@ -475,11 +503,32 @@ employee_attendance ──> objects
 
 | Триггер | Действие |
 |---------|----------|
-| Успешное `employeeProvider.updateEmployee` (и др. изменения списка `employees`) | `timesheetEmployeesCatalogSyncProvider` → `reloadEmployeesCatalog()` |
-| Повторное открытие экрана табеля | `TimesheetScreen.initState` → `postFrame` → `reloadEmployeesCatalog()` (если табель уже имел `employees` или `entries`) |
+| Изменение `employeeProvider.employees` с разницей по полям справочника табеля | `timesheetEmployeesCatalogSyncProvider` → `reloadEmployeesCatalog()` |
+| Поля, влияющие на sync | `includeInTimesheet`, `status`, ФИО, `position`, `objectIds` — см. `timesheetEmployeeCatalogChanged` |
+| **Не** триггерит sync | смена только `currentHourlyRate`, `ensureEmployeeCardDetails`, кэш карточки |
 | Смена месяца / объектов | полный `loadTimesheet()` (каталог в составе) |
 
 `reloadEmployeesCatalog()` **не** выставляет `isLoading` — сетка пересчитывается через `ref.listenManual` на `timesheetProvider.employees` в `TimesheetCalendarView`.
+
+### Карточка сотрудника из табеля
+
+| Шаг | Поведение |
+|-----|-----------|
+| 1 | Пользователь с `employees.read` нажимает **ФИО** |
+| 2 | `unawaited(ensureEmployeeCardDetails(employee))` — фоновая подготовка ставки |
+| 3 | Сразу `EmployeeDetailsModal.show` / mobile sheet с объектом из `timesheetProvider` (каталог) |
+| 4 | Карточка слушает `employeeProvider` → обновляет ставку после ответа `getCurrentHourlyRate` |
+| 5 | Иконка календаря → `_showAttendanceDialog` (независимо от `employees.read`) |
+
+**Сетевые запросы при открытии карточки (типично):**
+
+| Ситуация | Запросы |
+|----------|---------|
+| Первое открытие сотрудника | 1× `employee_rates` (ставка) + 1× `business_trip_rates` (виджет карточки) |
+| Повторное открытие (кэш) | 0 (ставка из `_employeeDetailsCache`; суточные — из кэша `FutureProvider`, если не инвалидирован) |
+| Просмотр карточки | **не** вызывает `reloadEmployeesCatalog()` и **не** перезагружает строку `employees` в табеле |
+
+История ставок (`EmployeeRateSummaryWidget`) — **ленивая**: запрос только при раскрытии блока.
 
 ### Фильтрация (сводка)
 
@@ -547,7 +596,8 @@ employee_attendance ──> objects
 
 ### Внутренние
 - `works`, `employees`, `objects`, `company`, `roles`
-- **`employees`:** поле `include_in_timesheet` в карточке; после сохранения табель подтягивает каталог через `reloadEmployeesCatalog` (см. выше)
+- **`employees`:** поле `include_in_timesheet` в карточке; sync каталога через `timesheetEmployeeCatalogChanged` + `reloadEmployeesCatalog`
+- **Карточка из табеля:** `EmployeeDetailsModal`, `EmployeesMobileEmployeeDetailsSheet`, `EmployeeNotifier.ensureEmployeeCardDetails`, `employeesModuleObjectsProvider`
 - UI-паттерны модуля «Сотрудники»: `EmployeesLayoutUtils`, стиль `EmployeesTableFiltersToolbar`
 
 ### Пакеты
@@ -581,6 +631,10 @@ employee_attendance ──> objects
 - ✅ статистика посещаемости: топ-5 high/low за месяц (`timesheet_attendance_stats.dart`, UI-диалог)
 - ✅ открытые смены сегодня: RLS, загрузка индекса, звёздочка в сетке, фильтр «Состав», merge строк
 - ✅ единый `TimesheetListFilterDropdown`; панель: действия справа
+- ✅ карточка сотрудника по ФИО (`employees.read`); часы — иконка календаря
+- ✅ `ensureEmployeeCardDetails` + `getCurrentHourlyRate` — без лишней перезагрузки каталога табеля
+- ✅ `timesheetEmployeeCatalogChanged` + тест; убран дубль `reloadEmployeesCatalog` при входе на экран
+- ✅ UX: открытие карточки без задержки и моргания сетки
 
 ### Ограничения
 - 🟡 нет удаления ручных часов очисткой ячейки
@@ -615,7 +669,9 @@ employee_attendance ──> objects
 - При правках ячеек — `timesheet_calendar_grid.dart`; при фильтрах/индексах/скролле — `timesheet_calendar_view.dart`.
 - Фильтр должностей — только presentation + `timesheet_position_filter.dart`; **не** дублировать в `timesheet_employee_visibility.ts` / Excel без отдельного требования.
 - Список должностей в меню — из полного каталога `employees`, не из `entries`; при добавлении серверного фильтра должностей — отдельная задача (сейчас `position` не в таблицах часов).
-- После правок в `employees` не вызывать полный `loadTimesheet()` ради флага табеля — достаточно `reloadEmployeesCatalog()` (уже подключено через sync-провайдер).
+- После правок в `employees` не вызывать полный `loadTimesheet()` ради флага табеля — достаточно `reloadEmployeesCatalog()` через sync-провайдер (**только** при `timesheetEmployeeCatalogChanged`).
+- Открытие карточки из табеля: `ensureEmployeeCardDetails`, не `getEmployee` (последний тянет всю строку `employees` и дублирует каталог).
+- Не вызывать `reloadEmployeesCatalog()` при просмотре карточки / подгрузке ставки — это ломало UX (моргание сетки).
 - Статистика посещаемости: править `domain/timesheet_attendance_stats.dart` + `widgets/timesheet_attendance_stats.dart`; при смене правил видимости строк — те же функции, что `_syncEmployeeRows` (`visibleTimesheetGridEmployees`, `filterEmployeesByTimesheetPositionKeys`).
 - Резерв ширины панели для кнопки: `kTimesheetAttendanceStatsTriggerWidth` в `timesheet_filters_toolbar.dart` (`timesheetToolbarSearchWidth`).
 - Фильтр «Состав»: `timesheet_list_filter_dropdown.dart` + провайдеры в `timesheet_filter_widget.dart`; логика смены — `timesheet_open_shift_filter.dart`; индекс — `timesheet_today_open_shift.dart`.
@@ -625,6 +681,14 @@ employee_attendance ──> objects
 ---
 
 ## История изменений
+
+**28.06.2026 — Карточка сотрудника по ФИО и оптимизация запросов**
+- `timesheet_calendar_grid.dart`: `onEmployeeNameTap` / `onAttendanceTap`, `_TimesheetEmployeeNameCell`
+- `timesheet_calendar_view.dart`: `_showEmployeeDetails`, `ensureEmployeeCardDetails`, UX пересчёта строк без скрытия сетки
+- `domain/timesheet_employee_catalog_diff.dart`, `timesheet_employees_catalog_sync.dart` — умный sync
+- `EmployeeNotifier.ensureEmployeeCardDetails`, `getCurrentHourlyRate`; кэш `getEmployee` без лишней сети
+- убран `postFrame` → `reloadEmployeesCatalog()` в `TimesheetScreen`
+- `test/timesheet_employee_catalog_diff_test.dart`
 
 **28.06.2026 — Открытые смены сегодня и фильтр «Состав»**
 - миграция `20260628120000_timesheet_read_open_works_today.sql`
@@ -639,7 +703,7 @@ employee_attendance ──> objects
 
 **31.05.2026 — Синхронизация каталога с «Сотрудники»**
 - `TimesheetRepository.loadEmployeesCatalog()`, `TimesheetNotifier.reloadEmployeesCatalog()`
-- `timesheet_employees_catalog_sync.dart`, `TimesheetScreen` (`ConsumerStatefulWidget`, postFrame)
+- `timesheet_employees_catalog_sync.dart` (актуализировано 28.06.2026 — `timesheetEmployeeCatalogChanged`)
 
 **31.05.2026 — `include_in_timesheet` (мягкое исключение)**
 - миграция `20260531120000_employees_include_in_timesheet.sql`

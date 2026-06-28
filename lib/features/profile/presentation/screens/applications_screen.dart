@@ -11,12 +11,14 @@ import 'package:projectgt/presentation/widgets/grouped_menu.dart';
 import 'package:projectgt/features/profile/presentation/widgets/content_constrained_box.dart';
 import 'package:projectgt/features/profile/presentation/screens/vacation_form_bottom_sheet.dart';
 import 'package:projectgt/features/profile/presentation/screens/unpaid_leave_form_bottom_sheet.dart';
+import 'package:projectgt/features/profile/presentation/screens/resignation_form_bottom_sheet.dart';
 
 /// Экран с заявлениями сотрудников.
 ///
 /// Предоставляет доступ к различным типам заявлений:
 /// - Заявление на отпуск (ежегодный оплачиваемый)
 /// - Заявление на отпуск без сохранения заработной платы
+/// - Заявление об увольнении по собственному желанию
 class ApplicationsScreen extends ConsumerStatefulWidget {
   /// Создаёт экран заявлений.
   const ApplicationsScreen({super.key});
@@ -70,6 +72,13 @@ class _ApplicationsScreenState extends ConsumerState<ApplicationsScreen> {
                     subtitle:
                         'Заявление на отпуск без сохранения заработной платы',
                     onTap: () => _showUnpaidLeaveForm(context, profile),
+                  ),
+                  AppleMenuItem(
+                    icon: CupertinoIcons.person_crop_circle_badge_xmark,
+                    iconColor: CupertinoColors.systemRed,
+                    title: 'Увольнение',
+                    subtitle: 'Заявление об увольнении по собственному желанию',
+                    onTap: () => _showResignationForm(context, profile),
                   ),
                 ],
               ),
@@ -210,6 +219,49 @@ class _ApplicationsScreenState extends ConsumerState<ApplicationsScreen> {
         builder: (context) => MobileBottomSheetContent(
           title: 'Отпуск за свой счёт',
           child: UnpaidLeaveForm(profile: profile),
+        ),
+      );
+    }
+  }
+
+  /// Показывает форму заявления об увольнении.
+  void _showResignationForm(BuildContext context, Profile? profile) {
+    if (profile == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Не удалось загрузить данные профиля')),
+      );
+      return;
+    }
+
+    final isDesktop =
+        kIsWeb ||
+        defaultTargetPlatform == TargetPlatform.macOS ||
+        defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.linux;
+
+    if (isDesktop) {
+      showDialog(
+        context: context,
+        builder: (context) => Dialog(
+          insetPadding: const EdgeInsets.all(24),
+          child: DesktopDialogContent(
+            title: 'Увольнение',
+            child: ResignationForm(profile: profile),
+          ),
+        ),
+      );
+    } else {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        constraints: const BoxConstraints(maxWidth: 640),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (context) => MobileBottomSheetContent(
+          title: 'Увольнение',
+          child: ResignationForm(profile: profile),
         ),
       );
     }

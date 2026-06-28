@@ -52,6 +52,10 @@ import 'package:projectgt/domain/usecases/contract/update_contract_usecase.dart'
 import 'package:projectgt/domain/usecases/contract/delete_contract_usecase.dart';
 import 'package:projectgt/presentation/state/contract_state.dart';
 import 'package:projectgt/data/datasources/contract_file_data_source.dart';
+import 'package:projectgt/data/datasources/employee_application_data_source.dart';
+import 'package:projectgt/data/datasources/supabase_employee_application_data_source.dart';
+import 'package:projectgt/data/repositories/employee_application_repository_impl.dart';
+import 'package:projectgt/domain/repositories/employee_application_repository.dart';
 import 'package:projectgt/data/repositories/contract_file_repository_impl.dart';
 import 'package:projectgt/domain/repositories/contract_file_repository.dart';
 import 'package:projectgt/domain/usecases/contract/get_contract_files_usecase.dart';
@@ -243,6 +247,25 @@ final contractRepositoryProvider = Provider<ContractRepository>((ref) {
 final contractFileRepositoryProvider = Provider<ContractFileRepository>((ref) {
   final dataSource = ref.watch(contractFileDataSourceProvider);
   return ContractFileRepositoryImpl(dataSource);
+});
+
+/// Провайдер [EmployeeApplicationDataSource].
+final employeeApplicationDataSourceProvider =
+    Provider<EmployeeApplicationDataSource>((ref) {
+  final client = ref.watch(supabaseClientProvider);
+  final activeCompanyId = ref.watch(activeCompanyIdProvider);
+  return SupabaseEmployeeApplicationDataSource(client, activeCompanyId ?? '');
+});
+
+/// Провайдер репозитория заявлений сотрудников.
+final employeeApplicationRepositoryProvider =
+    Provider<EmployeeApplicationRepository>((ref) {
+  final dataSource = ref.watch(employeeApplicationDataSourceProvider);
+  final userId = ref.watch(supabaseClientProvider).auth.currentUser?.id ?? '';
+  return EmployeeApplicationRepositoryImpl(
+    dataSource: dataSource,
+    currentUserId: userId,
+  );
 });
 
 /// Провайдер репозитория актов по договору.

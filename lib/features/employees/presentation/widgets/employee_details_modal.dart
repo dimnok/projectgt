@@ -13,12 +13,14 @@ import 'package:projectgt/domain/entities/business_trip_rate.dart';
 import 'package:projectgt/domain/entities/employee.dart';
 import 'package:projectgt/features/employees/presentation/providers/employee_avatar_controller.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
+import 'package:projectgt/features/employees/presentation/widgets/employee_applications_section.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_business_trip_summary_widget.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_edit_form.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_rate_summary_widget.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_trip_editor_form.dart';
 import 'package:projectgt/features/employees/presentation/widgets/editable_inline_text_row.dart';
 import 'package:projectgt/features/objects/domain/entities/object.dart';
+import 'package:projectgt/presentation/widgets/custom_sliding_segmented_control.dart';
 import 'package:projectgt/presentation/state/employee_state.dart' as employee_state;
 
 /// Модальное окно с детальной информацией о сотруднике.
@@ -70,6 +72,7 @@ class EmployeeDetailsModal extends ConsumerStatefulWidget {
 
 class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
   bool _isEditing = false;
+  int _viewTab = 0;
   late Employee _employee;
 
   @override
@@ -146,15 +149,74 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
                   key: const ValueKey('view_info'),
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildMainInfo(theme),
-                    const SizedBox(height: 24),
-                    _buildFinancialInfo(theme, canUpdate: canUpdate),
-                    const SizedBox(height: 24),
-                    _buildAdditionalInfo(theme, canUpdate: canUpdate),
+                    _buildViewTabs(theme),
+                    const SizedBox(height: 16),
+                    IndexedStack(
+                      index: _viewTab,
+                      alignment: Alignment.topCenter,
+                      children: [
+                        Column(
+                          key: const ValueKey('overview_tab'),
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildMainInfo(theme),
+                            const SizedBox(height: 24),
+                            _buildFinancialInfo(theme, canUpdate: canUpdate),
+                            const SizedBox(height: 24),
+                            _buildAdditionalInfo(theme, canUpdate: canUpdate),
+                          ],
+                        ),
+                        EmployeeApplicationsSection(
+                          key: const ValueKey('applications_tab'),
+                          employee: _employee,
+                          canManage: canUpdate,
+                        ),
+                      ],
+                    ),
                   ],
                 ),
         ),
       ],
+    );
+  }
+
+  Widget _buildViewTabs(ThemeData theme) {
+    final scheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+    final borderColor = isDark
+        ? scheme.outline.withValues(alpha: 0.35)
+        : scheme.outline.withValues(alpha: 0.25);
+
+    return CustomSlidingSegmentedControl<int>(
+      groupValue: _viewTab,
+      onValueChanged: (value) => setState(() => _viewTab = value),
+      backgroundColor: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+      thumbColor: scheme.surface,
+      borderRadius: 10,
+      border: Border.all(color: borderColor),
+      padding: const EdgeInsets.all(2),
+      children: {
+        0: _buildViewTabLabel(theme, 0, 'Обзор'),
+        1: _buildViewTabLabel(theme, 1, 'Заявления'),
+      },
+    );
+  }
+
+  Widget _buildViewTabLabel(ThemeData theme, int index, String label) {
+    final scheme = theme.colorScheme;
+    final selected = _viewTab == index;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 12,
+          height: 1.2,
+          fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+          color: selected ? scheme.primary : scheme.onSurfaceVariant,
+        ),
+      ),
     );
   }
 

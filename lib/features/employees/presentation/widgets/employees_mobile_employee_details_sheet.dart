@@ -11,11 +11,13 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:projectgt/domain/entities/business_trip_rate.dart';
 import 'package:projectgt/domain/entities/employee.dart';
 import 'package:projectgt/features/employees/presentation/providers/employee_avatar_controller.dart';
+import 'package:projectgt/features/employees/presentation/widgets/employee_applications_section.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_business_trip_summary_widget.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_rate_summary_widget.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_trip_editor_form.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employees_mobile_atmosphere.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employees_mobile_employee_edit_blocks.dart';
+import 'package:projectgt/presentation/widgets/custom_sliding_segmented_control.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
 import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:projectgt/presentation/state/employee_state.dart'
@@ -115,7 +117,7 @@ class EmployeesMobileEmployeeDetailsSheet {
 }
 
 /// Содержимое прокрутки: шапка и секции без обёртки sheet.
-class _EmployeesMobileEmployeeDetailsBody extends ConsumerWidget {
+class _EmployeesMobileEmployeeDetailsBody extends ConsumerStatefulWidget {
   const _EmployeesMobileEmployeeDetailsBody({
     required this.employee,
     required this.objects,
@@ -135,6 +137,15 @@ class _EmployeesMobileEmployeeDetailsBody extends ConsumerWidget {
   final bool canUpdate;
   final VoidCallback? onAddBusinessTrip;
   final void Function(BusinessTripRate rate)? onEditBusinessTrip;
+
+  @override
+  ConsumerState<_EmployeesMobileEmployeeDetailsBody> createState() =>
+      _EmployeesMobileEmployeeDetailsBodyState();
+}
+
+class _EmployeesMobileEmployeeDetailsBodyState
+    extends ConsumerState<_EmployeesMobileEmployeeDetailsBody> {
+  int _viewTab = 0;
 
   static const double _avatarSide = 72;
   static const double _avatarRadius = 12;
@@ -365,8 +376,14 @@ class _EmployeesMobileEmployeeDetailsBody extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
+    final theme = widget.theme;
     final scheme = theme.colorScheme;
+    final employee = widget.employee;
+    final objects = widget.objects;
+    final canUpdate = widget.canUpdate;
+    final labelStyle = widget.labelStyle;
+    final valueStyle = widget.valueStyle;
     final (statusText, statusColor) = EmployeeUIUtils.getStatusInfo(
       employee.status,
     );
@@ -381,6 +398,15 @@ class _EmployeesMobileEmployeeDetailsBody extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        _buildMobileViewTabs(theme),
+        const SizedBox(height: 12),
+        IndexedStack(
+          index: _viewTab,
+          alignment: Alignment.topCenter,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
         _sectionCard(
           theme,
           children: [
@@ -620,8 +646,8 @@ class _EmployeesMobileEmployeeDetailsBody extends ConsumerWidget {
               labelStyle: labelStyle,
               valueStyle: valueStyle,
               theme: theme,
-              onAddBusinessTrip: onAddBusinessTrip,
-              onEditBusinessTrip: onEditBusinessTrip,
+              onAddBusinessTrip: widget.onAddBusinessTrip,
+              onEditBusinessTrip: widget.onEditBusinessTrip,
             ),
           ],
         ),
@@ -694,7 +720,56 @@ class _EmployeesMobileEmployeeDetailsBody extends ConsumerWidget {
             _kv(theme, 'Рост', _dashIfEmpty(employee.height)),
           ],
         ),
+              ],
+            ),
+            EmployeeApplicationsSection(
+              employee: employee,
+              canManage: canUpdate,
+            ),
+          ],
+        ),
       ],
+    );
+  }
+
+  Widget _buildMobileViewTabs(ThemeData theme) {
+    final scheme = theme.colorScheme;
+    return CustomSlidingSegmentedControl<int>(
+      groupValue: _viewTab,
+      onValueChanged: (value) => setState(() => _viewTab = value),
+      backgroundColor: scheme.surfaceContainerHighest.withValues(alpha: 0.45),
+      thumbColor: scheme.surface,
+      borderRadius: 8,
+      border: Border.all(color: scheme.outline.withValues(alpha: 0.22)),
+      padding: const EdgeInsets.all(2),
+      children: {
+        0: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 5),
+          child: Text(
+            'Обзор',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              height: 1.2,
+              fontWeight: _viewTab == 0 ? FontWeight.w700 : FontWeight.normal,
+              color: _viewTab == 0 ? scheme.primary : scheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+        1: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 5),
+          child: Text(
+            'Заявления',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              height: 1.2,
+              fontWeight: _viewTab == 1 ? FontWeight.w700 : FontWeight.normal,
+              color: _viewTab == 1 ? scheme.primary : scheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      },
     );
   }
 

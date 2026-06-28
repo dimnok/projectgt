@@ -1,10 +1,39 @@
 # Модуль Employees (Сотрудники)
 
-**Дата актуализации:** 31 мая 2026 года
+**Дата актуализации:** 28 июня 2026 года
 
-**Изменения в этой версии (31.05.2026, табель):**
+**Изменения в этой версии (28.06.2026, заявление об увольнении):**
+- **Новый тип:** `EmployeeApplicationType.resignation` (`application_type = 'resignation'` в БД); миграция [`20260628140000_employee_applications_resignation_type.sql`](../../supabase/migrations/20260628140000_employee_applications_resignation_type.sql)
+- **PDF:** [`ProfilePdfGenerator.generateResignationPdf`](../../lib/features/profile/utils/profile_pdf_generator.dart) — «Прошу уволить меня по собственному желанию с … г.»; шапка — ООО «ГТ Инжиниринг»
+- **Карточка сотрудника:** пункт «Увольнение» в [`employee_applications_section.dart`](../../lib/features/employees/presentation/widgets/employee_applications_section.dart); форма [`showEmployeeResignationApplicationForm`](../../lib/features/employees/presentation/widgets/employee_application_forms.dart) — дата последнего рабочего дня (default +14 дней), печать PDF, загрузка скана
+- **Список:** подпись «Увольнение с dd.MM.yyyy» (без «на N дней»)
+- **Profile (self-service):** [`ResignationForm`](../../lib/features/profile/presentation/screens/resignation_form_bottom_sheet.dart) + пункт в [`ApplicationsScreen`](../../lib/features/profile/presentation/screens/applications_screen.dart)
+
+**Предыдущая версия (28.06.2026, UX заявлений + PDF):**
+- **Список заявлений (`_ApplicationListTile`):** компактная **однострочная** карточка — слева иконка и текст, справа **icon-only** действия (просмотр, скачивание, удаление); при busy — `CupertinoActivityIndicator` вместо кнопок
+- **Подписи в строке:** верхняя — «{тип} на N день/дня/дней с dd.MM.yyyy по dd.MM.yyyy»; нижняя — «{автор} · dd.MM.yyyy HH:mm»; имя файла и размер **не отображаются** (хранятся в БД для download/preview)
+- **Переключатель вкладок:** уменьшенная высота сегмента (`padding: 2`, `vertical: 5`, `fontSize: 12`); **`IndexedStack`** в [`employee_details_modal.dart`](../../lib/features/employees/presentation/widgets/employee_details_modal.dart) и mobile sheet — высота модалки не «схлопывается» при смене «Обзор» ↔ «Заявления»
+- **PDF-шаблоны:** в [`ProfilePdfGenerator`](../../lib/features/profile/utils/profile_pdf_generator.dart) работодатель в шапке — **`ООО «ГТ Инжиниринг»`** (константа `_employerOrganization`; ранее было «ООО "Грандтелеком"»); директор в шаблоне — «Тельнову Д.А.»
+
+**Предыдущая версия (28.06.2026, вкладка «Заявления»):**
+- **Карточка сотрудника — вкладки «Обзор» / «Заявления»:** [`CustomSlidingSegmentedControl`](../../lib/presentation/widgets/custom_sliding_segmented_control.dart) в [`employee_details_modal.dart`](../../lib/features/employees/presentation/widgets/employee_details_modal.dart) (desktop) и [`employees_mobile_employee_details_sheet.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_details_sheet.dart) (mobile bottom sheet)
+- **Блок заявлений:** [`EmployeeApplicationsSection`](../../lib/features/employees/presentation/widgets/employee_applications_section.dart) — формирование PDF (отпуск, отпуск без содержания), загрузка подписанного скана, список с просмотром и скачиванием
+- **Формы:** [`employee_application_forms.dart`](../../lib/features/employees/presentation/widgets/employee_application_forms.dart) — переиспользуют [`ProfilePdfGenerator`](../../lib/features/profile/utils/profile_pdf_generator.dart), [`ApplicationDurationChip`](../../lib/features/profile/presentation/widgets/application_form_widgets.dart), [`PdfPreviewScreen`](../../lib/features/profile/presentation/screens/pdf_preview_screen.dart); ФИО берётся из [`Employee.fullName`](../../lib/domain/entities/employee.dart)
+- **Data layer:** таблица `employee_applications`, bucket Storage `employee_applications` (приватный); [`SupabaseEmployeeApplicationDataSource`](../../lib/data/datasources/supabase_employee_application_data_source.dart) — `uploadBinary` (Web-safe); миграции [`20260628120000_employee_applications.sql`](../../supabase/migrations/20260628120000_employee_applications.sql), [`20260628120100_employee_applications_rls_hardening.sql`](../../supabase/migrations/20260628120100_employee_applications_rls_hardening.sql)
+- **Riverpod:** [`employeeApplicationsProvider(employeeId)`](../../lib/features/employees/presentation/providers/employee_applications_provider.dart), `employeeApplicationRepositoryProvider` / `employeeApplicationDataSourceProvider` в [`providers.dart`](../../lib/core/di/providers.dart)
+- **RBAC в UI:** формирование и загрузка сканов — `employees.update` (`canManage`); просмотр списка и скачивание — при `employees.read`; удаление записи — `employees.update` + `GTConfirmationDialog`
+
+**Предыдущая версия (28.06.2026, табель → карточка):**
+- **Открытие из табеля:** клик по ФИО в модуле Timesheet → `EmployeeDetailsModal` / `EmployeesMobileEmployeeDetailsSheet` (только `employees.read`); часы в табеле — отдельная иконка, не карточка
+- **`EmployeeNotifier.ensureEmployeeCardDetails(known)`** — подготовка карточки из справочника без `getEmployeesCatalog`: 0–1 запрос `getCurrentHourlyRate`; кэш `_employeeDetailsCache`
+- **`EmployeeRepository.getCurrentHourlyRate` / `SupabaseEmployeeDataSource`:** выборка одной текущей ставки; `getEmployee(id)` — параллельный `.wait` на `employees` + `employee_rates`
+- **`getEmployee(id, {forceRefresh})`:** при попадании в кэш — без повторной сети; `refreshEmployee` → `forceRefresh: true`
+- **Карточка слушает `employeeProvider.employee`:** [`employee_details_modal.dart`](../../lib/features/employees/presentation/widgets/employee_details_modal.dart), [`employees_mobile_employee_details_sheet.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_details_sheet.dart) — обновление ставки после `ensureEmployeeCardDetails`
+- **Sync с табелем:** `timesheetEmployeeCatalogChanged` — `reloadEmployeesCatalog()` только при смене полей справочника (не ставки); см. [`docs/timesheet/timesheet_module.md`](../timesheet/timesheet_module.md)
+
+**Предыдущая версия (31.05.2026, табель):**
 - **`employees.include_in_timesheet`** (миграция [`20260531120000_employees_include_in_timesheet.sql`](../../supabase/migrations/20260531120000_employees_include_in_timesheet.sql), default `true`): **чекбокс** «Учитывать в табеле» под блоком «Работа» в [`employee_edit_form.dart`](../../lib/features/employees/presentation/widgets/employee_edit_form.dart) и в мобильном редакторе ([`employees_mobile_employee_edit_blocks.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_edit_blocks.dart)). Редактирование — при `employees.update`. Правила видимости — [`timesheet_employee_visibility`](../../lib/features/timesheet/domain/timesheet_employee_visibility.dart) (экран + Excel).
-- **Связь с табелем:** после сохранения карточки модуль Timesheet вызывает `reloadEmployeesCatalog()` ([`timesheet_employees_catalog_sync.dart`](../../lib/features/timesheet/presentation/providers/timesheet_employees_catalog_sync.dart)) — перезапуск приложения не нужен.
+- **Связь с табелем:** при смысловом изменении справочника модуль Timesheet вызывает `reloadEmployeesCatalog()` ([`timesheet_employees_catalog_sync.dart`](../../lib/features/timesheet/presentation/providers/timesheet_employees_catalog_sync.dart) + `timesheetEmployeeCatalogChanged`) — перезапуск приложения не нужен
 
 **Предыдущая версия (29.05.2026, UX: индикаторы загрузки и кнопка редактирования):**
 - **Индикаторы загрузки:** во всём presentation-слое модуля `employees` вместо `CircularProgressIndicator` используется **`CupertinoActivityIndicator`** (списки table/mobile, экран деталей по URL, аватар в карточке, история ставок, фильтр объектов в toolbar, кнопки сохранения в [`form_widgets.dart`](../../lib/features/employees/presentation/widgets/form_widgets.dart) и [`employee_edit_form.dart`](../../lib/features/employees/presentation/widgets/employee_edit_form.dart)). Кнопки `GTPrimaryButton` / `GTSecondaryButton` с `isLoading: true` — через Design System ([`gt_buttons.dart`](../../lib/core/widgets/gt_buttons.dart), уже Cupertino).
@@ -54,6 +83,7 @@
 
 - `employees`
 - `employee_rates`
+- `employee_applications` — подписанные сканы заявлений сотрудника (отпуск, БС)
 
 Тесные связи:
 
@@ -72,18 +102,20 @@
 - **текущая ставка** не хранится в строке `employees`: подгружается из `employee_rates`, где `valid_to IS NULL`, и кладётся в `Employee.currentHourlyRate` / `EmployeeModel.currentHourlyRate` (только на клиенте)
 - флаг **`can_be_responsible`** хранится в БД в `employees`, в доменной модели [`Employee`](../../lib/domain/entities/employee.dart) **не** сериализуется; кэш `EmployeeState.canBeResponsibleMap` сейчас никем не читается, обновляется точечно через `toggleCanBeResponsible`; массовая подгрузка `getCanBeResponsibleMap()` по умолчанию **не выполняется** (`includeResponsibilityMap: false`), чтобы убрать дублирующий запрос при каждом открытии списка — подгрузка включается явно только в сценариях, где это потребуется
 - **две раскладки списка**: `EmployeesTableScreen` (таблица) и `EmployeesListMobileScreen` (карточки) — выбор по [`EmployeesLayoutUtils.useEmployeesMobileList`](../../lib/features/employees/presentation/utils/employees_layout_utils.dart) (`shortestSide` vs breakpoint планшета)
+- **вкладки карточки:** «Обзор» (анкета, ставки, личные данные) и «Заявления» (PDF + сканы); вкладки «Документы» и «Доп. информация» — в roadmap
 
 ---
 
 ## Описание модуля
 
-Модуль **Employees** закрывает жизненный цикл карточки сотрудника в компании: анкета, паспорт, трудоустройство, объекты, статус, история ставок, фото, флаг ответственного, участие в **Timesheet**, **Works**, **Work Plans**, **FOT**.
+Модуль **Employees** закрывает жизненный цикл карточки сотрудника в компании: анкета, паспорт, трудоустройство, объекты, статус, история ставок, фото, **заявления (PDF + подписанные сканы)**, флаг ответственного, участие в **Timesheet**, **Works**, **Work Plans**, **FOT**.
 
 Ключевые функции:
 
 - список сотрудников: **таблица** (desktop / широкий экран) или **мобильный** список с фильтром по статусу, поиском, свайп-действиями и bottom sheet
 - создание / редактирование / удаление (права `employees:*`)
 - история и текущая ставка (`employee_rates`)
+- **заявления:** формирование образца (отпуск / отпуск без содержания / увольнение), печать PDF, загрузка подписанного скана, список с просмотром и скачиванием
 - переключение **`can_be_responsible`**
 - inline на таблице: **статус**, **объекты** (`object_ids`)
 - экспорт XLSX на сервере (**Edge Function** + клиентский сервис)
@@ -97,10 +129,11 @@
 
 ### Таблицы модуля (owner)
 
-| Таблица          | Назначение                          |
-|------------------|-------------------------------------|
-| `employees`      | Карточка сотрудника                 |
-| `employee_rates` | История почасовых ставок            |
+| Таблица                  | Назначение                                      |
+|--------------------------|-------------------------------------------------|
+| `employees`              | Карточка сотрудника                             |
+| `employee_rates`         | История почасовых ставок                        |
+| `employee_applications`  | Заявления: метаданные периода + подписанный скан |
 
 ### Таблицы и сущности, которые модуль использует
 
@@ -136,6 +169,8 @@
 | Файл | Назначение |
 |------|------------|
 | [`employees_layout_utils.dart`](../../lib/features/employees/presentation/utils/employees_layout_utils.dart) | `useEmployeesMobileList`, `useEmployeesDesktopModal` (shortestSide + ширина) |
+| [`employee_application_upload_flow.dart`](../../lib/features/employees/presentation/utils/employee_application_upload_flow.dart) | Выбор файла (`file_selector`) + загрузка подписанного скана через `employeeApplicationsProvider` |
+| [`employee_application_download_flow.dart`](../../lib/features/employees/presentation/utils/employee_application_download_flow.dart) | Скачивание и просмотр скана; `saveFileBytesToUserDevice` |
 | [`employee_server_excel_export_service.dart`](../../lib/features/employees/presentation/services/employee_server_excel_export_service.dart) | Вызов `export-employees`, сохранение base64 XLSX (веб / десктоп / share) |
 | [`employee_avatar_controller.dart`](../../lib/features/employees/presentation/providers/employee_avatar_controller.dart) | Загрузка / удаление аватара; Web — `pickImageBytes` / `uploadPhotoBytes`; mobile/desktop — `File`; скачивание: web/desktop — файл, iOS/Android — галерея |
 
@@ -145,7 +180,10 @@
 |------|------------|
 | [`employees_table_actions_bar.dart`](../../lib/features/employees/presentation/widgets/employees_table_actions_bar.dart) | Панель действий таблицы |
 | [`employees_table_filters_toolbar.dart`](../../lib/features/employees/presentation/widgets/employees_table_filters_toolbar.dart) | Фильтры; индикатор загрузки picklist объектов в триггере dropdown — `CupertinoActivityIndicator`; `EmployeesObjectTableFilterValue.toExportFilterJson()` для экспорта |
-| [`employee_details_modal.dart`](../../lib/features/employees/presentation/widgets/employee_details_modal.dart) | Детальная карточка (desktop); вход в редактирование — `GTTextButton` «Редактировать» (секция «Личные данные»); загрузка аватара — `CupertinoActivityIndicator`; «+» ставки и суточных только при `employees.update`; `ref.listen` на `employeeProvider` и `permissionServiceProvider` |
+| [`employee_details_modal.dart`](../../lib/features/employees/presentation/widgets/employee_details_modal.dart) | Детальная карточка (desktop); вкладки **«Обзор» / «Заявления»** (`IndexedStack`, компактный `CustomSlidingSegmentedControl`); вход в редактирование — `GTTextButton` «Редактировать»; загрузка аватара — `CupertinoActivityIndicator`; «+» ставки и суточных только при `employees.update`; `ref.listen` на `employeeProvider` и `permissionServiceProvider` |
+| [`employee_applications_section.dart`](../../lib/features/employees/presentation/widgets/employee_applications_section.dart) | **Вкладка «Заявления»:** типы заявлений, компактный список сканов (одна строка + icon actions), просмотр / скачивание / удаление |
+| [`employee_application_forms.dart`](../../lib/features/employees/presentation/widgets/employee_application_forms.dart) | Формы отпуска и БС для карточки сотрудника (PDF + загрузка скана) |
+| [`employee_application_scan_preview.dart`](../../lib/features/employees/presentation/widgets/employee_application_scan_preview.dart) | Просмотр PDF (`printing`) и изображений в диалоге |
 | [`employee_edit_form.dart`](../../lib/features/employees/presentation/widgets/employee_edit_form.dart) | Форма редактирования; кнопка «Сохранить» при отправке — `CupertinoActivityIndicator`; `_saveChanges` — guard `employees.update` |
 | [`add_employee_simple_dialog.dart`](../../lib/features/employees/presentation/widgets/add_employee_simple_dialog.dart) | Быстрое добавление |
 | [`add_employee_rate_dialog.dart`](../../lib/features/employees/presentation/widgets/add_employee_rate_dialog.dart) | Добавление ставки |
@@ -159,7 +197,7 @@
 | [`employees_mobile_add_employee_button.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_add_employee_button.dart) | FAB / кнопка добавления |
 | [`employees_mobile_employee_card.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_card.dart) | Карточка в списке |
 | [`employees_mobile_swipeable_employee_card.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_swipeable_employee_card.dart) | Свайп по карточке |
-| [`employees_mobile_employee_details_sheet.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_details_sheet.dart) | Bottom sheet деталей; загрузка аватара — `CupertinoActivityIndicator`; кнопки «Изменить» (иконка у секций) и редакторы — при `employees.update` |
+| [`employees_mobile_employee_details_sheet.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_details_sheet.dart) | Bottom sheet деталей; вкладки **«Обзор» / «Заявления»** (`IndexedStack`, компактный сегмент); загрузка аватара — `CupertinoActivityIndicator`; кнопки «Изменить» (иконка у секций) — при `employees.update` |
 | [`employees_mobile_employee_edit_blocks.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_edit_blocks.dart) | Блоки редактирования на мобильном; `_persistEmployeeUpdate` — guard `employees.update` |
 
 ### Design System (`lib/core/widgets/`)
@@ -174,8 +212,10 @@
 | `CupertinoActivityIndicator` | `package:flutter/cupertino.dart` | загрузка списков, карточки, аватара, фильтра объектов, inline-кнопок сохранения в формах модуля (не Material `CircularProgressIndicator`) |
 | `DesktopDialogContent` | [`desktop_dialog_content.dart`](../../lib/core/widgets/desktop_dialog_content.dart) | детали, добавление сотрудника/ставки, формы на desktop |
 | `MobileBottomSheetContent` | [`mobile_bottom_sheet_content.dart`](../../lib/core/widgets/mobile_bottom_sheet_content.dart) | те же сценарии на mobile / узкой ширине |
-| `AppSnackBar` | [`app_snackbar.dart`](../../lib/core/widgets/app_snackbar.dart) | **Весь модуль:** таблица, mobile-список, формы, диалоги (добавление, ставка, суточные), [`EmployeeAvatarController`](../../lib/features/employees/presentation/providers/employee_avatar_controller.dart). Типы: `success`, `error`, `warning`. Overlay через `rootOverlay: true` — виден поверх модалок и bottom sheet |
+| `AppSnackBar` | [`app_snackbar.dart`](../../lib/core/widgets/app_snackbar.dart) | **Весь модуль:** таблица, mobile-список, формы, диалоги, заявления, [`EmployeeAvatarController`](../../lib/features/employees/presentation/providers/employee_avatar_controller.dart) |
 | `GTContextMenu` | [`gt_context_menu.dart`](../../lib/core/widgets/gt_context_menu.dart) | [`employee_details_modal.dart`](../../lib/features/employees/presentation/widgets/employee_details_modal.dart) |
+| `GTConfirmationDialog` | [`gt_confirmation_dialog.dart`](../../lib/core/widgets/gt_confirmation_dialog.dart) | удаление заявления в [`employee_applications_section.dart`](../../lib/features/employees/presentation/widgets/employee_applications_section.dart) |
+| `CustomSlidingSegmentedControl` | [`custom_sliding_segmented_control.dart`](../../lib/presentation/widgets/custom_sliding_segmented_control.dart) | переключатель вкладок «Обзор» / «Заявления» в карточке |
 
 Табличный экран построен на кастомной вёрстке (`Table` / `LayoutBuilder` и т.д.), без внешних grid-библиотек — в духе правил проекта (см. [`flutter.mdc`](../../.cursor/rules/flutter.mdc)).
 
@@ -190,9 +230,9 @@
 
 | Право | Список (таблица / mobile) | Карточка (modal / bottom sheet) |
 |-------|---------------------------|----------------------------------|
-| `read` | Просмотр списка, открытие карточки | Просмотр всех секций |
+| `read` | Просмотр списка, открытие карточки | Просмотр всех секций; вкладка «Заявления» — список, просмотр и скачивание сканов |
 | `create` | «Добавить сотрудника» | — |
-| `update` | Inline статус/объекты, свайпы (mobile), редактирование | Desktop: **«Редактировать»** → форма; mobile: иконки «изменить» у секций; «+» ставки, суточные, фото (кроме скачивания) |
+| `update` | Inline статус/объекты, свайпы (mobile), редактирование | Desktop: **«Редактировать»** → форма; mobile: иконки «изменить»; «+» ставки, суточные, фото; **формирование заявлений и загрузка сканов**; удаление заявлений |
 | `delete` | Удаление выбранных | — |
 | `export` | «Экспорт» в toolbar таблицы | — |
 
@@ -204,6 +244,8 @@
 |-----------|------|------------|
 | `employeesModuleObjectsProvider` | [`employees_module_objects_provider.dart`](../../lib/features/employees/presentation/providers/employees_module_objects_provider.dart) | Picklist `objects` для фильтров, форм добавления/редактирования, экрана деталей; сортировка по имени; опционально фильтр по `profiles.object_ids` |
 | `employeeAvatarControllerProvider` | [`employee_avatar_controller.dart`](../../lib/features/employees/presentation/providers/employee_avatar_controller.dart) | Загрузка / удаление / скачивание фото; уведомления через `AppSnackBar` |
+| `employeeApplicationsProvider(employeeId)` | [`employee_applications_provider.dart`](../../lib/features/employees/presentation/providers/employee_applications_provider.dart) | Список заявлений, upload/delete/download сканов; autoDispose family |
+| `employeeApplicationBusyIdsProvider(employeeId)` | там же | Индикация загрузки при скачивании / просмотре |
 
 ### Жизненный цикл экранов (Riverpod / Web)
 
@@ -231,8 +273,10 @@
 | Файл | Содержимое |
 |------|------------|
 | [`employee.dart`](../../lib/domain/entities/employee.dart) | Сущность сотрудника, enum `EmploymentType`, `EmployeeStatus` (отдельно от `EmployeeState` в Riverpod) |
+| [`employee_application.dart`](../../lib/domain/entities/employee_application.dart) | Заявление сотрудника; enum `EmployeeApplicationType` (`vacation`, `unpaidLeave`) |
 | [`employee_rate.dart`](../../lib/domain/entities/employee_rate.dart) | Сущность ставки с периодом |
 | [`employee_repository.dart`](../../lib/domain/repositories/employee_repository.dart) | Контракт репозитория сотрудников |
+| [`employee_application_repository.dart`](../../lib/domain/repositories/employee_application_repository.dart) | Контракт заявлений: список, upload scan, download, delete |
 | [`employee_rate_repository.dart`](../../lib/domain/repositories/employee_rate_repository.dart) | Контракт ставок |
 
 ### Use cases
@@ -247,10 +291,13 @@
 | Файл | Назначение |
 |------|------------|
 | [`employee_model.dart`](../../lib/data/models/employee_model.dart) | DTO `employees`; `current_hourly_rate` только на клиенте (`includeFromJson: false`) |
+| [`employee_application_model.dart`](../../lib/data/models/employee_application_model.dart) | DTO `employee_applications`; join `creator:profiles(full_name)` |
 | [`employee_rate_model.dart`](../../lib/data/models/employee_rate_model.dart) | DTO `employee_rates` |
 | [`employee_data_source.dart`](../../lib/data/datasources/employee_data_source.dart) | Supabase: CRUD, `getResponsibleEmployees`, `can_be_responsible`, пакетная мапа флага, обогащение текущей ставкой |
+| [`supabase_employee_application_data_source.dart`](../../lib/data/datasources/supabase_employee_application_data_source.dart) | PostgREST + Storage `employee_applications`; `uploadBinary`; rollback Storage при ошибке insert |
 | [`employee_rate_data_source.dart`](../../lib/data/datasources/employee_rate_data_source.dart) | История ставок |
 | [`employee_repository_impl.dart`](../../lib/data/repositories/employee_repository_impl.dart) | Маппинг модель ↔ сущность |
+| [`employee_application_repository_impl.dart`](../../lib/data/repositories/employee_application_repository_impl.dart) | Репозиторий заявлений; `created_by` = текущий `auth.uid()` |
 | [`employee_rate_repository_impl.dart`](../../lib/data/repositories/employee_rate_repository_impl.dart) | Репозиторий ставок |
 
 ### Состояние (Riverpod)
@@ -259,7 +306,7 @@
 |------|------------|
 | [`employee_state.dart`](../../lib/presentation/state/employee_state.dart) | `EmployeeNotifier`: список, выбранный сотрудник, кэш деталей, `searchQuery`, `canBeResponsibleMap`, локальные обновления списка, `getEmployees(includeResponsibilityMap: ...)`, сохранение ставки при `updateEmployee`, **удаление фото** при `deleteEmployee` |
 
-Провайдеры datasources / repositories / use cases: [`lib/core/di/providers.dart`](../../lib/core/di/providers.dart) (`employeeDataSourceProvider`, `employeeRateDataSourceProvider`, …).
+Провайдеры datasources / repositories / use cases: [`lib/core/di/providers.dart`](../../lib/core/di/providers.dart) (`employeeDataSourceProvider`, `employeeRateDataSourceProvider`, `employeeApplicationDataSourceProvider`, `employeeApplicationRepositoryProvider`, …).
 
 ### Фото (Storage)
 
@@ -281,26 +328,32 @@
 ```text
 lib/
 ├── core/
-│   ├── di/providers.dart                    # провайдеры employees / employee_rates
+│   ├── di/providers.dart                    # employees, employee_rates, employee_applications
 │   ├── services/photo_service.dart          # фото сотрудника (entity: employee)
 │   └── utils/employee_ui_utils.dart
 ├── data/
 │   ├── datasources/
 │   │   ├── employee_data_source.dart
-│   │   └── employee_rate_data_source.dart
+│   │   ├── employee_rate_data_source.dart
+│   │   ├── employee_application_data_source.dart
+│   │   └── supabase_employee_application_data_source.dart
 │   ├── models/
 │   │   ├── employee_model.dart
-│   │   └── employee_rate_model.dart
+│   │   ├── employee_rate_model.dart
+│   │   └── employee_application_model.dart
 │   └── repositories/
 │       ├── employee_repository_impl.dart
-│       └── employee_rate_repository_impl.dart
+│       ├── employee_rate_repository_impl.dart
+│       └── employee_application_repository_impl.dart
 ├── domain/
 │   ├── entities/
 │   │   ├── employee.dart
-│   │   └── employee_rate.dart
+│   │   ├── employee_rate.dart
+│   │   └── employee_application.dart
 │   ├── repositories/
 │   │   ├── employee_repository.dart
-│   │   └── employee_rate_repository.dart
+│   │   ├── employee_rate_repository.dart
+│   │   └── employee_application_repository.dart
 │   └── usecases/
 │       ├── employee/
 │       └── employee_rate/
@@ -308,6 +361,7 @@ lib/
 │   └── presentation/
 │       ├── providers/
 │       │   ├── employee_avatar_controller.dart
+│       │   ├── employee_applications_provider.dart
 │       │   └── employees_module_objects_provider.dart
 │       ├── screens/
 │       │   ├── employees_table_screen.dart
@@ -316,8 +370,13 @@ lib/
 │       ├── services/
 │       │   └── employee_server_excel_export_service.dart
 │       ├── utils/
-│       │   └── employees_layout_utils.dart
+│       │   ├── employees_layout_utils.dart
+│       │   ├── employee_application_upload_flow.dart
+│       │   └── employee_application_download_flow.dart
 │       └── widgets/
+│           ├── employee_applications_section.dart
+│           ├── employee_application_forms.dart
+│           ├── employee_application_scan_preview.dart
 │           ├── add_employee_rate_dialog.dart
 │           ├── add_employee_simple_dialog.dart
 │           ├── editable_inline_text_row.dart
@@ -453,6 +512,59 @@ lib/
 
 Те же зоны, что и для `employees`: расчёты ФОТ, балансы, отчёты по часам и ставкам (`calculate_employee_balances`, payroll-RPC, `get_payroll_report_data` и др. в `supabase/migrations/`).
 
+### Таблица `employee_applications`
+
+**Назначение:** метаданные заявления сотрудника (тип, период) и ссылка на **подписанный скан** в Storage. Запись создаётся **при загрузке скана** (PDF не сохраняется на сервере — только локальная генерация через `ProfilePdfGenerator`).
+
+**Колонки (audit prod, [`EmployeeApplicationModel`](../../lib/data/models/employee_application_model.dart)):**
+
+| Колонка | Тип | Примечание |
+|---------|-----|------------|
+| `id` | UUID | PK |
+| `company_id` | UUID | FK → `companies` |
+| `employee_id` | UUID | FK → `employees` ON DELETE CASCADE |
+| `application_type` | TEXT | `vacation` \| `unpaid_leave` \| `resignation` |
+| `start_date` | DATE | начало периода |
+| `end_date` | DATE | nullable; для отпуска заполняется |
+| `duration_days` | INTEGER | > 0 |
+| `scan_name` | TEXT | имя файла для UI |
+| `scan_path` | TEXT | путь в bucket `employee_applications` |
+| `scan_size` | BIGINT | байты |
+| `scan_type` | TEXT | MIME, default `application/pdf` |
+| `created_by` | UUID | FK → `profiles` |
+| `created_at`, `updated_at` | TIMESTAMPTZ | |
+
+**RLS:** ✅ Включён.
+
+**Политики (актуально на проде):**
+
+| Имя | Операция | Суть |
+|-----|----------|------|
+| `employee_applications_select` | SELECT | `company_id IN get_my_company_ids()` AND (`employees.read` OR свой `employee_id` из `profiles`) |
+| `employee_applications_insert` | INSERT | `company_id IN get_my_company_ids()` AND `employee_id` принадлежит той же `company_id` AND (`employees.update` OR свой `employee_id`) |
+| `employee_applications_delete` | DELETE | `company_id IN get_my_company_ids()` AND `employees.update` |
+
+UPDATE-политики **нет** — записи не редактируются, только удаление HR.
+
+**Индексы** ([`20260628120000_employee_applications.sql`](../../supabase/migrations/20260628120000_employee_applications.sql)):
+
+- `idx_employee_applications_employee_id`
+- `idx_employee_applications_company_employee` — `(company_id, employee_id, created_at DESC)`
+
+#### Триггеры (`employee_applications`)
+
+В отслеживаемых миграциях **триггеров не объявлено**.
+
+#### Storage path
+
+Bucket **`employee_applications`** (private, `public: false`):
+
+```text
+{company_id}/{employee_id}/{application_type}/{timestamp}_{safeName}
+```
+
+Политики Storage ([`20260628120100_employee_applications_rls_hardening.sql`](../../supabase/migrations/20260628120100_employee_applications_rls_hardening.sql)): SELECT/INSERT — `employees.read`/`update` или свой каталог `{employee_id}`; сегмент `{company_id}` должен быть в `get_my_company_ids()`; DELETE — `employees.update`.
+
 ### Таблица `business_trip_rates` (суточные в карточке)
 
 **Назначение:** ставки суточных по объекту / сотруднику; UI в модуле Employees, доменная схема — **FOT** (см. [`fot_module.md`](../fot/fot_module.md)).
@@ -483,8 +595,9 @@ lib/
 
 | Bucket / политика | Суть |
 |-------------------|------|
-| `employees_bucket_update` / `employees_bucket_delete` | [`20260509000000_add_employees_bucket_policies.sql`](../../supabase/migrations/20260509000000_add_employees_bucket_policies.sql): `check_permission(uid(), 'employees', 'update')` |
-| Исторические политики | [`20240101000005_storage_policy_migration.sql`](../../supabase/migrations/20240101000005_storage_policy_migration.sql) — могут сосуществовать; загрузка фото в UI доступна только при `employees.update` |
+| `employees` (аватар) | [`20260509000000_add_employees_bucket_policies.sql`](../../supabase/migrations/20260509000000_add_employees_bucket_policies.sql): UPDATE/DELETE при `employees.update`; публичный URL |
+| `employee_applications` | Приватный bucket подписанных сканов заявлений; [`20260628120000_employee_applications.sql`](../../supabase/migrations/20260628120000_employee_applications.sql) + hardening [`20260628120100`](../../supabase/migrations/20260628120100_employee_applications_rls_hardening.sql) |
+| Исторические политики | [`20240101000005_storage_policy_migration.sql`](../../supabase/migrations/20240101000005_storage_policy_migration.sql) — bucket `employees` |
 
 ---
 
@@ -513,6 +626,16 @@ lib/
 12. **Аватар:** после выбора изображения — ветка `kIsWeb` в `EmployeeAvatarController`; URL из Storage пишется в `employees.photo_url` через `updateEmployee`.
 13. **Уведомления пользователю:** только `AppSnackBar.show(context:, message:, kind:)` — без `SnackBarUtils` и Material `SnackBar` в модуле.
 14. **Индикаторы загрузки:** единый стиль **`CupertinoActivityIndicator`** в presentation-слое; Material `CircularProgressIndicator` в модуле не используется.
+15. **Заявления (вкладка карточки):**
+    1. HR выбирает тип (отпуск / БС / **увольнение**) → форма с датами → **«Просмотр и печать»** (`PdfPreviewScreen` + `ProfilePdfGenerator`; шапка PDF — **ООО «ГТ Инжиниринг»**).
+    2. После подписи на бумаге — **«Загрузить подписанный скан»** (`file_selector`: pdf, jpg, png) → `uploadBinary` в Storage → INSERT в `employee_applications`.
+    3. **Список на вкладке** ([`_ApplicationListTile`](../../lib/features/employees/presentation/widgets/employee_applications_section.dart)):
+       - строка 1: «Отпуск без содержания на 3 дня с 29.06.2026 по 01.07.2026» (склонение «день/дня/дней»);
+       - строка 2: «Иванов И. · 28.06.2026 22:12» (`createdByName` из join `profiles`, `formatRuDateTime`);
+       - действия: `IconButton` просмотр / скачивание / удаление (без текстовых `GTSecondaryButton`);
+       - `scan_name` / `scan_size` в UI списка не показываются.
+    4. Удаление — только при `employees.update`; каскад: строка БД + файл Storage.
+    5. При ошибке INSERT после upload — best-effort удаление объекта из Storage ([`SupabaseEmployeeApplicationDataSource`](../../lib/data/datasources/supabase_employee_application_data_source.dart)).
 
 ---
 
@@ -539,6 +662,12 @@ lib/
 
 - справочник сотрудников и ставок для табеля и расчётов (функции вроде `calculate_employee_balances`, `get_payroll_report_data` и др. в миграциях ФОТ)
 
+### Profile (заявления)
+
+- Модуль **Profile** содержит self-service заявления ([`ApplicationsScreen`](../../lib/features/profile/presentation/screens/applications_screen.dart)) для **текущего пользователя** (`Profile`).
+- Карточка **Employees** переиспользует PDF-шаблоны ([`ProfilePdfGenerator`](../../lib/features/profile/utils/profile_pdf_generator.dart), [`application_form_widgets`](../../lib/features/profile/presentation/widgets/application_form_widgets.dart)) для **любого** сотрудника по `Employee.fullName` — сценарий HR.
+- **Работодатель в PDF:** `ООО «ГТ Инжиниринг»` (`ProfilePdfGenerator._employerOrganization`); адресат — «Генеральному директору … Тельнову Д.А.» (общий шаблон Profile + Employees).
+
 ### Edge Functions
 
 | Функция | Назначение |
@@ -563,6 +692,9 @@ lib/
 - Единый `AppSnackBar` во всём presentation-слое модуля
 - Единые индикаторы загрузки (`CupertinoActivityIndicator`) в списках, карточке и формах
 - Desktop-карточка: кнопка «Редактировать» вместо иконки карандаша в секции «Личные данные»
+- **Вкладка «Заявления»:** PDF (отпуск, БС), загрузка сканов, компактный список (icon actions), просмотр/скачивание; таблица `employee_applications` + bucket Storage
+- **UX карточки:** `IndexedStack` для вкладок без смены высоты окна; компактный переключатель «Обзор» / «Заявления»
+- **PDF:** работодатель «ООО «ГТ Инжиниринг»» в шапке заявлений
 
 ### Известные баги (приоритет)
 
@@ -583,9 +715,14 @@ lib/
 - `object_ids` как `text[]` в БД
 - Добавление **ставки** в UI карточки требует прав **payroll** на уровне БД, хотя кнопка привязана к `employees.update`
 - Схема `employee_rates` и часть индексов не воспроизводятся из одного `CREATE` в репозитории
+- **Заявления:** типы «отпуск», «отпуск без содержания», **«увольнение»**; PDF на сервер не сохраняется; workflow согласования не реализован
+- Вкладки **«Документы»** (файлы) и **«Доп. информация»** (журнал записей) — запланированы, не реализованы
 
 ### Возможные шаги
 
+- Вкладки «Документы» и «Доп. информация» в карточке
+- Дополнительные типы заявлений (перевод, …)
+- Workflow согласования заявлений
 - Серверная пагинация и фильтрация PostgREST
 - Проверка `employees.export` в Edge Function `export-employees`
 - Явный partial unique index на «активную» ставку в миграции
