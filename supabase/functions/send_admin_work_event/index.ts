@@ -215,7 +215,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const body = await req.json() as {
+    const requestBody = await req.json() as {
       action?: string;
       work_id?: string;
       /**
@@ -224,7 +224,7 @@ Deno.serve(async (req) => {
        */
       notify_all?: boolean;
     };
-    const { action, work_id, notify_all } = body;
+    const { action, work_id, notify_all } = requestBody;
     const notifyAllCompany = notify_all !== false;
     const ctx = {
       action,
