@@ -93,7 +93,8 @@ class TimesheetEmployeeListScopeSegment extends ConsumerWidget {
     }
 
     return Tooltip(
-      message: 'Каких сотрудников показывать: все, с суммой часов в периоде или с нулевыми часами',
+      message:
+          'Каких сотрудников показывать: все, с суммой часов в периоде или с нулевыми часами',
       child: Semantics(
         label: semanticsLine(),
         button: true,
@@ -133,7 +134,8 @@ class TimesheetEmployeeListScopeSegment extends ConsumerWidget {
                     selected: scope == TimesheetEmployeeListScope.withoutHours,
                     onTap: () {
                       if (scope != TimesheetEmployeeListScope.withoutHours) {
-                        notifier.state = TimesheetEmployeeListScope.withoutHours;
+                        notifier.state =
+                            TimesheetEmployeeListScope.withoutHours;
                       }
                     },
                   ),

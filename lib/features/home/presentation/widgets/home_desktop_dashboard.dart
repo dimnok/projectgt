@@ -7,6 +7,7 @@ import 'package:projectgt/features/home/presentation/widgets/home_my_open_shift_
 import 'package:projectgt/features/home/presentation/widgets/home_desktop_quick_actions_bar.dart';
 import 'package:projectgt/features/home/presentation/widgets/home_shifts_summary_widget.dart';
 import 'package:projectgt/features/home/presentation/widgets/shifts_calendar_widgets.dart';
+import 'package:projectgt/features/home/presentation/widgets/home_employee_applications_widget.dart';
 import 'package:projectgt/features/home/presentation/widgets/work_plan_summary_widget.dart';
 
 /// Полноценный десктопный дашборд главной страницы (ширина ≥ [kHomeDesktopDashboardBreakpoint]).
@@ -51,6 +52,14 @@ class HomeDesktopDashboard extends StatelessWidget {
                       icon: CupertinoIcons.doc_text_fill,
                       accentColor: const Color(0xFFF97316),
                       child: const WorkPlanSummaryWidget(),
+                    ),
+                    const SizedBox(height: 24),
+                    _DesktopMainCard(
+                      theme: theme,
+                      title: 'Заявления',
+                      icon: CupertinoIcons.doc_plaintext,
+                      accentColor: const Color(0xFF6366F1),
+                      child: const HomeEmployeeApplicationsWidget(),
                     ),
                   ],
                 ),

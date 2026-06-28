@@ -34,7 +34,7 @@ bool isTimesheetGridEmployeeVisible({
 }
 
 /// Применяет сегмент «Все / С часами / Без часов» (только UI).
-List<Employee> _applyListScope(
+List<Employee> filterEmployeesByTimesheetListScope(
   List<Employee> employees,
   TimesheetHoursIndex hoursIndex,
   TimesheetEmployeeListScope listScope,
@@ -51,6 +51,13 @@ List<Employee> _applyListScope(
       return employees;
   }
 }
+
+List<Employee> _applyListScope(
+  List<Employee> employees,
+  TimesheetHoursIndex hoursIndex,
+  TimesheetEmployeeListScope listScope,
+) =>
+    filterEmployeesByTimesheetListScope(employees, hoursIndex, listScope);
 
 /// Список сотрудников для строк сетки табеля (без поиска по ФИО).
 List<Employee> visibleTimesheetGridEmployees({

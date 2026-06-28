@@ -2,6 +2,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:projectgt/domain/entities/employee.dart';
 
 import '../../domain/entities/timesheet_entry.dart';
+import '../../domain/timesheet_today_open_shift.dart';
 
 part 'timesheet_state.freezed.dart';
 
@@ -30,6 +31,10 @@ abstract class TimesheetState with _$TimesheetState {
 
     /// Выбранные объекты для клиентского фильтра (`null` — без фильтра).
     List<String>? selectedObjectIds,
+
+    /// Назначения в открытых сменах на сегодня (контроль выхода).
+    @Default(TimesheetTodayOpenShiftIndex.empty)
+    TimesheetTodayOpenShiftIndex todayOpenShift,
   }) = _TimesheetState;
 
   /// Начальное состояние: текущий календарный месяц.

@@ -1,16 +1,20 @@
 # Модуль Timesheet (Табель рабочего времени)
 
-**Дата актуализации:** 31 мая 2026 года (статистика посещаемости, исключение из табеля, фильтр должностей)
+**Дата актуализации:** 28 июня 2026 года (открытые смены сегодня, фильтр «Состав», раскладка панели)
 
 **Изменения в этой версии:**
-- **Статистика посещаемости (только UI):** кнопка «Статистика» в панели над сеткой → диалог / bottom sheet с топ-5 по **высокой** и **низкой** посещаемости за выбранный месяц
-- **Domain:** `timesheet_attendance_stats.dart` — `computeTimesheetAttendanceStats()`, `TimesheetEmployeeAttendanceStat`, `TimesheetAttendanceStatsResult`; метрика: число календарных дней с суммой часов > 0 / длина периода (%)
-- **Presentation:** `widgets/timesheet_attendance_stats.dart` — `TimesheetAttendanceStatsAction`, `TimesheetAttendanceStatsBody`; ширина диалога на десктопе `kTimesheetAttendanceStatsDialogWidth` (1040 px); двухколоночная раскладка при ширине ≥ 640 px
-- **Фильтры в расчёте:** те же базовые правила, что сетка (`visibleTimesheetGridEmployees` + `listScope: all`) + фильтр должностей + серверный фильтр объектов; **не** учитываются сегмент «С часами / Без часов» и поиск по ФИО (как Excel)
-- **Данные:** только уже загруженные `TimesheetState.entries` / `employees` — без отдельного запроса к БД
-- **Тесты:** `test/timesheet_attendance_stats_test.dart`
+- **Контроль выхода (открытые смены сегодня):** пользователь с `timesheet.read` видит, кто назначен в **открытые** смены на **текущий календарный день**, без доступа к модулю «Смены»
+- **БД:** RLS `timesheet_read_open_works_today_select` на `works` — SELECT только `status = 'open'` и `date = CURRENT_DATE` при `timesheet.read` — миграция [`20260628120000_timesheet_read_open_works_today.sql`](../../supabase/migrations/20260628120000_timesheet_read_open_works_today.sql) (применена на self-hosted)
+- **Data:** `TimesheetDataSource.getOpenWorksForDate()` — `works` + `work_hours(employee_id)` + `objects(name)`; `TimesheetRepository.loadTodayOpenShiftIndex()`
+- **Domain:** `timesheet_today_open_shift.dart` — `TimesheetTodayOpenShiftIndex`, `parseTodayOpenShiftWorksResponse`, `timesheetPeriodContainsToday`; `timesheet_open_shift_filter.dart` — `TimesheetOpenShiftFilterScope`, `filterEmployeesByOpenShiftScope`, `employeesInTodayOpenShift`
+- **State:** `TimesheetState.todayOpenShift`; параллельная загрузка с табелем / `reloadHoursEntries()` в `TimesheetNotifier`
+- **Сетка:** в ячейке **сегодня** — звёздочка `*` (`scheme.tertiary`), tooltip с объектами; при часах > 0 — `*` в углу ячейки; подсветка колонки «сегодня» в шапке
+- **Фильтр «Состав» (UI):** `TimesheetListFilterDropdown` — единое меню вместо двух сегментов: блок **«Часы за период»** (`TimesheetEmployeeListScope`) + **«Смена сегодня»** (`TimesheetOpenShiftFilterScope`, только если период содержит сегодня); провайдеры в `timesheet_filter_widget.dart`; сброс при уходе с текущего месяца
+- **Цепочка `_syncEmployeeRows`:** режим «В смене» — пул `employeesInTodayOpenShift` + сегмент часов; «Не в смене» — `filterEmployeesByOpenShiftScope`; «Все» — `visibleTimesheetGridEmployees` + merge назначенных в смену (`_mergeTodayOpenShiftEmployees`) с учётом объектов, должностей и `filterEmployeesByTimesheetListScope`
+- **Панель фильтров:** слева — месяц, поиск, объекты, должности, «Состав»; справа (`Spacer`) — **Статистика** и **Скачать табель**; легенда «* В смене» в панели **удалена**
+- **Тесты:** `timesheet_today_open_shift_test.dart`, `timesheet_open_shift_filter_test.dart`, `timesheet_list_filter_dropdown_test.dart`
 
-**Предыдущая версия (31.05.2026 — каталог и фильтры):**
+**Предыдущая версия (31.05.2026 — статистика посещаемости):**
 - **Синхронизация каталога с «Сотрудники»:** `TimesheetNotifier.reloadEmployeesCatalog()` + `TimesheetRepository.loadEmployeesCatalog()`; `timesheet_employees_catalog_sync.dart` (`ref.listen` на `employeeProvider`); при входе на экран табеля — `postFrame` обновление каталога. После смены «Учитывать в табеле» сетка обновляется **без перезапуска приложения**
 - **`employees.include_in_timesheet`:** мягкое исключение — в сетке и Excel сотрудник скрыт без часов за период; при наличии часов строка видна. **Чекбокс** «Учитывать в табеле» под блоком «Работа» в карточке сотрудника (модуль «Сотрудники», `employees.update`). Правила в `timesheet_employee_visibility` (Dart) и `timesheet_employee_visibility.ts` (Excel)
 - **Фильтр по должностям (только UI):** `TimesheetPositionsBarDropdown` — мультивыбор в панели над сеткой (паттерн как у объектов); Excel **не** применяет
@@ -58,9 +62,10 @@
 
 Ключевые принципы:
 - в табеле учитываются только часы из **закрытых** смен (`works.status = 'closed'`)
+- **открытые** смены **только за сегодня** читаются отдельно (состав смены, без часов в `TimesheetEntry`) — RLS `timesheet_read_open_works_today_select`; не попадают в сумму часов табеля
 - ручные часы из `employee_attendance` объединяются с сменными в общий поток `TimesheetEntry`
 - **`TimesheetLoadResult.employees`** — **полный** справочник сотрудников компании (все статусы); репозиторий **не** отсекает уволенных
-- **видимость строк** (уволенные, `include_in_timesheet`, фильтр объектов, сегмент) — **domain** `timesheet_employee_visibility.dart`; на экране — `_syncEmployeeRows` + **фильтр должностей** + поиск ФИО
+- **видимость строк** (уволенные, `include_in_timesheet`, фильтр объектов, сегмент часов, смена сегодня) — **domain** + `_syncEmployeeRows` в presentation
 - **должность** в сетке — поле `Employee.position` из справочника (не в `TimesheetEntry` / БД часов); список опций фильтра строится из `TimesheetState.employees`
 - роль с `timesheet.read` без `works.read` видит табель по закрытым сменам (RLS `timesheet_read_closed_works_select`)
 - **без активной компании** (`profiles.last_company_id` → `activeCompanyIdProvider`) табель **не запрашивает** `work_hours` / `employee_attendance` с пустым `company_id`; пользователь видит `timesheetNoActiveCompanyMessage` (согласовано с guard в `SupabaseEmployeeDataSource`)
@@ -75,7 +80,8 @@
 - поиск по ФИО (телефон: шапка; планшет/ПК: панель фильтров)
 - переключатель месяца без перехода в будущие месяцы
 - мягкое исключение из табеля (`include_in_timesheet` в карточке сотрудника)
-- фильтр объектов (сервер + UI), фильтр должностей (мультивыбор, только UI) и сегмент «Все / С часами / Без часов» на клиенте
+- фильтр объектов (сервер + UI), фильтр должностей (мультивыбор, только UI) и фильтр **«Состав»** (часы за период + смена сегодня, только UI)
+- контроль выхода: звёздочка `*` в ячейке сегодня + фильтр «В открытой смене» / «Не в смене»
 - календарное представление часов по дням
 - ручной ввод часов вне смен (диалог посещаемости)
 - экспорт Excel через Edge Function
@@ -121,21 +127,22 @@
 | Файл | Назначение |
 |------|------------|
 | `screens/timesheet_screen.dart` | `ConsumerStatefulWidget`: шапка, сетка, оверлей; `ref.watch(timesheetEmployeesCatalogSyncProvider)`; `postFrame` → `reloadEmployeesCatalog()` при повторном входе |
-| `widgets/timesheet_calendar_view.dart` | Оркестрация сетки: фильтры над таблицей, `_syncEmployeeRows`, индексы часов, `ListView.builder`, скролл-контроллеры |
-| `widgets/timesheet_calendar_grid.dart` | Вёрстка ячеек: `TimesheetGridLayout`, `TimesheetGridHeader`, `TimesheetGridEmployeeRow`, `TimesheetGridTotalsRow`, `_TimesheetGridCells` |
+| `widgets/timesheet_calendar_view.dart` | Оркестрация сетки: панель фильтров (`Spacer` → действия справа), `_syncEmployeeRows` (часы + смена + merge), индексы часов, виртуализация, скролл |
+| `widgets/timesheet_calendar_grid.dart` | Вёрстка ячеек; звёздочка открытой смены в колонке «сегодня»; `TimesheetGridLayout.openShiftStarColor` |
 | `widgets/timesheet_filters_toolbar.dart` | `TimesheetCompactMonthSwitcher`, `TimesheetToolbarSearch` |
 | `widgets/timesheet_mobile_search_field.dart` | Поиск в шапке (`GTTextField`) |
-| `widgets/timesheet_filter_widget.dart` | Провайдеры поиска/сегмента; `filterEmployeesByTimesheetNameSearch` (re-export `TimesheetEmployeeListScope` из domain) |
+| `widgets/timesheet_filter_widget.dart` | Провайдеры поиска, `timesheetEmployeeListScopeProvider`, `timesheetOpenShiftFilterScopeProvider`; `hasActiveTimesheetListFilters`, `timesheetListFilterTriggerLabel`; `filterEmployeesByTimesheetNameSearch` |
+| `widgets/timesheet_list_filter_dropdown.dart` | Единый выпадающий фильтр **«Состав»** (часы + смена сегодня), `MenuAnchor` |
 | `widgets/timesheet_objects_bar_dropdown.dart` | Мультивыбор объектов → `setSelectedObjects()` |
 | `widgets/timesheet_positions_bar_dropdown.dart` | Мультивыбор должностей → `timesheetSelectedPositionKeysProvider` |
-| `widgets/timesheet_employee_list_scope_segment.dart` | Сегмент «Все / С часами / Без часов» |
+| `widgets/timesheet_employee_list_scope_segment.dart` | Устаревший сегмент «Все / С часами / Без часов» (заменён `TimesheetListFilterDropdown`; файл сохранён как эталон стиля для других модулей) |
 | `widgets/timesheet_attendance_stats.dart` | Кнопка «Статистика»; диалог / bottom sheet: топ-5 высокая/низкая посещаемость, прогресс-бары, медали 1–3 |
 | `widgets/timesheet_excel_action.dart` | «Скачать табель» (весь / выбранные чекбоксами) |
 | `widgets/timesheet_hours_loading_indicator.dart` | Cupertino-спиннер + подпись |
 | `widgets/employee_attendance_dialog.dart` | Ручной ввод; batch upsert; сменные часы read-only |
 | `services/timesheet_excel_export_service.dart` | Edge Function `export-timesheet` |
-| `state/timesheet_state.dart` | Freezed: `entries`, `employees`, `isLoading`, `error`, период, `selectedObjectIds` |
-| `providers/timesheet_provider.dart` | `TimesheetNotifier`: `loadTimesheet()`, `reloadHoursEntries()`, `reloadEmployeesCatalog()`, `setDateRange()`, `setSelectedObjects()`; `timesheetGridEntriesProvider` |
+| `state/timesheet_state.dart` | Freezed: `entries`, `employees`, `isLoading`, `error`, период, `selectedObjectIds`, `todayOpenShift` |
+| `providers/timesheet_provider.dart` | `TimesheetNotifier`: `loadTimesheet()`, `reloadHoursEntries()`, `reloadEmployeesCatalog()`, `setDateRange()`, `setSelectedObjects()`; параллельно `_loadTodayOpenShiftIfNeeded()`; `timesheetGridEntriesProvider` |
 | `providers/timesheet_employees_catalog_sync.dart` | Слушает `employeeProvider` → `reloadEmployeesCatalog()` при успешном обновлении списка (если табель уже загружал данные) |
 | `providers/timesheet_filters_providers.dart` | `availableObjectsForTimesheetProvider`, `availablePositionsForTimesheetProvider`, `timesheetSelectedPositionKeysProvider` |
 | `providers/repositories_providers.dart` | DI data/repository; `activeCompanyId` передаётся как `String?` (без подстановки `''`) |
@@ -148,16 +155,19 @@
 | Зона | Телефон | Планшет / десктоп |
 |------|---------|-------------------|
 | Шапка | Меню · поиск · тема | Меню · заголовок · тема |
-| Панель над сеткой | Месяц · объекты · должности · сегмент · **Статистика** · Excel (гориз. скролл) | Месяц · поиск · объекты · должности · сегмент · **Статистика** · Excel |
+| Панель над сеткой | Слева (гориз. скролл): месяц · объекты · должности · **Состав** | Слева: месяц · поиск · объекты · должности · **Состав** |
+| Действия панели | Справа (закреплены): **Статистика** · **Скачать табель** | То же (`Row` + `Spacer`) |
 
-Кнопка **«Статистика»** (`TimesheetAttendanceStatsAction`): при нехватке места в строке — только иконка (tooltip сохраняется); иначе иконка + подпись. Недоступна при `isLoading` или пустом каталоге `employees`.
+Кнопка **«Статистика»** (`TimesheetAttendanceStatsAction`): при нехватке места — только иконка (tooltip сохраняется). Недоступна при `isLoading` или пустом каталоге `employees`.
 
 **Цепочка фильтрации строк (клиент, после загрузки):**
 1. Фильтр объектов — **на сервере** (`objectIds` в datasource); смена объектов → `loadTimesheet()`.
-2. `visibleTimesheetGridEmployees` — уволенные, `include_in_timesheet`, сегмент «С часами / Без часов» (`timesheet_employee_visibility.dart`).
-3. `filterEmployeesByTimesheetPositionKeys` — мультивыбор должностей (`timesheet_position_filter.dart`, `timesheetSelectedPositionKeysProvider`).
-4. `filterEmployeesByTimesheetNameSearch` — поиск ФИО (`timesheetSearchQueryProvider`); ячейки и итоги — только для видимых id после шагов 2–4.
-5. `timesheetGridEntriesProvider` — стабильная ссылка на `state.entries` для сетки (объекты уже в запросе при активном фильтре объектов).
+2. **Режим «Смена сегодня → В открытой смене»** (если период содержит сегодня): `employeesInTodayOpenShift` → `filterEmployeesByTimesheetListScope` (сегмент часов); иначе шаги 3–6.
+3. `visibleTimesheetGridEmployees` — уволенные, `include_in_timesheet`, сегмент часов (`timesheet_employee_visibility.dart`).
+4. `filterEmployeesByTimesheetPositionKeys` — мультивыбор должностей.
+5. **Смена сегодня:** `notInOpenShift` → `filterEmployeesByOpenShiftScope`; `all` → `_mergeTodayOpenShiftEmployees` (добавляет назначенных в открытую смену без часов в периоде, с теми же фильтрами объектов/должностей/часов).
+6. `filterEmployeesByTimesheetNameSearch` — поиск ФИО; ячейки и итоги — только для видимых id.
+7. `timesheetGridEntriesProvider` — стабильная ссылка на `state.entries`.
 
 ### Календарная сетка (вёрстка и производительность)
 
@@ -167,7 +177,7 @@
 |-----------|------------|
 | `TimesheetGridLayout` | Константы колонок, `minTableWidth(dayCount)`, `layoutWidth(dayCount, viewportWidth)`, `dayKey()`, высоты строк |
 | `TimesheetGridHeader` | Закреплённая шапка (чекбокс «все», дни, «Итого») |
-| `TimesheetGridEmployeeRow` | Одна строка сотрудника (чекбокс, ФИО + подпись должности `Employee.position`, ячейки дней, итог по строке) |
+| `TimesheetGridEmployeeRow` | Одна строка сотрудника (чекбокс, ФИО + должность, ячейки дней с `*` в колонке сегодня при назначении в открытую смену, итог по строке) |
 | `TimesheetGridTotalsRow` | Строка «Итого по дням» сразу под последней строкой сотрудника (`SliverToBoxAdapter` в общем вертикальном скролле) |
 | `_TimesheetGridCells` | `fixed` — чекбокс, день, «Итого»; `employee` — `Expanded` с `minWidth: 240` |
 
@@ -192,7 +202,7 @@
 |-------|---------|-------------|
 | `timesheet_screen` | `error == timesheetNoActiveCompanyMessage` | Баннер с текстом ошибки над сеткой (без сетевой загрузки) |
 | `timesheet_screen` | `isLoading` | Оверлей + `TimesheetHoursLoadingIndicator` |
-| `timesheet_calendar_view` | после `_syncEmployeeRows`, пустой `_allEmployees` | Контекстная заглушка |
+| `timesheet_calendar_view` | после `_syncEmployeeRows`, пустой `_allEmployees` | Контекстная заглушка (в т.ч. «Никого в открытых сменах», «Нет сотрудников вне смены») |
 | `employee_attendance_dialog` | `_isLoading` / `_isSaving` | Индикатор в блоке / на кнопке |
 | `timesheet_excel_action` | `!timesheetHasActiveCompany(companyId)` | `AppSnackBar` с `timesheetNoActiveCompanyMessage` |
 
@@ -206,11 +216,13 @@
 | `timesheet_entry.dart` | Запись табеля (**Freezed**, без JSON). `isManualEntry`: attendance vs смена. Для attendance: `workId == id` |
 | `timesheet_load_result.dart` | `entries` + `employees` (полный справочник компании) |
 | `employee_attendance_entry.dart` | Ручная посещаемость (**Freezed + json_serializable**) |
-| `timesheet_repository.dart` | `loadTimesheet()`, `loadEmployeesCatalog()`, `reloadHoursEntries()`, `getShiftHoursForEmployee()` |
+| `timesheet_repository.dart` | `loadTimesheet()`, `loadEmployeesCatalog()`, `reloadHoursEntries()`, `getShiftHoursForEmployee()`, `loadTodayOpenShiftIndex()` |
 | `employee_attendance_repository.dart` | `getAttendanceRecords()`, `batchUpsertAttendance()` |
-| `timesheet_employee_list_scope.dart` | Enum: `all` / `withHours` / `withoutHours` (**только UI**) |
+| `timesheet_employee_list_scope.dart` | Enum: `all` / `withHours` / `withoutHours` (**только UI**, блок «Часы» в «Состав») |
+| `timesheet_open_shift_filter.dart` | Enum `TimesheetOpenShiftFilterScope`; `filterEmployeesByOpenShiftScope`, `employeesInTodayOpenShift` (**только UI**) |
+| `timesheet_today_open_shift.dart` | `TimesheetTodayOpenShiftIndex`, парсер ответа `works`, `timesheetPeriodContainsToday` |
 | `timesheet_hours_index.dart` | `TimesheetHoursIndex.fromEntries()` — суммы часов и id с записями для правил видимости |
-| `timesheet_employee_visibility.dart` | `isTimesheetGridEmployeeVisible`, `visibleTimesheetGridEmployees`, `visibleTimesheetExportEmployees` (зеркало логики Excel на Dart) |
+| `timesheet_employee_visibility.dart` | `isTimesheetGridEmployeeVisible`, `visibleTimesheetGridEmployees`, `filterEmployeesByTimesheetListScope`, `visibleTimesheetExportEmployees` |
 | `timesheet_position_filter.dart` | Ключи и опции фильтра должностей; `filterEmployeesByTimesheetPositionKeys` (**только UI**, Excel не использует) |
 | `timesheet_attendance_stats.dart` | `computeTimesheetAttendanceStats` — топ-5 high/low по `workedDays`, затем по сумме часов (**только UI**, без Edge Function) |
 
@@ -218,9 +230,9 @@
 | Компонент | Описание |
 |-----------|----------|
 | `timesheet_company_scope.dart` | `timesheetHasActiveCompany`, `timesheetNoActiveCompanyMessage`, `TimesheetCompanyNotSelectedException` — единая проверка `activeCompanyId` для модуля |
-| `timesheet_data_source_impl.dart` | `String? activeCompanyId`; без компании → `[]`; иначе `work_hours` + `works!inner`, `works.status = closed`, пагинация `.range(1000)`; `getShiftWorkHoursForEmployee` — облегчённый select |
+| `timesheet_data_source_impl.dart` | `String? activeCompanyId`; без компании → `[]`; `work_hours` + `works!inner`, `works.status = closed`, пагинация `.range(1000)`; `getOpenWorksForDate` — открытые смены на дату (`status = open`); `getShiftWorkHoursForEmployee` — облегчённый select |
 | `employee_attendance_data_source_impl.dart` | `String? activeCompanyId`; без компании → `[]` / `TimesheetCompanyNotSelectedException` при `batchUpsertAttendance`; RPC `upsert_employee_attendance_batch` |
-| `timesheet_repository_impl.dart` | Параллельная загрузка 4 источников; `loadEmployeesCatalog()` → `employeeRepository.getEmployeesCatalog()`; маппинг `Map` → `TimesheetEntry`; обогащение через `employeesById` / `objectsById` (**без** фильтра уволенных) |
+| `timesheet_repository_impl.dart` | Параллельная загрузка 4 источников + `loadTodayOpenShiftIndex` → `parseTodayOpenShiftWorksResponse`; `loadEmployeesCatalog()`; маппинг `Map` → `TimesheetEntry` |
 | `employee_attendance_repository_impl.dart` | Model ↔ domain, batch upsert |
 | `employee_attendance_model.dart` | DTO таблицы `employee_attendance` |
 
@@ -263,6 +275,8 @@ lib/features/timesheet/
 │   ├── timesheet_hours_index.dart
 │   ├── timesheet_position_filter.dart
 │   ├── timesheet_attendance_stats.dart
+│   ├── timesheet_today_open_shift.dart
+│   ├── timesheet_open_shift_filter.dart
 │   └── repositories/
 │       ├── employee_attendance_repository.dart
 │       └── timesheet_repository.dart
@@ -274,9 +288,10 @@ lib/features/timesheet/
     │   └── timesheet_filters_providers.dart
     ├── screens/
     ├── services/
-    └── widgets/        → 14 виджетов (см. таблицу Presentation)
+    └── widgets/        → 13 виджетов (см. таблицу Presentation)
         ├── timesheet_calendar_view.dart
         ├── timesheet_calendar_grid.dart
+        ├── timesheet_list_filter_dropdown.dart
         ├── timesheet_attendance_stats.dart
         ├── timesheet_positions_bar_dropdown.dart
         └── …
@@ -286,7 +301,8 @@ supabase/
 │   ├── 20260529200000_timesheet_read_without_works.sql
 │   ├── 20260530140000_employee_attendance_batch_upsert.sql
 │   ├── 20260530160000_timesheet_query_indexes.sql
-│   └── 20260531120000_employees_include_in_timesheet.sql
+│   ├── 20260531120000_employees_include_in_timesheet.sql
+│   └── 20260628120000_timesheet_read_open_works_today.sql
 └── functions/
     └── export-timesheet/
         ├── index.ts
@@ -297,7 +313,10 @@ test/
 ├── timesheet_export_timesheet_postgrest_limit_test.dart
 ├── timesheet_name_search_test.dart
 ├── timesheet_position_filter_test.dart
-└── timesheet_attendance_stats_test.dart
+├── timesheet_attendance_stats_test.dart
+├── timesheet_today_open_shift_test.dart
+├── timesheet_open_shift_filter_test.dart
+└── timesheet_list_filter_dropdown_test.dart
 ```
 
 ---
@@ -338,6 +357,8 @@ employee_attendance ──> objects
 
 **`works`**
 - `timesheet_read_closed_works_select` — `timesheet.read` → SELECT только `status = 'closed'`, без `works.read` и без `profiles.object_ids`
+- `timesheet_read_open_works_today_select` — `timesheet.read` → SELECT только `status = 'open'` **и** `date = CURRENT_DATE` (состав открытых смен сегодня; часы в табель **не** входят)
+- `Strict SELECT for works` — полный доступ при `works.read` (модуль «Смены»)
 
 **`employee_attendance`**
 - `employee_attendance_select/insert/update/delete`
@@ -356,6 +377,7 @@ employee_attendance ──> objects
 2. **`20260530140000_employee_attendance_batch_upsert.sql`** — RPC пакетного сохранения посещаемости
 3. **`20260530160000_timesheet_query_indexes.sql`** — `work_hours(company_id)`, `employee_attendance(company_id, date)`, `works(company_id, status, date)`
 4. **`20260531120000_employees_include_in_timesheet.sql`** — `employees.include_in_timesheet` (мягкое исключение из табеля)
+5. **`20260628120000_timesheet_read_open_works_today.sql`** — RLS чтения открытых смен за текущий день для `timesheet.read`
 
 ---
 
@@ -384,11 +406,25 @@ employee_attendance ──> objects
    - `getAttendanceRecords()` — `employee_attendance` за период
    - `getEmployeesCatalog()` — **все** сотрудники компании (без ставок)
    - `getObjects()` — справочник объектов
-3. Репозиторий:
+3. **Параллельно с шагом 2** (в `TimesheetNotifier`, если период содержит сегодня): `loadTodayOpenShiftIndex(DateTime.now())` → `getOpenWorksForDate` → `TimesheetTodayOpenShiftIndex` в `state.todayOpenShift`
+4. Репозиторий:
    - строит `employeesById` / `objectsById` из **полных** списков;
    - маппит сменные и ручные записи в `List<TimesheetEntry>` (ФИО через `formatFullName`);
    - сортирует `entries` по дате.
-4. Возвращает `TimesheetLoadResult(entries, employees: allEmployees)` — **без** отсечения уволенных на этом слое.
+5. Возвращает `TimesheetLoadResult(entries, employees: allEmployees)` — **без** отсечения уволенных на этом слое.
+
+### Открытые смены сегодня (контроль выхода)
+
+| Аспект | Поведение |
+|--------|-----------|
+| Назначение | Показать, кто **назначен** в открытую смену сегодня, даже если в табеле за месяц у него 0 часов |
+| Источник | `works` (`status = open`, `date = сегодня`) + `work_hours.employee_id` + `objects.name` |
+| RLS | `timesheet_read_open_works_today_select` — только `CURRENT_DATE` на сервере |
+| Не входит в | `TimesheetEntry`, суммы часов, Excel-экспорт, статистику посещаемости |
+| UI — индикатор | Звёздочка `*` в ячейке колонки «сегодня»; tooltip «В смене сегодня: …» |
+| UI — фильтр | `TimesheetListFilterDropdown` → «Смена сегодня»: все / в открытой смене / не в смене |
+| Merge в сетке | `_mergeTodayOpenShiftEmployees` при `openShiftScope = all` — добавляет назначенных, прошедших фильтры объектов, должностей и сегмент часов |
+| Сброс фильтра смены | При смене месяца, если сегодня не в периоде → `timesheetOpenShiftFilterScopeProvider = all` |
 
 ### Состав строк сетки и Excel (единые правила)
 
@@ -414,10 +450,12 @@ employee_attendance ──> objects
 
 | Фильтр | Где |
 |--------|-----|
-| Сегмент «Все / С часами / Без часов» | `TimesheetEmployeeListScope` → параметр `listScope` в `visibleTimesheetGridEmployees` |
-| Фильтр должностей | `filterEmployeesByTimesheetPositionKeys` в `_syncEmployeeRows`; опции из `buildTimesheetPositionFilterOptions(employees)`; ключ `__no_position__` → «Без должности»; регистр в ключе не учитывается |
+| Сегмент часов («Все / С часами / Без часов») | `TimesheetEmployeeListScope` → `visibleTimesheetGridEmployees` / `filterEmployeesByTimesheetListScope`; UI — блок «Часы» в `TimesheetListFilterDropdown` |
+| Фильтр смены сегодня | `TimesheetOpenShiftFilterScope` → `filterEmployeesByOpenShiftScope` / `employeesInTodayOpenShift`; UI — блок «Смена сегодня» в `TimesheetListFilterDropdown` |
+| Фильтр должностей | `filterEmployeesByTimesheetPositionKeys` в `_syncEmployeeRows`; опции из `buildTimesheetPositionFilterOptions(employees)`; ключ `__no_position__` → «Без должности» |
 | Поиск по ФИО | `filterEmployeesByTimesheetNameSearch` в `TimesheetCalendarView` |
-| Статистика посещаемости | `computeTimesheetAttendanceStats` в `TimesheetAttendanceStatsAction` — те же правила, что шаги 2–3 (без сегмента и без поиска) |
+| Звёздочка `*` в ячейке | `TimesheetGridEmployeeRow` + `todayOpenShift` из state (не фильтр, индикатор) |
+| Статистика посещаемости | `computeTimesheetAttendanceStats` — те же правила, что шаги 2–3 базовой цепочки (без сегмента часов, смены и поиска) |
 
 **Только Excel (дополнительно к базовым правилам):**
 
@@ -427,12 +465,11 @@ employee_attendance ──> objects
 
 **Поток на экране:**
 
-1. `timesheet_screen` → `timesheetGridEntriesProvider` → `TimesheetCalendarView(entries: …)` (записи уже с **серверным** фильтром объектов, если выбран).
-2. `_syncEmployeeRows` строит `TimesheetHoursIndex.fromEntries(widget.entries)` и вызывает `visibleTimesheetGridEmployees(...)` → затем `filterEmployeesByTimesheetPositionKeys` → `_employeesBase`.
-3. Поиск по ФИО (`filterEmployeesByTimesheetNameSearch`) сужает `_allEmployees`; `_rebuildEntryIndex` пересчитывает итоги только для видимых id.
-4. `SliverFixedExtentList` рендерит `TimesheetGridEmployeeRow` только для `_allEmployees`.
+1. `timesheet_screen` → `timesheetGridEntriesProvider` → `TimesheetCalendarView(entries: …)`.
+2. `_syncEmployeeRows` — см. цепочку в разделе Presentation (часы, смена, должности, merge, поиск).
+3. `SliverFixedExtentList` рендерит `TimesheetGridEmployeeRow` для `_allEmployees`; `todayOpenShift` передаётся в сетку для `*`.
 
-Синхронизация строк — `addPostFrameCallback` (`_scheduleSyncEmployeeRows`), `ref.listenManual` на `timesheetProvider` (в т.ч. смена `employees`), сегмент, **фильтр должностей** и поиск; без записи в провайдеры из `build`.
+Синхронизация строк — `addPostFrameCallback` (`_scheduleSyncEmployeeRows`), `ref.listenManual` на `timesheetProvider` (в т.ч. `employees`, `todayOpenShift`), `timesheetEmployeeListScopeProvider`, `timesheetOpenShiftFilterScopeProvider`, фильтр должностей и поиск.
 
 ### Синхронизация каталога с модулем «Сотрудники»
 
@@ -448,18 +485,19 @@ employee_attendance ──> objects
 
 | Фильтр | Слой | Перезапрос |
 |--------|------|------------|
-| Месяц | `setDateRange` → `loadTimesheet()` | ✅ |
+| Месяц | `setDateRange` → `loadTimesheet()` + сброс фильтра смены при необходимости | ✅ |
 | Объекты | `setSelectedObjects` → `loadTimesheet()` с `objectIds` | ✅ |
-| Должности | `filterEmployeesByTimesheetPositionKeys` (`timesheetSelectedPositionKeysProvider`) | ❌ |
-| ФИО | `filterEmployeesByTimesheetNameSearch` в сетке (`timesheetSearchQueryProvider`) | ❌ |
-| Сегмент часов | `visibleTimesheetGridEmployees` в `_syncEmployeeRows` | ❌ |
+| Должности | `filterEmployeesByTimesheetPositionKeys` | ❌ |
+| ФИО | `filterEmployeesByTimesheetNameSearch` | ❌ |
+| Часы (состав) | `visibleTimesheetGridEmployees` / `filterEmployeesByTimesheetListScope` | ❌ |
+| Смена сегодня (состав) | `filterEmployeesByOpenShiftScope` / `employeesInTodayOpenShift` / merge | ❌ (данные `todayOpenShift` — при `loadTimesheet` / `reloadHoursEntries`) |
 | `employee_id` | datasource (диалог, точечные запросы) | ✅ |
 
 Сервер: период, `works.status = closed`, пагинация PostgREST.
 
 ### Статистика посещаемости (топ-5)
 
-**Триггер:** `TimesheetAttendanceStatsAction` в панели `TimesheetCalendarView._buildTimesheetTitleRow` (перед `TimesheetExcelAction`, без отдельного permission — достаточно `timesheet.read` для просмотра табеля).
+**Триггер:** `TimesheetAttendanceStatsAction` в правой части панели `TimesheetCalendarView._buildTimesheetTitleRow` (рядом с `TimesheetExcelAction`).
 
 **Расчёт** (`computeTimesheetAttendanceStats`):
 
@@ -501,7 +539,7 @@ employee_attendance ──> objects
 | Видимость строк | `buildTimesheetHoursIndex` + `filterTimesheetGridEmployees` — см. `timesheet_employee_visibility.ts` |
 | Файл | XLSX: ФИО без должности, заливка по объектам, легенда, frozen panes |
 
-**Соответствие экрану:** те же базовые правила (объекты, уволенные, `include_in_timesheet`); **не** передаются сегмент «С часами / Без часов», фильтр должностей и строка поиска по ФИО.
+**Соответствие экрану:** те же базовые правила (объекты, уволенные, `include_in_timesheet`); **не** передаются фильтр «Состав» (часы + смена), фильтр должностей и поиск по ФИО.
 
 ---
 
@@ -541,11 +579,15 @@ employee_attendance ──> objects
 - ✅ виртуализация строк сетки (`ListView.builder`, `timesheet_calendar_grid.dart`)
 - ✅ полная ширина таблицы с гибкой колонкой «Сотрудник» (`TimesheetGridLayout.layoutWidth` + `Expanded`)
 - ✅ статистика посещаемости: топ-5 high/low за месяц (`timesheet_attendance_stats.dart`, UI-диалог)
+- ✅ открытые смены сегодня: RLS, загрузка индекса, звёздочка в сетке, фильтр «Состав», merge строк
+- ✅ единый `TimesheetListFilterDropdown`; панель: действия справа
 
 ### Ограничения
 - 🟡 нет удаления ручных часов очисткой ячейки
-- 🟡 при очень большом штате (тысячи строк) узкое место — загрузка всех `entries` за месяц в память (не отрисовка); виртуализация снимает нагрузку с UI
-- 🟡 статистика посещаемости — только по уже загруженным данным; не учитывает сегмент «С часами / Без часов» и поиск ФИО (намеренно — обзор по «базовой» выборке табеля)
+- 🟡 при очень большом штате узкое место — загрузка всех `entries` за месяц в память
+- 🟡 статистика посещаемости — только по загруженным данным; без фильтра «Состав» и поиска
+- 🟡 открытые смены — только **сегодня** (`CURRENT_DATE` в RLS); прошлые/будущие открытые смены в табеле не видны
+- 🟡 индикатор `*` и фильтр смены **не** в Excel
 
 ### Планы
 - 🔄 DELETE / upsert с нулевыми часами для attendance
@@ -576,10 +618,20 @@ employee_attendance ──> objects
 - После правок в `employees` не вызывать полный `loadTimesheet()` ради флага табеля — достаточно `reloadEmployeesCatalog()` (уже подключено через sync-провайдер).
 - Статистика посещаемости: править `domain/timesheet_attendance_stats.dart` + `widgets/timesheet_attendance_stats.dart`; при смене правил видимости строк — те же функции, что `_syncEmployeeRows` (`visibleTimesheetGridEmployees`, `filterEmployeesByTimesheetPositionKeys`).
 - Резерв ширины панели для кнопки: `kTimesheetAttendanceStatsTriggerWidth` в `timesheet_filters_toolbar.dart` (`timesheetToolbarSearchWidth`).
+- Фильтр «Состав»: `timesheet_list_filter_dropdown.dart` + провайдеры в `timesheet_filter_widget.dart`; логика смены — `timesheet_open_shift_filter.dart`; индекс — `timesheet_today_open_shift.dart`.
+- При изменении правил merge / фильтра смены — `_syncEmployeeRows`, `_mergeTodayOpenShiftEmployees`, тесты `timesheet_open_shift_filter_test.dart`.
+- RLS открытых смен: только чтение, дата на сервере `CURRENT_DATE`; клиент запрашивает `DateTime.now()` — рассинхрон TZ теоретически возможен на границе суток.
 
 ---
 
 ## История изменений
+
+**28.06.2026 — Открытые смены сегодня и фильтр «Состав»**
+- миграция `20260628120000_timesheet_read_open_works_today.sql`
+- `timesheet_today_open_shift.dart`, `timesheet_open_shift_filter.dart`, `timesheet_list_filter_dropdown.dart`
+- `TimesheetState.todayOpenShift`, `getOpenWorksForDate`, звёздочка в `timesheet_calendar_grid.dart`
+- панель: `Spacer` → Статистика / Excel справа; удалена легенда «* В смене»
+- тесты: `timesheet_today_open_shift_test.dart`, `timesheet_open_shift_filter_test.dart`, `timesheet_list_filter_dropdown_test.dart`
 
 **31.05.2026 — Статистика посещаемости (топ-5)**
 - `domain/timesheet_attendance_stats.dart`, `widgets/timesheet_attendance_stats.dart`

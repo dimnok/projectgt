@@ -56,8 +56,32 @@ class _WorkHoursTabState extends ConsumerState<WorkHoursTab> {
   // Режим массового редактирования часов
   bool _isMassEdit = false;
 
+  /// Выбранный пресет часов для всех сотрудников (8, 10 или 12).
+  int? _selectedPresetHours;
+
+  /// Доступные пресеты часов для массового заполнения.
+  static const List<int> _presetHoursOptions = [8, 10, 12];
+
   // Контроллеры ввода часов по id записи
   final Map<String, TextEditingController> _hourControllers = {};
+
+  /// Заполняет поля часов всем сотрудникам выбранным пресетом.
+  void _applyPresetHours(int presetHours, List<WorkHour> currentHours) {
+    setState(() {
+      _isMassEdit = true;
+      _selectedPresetHours = presetHours;
+      for (final h in currentHours) {
+        _ensureHourController(h.id, h.hours).text = presetHours.toString();
+      }
+    });
+  }
+
+  /// Сбрасывает подсветку пресета при ручном изменении часов.
+  void _onHourFieldChanged() {
+    if (_selectedPresetHours != null) {
+      setState(() => _selectedPresetHours = null);
+    }
+  }
 
   TextEditingController _ensureHourController(String id, num initialHours) {
     if (_hourControllers[id] == null) {
@@ -205,8 +229,15 @@ class _WorkHoursTabState extends ConsumerState<WorkHoursTab> {
                             ScrollViewKeyboardDismissBehavior.onDrag,
                         itemCount: hours.length,
                         padding: ResponsiveUtils.isMobile(context)
-                            ? WorkDetailDataSpacing.mobileTabListPadding
-                            : const EdgeInsets.all(16),
+                            ? WorkDetailDataSpacing.mobileTabListPadding.copyWith(
+                                bottom: _listBottomPadding(context, canModify),
+                              )
+                            : EdgeInsets.fromLTRB(
+                                16,
+                                16,
+                                16,
+                                _listBottomPadding(context, canModify),
+                              ),
                         itemBuilder: (context, i) {
                           final hour = hours[i];
                           final employeeName =
@@ -318,6 +349,8 @@ class _WorkHoursTabState extends ConsumerState<WorkHoursTab> {
                                               RegExp(r'[0-9.,]'),
                                             ),
                                           ],
+                                          onChanged: (_) =>
+                                              _onHourFieldChanged(),
                                           contentPadding:
                                               const EdgeInsets.symmetric(
                                                 horizontal: 8,
@@ -390,6 +423,27 @@ class _WorkHoursTabState extends ConsumerState<WorkHoursTab> {
           },
         ),
 
+        // Быстрое заполнение часов — нижняя панель слева (рядом с FAB)
+        if (canModify)
+          Consumer(
+            builder: (context, ref, _) {
+              final hoursAsync = ref.watch(_hoursProvider(widget.workId));
+              return hoursAsync.maybeWhen(
+                data: (hours) {
+                  if (hours.isEmpty) return const SizedBox.shrink();
+                  return Positioned(
+                    left: ResponsiveUtils.isMobile(context)
+                        ? WorkDetailDataSpacing.mobileScrollHorizontal
+                        : 16,
+                    bottom: 16 + MediaQuery.viewPaddingOf(context).bottom,
+                    child: _buildPresetHoursDock(context, hours),
+                  );
+                },
+                orElse: () => const SizedBox.shrink(),
+              );
+            },
+          ),
+
         // Кнопка добавления часов - только при праве редактирования
         if (canModify)
           Positioned(
@@ -402,6 +456,7 @@ class _WorkHoursTabState extends ConsumerState<WorkHoursTab> {
                 if (!_isMassEdit) {
                   setState(() {
                     _isMassEdit = true;
+                    _selectedPresetHours = null;
                     // Заполнить контроллеры актуальными значениями при входе в режим
                     final current = ref
                         .read(_hoursProvider(widget.workId))
@@ -442,6 +497,7 @@ class _WorkHoursTabState extends ConsumerState<WorkHoursTab> {
                   if (mounted) {
                     setState(() {
                       _isMassEdit = false;
+                      _selectedPresetHours = null;
                     });
                   }
                 }
@@ -481,6 +537,98 @@ class _WorkHoursTabState extends ConsumerState<WorkHoursTab> {
   }
 
   // Удалено: синхронный вывод имён заменён локальным кэшем с предзагрузкой
+
+  /// Нижний отступ списка под панель быстрого ввода и FAB.
+  double _listBottomPadding(BuildContext context, bool canModify) {
+    if (!canModify) return 16;
+    return 16 + MediaQuery.viewPaddingOf(context).bottom + 132;
+  }
+
+  /// Нижняя панель быстрого заполнения часов всем сотрудникам.
+  Widget _buildPresetHoursDock(BuildContext context, List<WorkHour> hours) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final outline = scheme.outline.withValues(alpha: 0.2);
+
+    Widget presetChip(int presetHours) {
+      final selected = _selectedPresetHours == presetHours;
+      return Semantics(
+        button: true,
+        label: 'Заполнить всем $presetHours часов',
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => _applyPresetHours(presetHours, hours),
+            borderRadius: BorderRadius.circular(12),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
+              curve: Curves.easeOutCubic,
+              constraints: const BoxConstraints(minWidth: 48, minHeight: 44),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: selected
+                    ? scheme.primary.withValues(alpha: 0.14)
+                    : scheme.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: selected
+                      ? scheme.primary.withValues(alpha: 0.45)
+                      : outline,
+                  width: selected ? 1.5 : 1,
+                ),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                '$presetHours ч',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: scheme.primary,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: scheme.surface.withValues(alpha: 0.96),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: outline),
+        boxShadow: [
+          BoxShadow(
+            color: scheme.shadow.withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(left: 4, right: 6),
+              child: Text(
+                'Всем',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: scheme.onSurface.withValues(alpha: 0.55),
+                ),
+              ),
+            ),
+            for (var i = 0; i < _presetHoursOptions.length; i++) ...[
+              if (i > 0) const SizedBox(width: 6),
+              presetChip(_presetHoursOptions[i]),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 
   /// Подтверждение удаления сотрудника из смены
   Future<bool?> _showDeleteHourConfirmationDialog(

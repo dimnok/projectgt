@@ -8,6 +8,7 @@ import '../../domain/entities/timesheet_load_result.dart';
 import '../../domain/entities/timesheet_entry.dart';
 import '../../domain/repositories/timesheet_repository.dart';
 import '../../domain/repositories/employee_attendance_repository.dart';
+import '../../domain/timesheet_today_open_shift.dart';
 import '../datasources/timesheet_data_source.dart';
 
 TimesheetEntry _workRowToTimesheetEntry(
@@ -232,5 +233,13 @@ class TimesheetRepositoryImpl implements TimesheetRepository {
           ..sort((a, b) => a.date.compareTo(b.date));
 
     return entries;
+  }
+
+  @override
+  Future<TimesheetTodayOpenShiftIndex> loadTodayOpenShiftIndex(
+    DateTime date,
+  ) async {
+    final rows = await dataSource.getOpenWorksForDate(date);
+    return parseTodayOpenShiftWorksResponse(rows);
   }
 }

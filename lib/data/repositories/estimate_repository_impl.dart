@@ -118,12 +118,15 @@ class EstimateRepositoryImpl implements EstimateRepository {
       final quantity = (row['quantity'] as num?)?.toDouble() ?? 0.0;
       final section = row['section'] as String? ?? '';
       final floor = row['floor'] as String? ?? '';
+      final profiles = works?['profiles'] as Map<String, dynamic>?;
+      final openedByName = _resolveOpenedByName(profiles);
 
       return EstimateCompletionHistory(
         date: dateStr != null ? DateTime.parse(dateStr) : DateTime.now(),
         quantity: quantity,
         section: section,
         floor: floor,
+        openedByName: openedByName,
       );
     }).toList();
 
@@ -395,4 +398,17 @@ class EstimateRepositoryImpl implements EstimateRepository {
       sourceFileName: sourceFileName,
     );
   }
+}
+
+String? _resolveOpenedByName(Map<String, dynamic>? profiles) {
+  if (profiles == null) return null;
+  final shortName = profiles['short_name'] as String?;
+  if (shortName != null && shortName.trim().isNotEmpty) {
+    return shortName.trim();
+  }
+  final fullName = profiles['full_name'] as String?;
+  if (fullName != null && fullName.trim().isNotEmpty) {
+    return fullName.trim();
+  }
+  return null;
 }

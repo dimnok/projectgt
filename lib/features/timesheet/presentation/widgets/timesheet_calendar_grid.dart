@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/domain/entities/employee.dart';
 import 'package:projectgt/features/timesheet/domain/entities/timesheet_entry.dart';
+import 'package:projectgt/features/timesheet/domain/timesheet_today_open_shift.dart';
 
 /// Геометрия календарной сетки табеля (шапка + строки + итог).
 abstract final class TimesheetGridLayout {
@@ -36,8 +37,9 @@ abstract final class TimesheetGridLayout {
 
   /// Ширина сетки: на всю область, но не уже [minTableWidth] (горизонтальный скролл).
   static double layoutWidth(int dayCount, double viewportWidth) {
-    final safeViewport =
-        viewportWidth.isFinite && viewportWidth > 0 ? viewportWidth : minTableWidth(dayCount);
+    final safeViewport = viewportWidth.isFinite && viewportWidth > 0
+        ? viewportWidth
+        : minTableWidth(dayCount);
     return safeViewport > minTableWidth(dayCount)
         ? safeViewport
         : minTableWidth(dayCount);
@@ -49,8 +51,20 @@ abstract final class TimesheetGridLayout {
       '${date.month.toString().padLeft(2, '0')}-'
       '${date.day.toString().padLeft(2, '0')}';
 
+  /// Локальный календарный «сегодня» для подсветки колонки.
+  static bool isCalendarToday(DateTime day) {
+    final now = DateTime.now();
+    return day.year == now.year && day.month == now.month && day.day == now.day;
+  }
+
+  /// Цвет звёздочки «в открытой смене».
+  static Color openShiftStarColor(ColorScheme scheme) => scheme.tertiary;
+
   /// Лёгкий фон строки при выборе чекбоксом.
-  static Color selectedRowBackground(ColorScheme scheme, Brightness brightness) {
+  static Color selectedRowBackground(
+    ColorScheme scheme,
+    Brightness brightness,
+  ) {
     return scheme.primary.withValues(
       alpha: brightness == Brightness.dark ? 0.14 : 0.08,
     );
@@ -91,10 +105,7 @@ abstract final class _TimesheetGridCells {
   }
 
   /// Колонка «Сотрудник» забирает свободную ширину (как `1fr` в CSS Grid).
-  static Widget employee({
-    required Color dividerColor,
-    required Widget child,
-  }) {
+  static Widget employee({required Color dividerColor, required Widget child}) {
     return Expanded(
       child: ConstrainedBox(
         constraints: const BoxConstraints(
@@ -148,9 +159,7 @@ class TimesheetGridHeader extends StatelessWidget {
     return ColoredBox(
       color: headerBackground,
       child: DecoratedBox(
-        decoration: BoxDecoration(
-          border: Border.all(color: dividerColor),
-        ),
+        decoration: BoxDecoration(border: Border.all(color: dividerColor)),
         child: Row(
           children: [
             _TimesheetGridCells.fixed(
@@ -226,12 +235,18 @@ class _DayHeaderCell extends StatelessWidget {
   Widget build(BuildContext context) {
     final isWeekend =
         day.weekday == DateTime.saturday || day.weekday == DateTime.sunday;
+    final isToday = TimesheetGridLayout.isCalendarToday(day);
     final scheme = theme.colorScheme;
-    final dayColor = isWeekend
+    final dayColor = isToday
+        ? scheme.primary.withValues(alpha: 0.16)
+        : isWeekend
         ? scheme.error.withValues(alpha: 0.18)
         : scheme.surface.withValues(alpha: 0.5);
-    final textColor =
-        isWeekend ? scheme.error : theme.textTheme.bodySmall?.color;
+    final textColor = isToday
+        ? scheme.primary
+        : isWeekend
+        ? scheme.error
+        : theme.textTheme.bodySmall?.color;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -278,6 +293,9 @@ class TimesheetGridEmployeeRow extends StatelessWidget {
   /// `yyyy-MM-dd` → записи за день для [employee].
   final Map<String, List<TimesheetEntry>> entriesByDayKey;
 
+  /// Назначения в открытых сменах на сегодня.
+  final TimesheetTodayOpenShiftIndex todayOpenShift;
+
   /// Строка отмечена чекбоксом.
   final bool isSelected;
 
@@ -295,7 +313,8 @@ class TimesheetGridEmployeeRow extends StatelessWidget {
     List<TimesheetEntry> entries,
     String employeeName,
     DateTime day,
-  ) onDayWithHoursTap;
+  )
+  onDayWithHoursTap;
 
   /// Создаёт строку сетки табеля.
   const TimesheetGridEmployeeRow({
@@ -303,6 +322,7 @@ class TimesheetGridEmployeeRow extends StatelessWidget {
     required this.employee,
     required this.daysInRange,
     required this.entriesByDayKey,
+    required this.todayOpenShift,
     required this.isSelected,
     required this.dividerColor,
     required this.onSelectionChanged,
@@ -329,13 +349,23 @@ class TimesheetGridEmployeeRow extends StatelessWidget {
       final dayHours = dayEntries.fold<num>(0, (s, e) => s + e.hours);
       totalHours += dayHours;
       final commentTooltip = _timesheetDayCommentsTooltip(dayEntries);
+      final isToday = TimesheetGridLayout.isCalendarToday(day);
+      final inOpenShiftToday =
+          isToday && todayOpenShift.contains(employee.id);
+      final openShiftTooltip = inOpenShiftToday
+          ? todayOpenShift.hintFor(employee.id)
+          : null;
 
       dayWidgets.add(
         _TimesheetGridCells.fixed(
           width: TimesheetGridLayout.dayColWidth,
           dividerColor: dividerColor,
           child: Material(
-            color: Colors.transparent,
+            color: isToday
+                ? scheme.primary.withValues(
+                    alpha: theme.brightness == Brightness.dark ? 0.06 : 0.04,
+                  )
+                : Colors.transparent,
             child: InkWell(
               onTap: () {
                 if (dayHours > 0) {
@@ -346,6 +376,8 @@ class TimesheetGridEmployeeRow extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
               child: _timesheetDayCellBody(
                 commentTooltip: commentTooltip,
+                inOpenShift: inOpenShiftToday,
+                openShiftTooltip: openShiftTooltip,
                 scheme: scheme,
                 brightness: theme.brightness,
                 dayHours: dayHours,
@@ -359,10 +391,7 @@ class TimesheetGridEmployeeRow extends StatelessWidget {
     }
 
     final rowBackground = isSelected
-        ? TimesheetGridLayout.selectedRowBackground(
-            scheme,
-            theme.brightness,
-          )
+        ? TimesheetGridLayout.selectedRowBackground(scheme, theme.brightness)
         : Colors.transparent;
 
     return SizedBox(
@@ -539,9 +568,7 @@ class TimesheetGridTotalsRow extends StatelessWidget {
         child: DecoratedBox(
           decoration: BoxDecoration(
             border: Border(
-              top: BorderSide(
-                color: scheme.outline.withValues(alpha: 0.32),
-              ),
+              top: BorderSide(color: scheme.outline.withValues(alpha: 0.32)),
               left: BorderSide(color: dividerColor),
               right: BorderSide(color: dividerColor),
               bottom: BorderSide(color: dividerColor),
@@ -570,24 +597,24 @@ class TimesheetGridTotalsRow extends StatelessWidget {
                   ),
                 ),
               ),
-            ...dayWidgets,
-            _TimesheetGridCells.fixed(
-              width: TimesheetGridLayout.totalColWidth,
-              dividerColor: dividerColor,
-              showRightBorder: false,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Center(
-                  child: Text(
-                    formatQuantity(grandTotal),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      color: scheme.primary,
+              ...dayWidgets,
+              _TimesheetGridCells.fixed(
+                width: TimesheetGridLayout.totalColWidth,
+                dividerColor: dividerColor,
+                showRightBorder: false,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Center(
+                    child: Text(
+                      formatQuantity(grandTotal),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: scheme.primary,
+                      ),
                     ),
                   ),
                 ),
-              ),
               ),
             ],
           ),
@@ -605,9 +632,7 @@ String? _timesheetDayCommentsTooltip(Iterable<TimesheetEntry> entries) {
     final text = entry.comment?.trim();
     if (text == null || text.isEmpty || !seen.add(text)) continue;
     final object = entry.objectName?.trim();
-    lines.add(
-      object != null && object.isNotEmpty ? '$object: $text' : text,
-    );
+    lines.add(object != null && object.isNotEmpty ? '$object: $text' : text);
   }
   if (lines.isEmpty) return null;
   return lines.join('\n');
@@ -615,13 +640,23 @@ String? _timesheetDayCommentsTooltip(Iterable<TimesheetEntry> entries) {
 
 Widget _timesheetDayCellBody({
   required String? commentTooltip,
+  required bool inOpenShift,
+  required String? openShiftTooltip,
   required ColorScheme scheme,
   required Brightness brightness,
   required num dayHours,
   required List<TimesheetEntry> dayEntries,
   required ThemeData theme,
 }) {
-  final body = Stack(
+  final starColor = TimesheetGridLayout.openShiftStarColor(scheme);
+  final starStyle = theme.textTheme.bodySmall?.copyWith(
+    fontWeight: FontWeight.w700,
+    fontSize: dayHours > 0 ? 10 : 13,
+    color: starColor,
+    height: 1,
+  );
+
+  Widget body = Stack(
     clipBehavior: Clip.hardEdge,
     children: [
       Padding(
@@ -646,9 +681,17 @@ Widget _timesheetDayCellBody({
                     ),
                   ),
                 )
+              : inOpenShift
+              ? Text('*', style: starStyle, textAlign: TextAlign.center)
               : const SizedBox.shrink(),
         ),
       ),
+      if (inOpenShift && dayHours > 0)
+        Positioned(
+          top: 1,
+          left: 2,
+          child: Text('*', style: starStyle),
+        ),
       if (commentTooltip != null)
         Positioned(
           top: 0,
@@ -660,13 +703,17 @@ Widget _timesheetDayCellBody({
     ],
   );
 
-  if (commentTooltip == null) return body;
+  final messages = <String>[
+    if (openShiftTooltip != null) openShiftTooltip,
+    if (commentTooltip != null) commentTooltip,
+  ];
+  if (messages.isEmpty) return body;
 
   return Tooltip(
-    message: commentTooltip,
+    message: messages.join('\n'),
     preferBelow: true,
     verticalOffset: 12,
-    child: Semantics(label: commentTooltip, child: body),
+    child: Semantics(label: messages.join('. '), child: body),
   );
 }
 
@@ -678,10 +725,10 @@ class _TimesheetCommentCornerMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final size = TimesheetGridLayout.commentCornerSize;
+    const size = TimesheetGridLayout.commentCornerSize;
     return ExcludeSemantics(
       child: CustomPaint(
-        size: Size(size, size),
+        size: const Size(size, size),
         painter: _TimesheetCommentCornerPainter(color: color),
       ),
     );

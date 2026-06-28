@@ -462,7 +462,10 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
   ) async {
     final response = await client
         .from('work_items')
-        .select('quantity, section, floor, works!inner(date)')
+        .select(
+          'quantity, section, floor, '
+          'works!inner(date, profiles!opened_by(short_name, full_name))',
+        )
         .eq('estimate_id', estimateId)
         .eq('company_id', activeCompanyId)
         .order('date', referencedTable: 'works', ascending: false);

@@ -6,6 +6,8 @@ import '../../../../core/widgets/desktop_dialog_content.dart';
 import '../../../../core/widgets/gt_buttons.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../domain/entities/vor.dart';
+import '../../../../features/roles/application/permission_service.dart';
+import '../../../../presentation/state/auth_state.dart';
 import '../providers/estimate_providers.dart';
 import '../utils/vor_pdf_actions.dart';
 import 'vor_approve_dialog.dart';
@@ -657,6 +659,12 @@ class _CardActions extends ConsumerWidget {
     final actions = ref.watch(vorActionsProvider);
     final exportService = ref.watch(vorExportServiceProvider);
     final isDraft = vor.status == VorStatus.draft;
+    final permissionService = ref.watch(permissionServiceProvider);
+    final currentUserId = ref.watch(authProvider).user?.id;
+    final canDeleteVor =
+        isDraft &&
+        (permissionService.can('estimates', 'delete') ||
+            (vor.createdBy != null && vor.createdBy == currentUserId));
     final isApproved = vor.status == VorStatus.approved;
     final hasPdf = vor.pdfUrl != null && vor.pdfUrl!.isNotEmpty;
     final needsRecalcAsync = ref.watch(
@@ -709,7 +717,7 @@ class _CardActions extends ConsumerWidget {
               }
             },
           ),
-        if (isDraft)
+        if (canDeleteVor)
           _ActionButton(
             icon: CupertinoIcons.trash,
             tooltip: 'Удалить',

@@ -15,7 +15,8 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$EstimateCompletionHistory {
 
- DateTime get date; double get quantity; String get section; String get floor;
+ DateTime get date; double get quantity; String get section; String get floor;/// ФИО пользователя, открывшего смену (короткое или полное имя из profiles).
+ String? get openedByName;
 /// Create a copy of EstimateCompletionHistory
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -26,16 +27,16 @@ $EstimateCompletionHistoryCopyWith<EstimateCompletionHistory> get copyWith => _$
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is EstimateCompletionHistory&&(identical(other.date, date) || other.date == date)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.section, section) || other.section == section)&&(identical(other.floor, floor) || other.floor == floor));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is EstimateCompletionHistory&&(identical(other.date, date) || other.date == date)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.section, section) || other.section == section)&&(identical(other.floor, floor) || other.floor == floor)&&(identical(other.openedByName, openedByName) || other.openedByName == openedByName));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,date,quantity,section,floor);
+int get hashCode => Object.hash(runtimeType,date,quantity,section,floor,openedByName);
 
 @override
 String toString() {
-  return 'EstimateCompletionHistory(date: $date, quantity: $quantity, section: $section, floor: $floor)';
+  return 'EstimateCompletionHistory(date: $date, quantity: $quantity, section: $section, floor: $floor, openedByName: $openedByName)';
 }
 
 
@@ -46,7 +47,7 @@ abstract mixin class $EstimateCompletionHistoryCopyWith<$Res>  {
   factory $EstimateCompletionHistoryCopyWith(EstimateCompletionHistory value, $Res Function(EstimateCompletionHistory) _then) = _$EstimateCompletionHistoryCopyWithImpl;
 @useResult
 $Res call({
- DateTime date, double quantity, String section, String floor
+ DateTime date, double quantity, String section, String floor, String? openedByName
 });
 
 
@@ -63,13 +64,14 @@ class _$EstimateCompletionHistoryCopyWithImpl<$Res>
 
 /// Create a copy of EstimateCompletionHistory
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? date = null,Object? quantity = null,Object? section = null,Object? floor = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? date = null,Object? quantity = null,Object? section = null,Object? floor = null,Object? openedByName = freezed,}) {
   return _then(_self.copyWith(
 date: null == date ? _self.date : date // ignore: cast_nullable_to_non_nullable
 as DateTime,quantity: null == quantity ? _self.quantity : quantity // ignore: cast_nullable_to_non_nullable
 as double,section: null == section ? _self.section : section // ignore: cast_nullable_to_non_nullable
 as String,floor: null == floor ? _self.floor : floor // ignore: cast_nullable_to_non_nullable
-as String,
+as String,openedByName: freezed == openedByName ? _self.openedByName : openedByName // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
@@ -80,13 +82,15 @@ as String,
 
 
 class _EstimateCompletionHistory implements EstimateCompletionHistory {
-  const _EstimateCompletionHistory({required this.date, required this.quantity, required this.section, required this.floor});
+  const _EstimateCompletionHistory({required this.date, required this.quantity, required this.section, required this.floor, this.openedByName});
   
 
 @override final  DateTime date;
 @override final  double quantity;
 @override final  String section;
 @override final  String floor;
+/// ФИО пользователя, открывшего смену (короткое или полное имя из profiles).
+@override final  String? openedByName;
 
 /// Create a copy of EstimateCompletionHistory
 /// with the given fields replaced by the non-null parameter values.
@@ -98,16 +102,16 @@ _$EstimateCompletionHistoryCopyWith<_EstimateCompletionHistory> get copyWith => 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _EstimateCompletionHistory&&(identical(other.date, date) || other.date == date)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.section, section) || other.section == section)&&(identical(other.floor, floor) || other.floor == floor));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _EstimateCompletionHistory&&(identical(other.date, date) || other.date == date)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.section, section) || other.section == section)&&(identical(other.floor, floor) || other.floor == floor)&&(identical(other.openedByName, openedByName) || other.openedByName == openedByName));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,date,quantity,section,floor);
+int get hashCode => Object.hash(runtimeType,date,quantity,section,floor,openedByName);
 
 @override
 String toString() {
-  return 'EstimateCompletionHistory(date: $date, quantity: $quantity, section: $section, floor: $floor)';
+  return 'EstimateCompletionHistory(date: $date, quantity: $quantity, section: $section, floor: $floor, openedByName: $openedByName)';
 }
 
 
@@ -118,7 +122,7 @@ abstract mixin class _$EstimateCompletionHistoryCopyWith<$Res> implements $Estim
   factory _$EstimateCompletionHistoryCopyWith(_EstimateCompletionHistory value, $Res Function(_EstimateCompletionHistory) _then) = __$EstimateCompletionHistoryCopyWithImpl;
 @override @useResult
 $Res call({
- DateTime date, double quantity, String section, String floor
+ DateTime date, double quantity, String section, String floor, String? openedByName
 });
 
 
@@ -135,13 +139,14 @@ class __$EstimateCompletionHistoryCopyWithImpl<$Res>
 
 /// Create a copy of EstimateCompletionHistory
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? date = null,Object? quantity = null,Object? section = null,Object? floor = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? date = null,Object? quantity = null,Object? section = null,Object? floor = null,Object? openedByName = freezed,}) {
   return _then(_EstimateCompletionHistory(
 date: null == date ? _self.date : date // ignore: cast_nullable_to_non_nullable
 as DateTime,quantity: null == quantity ? _self.quantity : quantity // ignore: cast_nullable_to_non_nullable
 as double,section: null == section ? _self.section : section // ignore: cast_nullable_to_non_nullable
 as String,floor: null == floor ? _self.floor : floor // ignore: cast_nullable_to_non_nullable
-as String,
+as String,openedByName: freezed == openedByName ? _self.openedByName : openedByName // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 

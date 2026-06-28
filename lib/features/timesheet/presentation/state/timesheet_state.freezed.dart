@@ -22,7 +22,8 @@ mixin _$TimesheetState {
  String? get error;/// Начало периода (включительно).
  DateTime get startDate;/// Конец периода (включительно).
  DateTime get endDate;/// Выбранные объекты для клиентского фильтра (`null` — без фильтра).
- List<String>? get selectedObjectIds;
+ List<String>? get selectedObjectIds;/// Назначения в открытых сменах на сегодня (контроль выхода).
+ TimesheetTodayOpenShiftIndex get todayOpenShift;
 /// Create a copy of TimesheetState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -33,16 +34,16 @@ $TimesheetStateCopyWith<TimesheetState> get copyWith => _$TimesheetStateCopyWith
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is TimesheetState&&const DeepCollectionEquality().equals(other.entries, entries)&&const DeepCollectionEquality().equals(other.employees, employees)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.error, error) || other.error == error)&&(identical(other.startDate, startDate) || other.startDate == startDate)&&(identical(other.endDate, endDate) || other.endDate == endDate)&&const DeepCollectionEquality().equals(other.selectedObjectIds, selectedObjectIds));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is TimesheetState&&const DeepCollectionEquality().equals(other.entries, entries)&&const DeepCollectionEquality().equals(other.employees, employees)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.error, error) || other.error == error)&&(identical(other.startDate, startDate) || other.startDate == startDate)&&(identical(other.endDate, endDate) || other.endDate == endDate)&&const DeepCollectionEquality().equals(other.selectedObjectIds, selectedObjectIds)&&(identical(other.todayOpenShift, todayOpenShift) || other.todayOpenShift == todayOpenShift));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(entries),const DeepCollectionEquality().hash(employees),isLoading,error,startDate,endDate,const DeepCollectionEquality().hash(selectedObjectIds));
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(entries),const DeepCollectionEquality().hash(employees),isLoading,error,startDate,endDate,const DeepCollectionEquality().hash(selectedObjectIds),todayOpenShift);
 
 @override
 String toString() {
-  return 'TimesheetState(entries: $entries, employees: $employees, isLoading: $isLoading, error: $error, startDate: $startDate, endDate: $endDate, selectedObjectIds: $selectedObjectIds)';
+  return 'TimesheetState(entries: $entries, employees: $employees, isLoading: $isLoading, error: $error, startDate: $startDate, endDate: $endDate, selectedObjectIds: $selectedObjectIds, todayOpenShift: $todayOpenShift)';
 }
 
 
@@ -53,7 +54,7 @@ abstract mixin class $TimesheetStateCopyWith<$Res>  {
   factory $TimesheetStateCopyWith(TimesheetState value, $Res Function(TimesheetState) _then) = _$TimesheetStateCopyWithImpl;
 @useResult
 $Res call({
- List<TimesheetEntry> entries, List<Employee> employees, bool isLoading, String? error, DateTime startDate, DateTime endDate, List<String>? selectedObjectIds
+ List<TimesheetEntry> entries, List<Employee> employees, bool isLoading, String? error, DateTime startDate, DateTime endDate, List<String>? selectedObjectIds, TimesheetTodayOpenShiftIndex todayOpenShift
 });
 
 
@@ -70,7 +71,7 @@ class _$TimesheetStateCopyWithImpl<$Res>
 
 /// Create a copy of TimesheetState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? entries = null,Object? employees = null,Object? isLoading = null,Object? error = freezed,Object? startDate = null,Object? endDate = null,Object? selectedObjectIds = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? entries = null,Object? employees = null,Object? isLoading = null,Object? error = freezed,Object? startDate = null,Object? endDate = null,Object? selectedObjectIds = freezed,Object? todayOpenShift = null,}) {
   return _then(_self.copyWith(
 entries: null == entries ? _self.entries : entries // ignore: cast_nullable_to_non_nullable
 as List<TimesheetEntry>,employees: null == employees ? _self.employees : employees // ignore: cast_nullable_to_non_nullable
@@ -79,7 +80,8 @@ as bool,error: freezed == error ? _self.error : error // ignore: cast_nullable_t
 as String?,startDate: null == startDate ? _self.startDate : startDate // ignore: cast_nullable_to_non_nullable
 as DateTime,endDate: null == endDate ? _self.endDate : endDate // ignore: cast_nullable_to_non_nullable
 as DateTime,selectedObjectIds: freezed == selectedObjectIds ? _self.selectedObjectIds : selectedObjectIds // ignore: cast_nullable_to_non_nullable
-as List<String>?,
+as List<String>?,todayOpenShift: null == todayOpenShift ? _self.todayOpenShift : todayOpenShift // ignore: cast_nullable_to_non_nullable
+as TimesheetTodayOpenShiftIndex,
   ));
 }
 
@@ -90,7 +92,7 @@ as List<String>?,
 
 
 class _TimesheetState implements TimesheetState {
-  const _TimesheetState({final  List<TimesheetEntry> entries = const [], final  List<Employee> employees = const [], this.isLoading = false, this.error, required this.startDate, required this.endDate, final  List<String>? selectedObjectIds}): _entries = entries,_employees = employees,_selectedObjectIds = selectedObjectIds;
+  const _TimesheetState({final  List<TimesheetEntry> entries = const [], final  List<Employee> employees = const [], this.isLoading = false, this.error, required this.startDate, required this.endDate, final  List<String>? selectedObjectIds, this.todayOpenShift = TimesheetTodayOpenShiftIndex.empty}): _entries = entries,_employees = employees,_selectedObjectIds = selectedObjectIds;
   
 
 /// Записи табеля за выбранный период.
@@ -130,6 +132,8 @@ class _TimesheetState implements TimesheetState {
   return EqualUnmodifiableListView(value);
 }
 
+/// Назначения в открытых сменах на сегодня (контроль выхода).
+@override@JsonKey() final  TimesheetTodayOpenShiftIndex todayOpenShift;
 
 /// Create a copy of TimesheetState
 /// with the given fields replaced by the non-null parameter values.
@@ -141,16 +145,16 @@ _$TimesheetStateCopyWith<_TimesheetState> get copyWith => __$TimesheetStateCopyW
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TimesheetState&&const DeepCollectionEquality().equals(other._entries, _entries)&&const DeepCollectionEquality().equals(other._employees, _employees)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.error, error) || other.error == error)&&(identical(other.startDate, startDate) || other.startDate == startDate)&&(identical(other.endDate, endDate) || other.endDate == endDate)&&const DeepCollectionEquality().equals(other._selectedObjectIds, _selectedObjectIds));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TimesheetState&&const DeepCollectionEquality().equals(other._entries, _entries)&&const DeepCollectionEquality().equals(other._employees, _employees)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.error, error) || other.error == error)&&(identical(other.startDate, startDate) || other.startDate == startDate)&&(identical(other.endDate, endDate) || other.endDate == endDate)&&const DeepCollectionEquality().equals(other._selectedObjectIds, _selectedObjectIds)&&(identical(other.todayOpenShift, todayOpenShift) || other.todayOpenShift == todayOpenShift));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_entries),const DeepCollectionEquality().hash(_employees),isLoading,error,startDate,endDate,const DeepCollectionEquality().hash(_selectedObjectIds));
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_entries),const DeepCollectionEquality().hash(_employees),isLoading,error,startDate,endDate,const DeepCollectionEquality().hash(_selectedObjectIds),todayOpenShift);
 
 @override
 String toString() {
-  return 'TimesheetState(entries: $entries, employees: $employees, isLoading: $isLoading, error: $error, startDate: $startDate, endDate: $endDate, selectedObjectIds: $selectedObjectIds)';
+  return 'TimesheetState(entries: $entries, employees: $employees, isLoading: $isLoading, error: $error, startDate: $startDate, endDate: $endDate, selectedObjectIds: $selectedObjectIds, todayOpenShift: $todayOpenShift)';
 }
 
 
@@ -161,7 +165,7 @@ abstract mixin class _$TimesheetStateCopyWith<$Res> implements $TimesheetStateCo
   factory _$TimesheetStateCopyWith(_TimesheetState value, $Res Function(_TimesheetState) _then) = __$TimesheetStateCopyWithImpl;
 @override @useResult
 $Res call({
- List<TimesheetEntry> entries, List<Employee> employees, bool isLoading, String? error, DateTime startDate, DateTime endDate, List<String>? selectedObjectIds
+ List<TimesheetEntry> entries, List<Employee> employees, bool isLoading, String? error, DateTime startDate, DateTime endDate, List<String>? selectedObjectIds, TimesheetTodayOpenShiftIndex todayOpenShift
 });
 
 
@@ -178,7 +182,7 @@ class __$TimesheetStateCopyWithImpl<$Res>
 
 /// Create a copy of TimesheetState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? entries = null,Object? employees = null,Object? isLoading = null,Object? error = freezed,Object? startDate = null,Object? endDate = null,Object? selectedObjectIds = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? entries = null,Object? employees = null,Object? isLoading = null,Object? error = freezed,Object? startDate = null,Object? endDate = null,Object? selectedObjectIds = freezed,Object? todayOpenShift = null,}) {
   return _then(_TimesheetState(
 entries: null == entries ? _self._entries : entries // ignore: cast_nullable_to_non_nullable
 as List<TimesheetEntry>,employees: null == employees ? _self._employees : employees // ignore: cast_nullable_to_non_nullable
@@ -187,7 +191,8 @@ as bool,error: freezed == error ? _self.error : error // ignore: cast_nullable_t
 as String?,startDate: null == startDate ? _self.startDate : startDate // ignore: cast_nullable_to_non_nullable
 as DateTime,endDate: null == endDate ? _self.endDate : endDate // ignore: cast_nullable_to_non_nullable
 as DateTime,selectedObjectIds: freezed == selectedObjectIds ? _self._selectedObjectIds : selectedObjectIds // ignore: cast_nullable_to_non_nullable
-as List<String>?,
+as List<String>?,todayOpenShift: null == todayOpenShift ? _self.todayOpenShift : todayOpenShift // ignore: cast_nullable_to_non_nullable
+as TimesheetTodayOpenShiftIndex,
   ));
 }
 

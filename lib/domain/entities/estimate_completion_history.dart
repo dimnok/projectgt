@@ -11,6 +11,9 @@ abstract class EstimateCompletionHistory with _$EstimateCompletionHistory {
     required double quantity,
     required String section,
     required String floor,
+
+    /// ФИО пользователя, открывшего смену (короткое или полное имя из profiles).
+    String? openedByName,
   }) = _EstimateCompletionHistory;
 }
 

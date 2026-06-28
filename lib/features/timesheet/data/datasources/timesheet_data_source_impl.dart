@@ -209,4 +209,31 @@ class TimesheetDataSourceImpl implements TimesheetDataSource {
       rethrow;
     }
   }
+
+  @override
+  Future<List<Map<String, dynamic>>> getOpenWorksForDate(DateTime date) async {
+    if (!timesheetHasActiveCompany(activeCompanyId)) {
+      return [];
+    }
+    try {
+      final dateStr = date.toIso8601String().split('T')[0];
+      final response = await client
+          .from('works')
+          .select('''
+        object_id,
+        objects ( name ),
+        work_hours ( employee_id )
+      ''')
+          .eq('company_id', _scopedCompanyId)
+          .eq('date', dateStr)
+          .eq('status', 'open');
+
+      return response
+          .map((row) => Map<String, dynamic>.from(row as Map))
+          .toList(growable: false);
+    } catch (e) {
+      _logger.e('Ошибка при получении открытых смен на $date: $e');
+      rethrow;
+    }
+  }
 }

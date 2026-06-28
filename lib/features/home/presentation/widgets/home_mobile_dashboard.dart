@@ -9,6 +9,7 @@ import 'package:projectgt/features/home/presentation/widgets/home_mobile_quick_a
 import 'package:projectgt/features/home/presentation/widgets/home_my_open_shift_entry.dart';
 import 'package:projectgt/features/home/presentation/widgets/home_shifts_summary_widget.dart';
 import 'package:projectgt/features/home/presentation/widgets/shifts_calendar_widgets.dart';
+import 'package:projectgt/features/home/presentation/widgets/home_employee_applications_widget.dart';
 import 'package:projectgt/features/home/presentation/widgets/work_plan_summary_widget.dart';
 
 /// Мобильный дашборд, объединяющий KPI, быстрые действия и основные карточки.
@@ -71,6 +72,16 @@ class HomeMobileDashboard extends StatelessWidget {
           icon: CupertinoIcons.doc_text_fill,
           accentColor: const Color(0xFFF97316),
           child: const WorkPlanSummaryWidget(hideHeader: true),
+        ),
+        const SizedBox(height: 32),
+        _buildSectionHeader(theme, 'Сотрудникам'),
+        const SizedBox(height: 16),
+        _MobileMainCard(
+          style: style,
+          title: 'Заявления',
+          icon: CupertinoIcons.doc_plaintext,
+          accentColor: const Color(0xFF6366F1),
+          child: const HomeEmployeeApplicationsWidget(hideHeader: true),
         ),
       ],
     );

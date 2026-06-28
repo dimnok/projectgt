@@ -5,6 +5,7 @@ import 'package:projectgt/features/objects/domain/entities/object.dart';
 import '../../data/timesheet_company_scope.dart';
 import '../../domain/entities/timesheet_entry.dart';
 import '../../domain/repositories/timesheet_repository.dart';
+import '../../domain/timesheet_today_open_shift.dart';
 import '../state/timesheet_state.dart';
 import 'repositories_providers.dart';
 import 'timesheet_filters_providers.dart';
@@ -35,6 +36,16 @@ class TimesheetNotifier extends StateNotifier<TimesheetState> {
     return ids;
   }
 
+  Future<TimesheetTodayOpenShiftIndex> _loadTodayOpenShiftIfNeeded() async {
+    if (!timesheetPeriodContainsToday(
+      start: state.startDate,
+      end: state.endDate,
+    )) {
+      return TimesheetTodayOpenShiftIndex.empty;
+    }
+    return repository.loadTodayOpenShiftIndex(DateTime.now());
+  }
+
   /// Загружает табель за текущий период (включая справочник сотрудников).
   Future<void> loadTimesheet() async {
     if (!timesheetHasActiveCompany(readActiveCompanyId())) {
@@ -42,6 +53,7 @@ class TimesheetNotifier extends StateNotifier<TimesheetState> {
         isLoading: false,
         entries: [],
         employees: [],
+        todayOpenShift: TimesheetTodayOpenShiftIndex.empty,
         error: timesheetNoActiveCompanyMessage,
       );
       return;
@@ -49,15 +61,19 @@ class TimesheetNotifier extends StateNotifier<TimesheetState> {
 
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final result = await repository.loadTimesheet(
-        startDate: state.startDate,
-        endDate: state.endDate,
-        objectIds: _objectIdsFilter,
-      );
+      final (result, todayOpenShift) = await (
+        repository.loadTimesheet(
+          startDate: state.startDate,
+          endDate: state.endDate,
+          objectIds: _objectIdsFilter,
+        ),
+        _loadTodayOpenShiftIfNeeded(),
+      ).wait;
 
       state = state.copyWith(
         entries: result.entries,
         employees: result.employees,
+        todayOpenShift: todayOpenShift,
         isLoading: false,
         error: null,
       );
@@ -91,16 +107,20 @@ class TimesheetNotifier extends StateNotifier<TimesheetState> {
 
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final entries = await repository.reloadHoursEntries(
-        startDate: state.startDate,
-        endDate: state.endDate,
-        objectIds: _objectIdsFilter,
-        employees: state.employees,
-        objects: readObjectsForEnrichment(),
-      );
+      final (entries, todayOpenShift) = await (
+        repository.reloadHoursEntries(
+          startDate: state.startDate,
+          endDate: state.endDate,
+          objectIds: _objectIdsFilter,
+          employees: state.employees,
+          objects: readObjectsForEnrichment(),
+        ),
+        _loadTodayOpenShiftIfNeeded(),
+      ).wait;
 
       state = state.copyWith(
         entries: entries,
+        todayOpenShift: todayOpenShift,
         isLoading: false,
         error: null,
       );

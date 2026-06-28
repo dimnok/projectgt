@@ -3,6 +3,7 @@ import 'package:projectgt/features/objects/domain/entities/object.dart';
 
 import '../entities/timesheet_entry.dart';
 import '../entities/timesheet_load_result.dart';
+import '../timesheet_today_open_shift.dart';
 
 /// Интерфейс репозитория для работы с данными табеля рабочего времени.
 abstract class TimesheetRepository {
@@ -35,4 +36,7 @@ abstract class TimesheetRepository {
     required DateTime startDate,
     required DateTime endDate,
   });
+
+  /// Сотрудники в открытых сменах на [date] (контроль выхода).
+  Future<TimesheetTodayOpenShiftIndex> loadTodayOpenShiftIndex(DateTime date);
 }

@@ -142,6 +142,7 @@ class _EstimateCompletionHistoryPanelState
                         unit: widget.estimate.unit,
                         section: item.section,
                         floor: item.floor,
+                        openedByName: item.openedByName,
                       );
                     },
                   );
@@ -456,6 +457,7 @@ class _HistoryItemCard extends StatelessWidget {
     required this.unit,
     required this.section,
     required this.floor,
+    this.openedByName,
   });
 
   final String date;
@@ -463,6 +465,7 @@ class _HistoryItemCard extends StatelessWidget {
   final String unit;
   final String section;
   final String floor;
+  final String? openedByName;
 
   @override
   Widget build(BuildContext context) {
@@ -489,44 +492,60 @@ class _HistoryItemCard extends StatelessWidget {
           ),
           const SizedBox(width: 8),
 
-          // Участок и этаж (без подписей)
+          // Участок, этаж и кто открыл смену
           Expanded(
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (section.isNotEmpty) ...[
-                  Flexible(
-                    child: Text(
-                      section,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                Row(
+                  children: [
+                    if (section.isNotEmpty) ...[
+                      Flexible(
+                        child: Text(
+                          section,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-                if (section.isNotEmpty && floor.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: Text(
-                      '/',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.outlineVariant,
+                    ],
+                    if (section.isNotEmpty && floor.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: Text(
+                          '/',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.outlineVariant,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                if (floor.isNotEmpty) ...[
-                  Flexible(
-                    child: Text(
-                      floor,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                    if (floor.isNotEmpty) ...[
+                      Flexible(
+                        child: Text(
+                          floor,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    ],
+                  ],
+                ),
+                if (openedByName != null && openedByName!.isNotEmpty)
+                  Text(
+                    openedByName!,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant
+                          .withValues(alpha: 0.75),
+                      fontSize: 10,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ],
               ],
             ),
           ),

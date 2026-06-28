@@ -16,4 +16,9 @@ abstract class TimesheetDataSource {
     DateTime? startDate,
     DateTime? endDate,
   });
+
+  /// Открытые смены на [date] с составом (`work_hours.employee_id`).
+  ///
+  /// Для контроля выхода в табеле; RLS: `timesheet_read_open_works_today_select`.
+  Future<List<Map<String, dynamic>>> getOpenWorksForDate(DateTime date);
 }

@@ -1,8 +1,8 @@
 # Модуль Сметы (Estimates)
 
-**Дата актуализации:** 26 мая 2026 года  
-**Изменения:** Фильтр по подсистеме в desktop-деталях сметы — текстовые переключатели над таблицей (`EstimateSubsystemFilterBar`). Внедрение системы версионирования смет (LC / ДС). Таблицы `estimate_revisions`, `estimate_revision_items`, `position_id`, Edge Function шаблонов ДС, авто-миграция старых смет.
-**Статус:** Актуально (Clean Architecture, Riverpod, Strict Multi-tenancy, RBAC, Subsystem Filter Bar, VOR Excel/PDF Storage Flow, VOR Tab Dynamic Columns, Cumulative Excel with Excess Column, Estimate Revisions/Addendums)
+**Дата актуализации:** 15 июня 2026 года  
+**Изменения:** В боковой панели **«Исполнение»** (`estimate_completion_history_panel.dart`) в истории выполнения позиции сметы отображается **ФИО пользователя, открывшего смену** (`works.opened_by` → `profiles.short_name` / `full_name`), мелким шрифтом под участком и этажом. Данные подтягиваются из join `work_items` → `works` → `profiles` без изменений схемы БД.
+**Статус:** Актуально (Clean Architecture, Riverpod, Strict Multi-tenancy, RBAC, Subsystem Filter Bar, VOR Excel/PDF Storage Flow, VOR Tab Dynamic Columns, Cumulative Excel with Excess Column, Estimate Revisions/Addendums, VOR Draft Delete by Creator)
 
 ---
 
@@ -10,6 +10,7 @@
 - **Владение таблицами:** модуль владеет `public.estimates`, `public.vors`, `public.vor_items`, `public.vor_systems`, `public.vor_status_history`.
 - **Multi-tenancy:** все owner-таблицы модуля используют `company_id`; доступ строится вокруг `get_my_company_ids()` и `check_permission(..., 'estimates', ...)`.
 - **RLS-ограничение ВОР:** стандартный `UPDATE` для `public.vors` разрешен только пока запись находится в статусах `draft` или `pending`. Для загрузки PDF после подписания используется отдельная `SECURITY DEFINER` функция `public.set_vor_pdf_document(...)`.
+- **Удаление черновика ВОР:** отдельного RBAC-права «удалить ВОР» нет — используется модуль `estimates`, действие `delete`, плюс исключение для создателя (`vors.created_by = auth.uid()`). Владелец компании проходит через `check_permission` (`is_owner = true`). Подписанные и «на подписании» ведомости удалить нельзя.
 - **Storage:** для документов ВОР используется закрытый bucket `vor_documents`. Excel-файлы генерируются через Edge Functions, подписанные PDF загружаются с клиента и открываются через signed URL.
 - **UI-особенность:** в реестре ВОР у подписанных записей кнопка PDF меняет цвет по состоянию файла: красный, если PDF еще не загружен, зеленый, если файл уже есть.
 
@@ -30,6 +31,7 @@
 - **Авто-миграция:** автоматическое создание базовой ревизии ("Основная") для старых смет при первом обращении к функционалу ДС.
 - **Таб `ВОР` в деталях сметы:** динамические колонки `ВОР-*`, расчет `ИТОГО`, сортировка по номеру ВОР, визуализация превышений.
 - **Фильтр по подсистеме (desktop):** над таблицей позиций — горизонтальная полоса текстовых переключателей «Все» + уникальные значения колонки `subsystem`; клиентская фильтрация без запросов к БД.
+- **История выполнения позиции (desktop):** боковая панель «Исполнение» — дата, участок/этаж, количество, вкладки «История» / «Сводка»; под участком/этажом — кто открыл смену (из модуля «Смены»).
 
 ---
 
@@ -47,8 +49,9 @@
 ### Таблицы других модулей (usage)
 - `public.contracts` — контекст договора для ВОР и фильтрации смет
 - `public.objects` — именование и группировка смет через договор/объект
-- `public.work_items` — источник фактического выполнения
-- `public.profiles` — имена пользователей для истории ВОР
+- `public.work_items` — источник фактического выполнения (колонки `section`, `floor`, `quantity`, `work_id`)
+- `public.works` — дата смены (`date`) и автор открытия смены (`opened_by` → `profiles.id`)
+- `public.profiles` — имена пользователей для истории ВОР и истории выполнения (`short_name`, `full_name`)
 - `public.company_members` — RBAC и tenant membership
 - `storage.buckets`, `storage.objects` — хранение Excel/PDF документов ВОР
 
@@ -70,15 +73,17 @@
 - `lib/features/estimates/presentation/screens/estimate_desktop_view.dart` — основной desktop-экран смет и табов; состояние фильтра подсистемы, комбинирование с поиском и фильтрами выполнения.
 - `lib/features/estimates/presentation/widgets/estimate_subsystem_filter_bar.dart` — текстовые переключатели подсистем над таблицей; утилиты `estimateSubsystemFilterLabel`, `collectEstimateSubsystemLabels`.
 - `lib/features/estimates/presentation/widgets/estimate_table_view.dart` — таблица позиций (колонки «Система», «Подсистема»), режимы «Смета» / «Выполнение».
+- `lib/features/estimates/presentation/widgets/estimate_completion_history_panel.dart` — боковая панель «Исполнение»: история и сводка выполнения по позиции; ФИО открывшего смену (`openedByName`) под строкой участок/этаж.
 - `lib/features/estimates/presentation/widgets/estimate_filter_buttons.dart` — фильтры статуса выполнения (перевыполнение / 100% / 0%) на вкладке «Выполнение».
 - `lib/features/estimates/presentation/widgets/estimate_search_field.dart` — поиск по наименованию и номеру позиции.
 - `lib/features/estimates/presentation/screens/import_estimate_form_modal.dart` — импорт Excel в модуль.
-- `lib/features/estimates/presentation/widgets/vor_list_dialog.dart` — реестр ВОР, статусы, действия, удаление, кнопки Excel/PDF.
+- `lib/features/estimates/presentation/widgets/vor_list_dialog.dart` — реестр ВОР, статусы, действия, кнопки Excel/PDF; удаление черновика с проверкой `canDeleteVor` (право `estimates.delete` **или** совпадение `created_by` с текущим пользователем).
+- `lib/features/estimates/presentation/widgets/vor_recalculate_confirm_dialog.dart` — подтверждение пересчёта черновика ВОР при появлении новых работ за период.
 - `lib/features/estimates/presentation/widgets/vor_card_details.dart` — история статусов и файлов, отображение signed PDF metadata.
 - `lib/features/estimates/presentation/widgets/vor_create_dialog.dart` — создание ВОР по периоду и системам.
 - `lib/features/estimates/presentation/widgets/vor_approve_dialog.dart` — подтверждение подписания и предварительный выбор PDF.
 - `lib/features/estimates/presentation/widgets/vor_tab_table_view.dart` — таб `ВОР` с динамическими колонками.
-- `lib/features/estimates/presentation/providers/estimate_providers.dart` — Riverpod-провайдеры, TTL cache, invalidation, `VorActions`.
+- `lib/features/estimates/presentation/providers/estimate_providers.dart` — Riverpod-провайдеры, TTL cache, invalidation, `VorActions`, `estimateCompletionHistoryProvider`.
 - `lib/features/estimates/presentation/utils/vor_pdf_actions.dart` — upload/open сценарии для signed PDF.
 
 ### Слой Application / Services
@@ -87,14 +92,15 @@
 
 ### Слой Domain
 - `lib/domain/entities/estimate.dart` — доменная сущность сметной позиции.
+- `lib/domain/entities/estimate_completion_history.dart` — запись истории выполнения: `date`, `quantity`, `section`, `floor`, `openedByName`.
 - `lib/domain/entities/vor.dart` — доменная сущность ВОР и истории статусов.
 - `lib/domain/repositories/estimate_repository.dart` — контракт репозитория смет и ВОР.
 
 ### Слой Data
-- `lib/data/datasources/estimate_data_source.dart` — Supabase datasource, CRUD смет, VOR RPC/storage flow.
+- `lib/data/datasources/estimate_data_source.dart` — Supabase datasource, CRUD смет, VOR RPC/storage flow, `getEstimateCompletionHistory` (join `work_items` / `works` / `profiles`).
 - `lib/data/models/estimate_model.dart` — DTO смет.
 - `lib/data/models/vor_model.dart` — DTO ВОР, mapping `pdf_url/excel_url/status_history`.
-- `lib/data/repositories/estimate_repository_impl.dart` — bridge data/domain.
+- `lib/data/repositories/estimate_repository_impl.dart` — bridge data/domain; маппинг `openedByName` из nested `works.profiles` (`_resolveOpenedByName`: приоритет `short_name`, затем `full_name`).
 
 ---
 
@@ -203,10 +209,13 @@ lib/features/estimates/
 | end_date | date | конец периода |
 | status | vor_status | `draft`, `pending`, `approved` |
 | excel_url | text | путь Excel в Storage |
+| excel_combined_url | text | путь общего Excel-листа в Storage |
 | pdf_url | text | путь signed PDF в Storage |
+| include_combined_sheet | boolean | формировать общий лист без разделения превышений |
+| baseline_revision_id | uuid | опциональная привязка к ревизии сметы |
 | created_at | timestamptz | дата создания |
 | updated_at | timestamptz | дата обновления |
-| created_by | uuid | создатель |
+| created_by | uuid | создатель (используется в правиле удаления черновика) |
 
 #### `public.vor_items`
 | Колонка | Тип | Назначение |
@@ -242,6 +251,8 @@ lib/features/estimates/
 
 ### RLS
 - `public.estimates` — ✅ Включен
+- `public.estimate_revisions` — ✅ Включен
+- `public.estimate_revision_items` — ✅ Включен
 - `public.vors` — ✅ Включен
 - `public.vor_items` — ✅ Включен
 - `public.vor_systems` — ✅ Включен
@@ -249,10 +260,12 @@ lib/features/estimates/
 
 ### Ключевые политики
 - `estimates`: `SELECT/UPDATE/DELETE` учитывают не только `company_id`, но и object-scope пользователя через `profiles.object_ids`, если пользователь не owner компании.
-- `vors`: `DELETE` разрешен только для `status = 'draft'`.
 - `vors`: обычный `UPDATE` разрешен только для записей в `draft` или `pending`.
-- `vor_items`: `INSERT/UPDATE/DELETE` разрешены только если связанный `vors.status = 'draft'`.
-- `vor_systems` и `vor_status_history`: доступ ограничен company-scope.
+- `vors`: `DELETE` (`Strict DELETE for vors`) — только `status = 'draft'` **и** (`check_permission(..., 'estimates', 'delete')` **или** `created_by = auth.uid()`).
+- `vor_items`: `INSERT/UPDATE` разрешены только если связанный `vors.status = 'draft'`.
+- `vor_items`: `DELETE` — каскад при удалении черновика; условие совпадает с правом удаления родительской ВОР (право `estimates.delete` или создатель).
+- `vor_systems`, `vor_status_history`: `DELETE` — те же условия, что и для `vor_items` (каскадное удаление черновика ВОР).
+- `vor_systems`, `vor_status_history`: `SELECT/INSERT` ограничены company-scope.
 
 ### Индексы и триггеры
 - `vors`: `idx_vors_company`, `idx_vors_contract`
@@ -268,17 +281,22 @@ lib/features/estimates/
   - `INSERT` для `authenticated`
   - `DELETE` для `authenticated`
 
-### Аудит статистики таблиц (`pg_stat_user_tables`)
-- `estimates`: `n_live_tup = 1515`, `idx_scan = 6108764`, `seq_scan = 46672`
-- `vors`: `n_live_tup = 6`, `idx_scan = 908`, `seq_scan = 5799`
-- `vor_items`: `n_live_tup = 475`, `idx_scan = 928`, `seq_scan = 2154`
-- `vor_status_history`: `n_live_tup = 19`, `idx_scan = 133`, `seq_scan = 988`
-- `vor_systems`: `n_live_tup = 18`, `idx_scan = 285`, `seq_scan = 879`
+### Аудит статистики таблиц (`pg_stat_user_tables`, 15.06.2026)
+- `estimates`: `n_live_tup = 2403`, `idx_scan = 553101`, `seq_scan = 80973`
+- `estimate_revisions`: `n_live_tup = 0`, `idx_scan = 0`, `seq_scan = 85`
+- `estimate_revision_items`: `n_live_tup = 0`, `idx_scan = 66`, `seq_scan = 44`
+- `vors`: `n_live_tup = 13`, `idx_scan = 48`, `seq_scan = 13486`
+- `vor_items`: `n_live_tup = 2474`, `idx_scan = 21315`, `seq_scan = 6431`
+- `vor_status_history`: `n_live_tup = 67`, `idx_scan = 0`, `seq_scan = 1997`
+- `vor_systems`: `n_live_tup = 75`, `idx_scan = 0`, `seq_scan = 2576`
 
 ### RPC / SQL функции модуля
 1. `populate_vor_items(p_vor_id)` — наполняет `vor_items` фактом работ за период.
 2. `get_next_vor_number(p_company_id, p_contract_id)` — возвращает следующий номер ВОР в рамках договора.
-3. `set_vor_pdf_document(p_vor_id, p_company_id, p_pdf_url)` — `SECURITY DEFINER` функция для обновления `pdf_url` у уже подписанной ВОР.
+3. `recalculate_vor(p_vor_id)` — пересчёт состава черновика ВОР за период.
+4. `get_draft_vor_needs_recalc(p_contract_id)` — флаги «нужен пересчёт» для черновиков договора.
+5. `get_vor_recalc_changes(p_vor_id)` — превью изменений перед пересчётом.
+6. `set_vor_pdf_document(p_vor_id, p_company_id, p_pdf_url)` — `SECURITY DEFINER` функция для обновления `pdf_url` у уже подписанной ВОР.
 
 ---
 
@@ -289,6 +307,19 @@ lib/features/estimates/
 2. При необходимости старый Excel конвертируется через `xls_to_xlsx`.
 3. Парсинг выполняется через `excel_parse`.
 4. Сметные позиции сохраняются в `public.estimates` с tenant binding по `company_id`.
+
+### История выполнения позиции (вкладка «Выполнение», desktop)
+1. Пользователь выбирает строку в таблице выполнения — слева открывается панель `EstimateCompletionHistoryPanel`.
+2. Провайдер `estimateCompletionHistoryProvider(estimateId)` вызывает `EstimateRepository.getEstimateCompletionHistory`.
+3. Datasource читает `work_items` с join:
+   ```sql
+   work_items → works!inner(date, profiles!opened_by(short_name, full_name))
+   ```
+   фильтр: `estimate_id`, `company_id`; сортировка по `works.date` DESC.
+4. Каждая запись истории содержит: дату смены, количество, участок (`section`), этаж (`floor`), опционально `openedByName`.
+5. **Отображение:** дата и количество в одной строке; участок/этаж — `bodySmall`; ФИО открывшего смену — `labelSmall`, 10px, приглушённый цвет, под участком/этажом. Если имя пустое — строка не показывается.
+6. Вкладка **«Сводка»** агрегирует количество по иерархии участок → этаж (без ФИО).
+7. **Ограничение:** показывается автор **открытия смены** (`works.opened_by`), а не пользователь, вручную внёсший конкретную строку `work_items` (отдельного `created_by` у строки работы нет).
 
 ### Фильтр по подсистеме (desktop, вкладки «Смета» и «Выполнение»)
 1. Уникальные подсистемы собираются из загруженных позиций сметы (`collectEstimateSubsystemLabels`): значение колонки `subsystem`, пустое — подпись **«Без подсистемы»**.
@@ -309,6 +340,29 @@ lib/features/estimates/
 1. Переходы в UI ограничены цепочкой `draft -> pending -> approved`, с возможностью возврата `pending -> draft`.
 2. После `approved` обычное редактирование и удаление блокируются политиками и UI.
 3. История смен статуса пишется в `public.vor_status_history`.
+
+### Удаление черновика ВОР
+
+| Кто | Может удалить черновик? |
+|:---|:---|
+| Владелец компании | Да (через `check_permission`, `is_owner = true`) |
+| Пользователь с правом **Сметы → Удаление** (`estimates.delete`) | Да |
+| **Создатель ведомости** (`vors.created_by`) | Да, даже без `estimates.delete` |
+| Остальные пользователи | Нет |
+
+**Последовательность (UI + `VorActions.deleteVor`):**
+1. Кнопка корзины в `vor_list_dialog.dart` видна только при `canDeleteVor` (черновик + одно из условий выше).
+2. Пользователь подтверждает удаление в диалоге.
+3. Клиент читает `excel_url`, `excel_combined_url`, `pdf_url`.
+4. `estimate_data_source.deleteVor` удаляет запись из `vors` (RLS: только `draft` + право/создатель).
+5. Каскадно удаляются `vor_items`, `vor_systems`, `vor_status_history` (RLS-политики `DELETE` с тем же условием).
+6. Файлы удаляются из bucket `vor_documents`.
+7. Инвалидируются `vorsProvider`, `draftVorNeedsRecalcProvider`, `contractVorCompletionProvider`.
+
+**Ограничения:**
+- Статусы `pending` и `approved` удалить нельзя (ни в UI, ни в RLS).
+- Для позиций сметы дополнительно проверяется object-scope; для ВОР — нет, только company + право/создатель.
+- Если к ВОР привязан акт КС-2 (`ks2_acts.vor_id`, `ON DELETE RESTRICT`), удаление может быть заблокировано на уровне FK.
 
 ### Версионирование (LC / ДС)
 1. **Инициализация (Baseline):** При первом скачивании шаблона ДС или импорте ДС для старой сметы создается ревизия №0 ("Основная") на базе текущих данных `estimates`.
@@ -332,9 +386,9 @@ lib/features/estimates/
 7. Открытие PDF выполняется через signed URL и `url_launcher`.
 
 ### Очистка файлов
-1. Удаление ВОР разрешено только для `draft`.
-2. Перед удалением клиент считывает `excel_url` и `pdf_url`.
-3. После удаления записи из БД оба файла удаляются из bucket `vor_documents`.
+1. Удаление ВОР разрешено только для `draft` и только пользователям из таблицы прав выше.
+2. Перед удалением клиент считывает `excel_url`, `excel_combined_url` и `pdf_url`.
+3. После удаления записи из БД все связанные файлы удаляются из bucket `vor_documents`.
 
 ### Таб `ВОР`
 1. Колонки `ВОР-*` строятся динамически по списку ВОР договора.
@@ -380,6 +434,8 @@ lib/features/estimates/
 - 🟢 Excel export для ВОР — **Done**
 - 🟢 Cumulative export по всем ВОР договора — **Done**
 - 🟢 Автоматическая очистка Excel/PDF из Storage при удалении draft ВОР — **Done**
+- 🟢 Удаление черновика ВОР создателем без права `estimates.delete` (RLS + UI) — **Done**
+- 🟢 Пересчёт черновика ВОР при новых работах за период (`recalculate_vor`, `vor_recalculate_confirm_dialog`) — **Done**
 - 🟢 Signed PDF upload/view для подписанной ВОР — **Done**
 - 🟢 Цветовая индикация наличия PDF в карточке ВОР — **Done**
 - 🟢 Отображение автора и даты загрузки PDF в секции файлов — **Done**
@@ -387,6 +443,8 @@ lib/features/estimates/
 - 🟢 Авто-миграция старых смет в базовую ревизию — **Done**
 - 🟢 Серверная генерация шаблонов ДС (Times New Roman 12) — **Done**
 - 🟢 Фильтр по подсистеме (текстовые переключатели над таблицей, desktop) — **Done**
+- 🟢 ФИО открывшего смену в истории выполнения позиции (desktop, `estimate_completion_history_panel`) — **Done**
+- 🟡 ФИО открывшего смену в мобильной истории выполнения (`estimate_details_modal`) — **Planned**
 - 🟡 Фильтр по подсистеме на mobile — **Planned**
 - 🟡 Интерфейс просмотра и утверждения ревизий — **Planned**
 - 🟡 Backfill старых PDF-загрузок в `vor_status_history` — **Planned**
