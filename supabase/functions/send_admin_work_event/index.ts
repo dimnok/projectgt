@@ -362,23 +362,25 @@ Deno.serve(async (req) => {
       if (!existing || t.updated_at > existing.updated_at) {
         latestByUserPlatform.set(key, {
           token: t.token,
+          platform: t.platform,
           updated_at: t.updated_at,
         });
       }
     }
 
-    const tokens = [...latestByUserPlatform.values()]
-      .map((entry) => entry.token)
-      .filter(Boolean);
+    const tokensToSend = [...latestByUserPlatform.entries()].map(([, entry]) => ({
+      token: (entry as { token: string; platform: string }).token,
+      platform: (entry as { token: string; platform: string }).platform,
+    })).filter((entry) => entry.token);
 
     const diag = {
       admin_count: recipientIds.length,
       notify_all: notifyAllCompany,
       raw_tokens_count: (rawTokens ?? []).length,
-      tokens_total: tokens.length,
+      tokens_total: tokensToSend.length,
     };
 
-    if (tokens.length === 0) {
+    if (tokensToSend.length === 0) {
       console.log("send_admin_work_event: no_tokens", {
         ...ctx,
         ...diag,
@@ -432,53 +434,63 @@ Deno.serve(async (req) => {
 
     let sent = 0;
 
-    for (const tk of tokens) {
-      const payload = {
-        message: {
-          token: tk,
-          notification: {
-            title,
-            body,
-          },
-          data: {
-            type: "work_event",
-            action,
-            work_id: String(work_id),
-            object_id: String(work.object_id),
-          },
-          apns: {
-            headers: {
-              "apns-push-type": "alert",
-              "apns-priority": "10",
-              "apns-topic": "com.projectgt.stroyka",
+    const dataPayload = {
+      type: "work_event",
+      action,
+      work_id: String(work_id),
+      object_id: String(work.object_id),
+    };
+
+    for (const { token, platform } of tokensToSend) {
+      // PWA (web): только webpush — без top-level notification, иначе два баннера.
+      const payload = platform === "web"
+        ? {
+          message: {
+            token,
+            data: dataPayload,
+            webpush: {
+              headers: {
+                Urgency: "high",
+              },
+              notification: {
+                title,
+                body,
+                icon: "/icons/Icon-192.png",
+              },
+              fcm_options: {
+                link: `/works/${work_id}`,
+              },
             },
-            payload: {
-              aps: {
+          },
+        }
+        : {
+          message: {
+            token,
+            notification: {
+              title,
+              body,
+            },
+            data: dataPayload,
+            apns: {
+              headers: {
+                "apns-push-type": "alert",
+                "apns-priority": "10",
+                "apns-topic": "com.projectgt.stroyka",
+              },
+              payload: {
+                aps: {
+                  sound: "default",
+                },
+              },
+            },
+            android: {
+              priority: "HIGH",
+              notification: {
                 sound: "default",
               },
             },
           },
-          android: {
-            priority: "HIGH",
-            notification: {
-              sound: "default",
-            },
-          },
-          webpush: {
-            headers: {
-              Urgency: "high",
-            },
-            notification: {
-              title,
-              body,
-              icon: "/icons/Icon-192.png",
-            },
-            fcm_options: {
-              link: `/works/${work_id}`,
-            },
-          },
-        },
-      };
+        };
 
       const r = await fetch(
         `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
@@ -503,7 +515,7 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({
       sent,
-      total: tokens.length,
+      total: tokensToSend.length,
       ...diag,
     }), {
       status: 200,

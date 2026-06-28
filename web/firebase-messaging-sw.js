@@ -1,5 +1,8 @@
 /* eslint-disable no-undef */
-// Firebase Messaging Service Worker for Flutter Web PWA push notifications.
+// Firebase Messaging Service Worker for Flutter Web / iOS PWA push notifications.
+//
+// Важно: для PWA FCM сам показывает push из webpush.notification.
+// Нельзя вызывать showNotification() в onBackgroundMessage — иначе два баннера.
 
 importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js');
@@ -21,17 +24,20 @@ function buildWorkUrl(workId) {
   return '/works/' + workId;
 }
 
+// Data-only fallback: если придёт сообщение без notification, показываем сами.
 messaging.onBackgroundMessage((payload) => {
-  const title =
-    (payload && payload.notification && payload.notification.title) ||
-    'Стройка PRO';
-  const body =
-    (payload && payload.notification && payload.notification.body) || '';
+  if (payload && payload.notification) {
+    return;
+  }
+
+  const title = (payload && payload.data && payload.data.title) || 'Стройка PRO';
+  const body = (payload && payload.data && payload.data.body) || '';
   const workId = payload && payload.data && payload.data.work_id;
 
   return self.registration.showNotification(title, {
     body,
     icon: '/icons/Icon-192.png',
+    tag: workId || 'work_event',
     data: {
       workId: workId || '',
       url: buildWorkUrl(workId),
@@ -42,8 +48,8 @@ messaging.onBackgroundMessage((payload) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
-  const targetPath =
-    (event.notification.data && event.notification.data.url) || '/';
+  const data = event.notification.data || {};
+  const targetPath = data.url || '/';
   const targetUrl = new URL(targetPath, self.location.origin).href;
 
   event.waitUntil(
