@@ -150,21 +150,14 @@ class FcmTokenService {
         : 'android';
 
     try {
-      // На Web Firebase Installations часто создаёт новый installation_id —
-      // деактивируем все прочие активные токены пользователя на этой платформе.
-      await Supabase.instance.client
-          .from('user_tokens')
-          .update({'is_active': false})
-          .eq('user_id', user.id)
-          .eq('platform', platform)
-          .neq('token', token);
-
-      // Деактивируем старые записи этой установки/платформы с другим токеном
+      // Деактивируем только старые записи этой же установки с другим токеном.
+      // Не трогаем другие устройства (iPhone PWA и ПК — оба platform=web).
       if (installationId != null && installationId.isNotEmpty) {
         try {
           await Supabase.instance.client
               .from('user_tokens')
               .update({'is_active': false})
+              .eq('user_id', user.id)
               .eq('installation_id', installationId)
               .eq('platform', platform)
               .neq('token', token);
@@ -183,5 +176,10 @@ class FcmTokenService {
     } catch (_) {
       // Проглатываем ошибку сохранения, чтобы не блокировать запуск приложения
     }
+  }
+
+  /// Пересохраняет FCM-токен текущего устройства (при возврате в приложение).
+  Future<void> refreshCurrentDeviceToken() async {
+    await _syncTokenIfPossible();
   }
 }

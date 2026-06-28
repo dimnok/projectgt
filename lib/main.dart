@@ -207,6 +207,7 @@ class _MyAppState extends ConsumerState<MyApp> {
 
   void _handleRefresh() {
     ref.read(appFocusRefreshProvider.notifier).handleAppResumed();
+    ref.read(fcmTokenServiceProvider).refreshCurrentDeviceToken();
   }
 
   @override

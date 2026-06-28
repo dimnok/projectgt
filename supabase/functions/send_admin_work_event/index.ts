@@ -333,7 +333,7 @@ Deno.serve(async (req) => {
       : await resolveAdminUserIds(svcClient, companyId);
 
     const { data: rawTokens } = await svcClient.from("user_tokens").select(
-      "user_id, token, platform, is_active, updated_at",
+      "user_id, token, platform, installation_id, is_active, updated_at",
     ).in(
       "user_id",
       recipientIds.length ? recipientIds : [
@@ -346,21 +346,25 @@ Deno.serve(async (req) => {
       platform: string;
     }) => t.is_active === true && PUSH_PLATFORMS.has(t.platform));
 
-    // Один актуальный токен на пользователя и платформу (избегаем сотен дублей web).
-    const latestByUserPlatform = new Map<string, {
+    // Один актуальный токен на устройство (installation_id), не одна web-запись на всех.
+    const latestByDevice = new Map<string, {
       token: string;
+      platform: string;
       updated_at: string;
     }>();
     for (const t of activeTokens as Array<{
       user_id: string;
       token: string;
       platform: string;
+      installation_id: string | null;
       updated_at: string;
     }>) {
-      const key = `${t.user_id}:${t.platform}`;
-      const existing = latestByUserPlatform.get(key);
+      const deviceKey = t.installation_id
+        ? `${t.user_id}:${t.platform}:${t.installation_id}`
+        : `${t.user_id}:${t.platform}:${t.token}`;
+      const existing = latestByDevice.get(deviceKey);
       if (!existing || t.updated_at > existing.updated_at) {
-        latestByUserPlatform.set(key, {
+        latestByDevice.set(deviceKey, {
           token: t.token,
           platform: t.platform,
           updated_at: t.updated_at,
@@ -368,7 +372,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    const tokensToSend = [...latestByUserPlatform.entries()].map(([, entry]) => ({
+    const tokensToSend = [...latestByDevice.entries()].map(([, entry]) => ({
       token: (entry as { token: string; platform: string }).token,
       platform: (entry as { token: string; platform: string }).platform,
     })).filter((entry) => entry.token);
