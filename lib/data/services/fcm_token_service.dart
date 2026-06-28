@@ -159,6 +159,7 @@ class FcmTokenService {
     final installationKey = resolvedInstallationId ?? '';
 
     final device = await collectFcmDeviceMetadata();
+    final displayName = await _resolveUserDisplayName(user.id);
 
     try {
       // Деактивируем только старые записи этой же установки с другим токеном.
@@ -184,6 +185,7 @@ class FcmTokenService {
         'device_model': device.deviceModel,
         'os_version': device.osVersion,
         'app_version': device.appVersion,
+        'user_display_name': displayName,
         'is_active': true,
         'updated_at': DateTime.now().toIso8601String(),
       }, onConflict: 'installation_id,platform');
@@ -196,5 +198,27 @@ class FcmTokenService {
   /// Пересохраняет FCM-токен текущего устройства (при возврате в приложение).
   Future<void> refreshCurrentDeviceToken() async {
     await _syncTokenIfPossible();
+  }
+
+  /// ФИО пользователя для отображения в [user_tokens.user_display_name].
+  Future<String?> _resolveUserDisplayName(String userId) async {
+    try {
+      final row = await Supabase.instance.client
+          .from('profiles')
+          .select('short_name, full_name')
+          .eq('id', userId)
+          .maybeSingle();
+      if (row == null) return null;
+
+      final shortName = (row['short_name'] as String?)?.trim();
+      if (shortName != null && shortName.isNotEmpty) return shortName;
+
+      final fullName = (row['full_name'] as String?)?.trim();
+      if (fullName != null && fullName.isNotEmpty) return fullName;
+
+      return null;
+    } catch (_) {
+      return null;
+    }
   }
 }

@@ -296,6 +296,7 @@ Fallback без `installation_id`: ключ включает сам `token`.
 | token | text | FCM token, UNIQUE |
 | platform | text | `ios` \| `android` \| `web` |
 | installation_id | text | Firebase Installation ID |
+| user_display_name | text | ФИО пользователя (`short_name` или `full_name` из profiles) |
 | device_id | text | ID устройства (native) |
 | device_model | text | Подпись: «Safari PWA (iPhone)», «Chrome (Windows)» |
 | os_version | text | Версия ОС |
@@ -310,10 +311,10 @@ Fallback без `installation_id`: ключ включает сам `token`.
 ### Проверочные SQL
 
 ```sql
--- Активные токены с подписью устройства
-SELECT platform, device_model, os_version, app_version, updated_at
+-- Активные токены: ФИО, устройство, ОС
+SELECT user_display_name, platform, device_model, os_version, updated_at
 FROM user_tokens
-WHERE user_id = '<uuid>' AND is_active
+WHERE is_active
 ORDER BY updated_at DESC;
 
 -- Кому уйдёт push для смены (admins+owners)
