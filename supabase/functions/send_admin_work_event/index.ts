@@ -458,7 +458,8 @@ Deno.serve(async (req) => {
                 icon: "/icons/Icon-192.png",
               },
               fcm_options: {
-                link: `/works/${work_id}`,
+                // Query вместо /works/:id — статический хостинг PWA не отдаёт SPA-маршруты.
+                link: `/?work_id=${work_id}`,
               },
             },
           },

@@ -19,6 +19,8 @@ import 'package:projectgt/core/utils/global_keys.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:projectgt/data/services/fcm_token_service.dart';
 import 'package:projectgt/core/notifications/fcm_push_handler.dart';
+import 'package:projectgt/core/notifications/push_work_navigation.dart';
+import 'package:projectgt/core/notifications/push_work_navigation_platform.dart';
 import 'package:projectgt/features/version_control/providers/version_providers.dart';
 import 'package:projectgt/core/utils/version_utils.dart';
 import 'package:projectgt/core/constants/app_constants.dart';
@@ -147,6 +149,23 @@ class MyApp extends ConsumerStatefulWidget {
 class _MyAppState extends ConsumerState<MyApp> {
   late final AppLifecycleListener _lifecycleListener;
   bool _fcmPushHandlerInitialized = false;
+  bool _webPushNavigationListenerSetup = false;
+
+  void _openWorkFromPush(String workId) {
+    if (!mounted || workId.isEmpty) return;
+    ref.read(routerProvider).push('/works/$workId');
+    if (kIsWeb) {
+      clearPushWorkQueryFromUrl();
+    }
+  }
+
+  void _navigateToWorkFromPushUri() {
+    if (!kIsWeb) return;
+    final workId = extractWorkIdFromPushUri(Uri.base);
+    if (workId != null) {
+      _openWorkFromPush(workId);
+    }
+  }
 
   @override
   void initState() {
@@ -170,12 +189,20 @@ class _MyAppState extends ConsumerState<MyApp> {
     }
     _fcmPushHandlerInitialized = true;
 
+    if (kIsWeb && !_webPushNavigationListenerSetup) {
+      _webPushNavigationListenerSetup = true;
+      setupWebPushNavigationListener(_openWorkFromPush);
+    }
+
     await initializeFcmPushHandler(
-      onWorkEventTap: (workId) {
-        if (!mounted) return;
-        ref.read(routerProvider).push('/works/$workId');
-      },
+      onWorkEventTap: _openWorkFromPush,
     );
+
+    if (kIsWeb) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _navigateToWorkFromPushUri();
+      });
+    }
   }
 
   void _handleRefresh() {

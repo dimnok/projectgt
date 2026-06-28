@@ -21,7 +21,8 @@ const messaging = firebase.messaging();
 
 function buildWorkUrl(workId) {
   if (!workId) return '/';
-  return '/works/' + workId;
+  // Query-параметр: S3-хостинг отдаёт только index.html на `/`, не на `/works/:id`.
+  return '/?work_id=' + workId;
 }
 
 // Data-only fallback: если придёт сообщение без notification, показываем сами.
