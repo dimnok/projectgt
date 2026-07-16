@@ -8,7 +8,6 @@ import '../../../../core/utils/responsive_utils.dart';
 import '../../../../core/widgets/gt_context_menu.dart';
 import '../../domain/entities/payroll_transaction.dart';
 import '../providers/penalty_providers.dart';
-import '../providers/balance_providers.dart';
 import '../providers/payroll_providers.dart';
 import 'payroll_transaction_form_modal.dart';
 import 'fot_transaction_table_widget.dart';
@@ -135,9 +134,7 @@ class _PayrollPenaltyTableViewState
         final deletePenalty = ref.read(deletePenaltyUseCaseProvider);
         await deletePenalty(penalty.id);
         ref.invalidate(penaltiesByFilterProvider);
-        ref.invalidate(employeeAggregatedBalanceProvider);
-        ref.invalidate(payrollPayoutsByFilterProvider);
-        ref.invalidate(filteredPayrollsProvider);
+        invalidatePayrollFotTableDependents(ref);
         if (context.mounted) {
           SnackBarUtils.showSuccess(context, 'Штраф удалён');
         }

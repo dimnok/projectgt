@@ -8,7 +8,6 @@ import '../../../../core/widgets/gt_context_menu.dart';
 import '../../../../core/utils/snackbar_utils.dart';
 import '../../data/models/payroll_payout_model.dart';
 import '../providers/payroll_providers.dart';
-import '../providers/balance_providers.dart';
 import 'payroll_payout_form_modal.dart';
 import 'fot_payout_table_widget.dart';
 import 'fot_payout_mobile_view.dart';
@@ -119,8 +118,7 @@ class _PayrollPayoutTableViewState
       try {
         final deletePayout = ref.read(deletePayoutUseCaseProvider);
         await deletePayout(payout.id);
-        ref.invalidate(payrollPayoutsByFilterProvider);
-        ref.invalidate(employeeAggregatedBalanceProvider);
+        invalidatePayrollPayoutDependents(ref);
         if (context.mounted) {
           SnackBarUtils.showSuccess(context, 'Выплата удалена');
         }

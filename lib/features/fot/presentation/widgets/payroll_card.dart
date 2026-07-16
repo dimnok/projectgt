@@ -5,6 +5,7 @@ import '../../../../core/utils/employee_ui_utils.dart';
 import '../../domain/entities/payroll_calculation.dart';
 import '../../../../domain/entities/employee.dart';
 import '../utils/balance_utils.dart';
+import 'payroll_refreshing_amount.dart';
 
 /// Информация о сотруднике для отображения в карточке ФОТ.
 class PayrollCardInfo {
@@ -43,6 +44,12 @@ class PayrollCard extends StatefulWidget {
   /// Обработчик долгого нажатия (для контекстного меню).
   final VoidCallback? onLongPress;
 
+  /// Пересчёт начислений за месяц.
+  final bool isPayrollsRefreshing;
+
+  /// Пересчёт выплат и баланса.
+  final bool isSettlementRefreshing;
+
   /// Создает экземпляр [PayrollCard].
   const PayrollCard({
     super.key,
@@ -50,6 +57,8 @@ class PayrollCard extends StatefulWidget {
     required this.info,
     required this.theme,
     this.onLongPress,
+    this.isPayrollsRefreshing = false,
+    this.isSettlementRefreshing = false,
   });
 
   @override
@@ -154,24 +163,33 @@ class _PayrollCardState extends State<PayrollCard>
                         crossAxisAlignment: CrossAxisAlignment.end,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            formatCurrency(widget.payroll.netSalary),
-                            style: widget.theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w900,
-                              fontSize: 14,
-                              color: widget.theme.colorScheme.primary,
+                          PayrollRefreshingAmount(
+                            isRefreshing: widget.isPayrollsRefreshing,
+                            size: 12,
+                            child: Text(
+                              formatCurrency(widget.payroll.netSalary),
+                              style: widget.theme.textTheme.titleMedium
+                                  ?.copyWith(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 14,
+                                color: widget.theme.colorScheme.primary,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 2),
-                          BalanceUtils.buildBalanceWidget(
-                            widget.info.balance,
-                            widget.theme,
-                            showIcon: true,
-                            textStyle: widget.theme.textTheme.bodySmall
-                                ?.copyWith(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                          PayrollRefreshingAmount(
+                            isRefreshing: widget.isSettlementRefreshing,
+                            size: 12,
+                            child: BalanceUtils.buildBalanceWidget(
+                              widget.info.balance,
+                              widget.theme,
+                              showIcon: true,
+                              textStyle: widget.theme.textTheme.bodySmall
+                                  ?.copyWith(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
                         ],
                       ),

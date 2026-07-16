@@ -12,7 +12,6 @@ import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:projectgt/core/di/providers.dart';
 import '../providers/bonus_providers.dart';
 import '../providers/penalty_providers.dart';
-import '../providers/balance_providers.dart';
 import '../providers/payroll_providers.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/snackbar_utils.dart';
@@ -249,9 +248,7 @@ class _PayrollTransactionFormModalState
     } else {
       ref.invalidate(penaltiesByFilterProvider);
     }
-    ref.invalidate(employeeAggregatedBalanceProvider);
-    ref.invalidate(payrollPayoutsByFilterProvider);
-    ref.invalidate(filteredPayrollsProvider); // Обновляем основную таблицу ФОТ
+    invalidatePayrollFotTableDependents(ref);
   }
 
   @override

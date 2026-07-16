@@ -162,10 +162,7 @@ class _PayrollPayoutAmountModalState
         await createUseCase(payout);
       }
 
-      // Обновляем провайдеры
-      ref.invalidate(filteredPayrollPayoutsProvider);
-      ref.invalidate(employeeAggregatedBalanceProvider);
-      ref.invalidate(payrollPayoutsByFilterProvider);
+      invalidatePayrollPayoutDependents(ref);
 
       if (mounted) {
         // Закрываем оба модальных окна

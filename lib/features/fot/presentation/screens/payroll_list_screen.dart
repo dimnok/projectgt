@@ -7,6 +7,7 @@ import 'package:projectgt/core/theme/theme_settings_provider.dart';
 import 'package:projectgt/core/widgets/mobile_atmosphere_backdrop.dart';
 import 'package:projectgt/core/widgets/mobile_atmosphere_main_surface.dart';
 import 'package:projectgt/core/widgets/mobile_atmosphere_screen_header.dart';
+import 'package:projectgt/features/employees/presentation/utils/employees_layout_utils.dart';
 import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart'
     show AppRoute, AppDrawer;
@@ -17,8 +18,9 @@ import '../../domain/entities/payroll_calculation.dart';
 import '../providers/payroll_filter_providers.dart';
 import '../providers/payroll_providers.dart';
 import '../widgets/payroll_export_action.dart';
-import '../widgets/payroll_search_action.dart';
-import '../widgets/payroll_tab_segment.dart';
+import '../widgets/payroll_filters_toolbar.dart';
+import '../widgets/payroll_mobile_search_field.dart';
+import '../utils/payroll_name_search_filters.dart';
 import '../widgets/payroll_table_widget.dart';
 import 'tabs/payroll_tab_bonuses.dart';
 import 'tabs/payroll_tab_penalties.dart';
@@ -41,20 +43,7 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
   bool _initialLoadStarted = false;
   int _selectedTabIndex = 0;
 
-  static const List<String> _monthNames = [
-    'январь',
-    'февраль',
-    'март',
-    'апрель',
-    'май',
-    'июнь',
-    'июль',
-    'август',
-    'сентябрь',
-    'октябрь',
-    'ноябрь',
-    'декабрь',
-  ];
+  static const String _screenTitle = 'Фонд оплаты труда';
 
   @override
   void initState() {
@@ -82,20 +71,14 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
     }
   }
 
-  String _screenTitle(PayrollFilterState filterState) {
-    return 'ФОТ — ${_monthNames[filterState.selectedMonth - 1]} '
-        '${filterState.selectedYear}';
-  }
-
   @override
   Widget build(BuildContext context) {
-    final filterState = ref.watch(payrollFilterProvider);
     final payrollsAsync = ref.watch(filteredPayrollsProvider);
     final searchQuery = ref.watch(payrollSearchQueryProvider);
     final appearance = MobileAtmosphereAppearance.of(context);
     final scheme = appearance.scheme;
     final isDark = appearance.isDark;
-    final title = _screenTitle(filterState);
+    final useMobileList = EmployeesLayoutUtils.useEmployeesMobileList(context);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
@@ -157,15 +140,29 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
                                 child: PayrollExportAction(),
                               );
 
-                        final actions = Row(
+                        if (useMobileList) {
+                          return Row(
+                            children: [
+                              menuButton,
+                              const SizedBox(width: 8),
+                              const Expanded(child: PayrollMobileSearchField()),
+                              if (exportButton != null) ...[
+                                const SizedBox(width: 4),
+                                exportButton,
+                              ],
+                              const SizedBox(width: 4),
+                              themeButton,
+                            ],
+                          );
+                        }
+
+                        final desktopActions = Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const PayrollSearchAction(),
                             if (exportButton != null) ...[
-                              const SizedBox(width: 4),
                               exportButton,
+                              const SizedBox(width: 4),
                             ],
-                            const SizedBox(width: 4),
                             themeButton,
                           ],
                         );
@@ -173,12 +170,9 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
                         if (narrow) {
                           return MobileAtmosphereScreenHeader(
                             appearance: appearance,
-                            title: title,
+                            title: _screenTitle,
                             leading: menuButton,
-                            trailing: SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: actions,
-                            ),
+                            trailing: desktopActions,
                           );
                         }
 
@@ -189,7 +183,7 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
-                                title,
+                                _screenTitle,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: Theme.of(context).textTheme.titleLarge
@@ -197,33 +191,12 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            Flexible(
-                              fit: FlexFit.loose,
-                              child: Align(
-                                alignment: Alignment.centerRight,
-                                child: SingleChildScrollView(
-                                  scrollDirection: Axis.horizontal,
-                                  reverse: true,
-                                  child: actions,
-                                ),
-                              ),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: desktopActions,
                             ),
                           ],
                         );
-                      },
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
-                    child: PayrollTabSegment(
-                      selectedIndex: _selectedTabIndex,
-                      onChanged: (index) {
-                        setState(() => _selectedTabIndex = index);
-                        final query = ref.read(payrollSearchQueryProvider);
-                        if (query.trim().isEmpty) {
-                          ref.read(payrollSearchVisibleProvider.notifier).state =
-                              false;
-                        }
                       },
                     ),
                   ),
@@ -231,13 +204,26 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
                     child: Padding(
                       padding: _kPayrollBodyPadding,
                       child: MobileAtmosphereMainSurface(
-                        child: IndexedStack(
-                          index: _selectedTabIndex,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            _buildFotTab(payrollsAsync, searchQuery),
-                            const PayrollTabBonuses(),
-                            const PayrollTabPenalties(),
-                            const PayrollTabPayouts(),
+                            PayrollFiltersToolbar(
+                              selectedTabIndex: _selectedTabIndex,
+                              onTabChanged: (index) {
+                                setState(() => _selectedTabIndex = index);
+                              },
+                            ),
+                            Expanded(
+                              child: IndexedStack(
+                                index: _selectedTabIndex,
+                                children: [
+                                  _buildFotTab(payrollsAsync, searchQuery),
+                                  const PayrollTabBonuses(),
+                                  const PayrollTabPenalties(),
+                                  const PayrollTabPayouts(),
+                                ],
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -260,13 +246,17 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
     final scheme = theme.colorScheme;
 
     return payrollsAsync.when(
+      skipLoadingOnReload: true,
       data: (payrolls) {
         final filteredPayrolls = filterPayrollsByEmployeeName(
           payrolls,
           searchQuery,
           ref,
         );
-        return PayrollTableWidget(payrolls: filteredPayrolls);
+        return PayrollTableWidget(
+          payrolls: filteredPayrolls,
+          isPayrollsRefreshing: payrollsAsync.isLoading,
+        );
       },
       loading: () => ColoredBox(
         color: scheme.surface.withValues(alpha: 0.8),
@@ -276,10 +266,7 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
             children: [
               const CircularProgressIndicator(),
               const SizedBox(height: 16),
-              Text(
-                'Загрузка данных ФОТ...',
-                style: theme.textTheme.bodyMedium,
-              ),
+              Text('Загрузка данных ФОТ...', style: theme.textTheme.bodyMedium),
             ],
           ),
         ),
@@ -288,17 +275,11 @@ class _PayrollListScreenState extends ConsumerState<PayrollListScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 48,
-              color: scheme.error,
-            ),
+            Icon(Icons.error_outline, size: 48, color: scheme.error),
             const SizedBox(height: 16),
             Text(
               'Ошибка загрузки данных',
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: scheme.error,
-              ),
+              style: theme.textTheme.titleMedium?.copyWith(color: scheme.error),
             ),
             const SizedBox(height: 8),
             SizedBox(

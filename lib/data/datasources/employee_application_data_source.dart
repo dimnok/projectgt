@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:projectgt/data/models/employee_application_model.dart';
 import 'package:projectgt/domain/entities/employee_application.dart';
 

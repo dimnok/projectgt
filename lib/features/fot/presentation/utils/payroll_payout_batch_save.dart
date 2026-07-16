@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 import 'package:projectgt/features/fot/data/models/payroll_payout_model.dart';
-import 'package:projectgt/features/fot/presentation/providers/balance_providers.dart';
 import 'package:projectgt/features/fot/presentation/providers/payroll_providers.dart';
 import 'package:uuid/uuid.dart';
 
@@ -62,9 +61,7 @@ Future<int> savePayrollPayoutBatch({
     created++;
   }
 
-  ref.invalidate(filteredPayrollPayoutsProvider);
-  ref.invalidate(employeeAggregatedBalanceProvider);
-  ref.invalidate(payrollPayoutsByFilterProvider);
+  invalidatePayrollPayoutDependents(ref);
 
   return created;
 }

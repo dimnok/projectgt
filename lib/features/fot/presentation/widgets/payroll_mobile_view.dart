@@ -6,6 +6,7 @@ import '../utils/balance_utils.dart';
 import '../providers/payroll_grid_selection_providers.dart';
 import 'payroll_card.dart';
 import 'payroll_grid_checkbox.dart';
+import 'payroll_refreshing_amount.dart';
 
 /// Суммарные показатели для мобильного вида.
 class PayrollMobileTotals {
@@ -41,6 +42,12 @@ class PayrollMobileView extends ConsumerWidget {
   final void Function(PayrollCalculation payroll, Offset position)
   onRowLongPress;
 
+  /// Пересчёт начислений за месяц.
+  final bool isPayrollsRefreshing;
+
+  /// Пересчёт выплат и баланса.
+  final bool isSettlementRefreshing;
+
   /// Создает мобильный вид ФОТ.
   const PayrollMobileView({
     super.key,
@@ -48,6 +55,8 @@ class PayrollMobileView extends ConsumerWidget {
     required this.employeeInfoMap,
     required this.totals,
     required this.onRowLongPress,
+    this.isPayrollsRefreshing = false,
+    this.isSettlementRefreshing = false,
   });
 
   @override
@@ -96,10 +105,12 @@ class PayrollMobileView extends ConsumerWidget {
                         ),
                       ),
                     Expanded(
-                      child: PayrollCard(
+                      child:                       PayrollCard(
                         payroll: payroll,
                         info: info,
                         theme: theme,
+                        isPayrollsRefreshing: isPayrollsRefreshing,
+                        isSettlementRefreshing: isSettlementRefreshing,
                       ),
                     ),
                   ],
@@ -141,12 +152,14 @@ class PayrollMobileView extends ConsumerWidget {
                 'К выплате',
                 formatCurrency(totals.netSalary),
                 theme.colorScheme.primary,
+                isRefreshing: isPayrollsRefreshing,
               ),
               _buildSummaryItem(
                 context,
                 'Выплачено',
                 formatCurrency(totals.payout),
                 const Color(0xFF1565C0),
+                isRefreshing: isSettlementRefreshing,
               ),
               _buildSummaryItem(
                 context,
@@ -154,6 +167,7 @@ class PayrollMobileView extends ConsumerWidget {
                 BalanceUtils.formatBalance(totals.balance),
                 BalanceUtils.getBalanceColor(totals.balance, theme),
                 icon: BalanceUtils.getBalanceIcon(totals.balance),
+                isRefreshing: isSettlementRefreshing,
               ),
             ],
           ),
@@ -168,6 +182,7 @@ class PayrollMobileView extends ConsumerWidget {
     String value,
     Color color, {
     IconData? icon,
+    bool isRefreshing = false,
   }) {
     final theme = Theme.of(context);
     return Column(
@@ -183,22 +198,26 @@ class PayrollMobileView extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 2),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 10, color: color),
-              const SizedBox(width: 2),
-            ],
-            Text(
-              value,
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w900,
-                color: color,
-                fontSize: 12,
+        PayrollRefreshingAmount(
+          isRefreshing: isRefreshing,
+          size: 12,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 10, color: color),
+                const SizedBox(width: 2),
+              ],
+              Text(
+                value,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  color: color,
+                  fontSize: 12,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );

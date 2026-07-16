@@ -22,6 +22,7 @@ import 'payroll_transaction_form_modal.dart';
 import 'payroll_payout_form_modal.dart';
 import 'payroll_card.dart';
 import 'payroll_mobile_view.dart';
+import 'payroll_refreshing_amount.dart';
 
 /// Константы для таблицы ФОТ (Фонд оплаты труда).
 class PayrollTableConstants {
@@ -73,6 +74,12 @@ class PayrollTableView extends ConsumerStatefulWidget {
   /// Флаг десктопа.
   final bool isDesktop;
 
+  /// Пересчёт начислений за месяц (колонка «К выплате»).
+  final bool isPayrollsRefreshing;
+
+  /// Пересчёт выплат и баланса (FIFO).
+  final bool isSettlementRefreshing;
+
   /// Создаёт экземпляр [PayrollTableView].
   const PayrollTableView({
     super.key,
@@ -83,6 +90,8 @@ class PayrollTableView extends ConsumerStatefulWidget {
     required this.isMobile,
     required this.isTablet,
     required this.isDesktop,
+    this.isPayrollsRefreshing = false,
+    this.isSettlementRefreshing = false,
   });
 
   @override
@@ -149,6 +158,8 @@ class _PayrollTableViewState extends ConsumerState<PayrollTableView> {
         payrolls: flatPayrolls,
         employeeInfoMap: infoMap,
         totals: mobileTotals,
+        isPayrollsRefreshing: widget.isPayrollsRefreshing,
+        isSettlementRefreshing: widget.isSettlementRefreshing,
         onRowLongPress: (payroll, position) => _showContextMenu(
           context,
           _PayrollFlatRow(
@@ -384,21 +395,27 @@ class _PayrollTableViewState extends ConsumerState<PayrollTableView> {
         measureText: (row) => formatCurrency(row.payroll.netSalary),
         measureTotal: () => formatCurrency(totals.amount),
         extraWidth: 12,
-        builder: (row, _, theme) => Text(
-          formatCurrency(row.payroll.netSalary),
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        totalBuilder: (theme) => Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primaryContainer,
-            borderRadius: BorderRadius.circular(4),
-          ),
+        builder: (row, _, theme) => PayrollRefreshingAmount(
+          isRefreshing: widget.isPayrollsRefreshing,
           child: Text(
-            formatCurrency(totals.amount),
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: theme.colorScheme.onPrimaryContainer,
+            formatCurrency(row.payroll.netSalary),
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
+        totalBuilder: (theme) => PayrollRefreshingAmount(
+          isRefreshing: widget.isPayrollsRefreshing,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primaryContainer,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              formatCurrency(totals.amount),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.onPrimaryContainer,
+              ),
             ),
           ),
         ),
@@ -414,19 +431,25 @@ class _PayrollTableViewState extends ConsumerState<PayrollTableView> {
         measureTotal: () => formatCurrency(totals.payout),
         builder: (row, _, theme) {
           final payout = widget.payoutsByEmployee[row.payroll.employeeId] ?? 0;
-          return Text(
-            payout > 0 ? formatCurrency(payout) : '—',
-            style: TextStyle(
-              color: payout > 0 ? PayrollTableConstants.payoutColor : null,
-              fontWeight: payout > 0 ? FontWeight.w500 : null,
+          return PayrollRefreshingAmount(
+            isRefreshing: widget.isSettlementRefreshing,
+            child: Text(
+              payout > 0 ? formatCurrency(payout) : '—',
+              style: TextStyle(
+                color: payout > 0 ? PayrollTableConstants.payoutColor : null,
+                fontWeight: payout > 0 ? FontWeight.w500 : null,
+              ),
             ),
           );
         },
-        totalBuilder: (theme) => Text(
-          formatCurrency(totals.payout),
-          style: const TextStyle(
-            color: PayrollTableConstants.payoutColor,
-            fontWeight: FontWeight.bold,
+        totalBuilder: (theme) => PayrollRefreshingAmount(
+          isRefreshing: widget.isSettlementRefreshing,
+          child: Text(
+            formatCurrency(totals.payout),
+            style: const TextStyle(
+              color: PayrollTableConstants.payoutColor,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
       ),
@@ -442,23 +465,29 @@ class _PayrollTableViewState extends ConsumerState<PayrollTableView> {
         builder: (row, _, theme) {
           final payout = widget.payoutsByEmployee[row.payroll.employeeId] ?? 0;
           final remainder = row.payroll.netSalary - payout;
-          return Text(
-            formatCurrency(remainder),
-            style: TextStyle(
-              color: remainder > 0
-                  ? Colors.green[700]
-                  : (remainder < 0 ? Colors.red[700] : null),
-              fontWeight: FontWeight.w500,
+          return PayrollRefreshingAmount(
+            isRefreshing: widget.isSettlementRefreshing,
+            child: Text(
+              formatCurrency(remainder),
+              style: TextStyle(
+                color: remainder > 0
+                    ? Colors.green[700]
+                    : (remainder < 0 ? Colors.red[700] : null),
+                fontWeight: FontWeight.w500,
+              ),
             ),
           );
         },
-        totalBuilder: (_) => Text(
-          formatCurrency(totals.remainder),
-          style: TextStyle(
-            color: totals.remainder > 0
-                ? Colors.green[700]
-                : (totals.remainder < 0 ? Colors.red[700] : null),
-            fontWeight: FontWeight.bold,
+        totalBuilder: (_) => PayrollRefreshingAmount(
+          isRefreshing: widget.isSettlementRefreshing,
+          child: Text(
+            formatCurrency(totals.remainder),
+            style: TextStyle(
+              color: totals.remainder > 0
+                  ? Colors.green[700]
+                  : (totals.remainder < 0 ? Colors.red[700] : null),
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
       ),
@@ -479,12 +508,15 @@ class _PayrollTableViewState extends ConsumerState<PayrollTableView> {
         builder: (row, _, theme) {
           final balance =
               widget.aggregatedBalance[row.payroll.employeeId ?? ''] ?? 0;
-          return BalanceUtils.buildBalanceWidget(
-            balance,
-            theme,
-            showIcon: true,
-            showDescription: false,
-            textStyle: theme.textTheme.bodySmall?.copyWith(fontSize: 11),
+          return PayrollRefreshingAmount(
+            isRefreshing: widget.isSettlementRefreshing,
+            child: BalanceUtils.buildBalanceWidget(
+              balance,
+              theme,
+              showIcon: true,
+              showDescription: false,
+              textStyle: theme.textTheme.bodySmall?.copyWith(fontSize: 11),
+            ),
           );
         },
         totalBuilder: (theme) {
@@ -492,23 +524,26 @@ class _PayrollTableViewState extends ConsumerState<PayrollTableView> {
               .map((e) => widget.aggregatedBalance[e.id] ?? 0.0)
               .fold<double>(0, (sum, b) => sum + b);
 
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: BalanceUtils.getBalanceColor(
+          return PayrollRefreshingAmount(
+            isRefreshing: widget.isSettlementRefreshing,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: BalanceUtils.getBalanceColor(
+                  totalBalance,
+                  theme,
+                ).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: BalanceUtils.buildBalanceWidget(
                 totalBalance,
                 theme,
-              ).withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: BalanceUtils.buildBalanceWidget(
-              totalBalance,
-              theme,
-              showIcon: true,
-              showDescription: false,
-              textStyle: theme.textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                fontSize: 11,
+                showIcon: true,
+                showDescription: false,
+                textStyle: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 11,
+                ),
               ),
             ),
           );

@@ -82,6 +82,3 @@ final payrollFilterProvider =
 
 /// Провайдер состояния поиска в модуле ФОТ (текстовый запрос)
 final payrollSearchQueryProvider = StateProvider<String>((ref) => '');
-
-/// Провайдер видимости поля поиска в AppBar модуля ФОТ
-final payrollSearchVisibleProvider = StateProvider<bool>((ref) => false);

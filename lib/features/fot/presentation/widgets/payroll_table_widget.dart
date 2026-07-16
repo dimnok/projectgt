@@ -1,22 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import '../../domain/entities/payroll_calculation.dart';
 import '../../../../presentation/state/employee_state.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import '../providers/payroll_providers.dart';
 import '../providers/payroll_filter_providers.dart';
-import 'package:projectgt/core/widgets/gt_month_picker.dart';
-import 'package:projectgt/core/widgets/gt_object_picker.dart';
-import '../utils/payroll_filter_helpers.dart';
 import 'payroll_employee_status_filter_segment.dart';
+import '../utils/payroll_name_search_filters.dart';
 import 'payroll_table_view.dart';
-import 'payroll_search_action.dart';
 
 /// Виджет для отображения табличных данных расчётов ФОТ.
-///
-/// Поддерживает группировку по сотрудникам с детальной стилизацией.
-/// Оптимизирован для производительности и соответствует Clean Architecture.
 class PayrollTableWidget extends ConsumerWidget {
   /// Список расчётов ФОТ.
   final List<PayrollCalculation> payrolls;
@@ -24,32 +17,29 @@ class PayrollTableWidget extends ConsumerWidget {
   /// Флаг группировки по сотрудникам.
   final bool isGroupedByEmployee;
 
+  /// Идёт фоновый пересчёт начислений за месяц (RPC).
+  final bool isPayrollsRefreshing;
+
   /// Создаёт виджет таблицы для отображения данных ФОТ.
   const PayrollTableWidget({
     super.key,
     required this.payrolls,
     this.isGroupedByEmployee = true,
+    this.isPayrollsRefreshing = false,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-
-    // Используем текущий месяц и год из фильтра
     final filterState = ref.watch(payrollFilterProvider);
-    final monthDate = DateTime(
-      filterState.selectedYear,
-      filterState.selectedMonth,
-    );
-
-    // Получаем список сотрудников
     final allEmployees = ref.watch(employeeProvider.select((s) => s.employees));
     final searchQuery = ref.watch(payrollSearchQueryProvider);
     final statusFilter = ref.watch(payrollEmployeeStatusFilterProvider);
 
-    // Фильтруем сотрудников по поиску и статусу
-    final employeesBySearch =
-        filterEmployeesBySearchQuery(allEmployees, searchQuery);
+    final employeesBySearch = filterEmployeesBySearchQuery(
+      allEmployees,
+      searchQuery,
+    );
     final employees = filterEmployeesByPayrollStatus(
       employeesBySearch,
       statusFilter,
@@ -60,30 +50,15 @@ class PayrollTableWidget extends ConsumerWidget {
       statusFilter,
     );
 
-    // Получаем выплаты и балансы по сотрудникам (FIFO)
     final fifoDataAsync = ref.watch(
       payoutsByEmployeeAndMonthFIFOProvider(filterState.selectedYear),
     );
-    
-    // Если данные FIFO еще грузятся — показываем индикатор
-    if (fifoDataAsync.isLoading) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 16),
-            Text(
-              'Расчет выплат и балансов...',
-              style: theme.textTheme.bodyMedium,
-            ),
-          ],
-        ),
-      );
-    }
 
-    final fifoData = fifoDataAsync.asData?.value ?? {};
-    final currentMonth = filterState.selectedMonth; // int (1-12)
+    final fifoData = fifoDataAsync.valueOrNull ?? {};
+    final isFifoRefreshing = fifoDataAsync.isLoading;
+    final isSettlementRefreshing = isFifoRefreshing || isPayrollsRefreshing;
+
+    final currentMonth = filterState.selectedMonth;
 
     final payoutsByEmployee = <String, double>{};
     final aggregatedBalance = <String, double>{};
@@ -134,76 +109,16 @@ class PayrollTableWidget extends ConsumerWidget {
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (!isMobile) ...[
-          Row(
-            children: [
-              Text(
-                'ФОТ ${DateFormat.yMMMM('ru').format(monthDate)}',
-                style: theme.textTheme.headlineSmall,
-              ),
-              if (isDesktop) ...[
-                const SizedBox(width: 16),
-                GTMonthPicker(
-                  selectedDate: monthDate,
-                  onPrevious: () {
-                    final prev = DateTime(monthDate.year, monthDate.month - 1);
-                    ref
-                        .read(payrollFilterProvider.notifier)
-                        .setYearAndMonth(prev.year, prev.month);
-                  },
-                  onNext: () {
-                    final next = DateTime(monthDate.year, monthDate.month + 1);
-                    ref
-                        .read(payrollFilterProvider.notifier)
-                        .setYearAndMonth(next.year, next.month);
-                  },
-                  onTap: () => PayrollFilterHelpers.showMonthSelection(
-                    context,
-                    ref,
-                    monthDate,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                GTObjectPicker(
-                  objectName: PayrollFilterHelpers.getObjectName(
-                    ref,
-                    filterState.selectedObjectIds,
-                  ),
-                  onPrevious: () => PayrollFilterHelpers.handleObjectSwitch(
-                    ref,
-                    filterState.selectedObjectIds,
-                    -1,
-                  ),
-                  onNext: () => PayrollFilterHelpers.handleObjectSwitch(
-                    ref,
-                    filterState.selectedObjectIds,
-                    1,
-                  ),
-                  onTap: () =>
-                      PayrollFilterHelpers.showObjectSelection(context, ref),
-                ),
-                const Spacer(),
-                const PayrollEmployeeStatusFilterSegment(),
-              ],
-            ],
-          ),
-          const SizedBox(height: 16),
-        ],
-        Expanded(
-          child: PayrollTableView(
-            payrolls: filteredPayrolls,
-            employees: employees,
-            payoutsByEmployee: payoutsByEmployee,
-            aggregatedBalance: aggregatedBalance,
-            isMobile: isMobile,
-            isTablet: ResponsiveUtils.isTablet(context),
-            isDesktop: isDesktop,
-          ),
-        ),
-      ],
+    return PayrollTableView(
+      payrolls: filteredPayrolls,
+      employees: employees,
+      payoutsByEmployee: payoutsByEmployee,
+      aggregatedBalance: aggregatedBalance,
+      isMobile: isMobile,
+      isTablet: ResponsiveUtils.isTablet(context),
+      isDesktop: isDesktop,
+      isPayrollsRefreshing: isPayrollsRefreshing,
+      isSettlementRefreshing: isSettlementRefreshing,
     );
   }
 }

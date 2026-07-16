@@ -11,6 +11,7 @@ import 'package:projectgt/features/fot/data/models/payroll_payout_model.dart';
 import '../../domain/repositories/payroll_payout_repository.dart';
 import '../../data/repositories/payroll_payout_repository_impl.dart';
 import 'package:projectgt/presentation/state/employee_state.dart';
+import 'balance_providers.dart';
 import 'payroll_filter_providers.dart';
 
 /// Провайдер для независимой загрузки данных work_hours и employee_attendance за выбранный месяц.
@@ -779,3 +780,18 @@ final deletePayoutUseCaseProvider =
     await repo.deletePayout(id);
   };
 });
+
+/// Сбрасывает кэш главной таблицы ФОТ: начисления за месяц и FIFO-баланс.
+void invalidatePayrollFotTableDependents(WidgetRef ref) {
+  ref.invalidate(filteredPayrollsProvider);
+  ref.invalidate(payoutsByEmployeeAndMonthFIFOProvider);
+  ref.invalidate(employeeAggregatedBalanceProvider);
+}
+
+/// Сбрасывает кэш провайдеров, зависящих от выплат (списки, FIFO, месячный ФОТ).
+void invalidatePayrollPayoutDependents(WidgetRef ref) {
+  ref.invalidate(allPayoutsProvider);
+  ref.invalidate(payrollPayoutsByFilterProvider);
+  ref.invalidate(filteredPayrollPayoutsProvider);
+  invalidatePayrollFotTableDependents(ref);
+}

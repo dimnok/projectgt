@@ -5,7 +5,6 @@ import '../../../../domain/entities/employee.dart';
 import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 import 'package:intl/intl.dart';
 import '../providers/payroll_providers.dart';
-import '../providers/balance_providers.dart';
 import '../../data/models/payroll_payout_model.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/snackbar_utils.dart';
@@ -272,9 +271,7 @@ class _PayrollPayoutFormModalState
       final updateUseCase = ref.read(updatePayoutUseCaseProvider);
       await updateUseCase(updatedPayout);
 
-      ref.invalidate(filteredPayrollPayoutsProvider);
-      ref.invalidate(employeeAggregatedBalanceProvider);
-      ref.invalidate(payrollPayoutsByFilterProvider);
+      invalidatePayrollPayoutDependents(ref);
 
       if (mounted) {
         Navigator.pop(context);

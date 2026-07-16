@@ -71,6 +71,14 @@ interface PayoutRow {
   payout_date: string;
 }
 
+interface EmployeeRecord {
+  id: string;
+  full_name: string;
+  status: string;
+  employment_date: string | null;
+  current_hourly_rate: number;
+}
+
 function num(v: unknown): number {
   if (v === null || v === undefined) return 0;
   const n = Number(v);
@@ -163,6 +171,84 @@ function employeeStatusLabel(status: string | null | undefined): string {
   return STATUS_LABELS[status] ?? status;
 }
 
+/** ФИО как в RPC `calculate_payroll_for_month`. */
+function buildEmployeeFullName(
+  lastName: string,
+  firstName: string,
+  middleName: string | null | undefined,
+): string {
+  return [lastName, firstName, middleName ?? ""].join(" ").replace(/\s+/g, " ").trim();
+}
+
+/** Последний день месяца (month: 1–12), как `DateTime(year, month + 1, 0)` в Dart. */
+function lastDayOfMonth(year: number, month: number): Date {
+  return new Date(year, month, 0);
+}
+
+/**
+ * Соответствует `_groupPayrolls` в `payroll_table_view.dart`:
+ * устроен до конца месяца и (работает / не уволен ИЛИ есть баланс).
+ */
+function shouldIncludeZeroActivityEmployee(
+  employee: EmployeeRecord,
+  balanceEndMonth: number,
+  year: number,
+  month: number,
+): boolean {
+  if (employee.employment_date) {
+    const hired = new Date(employee.employment_date);
+    const lastDay = lastDayOfMonth(year, month);
+    if (hired > lastDay) return false;
+  }
+
+  const isFired = employee.status === "fired";
+  const hasBalance = Math.abs(balanceEndMonth) > 0.01;
+  const isWorking = !isFired;
+  return hasBalance || isWorking;
+}
+
+function createZeroPayrollRow(employee: EmployeeRecord): PayrollMonthRow {
+  return {
+    employee_id: employee.id,
+    full_name: employee.full_name,
+    total_hours: 0,
+    base_salary: 0,
+    business_trip_total: 0,
+    bonuses_total: 0,
+    penalties_total: 0,
+    net_salary: 0,
+    current_hourly_rate: employee.current_hourly_rate,
+  };
+}
+
+/**
+ * Дополняет строки RPC «нулевыми» сотрудниками из таблицы ФОТ
+ * (в штате или с балансом без начислений за месяц).
+ */
+function mergeZeroActivityRows(
+  rowByEmployeeId: Map<string, PayrollMonthRow>,
+  employees: EmployeeRecord[],
+  fifoByEmployee: Map<string, { payouts: Map<number, number>; balances: Map<number, number> }>,
+  year: number,
+  month: number,
+  employeeIdsFilter: Set<string> | null,
+): void {
+  for (const employee of employees) {
+    if (rowByEmployeeId.has(employee.id)) continue;
+
+    const fifo = fifoByEmployee.get(employee.id);
+    const balanceEndMonth = fifo?.balances.get(month) ?? 0;
+
+    const include = employeeIdsFilter
+      ? employeeIdsFilter.has(employee.id)
+      : shouldIncludeZeroActivityEmployee(employee, balanceEndMonth, year, month);
+
+    if (!include) continue;
+
+    rowByEmployeeId.set(employee.id, createZeroPayrollRow(employee));
+  }
+}
+
 /** Буква колонки Excel (1 → A, 9 → I). */
 function colLetter(col: number): string {
   let n = col;
@@ -232,47 +318,20 @@ serve(async (req: Request) => {
 
     if (rpcError) throw rpcError;
 
-    let rows: PayrollMonthRow[] = (monthRows as Record<string, unknown>[] ?? []).map((row) => ({
-      employee_id: String(row.employee_id),
-      full_name: String(row.full_name ?? "").trim(),
-      total_hours: num(row.total_hours),
-      base_salary: num(row.base_salary),
-      business_trip_total: num(row.business_trip_total),
-      bonuses_total: num(row.bonuses_total),
-      penalties_total: num(row.penalties_total),
-      net_salary: num(row.net_salary),
-      current_hourly_rate: num(row.current_hourly_rate),
-    }));
-
-    if (searchRaw.length > 0) {
-      rows = rows.filter((r) => r.full_name.toLowerCase().includes(searchRaw));
-    }
-
-    if (employeeIdsFilter) {
-      rows = rows.filter((r) => employeeIdsFilter.has(r.employee_id));
-    }
-
-    if (rows.length === 0) {
-      return new Response(
-        JSON.stringify({ success: false, message: "Нет данных для экспорта" }),
-        { status: 200, headers: { ...cors, "Content-Type": "application/json" } },
-      );
-    }
-
-    const employeeIds = [...new Set(rows.map((r) => r.employee_id))];
-
-    const { data: empStatusRows, error: empErr } = await supabase
-      .from("employees")
-      .select("id, status")
-      .eq("company_id", companyId)
-      .in("id", employeeIds);
-
-    if (empErr) throw empErr;
-
-    const statusById = new Map<string, string>();
-    for (const e of empStatusRows ?? []) {
-      const rec = e as { id: string; status: string | null };
-      if (rec.id) statusById.set(rec.id, rec.status ?? "working");
+    const rowByEmployeeId = new Map<string, PayrollMonthRow>();
+    for (const row of (monthRows as Record<string, unknown>[] ?? [])) {
+      const mapped: PayrollMonthRow = {
+        employee_id: String(row.employee_id),
+        full_name: String(row.full_name ?? "").trim(),
+        total_hours: num(row.total_hours),
+        base_salary: num(row.base_salary),
+        business_trip_total: num(row.business_trip_total),
+        bonuses_total: num(row.bonuses_total),
+        penalties_total: num(row.penalties_total),
+        net_salary: num(row.net_salary),
+        current_hourly_rate: num(row.current_hourly_rate),
+      };
+      rowByEmployeeId.set(mapped.employee_id, mapped);
     }
 
     const startOfYear = `${year}-01-01T00:00:00.000Z`;
@@ -329,7 +388,89 @@ serve(async (req: Request) => {
       }
     }
 
-    const fifoByEmployee = buildFifoForYear(year, accrualsBeforeYear, allPayouts, payrollNetByEmployeeMonth);
+    const fifoByEmployee = buildFifoForYear(
+      year,
+      accrualsBeforeYear,
+      allPayouts,
+      payrollNetByEmployeeMonth,
+    );
+
+    const { data: allEmployeeRows, error: allEmpErr } = await supabase
+      .from("employees")
+      .select("id, last_name, first_name, middle_name, status, employment_date")
+      .eq("company_id", companyId);
+
+    if (allEmpErr) throw allEmpErr;
+
+    const today = new Date().toISOString().split("T")[0];
+    const { data: rateRows, error: rateErr } = await supabase
+      .from("employee_rates")
+      .select("employee_id, hourly_rate, valid_from")
+      .eq("company_id", companyId)
+      .lte("valid_from", today)
+      .or(`valid_to.is.null,valid_to.gte.${today}`)
+      .order("valid_from", { ascending: false });
+
+    if (rateErr) throw rateErr;
+
+    const rateByEmployeeId = new Map<string, number>();
+    for (const rateRow of rateRows ?? []) {
+      const rec = rateRow as { employee_id: string; hourly_rate: unknown };
+      const id = String(rec.employee_id);
+      if (!rateByEmployeeId.has(id)) {
+        rateByEmployeeId.set(id, num(rec.hourly_rate));
+      }
+    }
+
+    const employees: EmployeeRecord[] = (allEmployeeRows ?? []).map((e) => {
+      const rec = e as {
+        id: string;
+        last_name: string;
+        first_name: string;
+        middle_name: string | null;
+        status: string | null;
+        employment_date: string | null;
+      };
+      const id = String(rec.id);
+      return {
+        id,
+        full_name: buildEmployeeFullName(rec.last_name, rec.first_name, rec.middle_name),
+        status: rec.status ?? "working",
+        employment_date: rec.employment_date,
+        current_hourly_rate: rateByEmployeeId.get(id) ?? 0,
+      };
+    });
+
+    mergeZeroActivityRows(
+      rowByEmployeeId,
+      employees,
+      fifoByEmployee,
+      year,
+      month,
+      employeeIdsFilter,
+    );
+
+    let rows = [...rowByEmployeeId.values()];
+
+    if (searchRaw.length > 0) {
+      rows = rows.filter((r) => r.full_name.toLowerCase().includes(searchRaw));
+    }
+
+    if (employeeIdsFilter) {
+      rows = rows.filter((r) => employeeIdsFilter.has(r.employee_id));
+    }
+
+    if (rows.length === 0) {
+      return new Response(
+        JSON.stringify({ success: false, message: "Нет данных для экспорта" }),
+        { status: 200, headers: { ...cors, "Content-Type": "application/json" } },
+      );
+    }
+
+    const statusById = new Map<string, string>();
+    for (const employee of employees) {
+      statusById.set(employee.id, employee.status);
+    }
 
     const workbook = new ExcelJS.Workbook();
     const sheetName = `${monthNames[month - 1]} ${year}`;
