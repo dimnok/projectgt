@@ -110,22 +110,4 @@ class BalanceUtils {
       ],
     );
   }
-
-  /// Создает простой текстовый виджет баланса
-  static Widget buildSimpleBalanceText(
-    double balance,
-    ThemeData theme, {
-    TextStyle? textStyle,
-  }) {
-    final color = getBalanceColor(balance, theme);
-    final formattedAmount = formatBalance(balance);
-
-    return Text(
-      formattedAmount,
-      style: (textStyle ?? const TextStyle()).copyWith(
-        color: color,
-        fontWeight: FontWeight.w600,
-      ),
-    );
-  }
 }

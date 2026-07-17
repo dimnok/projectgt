@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,6 +19,12 @@ import '../services/employee_financial_report_service.dart';
 import '../providers/payroll_filter_providers.dart';
 import '../providers/payroll_providers.dart';
 import '../providers/payroll_grid_selection_providers.dart';
+import 'package:projectgt/features/employees/presentation/providers/employees_module_objects_provider.dart';
+import 'package:projectgt/features/employees/presentation/utils/employees_layout_utils.dart';
+import 'package:projectgt/features/employees/presentation/widgets/employee_details_modal.dart';
+import 'package:projectgt/features/employees/presentation/widgets/employees_mobile_employee_details_sheet.dart';
+import 'package:projectgt/features/roles/application/permission_service.dart';
+import 'package:projectgt/presentation/state/employee_state.dart' as employee_state;
 import 'payroll_grid_checkbox.dart';
 import 'payroll_transaction_form_modal.dart';
 import 'payroll_payout_form_modal.dart';
@@ -112,6 +120,8 @@ class _PayrollTableViewState extends ConsumerState<PayrollTableView> {
 
     final totals = _calculateTotals(groupedPayrollsMap);
     final gridSelectedIds = ref.watch(payrollGridSelectedEmployeeIdsProvider);
+    final canViewEmployees =
+        ref.watch(permissionServiceProvider).can('employees', 'read');
 
     final visibleEmployeeIds = sortedEmployeeKeys.whereType<String>().toSet();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -208,7 +218,7 @@ class _PayrollTableViewState extends ConsumerState<PayrollTableView> {
               : null;
           final empId = row.payroll.employeeId;
 
-          final name = Text.rich(
+          final nameText = Text.rich(
             TextSpan(
               children: [
                 TextSpan(text: row.info.name),
@@ -233,6 +243,14 @@ class _PayrollTableViewState extends ConsumerState<PayrollTableView> {
               fontWeight: FontWeight.w600,
             ),
           );
+
+          final canOpenCard = canViewEmployees && empId != null;
+          final name = canOpenCard
+              ? _HoverableEmployeeName(
+                  onTap: () => _showEmployeeCard(empId),
+                  child: nameText,
+                )
+              : nameText;
 
           if (!row.showSelectionCheckbox || empId == null) {
             return Padding(
@@ -556,8 +574,6 @@ class _PayrollTableViewState extends ConsumerState<PayrollTableView> {
       columns: columns,
       showTotalRow: true,
       highlightedItem: _highlightedRow,
-      onRowTapDown: (row, details) =>
-          _showContextMenu(context, row, details.globalPosition),
       onRowSecondaryTapDown: (row, details) =>
           _showContextMenu(context, row, details.globalPosition),
     );
@@ -711,6 +727,40 @@ class _PayrollTableViewState extends ConsumerState<PayrollTableView> {
       if (context.mounted) {
         SnackBarUtils.showError(context, 'Ошибка при формировании отчета: $e');
       }
+    }
+  }
+
+  /// Открывает карточку сотрудника (модальное окно на desktop, bottom sheet на mobile)
+  /// по клику на ФИО в строке таблицы ФОТ.
+  Future<void> _showEmployeeCard(String? employeeId) async {
+    if (employeeId == null) return;
+
+    final employee = widget.employees.firstWhereOrNull(
+      (e) => e.id == employeeId,
+    );
+    if (employee == null) return;
+
+    unawaited(
+      ref
+          .read(employee_state.employeeProvider.notifier)
+          .ensureEmployeeCardDetails(employee),
+    );
+    if (!mounted) return;
+
+    final objects = ref.read(employeesModuleObjectsProvider);
+
+    if (EmployeesLayoutUtils.useEmployeesDesktopModal(context)) {
+      await EmployeeDetailsModal.show(
+        context,
+        employee: employee,
+        objects: objects,
+      );
+    } else {
+      await EmployeesMobileEmployeeDetailsSheet.show(
+        context,
+        employee: employee,
+        objects: objects,
+      );
     }
   }
 
@@ -869,4 +919,42 @@ class _PayrollTotals {
   double trip = 0;
   double payout = 0;
   double remainder = 0;
+}
+
+/// Виджет ФИО сотрудника с лёгким «подъёмом» текста при наведении мыши.
+///
+/// Используется в строках таблицы ФОТ для кликабельного имени сотрудника:
+/// при наведении курсора текст плавно смещается вверх на 1px, сигнализируя
+/// интерактивность. Тап по виджету открывает карточку сотрудника.
+class _HoverableEmployeeName extends StatefulWidget {
+  final VoidCallback onTap;
+  final Widget child;
+
+  const _HoverableEmployeeName({required this.onTap, required this.child});
+
+  @override
+  State<_HoverableEmployeeName> createState() => _HoverableEmployeeNameState();
+}
+
+class _HoverableEmployeeNameState extends State<_HoverableEmployeeName> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        behavior: HitTestBehavior.opaque,
+          child: AnimatedScale(
+            duration: const Duration(milliseconds: 120),
+            scale: _hover ? 1.08 : 1.0,
+            alignment: Alignment.centerLeft,
+            child: widget.child,
+          ),
+      ),
+    );
+  }
 }

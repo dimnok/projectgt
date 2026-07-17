@@ -170,24 +170,6 @@ class WorkHourEntry {
   });
 }
 
-/// Провайдер, отслеживающий загрузку данных, необходимых для корректного отображения ФОТ.
-///
-/// Возвращает true, когда все данные загружены и готовы к отображению.
-final payrollDataReadyProvider = Provider<bool>((ref) {
-  // Проверяем состояние данных work_hours для ФОТ
-  final workHoursState = ref.watch(payrollWorkHoursProvider);
-
-  // Проверяем, загружены ли employees
-  final employeeState = ref.watch(employeeProvider);
-
-  // Проверяем, загружены ли все необходимые данные
-  final workHoursLoaded = !workHoursState.isLoading && workHoursState.hasValue;
-  final employeesLoaded = employeeState.employees.isNotEmpty;
-
-  // Готовность данных для отображения
-  return workHoursLoaded && employeesLoaded;
-});
-
 /// Провайдер расчетов ФОТ за выбранный месяц.
 ///
 /// HYBRID ПОДХОД: Использует PostgreSQL функцию для батч-расчёта.

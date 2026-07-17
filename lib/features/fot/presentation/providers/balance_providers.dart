@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -116,17 +115,4 @@ final employeeBalanceAtDateProvider =
     );
     return <String, double>{};
   }
-});
-
-/// Провайдер для кеширования баланса с автоматическим обновлением
-final cachedEmployeeBalanceProvider =
-    FutureProvider.autoDispose<Map<String, double>>((ref) async {
-  // Автоматически инвалидируется через 5 минут для обновления данных
-  final timer = Timer(const Duration(minutes: 5), () {
-    ref.invalidateSelf();
-  });
-
-  ref.onDispose(() => timer.cancel());
-
-  return ref.watch(employeeAggregatedBalanceProvider.future);
 });

@@ -59,15 +59,4 @@ class PayrollBonusRepositoryImpl implements PayrollBonusRepository {
         .eq('id', id)
         .eq('company_id', activeCompanyId);
   }
-
-  @override
-  Future<List<PayrollBonusModel>> getAllBonuses() async {
-    final response = await client
-        .from('payroll_bonus')
-        .select()
-        .eq('company_id', activeCompanyId);
-    return (response as List)
-        .map((json) => PayrollBonusModel.fromJson(json as Map<String, dynamic>))
-        .toList();
-  }
 }

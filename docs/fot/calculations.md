@@ -60,7 +60,7 @@
 Баланс сотрудника рассчитывается через RPC `calculate_employee_balances(p_company_id)`.
 - **Формула:** `Total Accrued - Total Paid`.
 - Учитывает всю историю работы сотрудника в системе в рамках выбранной компании.
-- Результат кешируется в `cachedEmployeeBalanceProvider` на 5 минут.
+- В UI: `employeeAggregatedBalanceProvider` (массовые выплаты), `singleEmployeeBalanceProvider` (профиль сотрудника).
 
 ## 🧭 Приоритет суточных (унифицированный)
 

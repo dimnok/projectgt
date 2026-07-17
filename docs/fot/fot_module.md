@@ -1,7 +1,23 @@
 # Модуль ФОТ (Фонд оплаты труда, Payroll)
 
-**Дата актуализации:** 16 июля 2026 года (вечер)
+**Дата актуализации:** 17 июля 2026 года
 **Статус:** Актуально (Clean Architecture, Cumulative FIFO Balance, Parallel Batch Processing, Unified Reporting, Hardened Rate Periods, Excel Import/Export Payouts, Timesheet-aligned UI Shell, Stale-while-revalidate Table UX)
+
+> **Изменения 17.07.2026 (правка 3, клик по ФИО → карточка сотрудника):**
+> - В таблице ФОТ клик по ФИО сотрудника открывает **карточку сотрудника**: на desktop — `EmployeeDetailsModal`, на mobile — `EmployeesMobileEmployeeDetailsSheet` (как в модуле «Табель»).
+> - Доступ по праву `employees` / `read` (`permissionServiceProvider`); при отсутствии права имя отображается как обычный текст без тапа.
+> - Подсказка `Tooltip` «Открыть карточку сотрудника» при наведении.
+> - Контекстное меню по правому клику сохранено (правка 2).
+
+> **Изменения 17.07.2026 (правка 2, UX контекстного меню):**
+> - Контекстное меню строки ФОТ (Премия / Штраф / Выплата / Детали) теперь открывается **только правой кнопкой мыши** (`onRowSecondaryTapDown`).
+> - Левый клик по строке больше не вызывает меню (`onRowTapDown` удалён в `payroll_table_view.dart`).
+> - Документация `docs/fot/ui_structure.md` и `docs/fot/fot_module.md` актуализирована.
+
+> **Изменения 17.07.2026 (документация и чистка кода):**
+> - Актуализирован `docs/fot/ui_structure.md`: удалены ссылки на несуществующие `payroll_search_action.dart` / `payroll_filter_helpers.dart`; таблица миграции на актуальные виджеты и утилиты.
+> - Удалён неиспользуемый код: `payrollDataReadyProvider`, `cachedEmployeeBalanceProvider`, `getAllBonuses` / `getAllPenalties`, `buildSimpleBalanceText`, `hasActiveFilters`, `resetFilters`. `employeeBalanceAtDateProvider` сохранён как заготовка.
+> - `docs/fot/calculations.md`: исправлено описание провайдеров баланса.
 
 > **Изменения 16.07.2026 (инвалидация кэша и UX пересчёта):**
 > - **Централизованная инвалидация после мутаций** в `payroll_providers.dart`:
@@ -94,7 +110,7 @@
 
 #### Таблицы и действия
 - `lib/features/fot/presentation/widgets/payroll_table_widget.dart` — обёртка вкладки ФОТ: FIFO, фильтр статуса, флаги `isPayrollsRefreshing` / `isSettlementRefreshing`.
-- `lib/features/fot/presentation/widgets/payroll_table_view.dart` — основная таблица; `_groupPayrolls`; чекбоксы (`PayrollGridCheckbox`); контекстное меню → «Выплата», «Детали» (PDF).
+- `lib/features/fot/presentation/widgets/payroll_table_view.dart` — основная таблица; `_groupPayrolls`; чекбоксы (`PayrollGridCheckbox`); контекстное меню по **правой кнопке мыши** (`onRowSecondaryTapDown`) → «Премия», «Штраф», «Выплата», «Детали» (PDF). Левый клик меню не вызывает.
 - `lib/features/fot/presentation/widgets/payroll_refreshing_amount.dart` — `PayrollRefreshingAmount` (Cupertino-спиннер вместо суммы при пересчёте).
 - `lib/features/fot/presentation/widgets/payroll_mobile_view.dart`, `payroll_card.dart` — mobile-карточки с тем же паттерном индикации.
 - `lib/features/fot/presentation/widgets/payroll_export_action.dart` — экспорт в шапке: «Весь ФОТ» / «Только выбранные» → Edge Function `export-payroll` (`payroll` / `export`).
@@ -102,7 +118,7 @@
 - `lib/features/fot/presentation/widgets/payroll_payout_excel_import_dialog.dart`, `payroll_payout_import_preview_dialog.dart` — импорт выплат из Excel.
 - `lib/features/fot/presentation/widgets/payroll_payout_form_modal.dart`, `payroll_payout_amount_modal.dart` — ручное создание выплат.
 - `lib/features/fot/presentation/providers/payroll_providers.dart` — FIFO, CRUD выплат, `invalidatePayrollFotTableDependents`, `invalidatePayrollPayoutDependents`.
-- `lib/features/fot/presentation/providers/balance_providers.dart` — `employeeAggregatedBalanceProvider`.
+- `lib/features/fot/presentation/providers/balance_providers.dart` — `employeeAggregatedBalanceProvider`, `singleEmployeeBalanceProvider`, `employeeBalanceAtDateProvider` (заготовка).
 
 ### Слой Domain
 - `lib/features/fot/domain/entities/payroll_payout_import.dart` — `PayrollPayoutImportRow`, `PayrollPayoutImportParseResult`, `PayrollPayoutImportMatchStatus`.

@@ -1,10 +1,16 @@
 # Структура интерфейса модуля ФОТ
 
-**Дата актуализации:** 16 июля 2026 года (вечер)
+**Дата актуализации:** 17 июля 2026 года
+
+> **Изменения 17.07.2026 (правка 3):** Клик по ФИО сотрудника в таблице ФОТ открывает карточку сотрудника (`EmployeeDetailsModal` / `EmployeesMobileEmployeeDetailsSheet`), как в модуле «Табель». Доступ по праву `employees` / `read`. Контекстное меню по правому клику сохранено.
+
+> **Изменения 17.07.2026 (правка 2):** Контекстное меню строки ФОТ (Премия / Штраф / Выплата / Детали) теперь вызывается **только правой кнопкой мыши** (`onRowSecondaryTapDown`). Левый клик по строке больше не открывает меню (`onRowTapDown` удалён). Затронут файл `payroll_table_view.dart`.
+
+> **Изменения 17.07.2026:** Актуализированы ссылки на файлы Presentation-слоя. Удалены из документации пути к несуществующим `payroll_search_action.dart` и `payroll_filter_helpers.dart`; добавлена таблица миграции «устаревший компонент → актуальный файл». Дополнены провайдеры баланса в справочнике Riverpod.
 
 > **Изменения 16.07.2026 (вечер):** Stale-while-revalidate на вкладке ФОТ — таблица не исчезает при пересчёте; `PayrollRefreshingAmount` (Cupertino) в денежных ячейках; централизованная инвалидация `invalidatePayrollFotTableDependents` / `invalidatePayrollPayoutDependents`.
 
-> **Изменения 16.07.2026:** Панель управления унифицирована с модулем «Табель». Вкладки, период, поиск, объекты и действия собраны в **одну строку** внутри `MobileAtmosphereMainSurface`. Удалены устаревшие `GTMonthPicker`, `GTObjectPicker`, `PayrollSearchAction`, `PayrollFilterHelpers`.
+> **Изменения 16.07.2026:** Панель управления унифицирована с модулем «Табель». Вкладки, период, поиск, объекты и действия собраны в **одну строку** внутри `MobileAtmosphereMainSurface`. Удалены устаревшие `GTMonthPicker`, `GTObjectPicker`, `PayrollSearchAction`, `PayrollFilterHelpers` (см. таблицу миграции ниже).
 
 ---
 
@@ -103,7 +109,24 @@
 | Телефон | `PayrollMobileSearchField` (шапка) | `payrollSearchQueryProvider` |
 | Desktop / планшет | `PayrollToolbarSearch` (панель) | `payrollSearchQueryProvider` |
 
-Утилиты фильтрации: `payroll_name_search_filters.dart` — `filterPayrollsByEmployeeName`, `filterTransactionsByEmployeeName`, `filterPayoutsByEmployeeName`, `filterEmployeesBySearchQuery`.
+**Утилиты фильтрации по ФИО** (`payroll_name_search_filters.dart`):
+
+| Функция | Назначение |
+|---------|------------|
+| `filterPayrollsByEmployeeName` | Строки расчёта ФОТ |
+| `filterTransactionsByEmployeeName` | Премии и штрафы |
+| `filterPayoutsByEmployeeName` | Выплаты |
+| `filterEmployeesBySearchQuery` | Список сотрудников (экспорт, массовые выплаты) |
+
+**Фильтр статуса сотрудника** (`payroll_employee_status_filter_segment.dart`):
+
+| Функция / провайдер | Назначение |
+|---------------------|------------|
+| `payrollEmployeeStatusFilterProvider` | Все / Работает / Уволен |
+| `filterEmployeesByPayrollStatus` | Список сотрудников по статусу |
+| `filterPayrollsByEmployeeStatus` | Строки ФОТ по статусу |
+
+Состояние периода и объектов — `payrollFilterProvider` (`payroll_filter_providers.dart`).
 
 ---
 
@@ -127,7 +150,8 @@
 
 - **Состав списка:** RPC + сотрудники «в штате / с балансом» без начислений (`_groupPayrolls` в `payroll_table_view.dart`).
 - **Чекбоксы:** `PayrollGridCheckbox`, `payrollGridSelectedEmployeeIdsProvider`.
-- **Контекстное меню строки:** Премия, Штраф, Выплата, Детали (PDF).
+- **Контекстное меню строки:** открывается **правой кнопкой мыши** (ПКМ) по строке сотрудника — пункты Премия, Штраф, Выплата, Детали (PDF). Левый клик меню не вызывает.
+- **Клик по ФИО:** открывает карточку сотрудника (`EmployeeDetailsModal` на desktop, `EmployeesMobileEmployeeDetailsSheet` на mobile) — аналогично модулю «Табель». Доступ по праву `employees` / `read`; без права имя не кликабельно. При наведении мыши имя плавно увеличивается (`_HoverableEmployeeName`, `AnimatedScale`, масштаб 1.08, центр масштабирования — левый край `Alignment.centerLeft`, чтобы не перекрывать чекбокс).
 - **Итоги:** строка «ИТОГО», пересчёт при поиске.
 - **Loading (первый вход):** полноэкранный «Загрузка данных ФОТ...» (`filteredPayrollsProvider`, `PayrollListScreen`).
 - **Loading (пересчёт после операции):** таблица и список сотрудников **остаются видимыми**; предыдущие суммы сохраняются до ответа RPC/FIFO; в колонках «К выплате», «Выплаты», «Остаток», «Баланс» и в строке ИТОГО — `PayrollRefreshingAmount` (`CupertinoActivityIndicator`, ~14 px). Флаги: `isPayrollsRefreshing` (RPC месяца), `isSettlementRefreshing` (FIFO + RPC).
@@ -201,6 +225,12 @@
 | `payoutsByEmployeeAndMonthFIFOProvider` | `payroll_providers.dart` | FIFO за год: выплаты и балансы по месяцам 1–12 |
 | `allPayoutsProvider` | `payroll_providers.dart` | Все выплаты компании (вход FIFO) |
 | `employeeAggregatedBalanceProvider` | `balance_providers.dart` | Баланс за всё время (форма массовых выплат) |
+| `singleEmployeeBalanceProvider` | `balance_providers.dart` | Баланс одного сотрудника (профиль) |
+| `employeeBalanceAtDateProvider` | `balance_providers.dart` | Баланс на дату (заготовка под фильтр «закрытых» сотрудников; RPC `calculate_employee_balances_at_date`) |
+| `payrollGridSelectedEmployeeIdsProvider` | `payroll_grid_selection_providers.dart` | Выбранные чекбоксами сотрудники (экспорт) |
+| `bonusesByFilterProvider` / `filteredBonusesProvider` | `bonus_providers.dart` | Список премий с учётом периода, объектов и поиска |
+| `penaltiesByFilterProvider` / `filteredPenaltiesProvider` | `penalty_providers.dart` | Список штрафов с учётом периода, объектов и поиска |
+| `payrollPayoutsByFilterProvider` / `filteredPayrollPayoutsProvider` | `payroll_providers.dart` | Список выплат с учётом фильтров |
 
 ### Инвалидация после мутаций
 
@@ -221,18 +251,82 @@
 | Панель | `TimesheetCalendarView._buildTimesheetTitleRow` | `PayrollFiltersToolbar` |
 | Высота контролов | `34` px | `PayrollToolbarMetrics.height = 34` |
 | Поиск mobile | `TimesheetMobileSearchField` | `PayrollMobileSearchField` |
+| Поиск desktop | `TimesheetToolbarSearch` | `PayrollToolbarSearch` (`payroll_filters_toolbar.dart`) |
+| Состояние поиска | `timesheetSearchQueryProvider` | `payrollSearchQueryProvider` |
+| Фильтр по ФИО | helpers в модуле «Табель» | `payroll_name_search_filters.dart` |
+| Фильтр статуса | — | `PayrollEmployeeStatusFilterSegment` (только ФОТ) |
 | Период | `TimesheetCompactMonthSwitcher` | `PayrollCompactMonthSwitcher` |
 | Объекты | `TimesheetObjectsBarDropdown` | `PayrollObjectsBarDropdown` |
 | Адаптивность | `EmployeesLayoutUtils` | `EmployeesLayoutUtils` |
 
 ---
 
-## Удалённые компоненты (16.07.2026)
+## Миграция устаревших компонентов (16.07.2026)
 
-Не использовать в новом коде:
+В новом коде **не восстанавливать** удалённые виджеты. Использовать только актуальные файлы из правой колонки.
 
-- `lib/core/widgets/gt_month_picker.dart`
-- `lib/core/widgets/gt_object_picker.dart`
-- `lib/features/fot/presentation/widgets/payroll_search_action.dart`
-- `lib/features/fot/presentation/utils/payroll_filter_helpers.dart`
-- `payrollSearchVisibleProvider` (раскрываемый поиск в AppBar)
+| Устаревший компонент | Актуальная замена | Файл |
+|----------------------|-------------------|------|
+| `GTMonthPicker` | `PayrollCompactMonthSwitcher` | `payroll_filters_toolbar.dart` |
+| `GTObjectPicker` | `PayrollObjectsBarDropdown` | `payroll_objects_bar_dropdown.dart` |
+| `PayrollSearchAction` (раскрываемый поиск в AppBar) | `PayrollToolbarSearch` (desktop) + `PayrollMobileSearchField` (mobile) | `payroll_filters_toolbar.dart`, `payroll_mobile_search_field.dart` |
+| `payrollSearchVisibleProvider` | Поиск всегда виден: в шапке (mobile) или в панели (desktop) | `payrollSearchQueryProvider` в `payroll_filter_providers.dart` |
+| `PayrollFilterHelpers` | Фильтры периода/объектов + поиск по ФИО + статус | `payroll_filter_providers.dart`, `payroll_name_search_filters.dart`, `payroll_employee_status_filter_segment.dart` |
+
+> Файлы `payroll_search_action.dart` и `payroll_filter_helpers.dart` **удалены из репозитория** и не должны фигурировать в импортах и документации как существующие пути.
+
+---
+
+## Дерево файлов Presentation (аудит 17.07.2026)
+
+```
+lib/features/fot/presentation/
+├── screens/
+│   ├── payroll_list_screen.dart          # PayrollListScreen — корневой экран
+│   └── tabs/
+│       ├── payroll_tab_bonuses.dart      # PayrollTabBonuses
+│       ├── payroll_tab_penalties.dart    # PayrollTabPenalties
+│       └── payroll_tab_payouts.dart      # PayrollTabPayouts
+├── widgets/
+│   ├── payroll_filters_toolbar.dart      # PayrollFiltersToolbar, PayrollCompactMonthSwitcher, PayrollToolbarSearch
+│   ├── payroll_tab_segment.dart          # PayrollTabSegment
+│   ├── payroll_objects_bar_dropdown.dart # PayrollObjectsBarDropdown
+│   ├── payroll_tab_toolbar_actions.dart
+│   ├── payroll_toolbar_metrics.dart      # PayrollToolbarMetrics, PayrollToolbarSegmentTrack
+│   ├── payroll_mobile_search_field.dart  # PayrollMobileSearchField
+│   ├── payroll_employee_status_filter_segment.dart
+│   ├── payroll_export_action.dart        # PayrollExportAction
+│   ├── payroll_table_widget.dart         # PayrollTableWidget
+│   ├── payroll_table_view.dart           # PayrollTableView
+│   ├── payroll_mobile_view.dart          # PayrollMobileView
+│   ├── payroll_card.dart                 # PayrollCard
+│   ├── payroll_refreshing_amount.dart    # PayrollRefreshingAmount
+│   ├── payroll_grid_checkbox.dart        # PayrollGridCheckbox
+│   ├── payroll_bonus_table_widget.dart / payroll_bonus_table_view.dart
+│   ├── payroll_penalty_table_widget.dart / payroll_penalty_table_view.dart
+│   ├── payroll_payout_table_widget.dart / payroll_payout_table_view.dart
+│   ├── fot_transaction_table_widget.dart / fot_transaction_mobile_view.dart
+│   ├── fot_payout_table_widget.dart / fot_payout_mobile_view.dart
+│   ├── payroll_transaction_form_modal.dart
+│   ├── payroll_payout_form_modal.dart / payroll_payout_amount_modal.dart
+│   └── payroll_payout_excel_import_dialog.dart / payroll_payout_import_preview_dialog.dart
+├── providers/
+│   ├── payroll_filter_providers.dart
+│   ├── payroll_providers.dart
+│   ├── balance_providers.dart
+│   ├── bonus_providers.dart
+│   ├── penalty_providers.dart
+│   └── payroll_grid_selection_providers.dart
+├── services/
+│   ├── employee_financial_report_service.dart
+│   ├── payroll_pdf_service.dart
+│   └── payroll_payout_excel_import_service.dart
+└── utils/
+    ├── payroll_name_search_filters.dart
+    ├── payroll_payout_batch_save.dart
+    ├── balance_utils.dart
+    ├── payout_converters.dart
+    └── payout_utils.dart
+```
+
+См. также общий модульный документ: `docs/fot/fot_module.md`.

@@ -14,9 +14,6 @@ class PayrollTableWidget extends ConsumerWidget {
   /// Список расчётов ФОТ.
   final List<PayrollCalculation> payrolls;
 
-  /// Флаг группировки по сотрудникам.
-  final bool isGroupedByEmployee;
-
   /// Идёт фоновый пересчёт начислений за месяц (RPC).
   final bool isPayrollsRefreshing;
 
@@ -24,7 +21,6 @@ class PayrollTableWidget extends ConsumerWidget {
   const PayrollTableWidget({
     super.key,
     required this.payrolls,
-    this.isGroupedByEmployee = true,
     this.isPayrollsRefreshing = false,
   });
 

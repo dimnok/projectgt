@@ -21,9 +21,4 @@ abstract class PayrollBonusRepository {
   ///
   /// [id] — уникальный идентификатор премии для удаления.
   Future<void> deleteBonus(String id);
-
-  /// Получить все премии без фильтрации.
-  ///
-  /// Возвращает список всех премий [PayrollBonusModel] из базы данных.
-  Future<List<PayrollBonusModel>> getAllBonuses();
 }

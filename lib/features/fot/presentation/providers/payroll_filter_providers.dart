@@ -43,14 +43,6 @@ class PayrollFilterState {
       selectedMonth: selectedMonth ?? this.selectedMonth,
     );
   }
-
-  /// Проверяет, активны ли какие-либо фильтры (кроме текущего месяца/года)
-  bool get hasActiveFilters {
-    final now = DateTime.now();
-    final hasNonDefaultPeriod =
-        selectedYear != now.year || selectedMonth != now.month;
-    return selectedObjectIds.isNotEmpty || hasNonDefaultPeriod;
-  }
 }
 
 /// Notifier для управления состоянием фильтров ФОТ
@@ -66,11 +58,6 @@ class PayrollFilterNotifier extends StateNotifier<PayrollFilterState> {
   /// Устанавливает выбранный год и месяц
   void setYearAndMonth(int year, int month) {
     state = state.copyWith(selectedYear: year, selectedMonth: month);
-  }
-
-  /// Сбрасывает все фильтры
-  void resetFilters() {
-    state = PayrollFilterState();
   }
 }
 

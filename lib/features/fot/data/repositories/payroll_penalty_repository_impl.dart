@@ -59,16 +59,4 @@ class PayrollPenaltyRepositoryImpl implements PayrollPenaltyRepository {
         .eq('id', id)
         .eq('company_id', activeCompanyId);
   }
-
-  @override
-  Future<List<PayrollPenaltyModel>> getAllPenalties() async {
-    final response = await client
-        .from('payroll_penalty')
-        .select()
-        .eq('company_id', activeCompanyId);
-    return (response as List)
-        .map((json) =>
-            PayrollPenaltyModel.fromJson(json as Map<String, dynamic>))
-        .toList();
-  }
 }
