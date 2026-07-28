@@ -68,6 +68,9 @@ enum AppRoute {
   /// Экран модуля Cash Flow (Движение денежных средств).
   cashFlow,
 
+  /// Экран взаиморасчётов (счета и оплаты).
+  settlements,
+
   /// Экран модуля "Компания".
   company,
 }
@@ -320,6 +323,14 @@ class AppDrawer extends ConsumerWidget {
                               route: AppRoute.cashFlow,
                               routeName: 'cash_flow',
                             ),
+                          _buildMenuItem(
+                            context: context,
+                            module: 'settlements',
+                            title: 'Взаиморасчёты',
+                            icon: CupertinoIcons.doc_text,
+                            route: AppRoute.settlements,
+                            routeName: 'settlements',
+                          ),
                           _buildMenuItem(
                             context: context,
                             module: 'works',

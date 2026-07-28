@@ -1,7 +1,14 @@
 # Модуль ФОТ (Фонд оплаты труда, Payroll)
 
-**Дата актуализации:** 17 июля 2026 года
-**Статус:** Актуально (Clean Architecture, Cumulative FIFO Balance, Parallel Batch Processing, Unified Reporting, Hardened Rate Periods, Excel Import/Export Payouts, Timesheet-aligned UI Shell, Stale-while-revalidate Table UX)
+**Дата актуализации:** 18 июля 2026 года
+**Статус:** Актуально (Clean Architecture, Cumulative FIFO Balance, Parallel Batch Processing, Unified Reporting, Hardened Rate Periods, Excel Import/Export Payouts, Timesheet-aligned UI Shell, Stale-while-revalidate Table UX, Collapsible Toolbar Segments)
+
+> **Изменения 18.07.2026 (сворачиваемые сегменты панели):**
+> - На **desktop** (`ResponsiveUtils.isDesktop`, ширина ≥ `900` px) вкладки (`PayrollTabSegment`) и фильтр статуса (`PayrollEmployeeStatusFilterSegment`) показывают только активную опцию; при наведении мыши раскрываются через `PayrollToolbarCollapsibleSegmentTrack` в `payroll_toolbar_metrics.dart`.
+> - Порядок сегментов при раскрытии: вкладки — выбранная слева (рост вправо); статус — выбранный справа (рост влево, блок у правого края панели).
+> - На **mobile-list** (`EmployeesLayoutUtils.useEmployeesMobileList`) — полный сегментированный трек без сворачивания.
+> - Резерв ширины вкладок в `payrollToolbarSearchWidth()`: `kPayrollTabSegmentOuterWidth = 92` (свёрнуто), `kPayrollTabSegmentExpandedOuterWidth = 272` (полный трек).
+> - Документация: `docs/fot/ui_structure.md`.
 
 > **Изменения 17.07.2026 (правка 3, клик по ФИО → карточка сотрудника):**
 > - В таблице ФОТ клик по ФИО сотрудника открывает **карточку сотрудника**: на desktop — `EmployeeDetailsModal`, на mobile — `EmployeesMobileEmployeeDetailsSheet` (как в модуле «Табель»).
@@ -99,12 +106,12 @@
 
 #### Панель фильтров (единая строка)
 - `lib/features/fot/presentation/widgets/payroll_filters_toolbar.dart` — `PayrollFiltersToolbar`, `PayrollCompactMonthSwitcher`, `PayrollToolbarSearch`.
-- `lib/features/fot/presentation/widgets/payroll_tab_segment.dart` — сегмент вкладок (ФОТ / Премии / Штрафы / Выплаты).
+- `lib/features/fot/presentation/widgets/payroll_tab_segment.dart` — сегмент вкладок (ФОТ / Премии / Штрафы / Выплаты); на desktop — сворачиваемый через `PayrollToolbarCollapsibleSegmentTrack`.
 - `lib/features/fot/presentation/widgets/payroll_objects_bar_dropdown.dart` — мультивыбор объектов (`MenuAnchor`).
 - `lib/features/fot/presentation/widgets/payroll_tab_toolbar_actions.dart` — правый блок: статус / «Добавить» / «Импорт».
-- `lib/features/fot/presentation/widgets/payroll_toolbar_metrics.dart` — общая геометрия и `PayrollToolbarSegmentTrack` / `PayrollToolbarTextButton`.
+- `lib/features/fot/presentation/widgets/payroll_toolbar_metrics.dart` — общая геометрия, `PayrollToolbarSegmentTrack`, `PayrollToolbarCollapsibleSegmentTrack`, `PayrollToolbarTextButton`.
 - `lib/features/fot/presentation/widgets/payroll_mobile_search_field.dart` — поиск в шапке на телефоне.
-- `lib/features/fot/presentation/widgets/payroll_employee_status_filter_segment.dart` — фильтр «Все / Работает / Уволен» на вкладке ФОТ.
+- `lib/features/fot/presentation/widgets/payroll_employee_status_filter_segment.dart` — фильтр «Все / Работает / Уволен» на вкладке ФОТ; на desktop — сворачиваемый.
 - `lib/features/fot/presentation/providers/payroll_filter_providers.dart` — `payrollFilterProvider`, `payrollSearchQueryProvider`, `availableObjectsForPayrollProvider`.
 - `lib/features/fot/presentation/utils/payroll_name_search_filters.dart` — фильтрация списков по ФИО.
 

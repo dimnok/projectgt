@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/domain/entities/employee.dart';
 
 import '../../domain/entities/payroll_calculation.dart';
@@ -84,18 +85,40 @@ class PayrollEmployeeStatusFilterSegment extends ConsumerWidget {
     final selected = ref.watch(payrollEmployeeStatusFilterProvider);
     final notifier = ref.read(payrollEmployeeStatusFilterProvider.notifier);
     final selectedLabel = _options.firstWhere((e) => e.$1 == selected).$2;
+    final collapsible = ResponsiveUtils.isDesktop(context);
 
-    return PayrollToolbarSegmentTrack(
+    if (!collapsible) {
+      return PayrollToolbarSegmentTrack(
+        semanticsLabel: 'Статус сотрудников: $selectedLabel',
+        children: [
+          for (final (value, label) in _options)
+            PayrollToolbarSegmentChip(
+              label: label,
+              selected: selected == value,
+              onTap: () {
+                if (selected != value) notifier.state = value;
+              },
+            ),
+        ],
+      );
+    }
+
+    return PayrollToolbarCollapsibleSegmentTrack(
       semanticsLabel: 'Статус сотрудников: $selectedLabel',
+      selectedLabel: selectedLabel,
       children: [
         for (final (value, label) in _options)
-          PayrollToolbarSegmentChip(
-            label: label,
-            selected: selected == value,
-            onTap: () {
-              if (selected != value) notifier.state = value;
-            },
-          ),
+          if (value != selected)
+            PayrollToolbarSegmentChip(
+              label: label,
+              selected: false,
+              onTap: () => notifier.state = value,
+            ),
+        PayrollToolbarSegmentChip(
+          label: selectedLabel,
+          selected: true,
+          onTap: () {},
+        ),
       ],
     );
   }

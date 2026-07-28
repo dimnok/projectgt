@@ -315,8 +315,11 @@ class _PayrollToolbarSearchField extends StatelessWidget {
   }
 }
 
-/// Примерная ширина [PayrollTabSegment] для расчёта поля поиска.
-const double kPayrollTabSegmentOuterWidth = 272;
+/// Примерная ширина [PayrollTabSegment] в свёрнутом виде (desktop).
+const double kPayrollTabSegmentOuterWidth = 92;
+
+/// Полная ширина [PayrollTabSegment] при раскрытии (mobile / hover).
+const double kPayrollTabSegmentExpandedOuterWidth = 272;
 
 /// Ширина поля поиска в панели фильтров — как в модуле «Табель».
 double payrollToolbarSearchWidth(

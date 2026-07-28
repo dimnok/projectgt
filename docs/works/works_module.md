@@ -1,5 +1,7 @@
 # Модуль Works (Shifts & Work Plans)
-**Дата актуализации:** 11 мая 2026 года — Оптимизация доставки Telegram: клиент вызывает воркер асинхронно (без ожидания); Edge Function `process_telegram_outbox` переведена на параллельную обработку задач (`Promise.all`); подтвержден FIFO порядок в RPC `claim_telegram_outbox`.
+**Дата актуализации:** 28 июля 2026 года — Удалён мёртвый контур «материалы смены»: код (entity/model/repository/provider/форма) и таблица `work_materials` (миграция `20260728061000_drop_work_materials`, применена на сервере). Вкладки деталей смены: **Данные / Работы / Сотрудники**. Проверка на macOS: открытие смены и переключение вкладок без ошибок.
+
+Предыдущая запись: 11 мая 2026 года — Оптимизация доставки Telegram: клиент вызывает воркер асинхронно (без ожидания); Edge Function `process_telegram_outbox` переведена на параллельную обработку задач (`Promise.all`); подтвержден FIFO порядок в RPC `claim_telegram_outbox`.
 
 Предыдущая запись: 10 мая 2026 года — очередь доставки Telegram по сменам: таблица `telegram_outbox`, RPC `enqueue_telegram_outbox_opening`, триггер при закрытии смены, Edge Function `process_telegram_outbox` (ретраи); клиент после постановки в очередь вызывает воркер; опциональный cron с секретом `OUTBOX_WORKER_SECRET`.
 
@@ -7,182 +9,202 @@
 
 ## Важное замечание о структуре данных
 > **Внимание:**
-> - Модуль полностью переведен на модель **Multi-tenancy**. Таблицы `works`, `work_items`, `work_materials`, `work_hours`, `work_plans`, `work_plan_blocks`, `work_plan_items` изолированы через `company_id`.
-> - Все операции выполняются через Supabase (REST, Realtime, Storage). RLS-политики завязаны на членство в компании (`public.get_my_company_ids()`) и **доступные пользователю объекты** (`profile.object_ids`).
-> - Критические зависимости: справочники `objects`, `employees`, `estimates`, `profiles`, Supabase Storage bucket `works`.
+> - Модуль полностью переведен на модель **Multi-tenancy**. Таблицы `works`, `work_items`, `work_hours`, `work_plans`, `work_plan_blocks`, `work_plan_items` изолированы через `company_id`.
+> - Таблица `work_materials` **удалена** (28.07.2026). Не путать с модулем **Materials** и модалкой `NewMaterialModal` (создание позиции **сметы** из формы работ).
+> - Все операции выполняются через Supabase (REST, Realtime, Storage). RLS завязан на членство в компании (`public.get_my_company_ids()`) и **доступные пользователю объекты** (`profile.object_ids`).
+> - Критические зависимости: справочники `objects`, `employees`, `estimates`, `profiles`, опционально `contractors`; Storage bucket `works`.
 
 ## Детальное описание модуля
-Модуль **Works** объединяет функционал ежедневных смен (Shifts) и долгосрочного планирования (Work Plans).
+Модуль **Works** объединяет ежедневные смены (Shifts) и планы работ (Work Plans). Меню: **«Работы»** (`/works`). Планы переключаются внутри того же экрана (отдельного пункта drawer нет).
 
-1.  **Смены (Works/Shifts):** Обеспечивают учёт фактически выполненных работ, материалов и трудозатрат по факту.
-2.  **Планы работ (Work Plans):** Позволяют формировать детальный план по системам и участкам на будущие периоды.
+1. **Смены (Works/Shifts):** учёт факта — работы из сметы, часы сотрудников, утреннее/вечернее фото, закрытие по чек-листу.
+2. **Планы работ (Work Plans):** план на дату/объект: блоки (система/участок/этаж) → позиции сметы с плановым объёмом.
 
 **Ключевые функции:**
-- ✅ Загрузка списка смен и планов с фильтрацией по компании и объектам.
-- ✅ Детальный просмотр смены/плана с разбивкой по работам.
-- ✅ Фотофиксация для смен (утренние/вечерние фото).
-- ✅ Многоуровневое планирование: План → Блоки (Системы/Участки) → Работы.
-- ✅ **Интеграция планов:** Планы работ полностью доступны в десктопной версии `WorksMasterDetailScreen` с поддержкой Master-Detail.
-- ✅ **Управление планами на Desktop:** Добавлены функции редактирования и удаления планов напрямую из AppBar в десктопном режиме.
-- ✅ **Валидация смен:** Кнопки "Открыть смену" и "Составить план" всегда видимы. При попытке открытия новой смены выполняется асинхронная проверка наличия уже открытой смены.
-- ✅ **Система уведомлений:** Полный переход на `AppSnackBar` для отображения тостов и системных сообщений.
-- ✅ **Стандартные модальные окна:** Использование `MobileBottomSheetContent` и `DesktopDialogContent` для всех форм модуля.
-- ✅ **Оптимизация списков:** В списках планов (Desktop/Mobile) отображается количество уникальных специалистов с корректным склонением (1 специалист, 2 специалиста, 5 специалистов).
-- ✅ **Оптимизация (10.01.2026):** Использование `RepaintBoundary` для тяжелых графиков и `const` виджетов для KPI в деталях месяца.
+- ✅ Список смен и планов с группировкой по месяцам; фильтр «Все / Мои» (desktop по умолчанию — Все, mobile — Мои).
+- ✅ Desktop master-detail; mobile — отдельные routes деталей смены и месяца.
+- ✅ Фотофиксация: утро (обязательно при открытии), вечер (обязательно для закрытия).
+- ✅ Вкладки смены: **Данные** | **Работы** | **Сотрудники** (часы; массовые пресеты 8/10/12).
+- ✅ Строка работы: участок → этаж → система → подсистема → смета; подрядчик и `specialists_count`.
+- ✅ Планы: создание / просмотр / правка (desktop) / удаление; блоки с ответственными и работниками.
+- ✅ Валидация: нельзя открыть вторую open-смену; закрытие только при выполнении чек-листа.
+- ✅ Уведомления: `AppSnackBar`; FCM админам; очередь Telegram (`telegram_outbox`).
+- ✅ Модалки: `MobileBottomSheetContent` / `DesktopDialogContent`; поля — Design System (`GT*`).
 
 ## Зависимости
-**Таблицы модуля (Owner):** 
-- `works`, `work_items`, `work_materials`, `work_hours` (Смены)
-- `work_plans`, `work_plan_blocks`, `work_plan_items` (Планы)
+**Таблицы модуля (Owner):**
+- `works`, `work_items`, `work_hours` (смены)
+- `work_plans`, `work_plan_blocks`, `work_plan_items` (планы)
+- `telegram_outbox` (очередь уведомлений по сменам)
 
 **Таблицы других модулей (Usage):**
-- `objects`, `profiles` — контекст, владелец, объект.
-- `employees` — сотрудники в сменах и ответственные в планах.
-- `estimates` — сметные позиции.
+- `objects`, `profiles` — объект и открывший смену.
+- `employees` — часы в смене; ответственные/работники в планах.
+- `estimates` — позиции работ и планов.
+- `contractors` — опционально на `work_items.contractor_id`.
 
 ## Слой Presentation
 **Экраны и виджеты:**
-- `WorksMasterDetailScreen` — точка входа модуля. На десктопе реализует собственный master-detail layout (список смен/планов + правая панель деталей), на мобильном делегирует рендеринг `WorksListMobileScreen`.
-- `WorksListMobileScreen` — изолированный мобильный экран списка смен и планов поверх `MobileAtmosphereBackdrop` с адаптивным переключателем режимов (смены/планы) через `AnimatedSwitcher`.
-- `WorksScreenActionsMixin` — общий для обоих экранов миксин бизнес-логики диалогов: `showOpenShiftModal`, `showCreateWorkPlanModal`, `showEditWorkPlanModal`, `confirmDeleteWork`, `confirmDeleteWorkPlan`. Реализующие экраны переопределяют `onWorkDeleted`/`onWorkPlanDeleted` для локального сброса выбора.
-- `WorkMonthGroupSliverHeader`, `WorkPlanMonthGroupSliverHeader` — переиспользуемые делегаты прилипающих заголовков месяцев смен и планов соответственно.
-- `WorkDetailsScreen` — экран деталей смены для мобильных устройств.
-- `WorkPlanDetailsScreen` — экран деталей плана работ (используется как правая панель на десктопе).
-- `DesktopMonthWorkPlansList` — оптимизированный список планов для десктопа (показывает количество специалистов вместо блоков).
-- `WorkDetailsPanel` — центральный компонент управления данными смены.
-- `MonthDetailsPanel` — панель статистики за месяц с графиками и KPI.
-- `MobileBottomSheetContent` / `DesktopDialogContent` — базовые обертки для модальных окон.
-- `GTTextField` — используется для всех полей ввода, включая компактные инлайн-редакторы.
-- `GTDropdown` — выпадающие списки для выбора объектов, сотрудников и материалов.
-- `GTPrimaryButton`, `GTSecondaryButton`, `GTTextButton` — стандартные кнопки действий.
+- `WorksMasterDetailScreen` — точка входа; desktop → `WorksMasterDetailDesktopView`, mobile → `WorksListMobileScreen`.
+- `WorksScreenActionsMixin` — `showOpenShiftModal`, create/edit/delete плана, delete смены.
+- `WorkDetailsPanel` — детали смены: вкладки Данные / Работы / Сотрудники (`WorkDataTab`, список `WorkItem`, `WorkHoursTab`).
+- `WorkDetailsScreen` — полноэкранные детали (mobile route `/works/:workId`).
+- `WorkValidationBlock` — чек-лист закрытия смены.
+- `MonthDetailsPanel` / `MonthDetailsMobileScreen` — KPI и график месяца.
+- `WorkPlanDetailsScreen`, `WorkPlanFormModal` / `WorkPlanFormContent` — планы (`features/work_plans`).
+- `NewMaterialModal` — **не** материалы смены: добавление позиции в **смету** из формы работ.
+- Design System: `GTTextField`, `GTDropdown`, `GTPrimaryButton` / `GTSecondaryButton` / `GTTextButton`, `AppSnackBar`.
 
-**Провайдеры (Riverpod) и Логика:**
+**Провайдеры (Riverpod):**
+- `workRepositoryProvider`, `workItemRepositoryProvider`, `workHourRepositoryProvider`.
 - `worksProvider`, `workItemsProvider`, `workHoursProvider`.
-- `monthGroupsProvider` — управление группами смен.
-- `workPlanMonthGroupsProvider` — управление группами планов.
-- `pluralization` — логика склонения существительных (специалисты, планы) реализована внутри виджетов списка.
-- `MonthGroupController` (Core) — общая логика управления раскрывающимися списками по месяцам (DRY).
-- `ModalUtils` — утилиты вызова унифицированных модальных окон модуля.
+- `monthGroupsProvider`, `monthChartDataProvider`, сводки месяца (objects/systems/hours/employees).
+- `hasOpenWorkProvider`, `myOpenWorkIdProvider`.
+- `workPlanMonthGroupsProvider` + `workPlanNotifierProvider` (core DI).
 
 ## Слой Domain/Data
-- **Entities:** `Work`, `WorkItem`, `WorkHour`, `WorkPlan`, `WorkPlanBlock`, `WorkPlanItem`.
-- **Repositories:** `WorkRepository`, `WorkPlanRepository`.
-- **DataSources:** `WorkDataSourceImpl`, `WorkPlanDataSourceImpl`.
-- **Models:** Модели на базе `BaseMonthGroup` (Core) для унификации группировки.
+- **Entities (смены):** `Work`, `LightWork`, `WorkItem`, `WorkHour`, summary DTO в `work_summaries.dart`.
+- **Repositories:** `WorkRepository`, `WorkItemRepository`, `WorkHourRepository` (+ impl в `data/`).
+- **DataSources:** `WorkDataSourceImpl`, `WorkItemDataSourceImpl`, `WorkHourDataSourceImpl`.
+- **Планы:** domain/data в глобальных `lib/domain`, `lib/data` (legacy layout); UI в `lib/features/work_plans/`.
+- Агрегаты смены (`total_amount`, `own_total_amount`, `items_count`, `employees_count`) считает **БД** (триггеры на `work_items` / `work_hours`); клиент при update смены их не перезаписывает.
 
 ## Дерево файлов
 ```
 lib/features/
 ├── works/
 │   ├── data/
-│   │   ├── datasources/
-│   │   ├── models/ (MonthGroup)
+│   │   ├── datasources/   # work, work_item, work_hour
+│   │   ├── models/        # Work*, LightWork, MonthGroup
 │   │   └── repositories/
 │   ├── domain/
-│   │   ├── entities/
+│   │   ├── entities/      # Work, WorkItem, WorkHour, LightWork, summaries
 │   │   └── repositories/
 │   └── presentation/
-│       ├── providers/ (works, items, hours, month_groups)
+│       ├── providers/     # works, items, hours, month_groups, summaries
 │       ├── screens/
-│       │   ├── works_master_detail_screen.dart   # desktop master-detail + диспетчер
-│       │   ├── works_list_mobile_screen.dart     # mobile-only экран списка смен/планов
-│       │   ├── works_screen_actions_mixin.dart   # общие диалоги/действия
-│       │   ├── work_details_screen.dart
-│       │   └── month_details_mobile_screen.dart
-│       └── widgets/
-│           ├── month_details_panel.dart (charts)
-│           ├── work_month_group_sliver_header.dart
-│           └── work_plan_month_group_sliver_header.dart
+│       │   ├── works_master_detail_screen.dart
+│       │   ├── works_list_mobile_screen.dart
+│       │   ├── works_screen_actions_mixin.dart
+│       │   ├── work_details_screen.dart / work_details_panel.dart
+│       │   ├── work_form_screen.dart, work_item_form_improved.dart
+│       │   ├── new_material_modal.dart   # смета, не work_materials
+│       │   ├── tabs/ work_data_tab.dart, work_hours_tab.dart
+│       │   └── desktop/ works_master_detail_desktop_view.dart
+│       ├── widgets/       # validation, stats, lists, photos, charts
+│       └── utils/         # works_strings, photo_upload_helper
 └── work_plans/
-    ├── data/
-    │   └── models/ (WorkPlanMonthGroup)
-    ├── domain/
-    └── presentation/
-        ├── providers/ (work_plan_month_groups)
-        ├── screens/
-        └── widgets/
+    ├── data/models/       # WorkPlanMonthGroup
+    └── presentation/      # details, form, blocks, providers
 ```
 
 ## База данных (Audit)
 
-### Таблицы Смен (Works)
-#### 1. `works` (Заголовок смены)
+### 1. `works` (заголовок смены)
 | Колонка | Тип | NULL | Описание |
 |---------|-----|------|----------|
 | id | uuid | NO | PK |
 | date | date | NO | Дата смены |
 | object_id | uuid | NO | FK → `objects.id` |
-| status | text | NO | 'open' / 'closed' |
 | opened_by | uuid | NO | FK → `profiles.id` |
-| total_amount | numeric | YES | Денатурализованная сумма работ |
+| status | text | NO | `open` / `closed` |
+| photo_url | text | YES | Утреннее фото |
+| evening_photo_url | text | YES | Вечернее фото |
+| total_amount | numeric | YES | Сумма всех строк (триггер) |
+| own_total_amount | numeric | NO | Сумма строк без подрядчика (триггер) |
+| items_count | integer | YES | Число `work_items` |
+| employees_count | integer | YES | Уникальные сотрудники по часам |
+| telegram_message_id | integer | YES | Id утреннего сообщения Telegram |
 | company_id | uuid | NO | FK → `companies.id` |
+| created_at / updated_at | timestamptz | NO | Аудит |
 
-#### 2. `work_items` (Выполненные работы)
+**RLS:** ✅ Включён (Strict + политики для timesheet read).
+
+### 2. `work_items`
 | Колонка | Тип | NULL | Описание |
 |---------|-----|------|----------|
 | id | uuid | NO | PK |
-| work_id | uuid | NO | FK → `works.id` (CASCADE) |
+| work_id | uuid | NO | FK → `works.id` CASCADE |
+| section / floor / system / subsystem | text | NO | Каскад места/системы |
 | estimate_id | uuid | NO | FK → `estimates.id` |
-| quantity | numeric | NO | Объем |
-| total | float8 | YES | Сумма (quantity * price) |
-| company_id | uuid | NO | FK → `companies.id` |
-| contractor_id | uuid | YES | FK → `contractors.id`; NULL — собственное выполнение |
-| specialists_count | integer | YES | Число специалистов подрядчика на строке; NULL — не задано |
+| name / unit | text | NO | Денормализация из сметы |
+| quantity | numeric | NO | Объём |
+| price / total | float8 | YES | Цена и сумма строки |
+| contractor_id | uuid | YES | NULL — собственное выполнение |
+| specialists_count | integer | YES | Специалисты подрядчика |
+| contract_act_id | uuid | YES | Связь с актом договора |
+| company_id | uuid | NO | Tenant |
 
-#### 3. `telegram_outbox` (очередь сообщений Telegram по сменам)
+**RLS:** ✅ через `check_work_access(work_id)`.
+
+### 3. `work_hours`
 | Колонка | Тип | NULL | Описание |
 |---------|-----|------|----------|
 | id | uuid | NO | PK |
-| company_id | uuid | NO | FK → `companies.id` |
 | work_id | uuid | NO | FK → `works.id` |
+| employee_id | uuid | NO | FK → `employees.id` |
+| hours | numeric | NO | Часы |
+| comment | text | YES | Комментарий |
+| company_id | uuid | NO | Tenant |
+
+**RLS:** ✅ через `check_work_access(work_id)`.
+
+### 4. `telegram_outbox`
+| Колонка | Тип | NULL | Описание |
+|---------|-----|------|----------|
+| id | uuid | NO | PK |
+| company_id / work_id | uuid | NO | Контекст |
 | kind | text | NO | `work_opening_telegram` / `work_close_telegram` |
-| payload | jsonb | NO | Для открытия: `worker_names`; закрытие: `{}` |
+| payload | jsonb | NO | Для opening: `worker_names` |
 | status | text | NO | `pending` / `processing` / `sent` / `failed` |
-| attempts | integer | NO | Счётчик попыток доставки |
-| max_attempts | integer | NO | Лимит попыток (по умолчанию 10) |
-| next_run_at | timestamptz | NO | Время следующей попытки (backoff) |
-| idempotency_key | text | NO | Уникальный ключ вида `{work_id}:{kind}` |
+| attempts / max_attempts | integer | NO | Ретраи |
+| next_run_at | timestamptz | NO | Backoff |
+| idempotency_key | text | NO | `{work_id}:{kind}` |
 
-**RLS:** ✅ Включён; для аутентифицированных пользователей разрешён SELECT по своим компаниям и праву `works` read. Вставки выполняются триггером и функцией `enqueue_telegram_outbox_opening` (SECURITY DEFINER).
+**RLS:** ✅ SELECT по компании / праву `works` read; insert — SECURITY DEFINER / триггер.
 
-### RLS-политики
-- ✅ **Включён** для всех таблиц модуля.
-- **Strict Mode:** Используются строгие политики (SELECT, INSERT, UPDATE, DELETE), которые проверяют:
-    1. Изоляцию по `company_id`.
-    2. Права доступа через `check_permission`.
-    3. Доступ к объекту: Пользователь должен быть либо **Владельцем компании** (Owner), либо `object_id` смены должен входить в его `profile.object_ids`.
-- Дочерние таблицы (`work_hours`, `work_items`, `work_materials`) защищены через проверку доступа к родительской смене (`public.check_work_access`).
-- **RPC функции:** Функции статистики (`get_months_summary`, `get_month_employees_summary` и др.) выполняют явную фильтрацию по разрешенным объектам пользователя.
+### 5. Планы: `work_plans`, `work_plan_blocks`, `work_plan_items`
+- План: `date`, `object_id`, `created_by`, `company_id`.
+- Блок: `system`, `section`, `floor`, `responsible_id`, `worker_ids[]`.
+- Позиция: `estimate_id`, `name`, `unit`, `price`, `planned_quantity`, `actual_quantity` (автоиз смен — в roadmap).
+
+**RLS:** ✅ company-scoped.
+
+### Удалено
+- **`work_materials`** — DROP TABLE (28.07.2026), файл миграции `supabase/migrations/20260728061000_drop_work_materials.sql`.
+
+### Триггеры (ключевые)
+- `work_items` / `work_hours` → пересчёт агрегатов смены.
+- `works` UPDATE → `works_enqueue_telegram_close` при закрытии.
+
+### RPC (клиент / статистика)
+- `get_months_summary`, `get_month_objects_summary`, `get_month_systems_summary`, `get_month_hours_summary`, `get_month_employees_summary`
+- `enqueue_telegram_outbox_opening`, `check_work_access`
+- смежные: `calculate_contract_works`, search/export work_items (модуль Export)
 
 ## Бизнес-логика
-1.  **Жизненный цикл смены:** Open → (Add Items/Hours/Photos) → Validation → Closed.
-2.  **Доступ к данным:** Пользователь видит смены только по тем объектам, которые привязаны к его профилю. Владелец компании видит все смены компании.
-3.  **Удаление смен/планов:** 
-    - **Владелец компании (Owner):** имеет полное право на удаление любых смен и планов.
-    - **Обычный пользователь:** может удалять только свои открытые смены или планы (при наличии соответствующих прав в RBAC и доступа к объекту).
-3.  **Склонения в UI:** При отображении списков используется логика pluralization для корректного вывода количества специалистов.
-4.  **Расчеты:** Суммы по работам (`total`) рассчитываются на стороне клиента и дублируются в `works.total_amount` для быстрой загрузки списков.
+1. **Жизненный цикл смены:** Open → Items + Hours + Photos → Validation → Closed.
+2. **Закрытие запрещено, если:** нет работ; нет сотрудников; quantity ≤ 0; hours ≤ 0; нет вечернего фото; уже closed.
+3. **Доступ:** объекты из `profile.object_ids`; Owner компании — все объекты.
+4. **Удаление:** Owner — любые; пользователь — свои open + RBAC `works.delete` / `work_plans.delete`.
+5. **Итоги:** `work_items.total` на клиенте; header-агрегаты — триггеры БД.
 
 ## Интеграции
-**Edge Functions (Supabase):**
-- `send_admin_work_event` — **FCM push** владельцам и админам при открытии/закрытии смены. Клиент: `notifyAdminsWorkOpened` / `notifyAdminsWorkClosed` (`admin_work_notification_service.dart`), `notify_all: false`. Поддержка PWA (platform=`web`), iOS, Android. См. [admin_notifications.md](../admin_notifications.md).
-- `process_telegram_outbox` — воркер очереди `telegram_outbox`: по JWT пользователя обрабатывает задачи компаний пользователя; по HTTP с заголовком `Authorization: Bearer <OUTBOX_WORKER_SECRET>` — фоновый cron по всем компаниям (секрет задаётся в окружении Edge).
-- `send_work_report_to_telegram` — ежедневный отчет по закрытой смене (вызывается воркером).
-- `send_work_opening_report_to_telegram` — уведомление об открытии смены (вызывается воркером).
-- `update_work_opening_report_to_telegram` — обновление утреннего сообщения при закрытии (вызывается воркером при наличии `works.telegram_message_id`).
-- `export-work-search-pto` — экспорт данных для ПТО.
-- `export-work-search-all` — полный экспорт данных.
+**Edge Functions:**
+- `send_admin_work_event` — FCM open/close (см. [admin_notifications.md](../admin_notifications.md)).
+- `process_telegram_outbox` — воркер очереди.
+- `send_work_opening_report_to_telegram`, `update_work_opening_report_to_telegram`, `send_work_report_to_telegram`.
+- `export-work-search-pto`, `export-work-search-all`.
 
-**Поток Telegram:** после добавления строк `work_hours` клиент вызывает RPC `enqueue_telegram_outbox_opening` и затем `kickProcessTelegramOutbox` (`process_telegram_outbox`). 
-- **Оптимизация (11.05.2026):** Клиент вызывает воркер асинхронно (`.ignore()`), не блокируя UI. Edge Function обрабатывает задачи в очереди параллельно для ускорения доставки.
-При переходе смены в `closed` триггер добавляет задачу `work_close_telegram`. Прямые вызовы Telegram из Flutter для этих сценариев не используются.
+**Поток Telegram:** после часов → RPC `enqueue_telegram_outbox_opening` + `kickProcessTelegramOutbox` (async). При `closed` — триггер `work_close_telegram`.
+
+**Прочее:** Storage bucket `works`; ФОТ/табель читают часы смен; договоры — `calculate_contract_works` / `contract_act_id`.
 
 ## Roadmap
-- ✅ **Завершено (28.06.2026):** FCM push владельцам/админам при open/close смены, включая PWA iPhone — см. [admin_notifications.md](../admin_notifications.md).
-- ✅ **Завершено (16.04.2026):** Разделение мобильного и десктопного представлений модуля (`WorksListMobileScreen`), вынос общей бизнес-логики в `WorksScreenActionsMixin` и общих sliver-делегатов месяцев в `widgets/`.
-- ✅ **Завершено:** Редактирование и удаление планов в десктопной версии `WorksMasterDetailScreen`.
-- ✅ **Завершено:** Переход на отображение количества специалистов в списках планов с корректным склонением.
-- ✅ **Завершено:** Унификация модальных окон через `MobileBottomSheetContent` и `DesktopDialogContent`.
-- ✅ **Завершено:** Оптимизация производительности `MonthDetailsPanel`.
-- 🔴 **Приоритет:** Синхронизация `actual_quantity` в Планах на основе данных из Смен.
-- 🟡 **Планы:** Интеграция с финансовым модулем для учета стоимости работ.
+- ✅ **Завершено (28.07.2026):** удаление неиспользуемого контура `work_materials` (код + таблица).
+- ✅ **Завершено (28.06.2026):** FCM push при open/close, включая PWA.
+- ✅ **Завершено (16.04.2026):** mobile/desktop split, `WorksScreenActionsMixin`.
+- ✅ Редактирование/удаление планов на desktop; склонения специалистов; унификация модалок; оптимизация `MonthDetailsPanel`.
+- 🔴 **Приоритет:** синхронизация `actual_quantity` в планах из данных смен.
+- 🟡 Интеграция стоимости работ с финансами.
+- 🟡 Мониторинг/очистка `telegram_outbox` (много `failed` в live).

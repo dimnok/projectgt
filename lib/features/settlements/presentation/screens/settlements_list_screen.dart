@@ -1,0 +1,286 @@
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:projectgt/core/theme/theme_settings_provider.dart';
+import 'package:projectgt/core/widgets/app_snackbar.dart';
+import 'package:projectgt/core/widgets/mobile_atmosphere_backdrop.dart';
+import 'package:projectgt/core/widgets/mobile_atmosphere_main_surface.dart';
+import 'package:projectgt/core/widgets/mobile_atmosphere_screen_header.dart';
+import 'package:projectgt/features/employees/presentation/utils/employees_layout_utils.dart';
+import 'package:projectgt/features/roles/application/permission_service.dart';
+import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
+import 'package:projectgt/features/settlements/domain/entities/settlement_operation.dart';
+import 'package:projectgt/features/settlements/presentation/state/settlement_state.dart';
+import 'package:projectgt/features/settlements/presentation/widgets/settlement_form_dialog.dart';
+import 'package:projectgt/features/settlements/presentation/widgets/settlements_filters_toolbar.dart';
+import 'package:projectgt/features/settlements/presentation/widgets/settlements_operations_table.dart';
+import 'package:projectgt/presentation/widgets/app_drawer.dart';
+
+const _kHeaderPadding = EdgeInsets.fromLTRB(16, 20, 16, 8);
+const _kBodyPadding = EdgeInsets.fromLTRB(16, 0, 16, 10);
+
+/// Экран реестра взаиморасчётов (шапка как у Табеля / ФОТ).
+class SettlementsListScreen extends ConsumerStatefulWidget {
+  /// Создаёт экран.
+  const SettlementsListScreen({super.key});
+
+  @override
+  ConsumerState<SettlementsListScreen> createState() =>
+      _SettlementsListScreenState();
+}
+
+class _SettlementsListScreenState extends ConsumerState<SettlementsListScreen> {
+  SettlementOperationType? _typeFilter;
+  SettlementPaymentStatus? _statusFilter;
+  String _search = '';
+
+  static const _screenTitle = 'Взаиморасчёты';
+
+  List<SettlementOperation> _filter(List<SettlementOperation> ops) {
+    return ops.where((op) {
+      if (_typeFilter != null && op.operationType != _typeFilter) {
+        return false;
+      }
+      if (_statusFilter != null && op.paymentStatus != _statusFilter) {
+        return false;
+      }
+      if (_search.trim().isEmpty) return true;
+      final q = _search.trim().toLowerCase();
+      return op.invoiceNumber.toLowerCase().contains(q) ||
+          (op.actNumber?.toLowerCase().contains(q) ?? false) ||
+          (op.contractNumber?.toLowerCase().contains(q) ?? false) ||
+          (op.contractorName?.toLowerCase().contains(q) ?? false) ||
+          (op.objectName?.toLowerCase().contains(q) ?? false) ||
+          (op.purpose?.toLowerCase().contains(q) ?? false);
+    }).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(settlementListProvider);
+    final filtered = _filter(state.operations);
+    final appearance = MobileAtmosphereAppearance.of(context);
+    final scheme = appearance.scheme;
+    final isDark = appearance.isDark;
+    final useMobileList = EmployeesLayoutUtils.useEmployeesMobileList(context);
+    final theme = Theme.of(context);
+    final canCreate =
+        ref.watch(permissionServiceProvider).can('settlements', 'create');
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle(
+        statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarColor: appearance.atmosphereBase,
+        systemNavigationBarDividerColor: Colors.transparent,
+        systemNavigationBarIconBrightness:
+            isDark ? Brightness.light : Brightness.dark,
+      ),
+      child: Scaffold(
+        backgroundColor:
+            isDark ? appearance.atmosphereBase : Colors.transparent,
+        drawer: const AppDrawer(activeRoute: AppRoute.settlements),
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            const MobileAtmosphereBackdrop(),
+            SafeArea(
+              bottom: false,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: _kHeaderPadding,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final narrow = constraints.maxWidth < 560;
+                        final menuButton = Builder(
+                          builder: (ctx) => MobileAtmosphereChromeCircleButton(
+                            appearance: appearance,
+                            tooltip: 'Меню',
+                            icon: Icons.menu_rounded,
+                            onTap: () => Scaffold.of(ctx).openDrawer(),
+                          ),
+                        );
+                        final themeButton = MobileAtmosphereChromeCircleButton(
+                          appearance: appearance,
+                          tooltip: isDark ? 'Светлая тема' : 'Тёмная тема',
+                          icon: isDark
+                              ? Icons.light_mode_outlined
+                              : Icons.dark_mode_outlined,
+                          onTap: () {
+                            ref
+                                .read(themeSettingsProvider.notifier)
+                                .setThemeMode(
+                                  isDark ? ThemeMode.light : ThemeMode.dark,
+                                );
+                          },
+                        );
+
+                        if (useMobileList) {
+                          return Row(
+                            children: [
+                              menuButton,
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _screenTitle,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    color: scheme.onSurface,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              themeButton,
+                            ],
+                          );
+                        }
+
+                        if (narrow) {
+                          return MobileAtmosphereScreenHeader(
+                            appearance: appearance,
+                            title: _screenTitle,
+                            leading: menuButton,
+                            trailing: themeButton,
+                          );
+                        }
+
+                        return Row(
+                          children: [
+                            menuButton,
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                _screenTitle,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.titleLarge?.copyWith(
+                                  color: scheme.onSurface,
+                                ),
+                              ),
+                            ),
+                            themeButton,
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: _kBodyPadding,
+                      child: MobileAtmosphereMainSurface(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            SettlementsFiltersToolbar(
+                              searchQuery: _search,
+                              onSearchChanged: (v) =>
+                                  setState(() => _search = v),
+                              typeFilter: _typeFilter,
+                              onTypeChanged: (v) =>
+                                  setState(() => _typeFilter = v),
+                              statusFilter: _statusFilter,
+                              onStatusChanged: (v) =>
+                                  setState(() => _statusFilter = v),
+                              totalInvoiced: state.totalInvoiced,
+                              totalPaid: state.totalPaid,
+                              totalDebt: state.totalDebt,
+                              onRefresh: () => ref
+                                  .read(settlementListProvider.notifier)
+                                  .load(),
+                              onCreate: canCreate
+                                  ? () => SettlementFormDialog.show(context)
+                                  : null,
+                            ),
+                            const SizedBox(height: 12),
+                            Expanded(child: _buildBody(state, filtered)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody(
+    SettlementListState state,
+    List<SettlementOperation> filtered,
+  ) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    if (state.isLoading && state.operations.isEmpty) {
+      return const Center(child: CupertinoActivityIndicator());
+    }
+    if (state.error != null && state.operations.isEmpty) {
+      return Center(
+        child: Text(
+          state.error!,
+          style: theme.textTheme.bodyMedium?.copyWith(color: scheme.error),
+        ),
+      );
+    }
+    if (filtered.isEmpty) {
+      return Center(
+        child: Text(
+          state.operations.isEmpty
+              ? 'Операций пока нет — создайте первую'
+              : 'Ничего не найдено по фильтрам',
+          style: theme.textTheme.bodyLarge?.copyWith(
+            color: scheme.onSurface.withValues(alpha: 0.55),
+          ),
+        ),
+      );
+    }
+
+    return SettlementsOperationsTable(
+      operations: filtered,
+      onRowTap: (op) => SettlementFormDialog.show(context, operation: op),
+      onDelete: _confirmDelete,
+    );
+  }
+
+  Future<void> _confirmDelete(SettlementOperation op) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Удалить операцию?'),
+        content: Text(
+          'Счёт ${op.invoiceNumber} будет удалён без возможности восстановления.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Отмена'),
+          ),
+          PermissionGuard(
+            module: 'settlements',
+            permission: 'delete',
+            child: TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Удалить'),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final success =
+        await ref.read(settlementListProvider.notifier).delete(op.id);
+    if (!mounted) return;
+    AppSnackBar.show(
+      context: context,
+      message: success ? 'Операция удалена' : 'Не удалось удалить',
+      kind: success ? AppSnackBarKind.success : AppSnackBarKind.error,
+    );
+  }
+}

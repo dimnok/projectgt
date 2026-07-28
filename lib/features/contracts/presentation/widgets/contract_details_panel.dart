@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:projectgt/domain/entities/contract.dart';
 import 'package:projectgt/core/di/providers.dart';
-import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/features/contracts/presentation/providers/contract_files_providers.dart';
 import 'package:projectgt/core/widgets/app_snackbar.dart';
@@ -23,17 +22,8 @@ import 'package:projectgt/features/contracts/presentation/widgets/contract_adden
 import 'package:projectgt/features/contracts/presentation/widgets/contract_estimates_section.dart';
 import 'package:projectgt/features/contracts/presentation/widgets/contract_documents_section.dart';
 import 'package:projectgt/features/contracts/presentation/widgets/contract_acts_section.dart';
+import 'package:projectgt/features/settlements/presentation/widgets/contract_settlements_section.dart';
 import 'contract_list_shared.dart';
-
-/// Плюс к потоку (приход): читаемый на [surface] в тёмной и светлой теме.
-Color _cashFlowInflowColor(ThemeData theme) {
-  return theme.brightness == Brightness.dark
-      ? const Color(0xFF69F0AE)
-      : const Color(0xFF1B5E20);
-}
-
-/// Минус / расход в таблице Cash Flow — тот же акцент, что и системная ошибка.
-Color _cashFlowOutflowColor(ThemeData theme) => theme.colorScheme.error;
 
 /// Панель детальной информации о договоре.
 ///
@@ -257,6 +247,14 @@ class ContractDetailsPanel extends ConsumerWidget {
                                 fontWeight: FontWeight.w700,
                               ),
                             ).animate().fade(delay: 140.ms),
+                          ContractDetailNavigationSection.finances => Text(
+                              'Финансы',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ).animate().fade(delay: 140.ms),
                           _ => const SizedBox.shrink(),
                         },
                       ),
@@ -344,7 +342,21 @@ class ContractDetailsPanel extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ContractAtmosphereCard(child: _buildCashFlowSection(theme))
+                ContractAtmosphereCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Финансы',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          ContractSettlementsSection(contract: contract),
+                        ],
+                      ),
+                    )
                     .animate()
                     .fade(delay: 400.ms, duration: 500.ms)
                     .slideY(begin: 0.05, curve: Curves.easeOut),
@@ -452,293 +464,14 @@ class ContractDetailsPanel extends ConsumerWidget {
                     .animate()
                     .fade(delay: 400.ms, duration: 500.ms)
                     .slideY(begin: 0.05, curve: Curves.easeOut),
-              _ => _filteredSectionPlaceholder(theme, filter),
+              ContractDetailNavigationSection.finances =>
+                ContractSettlementsSection(contract: contract)
+                    .animate()
+                    .fade(delay: 400.ms, duration: 500.ms)
+                    .slideY(begin: 0.05, curve: Curves.easeOut),
             },
           ),
       ],
-    );
-  }
-
-  Widget _filteredSectionPlaceholder(
-    ThemeData theme,
-    ContractDetailNavigationSection section,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 48),
-      child: Center(
-        child: Text(
-          'Раздел «${section.label}»: в разработке',
-          textAlign: TextAlign.center,
-          style: theme.textTheme.bodyLarge?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCashFlowSection(ThemeData theme) {
-    final months = [
-      'Янв 2024',
-      'Фев 2024',
-      'Мар 2024',
-      'Апр 2024',
-      'Май 2024',
-      'Июн 2024',
-      'Июл 2024',
-      'Авг 2024',
-      'Сен 2024',
-      'Окт 2024',
-      'Ноя 2024',
-      'Дек 2024',
-    ];
-    final incomes = [
-      450000.0,
-      0.0,
-      800000.0,
-      300000.0,
-      1200000.0,
-      0.0,
-      500000.0,
-      0.0,
-      750000.0,
-      400000.0,
-      0.0,
-      900000.0,
-    ];
-    final expenses = [
-      320000.0,
-      150000.0,
-      400000.0,
-      550000.0,
-      200000.0,
-      100000.0,
-      300000.0,
-      250000.0,
-      350000.0,
-      450000.0,
-      120000.0,
-      500000.0,
-    ];
-
-    final totalIncome = incomes.fold(0.0, (a, b) => a + b);
-    final totalExpense = expenses.fold(0.0, (a, b) => a + b);
-    final totalBalance = totalIncome - totalExpense;
-
-    const double labelWidth = 100.0;
-    const double monthWidth = 120.0;
-    const double totalWidth = 130.0;
-    const double rowHeight = 40.0;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const GTSectionTitle(title: 'Движение денежных средств (Cash Flow)'),
-        const SizedBox(height: 16),
-        Container(
-          decoration: BoxDecoration(
-            color: theme.colorScheme.onSurface.withValues(
-              alpha: theme.brightness == Brightness.dark ? 0.06 : 0.045,
-            ),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: theme.colorScheme.outline.withValues(alpha: 0.14),
-            ),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Row(
-            children: [
-              // 1. Fixed Left Column (Labels)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildCell(
-                    'Статья',
-                    labelWidth,
-                    rowHeight,
-                    theme,
-                    isHeader: true,
-                  ),
-                  const Divider(height: 1, thickness: 1),
-                  _buildCell('Приход', labelWidth, rowHeight, theme),
-                  const Divider(height: 1),
-                  _buildCell('Расход', labelWidth, rowHeight, theme),
-                  const Divider(height: 1, thickness: 1),
-                  _buildCell(
-                    'Итого',
-                    labelWidth,
-                    rowHeight,
-                    theme,
-                    isBold: true,
-                  ),
-                  const Divider(height: 1),
-                ],
-              ),
-              _buildVerticalDivider(theme, height: (rowHeight + 1) * 4),
-
-              // 2. Scrollable Middle (Months)
-              Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      for (int i = 0; i < months.length; i++) ...[
-                        Column(
-                          children: [
-                            _buildCell(
-                              months[i],
-                              monthWidth,
-                              rowHeight,
-                              theme,
-                              isHeader: true,
-                            ),
-                            const Divider(height: 1, thickness: 1),
-                            _buildCell(
-                              incomes[i] != 0
-                                  ? formatCurrency(incomes[i])
-                                  : formatCurrency(0),
-                              monthWidth,
-                              rowHeight,
-                              theme,
-                              valueColor: incomes[i] > 0
-                                  ? _cashFlowInflowColor(theme)
-                                  : null,
-                            ),
-                            const Divider(height: 1),
-                            _buildCell(
-                              expenses[i] != 0
-                                  ? formatCurrency(expenses[i])
-                                  : formatCurrency(0),
-                              monthWidth,
-                              rowHeight,
-                              theme,
-                              valueColor: expenses[i] > 0
-                                  ? _cashFlowOutflowColor(theme)
-                                  : null,
-                            ),
-                            const Divider(height: 1, thickness: 1),
-                            _buildCell(
-                              formatCurrency(incomes[i] - expenses[i]),
-                              monthWidth,
-                              rowHeight,
-                              theme,
-                              isBold: true,
-                              valueColor: (incomes[i] - expenses[i]) >= 0
-                                  ? _cashFlowInflowColor(theme)
-                                  : _cashFlowOutflowColor(theme),
-                            ),
-                            const Divider(height: 1),
-                          ],
-                        ),
-                        _buildVerticalDivider(
-                          theme,
-                          height: (rowHeight + 1) * 4,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-
-              // 3. Fixed Right Column (Totals)
-              Column(
-                children: [
-                  _buildCell(
-                    'ИТОГО',
-                    totalWidth,
-                    rowHeight,
-                    theme,
-                    isHeader: true,
-                    isTotalColumn: true,
-                  ),
-                  const Divider(height: 1, thickness: 1),
-                  _buildCell(
-                    formatCurrency(totalIncome),
-                    totalWidth,
-                    rowHeight,
-                    theme,
-                    valueColor: _cashFlowInflowColor(theme),
-                    isTotalColumn: true,
-                  ),
-                  const Divider(height: 1),
-                  _buildCell(
-                    formatCurrency(totalExpense),
-                    totalWidth,
-                    rowHeight,
-                    theme,
-                    valueColor: _cashFlowOutflowColor(theme),
-                    isTotalColumn: true,
-                  ),
-                  const Divider(height: 1, thickness: 1),
-                  _buildCell(
-                    formatCurrency(totalBalance),
-                    totalWidth,
-                    rowHeight,
-                    theme,
-                    isBold: true,
-                    valueColor: totalBalance >= 0
-                        ? _cashFlowInflowColor(theme)
-                        : _cashFlowOutflowColor(theme),
-                    isTotalColumn: true,
-                  ),
-                  const Divider(height: 1),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCell(
-    String text,
-    double width,
-    double height,
-    ThemeData theme, {
-    bool isHeader = false,
-    bool isBold = false,
-    Color? valueColor,
-    bool isTotalColumn = false,
-  }) {
-    return Container(
-      width: width,
-      height: height,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      alignment: Alignment.centerLeft,
-      decoration: BoxDecoration(
-        color: isHeader
-            ? (isTotalColumn
-                  ? theme.colorScheme.primary.withValues(alpha: 0.05)
-                  : theme.colorScheme.onSurface.withValues(alpha: 0.02))
-            : (isTotalColumn
-                  ? theme.colorScheme.primary.withValues(alpha: 0.02)
-                  : null),
-      ),
-      child: Text(
-        text,
-        style: theme.textTheme.bodySmall?.copyWith(
-          fontWeight: (isHeader || isBold || isTotalColumn)
-              ? FontWeight.bold
-              : FontWeight.normal,
-          color: isHeader
-              ? (isTotalColumn
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.onSurface.withValues(alpha: 0.55))
-              : (valueColor ?? theme.colorScheme.onSurface),
-          fontSize: isHeader ? 12 : 13,
-        ),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-    );
-  }
-
-  Widget _buildVerticalDivider(ThemeData theme, {double? height}) {
-    return Container(
-      width: 1,
-      height: height,
-      color: theme.colorScheme.outline.withValues(alpha: 0.1),
     );
   }
 }

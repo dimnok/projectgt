@@ -35,6 +35,7 @@ import 'package:projectgt/features/export/presentation/screens/export_screen.dar
 import 'package:projectgt/features/work_plans/presentation/screens/work_plan_details_screen.dart';
 import 'package:projectgt/features/materials/presentation/screens/material_screen.dart';
 import 'package:projectgt/features/cash_flow/presentation/screens/cash_flow_list_screen.dart';
+import 'package:projectgt/features/settlements/presentation/screens/settlements_list_screen.dart';
 // Telegram moderation экраны удалены
 import 'package:projectgt/core/navigation/app_module_availability.dart';
 import 'package:projectgt/core/navigation/app_route_observer.dart';
@@ -634,6 +635,22 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
 
+      GoRoute(
+        path: AppRoutes.settlements,
+        name: 'settlements',
+        builder: (context, state) {
+          return Consumer(
+            builder: (context, ref, child) {
+              final service = ref.watch(permissionServiceProvider);
+              if (service.can('settlements', 'read')) {
+                return const SettlementsListScreen();
+              }
+              return _buildAccessDeniedScreen();
+            },
+          );
+        },
+      ),
+
       // Страницы статусов доступа управляются через AuthGate
     ],
     errorBuilder: (context, state) =>
@@ -715,6 +732,9 @@ class AppRoutes {
 
   /// Маршрут для модуля Cash Flow (Движение денежных средств)
   static const String cashFlow = '/cash_flow';
+
+  /// Маршрут взаиморасчётов (счета и оплаты)
+  static const String settlements = '/settlements';
 
   // Telegram маршруты удалены
 

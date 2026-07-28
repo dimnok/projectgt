@@ -372,8 +372,10 @@ class _GTAdaptiveTableState<T> extends State<GTAdaptiveTable<T>> {
         title,
         textAlign: align,
         style: theme.textTheme.labelMedium?.copyWith(
-          fontWeight: FontWeight.bold,
-          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          fontSize: 12,
+          height: 1.2,
+          letterSpacing: 0.1,
         ),
       ),
     );
@@ -402,11 +404,9 @@ class _GTAdaptiveTableState<T> extends State<GTAdaptiveTable<T>> {
       constraints: BoxConstraints(minHeight: widget.minRowHeight),
       alignment: align,
       child: DefaultTextStyle.merge(
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
         style: theme.textTheme.bodySmall?.copyWith(
-          fontSize: 12,
-          height: 1.0,
+          fontSize: 13,
+          height: 1.25,
           fontWeight: isTotal ? FontWeight.bold : null,
         ),
         child: child,
@@ -452,16 +452,16 @@ class _GTAdaptiveTableState<T> extends State<GTAdaptiveTable<T>> {
 
     final headerStyle =
         theme.textTheme.labelMedium?.copyWith(
-          fontWeight: FontWeight.bold,
-          fontSize: 11,
-          height: 1.0,
+          fontWeight: FontWeight.w700,
+          fontSize: 12,
+          height: 1.2,
         ) ??
-        const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, height: 1.0);
+        const TextStyle(fontWeight: FontWeight.w700, fontSize: 12, height: 1.2);
     final bodyStyle =
-        theme.textTheme.bodySmall?.copyWith(fontSize: 12, height: 1.0) ??
-        const TextStyle(fontSize: 12, height: 1.0);
+        theme.textTheme.bodySmall?.copyWith(fontSize: 13, height: 1.25) ??
+        const TextStyle(fontSize: 13, height: 1.25);
 
-    final paddingWidth = widget.cellHorizontalPadding * 2 + 6;
+    final paddingWidth = widget.cellHorizontalPadding * 2 + 8;
 
     for (var i = 0; i < widget.columns.length; i++) {
       final config = widget.columns[i];

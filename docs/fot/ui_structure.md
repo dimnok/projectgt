@@ -1,6 +1,8 @@
 # Структура интерфейса модуля ФОТ
 
-**Дата актуализации:** 17 июля 2026 года
+**Дата актуализации:** 18 июля 2026 года
+
+> **Изменения 18.07.2026:** Сегментированные переключатели панели (`PayrollTabSegment`, `PayrollEmployeeStatusFilterSegment`) на **desktop** (`ResponsiveUtils.isDesktop`) сворачиваются до одной активной опции; при наведении мыши раскрываются через `PayrollToolbarCollapsibleSegmentTrack` (`payroll_toolbar_metrics.dart`). На **mobile-list** — полный трек, как раньше. Порядок сегментов при раскрытии: у вкладок выбранная слева (рост вправо), у фильтра статуса — справа (рост влево). Резерв ширины вкладок в `payrollToolbarSearchWidth()`: `kPayrollTabSegmentOuterWidth = 92` (свёрнуто), `kPayrollTabSegmentExpandedOuterWidth = 272` (полный трек).
 
 > **Изменения 17.07.2026 (правка 3):** Клик по ФИО сотрудника в таблице ФОТ открывает карточку сотрудника (`EmployeeDetailsModal` / `EmployeesMobileEmployeeDetailsSheet`), как в модуле «Табель». Доступ по праву `employees` / `read`. Контекстное меню по правому клику сохранено.
 
@@ -52,7 +54,7 @@
 | 5 | Spacer | — | ✓ | — |
 | 6 | Действия | `PayrollTabToolbarActions` | ✓ | ✓ (закреплены справа) |
 
-Ширина поля поиска рассчитывается функцией `payrollToolbarSearchWidth()` с учётом вкладок, переключателя месяца и правого блока.
+Ширина поля поиска рассчитывается функцией `payrollToolbarSearchWidth()` с учётом **свёрнутой** ширины вкладок (`kPayrollTabSegmentOuterWidth = 92`), переключателя месяца и правого блока.
 
 ### Геометрия панели
 
@@ -64,17 +66,34 @@
 | Радиус капсулы | `18` px |
 | Отступ трека сегментов | `2` px |
 | Шрифт сегментов | `11.5` pt, `FontWeight.w600` |
+| Ширина вкладок (desktop, свёрнуто) | `kPayrollTabSegmentOuterWidth = 92` |
+| Ширина вкладок (полный трек) | `kPayrollTabSegmentExpandedOuterWidth = 272` |
 
 Переиспользуемые примитивы:
 
 - `PayrollToolbarSegmentTrack` — оболочка сегментированного контрола.
 - `PayrollToolbarSegmentChip` — один сегмент (вкладка / статус).
+- `PayrollToolbarCollapsibleSegmentTrack` — сворачиваемый трек: одна опция по умолчанию, все — при наведении (desktop).
 - `PayrollToolbarTextButton` — кнопки «Добавить» / «Импорт» той же высоты.
+
+### Сворачиваемые сегменты (desktop)
+
+**Файл:** `payroll_toolbar_metrics.dart` — `PayrollToolbarCollapsibleSegmentTrack`.
+
+| Аспект | Поведение |
+|--------|-----------|
+| Условие | `ResponsiveUtils.isDesktop` (ширина экрана ≥ `900` px) |
+| Свёрнуто | Один сегмент с подписью активной опции |
+| Раскрытие | Наведение мыши (`MouseRegion`); трек с `elevated: true` |
+| Вкладки (`PayrollTabSegment`) | Выбранная вкладка **первая** (слева), остальные справа — рост вправо |
+| Статус (`PayrollEmployeeStatusFilterSegment`) | Выбранный статус **последний** (справа), остальные слева — рост влево |
+| Mobile-list | Полный `PayrollToolbarSegmentTrack` без сворачивания |
 
 ### Вкладки (`PayrollTabSegment`)
 
 Индексы: `0` ФОТ · `1` Премии · `2` Штрафы · `3` Выплаты.  
-Состояние: локальный `setState(_selectedTabIndex)` в `PayrollListScreen`.
+Состояние: локальный `setState(_selectedTabIndex)` в `PayrollListScreen`.  
+На desktop — `PayrollToolbarCollapsibleSegmentTrack`; на mobile-list — обычный `PayrollToolbarSegmentTrack`.
 
 ### Период (`PayrollCompactMonthSwitcher`)
 
@@ -94,7 +113,7 @@
 
 | Вкладка | Содержимое | Право |
 |---------|------------|-------|
-| ФОТ | `PayrollEmployeeStatusFilterSegment` (Все / Работает / Уволен) | — |
+| ФОТ | `PayrollEmployeeStatusFilterSegment` (Все / Работает / Уволен; desktop — сворачиваемый) | — |
 | Премии | `PayrollToolbarTextButton` «Добавить» | `payroll` / `create` |
 | Штрафы | `PayrollToolbarTextButton` «Добавить» | `payroll` / `create` |
 | Выплаты | «Импорт из Excel» + «Добавить» | `payroll` / `create` |
@@ -123,6 +142,7 @@
 | Функция / провайдер | Назначение |
 |---------------------|------------|
 | `payrollEmployeeStatusFilterProvider` | Все / Работает / Уволен |
+| `PayrollEmployeeStatusFilterSegment` | UI-переключатель; на desktop — `PayrollToolbarCollapsibleSegmentTrack` |
 | `filterEmployeesByPayrollStatus` | Список сотрудников по статусу |
 | `filterPayrollsByEmployeeStatus` | Строки ФОТ по статусу |
 
@@ -254,7 +274,8 @@
 | Поиск desktop | `TimesheetToolbarSearch` | `PayrollToolbarSearch` (`payroll_filters_toolbar.dart`) |
 | Состояние поиска | `timesheetSearchQueryProvider` | `payrollSearchQueryProvider` |
 | Фильтр по ФИО | helpers в модуле «Табель» | `payroll_name_search_filters.dart` |
-| Фильтр статуса | — | `PayrollEmployeeStatusFilterSegment` (только ФОТ) |
+| Фильтр статуса | — | `PayrollEmployeeStatusFilterSegment` (только ФОТ; desktop — hover-expand) |
+| Сегменты панели | — | `PayrollToolbarCollapsibleSegmentTrack` (вкладки + статус, только desktop) |
 | Период | `TimesheetCompactMonthSwitcher` | `PayrollCompactMonthSwitcher` |
 | Объекты | `TimesheetObjectsBarDropdown` | `PayrollObjectsBarDropdown` |
 | Адаптивность | `EmployeesLayoutUtils` | `EmployeesLayoutUtils` |
@@ -277,7 +298,7 @@
 
 ---
 
-## Дерево файлов Presentation (аудит 17.07.2026)
+## Дерево файлов Presentation (аудит 18.07.2026)
 
 ```
 lib/features/fot/presentation/
@@ -288,13 +309,13 @@ lib/features/fot/presentation/
 │       ├── payroll_tab_penalties.dart    # PayrollTabPenalties
 │       └── payroll_tab_payouts.dart      # PayrollTabPayouts
 ├── widgets/
-│   ├── payroll_filters_toolbar.dart      # PayrollFiltersToolbar, PayrollCompactMonthSwitcher, PayrollToolbarSearch
-│   ├── payroll_tab_segment.dart          # PayrollTabSegment
+│   ├── payroll_filters_toolbar.dart      # PayrollFiltersToolbar, PayrollCompactMonthSwitcher, PayrollToolbarSearch, kPayrollTabSegmentOuterWidth
+│   ├── payroll_tab_segment.dart          # PayrollTabSegment (collapsible на desktop)
 │   ├── payroll_objects_bar_dropdown.dart # PayrollObjectsBarDropdown
 │   ├── payroll_tab_toolbar_actions.dart
-│   ├── payroll_toolbar_metrics.dart      # PayrollToolbarMetrics, PayrollToolbarSegmentTrack
+│   ├── payroll_toolbar_metrics.dart      # PayrollToolbarMetrics, PayrollToolbarSegmentTrack, PayrollToolbarCollapsibleSegmentTrack
 │   ├── payroll_mobile_search_field.dart  # PayrollMobileSearchField
-│   ├── payroll_employee_status_filter_segment.dart
+│   ├── payroll_employee_status_filter_segment.dart  # PayrollEmployeeStatusFilterSegment (collapsible на desktop)
 │   ├── payroll_export_action.dart        # PayrollExportAction
 │   ├── payroll_table_widget.dart         # PayrollTableWidget
 │   ├── payroll_table_view.dart           # PayrollTableView

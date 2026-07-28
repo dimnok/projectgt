@@ -322,19 +322,27 @@
 - date: DATE — дата смены
 - object_id: UUID — внешний ключ на objects.id
 - opened_by: UUID — внешний ключ на profiles.id (кто открыл смену)
-- status: TEXT — статус смены (`open`, `draft`, `closed`)
-- photo_url: TEXT — URL фотографии смены (утро)
-- evening_photo_url: TEXT — URL фотографии смены (вечер)
-- created_at: TIMESTAMP — дата и время создания записи
-- updated_at: TIMESTAMP — дата и время последнего обновления
+- status: TEXT — статус смены (`open`, `closed`)
+- photo_url: TEXT — URL утреннего фото
+- evening_photo_url: TEXT — URL вечернего фото
+- total_amount: NUMERIC — сумма всех строк работ (триггер)
+- own_total_amount: NUMERIC — сумма строк без подрядчика (триггер)
+- items_count: INTEGER — число позиций `work_items`
+- employees_count: INTEGER — уникальные сотрудники по `work_hours`
+- telegram_message_id: INTEGER — id утреннего сообщения Telegram
+- company_id: UUID — FK → companies.id
+- created_at / updated_at: TIMESTAMPTZ — аудит
 
 **Связи:**
 - object_id → objects.id (FK)
 - opened_by → profiles.id (FK)
-- id → work_items.work_id, work_materials.work_id, work_hours.work_id (FK)
+- company_id → companies.id (FK)
+- id → work_items.work_id, work_hours.work_id (FK)
 
 **RLS-политики:**
-- Только участники объекта или админ могут видеть/редактировать
+- ✅ Включён (Strict + доступ по объектам профиля / Owner)
+
+**Примечание (28.07.2026):** таблица `work_materials` удалена (не использовалась). См. [`works/works_module.md`](works/works_module.md), миграция `20260728061000_drop_work_materials.sql`.
 
 ---
 
@@ -362,29 +370,6 @@
 **Связи:**
 - work_id → works.id (FK)
 - estimate_id → estimates.id (FK)
-
-**RLS-политики:**
-- Только участники смены или админ могут видеть/редактировать
-
----
-
-## Таблица `work_materials`
-
-**Описание:**
-Учёт материалов, использованных в смене.
-
-**Структура:**
-- id: UUID, PK — уникальный идентификатор записи о материале
-- work_id: UUID — внешний ключ на works.id
-- name: TEXT — наименование материала
-- unit: TEXT — единица измерения
-- quantity: NUMERIC — количество
-- comment: TEXT — комментарий
-- created_at: TIMESTAMP — дата и время создания записи
-- updated_at: TIMESTAMP — дата и время последнего обновления
-
-**Связи:**
-- work_id → works.id (FK)
 
 **RLS-политики:**
 - Только участники смены или админ могут видеть/редактировать
@@ -664,6 +649,43 @@
 **RLS-политики:**
 - ✅ Доступна только участникам компании (через `get_my_company_ids()`)
 - ✅ Безопасность гарантирована на уровне БД через `company_id`
+
+---
+
+## Таблица `settlement_operations`
+
+**Описание:**
+Операции взаиморасчётов (модуль Settlements): учёт счетов и оплат по договорам. Типы: акт / аванс / прочее. Параллельно реестру актов договора (`contract_acts`), не заменяет КС-2. Подробнее: [`settlements/settlements_module.md`](settlements/settlements_module.md).
+
+**Структура:**
+- id: UUID, PK
+- company_id: UUID, FK → `companies.id` ON DELETE CASCADE
+- operation_type: TEXT — `act` \| `advance` \| `other`
+- object_id: UUID, FK → `objects.id`
+- contractor_id: UUID, FK → `contractors.id`
+- contract_id: UUID, FK → `contracts.id` ON DELETE CASCADE
+- period_from / period_to: DATE — период работ (для акта)
+- act_number / act_date: TEXT / DATE — реквизиты акта
+- invoice_number / invoice_date: TEXT / DATE — реквизиты счёта
+- amount / vat_amount: NUMERIC — база и НДС
+- advance_retention / warranty_retention: NUMERIC — удержания
+- total_to_pay: NUMERIC **GENERATED** — `GREATEST(0, amount + vat − удержания)`
+- paid_amount: NUMERIC — оплачено
+- payment_status: TEXT — `unpaid` \| `partial` \| `paid` \| `overpaid`
+- purpose / note: TEXT
+- created_at / updated_at / created_by
+
+**Связи:**
+- company_id → companies.id (FK)
+- object_id → objects.id (FK)
+- contractor_id → contractors.id (FK)
+- contract_id → contracts.id (FK)
+- created_by → auth.users.id (FK)
+
+**RLS-политики:**
+- ✅ Включён: SELECT/INSERT/UPDATE/DELETE через `get_my_company_ids()` + `check_permission(..., 'settlements', ...)`
+
+**Миграция:** `supabase/migrations/20260720220000_create_settlement_operations.sql`
 
 ---
 

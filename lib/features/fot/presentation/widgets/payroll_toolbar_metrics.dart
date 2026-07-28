@@ -142,6 +142,7 @@ class PayrollToolbarSegmentTrack extends StatelessWidget {
     super.key,
     required this.semanticsLabel,
     required this.children,
+    this.elevated = false,
   });
 
   /// Подпись для доступности.
@@ -150,11 +151,14 @@ class PayrollToolbarSegmentTrack extends StatelessWidget {
   /// Сегменты внутри трека.
   final List<Widget> children;
 
+  /// Поднять трек над соседними элементами (раскрытое состояние).
+  final bool elevated;
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
-    return Semantics(
+    final track = Semantics(
       label: semanticsLabel,
       child: SizedBox(
         height: PayrollToolbarMetrics.height,
@@ -169,6 +173,66 @@ class PayrollToolbarSegmentTrack extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+
+    if (!elevated) return track;
+
+    return Material(
+      color: Colors.transparent,
+      elevation: 3,
+      shadowColor: scheme.shadow.withValues(alpha: 0.18),
+      borderRadius: BorderRadius.circular(PayrollToolbarMetrics.radius),
+      child: track,
+    );
+  }
+}
+
+/// Сегментированный контрол: одна опция по умолчанию, все — при наведении.
+class PayrollToolbarCollapsibleSegmentTrack extends StatefulWidget {
+  /// Создаёт сворачиваемый трек сегментов.
+  const PayrollToolbarCollapsibleSegmentTrack({
+    super.key,
+    required this.semanticsLabel,
+    required this.selectedLabel,
+    required this.children,
+  });
+
+  /// Подпись для доступности.
+  final String semanticsLabel;
+
+  /// Подпись активного сегмента в свёрнутом виде.
+  final String selectedLabel;
+
+  /// Все сегменты в развёрнутом виде (выбранный — у края раскрытия).
+  final List<Widget> children;
+
+  @override
+  State<PayrollToolbarCollapsibleSegmentTrack> createState() =>
+      _PayrollToolbarCollapsibleSegmentTrackState();
+}
+
+class _PayrollToolbarCollapsibleSegmentTrackState
+    extends State<PayrollToolbarCollapsibleSegmentTrack> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: PayrollToolbarSegmentTrack(
+        semanticsLabel: widget.semanticsLabel,
+        elevated: _hovered,
+        children: _hovered
+            ? widget.children
+            : [
+                PayrollToolbarSegmentChip(
+                  label: widget.selectedLabel,
+                  selected: true,
+                  onTap: () {},
+                ),
+              ],
       ),
     );
   }

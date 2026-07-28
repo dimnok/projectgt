@@ -4,7 +4,7 @@
 - works ✅ (есть company_id)
 - work_hours ✅ (есть company_id)
 - work_items ✅ (есть company_id)
-- work_materials ✅ (есть company_id)
+- work_materials ❌ удалена 28.07.2026 (не использовалась)
 - work_plans ✅ (есть company_id)
 - work_plan_blocks ✅ (есть company_id)
 - work_plan_items ✅ (есть company_id)
