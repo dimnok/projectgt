@@ -1,8 +1,17 @@
 # Модуль Employees (Сотрудники)
 
-**Дата актуализации:** 28 июня 2026 года
+**Дата актуализации:** 29 июля 2026 года
 
-**Изменения в этой версии (28.06.2026, заявление об увольнении):**
+**Изменения в этой версии (29.07.2026, вкладка «Табель» в карточке):**
+- **Третья вкладка «Табель»** в [`EmployeeDetailsModal`](../../lib/features/employees/presentation/widgets/employee_details_modal.dart) и [`EmployeesMobileEmployeeDetailsSheet`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_details_sheet.dart): сегмент **«Обзор» / «Заявления» / «Табель»**
+- **UI:** [`EmployeeTimesheetSection`](../../lib/features/employees/presentation/widgets/employee_timesheet_section.dart) — read-only просмотр месяца одного сотрудника: переключатель месяца, сводка (часов / дней), полоска дней (сверху дата, снизу часы); **без** кнопки «Проставить часы» и без разделения смены/вручную
+- **Данные:** [`employeeTimesheetMonthProvider`](../../lib/features/employees/presentation/providers/employee_timesheet_month_provider.dart) — `FutureProvider.autoDispose.family`; параллельно `getAttendanceRecords(employeeId)` + `getShiftHoursForEmployee`; сумма часов за день = смены + ручная посещаемость (как в сетке Timesheet)
+- **RBAC:** вкладка видна только при `timesheet.read`; при отзыве права индекс вкладки сбрасывается (safe `viewTab`)
+- **Ленивая загрузка:** сеть только после первого выбора вкладки (`isActive` / `_wasActivated`)
+- **Sync:** после `EmployeeAttendanceDialog` в Timesheet — `ref.invalidate(employeeTimesheetMonthProvider(…))` ([`timesheet_calendar_view.dart`](../../lib/features/timesheet/presentation/widgets/timesheet_calendar_view.dart))
+- Баннер «Не учитывается в табеле» при `includeInTimesheet == false` (часы при наличии всё равно показываются)
+
+**Предыдущая версия (28.06.2026, заявление об увольнении):**
 - **Новый тип:** `EmployeeApplicationType.resignation` (`application_type = 'resignation'` в БД); миграция [`20260628140000_employee_applications_resignation_type.sql`](../../supabase/migrations/20260628140000_employee_applications_resignation_type.sql)
 - **PDF:** [`ProfilePdfGenerator.generateResignationPdf`](../../lib/features/profile/utils/profile_pdf_generator.dart) — «Прошу уволить меня по собственному желанию с … г.»; шапка — ООО «ГТ Инжиниринг»
 - **Карточка сотрудника:** пункт «Увольнение» в [`employee_applications_section.dart`](../../lib/features/employees/presentation/widgets/employee_applications_section.dart); форма [`showEmployeeResignationApplicationForm`](../../lib/features/employees/presentation/widgets/employee_application_forms.dart) — дата последнего рабочего дня (default +14 дней), печать PDF, загрузка скана
@@ -102,13 +111,13 @@
 - **текущая ставка** не хранится в строке `employees`: подгружается из `employee_rates`, где `valid_to IS NULL`, и кладётся в `Employee.currentHourlyRate` / `EmployeeModel.currentHourlyRate` (только на клиенте)
 - флаг **`can_be_responsible`** хранится в БД в `employees`, в доменной модели [`Employee`](../../lib/domain/entities/employee.dart) **не** сериализуется; кэш `EmployeeState.canBeResponsibleMap` сейчас никем не читается, обновляется точечно через `toggleCanBeResponsible`; массовая подгрузка `getCanBeResponsibleMap()` по умолчанию **не выполняется** (`includeResponsibilityMap: false`), чтобы убрать дублирующий запрос при каждом открытии списка — подгрузка включается явно только в сценариях, где это потребуется
 - **две раскладки списка**: `EmployeesTableScreen` (таблица) и `EmployeesListMobileScreen` (карточки) — выбор по [`EmployeesLayoutUtils.useEmployeesMobileList`](../../lib/features/employees/presentation/utils/employees_layout_utils.dart) (`shortestSide` vs breakpoint планшета)
-- **вкладки карточки:** «Обзор» (анкета, ставки, личные данные) и «Заявления» (PDF + сканы); вкладки «Документы» и «Доп. информация» — в roadmap
+- **вкладки карточки:** «Обзор» (анкета, ставки, личные данные), «Заявления» (PDF + сканы), **«Табель»** (read-only месяц одного сотрудника, при `timesheet.read`); вкладки «Документы» и «Доп. информация» — в roadmap
 
 ---
 
 ## Описание модуля
 
-Модуль **Employees** закрывает жизненный цикл карточки сотрудника в компании: анкета, паспорт, трудоустройство, объекты, статус, история ставок, фото, **заявления (PDF + подписанные сканы)**, флаг ответственного, участие в **Timesheet**, **Works**, **Work Plans**, **FOT**.
+Модуль **Employees** закрывает жизненный цикл карточки сотрудника в компании: анкета, паспорт, трудоустройство, объекты, статус, история ставок, фото, **заявления (PDF + подписанные сканы)**, **просмотр табеля по сотруднику**, флаг ответственного, участие в **Timesheet**, **Works**, **Work Plans**, **FOT**.
 
 Ключевые функции:
 
@@ -116,6 +125,7 @@
 - создание / редактирование / удаление (права `employees:*`)
 - история и текущая ставка (`employee_rates`)
 - **заявления:** формирование образца (отпуск / отпуск без содержания / увольнение), печать PDF, загрузка подписанного скана, список с просмотром и скачиванием
+- **табель в карточке:** просмотр часов за месяц (смены + ручная посещаемость); массовое проставление — только в модуле Timesheet
 - переключение **`can_be_responsible`**
 - inline на таблице: **статус**, **объекты** (`object_ids`)
 - экспорт XLSX на сервере (**Edge Function** + клиентский сервис)
@@ -180,8 +190,9 @@
 |------|------------|
 | [`employees_table_actions_bar.dart`](../../lib/features/employees/presentation/widgets/employees_table_actions_bar.dart) | Панель действий таблицы |
 | [`employees_table_filters_toolbar.dart`](../../lib/features/employees/presentation/widgets/employees_table_filters_toolbar.dart) | Фильтры; индикатор загрузки picklist объектов в триггере dropdown — `CupertinoActivityIndicator`; `EmployeesObjectTableFilterValue.toExportFilterJson()` для экспорта |
-| [`employee_details_modal.dart`](../../lib/features/employees/presentation/widgets/employee_details_modal.dart) | Детальная карточка (desktop); вкладки **«Обзор» / «Заявления»** (`IndexedStack`, компактный `CustomSlidingSegmentedControl`); вход в редактирование — `GTTextButton` «Редактировать»; загрузка аватара — `CupertinoActivityIndicator`; «+» ставки и суточных только при `employees.update`; `ref.listen` на `employeeProvider` и `permissionServiceProvider` |
+| [`employee_details_modal.dart`](../../lib/features/employees/presentation/widgets/employee_details_modal.dart) | Детальная карточка (desktop); вкладки **«Обзор» / «Заявления» / «Табель»** (`IndexedStack`, компактный `CustomSlidingSegmentedControl`); «Табель» только при `timesheet.read`; safe `viewTab` при отзыве права; вход в редактирование — `GTTextButton` «Редактировать»; `ref.listen` на `employeeProvider` и `permissionServiceProvider` |
 | [`employee_applications_section.dart`](../../lib/features/employees/presentation/widgets/employee_applications_section.dart) | **Вкладка «Заявления»:** типы заявлений, компактный список сканов (одна строка + icon actions), просмотр / скачивание / удаление |
+| [`employee_timesheet_section.dart`](../../lib/features/employees/presentation/widgets/employee_timesheet_section.dart) | **Вкладка «Табель»:** месяц одного сотрудника — сводка часов/дней, полоска дней (дата сверху, часы снизу), без прокрутки; ленивая загрузка; баннер `includeInTimesheet` |
 | [`employee_application_forms.dart`](../../lib/features/employees/presentation/widgets/employee_application_forms.dart) | Формы отпуска и БС для карточки сотрудника (PDF + загрузка скана) |
 | [`employee_application_scan_preview.dart`](../../lib/features/employees/presentation/widgets/employee_application_scan_preview.dart) | Просмотр PDF (`printing`) и изображений в диалоге |
 | [`employee_edit_form.dart`](../../lib/features/employees/presentation/widgets/employee_edit_form.dart) | Форма редактирования; кнопка «Сохранить» при отправке — `CupertinoActivityIndicator`; `_saveChanges` — guard `employees.update` |
@@ -197,7 +208,7 @@
 | [`employees_mobile_add_employee_button.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_add_employee_button.dart) | FAB / кнопка добавления |
 | [`employees_mobile_employee_card.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_card.dart) | Карточка в списке |
 | [`employees_mobile_swipeable_employee_card.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_swipeable_employee_card.dart) | Свайп по карточке |
-| [`employees_mobile_employee_details_sheet.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_details_sheet.dart) | Bottom sheet деталей; вкладки **«Обзор» / «Заявления»** (`IndexedStack`, компактный сегмент); загрузка аватара — `CupertinoActivityIndicator`; кнопки «Изменить» (иконка у секций) — при `employees.update` |
+| [`employees_mobile_employee_details_sheet.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_details_sheet.dart) | Bottom sheet деталей; вкладки **«Обзор» / «Заявления» / «Табель»** (`IndexedStack`, компактный сегмент); «Табель» при `timesheet.read`; кнопки «Изменить» — при `employees.update` |
 | [`employees_mobile_employee_edit_blocks.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_edit_blocks.dart) | Блоки редактирования на мобильном; `_persistEmployeeUpdate` — guard `employees.update` |
 
 ### Design System (`lib/core/widgets/`)
@@ -215,7 +226,7 @@
 | `AppSnackBar` | [`app_snackbar.dart`](../../lib/core/widgets/app_snackbar.dart) | **Весь модуль:** таблица, mobile-список, формы, диалоги, заявления, [`EmployeeAvatarController`](../../lib/features/employees/presentation/providers/employee_avatar_controller.dart) |
 | `GTContextMenu` | [`gt_context_menu.dart`](../../lib/core/widgets/gt_context_menu.dart) | [`employee_details_modal.dart`](../../lib/features/employees/presentation/widgets/employee_details_modal.dart) |
 | `GTConfirmationDialog` | [`gt_confirmation_dialog.dart`](../../lib/core/widgets/gt_confirmation_dialog.dart) | удаление заявления в [`employee_applications_section.dart`](../../lib/features/employees/presentation/widgets/employee_applications_section.dart) |
-| `CustomSlidingSegmentedControl` | [`custom_sliding_segmented_control.dart`](../../lib/presentation/widgets/custom_sliding_segmented_control.dart) | переключатель вкладок «Обзор» / «Заявления» в карточке |
+| `CustomSlidingSegmentedControl` | [`custom_sliding_segmented_control.dart`](../../lib/presentation/widgets/custom_sliding_segmented_control.dart) | переключатель вкладок «Обзор» / «Заявления» / «Табель» в карточке |
 
 Табличный экран построен на кастомной вёрстке (`Table` / `LayoutBuilder` и т.д.), без внешних grid-библиотек — в духе правил проекта (см. [`flutter.mdc`](../../.cursor/rules/flutter.mdc)).
 
@@ -230,13 +241,14 @@
 
 | Право | Список (таблица / mobile) | Карточка (modal / bottom sheet) |
 |-------|---------------------------|----------------------------------|
-| `read` | Просмотр списка, открытие карточки | Просмотр всех секций; вкладка «Заявления» — список, просмотр и скачивание сканов |
-| `create` | «Добавить сотрудника» | — |
-| `update` | Inline статус/объекты, свайпы (mobile), редактирование | Desktop: **«Редактировать»** → форма; mobile: иконки «изменить»; «+» ставки, суточные, фото; **формирование заявлений и загрузка сканов**; удаление заявлений |
-| `delete` | Удаление выбранных | — |
-| `export` | «Экспорт» в toolbar таблицы | — |
+| `employees.read` | Просмотр списка, открытие карточки | Просмотр «Обзор» и «Заявления» (список/сканы) |
+| `timesheet.read` | — | Вкладка **«Табель»** (просмотр часов за месяц) |
+| `employees.create` | «Добавить сотрудника» | — |
+| `employees.update` | Inline статус/объекты, свайпы (mobile), редактирование | Desktop: **«Редактировать»** → форма; mobile: иконки «изменить»; «+» ставки, суточные, фото; **формирование заявлений и загрузка сканов**; удаление заявлений |
+| `employees.delete` | Удаление выбранных | — |
+| `employees.export` | «Экспорт» в toolbar таблицы | — |
 
-Источник прав в UI: [`PermissionService`](../../lib/features/roles/application/permission_service.dart). Роль с одним `read` (например, «Тестирование») видит модуль и карточку **без** элементов изменения; запись в БД дополнительно блокируется RLS (`check_permission`).
+Источник прав в UI: [`PermissionService`](../../lib/features/roles/application/permission_service.dart). Роль с одним `employees.read` (например, «Тестирование») видит модуль и карточку **без** элементов изменения и **без** вкладки «Табель», если нет `timesheet.read`; запись в БД дополнительно блокируется RLS (`check_permission`).
 
 ### Провайдеры presentation
 
@@ -246,6 +258,7 @@
 | `employeeAvatarControllerProvider` | [`employee_avatar_controller.dart`](../../lib/features/employees/presentation/providers/employee_avatar_controller.dart) | Загрузка / удаление / скачивание фото; уведомления через `AppSnackBar` |
 | `employeeApplicationsProvider(employeeId)` | [`employee_applications_provider.dart`](../../lib/features/employees/presentation/providers/employee_applications_provider.dart) | Список заявлений, upload/delete/download сканов; autoDispose family |
 | `employeeApplicationBusyIdsProvider(employeeId)` | там же | Индикация загрузки при скачивании / просмотре |
+| `employeeTimesheetMonthProvider(key)` | [`employee_timesheet_month_provider.dart`](../../lib/features/employees/presentation/providers/employee_timesheet_month_provider.dart) | Часы одного сотрудника за месяц (`EmployeeTimesheetMonthKey`: `employeeId` + месяц); autoDispose family; источники — репозитории Timesheet |
 
 ### Жизненный цикл экранов (Riverpod / Web)
 
@@ -362,6 +375,7 @@ lib/
 │       ├── providers/
 │       │   ├── employee_avatar_controller.dart
 │       │   ├── employee_applications_provider.dart
+│       │   ├── employee_timesheet_month_provider.dart
 │       │   └── employees_module_objects_provider.dart
 │       ├── screens/
 │       │   ├── employees_table_screen.dart
@@ -377,6 +391,7 @@ lib/
 │           ├── employee_applications_section.dart
 │           ├── employee_application_forms.dart
 │           ├── employee_application_scan_preview.dart
+│           ├── employee_timesheet_section.dart
 │           ├── add_employee_rate_dialog.dart
 │           ├── add_employee_simple_dialog.dart
 │           ├── editable_inline_text_row.dart
@@ -636,6 +651,14 @@ Bucket **`employee_applications`** (private, `public: false`):
        - `scan_name` / `scan_size` в UI списка не показываются.
     4. Удаление — только при `employees.update`; каскад: строка БД + файл Storage.
     5. При ошибке INSERT после upload — best-effort удаление объекта из Storage ([`SupabaseEmployeeApplicationDataSource`](../../lib/data/datasources/supabase_employee_application_data_source.dart)).
+16. **Табель (вкладка карточки):**
+    1. Вкладка видна только при `PermissionService.can('timesheet', 'read')`.
+    2. При первом выборе вкладки [`EmployeeTimesheetSection`](../../lib/features/employees/presentation/widgets/employee_timesheet_section.dart) подписывается на [`employeeTimesheetMonthProvider`](../../lib/features/employees/presentation/providers/employee_timesheet_month_provider.dart).
+    3. Параллельная загрузка: `EmployeeAttendanceRepository.getAttendanceRecords(employeeId, start, end)` + `TimesheetRepository.getShiftHoursForEmployee(…)`.
+    4. **Инвариант суммы:** `dayTotal = shiftHours + manualHours` (как ячейка сетки Timesheet); UI показывает только итог по дню и месяц.
+    5. Переключатель месяца — без перехода в будущие месяцы; полоска дней без горизонтального скролла (`Expanded` на каждый день).
+    6. Проставление часов **не** доступно из карточки — только модуль Timesheet (`EmployeeAttendanceDialog`).
+    7. После успешного сохранения посещаемости в Timesheet — `invalidate` провайдера месяца сотрудника (карточка, если открыта, обновится).
 
 ---
 
@@ -661,6 +684,10 @@ Bucket **`employee_applications`** (private, `public: false`):
 ### Timesheet и FOT
 
 - справочник сотрудников и ставок для табеля и расчётов (функции вроде `calculate_employee_balances`, `get_payroll_report_data` и др. в миграциях ФОТ)
+- **вкладка «Табель» в карточке:** read-only UI в Employees; data — репозитории модуля Timesheet (`employeeAttendanceRepositoryProvider`, `timesheetRepositoryProvider`)
+- из Timesheet: клик по ФИО → та же карточка; после `EmployeeAttendanceDialog` — invalidate `employeeTimesheetMonthProvider`
+- sync каталога табеля при смысловых правках справочника: `timesheetEmployeeCatalogChanged` + `reloadEmployeesCatalog` (см. [`docs/timesheet/timesheet_module.md`](../timesheet/timesheet_module.md))
+- чекбокс `include_in_timesheet` в форме редактирования карточки
 
 ### Profile (заявления)
 
@@ -693,7 +720,8 @@ Bucket **`employee_applications`** (private, `public: false`):
 - Единые индикаторы загрузки (`CupertinoActivityIndicator`) в списках, карточке и формах
 - Desktop-карточка: кнопка «Редактировать» вместо иконки карандаша в секции «Личные данные»
 - **Вкладка «Заявления»:** PDF (отпуск, БС), загрузка сканов, компактный список (icon actions), просмотр/скачивание; таблица `employee_applications` + bucket Storage
-- **UX карточки:** `IndexedStack` для вкладок без смены высоты окна; компактный переключатель «Обзор» / «Заявления»
+- **Вкладка «Табель»:** read-only месяц одного сотрудника (`EmployeeTimesheetSection` + `employeeTimesheetMonthProvider`); право `timesheet.read`; ленивая загрузка
+- **UX карточки:** `IndexedStack` для вкладок; компактный переключатель «Обзор» / «Заявления» / «Табель»
 - **PDF:** работодатель «ООО «ГТ Инжиниринг»» в шапке заявлений
 
 ### Известные баги (приоритет)
@@ -701,6 +729,8 @@ Bucket **`employee_applications`** (private, `public: false`):
 | Приоритет | Описание |
 |-----------|----------|
 | 🟡 | **`export-employees`:** проверяется только членство в `company_members`, не `employees.export` (кнопка в UI скрыта без права). |
+| 🟡 | **Вкладка «Табель» на узком экране:** 31 день в одну полоску без скролла — подписи часов могут быть мелкими. |
+| 🟡 | **IndexedStack** удерживает max-высоту «Обзора» → на mobile под вкладкой «Табель» возможна лишняя прокрутка. |
 | 🟢 | Обход RLS «участник компании может менять employees» и слабые политики `business_trip_rates` — исправлено 29.05.2026. |
 | 🟢 | **`EngineFlutterView disposed` на web** при быстром уходе с «Сотрудников» после подгрузки объектов — исправлено 29.05.2026 (жизненный цикл экранов). |
 | 🟢 | **Загрузка фото на Web** (`Unsupported operation: _Namespace`) — исправлено 29.05.2026 (bytes вместо `File`). |
@@ -716,11 +746,13 @@ Bucket **`employee_applications`** (private, `public: false`):
 - Добавление **ставки** в UI карточки требует прав **payroll** на уровне БД, хотя кнопка привязана к `employees.update`
 - Схема `employee_rates` и часть индексов не воспроизводятся из одного `CREATE` в репозитории
 - **Заявления:** типы «отпуск», «отпуск без содержания», **«увольнение»**; PDF на сервер не сохраняется; workflow согласования не реализован
+- **Табель в карточке:** только просмотр; проставление часов — в модуле Timesheet
 - Вкладки **«Документы»** (файлы) и **«Доп. информация»** (журнал записей) — запланированы, не реализованы
 
 ### Возможные шаги
 
 - Вкладки «Документы» и «Доп. информация» в карточке
+- Улучшить читаемость полоски дней табеля на mobile (недели / адаптивная плотность)
 - Дополнительные типы заявлений (перевод, …)
 - Workflow согласования заявлений
 - Серверная пагинация и фильтрация PostgREST

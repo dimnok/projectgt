@@ -1,8 +1,14 @@
 # Модуль Timesheet (Табель рабочего времени)
 
-**Дата актуализации:** 28 июня 2026 года (карточка сотрудника по ФИО, оптимизация запросов)
+**Дата актуализации:** 29 июля 2026 года (вкладка «Табель» в карточке сотрудника)
 
 **Изменения в этой версии:**
+- **Обратная связь с карточкой Employees:** вкладка «Табель» в карточке сотрудника (read-only месяц одного человека) — UI в модуле Employees; данные через `getAttendanceRecords` + `getShiftHoursForEmployee`
+- **Invalidate после посещаемости:** в [`timesheet_calendar_view.dart`](../../lib/features/timesheet/presentation/widgets/timesheet_calendar_view.dart) после успешного `EmployeeAttendanceDialog` — кроме `reloadHoursEntries()` вызывается `ref.invalidate(employeeTimesheetMonthProvider(…))`, чтобы открытая карточка обновила сводку
+- Проставление часов по-прежнему **только** из сетки Timesheet (иконка календаря); из карточки сотрудника — только просмотр
+- Подробности UI/RBAC вкладки — [`docs/employees/employees_module.md`](../employees/employees_module.md)
+
+**Предыдущая версия (28.06.2026, карточка сотрудника по ФИО, оптимизация запросов):**
 - **Карточка сотрудника из табеля:** клик по **ФИО** открывает карточку (`EmployeeDetailsModal` / `EmployeesMobileEmployeeDetailsSheet`) — только при `employees.read` (`PermissionService`); без права ФИО не кликабельно
 - **Проставление часов:** только по иконке `edit_calendar_outlined` в колонке «Сотрудник» → `EmployeeAttendanceDialog` (права `timesheet.create` / `timesheet.update`); логика `_showAttendanceDialog` без изменений
 - **Сетка:** `TimesheetGridEmployeeRow` — раздельные колбэки `onEmployeeNameTap` / `onAttendanceTap`; виджет `_TimesheetEmployeeNameCell` (подчёркивание ФИО при доступе к карточке)
@@ -138,7 +144,7 @@
 | Файл | Назначение |
 |------|------------|
 | `screens/timesheet_screen.dart` | `ConsumerStatefulWidget`: шапка, сетка, оверлей; `ref.watch(timesheetEmployeesCatalogSyncProvider)` |
-| `widgets/timesheet_calendar_view.dart` | Оркестрация сетки; `_showEmployeeDetails` / `_showAttendanceDialog`; `canViewEmployees` (`employees.read`); `ensureEmployeeCardDetails` в фоне; `_syncEmployeeRows` без скрытия сетки при пересчёте |
+| `widgets/timesheet_calendar_view.dart` | Оркестрация сетки; `_showEmployeeDetails` / `_showAttendanceDialog`; `canViewEmployees` (`employees.read`); после attendance — `reloadHoursEntries()` + `invalidate(employeeTimesheetMonthProvider)`; `ensureEmployeeCardDetails` в фоне; `_syncEmployeeRows` без скрытия сетки при пересчёте |
 | `widgets/timesheet_calendar_grid.dart` | Вёрстка ячеек; `_TimesheetEmployeeNameCell`; раздельные тапы ФИО / иконка календаря; звёздочка открытой смены |
 | `widgets/timesheet_filters_toolbar.dart` | `TimesheetCompactMonthSwitcher`, `TimesheetToolbarSearch` |
 | `widgets/timesheet_mobile_search_field.dart` | Поиск в шапке (`GTTextField`) |
@@ -270,6 +276,8 @@
 | Mobile / узкий | `EmployeesMobileEmployeeDetailsSheet.show` |
 
 Маршрут `go_router` `/employees/:employeeId` из табеля **не** используется — только модальные поверхности.
+
+**Вкладка «Табель» в карточке (модуль Employees):** read-only просмотр часов одного сотрудника за месяц (`EmployeeTimesheetSection`); право `timesheet.read`; данные — те же API `getAttendanceRecords` / `getShiftHoursForEmployee`; после диалога посещаемости в сетке — invalidate провайдера карточки.
 
 ---
 
@@ -571,7 +579,7 @@ employee_attendance ──> objects
 1. Параллельно: `getAttendanceRecords(employeeId, …)` + `getShiftHoursForEmployee(…)`.
 2. Сменные дни — read-only (`_shiftHoursMap`).
 3. Сохранение: `batchUpsertAttendance` → RPC `upsert_employee_attendance_batch` (`company_id` из `_scopedCompanyId`).
-4. Успех → `TimesheetCalendarView` вызывает `reloadHoursEntries()` (часы + индексы, без повторной загрузки `employees` / `objects`).
+4. Успех → `TimesheetCalendarView` вызывает `reloadHoursEntries()` (часы + индексы, без повторной загрузки `employees` / `objects`) и `ref.invalidate(employeeTimesheetMonthProvider(…))` для синхронизации вкладки «Табель» в открытой карточке сотрудника.
 5. Нет компании при сохранении → `TimesheetCompanyNotSelectedException` / `timesheetNoActiveCompanyMessage`.
 
 > **Ограничение:** очистка ячейки убирает день из `_hoursMap`, но **не удаляет** строку в БД (в RPC уходят только дни с введёнными часами).
@@ -598,6 +606,7 @@ employee_attendance ──> objects
 - `works`, `employees`, `objects`, `company`, `roles`
 - **`employees`:** поле `include_in_timesheet` в карточке; sync каталога через `timesheetEmployeeCatalogChanged` + `reloadEmployeesCatalog`
 - **Карточка из табеля:** `EmployeeDetailsModal`, `EmployeesMobileEmployeeDetailsSheet`, `EmployeeNotifier.ensureEmployeeCardDetails`, `employeesModuleObjectsProvider`
+- **Вкладка «Табель» в карточке:** UI Employees (`EmployeeTimesheetSection`); API Timesheet; invalidate после attendance dialog
 - UI-паттерны модуля «Сотрудники»: `EmployeesLayoutUtils`, стиль `EmployeesTableFiltersToolbar`
 
 ### Пакеты
@@ -635,6 +644,7 @@ employee_attendance ──> objects
 - ✅ `ensureEmployeeCardDetails` + `getCurrentHourlyRate` — без лишней перезагрузки каталога табеля
 - ✅ `timesheetEmployeeCatalogChanged` + тест; убран дубль `reloadEmployeesCatalog` при входе на экран
 - ✅ UX: открытие карточки без задержки и моргания сетки
+- ✅ вкладка «Табель» в карточке сотрудника (read-only) + invalidate после `EmployeeAttendanceDialog`
 
 ### Ограничения
 - 🟡 нет удаления ручных часов очисткой ячейки

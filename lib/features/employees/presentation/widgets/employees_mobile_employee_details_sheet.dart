@@ -14,6 +14,7 @@ import 'package:projectgt/features/employees/presentation/providers/employee_ava
 import 'package:projectgt/features/employees/presentation/widgets/employee_applications_section.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_business_trip_summary_widget.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_rate_summary_widget.dart';
+import 'package:projectgt/features/employees/presentation/widgets/employee_timesheet_section.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_trip_editor_form.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employees_mobile_atmosphere.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employees_mobile_employee_edit_blocks.dart';
@@ -382,6 +383,19 @@ class _EmployeesMobileEmployeeDetailsBodyState
     final employee = widget.employee;
     final objects = widget.objects;
     final canUpdate = widget.canUpdate;
+    final canViewTimesheet =
+        ref.watch(permissionServiceProvider).can('timesheet', 'read');
+    final timesheetTabIndex = canViewTimesheet ? 2 : -1;
+    final viewTab = (!canViewTimesheet && _viewTab >= 2) ? 0 : _viewTab;
+    if (viewTab != _viewTab) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (_viewTab >= 2 &&
+            !ref.read(permissionServiceProvider).can('timesheet', 'read')) {
+          setState(() => _viewTab = 0);
+        }
+      });
+    }
     final labelStyle = widget.labelStyle;
     final valueStyle = widget.valueStyle;
     final (statusText, statusColor) = EmployeeUIUtils.getStatusInfo(
@@ -395,13 +409,23 @@ class _EmployeesMobileEmployeeDetailsBodyState
     final avatarAsync = ref.watch(employeeAvatarControllerProvider);
     final isAvatarBusy = avatarAsync is AsyncLoading;
 
+    ref.listen(permissionServiceProvider, (_, next) {
+      if (!next.can('timesheet', 'read') && _viewTab >= 2) {
+        setState(() => _viewTab = 0);
+      }
+    });
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _buildMobileViewTabs(theme),
+        _buildMobileViewTabs(
+          theme,
+          canViewTimesheet: canViewTimesheet,
+          viewTab: viewTab,
+        ),
         const SizedBox(height: 12),
         IndexedStack(
-          index: _viewTab,
+          index: viewTab,
           alignment: Alignment.topCenter,
           children: [
             Column(
@@ -726,16 +750,26 @@ class _EmployeesMobileEmployeeDetailsBodyState
               employee: employee,
               canManage: canUpdate,
             ),
+            if (canViewTimesheet)
+              EmployeeTimesheetSection(
+                key: ValueKey('timesheet_tab_${employee.id}'),
+                employee: employee,
+                isActive: viewTab == timesheetTabIndex,
+              ),
           ],
         ),
       ],
     );
   }
 
-  Widget _buildMobileViewTabs(ThemeData theme) {
+  Widget _buildMobileViewTabs(
+    ThemeData theme, {
+    required bool canViewTimesheet,
+    required int viewTab,
+  }) {
     final scheme = theme.colorScheme;
     return CustomSlidingSegmentedControl<int>(
-      groupValue: _viewTab,
+      groupValue: viewTab,
       onValueChanged: (value) => setState(() => _viewTab = value),
       backgroundColor: scheme.surfaceContainerHighest.withValues(alpha: 0.45),
       thumbColor: scheme.surface,
@@ -751,8 +785,8 @@ class _EmployeesMobileEmployeeDetailsBodyState
             style: TextStyle(
               fontSize: 12,
               height: 1.2,
-              fontWeight: _viewTab == 0 ? FontWeight.w700 : FontWeight.normal,
-              color: _viewTab == 0 ? scheme.primary : scheme.onSurfaceVariant,
+              fontWeight: viewTab == 0 ? FontWeight.w700 : FontWeight.normal,
+              color: viewTab == 0 ? scheme.primary : scheme.onSurfaceVariant,
             ),
           ),
         ),
@@ -764,11 +798,27 @@ class _EmployeesMobileEmployeeDetailsBodyState
             style: TextStyle(
               fontSize: 12,
               height: 1.2,
-              fontWeight: _viewTab == 1 ? FontWeight.w700 : FontWeight.normal,
-              color: _viewTab == 1 ? scheme.primary : scheme.onSurfaceVariant,
+              fontWeight: viewTab == 1 ? FontWeight.w700 : FontWeight.normal,
+              color: viewTab == 1 ? scheme.primary : scheme.onSurfaceVariant,
             ),
           ),
         ),
+        if (canViewTimesheet)
+          2: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 5),
+            child: Text(
+              'Табель',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                height: 1.2,
+                fontWeight:
+                    viewTab == 2 ? FontWeight.w700 : FontWeight.normal,
+                color:
+                    viewTab == 2 ? scheme.primary : scheme.onSurfaceVariant,
+              ),
+            ),
+          ),
       },
     );
   }

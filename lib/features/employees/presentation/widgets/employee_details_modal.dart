@@ -17,6 +17,7 @@ import 'package:projectgt/features/employees/presentation/widgets/employee_appli
 import 'package:projectgt/features/employees/presentation/widgets/employee_business_trip_summary_widget.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_edit_form.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_rate_summary_widget.dart';
+import 'package:projectgt/features/employees/presentation/widgets/employee_timesheet_section.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_trip_editor_form.dart';
 import 'package:projectgt/features/employees/presentation/widgets/editable_inline_text_row.dart';
 import 'package:projectgt/features/objects/domain/entities/object.dart';
@@ -90,8 +91,22 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final canUpdate =
-        ref.watch(permissionServiceProvider).can('employees', 'update');
+    final permissionService = ref.watch(permissionServiceProvider);
+    final canUpdate = permissionService.can('employees', 'update');
+    final canViewTimesheet = permissionService.can('timesheet', 'read');
+    final timesheetTabIndex = canViewTimesheet ? 2 : -1;
+    // Синхронно сбрасываем вкладку, если право на табель отозвано
+    // (иначе IndexedStack может указать на отсутствующий child).
+    final viewTab = (!canViewTimesheet && _viewTab >= 2) ? 0 : _viewTab;
+    if (viewTab != _viewTab) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (_viewTab >= 2 &&
+            !ref.read(permissionServiceProvider).can('timesheet', 'read')) {
+          setState(() => _viewTab = 0);
+        }
+      });
+    }
 
     ref.listen(permissionServiceProvider, (_, next) {
       if (!next.can('employees', 'update') && _isEditing) {
@@ -99,6 +114,9 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
           _isEditing = false;
           _syncDialogCloseButton();
         });
+      }
+      if (!next.can('timesheet', 'read') && _viewTab >= 2) {
+        setState(() => _viewTab = 0);
       }
     });
 
@@ -149,10 +167,14 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
                   key: const ValueKey('view_info'),
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildViewTabs(theme),
+                    _buildViewTabs(
+                      theme,
+                      canViewTimesheet: canViewTimesheet,
+                      viewTab: viewTab,
+                    ),
                     const SizedBox(height: 16),
                     IndexedStack(
-                      index: _viewTab,
+                      index: viewTab,
                       alignment: Alignment.topCenter,
                       children: [
                         Column(
@@ -171,6 +193,12 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
                           employee: _employee,
                           canManage: canUpdate,
                         ),
+                        if (canViewTimesheet)
+                          EmployeeTimesheetSection(
+                            key: ValueKey('timesheet_tab_${_employee.id}'),
+                            employee: _employee,
+                            isActive: viewTab == timesheetTabIndex,
+                          ),
                       ],
                     ),
                   ],
@@ -180,7 +208,11 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
     );
   }
 
-  Widget _buildViewTabs(ThemeData theme) {
+  Widget _buildViewTabs(
+    ThemeData theme, {
+    required bool canViewTimesheet,
+    required int viewTab,
+  }) {
     final scheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
     final borderColor = isDark
@@ -188,7 +220,7 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
         : scheme.outline.withValues(alpha: 0.25);
 
     return CustomSlidingSegmentedControl<int>(
-      groupValue: _viewTab,
+      groupValue: viewTab,
       onValueChanged: (value) => setState(() => _viewTab = value),
       backgroundColor: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
       thumbColor: scheme.surface,
@@ -196,15 +228,21 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
       border: Border.all(color: borderColor),
       padding: const EdgeInsets.all(2),
       children: {
-        0: _buildViewTabLabel(theme, 0, 'Обзор'),
-        1: _buildViewTabLabel(theme, 1, 'Заявления'),
+        0: _buildViewTabLabel(theme, viewTab, 0, 'Обзор'),
+        1: _buildViewTabLabel(theme, viewTab, 1, 'Заявления'),
+        if (canViewTimesheet) 2: _buildViewTabLabel(theme, viewTab, 2, 'Табель'),
       },
     );
   }
 
-  Widget _buildViewTabLabel(ThemeData theme, int index, String label) {
+  Widget _buildViewTabLabel(
+    ThemeData theme,
+    int viewTab,
+    int index,
+    String label,
+  ) {
     final scheme = theme.colorScheme;
-    final selected = _viewTab == index;
+    final selected = viewTab == index;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
       child: Text(

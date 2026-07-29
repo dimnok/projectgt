@@ -21,6 +21,7 @@ import 'timesheet_positions_bar_dropdown.dart';
 import 'timesheet_filter_widget.dart';
 import '../providers/timesheet_provider.dart';
 import '../state/timesheet_state.dart';
+import 'package:projectgt/features/employees/presentation/providers/employee_timesheet_month_provider.dart';
 import 'package:projectgt/features/employees/presentation/providers/employees_module_objects_provider.dart';
 import 'package:projectgt/features/employees/presentation/utils/employees_layout_utils.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_details_modal.dart';
@@ -886,6 +887,14 @@ class _TimesheetCalendarViewState extends ConsumerState<TimesheetCalendarView> {
 
     if (result == true && mounted) {
       await ref.read(timesheetProvider.notifier).reloadHoursEntries();
+      ref.invalidate(
+        employeeTimesheetMonthProvider(
+          EmployeeTimesheetMonthKey(
+            employeeId: employee.id,
+            monthStart: DateTime(widget.startDate.year, widget.startDate.month),
+          ),
+        ),
+      );
     }
   }
 }
