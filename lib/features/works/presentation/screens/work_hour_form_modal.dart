@@ -79,12 +79,16 @@ class _WorkHourFormModalState extends ConsumerState<WorkHourFormModal> {
         throw Exception('Компания не выбрана');
       }
 
+      final parsedHours = num.tryParse(
+        hoursController.text.trim().replaceAll(',', '.'),
+      );
+
       final hour = WorkHour(
         id: widget.initial?.id ?? const Uuid().v4(),
         companyId: activeCompanyId,
         workId: widget.workId,
         employeeId: _selectedEmployeeId!,
-        hours: num.tryParse(hoursController.text) ?? 0,
+        hours: parsedHours ?? 0,
         comment: commentController.text.trim().isEmpty
             ? null
             : commentController.text.trim(),
@@ -210,7 +214,7 @@ class _WorkHourFormModalState extends ConsumerState<WorkHourFormModal> {
           // Подзаголовок с пояснением
           Text(
             widget.initial == null
-                ? 'Выберите сотрудника и укажите количество часов'
+                ? 'Выберите сотрудника. Часы можно указать позже'
                 : 'Измените количество часов или добавьте комментарий',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
@@ -307,16 +311,20 @@ class _WorkHourFormModalState extends ConsumerState<WorkHourFormModal> {
             hintText: '0',
             suffixText: 'ч',
             prefixIcon: Icons.timer_outlined,
-            helperText: 'Укажите количество отработанных часов',
+            helperText: 'Можно оставить пустым — часы проставляются позже',
             textAlign: TextAlign.center,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Пожалуйста, введите количество часов';
+              if (value == null || value.trim().isEmpty) {
+                return null;
               }
-              final val = value.replaceAll(',', '.');
-              if (num.tryParse(val) == null) {
+              final val = value.trim().replaceAll(',', '.');
+              final parsed = num.tryParse(val);
+              if (parsed == null) {
                 return 'Пожалуйста, введите корректное число';
+              }
+              if (parsed < 0) {
+                return 'Число не может быть отрицательным';
               }
               return null;
             },
