@@ -61,4 +61,46 @@ final permissionsList = [
     code: 'import',
     icon: CupertinoIcons.arrow_up_circle,
   ),
+  const PermissionUiModel(
+    id: 'issue',
+    name: 'Выдача / возврат',
+    code: 'issue',
+    icon: CupertinoIcons.arrow_right_circle,
+  ),
+  const PermissionUiModel(
+    id: 'move',
+    name: 'Перемещение',
+    code: 'move',
+    icon: CupertinoIcons.arrow_2_circlepath,
+  ),
+  const PermissionUiModel(
+    id: 'repair',
+    name: 'Ремонт',
+    code: 'repair',
+    icon: CupertinoIcons.wrench,
+  ),
+  const PermissionUiModel(
+    id: 'write_off',
+    name: 'Списание',
+    code: 'write_off',
+    icon: CupertinoIcons.trash_circle,
+  ),
+  const PermissionUiModel(
+    id: 'inventory',
+    name: 'Инвентаризация',
+    code: 'inventory',
+    icon: CupertinoIcons.list_bullet,
+  ),
+  const PermissionUiModel(
+    id: 'view_cost',
+    name: 'Стоимость',
+    code: 'view_cost',
+    icon: CupertinoIcons.money_rubl,
+  ),
+  const PermissionUiModel(
+    id: 'manage_catalogs',
+    name: 'Справочники',
+    code: 'manage_catalogs',
+    icon: CupertinoIcons.book,
+  ),
 ];

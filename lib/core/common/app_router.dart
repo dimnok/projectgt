@@ -36,6 +36,13 @@ import 'package:projectgt/features/work_plans/presentation/screens/work_plan_det
 import 'package:projectgt/features/materials/presentation/screens/material_screen.dart';
 import 'package:projectgt/features/cash_flow/presentation/screens/cash_flow_list_screen.dart';
 import 'package:projectgt/features/settlements/presentation/screens/settlements_list_screen.dart';
+import 'package:projectgt/features/tmc/presentation/screens/tmc_inventory_screen.dart';
+import 'package:projectgt/features/tmc/presentation/screens/tmc_item_details_screen.dart';
+import 'package:projectgt/features/tmc/presentation/screens/tmc_list_screen.dart';
+import 'package:projectgt/features/tmc/presentation/screens/tmc_notifications_screen.dart';
+import 'package:projectgt/features/tmc/presentation/screens/tmc_operations_screen.dart';
+import 'package:projectgt/features/tmc/presentation/screens/tmc_reports_screen.dart';
+import 'package:projectgt/features/tmc/presentation/screens/tmc_stock_screen.dart';
 // Telegram moderation экраны удалены
 import 'package:projectgt/core/navigation/app_module_availability.dart';
 import 'package:projectgt/core/navigation/app_route_observer.dart';
@@ -651,6 +658,136 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
 
+      GoRoute(
+        path: AppRoutes.tmc,
+        name: 'tmc',
+        builder: (context, state) {
+          return Consumer(
+            builder: (context, ref, child) {
+              final service = ref.watch(permissionServiceProvider);
+              if (!service.can('tmc', 'read')) {
+                return _buildAccessDeniedScreen();
+              }
+              return _guardDesktopOnlyModule(
+                moduleId: 'tmc',
+                child: const TmcListScreen(),
+              );
+            },
+          );
+        },
+        routes: [
+          GoRoute(
+            path: 'items/:itemId',
+            name: 'tmc_item',
+            builder: (context, state) {
+              final itemId = state.pathParameters['itemId']!;
+              return Consumer(
+                builder: (context, ref, child) {
+                  final service = ref.watch(permissionServiceProvider);
+                  if (!service.can('tmc', 'read')) {
+                    return _buildAccessDeniedScreen();
+                  }
+                  return _guardDesktopOnlyModule(
+                    moduleId: 'tmc',
+                    child: TmcItemDetailsScreen(itemId: itemId),
+                  );
+                },
+              );
+            },
+          ),
+          GoRoute(
+            path: 'operations',
+            name: 'tmc_operations',
+            builder: (context, state) {
+              return Consumer(
+                builder: (context, ref, child) {
+                  final service = ref.watch(permissionServiceProvider);
+                  if (!service.can('tmc', 'read')) {
+                    return _buildAccessDeniedScreen();
+                  }
+                  return _guardDesktopOnlyModule(
+                    moduleId: 'tmc',
+                    child: const TmcOperationsScreen(),
+                  );
+                },
+              );
+            },
+          ),
+          GoRoute(
+            path: 'stock',
+            name: 'tmc_stock',
+            builder: (context, state) {
+              return Consumer(
+                builder: (context, ref, child) {
+                  final service = ref.watch(permissionServiceProvider);
+                  if (!service.can('tmc', 'read')) {
+                    return _buildAccessDeniedScreen();
+                  }
+                  return _guardDesktopOnlyModule(
+                    moduleId: 'tmc',
+                    child: const TmcStockScreen(),
+                  );
+                },
+              );
+            },
+          ),
+          GoRoute(
+            path: 'reports',
+            name: 'tmc_reports',
+            builder: (context, state) {
+              return Consumer(
+                builder: (context, ref, child) {
+                  final service = ref.watch(permissionServiceProvider);
+                  if (!service.can('tmc', 'read')) {
+                    return _buildAccessDeniedScreen();
+                  }
+                  return _guardDesktopOnlyModule(
+                    moduleId: 'tmc',
+                    child: const TmcReportsScreen(),
+                  );
+                },
+              );
+            },
+          ),
+          GoRoute(
+            path: 'inventory',
+            name: 'tmc_inventory',
+            builder: (context, state) {
+              return Consumer(
+                builder: (context, ref, child) {
+                  final service = ref.watch(permissionServiceProvider);
+                  if (!service.can('tmc', 'read')) {
+                    return _buildAccessDeniedScreen();
+                  }
+                  return _guardDesktopOnlyModule(
+                    moduleId: 'tmc',
+                    child: const TmcInventoryScreen(),
+                  );
+                },
+              );
+            },
+          ),
+          GoRoute(
+            path: 'notifications',
+            name: 'tmc_notifications',
+            builder: (context, state) {
+              return Consumer(
+                builder: (context, ref, child) {
+                  final service = ref.watch(permissionServiceProvider);
+                  if (!service.can('tmc', 'read')) {
+                    return _buildAccessDeniedScreen();
+                  }
+                  return _guardDesktopOnlyModule(
+                    moduleId: 'tmc',
+                    child: const TmcNotificationsScreen(),
+                  );
+                },
+              );
+            },
+          ),
+        ],
+      ),
+
       // Страницы статусов доступа управляются через AuthGate
     ],
     errorBuilder: (context, state) =>
@@ -735,6 +872,24 @@ class AppRoutes {
 
   /// Маршрут взаиморасчётов (счета и оплаты)
   static const String settlements = '/settlements';
+
+  /// Модуль ТМЦ (товарно-материальные ценности)
+  static const String tmc = '/tmc';
+
+  /// Журнал операций ТМЦ
+  static const String tmcOperations = '/tmc/operations';
+
+  /// Остатки ТМЦ по складам
+  static const String tmcStock = '/tmc/stock';
+
+  /// Отчёты ТМЦ
+  static const String tmcReports = '/tmc/reports';
+
+  /// Инвентаризация ТМЦ
+  static const String tmcInventory = '/tmc/inventory';
+
+  /// Уведомления ТМЦ.
+  static const String tmcNotifications = '/tmc/notifications';
 
   // Telegram маршруты удалены
 

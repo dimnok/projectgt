@@ -71,6 +71,9 @@ enum AppRoute {
   /// Экран взаиморасчётов (счета и оплаты).
   settlements,
 
+  /// Экран модуля ТМЦ.
+  tmc,
+
   /// Экран модуля "Компания".
   company,
 }
@@ -350,6 +353,18 @@ class AppDrawer extends ConsumerWidget {
                               icon: CupertinoIcons.cube_box,
                               route: AppRoute.material,
                               routeName: 'material',
+                            ),
+                          if (AppModuleAvailability.canOpenModule(
+                            'tmc',
+                            context,
+                          ))
+                            _buildMenuItem(
+                              context: context,
+                              module: 'tmc',
+                              title: 'ТМЦ',
+                              icon: CupertinoIcons.cube_box,
+                              route: AppRoute.tmc,
+                              routeName: 'tmc',
                             ),
                           _buildMenuItem(
                             context: context,

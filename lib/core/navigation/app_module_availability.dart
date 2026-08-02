@@ -14,18 +14,21 @@ abstract final class AppModuleAvailability {
     'materials',
     'cash_flow',
     'export',
+    'tmc',
   };
 
   static const Map<String, String> _pathToModuleId = {
     '/material': 'materials',
     '/cash_flow': 'cash_flow',
     '/export': 'export',
+    '/tmc': 'tmc',
   };
 
   static const Map<String, String> _moduleTitles = {
     'materials': 'Материалы',
     'cash_flow': 'Cash Flow',
     'export': 'Выгрузка',
+    'tmc': 'ТМЦ',
   };
 
   /// Возвращает `true`, если модуль помечен как desktop-only.

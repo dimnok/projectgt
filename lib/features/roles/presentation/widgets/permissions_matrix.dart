@@ -42,6 +42,7 @@ class PermissionsMatrix extends StatelessWidget {
     'payroll': ['import'],
     'timesheet': ['import'],
     'works': ['export', 'import'],
+    'tmc': ['import'],
   };
 
   /// Конструктор виджета.
@@ -76,14 +77,10 @@ class PermissionsMatrix extends StatelessWidget {
       ),
       clipBehavior: Clip.antiAlias,
       child: Table(
-        columnWidths: const {
-          0: FixedColumnWidth(240),
-          1: FixedColumnWidth(80),
-          2: FixedColumnWidth(80),
-          3: FixedColumnWidth(80),
-          4: FixedColumnWidth(80),
-          5: FixedColumnWidth(80),
-          6: FixedColumnWidth(80),
+        columnWidths: {
+          0: const FixedColumnWidth(240),
+          for (var i = 0; i < permissionsList.length; i++)
+            i + 1: const FixedColumnWidth(88),
         },
         defaultVerticalAlignment: TableCellVerticalAlignment.middle,
         children: [
