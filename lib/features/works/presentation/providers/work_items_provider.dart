@@ -15,13 +15,12 @@ class WorkItemsNotifier extends StateNotifier<AsyncValue<List<WorkItem>>> {
   /// Идентификатор смены, для которой ведётся учёт работ.
   final String workId;
 
-  /// Счётчик запросов [fetch]: устаревший ответ не перезаписывает [seed].
+  /// Счётчик запросов [fetch]: устаревший ответ не перезаписывает актуальное состояние.
   int _fetchGeneration = 0;
 
   /// Создаёт [WorkItemsNotifier] и инициирует загрузку работ для смены [workId].
   ///
-  /// Загрузка откладывается в microtask, чтобы вызывающий код успел вызвать [seed]
-  /// с уже полученными данными (без второго запроса и без мигания loading).
+  /// Загрузка откладывается в microtask.
   WorkItemsNotifier(this.repository, this.workId, this.ref)
     : super(const AsyncValue.loading()) {
     if (workId.isEmpty) {
@@ -30,15 +29,6 @@ class WorkItemsNotifier extends StateNotifier<AsyncValue<List<WorkItem>>> {
     }
 
     Future.microtask(fetch);
-  }
-
-  /// Подставляет уже загруженный список работ (без сетевого запроса).
-  ///
-  /// Используется, когда данные получены снаружи (например, модуль «Выгрузка»
-  /// перед открытием формы редактирования).
-  void seed(List<WorkItem> items) {
-    _fetchGeneration++;
-    state = AsyncValue.data(items);
   }
 
   /// Загружает список работ для текущей смены.
@@ -59,12 +49,6 @@ class WorkItemsNotifier extends StateNotifier<AsyncValue<List<WorkItem>>> {
       if (generation != _fetchGeneration) return;
       state = AsyncValue.error(e, st);
     }
-  }
-
-  /// Добавляет новую работу [item] в смену и обновляет список.
-  Future<void> add(WorkItem item) async {
-    await repository.addWorkItem(item);
-    await _refreshAfterMutation();
   }
 
   /// Пакетно добавляет несколько работ и обновляет локальный список.
@@ -104,11 +88,6 @@ class WorkItemsNotifier extends StateNotifier<AsyncValue<List<WorkItem>>> {
       // не должен откатывать локальное изменение списка.
     }
   }
-
-  /// Возвращает все работы из всех смен.
-  Future<List<WorkItem>> getAllWorkItems() async {
-    return await repository.getAllWorkItems();
-  }
 }
 
 /// Провайдер для управления и получения списка работ смены по [workId].
@@ -121,13 +100,3 @@ final workItemsProvider =
       final repo = ref.watch(workItemRepositoryProvider);
       return WorkItemsNotifier(repo, workId, ref);
     });
-
-/// Провайдер для доступа к методам WorkItemsNotifier без привязки к конкретной смене.
-final workItemsNotifierProvider = Provider<WorkItemsNotifier>((ref) {
-  final repo = ref.watch(workItemRepositoryProvider);
-  return WorkItemsNotifier(
-    repo,
-    '',
-    ref,
-  ); // Пустой ID для доступа к общим методам
-});

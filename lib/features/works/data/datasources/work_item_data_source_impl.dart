@@ -95,24 +95,6 @@ class WorkItemDataSourceImpl implements WorkItemDataSource {
     }
   }
 
-  /// Добавляет новую работу [item] в смену.
-  @override
-  Future<void> addWorkItem(WorkItemModel item) async {
-    try {
-      if (item.workId.isEmpty) {
-        throw ArgumentError('workId не может быть пустым');
-      }
-      final now = DateTime.now().toIso8601String();
-      final itemJson = item.toJson();
-      itemJson['created_at'] = now;
-      itemJson['updated_at'] = now;
-      itemJson['company_id'] = activeCompanyId;
-      await client.from(table).insert(itemJson);
-    } catch (e) {
-      rethrow;
-    }
-  }
-
   /// Пакетно добавляет несколько работ [items] в смену одним запросом.
   @override
   Future<void> addWorkItems(List<WorkItemModel> items) async {
@@ -163,27 +145,6 @@ class WorkItemDataSourceImpl implements WorkItemDataSource {
           .delete()
           .eq('id', id)
           .eq('company_id', activeCompanyId);
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  /// Возвращает список всех работ из всех смен.
-  @override
-  Future<List<WorkItemModel>> getAllWorkItems() async {
-    try {
-      final response = await client
-          .from(table)
-          .select()
-          .eq('company_id', activeCompanyId)
-          .order('created_at');
-      return response.map<WorkItemModel>((json) {
-        try {
-          return WorkItemModel.fromJson(json);
-        } catch (e) {
-          rethrow;
-        }
-      }).toList();
     } catch (e) {
       rethrow;
     }

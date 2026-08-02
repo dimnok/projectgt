@@ -2,20 +2,8 @@
 class WorksStrings {
   // Заголовки и общие тексты
 
-  /// Заголовок вкладки данных.
-  static const String dataTabTitle = 'Данные';
-
   /// Заголовок блока валидации.
   static const String validationTitle = 'Для закрытия смены:';
-
-  /// Заголовок блока статистики.
-  static const String statisticsTitle = 'Показатели';
-
-  /// Заголовок блока распределения работ.
-  static const String distributionTitle = 'Распределение работ';
-
-  /// Заголовок блока фотографий.
-  static const String photosTitle = 'Фотографии';
 
   // Кнопки
 
@@ -30,12 +18,6 @@ class WorksStrings {
 
   /// Текст кнопки отмены.
   static const String cancelBtn = 'Отмена';
-
-  /// Текст кнопки выбора камеры.
-  static const String cameraBtn = 'Камера';
-
-  /// Текст кнопки выбора галереи.
-  static const String galleryBtn = 'Галерея';
 
   // Чек-лист валидации
 
@@ -101,14 +83,6 @@ class WorksStrings {
   /// Сообщение об успешном удалении вечернего фото.
   static const String successEveningPhotoDeleted = 'Вечернее фото удалено';
 
-  /// Сообщение об успешном обновлении утреннего отчета.
-  static const String successMorningReportUpdated =
-      'Утреннее сообщение обновлено';
-
-  /// Сообщение об успешной отправке вечернего отчета.
-  static String successEveningReportSent(int count) =>
-      'Вечерний отчет отправлен!\nРабот: $count';
-
   // Ошибки операций
 
   /// Текст ошибки по умолчанию.
@@ -128,10 +102,4 @@ class WorksStrings {
 
   /// Ошибка загрузки фото.
   static String uploadPhotoError(Object e) => 'Ошибка при загрузке фото: $e';
-
-  /// Ошибка: ID смены не найден.
-  static const String shiftIdNotFoundError = 'ID смены не найден';
-
-  /// Ошибка отправки отчета в Telegram.
-  static String telegramSendError(String error) => 'Ошибка отправки: $error';
 }

@@ -46,21 +46,6 @@ class WorkBlockState {
   /// Конструктор по умолчанию.
   WorkBlockState();
 
-  /// Конструктор с начальными данными.
-  WorkBlockState.withData({
-    this.id,
-    this.selectedResponsible,
-    List<domain_employee.Employee>? selectedWorkers,
-    this.selectedSection,
-    this.selectedFloor,
-    this.selectedSystem,
-    List<SelectedWork>? selectedWorks,
-    this.isCollapsed = false,
-  }) {
-    this.selectedWorkers = selectedWorkers ?? [];
-    this.selectedWorks = selectedWorks ?? [];
-  }
-
   /// Проверяет, заполнены ли обязательные поля блока.
   bool get isComplete {
     return selectedSystem != null &&
@@ -106,29 +91,6 @@ class WorkBlockState {
   void resetFloorData() {
     selectedFloor = null;
     availableFloors.clear();
-  }
-
-  /// Копирует данные из другого состояния блока.
-  void copyFrom(WorkBlockState other) {
-    id = other.id;
-    selectedResponsible = other.selectedResponsible;
-    selectedWorkers = List.from(other.selectedWorkers);
-    availableSections = List.from(other.availableSections);
-    selectedSection = other.selectedSection;
-    availableFloors = List.from(other.availableFloors);
-    selectedFloor = other.selectedFloor;
-    availableSystems = List.from(other.availableSystems);
-    selectedSystem = other.selectedSystem;
-    availableWorks = List.from(other.availableWorks);
-    selectedWorks = List.from(other.selectedWorks);
-    isCollapsed = other.isCollapsed;
-  }
-
-  /// Создает копию состояния блока.
-  WorkBlockState copy() {
-    final copy = WorkBlockState();
-    copy.copyFrom(this);
-    return copy;
   }
 
   @override

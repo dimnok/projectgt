@@ -16,10 +16,6 @@ abstract class WorkHourDataSource {
   /// Удаляет запись о часах по идентификатору [id].
   Future<void> deleteWorkHour(String id);
 
-  /// Получить все work_hours по сотруднику и периоду (месяцу)
-  Future<List<WorkHourModel>> fetchWorkHoursByEmployeeAndPeriod(
-      String employeeId, DateTime monthStart, DateTime monthEnd);
-
   /// Выполняет массовое обновление часов за один запрос.
   ///
   /// Использует upsert по первичному ключу `id`.

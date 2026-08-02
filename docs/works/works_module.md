@@ -1,5 +1,16 @@
 # Модуль Works (Shifts & Work Plans)
-**Дата актуализации:** 28 июля 2026 года — Удалён мёртвый контур «материалы смены»: код (entity/model/repository/provider/форма) и таблица `work_materials` (миграция `20260728061000_drop_work_materials`, применена на сервере). Вкладки деталей смены: **Данные / Работы / Сотрудники**. Проверка на macOS: открытие смены и переключение вкладок без ошибок.
+**Дата актуализации:** 2 августа 2026 года — Большая чистка мёртвого кода (аудит по всему `lib/` + `dart analyze` + тесты):
+- Удалён файл-заглушка `screens/work_item_form_modal.dart` (deprecated typedef, 0 импортов).
+- `WorkItemRepository`: удалены `getAllWorkItems()` и одиночный `addWorkItem()` (+ datasource/repository-impl + `WorkItemsNotifier.add`/`getAllWorkItems`); живой путь — пакетный `addWorkItems`.
+- `WorkHourRepository`: удалён `fetchWorkHoursByEmployeeAndPeriod()` (+ datasource interface/impl).
+- Провайдеры: удалены `workItemsNotifierProvider`, `WorkItemsNotifier.seed`, `MonthGroupsNotifier.openedByListFilter`.
+- Удалены 10 неиспользуемых констант `WorksStrings` и поле `WorkFormScreen.parentContext`.
+- `WorkBlockState`: удалены `withData`, `copy`, `copyFrom` (0 вызовов).
+- DI (`lib/core/di/providers.dart`): удалены осиротевшие `workHourDataSourceProvider` / `workHourRepositoryProvider` (модуль использует свои из `repositories_providers.dart`).
+- Планы (legacy `lib/domain`/`lib/data`): удалён `GetWorkPlanUseCase` (+ провайдер); из `WorkPlanRepository`/`WorkPlanDataSource` убраны `getWorkPlan`, `getUserWorkPlans`, `getWorkPlanDetails`, `getWorkPlansByObject`, `getWorkPlansBySystem`, `getWorkPlansStatistics`, `workPlanExists`.
+- `WorkPlanNotifier`: удалены `loadWorkPlanDetails`, `createWorkPlan`, `updateWorkPlan`, `clearSelectedWorkPlan`, `clearError` и поля create/update/get usecases (форма вызывает `createWorkPlanUseCaseProvider`/`updateWorkPlanUseCaseProvider` напрямую; в notifier остались `loadWorkPlans` + `deleteWorkPlan`).
+
+Предыдущая запись: 28 июля 2026 года — Удалён мёртвый контур «материалы смены»: код (entity/model/repository/provider/форма) и таблица `work_materials` (миграция `20260728061000_drop_work_materials`, применена на сервере). Вкладки деталей смены: **Данные / Работы / Сотрудники**. Проверка на macOS: открытие смены и переключение вкладок без ошибок.
 
 Предыдущая запись: 11 мая 2026 года — Оптимизация доставки Telegram: клиент вызывает воркер асинхронно (без ожидания); Edge Function `process_telegram_outbox` переведена на параллельную обработку задач (`Promise.all`); подтвержден FIFO порядок в RPC `claim_telegram_outbox`.
 
@@ -64,9 +75,9 @@
 
 ## Слой Domain/Data
 - **Entities (смены):** `Work`, `LightWork`, `WorkItem`, `WorkHour`, summary DTO в `work_summaries.dart`.
-- **Repositories:** `WorkRepository`, `WorkItemRepository`, `WorkHourRepository` (+ impl в `data/`).
+- **Repositories:** `WorkRepository`, `WorkItemRepository`, `WorkHourRepository` (+ impl в `data/`). DI — `presentation/providers/repositories_providers.dart` (единственная точка; дубль в `core/di` удалён 02.08.2026).
 - **DataSources:** `WorkDataSourceImpl`, `WorkItemDataSourceImpl`, `WorkHourDataSourceImpl`.
-- **Планы:** domain/data в глобальных `lib/domain`, `lib/data` (legacy layout); UI в `lib/features/work_plans/`.
+- **Планы:** domain/data в глобальных `lib/domain`, `lib/data` (legacy layout); UI в `lib/features/work_plans/`. После чистки 02.08.2026: usecases — только `GetWorkPlansUseCase`, `CreateWorkPlanUseCase`, `UpdateWorkPlanUseCase`, `DeleteWorkPlanUseCase`; `WorkPlanNotifier` — `loadWorkPlans` + `deleteWorkPlan` (create/update идут из формы через usecase-провайдеры напрямую).
 - Агрегаты смены (`total_amount`, `own_total_amount`, `items_count`, `employees_count`) считает **БД** (триггеры на `work_items` / `work_hours`); клиент при update смены их не перезаписывает.
 
 ## Дерево файлов
@@ -201,6 +212,7 @@ lib/features/
 **Прочее:** Storage bucket `works`; ФОТ/табель читают часы смен; договоры — `calculate_contract_works` / `contract_act_id`.
 
 ## Roadmap
+- ✅ **Завершено (02.08.2026):** чистка мёртвого кода по аудиту: удалены файл `work_item_form_modal.dart`, неиспользуемые методы репозиториев/datasource (`getAllWorkItems`, `addWorkItem`, `fetchWorkHoursByEmployeeAndPeriod`, 7 методов `WorkPlanRepository`/`WorkPlanDataSource`), `GetWorkPlanUseCase`, осиротевший DI work_hours в `core/di`, мёртвые провайдеры/константы/поля. `dart analyze` чист, тесты фич зелёные.
 - ✅ **Завершено (28.07.2026):** удаление неиспользуемого контура `work_materials` (код + таблица).
 - ✅ **Завершено (28.06.2026):** FCM push при open/close, включая PWA.
 - ✅ **Завершено (16.04.2026):** mobile/desktop split, `WorksScreenActionsMixin`.

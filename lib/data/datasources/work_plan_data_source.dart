@@ -18,12 +18,6 @@ abstract class WorkPlanDataSource {
     DateTime? dateTo,
   });
 
-  /// Получить план работ по идентификатору.
-  ///
-  /// [id] — уникальный идентификатор плана работ.
-  /// Возвращает [WorkPlanModel], либо null, если не найден.
-  Future<WorkPlanModel?> getWorkPlan(String id);
-
   /// Создать новый план работ.
   ///
   /// [workPlan] — данные нового плана работ.
@@ -41,22 +35,6 @@ abstract class WorkPlanDataSource {
   /// [id] — уникальный идентификатор плана работ.
   /// Возвращает true, если план успешно удалён.
   Future<bool> deleteWorkPlan(String id);
-
-  /// Получить планы работ с дополнительной информацией об объектах.
-  ///
-  /// Использует функцию get_user_work_plans из базы данных.
-  Future<List<WorkPlanModel>> getUserWorkPlans({
-    int limit = 50,
-    int offset = 0,
-    DateTime? dateFrom,
-    DateTime? dateTo,
-  });
-
-  /// Получить детальную информацию о плане работ.
-  ///
-  /// [id] — уникальный идентификатор плана работ.
-  /// Возвращает [WorkPlanModel] с дополнительной информацией.
-  Future<WorkPlanModel?> getWorkPlanDetails(String id);
 }
 
 /// Реализация [WorkPlanDataSource] для Supabase.
@@ -116,22 +94,6 @@ class SupabaseWorkPlanDataSource implements WorkPlanDataSource {
         .map<WorkPlanModel>((json) => WorkPlanModel.fromJson(
             _transformEmbedded(Map<String, dynamic>.from(json))))
         .toList();
-  }
-
-  @override
-  Future<WorkPlanModel?> getWorkPlan(String id) async {
-    final response = await client
-        .from('work_plans')
-        .select('id, created_at, updated_at, created_by, date, object_id, company_id, '
-            'work_plan_blocks(id, system, section, floor, responsible_id, worker_ids, company_id, '
-            'work_plan_items(estimate_id, name, unit, price, planned_quantity, actual_quantity, company_id))')
-        .eq('id', id)
-        .eq('company_id', activeCompanyId)
-        .maybeSingle();
-
-    if (response == null) return null;
-    return WorkPlanModel.fromJson(
-        _transformEmbedded(Map<String, dynamic>.from(response)));
   }
 
   @override
@@ -293,56 +255,5 @@ class SupabaseWorkPlanDataSource implements WorkPlanDataSource {
         .eq('id', id)
         .eq('company_id', activeCompanyId);
     return true;
-  }
-
-  @override
-  Future<List<WorkPlanModel>> getUserWorkPlans({
-    int limit = 50,
-    int offset = 0,
-    DateTime? dateFrom,
-    DateTime? dateTo,
-  }) async {
-    final query = client
-        .from('work_plans')
-        .select(
-            'id, created_at, updated_at, created_by, date, object_id, company_id, '
-            'work_plan_blocks(id, system, section, floor, responsible_id, worker_ids, company_id, '
-            'work_plan_items(estimate_id, name, unit, price, planned_quantity, actual_quantity, company_id))')
-        .eq('company_id', activeCompanyId);
-
-    if (dateFrom != null) {
-      query.gte('date', dateFrom.toIso8601String().split('T')[0]);
-    }
-
-    if (dateTo != null) {
-      query.lte('date', dateTo.toIso8601String().split('T')[0]);
-    }
-
-    final response = await query
-        .order('created_at', ascending: false)
-        .limit(limit)
-        .range(offset, offset + limit - 1);
-
-    final data = response as List<dynamic>;
-    return data
-        .map<WorkPlanModel>((json) => WorkPlanModel.fromJson(
-            _transformEmbedded(Map<String, dynamic>.from(json))))
-        .toList();
-  }
-
-  @override
-  Future<WorkPlanModel?> getWorkPlanDetails(String id) async {
-    final response = await client
-        .from('work_plans')
-        .select('id, created_at, updated_at, created_by, date, object_id, company_id, '
-            'work_plan_blocks(id, system, section, floor, responsible_id, worker_ids, company_id, '
-            'work_plan_items(estimate_id, name, unit, price, planned_quantity, actual_quantity, company_id))')
-        .eq('id', id)
-        .eq('company_id', activeCompanyId)
-        .maybeSingle();
-
-    if (response == null) return null;
-    return WorkPlanModel.fromJson(
-        _transformEmbedded(Map<String, dynamic>.from(response)));
   }
 }

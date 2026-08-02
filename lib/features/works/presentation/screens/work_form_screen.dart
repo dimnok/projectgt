@@ -35,11 +35,8 @@ import 'package:projectgt/core/utils/formatters.dart';
 
 /// Экран создания новой смены.
 class WorkFormScreen extends ConsumerStatefulWidget {
-  /// Родительский контекст для отображения snackbar и диалогов поверх модального окна.
-  final BuildContext? parentContext;
-
   /// Создаёт экран формы создания новой смены.
-  const WorkFormScreen({super.key, this.parentContext});
+  const WorkFormScreen({super.key});
 
   @override
   ConsumerState<WorkFormScreen> createState() => _WorkFormScreenState();

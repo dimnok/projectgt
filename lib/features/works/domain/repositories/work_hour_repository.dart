@@ -16,10 +16,6 @@ abstract class WorkHourRepository {
   /// Удаляет запись о часах по идентификатору [id].
   Future<void> deleteWorkHour(String id);
 
-  /// Получить все work_hours по сотруднику и периоду (месяцу)
-  Future<List<WorkHour>> fetchWorkHoursByEmployeeAndPeriod(
-      String employeeId, DateTime monthStart, DateTime monthEnd);
-
   /// Массовое обновление часов одним действием
   Future<void> updateWorkHoursBulk(List<WorkHour> hours);
 }

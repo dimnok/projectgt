@@ -85,17 +85,12 @@ import 'package:projectgt/domain/usecases/estimate/create_estimate_usecase.dart'
 import 'package:projectgt/domain/usecases/estimate/update_estimate_usecase.dart';
 import 'package:projectgt/domain/usecases/estimate/delete_estimate_usecase.dart';
 import 'package:projectgt/domain/usecases/work_plan/get_work_plans_usecase.dart';
-import 'package:projectgt/domain/usecases/work_plan/get_work_plan_usecase.dart';
 import 'package:projectgt/domain/usecases/work_plan/create_work_plan_usecase.dart';
 import 'package:projectgt/domain/usecases/work_plan/update_work_plan_usecase.dart';
 import 'package:projectgt/domain/usecases/work_plan/delete_work_plan_usecase.dart';
 // Удалён неиспользуемый use-case get_user_work_plans_usecase
 import 'package:projectgt/presentation/state/estimate_state.dart';
 import 'package:projectgt/presentation/state/work_plan_state.dart';
-import 'package:projectgt/features/works/domain/repositories/work_hour_repository.dart';
-import 'package:projectgt/features/works/data/datasources/work_hour_data_source.dart';
-import 'package:projectgt/features/works/data/datasources/work_hour_data_source_impl.dart';
-import 'package:projectgt/features/works/data/repositories/work_hour_repository_impl.dart';
 import 'package:projectgt/data/datasources/employee_rate_data_source.dart';
 
 // Business Trip Rates imports
@@ -593,12 +588,6 @@ final getWorkPlansUseCaseProvider = Provider<GetWorkPlansUseCase>((ref) {
   return GetWorkPlansUseCase(repository);
 });
 
-/// Провайдер use-case для получения одного плана работ.
-final getWorkPlanUseCaseProvider = Provider<GetWorkPlanUseCase>((ref) {
-  final repository = ref.watch(workPlanRepositoryProvider);
-  return GetWorkPlanUseCase(repository);
-});
-
 /// Провайдер use-case для создания плана работ.
 final createWorkPlanUseCaseProvider = Provider<CreateWorkPlanUseCase>((ref) {
   final repository = ref.watch(workPlanRepositoryProvider);
@@ -712,9 +701,6 @@ final workPlanNotifierProvider =
 
       final notifier = WorkPlanNotifier(
         getWorkPlansUseCase: ref.watch(getWorkPlansUseCaseProvider),
-        getWorkPlanUseCase: ref.watch(getWorkPlanUseCaseProvider),
-        createWorkPlanUseCase: ref.watch(createWorkPlanUseCaseProvider),
-        updateWorkPlanUseCase: ref.watch(updateWorkPlanUseCaseProvider),
         deleteWorkPlanUseCase: ref.watch(deleteWorkPlanUseCaseProvider),
       );
 
@@ -723,26 +709,6 @@ final workPlanNotifierProvider =
 
       return notifier;
     });
-
-/// Провайдер источника данных для работы с табелем (work_hours) через Supabase.
-///
-/// Используется для внедрения зависимости WorkHourDataSourceImpl во все репозитории и use-case, связанные с табелем учёта рабочего времени.
-/// @returns WorkHourDataSource — реализация источника данных для работы с таблицей work_hours.
-final workHourDataSourceProvider = Provider<WorkHourDataSource>((ref) {
-  final client = ref.watch(supabaseClientProvider);
-  final activeCompanyId = ref.watch(activeCompanyIdProvider);
-  return WorkHourDataSourceImpl(client, activeCompanyId ?? '');
-});
-
-/// Провайдер репозитория для работы с табелем (work_hours).
-///
-/// Инкапсулирует логику доступа к данным табеля через WorkHourDataSource.
-/// Используется для внедрения в use-case и сервисы, связанные с учётом рабочего времени.
-/// @returns WorkHourRepository — репозиторий для работы с табелем.
-final workHourRepositoryProvider = Provider<WorkHourRepository>((ref) {
-  final dataSource = ref.watch(workHourDataSourceProvider);
-  return WorkHourRepositoryImpl(dataSource);
-});
 
 // ФОТ теперь рассчитывается динамически и не требует предварительного создания
 

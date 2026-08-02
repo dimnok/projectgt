@@ -66,9 +66,6 @@ class MonthGroupsNotifier extends AsyncNotifier<List<MonthGroup>>
   /// `true`, если активен режим «только мои смены».
   bool get isMineListScope => _scope == _WorksMonthListScope.mine;
 
-  /// Значение для RPC/REST: `null` — все смены; иначе id профиля для фильтра «мои».
-  String? get openedByListFilter => _effectiveOpenedBy();
-
   @override
   FutureOr<List<MonthGroup>> build() async {
     ref.watch(currentUserProfileProvider.select((s) => s.profile?.id));

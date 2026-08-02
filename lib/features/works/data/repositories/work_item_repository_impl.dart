@@ -64,33 +64,6 @@ class WorkItemRepositoryImpl implements WorkItemRepository {
     return models.map(_mapModel).toList();
   }
 
-  /// Добавляет новую работу [item] в смену.
-  @override
-  Future<void> addWorkItem(WorkItem item) async {
-    await dataSource.addWorkItem(
-      WorkItemModel(
-        id: item.id,
-        companyId: item.companyId,
-        workId: item.workId,
-        section: item.section,
-        floor: item.floor,
-        estimateId: item.estimateId,
-        name: item.name,
-        system: item.system,
-        subsystem: item.subsystem,
-        unit: item.unit,
-        quantity: item.quantity,
-        price: item.price,
-        total: item.total,
-        createdAt: item.createdAt,
-        updatedAt: item.updatedAt,
-        contractActId: item.contractActId,
-        contractorId: item.contractorId,
-        specialistsCount: item.specialistsCount,
-      ),
-    );
-  }
-
   /// Пакетно добавляет несколько работ [items] в смену одним вызовом.
   @override
   Future<void> addWorkItems(List<WorkItem> items) async {
@@ -154,12 +127,5 @@ class WorkItemRepositoryImpl implements WorkItemRepository {
   @override
   Future<void> deleteWorkItem(String id) async {
     await dataSource.deleteWorkItem(id);
-  }
-
-  /// Возвращает список всех работ из всех смен.
-  @override
-  Future<List<WorkItem>> getAllWorkItems() async {
-    final models = await dataSource.getAllWorkItems();
-    return models.map(_mapModel).toList();
   }
 }

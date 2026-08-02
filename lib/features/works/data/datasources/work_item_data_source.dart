@@ -20,9 +20,6 @@ abstract class WorkItemDataSource {
     String? contractorId,
   });
 
-  /// Добавляет новую работу [item] в смену.
-  Future<void> addWorkItem(WorkItemModel item);
-
   /// Пакетно добавляет несколько работ [items] в смену одним запросом.
   Future<void> addWorkItems(List<WorkItemModel> items);
 
@@ -31,7 +28,4 @@ abstract class WorkItemDataSource {
 
   /// Удаляет работу по идентификатору [id].
   Future<void> deleteWorkItem(String id);
-
-  /// Возвращает список всех работ из всех смен.
-  Future<List<WorkItemModel>> getAllWorkItems();
 }

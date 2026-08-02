@@ -92,26 +92,6 @@ class WorkHourDataSourceImpl implements WorkHourDataSource {
     }
   }
 
-  @override
-  Future<List<WorkHourModel>> fetchWorkHoursByEmployeeAndPeriod(
-      String employeeId, DateTime monthStart, DateTime monthEnd) async {
-    try {
-      final response = await client
-          .from(table)
-          .select()
-          .eq('employee_id', employeeId)
-          .eq('company_id', activeCompanyId)
-          .gte('created_at', monthStart.toIso8601String())
-          .lt('created_at', monthEnd.toIso8601String());
-      return response
-          .map<WorkHourModel>((json) => WorkHourModel.fromJson(json))
-          .toList();
-    } catch (e) {
-      _logger.e('Ошибка получения work_hours по сотруднику и периоду: $e');
-      rethrow;
-    }
-  }
-
   /// Массовое обновление/вставка часов в один запрос (upsert по id)
   @override
   Future<void> updateWorkHoursBulk(List<WorkHourModel> hours) async {

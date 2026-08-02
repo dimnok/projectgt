@@ -37,14 +37,6 @@ class WorkHourRepositoryImpl implements WorkHourRepository {
   }
 
   @override
-  Future<List<WorkHour>> fetchWorkHoursByEmployeeAndPeriod(
-      String employeeId, DateTime monthStart, DateTime monthEnd) async {
-    final models = await dataSource.fetchWorkHoursByEmployeeAndPeriod(
-        employeeId, monthStart, monthEnd);
-    return models.map((e) => WorkHour.fromJson(e.toJson())).toList();
-  }
-
-  @override
   Future<void> updateWorkHoursBulk(List<WorkHour> hours) async {
     await dataSource.updateWorkHoursBulk(
         hours.map((e) => WorkHourModel.fromJson(e.toJson())).toList());

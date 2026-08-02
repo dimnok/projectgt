@@ -20,9 +20,6 @@ abstract class WorkItemRepository {
     String? contractorId,
   });
 
-  /// Добавляет новую работу [item] в смену.
-  Future<void> addWorkItem(WorkItem item);
-
   /// Пакетно добавляет несколько работ [items] в смену одним вызовом.
   Future<void> addWorkItems(List<WorkItem> items);
 
@@ -31,7 +28,4 @@ abstract class WorkItemRepository {
 
   /// Удаляет работу по идентификатору [id].
   Future<void> deleteWorkItem(String id);
-
-  /// Возвращает список всех работ из всех смен.
-  Future<List<WorkItem>> getAllWorkItems();
 }
