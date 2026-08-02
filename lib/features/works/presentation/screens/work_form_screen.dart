@@ -313,26 +313,30 @@ class _WorkFormScreenState extends ConsumerState<WorkFormScreen> {
                         slotTimesHHmm: slotTimes,
                       );
 
-                  // Добавляем часы работников параллельно
+                  // Добавляем часы работников одним пакетным запросом
+                  // (одна транзакция → триггер агрегатов срабатывает корректно).
                   final hoursNotifier = ref.read(
                     workHoursProvider(createdWork.id!).notifier,
                   );
 
-                  await Future.wait(
-                    _selectedEmployeeIds.map((employeeId) {
-                      final workHour = WorkHour(
-                        id: const Uuid().v4(),
-                        companyId: activeCompanyId,
-                        workId: createdWork.id!,
-                        employeeId: employeeId,
-                        hours: 0,
-                        comment: null,
-                        createdAt: DateTime.now(),
-                        updatedAt: DateTime.now(),
-                      );
-                      return hoursNotifier.add(workHour);
-                    }),
-                  );
+                  final newHours = _selectedEmployeeIds
+                      .map(
+                        (employeeId) => WorkHour(
+                          id: const Uuid().v4(),
+                          companyId: activeCompanyId,
+                          workId: createdWork.id!,
+                          employeeId: employeeId,
+                          hours: 0,
+                          comment: null,
+                          createdAt: DateTime.now(),
+                          updatedAt: DateTime.now(),
+                        ),
+                      )
+                      .toList();
+
+                  if (newHours.isNotEmpty) {
+                    await hoursNotifier.updateBulk(newHours);
+                  }
 
                     // Очередь Telegram (БД outbox + Edge process_telegram_outbox)
                     try {

@@ -1,5 +1,11 @@
 # Модуль Works (Shifts & Work Plans)
-**Дата актуализации:** 2 августа 2026 года — Большая чистка мёртвого кода (аудит по всему `lib/` + `dart analyze` + тесты):
+**Дата актуализации:** 2 августа 2026 года — Защита агрегатов смены от гонки при параллельных изменениях:
+- **БД**: `update_work_aggregates` берёт row-level блокировку строки `works` (`SELECT ... FOR UPDATE`) перед пересчётом `total_amount` / `own_total_amount` / `items_count` / `employees_count`. Параллельные вставки/удаления в `work_items` / `work_hours` сериализуются по смене — последний пересчёт всегда видит все закоммиченные строки. Миграция `20260802130000_work_aggregates_race_safe.sql` (+ разовый пересчёт всех смен).
+- **App, вкладка «Данные»**: число сотрудников считается из живого списка `work_hours` (уже загружается), кэш `work.employees_count` — только fallback. Мгновенно отражает добавление/удаление сотрудника без перезагрузки смены и лишних запросов.
+- **App, открытие смены**: вместо N параллельных `Future.wait` вставок — один пакетный `updateBulk` (одна транзакция → триггер срабатывает корректно, меньше запросов).
+- Симптом: вкладка «Сотрудники» показывала 6, вкладка «Данные» — 5 (устаревший кэш `employees_count`).
+
+Предыдущая запись: 2 августа 2026 года — Большая чистка мёртвого кода (аудит по всему `lib/` + `dart analyze` + тесты):
 - Удалён файл-заглушка `screens/work_item_form_modal.dart` (deprecated typedef, 0 импортов).
 - `WorkItemRepository`: удалены `getAllWorkItems()` и одиночный `addWorkItem()` (+ datasource/repository-impl + `WorkItemsNotifier.add`/`getAllWorkItems`); живой путь — пакетный `addWorkItems`.
 - `WorkHourRepository`: удалён `fetchWorkHoursByEmployeeAndPeriod()` (+ datasource interface/impl).
@@ -78,7 +84,7 @@
 - **Repositories:** `WorkRepository`, `WorkItemRepository`, `WorkHourRepository` (+ impl в `data/`). DI — `presentation/providers/repositories_providers.dart` (единственная точка; дубль в `core/di` удалён 02.08.2026).
 - **DataSources:** `WorkDataSourceImpl`, `WorkItemDataSourceImpl`, `WorkHourDataSourceImpl`.
 - **Планы:** domain/data в глобальных `lib/domain`, `lib/data` (legacy layout); UI в `lib/features/work_plans/`. После чистки 02.08.2026: usecases — только `GetWorkPlansUseCase`, `CreateWorkPlanUseCase`, `UpdateWorkPlanUseCase`, `DeleteWorkPlanUseCase`; `WorkPlanNotifier` — `loadWorkPlans` + `deleteWorkPlan` (create/update идут из формы через usecase-провайдеры напрямую).
-- Агрегаты смены (`total_amount`, `own_total_amount`, `items_count`, `employees_count`) считает **БД** (триггеры на `work_items` / `work_hours`); клиент при update смены их не перезаписывает.
+- Агрегаты смены (`total_amount`, `own_total_amount`, `items_count`, `employees_count`) считает **БД** (триггеры на `work_items` / `work_hours`); клиент при update смены их не перезаписывает. Функция `update_work_aggregates` блокирует строку `works` (`FOR UPDATE`) — защита от гонки при параллельных вставках/удалениях. Вкладка «Данные» берёт число сотрудников из живого списка `work_hours`, кэш — fallback.
 
 ## Дерево файлов
 ```
@@ -185,7 +191,7 @@ lib/features/
 - **`work_materials`** — DROP TABLE (28.07.2026), файл миграции `supabase/migrations/20260728061000_drop_work_materials.sql`.
 
 ### Триггеры (ключевые)
-- `work_items` / `work_hours` → пересчёт агрегатов смены.
+- `work_items` / `work_hours` → пересчёт агрегатов смены через `update_work_aggregates` (с row-level блокировкой `works` `FOR UPDATE` — защита от гонки при параллельных изменениях).
 - `works` UPDATE → `works_enqueue_telegram_close` при закрытии.
 
 ### RPC (клиент / статистика)
@@ -212,6 +218,7 @@ lib/features/
 **Прочее:** Storage bucket `works`; ФОТ/табель читают часы смен; договоры — `calculate_contract_works` / `contract_act_id`.
 
 ## Roadmap
+- ✅ **Завершено (02.08.2026, агрегаты):** защита `update_work_aggregates` от гонки (`FOR UPDATE` строки `works`); вкладка «Данные» считает сотрудников из live `work_hours`; открытие смены — один пакетный insert вместо N параллельных. Разовый пересчёт всех смен.
 - ✅ **Завершено (02.08.2026):** чистка мёртвого кода по аудиту: удалены файл `work_item_form_modal.dart`, неиспользуемые методы репозиториев/datasource (`getAllWorkItems`, `addWorkItem`, `fetchWorkHoursByEmployeeAndPeriod`, 7 методов `WorkPlanRepository`/`WorkPlanDataSource`), `GetWorkPlanUseCase`, осиротевший DI work_hours в `core/di`, мёртвые провайдеры/константы/поля. `dart analyze` чист, тесты фич зелёные.
 - ✅ **Завершено (28.07.2026):** удаление неиспользуемого контура `work_materials` (код + таблица).
 - ✅ **Завершено (28.06.2026):** FCM push при open/close, включая PWA.

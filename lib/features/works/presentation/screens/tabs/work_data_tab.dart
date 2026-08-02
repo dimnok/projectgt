@@ -96,9 +96,11 @@ class _WorkDataTabState extends ConsumerState<WorkDataTab> {
         // Рассчитываем статистику верхней карточки: только собственное выполнение
         // (строки без contractor_id). Пока список позиций не загружен — fallback на
         // агрегаты смены из БД (могут включать подрядчика до прихода items).
+        // Источник истины — живой список часов смены (он уже загружается здесь).
+        // Кэш work.employeesCount — только fallback до загрузки часов.
         final uniqueEmployees =
-            work.employeesCount ??
             hours?.map((h) => h.employeeId).toSet().length ??
+            work.employeesCount ??
             0;
         final int worksCount;
         final double totalAmount;
