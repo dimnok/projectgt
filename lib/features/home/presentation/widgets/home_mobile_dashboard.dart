@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:projectgt/core/widgets/mobile_atmosphere_backdrop.dart';
 import 'package:projectgt/core/widgets/mobile_atmosphere_card_style.dart';
 import 'package:projectgt/features/home/presentation/widgets/contract_progress_widget.dart';
-import 'package:projectgt/features/home/presentation/widgets/ai_contract_plan_widget.dart';
 import 'package:projectgt/features/home/presentation/widgets/home_mobile_kpi_section.dart';
 import 'package:projectgt/features/home/presentation/widgets/home_mobile_quick_actions.dart';
 import 'package:projectgt/features/home/presentation/widgets/home_my_open_shift_entry.dart';
@@ -56,14 +55,6 @@ class HomeMobileDashboard extends StatelessWidget {
           icon: CupertinoIcons.chart_pie_fill,
           accentColor: const Color(0xFF10B981),
           child: const ContractProgressWidget(),
-        ),
-        const SizedBox(height: 16),
-        _MobileMainCard(
-          style: style,
-          title: 'ИИ План по договору',
-          icon: CupertinoIcons.sparkles,
-          accentColor: const Color(0xFF8B5CF6),
-          child: const AiContractPlanWidget(),
         ),
         const SizedBox(height: 16),
         _MobileMainCard(

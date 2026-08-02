@@ -1,7 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:projectgt/features/home/presentation/widgets/contract_progress_widget.dart';
-import 'package:projectgt/features/home/presentation/widgets/ai_contract_plan_widget.dart';
 import 'package:projectgt/features/home/presentation/widgets/home_desktop_kpi_section.dart';
 import 'package:projectgt/features/home/presentation/widgets/home_my_open_shift_entry.dart';
 import 'package:projectgt/features/home/presentation/widgets/home_desktop_quick_actions_bar.dart';
@@ -73,14 +72,6 @@ class HomeDesktopDashboard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const HomeMyOpenShiftEntry(),
-                    _DesktopMainCard(
-                      theme: theme,
-                      title: 'ИИ Ассистент',
-                      icon: CupertinoIcons.sparkles,
-                      accentColor: const Color(0xFF8B5CF6),
-                      child: const AiContractPlanWidget(),
-                    ),
-                    const SizedBox(height: 24),
                     _DesktopMainCard(
                       theme: theme,
                       title: 'Календарь смен',
