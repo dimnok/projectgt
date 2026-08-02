@@ -10,7 +10,6 @@ import '../providers/work_provider.dart';
 import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/presentation/state/employee_state.dart'
     as employee_state;
-import 'package:projectgt/domain/entities/estimate.dart';
 import 'package:collection/collection.dart';
 import 'dart:async';
 
@@ -126,11 +125,6 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
     // Загружаем данные при инициализации
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(employee_state.employeeProvider.notifier).getEmployees();
-
-      // Загружаем сметы для отображения номеров
-      if (ref.read(estimateNotifierProvider).estimates.isEmpty) {
-        ref.read(estimateNotifierProvider.notifier).loadEstimates();
-      }
     });
   }
 
@@ -214,11 +208,6 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
           .update(updatedItem);
     }
   }
-
-  // Добавляем вспомогательный метод для проверки состояния загрузки смет
-  bool get _areEstimatesLoading =>
-      ref.read(estimateNotifierProvider).isLoading ||
-      ref.read(estimateNotifierProvider).estimates.isEmpty;
 
   // Получить уникальные значения для фильтров
   List<String> _getUniqueModules(List<WorkItem> items) {
@@ -816,48 +805,27 @@ class _WorkDetailsPanelState extends ConsumerState<WorkDetailsPanel>
                                 )
                                 ?.shortName;
 
-                      // Отображаем номер позиции из сметы, если сметы загружены
-                      Widget numberWidget;
-                      if (_areEstimatesLoading) {
-                        // Если сметы загружаются или еще не загружены, показываем индикатор
-                        numberWidget = Container(
-                          width: 45,
-                          alignment: Alignment.center,
-                          child: const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CupertinoActivityIndicator(radius: 9),
+                      // Номер позиции приезжает сразу из БД (JOIN с estimates),
+                      // поэтому отдельной загрузки смет и спиннеров больше нет.
+                      final number = item.number ?? '-';
+                      final Widget numberWidget = Container(
+                        width: 45,
+                        alignment: Alignment.center,
+                        child: Text(
+                          number,
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          softWrap: false,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color:
+                                Theme.of(context).brightness == Brightness.light
+                                ? Colors.lightBlue.shade700
+                                : Colors.lightBlue.shade300,
                           ),
-                        );
-                      } else {
-                        // Если сметы загружены, ищем номер позиции
-                        final Estimate? estimate = ref
-                            .watch(estimateNotifierProvider)
-                            .estimates
-                            .firstWhereOrNull((e) => e.id == item.estimateId);
-                        final number = estimate?.number ?? '-';
-
-                        numberWidget = Container(
-                          width: 45,
-                          alignment: Alignment.center,
-                          child: Text(
-                            number,
-                            textAlign: TextAlign.center,
-                            maxLines: 1,
-                            softWrap: false,
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color:
-                                      Theme.of(context).brightness ==
-                                          Brightness.light
-                                      ? Colors.lightBlue.shade700
-                                      : Colors.lightBlue.shade300,
-                                ),
-                          ),
-                        );
-                      }
+                        ),
+                      );
 
                       // Контроллер и фокус для поля ввода количества
                       final controller = _getQuantityController(

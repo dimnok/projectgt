@@ -30,6 +30,7 @@ class WorkItemRepositoryImpl implements WorkItemRepository {
             contractActId: e.contractActId,
             contractorId: e.contractorId,
             specialistsCount: e.specialistsCount,
+            number: e.number,
           );
 
   @override

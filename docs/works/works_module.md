@@ -1,5 +1,13 @@
 # Модуль Works (Shifts & Work Plans)
-**Дата актуализации:** 2 августа 2026 года — Защита агрегатов смены от гонки при параллельных изменениях:
+**Дата актуализации:** 2 августа 2026 года — Оптимизация загрузки номеров позиций во вкладке «Работы» (устранение «висящих» спиннеров):
+- **Симптом:** синие номера позиций в списке работ смены грузились медленно — верхние позиции показывали номер, нижние зависали на `CupertinoActivityIndicator`.
+- **Причина:** номер подтягивался из `estimateNotifierProvider` — отдельная тяжёлая загрузка **всех** смет + линейный поиск `firstWhereOrNull` по каждой строке списка (O(n×m) на каждый rebuild) + проверка загрузки через `ref.read` (не реактивно) → внешний `Consumer` не перестраивался после прихода смет, и карточки со спиннером не обновлялись.
+- **Решение (JOIN на стороне БД):** номер теперь приезжает **одним запросом** вместе со списком работ через `select('*, estimates!estimate_id(number)')` в `fetchWorkItems` / `fetchWorkItemById`. Поле `number` добавлено в `WorkItem` и `WorkItemModel`; в модели помечено `@JsonKey(includeFromJson: false, includeToJson: false)` — **не хранится** в `work_items` и не уходит в БД при insert/update (существует только в памяти после загрузки). Источник номера — `estimates.number` (text).
+- **UI `WorkDetailsPanel`:** удалены спиннеры номеров, геттер `_areEstimatesLoading`, per-item `ref.watch(estimateNotifierProvider)` (лишняя подписка на каждую строку), загрузка всех смет при инициализации (нужна была только ради номеров). Номер берётся напрямую из `item.number ?? '-'`.
+- **Поведение:** номер всегда «живой» — берётся из сметы при каждом чтении. Удаление сметы заблокировано FK `ON DELETE RESTRICT` (`shift_items_estimate_id_fkey`), поэтому сценарий «номер `-`» практически невозможен. Историческая заморозка номеров в `work_items` **не** делается (бизнес-решение открыто).
+- Миграций/изменений схемы БД нет.
+
+Предыдущая запись: 2 августа 2026 года — Защита агрегатов смены от гонки при параллельных изменениях:
 - **БД**: `update_work_aggregates` берёт row-level блокировку строки `works` (`SELECT ... FOR UPDATE`) перед пересчётом `total_amount` / `own_total_amount` / `items_count` / `employees_count`. Параллельные вставки/удаления в `work_items` / `work_hours` сериализуются по смене — последний пересчёт всегда видит все закоммиченные строки. Миграция `20260802130000_work_aggregates_race_safe.sql` (+ разовый пересчёт всех смен).
 - **App, вкладка «Данные»**: число сотрудников считается из живого списка `work_hours` (уже загружается), кэш `work.employees_count` — только fallback. Мгновенно отражает добавление/удаление сотрудника без перезагрузки смены и лишних запросов.
 - **App, открытие смены**: вместо N параллельных `Future.wait` вставок — один пакетный `updateBulk` (одна транзакция → триггер срабатывает корректно, меньше запросов).
@@ -64,7 +72,7 @@
 **Экраны и виджеты:**
 - `WorksMasterDetailScreen` — точка входа; desktop → `WorksMasterDetailDesktopView`, mobile → `WorksListMobileScreen`.
 - `WorksScreenActionsMixin` — `showOpenShiftModal`, create/edit/delete плана, delete смены.
-- `WorkDetailsPanel` — детали смены: вкладки Данные / Работы / Сотрудники (`WorkDataTab`, список `WorkItem`, `WorkHoursTab`).
+- `WorkDetailsPanel` — детали смены: вкладки Данные / Работы / Сотрудники (`WorkDataTab`, список `WorkItem` (номер позиции уже в `item.number` — без отдельной загрузки смет), `WorkHoursTab`).
 - `WorkDetailsScreen` — полноэкранные детали (mobile route `/works/:workId`).
 - `WorkValidationBlock` — чек-лист закрытия смены.
 - `MonthDetailsPanel` / `MonthDetailsMobileScreen` — KPI и график месяца.
@@ -80,9 +88,9 @@
 - `workPlanMonthGroupsProvider` + `workPlanNotifierProvider` (core DI).
 
 ## Слой Domain/Data
-- **Entities (смены):** `Work`, `LightWork`, `WorkItem`, `WorkHour`, summary DTO в `work_summaries.dart`.
+- **Entities (смены):** `Work`, `LightWork`, `WorkItem` (поле `number` — номер позиции из сметы, подтягивается JOIN'ом при чтении, не хранится в БД), `WorkHour`, summary DTO в `work_summaries.dart`.
 - **Repositories:** `WorkRepository`, `WorkItemRepository`, `WorkHourRepository` (+ impl в `data/`). DI — `presentation/providers/repositories_providers.dart` (единственная точка; дубль в `core/di` удалён 02.08.2026).
-- **DataSources:** `WorkDataSourceImpl`, `WorkItemDataSourceImpl`, `WorkHourDataSourceImpl`.
+- **DataSources:** `WorkDataSourceImpl`, `WorkItemDataSourceImpl` (`fetchWorkItems` / `fetchWorkItemById` — `select('*, estimates!estimate_id(number)')`, номер достаётся из вложенного объекта JOIN'а и проставляется в модель через `copyWith`), `WorkHourDataSourceImpl`.
 - **Планы:** domain/data в глобальных `lib/domain`, `lib/data` (legacy layout); UI в `lib/features/work_plans/`. После чистки 02.08.2026: usecases — только `GetWorkPlansUseCase`, `CreateWorkPlanUseCase`, `UpdateWorkPlanUseCase`, `DeleteWorkPlanUseCase`; `WorkPlanNotifier` — `loadWorkPlans` + `deleteWorkPlan` (create/update идут из формы через usecase-провайдеры напрямую).
 - Агрегаты смены (`total_amount`, `own_total_amount`, `items_count`, `employees_count`) считает **БД** (триггеры на `work_items` / `work_hours`); клиент при update смены их не перезаписывает. Функция `update_work_aggregates` блокирует строку `works` (`FOR UPDATE`) — защита от гонки при параллельных вставках/удалениях. Вкладка «Данные» берёт число сотрудников из живого списка `work_hours`, кэш — fallback.
 
@@ -143,7 +151,7 @@ lib/features/
 | id | uuid | NO | PK |
 | work_id | uuid | NO | FK → `works.id` CASCADE |
 | section / floor / system / subsystem | text | NO | Каскад места/системы |
-| estimate_id | uuid | NO | FK → `estimates.id` |
+| estimate_id | uuid | NO | FK → `estimates.id` (`ON DELETE RESTRICT` — смету с работами удалить нельзя) |
 | name / unit | text | NO | Денормализация из сметы |
 | quantity | numeric | NO | Объём |
 | price / total | float8 | YES | Цена и сумма строки |
@@ -151,6 +159,8 @@ lib/features/
 | specialists_count | integer | YES | Специалисты подрядчика |
 | contract_act_id | uuid | YES | Связь с актом договора |
 | company_id | uuid | NO | Tenant |
+
+> **Номер позиции (`number`)** — **не колонка** `work_items`. Берётся из `estimates.number` через LEFT JOIN `estimates!estimate_id(number)` в `fetchWorkItems` / `fetchWorkItemById` (один запрос). В `WorkItem`/`WorkItemModel` поле `number` существует только в памяти (`includeFromJson/toJson: false` в модели) — не пишется в БД. Если смета не найдена (фактически невозможно из-за `ON DELETE RESTRICT`) — показывается `-`.
 
 **RLS:** ✅ через `check_work_access(work_id)`.
 
@@ -218,6 +228,7 @@ lib/features/
 **Прочее:** Storage bucket `works`; ФОТ/табель читают часы смен; договоры — `calculate_contract_works` / `contract_act_id`.
 
 ## Roadmap
+- ✅ **Завершено (02.08.2026, номера позиций):** устранение «висящих» спиннеров номеров во вкладке «Работы». Номер теперь приезжает одним запросом через LEFT JOIN `estimates!estimate_id(number)` в `fetchWorkItems`/`fetchWorkItemById`; поле `number` добавлено в `WorkItem`/`WorkItemModel` (в модели не сериализуется в БД). В `WorkDetailsPanel` удалены: спиннеры номеров, `_areEstimatesLoading`, per-item `ref.watch(estimateNotifierProvider)`, загрузка всех смет при инициализации. Миграций нет. `dart analyze` чист.
 - ✅ **Завершено (02.08.2026, агрегаты):** защита `update_work_aggregates` от гонки (`FOR UPDATE` строки `works`); вкладка «Данные» считает сотрудников из live `work_hours`; открытие смены — один пакетный insert вместо N параллельных. Разовый пересчёт всех смен.
 - ✅ **Завершено (02.08.2026):** чистка мёртвого кода по аудиту: удалены файл `work_item_form_modal.dart`, неиспользуемые методы репозиториев/datasource (`getAllWorkItems`, `addWorkItem`, `fetchWorkHoursByEmployeeAndPeriod`, 7 методов `WorkPlanRepository`/`WorkPlanDataSource`), `GetWorkPlanUseCase`, осиротевший DI work_hours в `core/di`, мёртвые провайдеры/константы/поля. `dart analyze` чист, тесты фич зелёные.
 - ✅ **Завершено (28.07.2026):** удаление неиспользуемого контура `work_materials` (код + таблица).

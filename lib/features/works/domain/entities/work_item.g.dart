@@ -29,6 +29,7 @@ _WorkItem _$WorkItemFromJson(Map<String, dynamic> json) => _WorkItem(
   contractActId: json['contractActId'] as String?,
   contractorId: json['contractorId'] as String?,
   specialistsCount: (json['specialistsCount'] as num?)?.toInt(),
+  number: json['number'] as String?,
 );
 
 Map<String, dynamic> _$WorkItemToJson(_WorkItem instance) => <String, dynamic>{
@@ -50,4 +51,5 @@ Map<String, dynamic> _$WorkItemToJson(_WorkItem instance) => <String, dynamic>{
   'contractActId': instance.contractActId,
   'contractorId': instance.contractorId,
   'specialistsCount': instance.specialistsCount,
+  'number': instance.number,
 };

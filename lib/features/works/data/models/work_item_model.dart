@@ -79,6 +79,10 @@ abstract class WorkItemModel with _$WorkItemModel {
 
     /// Количество специалистов подрядчика на строке.
     @JsonKey(name: 'specialists_count') int? specialistsCount,
+
+    /// Номер позиции из сметы (присоединяется JOIN'ом при чтении).
+    /// Не хранится в таблице work_items — исключён из (de)сериализации БД.
+    @JsonKey(includeFromJson: false, includeToJson: false) String? number,
   }) = _WorkItemModel;
 
   /// Создаёт data-модель работы в смене из JSON.

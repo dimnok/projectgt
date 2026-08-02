@@ -81,6 +81,10 @@ abstract class WorkItem with _$WorkItem {
 
     /// Количество специалистов подрядчика (имеет смысл при [contractorId]).
     int? specialistsCount,
+
+    /// Номер позиции из сметы (присоединяется JOIN'ом при чтении; не хранится в work_items).
+    /// Null — смета удалена или ещё не сопоставлена.
+    String? number,
   }) = _WorkItem;
 
   /// Создаёт сущность из JSON.

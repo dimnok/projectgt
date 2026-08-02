@@ -24,12 +24,12 @@ class WorkItemDataSourceImpl implements WorkItemDataSource {
     try {
       final response = await client
           .from(table)
-          .select()
+          .select('*, estimates!estimate_id(number)')
           .eq('id', workItemId)
           .eq('company_id', activeCompanyId)
           .maybeSingle();
       if (response == null) return null;
-      return WorkItemModel.fromJson(response);
+      return _mapWithEstimateNumber(WorkItemModel.fromJson(response), response);
     } catch (e) {
       rethrow;
     }
@@ -71,6 +71,9 @@ class WorkItemDataSourceImpl implements WorkItemDataSource {
   }
 
   /// Возвращает список работ для смены по идентификатору [workId].
+  ///
+  /// Номер позиции присоединяется LEFT JOIN к `estimates` (поле `number`),
+  /// поэтому приезжает сразу вместе с работой — без отдельной загрузки смет.
   @override
   Future<List<WorkItemModel>> fetchWorkItems(String workId) async {
     if (workId.isEmpty) {
@@ -79,13 +82,13 @@ class WorkItemDataSourceImpl implements WorkItemDataSource {
     try {
       final response = await client
           .from(table)
-          .select()
+          .select('*, estimates!estimate_id(number)')
           .eq('work_id', workId)
           .eq('company_id', activeCompanyId)
           .order('created_at');
       return response.map<WorkItemModel>((json) {
         try {
-          return WorkItemModel.fromJson(json);
+          return _mapWithEstimateNumber(WorkItemModel.fromJson(json), json);
         } catch (e) {
           rethrow;
         }
@@ -93,6 +96,27 @@ class WorkItemDataSourceImpl implements WorkItemDataSource {
     } catch (e) {
       rethrow;
     }
+  }
+
+  /// Достаёт номер позиции из вложенного объекта JOIN'а `estimates` и проставляет его в модель.
+  ///
+  /// PostgREST возвращает родителя (estimates) объектом при many-to-one, но на случай
+  /// разных конфигураций обрабатываем и List, и Map, и отсутствие данных.
+  WorkItemModel _mapWithEstimateNumber(
+    WorkItemModel model,
+    Map<String, dynamic> row,
+  ) {
+    final est = row['estimates'];
+    String? number;
+    if (est is Map<String, dynamic>) {
+      number = est['number'] as String?;
+    } else if (est is List && est.isNotEmpty) {
+      final first = est.first;
+      if (first is Map<String, dynamic>) {
+        number = first['number'] as String?;
+      }
+    }
+    return model.copyWith(number: number);
   }
 
   /// Пакетно добавляет несколько работ [items] в смену одним запросом.
