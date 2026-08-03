@@ -35,18 +35,18 @@ class HomeMobileDashboard extends StatelessWidget {
         const SizedBox(height: 16),
         _MobileMainCard(
           style: style,
-          title: 'Календарь смен',
-          icon: CupertinoIcons.calendar,
-          accentColor: const Color(0xFF3B82F6),
-          child: const ShiftsCalendarFlipCard(hideHeader: true),
-        ),
-        const SizedBox(height: 16),
-        _MobileMainCard(
-          style: style,
           title: 'Сводка смен',
           icon: CupertinoIcons.briefcase_fill,
           accentColor: theme.colorScheme.primary,
           child: const HomeShiftsSummaryWidget(hideHeader: true),
+        ),
+        const SizedBox(height: 16),
+        _MobileMainCard(
+          style: style,
+          title: 'Календарь смен',
+          icon: CupertinoIcons.calendar,
+          accentColor: const Color(0xFF3B82F6),
+          child: const ShiftsCalendarFlipCard(hideHeader: true),
         ),
         const SizedBox(height: 16),
         _MobileMainCard(
