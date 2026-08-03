@@ -231,12 +231,16 @@ class ShiftsDataSourceImpl implements ShiftsDataSource {
         }
       }
 
-      final objectsList = objectStats.entries.map((e) => {
-        'name': e.key,
-        'itr': e.value['itr'],
-        'installers': e.value['installers'],
-        'itrNames': e.value['itrNames'],
-        'installerNames': e.value['installerNames'],
+      final objectsList = objectStats.entries.map((e) {
+        final itrNames = (e.value['itrNames'] as List<String>)..sort();
+        final installerNames = (e.value['installerNames'] as List<String>)..sort();
+        return {
+          'name': e.key,
+          'itr': e.value['itr'],
+          'installers': e.value['installers'],
+          'itrNames': itrNames,
+          'installerNames': installerNames,
+        };
       }).toList();
 
       return {
