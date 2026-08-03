@@ -143,6 +143,12 @@ class HomeShiftsSummaryWidget extends ConsumerWidget {
               name: obj['name'] ?? 'Объект',
               itr: obj['itr'] ?? 0,
               installers: obj['installers'] ?? 0,
+              itrNames: ((obj['itrNames'] as List?) ?? const [])
+                  .map((e) => e.toString())
+                  .toList(growable: false),
+              installerNames: ((obj['installerNames'] as List?) ?? const [])
+                  .map((e) => e.toString())
+                  .toList(growable: false),
             );
           },
         ),
@@ -208,11 +214,15 @@ class _ObjectRow extends StatelessWidget {
   final String name;
   final int itr;
   final int installers;
+  final List<String> itrNames;
+  final List<String> installerNames;
 
   const _ObjectRow({
     required this.name,
     required this.itr,
     required this.installers,
+    required this.itrNames,
+    required this.installerNames,
   });
 
   @override
@@ -245,12 +255,14 @@ class _ObjectRow extends StatelessWidget {
             label: 'ИТР',
             count: itr,
             color: const Color(0xFF8B5CF6),
+            names: itrNames,
           ),
           const SizedBox(width: 8),
           _MiniCount(
             label: 'Монт.',
             count: installers,
             color: const Color(0xFF10B981),
+            names: installerNames,
           ),
         ],
       ),
@@ -262,17 +274,19 @@ class _MiniCount extends StatelessWidget {
   final String label;
   final int count;
   final Color color;
+  final List<String> names;
 
   const _MiniCount({
     required this.label,
     required this.count,
     required this.color,
+    required this.names,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
+    final chip = Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
@@ -299,6 +313,52 @@ class _MiniCount extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+
+    // Показываем подсказку со списком ФИО только если есть имена.
+    if (names.isEmpty) {
+      return chip;
+    }
+
+    return Tooltip(
+      richMessage: TextSpan(
+        children: [
+          TextSpan(
+            text: '$label ($count):',
+            style: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: theme.colorScheme.onInverseSurface,
+            ),
+          ),
+          ...names.map(
+            (n) => TextSpan(
+              text: '\n• $n',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onInverseSurface,
+              ),
+            ),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      margin: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.inverseSurface,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.shadow.withValues(alpha: 0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      waitDuration: const Duration(milliseconds: 300),
+      showDuration: const Duration(seconds: 10),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: chip,
       ),
     );
   }

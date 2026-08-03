@@ -183,7 +183,7 @@ class ShiftsDataSourceImpl implements ShiftsDataSource {
             id,
             objects(name),
             work_hours(
-              employees(position)
+              employees(first_name, last_name, position)
             )
           ''').eq('date', dateStr).eq('company_id', activeCompanyId!);
 
@@ -192,32 +192,40 @@ class ShiftsDataSourceImpl implements ShiftsDataSource {
 
       int totalItr = 0;
       int totalInstallers = 0;
-      final Map<String, Map<String, int>> objectStats = {};
+      final Map<String, Map<String, dynamic>> objectStats = {};
 
       for (final work in responseList) {
         final objectName = work['objects']?['name'] ?? 'Неизвестный объект';
         final workHours = work['work_hours'] as List? ?? [];
 
-        if (!objectStats.containsKey(objectName)) {
-          objectStats[objectName] = {'itr': 0, 'installers': 0};
-        }
+        objectStats.putIfAbsent(
+            objectName, () => {'itr': 0, 'installers': 0, 'itrNames': <String>[], 'installerNames': <String>[]});
 
         for (final wh in workHours) {
           final employee = wh['employees'];
           if (employee == null) continue;
 
           final position = (employee['position'] as String?)?.toLowerCase() ?? '';
-          
+          final firstName = (employee['first_name'] as String?)?.trim() ?? '';
+          final lastName = (employee['last_name'] as String?)?.trim() ?? '';
+          final fullName = [lastName, firstName].where((s) => s.isNotEmpty).join(' ').trim();
+
           // Логика определения ИТР vs Монтажник
-          final isInstaller = position.contains('монтажник') || 
-                             position.contains('электрик') || 
+          final isInstaller = position.contains('монтажник') ||
+                             position.contains('электрик') ||
                              position.contains('рабочий');
-          
+
           if (isInstaller) {
             objectStats[objectName]!['installers'] = (objectStats[objectName]!['installers'] ?? 0) + 1;
+            if (fullName.isNotEmpty) {
+              (objectStats[objectName]!['installerNames'] as List<String>).add(fullName);
+            }
             totalInstallers++;
           } else {
             objectStats[objectName]!['itr'] = (objectStats[objectName]!['itr'] ?? 0) + 1;
+            if (fullName.isNotEmpty) {
+              (objectStats[objectName]!['itrNames'] as List<String>).add(fullName);
+            }
             totalItr++;
           }
         }
@@ -227,6 +235,8 @@ class ShiftsDataSourceImpl implements ShiftsDataSource {
         'name': e.key,
         'itr': e.value['itr'],
         'installers': e.value['installers'],
+        'itrNames': e.value['itrNames'],
+        'installerNames': e.value['installerNames'],
       }).toList();
 
       return {
