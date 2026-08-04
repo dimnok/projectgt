@@ -94,4 +94,47 @@ class SettlementRepositoryImpl implements SettlementRepository {
         .eq('id', id)
         .eq('company_id', activeCompanyId);
   }
+
+  @override
+  Future<String> getNextInvoiceNumber(String contractId) async {
+    if (activeCompanyId.isEmpty || contractId.isEmpty) return '1';
+    final response = await client
+        .from(_table)
+        .select('invoice_number')
+        .eq('company_id', activeCompanyId)
+        .eq('contract_id', contractId);
+
+    int max = 0;
+    String? prefix;
+    for (final row in response as List) {
+      final raw = row['invoice_number'];
+      if (raw is! String) continue;
+      final parsed = _trailingNumber(raw);
+      if (parsed == null) continue;
+      final n = parsed.value;
+      if (n > max) {
+        max = n;
+        prefix = parsed.prefix;
+      }
+    }
+    return '${prefix ?? ''}${max + 1}';
+  }
+
+  /// Разбивает номер на префикс и завершающую группу цифр.
+  /// 'сч-13' → (prefix='сч-', 13), '217-3' → (prefix='217-', 3), '2' → ('', 2).
+  static _ParsedNumber? _trailingNumber(String value) {
+    final match = RegExp(r'(\d+)\s*$').firstMatch(value);
+    if (match == null) return null;
+    final n = int.tryParse(match.group(1)!);
+    if (n == null) return null;
+    final prefix = value.substring(0, match.start);
+    return _ParsedNumber(prefix, n);
+  }
+}
+
+class _ParsedNumber {
+  final String prefix;
+  final int value;
+
+  const _ParsedNumber(this.prefix, this.value);
 }

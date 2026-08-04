@@ -655,23 +655,26 @@
 ## Таблица `settlement_operations`
 
 **Описание:**
-Операции взаиморасчётов (модуль Settlements): учёт счетов и оплат по договорам. Типы: акт / аванс / прочее. Параллельно реестру актов договора (`contract_acts`), не заменяет КС-2. Подробнее: [`settlements/settlements_module.md`](settlements/settlements_module.md).
+Счета на оплату по договорам (модуль Settlements): операция = счёт, типы «По акту» / «Аванс» / «Прочее». НДС: ставка + режим «в сумме / сверху». Параллельно реестру актов договора (`contract_acts`), не заменяет КС-2. Подробнее: [`settlements/settlements_module.md`](settlements/settlements_module.md).
 
 **Структура:**
 - id: UUID, PK
 - company_id: UUID, FK → `companies.id` ON DELETE CASCADE
-- operation_type: TEXT — `act` \| `advance` \| `other`
+- operation_type: TEXT — `act` | `advance` | `other`
 - object_id: UUID, FK → `objects.id`
 - contractor_id: UUID, FK → `contractors.id`
 - contract_id: UUID, FK → `contracts.id` ON DELETE CASCADE
-- period_from / period_to: DATE — период работ (для акта)
-- act_number / act_date: TEXT / DATE — реквизиты акта
+- period_from / period_to: DATE — период работ (необязательно)
+- act_number / act_date: TEXT / DATE — реквизиты акта (номер обязателен для `act`)
 - invoice_number / invoice_date: TEXT / DATE — реквизиты счёта
-- amount / vat_amount: NUMERIC — база и НДС
-- advance_retention / warranty_retention: NUMERIC — удержания
-- total_to_pay: NUMERIC **GENERATED** — `GREATEST(0, amount + vat − удержания)`
-- paid_amount: NUMERIC — оплачено
-- payment_status: TEXT — `unpaid` \| `partial` \| `paid` \| `overpaid`
+- amount: NUMERIC — база (без НДС)
+- is_vat_included: BOOLEAN — `true` = НДС в сумме; `false` = НДС сверху (default `true`)
+- vat_rate: NUMERIC — ставка НДС (22/10/7/5/0); `NULL` = без НДС
+- vat_amount: NUMERIC — сумма НДС
+- advance_retention / warranty_retention: NUMERIC — удержания (в UI не используются, default 0)
+- total_to_pay: NUMERIC **GENERATED** — `GREATEST(0, amount + vat_amount − удержания)`
+- paid_amount: NUMERIC — оплачено (в UI не используется, default 0)
+- payment_status: TEXT — `unpaid` | `partial` | `paid` | `overpaid` (в UI не используется)
 - purpose / note: TEXT
 - created_at / updated_at / created_by
 
@@ -685,7 +688,11 @@
 **RLS-политики:**
 - ✅ Включён: SELECT/INSERT/UPDATE/DELETE через `get_my_company_ids()` + `check_permission(..., 'settlements', ...)`
 
-**Миграция:** `supabase/migrations/20260720220000_create_settlement_operations.sql`
+**Миграции:**
+- `supabase/migrations/20260720220000_create_settlement_operations.sql`
+- `supabase/migrations/20260803180000_simplify_settlement_operations_constraints.sql`
+- `supabase/migrations/20260804120000_add_settlement_vat_rate.sql`
+- `supabase/migrations/20260804130000_add_settlement_is_vat_included.sql`
 
 ---
 

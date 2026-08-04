@@ -18,7 +18,7 @@ Color _barBorder(ColorScheme scheme) =>
 Color _barFill(ColorScheme scheme) =>
     scheme.surfaceContainerHighest.withValues(alpha: 0.45);
 
-/// Компактная панель: поиск, тип, статус, сводка, действия.
+/// Компактная панель: поиск, тип, сводка суммы, действия.
 class SettlementsFiltersToolbar extends StatelessWidget {
   /// Текст поиска.
   final String searchQuery;
@@ -32,25 +32,13 @@ class SettlementsFiltersToolbar extends StatelessWidget {
   /// Колбэк типа.
   final ValueChanged<SettlementOperationType?> onTypeChanged;
 
-  /// Фильтр статуса.
-  final SettlementPaymentStatus? statusFilter;
-
-  /// Колбэк статуса.
-  final ValueChanged<SettlementPaymentStatus?> onStatusChanged;
-
-  /// Выставлено.
-  final double totalInvoiced;
-
-  /// Оплачено.
-  final double totalPaid;
-
-  /// Долг.
-  final double totalDebt;
+  /// Сумма всех счетов.
+  final double totalAmount;
 
   /// Обновить список.
   final VoidCallback onRefresh;
 
-  /// Создать операцию (null — скрыть).
+  /// Создать счёт (null — скрыть).
   final VoidCallback? onCreate;
 
   /// Создаёт панель.
@@ -60,11 +48,7 @@ class SettlementsFiltersToolbar extends StatelessWidget {
     required this.onSearchChanged,
     required this.typeFilter,
     required this.onTypeChanged,
-    required this.statusFilter,
-    required this.onStatusChanged,
-    required this.totalInvoiced,
-    required this.totalPaid,
-    required this.totalDebt,
+    required this.totalAmount,
     required this.onRefresh,
     this.onCreate,
   });
@@ -96,17 +80,6 @@ class SettlementsFiltersToolbar extends StatelessWidget {
             onChanged: onTypeChanged,
             allLabel: 'Все типы',
           ),
-          const SizedBox(width: 8),
-          _SettlementsEnumFilterChip<SettlementPaymentStatus>(
-            label: statusFilter == null
-                ? 'Статус'
-                : settlementPaymentStatusLabel(statusFilter!),
-            values: SettlementPaymentStatus.values,
-            selected: statusFilter,
-            itemLabel: settlementPaymentStatusLabel,
-            onChanged: onStatusChanged,
-            allLabel: 'Все статусы',
-          ),
           const Spacer(),
           const SizedBox(width: 12),
           Flexible(
@@ -117,23 +90,9 @@ class SettlementsFiltersToolbar extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _MetricPill(
-                    label: 'Выставлено',
-                    value: totalInvoiced,
+                    label: 'Сумма счетов',
+                    value: totalAmount,
                     tone: scheme.onSurface,
-                  ),
-                  const SizedBox(width: 6),
-                  _MetricPill(
-                    label: 'Оплачено',
-                    value: totalPaid,
-                    tone: scheme.primary,
-                  ),
-                  const SizedBox(width: 6),
-                  _MetricPill(
-                    label: 'Долг',
-                    value: totalDebt,
-                    tone: totalDebt > 0
-                        ? scheme.error
-                        : scheme.onSurface.withValues(alpha: 0.55),
                   ),
                   const SizedBox(width: 8),
                   _IconCapsuleButton(
@@ -457,7 +416,7 @@ class _CreateCapsuleButton extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     return Tooltip(
-      message: 'Новая операция',
+      message: 'Новый счёт',
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -481,7 +440,7 @@ class _CreateCapsuleButton extends StatelessWidget {
                 Icon(Icons.add_rounded, size: 18, color: scheme.primary),
                 const SizedBox(width: 4),
                 Text(
-                  'Новая',
+                  'Новый',
                   style: theme.textTheme.labelLarge?.copyWith(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,

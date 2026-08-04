@@ -21,7 +21,10 @@ import 'package:projectgt/features/settlements/domain/entities/settlement_operat
 import 'package:projectgt/features/settlements/presentation/state/settlement_state.dart';
 import 'package:projectgt/features/settlements/presentation/utils/settlement_ui_labels.dart';
 
-/// Диалог создания / редактирования операции взаиморасчётов.
+/// Диалог создания / редактирования счёта на оплату.
+///
+/// Операция = счёт. Форма собирает только реквизиты счёта в логическом порядке:
+/// объект → контрагент → договор → тип → (номер акта) → номер/дата/сумма счёта.
 class SettlementFormDialog extends ConsumerStatefulWidget {
   /// Существующая операция (null — создание).
   final SettlementOperation? operation;
@@ -76,35 +79,23 @@ class SettlementFormDialog extends ConsumerStatefulWidget {
 class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
   final _formKey = GlobalKey<FormState>();
 
-  late SettlementOperationType _type;
   String? _objectId;
   String? _contractorId;
   String? _contractId;
-
-  DateTime? _periodFrom;
-  DateTime? _periodTo;
-  DateTime? _actDate;
+  late SettlementOperationType _type;
   late DateTime _invoiceDate;
+  double? _vatRate;
+  bool _isVatIncluded = true;
 
   late final TextEditingController _actNumberController;
   late final TextEditingController _invoiceNumberController;
   late final TextEditingController _amountController;
-  late final TextEditingController _vatController;
-  late final TextEditingController _advanceRetentionController;
-  late final TextEditingController _warrantyRetentionController;
-  late final TextEditingController _paidController;
-  late final TextEditingController _purposeController;
-  late final TextEditingController _noteController;
-  late final TextEditingController _periodFromController;
-  late final TextEditingController _periodToController;
-  late final TextEditingController _actDateController;
   late final TextEditingController _invoiceDateController;
+  late final TextEditingController _noteController;
 
   bool _saving = false;
   bool get _lockedContext => widget.presetContract != null;
   bool get _isAct => _type == SettlementOperationType.act;
-  bool get _isAdvance => _type == SettlementOperationType.advance;
-  bool get _isOther => _type == SettlementOperationType.other;
 
   @override
   void initState() {
@@ -112,15 +103,14 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
     final op = widget.operation;
     final preset = widget.presetContract;
 
-    _type = op?.operationType ?? SettlementOperationType.act;
     _objectId = op?.objectId ?? preset?.objectId;
     _contractorId = op?.contractorId ?? preset?.contractorId;
     _contractId = op?.contractId ?? preset?.id;
-
-    _periodFrom = op?.periodFrom;
-    _periodTo = op?.periodTo;
-    _actDate = op?.actDate;
+    _type = op?.operationType ?? SettlementOperationType.act;
     _invoiceDate = op?.invoiceDate ?? DateTime.now();
+    _vatRate = op?.vatRate ??
+        (preset != null && preset.vatRate > 0 ? preset.vatRate : 22);
+    _isVatIncluded = op?.isVatIncluded ?? preset?.isVatIncluded ?? true;
 
     _actNumberController = TextEditingController(text: op?.actNumber ?? '');
     _invoiceNumberController =
@@ -128,112 +118,80 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
     _amountController = TextEditingController(
       text: op == null ? '' : _fmtAmount(op.amount),
     );
-    _vatController = TextEditingController(
-      text: op == null ? '' : _fmtAmount(op.vatAmount),
-    );
-    _advanceRetentionController = TextEditingController(
-      text: op == null || op.advanceRetention == 0
-          ? ''
-          : _fmtAmount(op.advanceRetention),
-    );
-    _warrantyRetentionController = TextEditingController(
-      text: op == null || op.warrantyRetention == 0
-          ? ''
-          : _fmtAmount(op.warrantyRetention),
-    );
-    _paidController = TextEditingController(
-      text: op == null ? '0,00' : _fmtAmount(op.paidAmount),
-    );
-    _purposeController = TextEditingController(text: op?.purpose ?? '');
-    _noteController = TextEditingController(text: op?.note ?? '');
-    _periodFromController = TextEditingController(
-      text: _periodFrom == null ? '' : formatRuDate(_periodFrom!),
-    );
-    _periodToController = TextEditingController(
-      text: _periodTo == null ? '' : formatRuDate(_periodTo!),
-    );
-    _actDateController = TextEditingController(
-      text: _actDate == null ? '' : formatRuDate(_actDate!),
-    );
     _invoiceDateController =
         TextEditingController(text: formatRuDate(_invoiceDate));
+    _noteController = TextEditingController(text: op?.note ?? '');
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       ref.read(objectProvider.notifier).loadObjects();
       ref.read(contractorNotifierProvider.notifier).loadContractors();
       ref.read(contractProvider.notifier).loadContracts();
-      if (op == null && preset != null) {
-        _suggestVatFromContract(preset);
+      if (op == null && _contractId != null) {
+        _suggestNextInvoiceNumber(_contractId!);
       }
     });
+  }
+
+  Future<void> _suggestNextInvoiceNumber(
+    String contractId, {
+    bool force = false,
+  }) async {
+    final next = await ref
+        .read(settlementRepositoryProvider)
+        .getNextInvoiceNumber(contractId);
+    if (!mounted) return;
+    if (force || _invoiceNumberController.text.isEmpty) {
+      _invoiceNumberController.text = next;
+    }
   }
 
   String _fmtAmount(num value) => GtFormatters.formatAmount(value)
       .replaceAll('\u00A0', ' ')
       .replaceAll('\u202F', ' ');
 
-  void _suggestVatFromContract(Contract contract) {
-    final amount = parseAmount(_amountController.text) ?? 0;
-    if (amount <= 0 || contract.vatRate <= 0) return;
-    final vat = amount * contract.vatRate / 100;
-    setState(() => _vatController.text = _fmtAmount(vat));
-  }
-
   @override
   void dispose() {
     _actNumberController.dispose();
     _invoiceNumberController.dispose();
     _amountController.dispose();
-    _vatController.dispose();
-    _advanceRetentionController.dispose();
-    _warrantyRetentionController.dispose();
-    _paidController.dispose();
-    _purposeController.dispose();
-    _noteController.dispose();
-    _periodFromController.dispose();
-    _periodToController.dispose();
-    _actDateController.dispose();
     _invoiceDateController.dispose();
+    _noteController.dispose();
     super.dispose();
   }
 
-  Future<void> _pickDate({
-    required DateTime? initial,
-    required ValueChanged<DateTime> onPicked,
-    required TextEditingController controller,
-  }) async {
+  Future<void> _pickInvoiceDate() async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: initial ?? DateTime.now(),
+      initialDate: _invoiceDate,
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
     );
     if (picked == null) return;
     setState(() {
-      onPicked(picked);
-      controller.text = formatRuDate(picked);
+      _invoiceDate = picked;
+      _invoiceDateController.text = formatRuDate(picked);
     });
   }
 
-  double get _amount => parseAmount(_amountController.text) ?? 0;
-  double get _vat => parseAmount(_vatController.text) ?? 0;
-  double get _advance =>
-      _isAct ? (parseAmount(_advanceRetentionController.text) ?? 0) : 0;
-  double get _warranty =>
-      _isAct ? (parseAmount(_warrantyRetentionController.text) ?? 0) : 0;
-  double get _totalToPay => computeSettlementTotalToPay(
-        amount: _amount,
-        vatAmount: _vat,
-        advanceRetention: _advance,
-        warrantyRetention: _warranty,
-      );
-  double get _paid => parseAmount(_paidController.text) ?? 0;
-  double get _remaining => _totalToPay - _paid;
-  SettlementPaymentStatus get _status => computeSettlementPaymentStatus(
-        totalToPay: _totalToPay,
-        paidAmount: _paid,
-      );
+  double get _enteredAmount => parseAmount(_amountController.text) ?? 0;
+  double get _vatRateEffective => _vatRate ?? 0;
+  bool get _hasVat => _vatRate != null && _vatRate! > 0;
+
+  /// База (без НДС) в зависимости от режима ввода.
+  double get _baseAmount {
+    if (!_hasVat) return _enteredAmount;
+    if (_isVatIncluded) {
+      return _enteredAmount / (1 + _vatRateEffective / 100);
+    }
+    return _enteredAmount;
+  }
+
+  /// Сумма НДС.
+  double get _vatAmount => _baseAmount * _vatRateEffective / 100;
+
+  /// Итого с НДС.
+  double get _totalWithVat => _baseAmount + _vatAmount;
 
   List<TextInputFormatter> get _moneyFormatters => [
         FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
@@ -270,24 +228,13 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
       objectId: _objectId!,
       contractorId: _contractorId!,
       contractId: _contractId!,
-      periodFrom: _isAct ? _periodFrom : null,
-      periodTo: _isAct ? _periodTo : null,
       actNumber: _isAct ? _actNumberController.text.trim() : null,
-      actDate: _isAct ? _actDate : null,
       invoiceNumber: _invoiceNumberController.text.trim(),
       invoiceDate: _invoiceDate,
-      amount: _amount,
-      vatAmount: _vat,
-      advanceRetention: _advance,
-      warrantyRetention: _warranty,
-      totalToPay: _totalToPay,
-      paidAmount: _paid,
-      paymentStatus: _status,
-      purpose: _isOther
-          ? _purposeController.text.trim()
-          : (_purposeController.text.trim().isEmpty
-              ? null
-              : _purposeController.text.trim()),
+      amount: _baseAmount,
+      isVatIncluded: _isVatIncluded,
+      vatRate: _vatRate,
+      vatAmount: _vatAmount,
       note: _noteController.text.trim().isEmpty
           ? null
           : _noteController.text.trim(),
@@ -309,7 +256,7 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
     if (result == null) {
       AppSnackBar.show(
         context: context,
-        message: 'Не удалось сохранить операцию',
+        message: 'Не удалось сохранить счёт',
         kind: AppSnackBarKind.error,
       );
       return;
@@ -321,9 +268,8 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
 
     AppSnackBar.show(
       context: context,
-      message: widget.operation == null
-          ? 'Операция создана'
-          : 'Операция обновлена',
+      message:
+          widget.operation == null ? 'Счёт создан' : 'Счёт обновлён',
       kind: AppSnackBarKind.success,
     );
     Navigator.of(context).pop();
@@ -333,7 +279,6 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
   Widget build(BuildContext context) {
     final isDesktop = ResponsiveUtils.isDesktop(context);
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
     final objects = ref.watch(objectProvider).objects;
     final contractors = ref.watch(contractorNotifierProvider).contractors;
     final contracts = ref.watch(contractProvider).contracts;
@@ -355,7 +300,7 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
             contracts.firstWhereOrNull((c) => c.id == _contractId);
 
     final title =
-        widget.operation == null ? 'Новая операция' : 'Редактировать операцию';
+        widget.operation == null ? 'Новый счёт' : 'Редактировать счёт';
 
     final content = Form(
       key: _formKey,
@@ -363,16 +308,7 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _TypeSegment(
-            value: _type,
-            onChanged: (value) {
-              setState(() => _type = value);
-            },
-          ),
-          const SizedBox(height: 20),
-
-          const _SectionTitle(title: 'Контекст'),
-          const SizedBox(height: 10),
+          // 1. Объект + 2. Контрагент + 3. Договор (в один ряд)
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -395,8 +331,7 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
                       }
                     });
                   },
-                  validator: (_) =>
-                      _objectId == null ? 'Выберите объект' : null,
+                  validator: (_) => _objectId == null ? 'Выберите объект' : null,
                 ),
               ),
               const SizedBox(width: 12),
@@ -406,7 +341,7 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
                   selectedItem: selectedContractor,
                   labelText: 'Контрагент',
                   hintText: 'Выберите контрагента',
-                  itemDisplayBuilder: (c) => c.fullName,
+                  itemDisplayBuilder: (c) => c.shortName,
                   readOnly: _lockedContext,
                   allowClear: !_lockedContext,
                   onSelectionChanged: (item) {
@@ -423,105 +358,64 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
                       _contractorId == null ? 'Выберите контрагента' : null,
                 ),
               ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: GTDropdown<Contract>(
+                  items: filteredContracts,
+                  selectedItem: selectedContract,
+                  labelText: 'Договор',
+                  hintText: 'Выберите договор',
+                  itemDisplayBuilder: (c) => c.number,
+                  readOnly: _lockedContext,
+                  allowClear: !_lockedContext,
+                  onSelectionChanged: (item) {
+                    setState(() {
+                      _contractId = item?.id;
+                      if (item != null) {
+                        _objectId = item.objectId;
+                        _contractorId = item.contractorId;
+                        if (widget.operation == null && item.vatRate > 0) {
+                          _vatRate = item.vatRate;
+                          _isVatIncluded = item.isVatIncluded;
+                        }
+                      }
+                    });
+                    if (widget.operation == null && item != null) {
+                      _suggestNextInvoiceNumber(item.id, force: true);
+                    }
+                  },
+                  validator: (_) => _contractId == null ? 'Выберите договор' : null,
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 12),
-          GTDropdown<Contract>(
-            items: filteredContracts,
-            selectedItem: selectedContract,
-            labelText: 'Договор',
-            hintText: 'Выберите договор',
-            itemDisplayBuilder: (c) => c.number,
-            readOnly: _lockedContext,
-            allowClear: !_lockedContext,
-            onSelectionChanged: (item) {
-              setState(() {
-                _contractId = item?.id;
-                if (item != null) {
-                  _objectId = item.objectId;
-                  _contractorId = item.contractorId;
-                  _suggestVatFromContract(item);
-                }
-              });
-            },
-            validator: (_) => _contractId == null ? 'Выберите договор' : null,
-          ),
+          const SizedBox(height: 20),
 
+          // Разделитель перед параметрами счёта
+          _SectionDivider(theme: theme),
+
+          // 4. Тип операции
+          _TypeSegment(
+            value: _type,
+            onChanged: (value) => setState(() => _type = value),
+          ),
+          const SizedBox(height: 16),
+
+          // 5. Номер акта (только для «По акту»)
           if (_isAct) ...[
-            const SizedBox(height: 20),
-            const _SectionTitle(title: 'Акт'),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: GTTextField(
-                    controller: _periodFromController,
-                    labelText: 'Период с',
-                    prefixIcon: CupertinoIcons.calendar,
-                    readOnly: true,
-                    onTap: () => _pickDate(
-                      initial: _periodFrom,
-                      onPicked: (d) => _periodFrom = d,
-                      controller: _periodFromController,
-                    ),
-                    validator: (_) =>
-                        _periodFrom == null ? 'Укажите начало периода' : null,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: GTTextField(
-                    controller: _periodToController,
-                    labelText: 'Период по',
-                    prefixIcon: CupertinoIcons.calendar,
-                    readOnly: true,
-                    onTap: () => _pickDate(
-                      initial: _periodTo,
-                      onPicked: (d) => _periodTo = d,
-                      controller: _periodToController,
-                    ),
-                    validator: (_) =>
-                        _periodTo == null ? 'Укажите конец периода' : null,
-                  ),
-                ),
-              ],
+            GTTextField(
+              controller: _actNumberController,
+              labelText: 'Номер акта',
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? 'Укажите номер акта'
+                  : null,
             ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: GTTextField(
-                    controller: _actNumberController,
-                    labelText: 'Номер акта',
-                    validator: (v) => (v == null || v.trim().isEmpty)
-                        ? 'Укажите номер акта'
-                        : null,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: GTTextField(
-                    controller: _actDateController,
-                    labelText: 'Дата акта',
-                    prefixIcon: CupertinoIcons.calendar,
-                    readOnly: true,
-                    onTap: () => _pickDate(
-                      initial: _actDate,
-                      onPicked: (d) => _actDate = d,
-                      controller: _actDateController,
-                    ),
-                    validator: (_) =>
-                        _actDate == null ? 'Укажите дату акта' : null,
-                  ),
-                ),
-              ],
-            ),
           ],
 
-          const SizedBox(height: 20),
-          const _SectionTitle(title: 'Счёт'),
-          const SizedBox(height: 10),
+          // 6. Номер счёта + 7. Дата счёта (в ряд)
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: GTTextField(
@@ -539,124 +433,74 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
                   labelText: 'Дата счёта',
                   prefixIcon: CupertinoIcons.calendar,
                   readOnly: true,
-                  onTap: () => _pickDate(
-                    initial: _invoiceDate,
-                    onPicked: (d) => _invoiceDate = d,
-                    controller: _invoiceDateController,
-                  ),
+                  onTap: _pickInvoiceDate,
                 ),
               ),
             ],
           ),
-          if (_isOther || _isAdvance) ...[
-            const SizedBox(height: 12),
-            GTTextField(
-              controller: _purposeController,
-              labelText: _isOther
-                  ? 'Назначение'
-                  : 'Назначение (необязательно)',
-              validator: _isOther
-                  ? (v) => (v == null || v.trim().isEmpty)
-                      ? 'Укажите назначение'
-                      : null
-                  : null,
-            ),
-          ],
+          const SizedBox(height: 12),
 
-          const SizedBox(height: 20),
-          const _SectionTitle(title: 'Суммы'),
-          const SizedBox(height: 10),
+          // 8. Сумма + Ставка НДС (в ряд)
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
+                flex: 3,
                 child: GTTextField(
                   controller: _amountController,
-                  labelText: _isAdvance ? 'Сумма аванса' : 'Сумма',
+                  labelText: _hasVat
+                      ? (_isVatIncluded ? 'Сумма с НДС' : 'Сумма без НДС')
+                      : 'Сумма',
                   prefixIcon: CupertinoIcons.money_rubl_circle,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
                   inputFormatters: _moneyFormatters,
-                  onChanged: (_) {
-                    setState(() {});
-                    final contract = selectedContract;
-                    if (contract != null &&
-                        (parseAmount(_vatController.text) ?? 0) == 0) {
-                      _suggestVatFromContract(contract);
-                    }
-                  },
+                  onChanged: (_) => setState(() {}),
                   validator: (v) {
                     final n = parseAmount(v);
-                    if (n == null || n < 0) return 'Укажите сумму';
+                    if (n == null || n <= 0) return 'Укажите сумму';
                     return null;
                   },
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: GTTextField(
-                  controller: _vatController,
-                  labelText: 'НДС',
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: _moneyFormatters,
-                  onChanged: (_) => setState(() {}),
+                flex: 2,
+                child: GTDropdown<SettlementVatRateOption>(
+                  items: settlementVatRateOptions,
+                  selectedItem: settlementVatRateOptionFor(_vatRate),
+                  labelText: 'Ставка НДС',
+                  hintText: 'Выберите ставку',
+                  itemDisplayBuilder: (o) => o.label,
+                  onSelectionChanged: (item) {
+                    setState(() => _vatRate = item?.rate);
+                  },
                 ),
               ),
             ],
           ),
-          if (_isAct) ...[
+
+          // 9. Переключатель режима НДС + сводка (только при ненулевой ставке)
+          if (_hasVat) ...[
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: GTTextField(
-                    controller: _advanceRetentionController,
-                    labelText: 'Авансовые удержания',
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    inputFormatters: _moneyFormatters,
-                    onChanged: (_) => setState(() {}),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: GTTextField(
-                    controller: _warrantyRetentionController,
-                    labelText: 'Гарантийные удержания',
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    inputFormatters: _moneyFormatters,
-                    onChanged: (_) => setState(() {}),
-                  ),
-                ),
-              ],
+            _VatModeToggle(
+              isVatIncluded: _isVatIncluded,
+              onChanged: (v) => setState(() => _isVatIncluded = v),
+            ),
+            const SizedBox(height: 12),
+            _VatSummary(
+              baseAmount: _baseAmount,
+              vatAmount: _vatAmount,
+              totalWithVat: _totalWithVat,
             ),
           ],
           const SizedBox(height: 12),
-          GTTextField(
-            controller: _paidController,
-            labelText: 'Оплачено',
-            prefixIcon: CupertinoIcons.checkmark_circle,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: _moneyFormatters,
-            onChanged: (_) => setState(() {}),
-          ),
 
-          const SizedBox(height: 16),
-          _SummaryCard(
-            totalToPay: _totalToPay,
-            paid: _paid,
-            remaining: _remaining,
-            status: _status,
-            scheme: scheme,
-            theme: theme,
-          ),
-
-          const SizedBox(height: 16),
+          // 10. Примечание
           GTTextField(
             controller: _noteController,
-            labelText: 'Комментарий',
-            maxLines: 2,
+            labelText: 'Примечание',
+            maxLines: 4,
           ),
         ],
       ),
@@ -684,7 +528,7 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
     if (isDesktop) {
       return DesktopDialogContent(
         title: title,
-        width: 720,
+        width: 920,
         footer: footer,
         child: content,
       );
@@ -698,147 +542,131 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
   }
 }
 
-class _SectionTitle extends StatelessWidget {
-  final String title;
-
-  const _SectionTitle({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Text(
-      title,
-      style: theme.textTheme.titleSmall?.copyWith(
-        fontWeight: FontWeight.w700,
-        letterSpacing: 0.2,
-      ),
-    );
-  }
-}
-
 class _TypeSegment extends StatelessWidget {
   final SettlementOperationType value;
   final ValueChanged<SettlementOperationType> onChanged;
 
-  const _TypeSegment({
-    required this.value,
-    required this.onChanged,
+  const _TypeSegment({required this.value, required this.onChanged});
+
+  Color _color(ThemeData theme, SettlementOperationType type) {
+    final scheme = theme.colorScheme;
+    switch (type) {
+      case SettlementOperationType.act:
+        return scheme.primary;
+      case SettlementOperationType.advance:
+        return scheme.tertiary;
+      case SettlementOperationType.other:
+        return scheme.onSurface.withValues(alpha: 0.62);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        for (final type in SettlementOperationType.values) ...[
+          if (type != SettlementOperationType.values.first)
+            const SizedBox(width: 8),
+          Expanded(
+            child: _TypeSticker(
+              label: settlementOperationTypeLabel(type),
+              color: _color(theme, type),
+              selected: value == type,
+              onTap: () => onChanged(type),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _TypeSticker extends StatelessWidget {
+  final String label;
+  final Color color;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _TypeSticker({
+    required this.label,
+    required this.color,
+    required this.selected,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: CupertinoSlidingSegmentedControl<SettlementOperationType>(
-        groupValue: value,
-        children: {
-          for (final type in SettlementOperationType.values)
-            type: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-              child: Text(
-                settlementOperationTypeLabel(type),
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Material(
+      color: selected
+          ? color.withValues(alpha: 0.16)
+          : scheme.surfaceContainerHighest.withValues(alpha: 0.4),
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: selected
+                  ? color.withValues(alpha: 0.7)
+                  : scheme.outline.withValues(alpha: 0.28),
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
                 ),
               ),
-            ),
-        },
-        onValueChanged: (type) {
-          if (type != null) onChanged(type);
-        },
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: selected ? color : scheme.onSurface,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 }
 
-class _SummaryCard extends StatelessWidget {
-  final double totalToPay;
-  final double paid;
-  final double remaining;
-  final SettlementPaymentStatus status;
-  final ColorScheme scheme;
+class _SectionDivider extends StatelessWidget {
   final ThemeData theme;
 
-  const _SummaryCard({
-    required this.totalToPay,
-    required this.paid,
-    required this.remaining,
-    required this.status,
-    required this.scheme,
-    required this.theme,
-  });
+  const _SectionDivider({required this.theme});
 
   @override
   Widget build(BuildContext context) {
-    final statusColor = switch (status) {
-      SettlementPaymentStatus.unpaid => scheme.error,
-      SettlementPaymentStatus.partial => scheme.tertiary,
-      SettlementPaymentStatus.paid => scheme.primary,
-      SettlementPaymentStatus.overpaid =>
-        scheme.onSurface.withValues(alpha: 0.7),
-    };
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: scheme.outline.withValues(alpha: 0.22)),
-        color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
-      ),
-      child: Column(
+    final scheme = theme.colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: _SummaryItem(
-                  label: 'К оплате',
-                  value: formatCurrency(totalToPay),
-                ),
-              ),
-              Expanded(
-                child: _SummaryItem(
-                  label: 'Оплачено',
-                  value: formatCurrency(paid),
-                  valueColor: scheme.primary,
-                ),
-              ),
-              Expanded(
-                child: _SummaryItem(
-                  label: 'Остаток',
-                  value: formatCurrency(remaining),
-                  valueColor: remaining > 0.005 ? scheme.error : null,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Text(
-                'Статус',
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: scheme.onSurface.withValues(alpha: 0.55),
-                ),
-              ),
-              const Spacer(),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  settlementPaymentStatusLabel(status),
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: statusColor,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ],
+          Expanded(
+            child: Container(
+              height: 1,
+              color: scheme.outline.withValues(alpha: 0.18),
+            ),
           ),
         ],
       ),
@@ -846,36 +674,146 @@ class _SummaryCard extends StatelessWidget {
   }
 }
 
-class _SummaryItem extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color? valueColor;
+/// Компактный переключатель режима НДС: «в сумме» / «сверху».
+class _VatModeToggle extends StatelessWidget {
+  final bool isVatIncluded;
+  final ValueChanged<bool> onChanged;
 
-  const _SummaryItem({
-    required this.label,
-    required this.value,
-    this.valueColor,
+  const _VatModeToggle({
+    required this.isVatIncluded,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textStyle = theme.textTheme.labelMedium?.copyWith(
+      fontSize: 12,
+      fontWeight: FontWeight.w600,
+    );
+    return SizedBox(
+      width: double.infinity,
+      child: CupertinoSlidingSegmentedControl<bool>(
+        groupValue: isVatIncluded,
+        children: {
+          true: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+            child: Text('НДС в сумме', style: textStyle),
+          ),
+          false: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+            child: Text('НДС сверху', style: textStyle),
+          ),
+        },
+        onValueChanged: (v) {
+          if (v != null) onChanged(v);
+        },
+      ),
+    );
+  }
+}
+
+/// Сводка по НДС: база, НДС и итог с НДС. Показывается только при ненулевой ставке.
+class _VatSummary extends StatelessWidget {
+  final double baseAmount;
+  final double vatAmount;
+  final double totalWithVat;
+
+  const _VatSummary({
+    required this.baseAmount,
+    required this.vatAmount,
+    required this.totalWithVat,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: scheme.outline.withValues(alpha: 0.22)),
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _Item(
+              label: 'Без НДС',
+              value: formatCurrency(baseAmount),
+              tone: scheme.onSurface.withValues(alpha: 0.7),
+            ),
+          ),
+          _Divider(),
+          Expanded(
+            child: _Item(
+              label: 'НДС',
+              value: formatCurrency(vatAmount),
+              tone: scheme.onSurface.withValues(alpha: 0.7),
+            ),
+          ),
+          _Divider(),
+          Expanded(
+            child: _Item(
+              label: 'Итого с НДС',
+              value: formatCurrency(totalWithVat),
+              tone: scheme.primary,
+              emphasize: true,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Divider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      child: Container(
+        width: 1,
+        height: 32,
+        color: scheme.outline.withValues(alpha: 0.18),
+      ),
+    );
+  }
+}
+
+class _Item extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color tone;
+  final bool emphasize;
+
+  const _Item({
+    required this.label,
+    required this.value,
+    required this.tone,
+    this.emphasize = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
           style: theme.textTheme.labelSmall?.copyWith(
-            color: scheme.onSurface.withValues(alpha: 0.55),
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
           ),
         ),
         const SizedBox(height: 2),
         Text(
           value,
           style: theme.textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w800,
-            color: valueColor,
+            fontWeight: emphasize ? FontWeight.w800 : FontWeight.w700,
+            color: tone,
             fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),

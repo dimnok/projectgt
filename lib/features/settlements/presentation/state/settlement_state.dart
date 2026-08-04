@@ -44,19 +44,9 @@ class SettlementListState {
     );
   }
 
-  /// Сумма «к оплате».
-  double get totalInvoiced =>
+  /// Итоговая сумма счетов (с НДС).
+  double get totalAmount =>
       operations.fold<double>(0, (s, o) => s + o.totalToPay);
-
-  /// Сумма оплачено.
-  double get totalPaid =>
-      operations.fold<double>(0, (s, o) => s + o.paidAmount);
-
-  /// Долг (не ниже 0).
-  double get totalDebt {
-    final d = totalInvoiced - totalPaid;
-    return d < 0 ? 0 : d;
-  }
 }
 
 /// Notifier списка операций.

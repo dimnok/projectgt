@@ -32,7 +32,6 @@ class SettlementsListScreen extends ConsumerStatefulWidget {
 
 class _SettlementsListScreenState extends ConsumerState<SettlementsListScreen> {
   SettlementOperationType? _typeFilter;
-  SettlementPaymentStatus? _statusFilter;
   String _search = '';
 
   static const _screenTitle = 'Взаиморасчёты';
@@ -42,17 +41,13 @@ class _SettlementsListScreenState extends ConsumerState<SettlementsListScreen> {
       if (_typeFilter != null && op.operationType != _typeFilter) {
         return false;
       }
-      if (_statusFilter != null && op.paymentStatus != _statusFilter) {
-        return false;
-      }
       if (_search.trim().isEmpty) return true;
       final q = _search.trim().toLowerCase();
       return op.invoiceNumber.toLowerCase().contains(q) ||
           (op.actNumber?.toLowerCase().contains(q) ?? false) ||
           (op.contractNumber?.toLowerCase().contains(q) ?? false) ||
           (op.contractorName?.toLowerCase().contains(q) ?? false) ||
-          (op.objectName?.toLowerCase().contains(q) ?? false) ||
-          (op.purpose?.toLowerCase().contains(q) ?? false);
+          (op.objectName?.toLowerCase().contains(q) ?? false);
     }).toList();
   }
 
@@ -182,12 +177,7 @@ class _SettlementsListScreenState extends ConsumerState<SettlementsListScreen> {
                               typeFilter: _typeFilter,
                               onTypeChanged: (v) =>
                                   setState(() => _typeFilter = v),
-                              statusFilter: _statusFilter,
-                              onStatusChanged: (v) =>
-                                  setState(() => _statusFilter = v),
-                              totalInvoiced: state.totalInvoiced,
-                              totalPaid: state.totalPaid,
-                              totalDebt: state.totalDebt,
+                              totalAmount: state.totalAmount,
                               onRefresh: () => ref
                                   .read(settlementListProvider.notifier)
                                   .load(),
@@ -233,7 +223,7 @@ class _SettlementsListScreenState extends ConsumerState<SettlementsListScreen> {
       return Center(
         child: Text(
           state.operations.isEmpty
-              ? 'Операций пока нет — создайте первую'
+              ? 'Счетов пока нет — создайте первый'
               : 'Ничего не найдено по фильтрам',
           style: theme.textTheme.bodyLarge?.copyWith(
             color: scheme.onSurface.withValues(alpha: 0.55),
@@ -253,7 +243,7 @@ class _SettlementsListScreenState extends ConsumerState<SettlementsListScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Удалить операцию?'),
+        title: const Text('Удалить счёт?'),
         content: Text(
           'Счёт ${op.invoiceNumber} будет удалён без возможности восстановления.',
         ),
@@ -279,7 +269,7 @@ class _SettlementsListScreenState extends ConsumerState<SettlementsListScreen> {
     if (!mounted) return;
     AppSnackBar.show(
       context: context,
-      message: success ? 'Операция удалена' : 'Не удалось удалить',
+      message: success ? 'Счёт удалён' : 'Не удалось удалить',
       kind: success ? AppSnackBarKind.success : AppSnackBarKind.error,
     );
   }

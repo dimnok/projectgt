@@ -13,4 +13,8 @@ abstract class SettlementRepository {
 
   /// Удалить операцию.
   Future<void> deleteOperation(String id);
+
+  /// Следующий номер счёта для договора (max + 1) с сохранением префикса.
+  /// Если у последнего счёта был префикс (например «сч-13»), вернётся «сч-14».
+  Future<String> getNextInvoiceNumber(String contractId);
 }

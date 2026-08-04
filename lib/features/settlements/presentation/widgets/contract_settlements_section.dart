@@ -42,24 +42,15 @@ class ContractSettlementsSection extends ConsumerWidget {
                 runSpacing: 8,
                 children: [
                   _MiniStat(
-                    label: 'Выставлено',
-                    value: formatCurrency(state.totalInvoiced),
-                  ),
-                  _MiniStat(
-                    label: 'Оплачено',
-                    value: formatCurrency(state.totalPaid),
-                  ),
-                  _MiniStat(
-                    label: 'Долг',
-                    value: formatCurrency(state.totalDebt),
-                    emphasize: state.totalDebt > 0,
+                    label: 'Сумма счетов',
+                    value: formatCurrency(state.totalAmount),
                   ),
                 ],
               ),
             ),
             if (canCreate)
               GTPrimaryButton(
-                text: 'Новая операция',
+                text: 'Новый счёт',
                 onPressed: () => SettlementFormDialog.show(
                   context,
                   presetContract: contract,
@@ -86,7 +77,7 @@ class ContractSettlementsSection extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(vertical: 40),
             child: Center(
               child: Text(
-                'По этому договору пока нет операций',
+                'По этому договору пока нет счетов',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: scheme.onSurface.withValues(alpha: 0.55),
                 ),
@@ -121,7 +112,7 @@ class ContractSettlementsSection extends ConsumerWidget {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Удалить операцию?'),
+        title: const Text('Удалить счёт?'),
         content: Text('Счёт ${op.invoiceNumber} будет удалён.'),
         actions: [
           TextButton(
@@ -147,7 +138,7 @@ class ContractSettlementsSection extends ConsumerWidget {
     ref.read(settlementListProvider.notifier).load(quiet: true);
     AppSnackBar.show(
       context: context,
-      message: success ? 'Операция удалена' : 'Не удалось удалить',
+      message: success ? 'Счёт удалён' : 'Не удалось удалить',
       kind: success ? AppSnackBarKind.success : AppSnackBarKind.error,
     );
   }
@@ -156,12 +147,10 @@ class ContractSettlementsSection extends ConsumerWidget {
 class _MiniStat extends StatelessWidget {
   final String label;
   final String value;
-  final bool emphasize;
 
   const _MiniStat({
     required this.label,
     required this.value,
-    this.emphasize = false,
   });
 
   @override
@@ -190,7 +179,6 @@ class _MiniStat extends StatelessWidget {
             value,
             style: theme.textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w700,
-              color: emphasize ? scheme.error : null,
             ),
           ),
         ],

@@ -5,12 +5,12 @@ import 'package:projectgt/features/roles/presentation/widgets/permission_guard.d
 import 'package:projectgt/features/settlements/domain/entities/settlement_operation.dart';
 import 'package:projectgt/features/settlements/presentation/utils/settlement_ui_labels.dart';
 
-/// Чистая таблица операций взаиморасчётов.
+/// Чистая таблица счетов на оплату.
 ///
 /// Колонки делят всю доступную ширину по фиксированным долям (flex).
 /// Горизонтального скролла нет.
 class SettlementsOperationsTable extends StatelessWidget {
-  /// Операции.
+  /// Операции (счета).
   final List<SettlementOperation> operations;
 
   /// Тап по строке.
@@ -37,12 +37,8 @@ class SettlementsOperationsTable extends StatelessWidget {
     final scheme = theme.colorScheme;
     final columns = _columns(compact: compact, hasActions: onDelete != null);
 
-    final totalToPay = operations.fold<double>(0, (s, o) => s + o.totalToPay);
-    final totalPaid = operations.fold<double>(0, (s, o) => s + o.paidAmount);
-    final totalRemaining = operations.fold<double>(
-      0,
-      (s, o) => s + o.remainingAmount,
-    );
+    final totalAmount =
+        operations.fold<double>(0, (s, o) => s + o.totalToPay);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -79,9 +75,7 @@ class SettlementsOperationsTable extends StatelessWidget {
             columns: columns,
             theme: theme,
             scheme: scheme,
-            totalToPay: totalToPay,
-            totalPaid: totalPaid,
-            totalRemaining: totalRemaining,
+            totalAmount: totalAmount,
           ),
       ],
     );
@@ -96,10 +90,7 @@ enum _ColId {
   contract,
   contractor,
   object,
-  toPay,
-  paid,
-  remaining,
-  status,
+  amount,
   actions,
 }
 
@@ -119,33 +110,20 @@ class _ColDef {
 
 List<_ColDef> _columns({required bool compact, required bool hasActions}) {
   return [
-    const _ColDef(id: _ColId.date, title: 'Дата', flex: 9),
-    const _ColDef(id: _ColId.type, title: 'Тип', flex: 8),
-    const _ColDef(id: _ColId.invoice, title: 'Счёт', flex: 10),
-    const _ColDef(id: _ColId.act, title: 'Акт', flex: 9),
+    const _ColDef(id: _ColId.date, title: 'Дата счёта', flex: 10),
+    const _ColDef(id: _ColId.type, title: 'Тип', flex: 9),
+    const _ColDef(id: _ColId.invoice, title: 'Счёт', flex: 11),
+    const _ColDef(id: _ColId.act, title: 'Акт', flex: 10),
     if (!compact)
-      const _ColDef(id: _ColId.contract, title: 'Договор', flex: 10),
+      const _ColDef(id: _ColId.contract, title: 'Договор', flex: 11),
     const _ColDef(id: _ColId.contractor, title: 'Контрагент', flex: 18),
-    if (!compact) const _ColDef(id: _ColId.object, title: 'Объект', flex: 14),
+    if (!compact) const _ColDef(id: _ColId.object, title: 'Объект', flex: 15),
     const _ColDef(
-      id: _ColId.toPay,
-      title: 'К оплате',
-      flex: 11,
+      id: _ColId.amount,
+      title: 'Сумма',
+      flex: 12,
       align: Alignment.centerRight,
     ),
-    const _ColDef(
-      id: _ColId.paid,
-      title: 'Оплачено',
-      flex: 11,
-      align: Alignment.centerRight,
-    ),
-    const _ColDef(
-      id: _ColId.remaining,
-      title: 'Остаток',
-      flex: 11,
-      align: Alignment.centerRight,
-    ),
-    const _ColDef(id: _ColId.status, title: 'Статус', flex: 11),
     if (hasActions)
       const _ColDef(
         id: _ColId.actions,
@@ -301,7 +279,7 @@ class _DataRow extends StatelessWidget {
         );
       case _ColId.object:
         return _text(op.objectName ?? '—', base);
-      case _ColId.toPay:
+      case _ColId.amount:
         return _text(
           formatCurrency(op.totalToPay),
           base?.copyWith(
@@ -310,34 +288,6 @@ class _DataRow extends StatelessWidget {
           ),
           align: TextAlign.right,
         );
-      case _ColId.paid:
-        return _text(
-          formatCurrency(op.paidAmount),
-          base?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
-          align: TextAlign.right,
-        );
-      case _ColId.remaining:
-        final debt = op.remainingAmount > 0.005;
-        return _text(
-          formatCurrency(op.remainingAmount),
-          base?.copyWith(
-            fontWeight: debt ? FontWeight.w800 : FontWeight.w600,
-            color: debt
-                ? scheme.error
-                : scheme.onSurface.withValues(alpha: 0.5),
-            fontFeatures: const [FontFeature.tabularFigures()],
-          ),
-          align: TextAlign.right,
-        );
-      case _ColId.status:
-        return _pill(_statusLabel(op.paymentStatus), switch (op.paymentStatus) {
-          SettlementPaymentStatus.unpaid => scheme.error,
-          SettlementPaymentStatus.partial => scheme.tertiary,
-          SettlementPaymentStatus.paid => scheme.primary,
-          SettlementPaymentStatus.overpaid => scheme.onSurface.withValues(
-            alpha: 0.65,
-          ),
-        });
       case _ColId.actions:
         return PermissionGuard(
           module: 'settlements',
@@ -391,32 +341,19 @@ class _DataRow extends StatelessWidget {
       ),
     );
   }
-
-  static String _statusLabel(SettlementPaymentStatus status) {
-    return switch (status) {
-      SettlementPaymentStatus.unpaid => 'Не оплачен',
-      SettlementPaymentStatus.partial => 'Частично',
-      SettlementPaymentStatus.paid => 'Оплачен',
-      SettlementPaymentStatus.overpaid => 'Переплата',
-    };
-  }
 }
 
 class _TotalRow extends StatelessWidget {
   final List<_ColDef> columns;
   final ThemeData theme;
   final ColorScheme scheme;
-  final double totalToPay;
-  final double totalPaid;
-  final double totalRemaining;
+  final double totalAmount;
 
   const _TotalRow({
     required this.columns,
     required this.theme,
     required this.scheme,
-    required this.totalToPay,
-    required this.totalPaid,
-    required this.totalRemaining,
+    required this.totalAmount,
   });
 
   @override
@@ -446,23 +383,9 @@ class _TotalRow extends StatelessWidget {
                   alignment: col.align,
                   child: switch (col.id) {
                     _ColId.date => Text('ИТОГО', style: style),
-                    _ColId.toPay => Text(
-                      formatCurrency(totalToPay),
+                    _ColId.amount => Text(
+                      formatCurrency(totalAmount),
                       style: style,
-                      textAlign: TextAlign.right,
-                    ),
-                    _ColId.paid => Text(
-                      formatCurrency(totalPaid),
-                      style: style?.copyWith(color: scheme.primary),
-                      textAlign: TextAlign.right,
-                    ),
-                    _ColId.remaining => Text(
-                      formatCurrency(totalRemaining),
-                      style: style?.copyWith(
-                        color: totalRemaining > 0.005
-                            ? scheme.error
-                            : scheme.onSurface,
-                      ),
                       textAlign: TextAlign.right,
                     ),
                     _ => const SizedBox.shrink(),

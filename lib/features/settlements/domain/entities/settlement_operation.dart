@@ -79,8 +79,14 @@ abstract class SettlementOperation with _$SettlementOperation {
     /// Дата счёта.
     required DateTime invoiceDate,
 
-    /// Базовая сумма.
+    /// Базовая сумма (без НДС).
     required double amount,
+
+    /// Включён ли НДС в введённую сумму (true — «в том числе», false — «сверху»).
+    @Default(true) bool isVatIncluded,
+
+    /// Ставка НДС (в процентах). null = без НДС.
+    double? vatRate,
 
     /// Сумма НДС.
     @Default(0) double vatAmount,

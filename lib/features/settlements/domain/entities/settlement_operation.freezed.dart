@@ -30,8 +30,10 @@ mixin _$SettlementOperation {
  String? get actNumber;/// Дата акта (для типа акт).
  DateTime? get actDate;/// Номер счёта.
  String get invoiceNumber;/// Дата счёта.
- DateTime get invoiceDate;/// Базовая сумма.
- double get amount;/// Сумма НДС.
+ DateTime get invoiceDate;/// Базовая сумма (без НДС).
+ double get amount;/// Включён ли НДС в введённую сумму (true — «в том числе», false — «сверху»).
+ bool get isVatIncluded;/// Ставка НДС (в процентах). null = без НДС.
+ double? get vatRate;/// Сумма НДС.
  double get vatAmount;/// Авансовые удержания (только акт).
  double get advanceRetention;/// Гарантийные удержания (только акт).
  double get warrantyRetention;/// К оплате (из БД / формулы).
@@ -52,16 +54,16 @@ $SettlementOperationCopyWith<SettlementOperation> get copyWith => _$SettlementOp
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is SettlementOperation&&(identical(other.id, id) || other.id == id)&&(identical(other.companyId, companyId) || other.companyId == companyId)&&(identical(other.operationType, operationType) || other.operationType == operationType)&&(identical(other.objectId, objectId) || other.objectId == objectId)&&(identical(other.objectName, objectName) || other.objectName == objectName)&&(identical(other.contractorId, contractorId) || other.contractorId == contractorId)&&(identical(other.contractorName, contractorName) || other.contractorName == contractorName)&&(identical(other.contractId, contractId) || other.contractId == contractId)&&(identical(other.contractNumber, contractNumber) || other.contractNumber == contractNumber)&&(identical(other.periodFrom, periodFrom) || other.periodFrom == periodFrom)&&(identical(other.periodTo, periodTo) || other.periodTo == periodTo)&&(identical(other.actNumber, actNumber) || other.actNumber == actNumber)&&(identical(other.actDate, actDate) || other.actDate == actDate)&&(identical(other.invoiceNumber, invoiceNumber) || other.invoiceNumber == invoiceNumber)&&(identical(other.invoiceDate, invoiceDate) || other.invoiceDate == invoiceDate)&&(identical(other.amount, amount) || other.amount == amount)&&(identical(other.vatAmount, vatAmount) || other.vatAmount == vatAmount)&&(identical(other.advanceRetention, advanceRetention) || other.advanceRetention == advanceRetention)&&(identical(other.warrantyRetention, warrantyRetention) || other.warrantyRetention == warrantyRetention)&&(identical(other.totalToPay, totalToPay) || other.totalToPay == totalToPay)&&(identical(other.paidAmount, paidAmount) || other.paidAmount == paidAmount)&&(identical(other.paymentStatus, paymentStatus) || other.paymentStatus == paymentStatus)&&(identical(other.purpose, purpose) || other.purpose == purpose)&&(identical(other.note, note) || other.note == note)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.createdBy, createdBy) || other.createdBy == createdBy));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SettlementOperation&&(identical(other.id, id) || other.id == id)&&(identical(other.companyId, companyId) || other.companyId == companyId)&&(identical(other.operationType, operationType) || other.operationType == operationType)&&(identical(other.objectId, objectId) || other.objectId == objectId)&&(identical(other.objectName, objectName) || other.objectName == objectName)&&(identical(other.contractorId, contractorId) || other.contractorId == contractorId)&&(identical(other.contractorName, contractorName) || other.contractorName == contractorName)&&(identical(other.contractId, contractId) || other.contractId == contractId)&&(identical(other.contractNumber, contractNumber) || other.contractNumber == contractNumber)&&(identical(other.periodFrom, periodFrom) || other.periodFrom == periodFrom)&&(identical(other.periodTo, periodTo) || other.periodTo == periodTo)&&(identical(other.actNumber, actNumber) || other.actNumber == actNumber)&&(identical(other.actDate, actDate) || other.actDate == actDate)&&(identical(other.invoiceNumber, invoiceNumber) || other.invoiceNumber == invoiceNumber)&&(identical(other.invoiceDate, invoiceDate) || other.invoiceDate == invoiceDate)&&(identical(other.amount, amount) || other.amount == amount)&&(identical(other.isVatIncluded, isVatIncluded) || other.isVatIncluded == isVatIncluded)&&(identical(other.vatRate, vatRate) || other.vatRate == vatRate)&&(identical(other.vatAmount, vatAmount) || other.vatAmount == vatAmount)&&(identical(other.advanceRetention, advanceRetention) || other.advanceRetention == advanceRetention)&&(identical(other.warrantyRetention, warrantyRetention) || other.warrantyRetention == warrantyRetention)&&(identical(other.totalToPay, totalToPay) || other.totalToPay == totalToPay)&&(identical(other.paidAmount, paidAmount) || other.paidAmount == paidAmount)&&(identical(other.paymentStatus, paymentStatus) || other.paymentStatus == paymentStatus)&&(identical(other.purpose, purpose) || other.purpose == purpose)&&(identical(other.note, note) || other.note == note)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.createdBy, createdBy) || other.createdBy == createdBy));
 }
 
 
 @override
-int get hashCode => Object.hashAll([runtimeType,id,companyId,operationType,objectId,objectName,contractorId,contractorName,contractId,contractNumber,periodFrom,periodTo,actNumber,actDate,invoiceNumber,invoiceDate,amount,vatAmount,advanceRetention,warrantyRetention,totalToPay,paidAmount,paymentStatus,purpose,note,createdAt,createdBy]);
+int get hashCode => Object.hashAll([runtimeType,id,companyId,operationType,objectId,objectName,contractorId,contractorName,contractId,contractNumber,periodFrom,periodTo,actNumber,actDate,invoiceNumber,invoiceDate,amount,isVatIncluded,vatRate,vatAmount,advanceRetention,warrantyRetention,totalToPay,paidAmount,paymentStatus,purpose,note,createdAt,createdBy]);
 
 @override
 String toString() {
-  return 'SettlementOperation(id: $id, companyId: $companyId, operationType: $operationType, objectId: $objectId, objectName: $objectName, contractorId: $contractorId, contractorName: $contractorName, contractId: $contractId, contractNumber: $contractNumber, periodFrom: $periodFrom, periodTo: $periodTo, actNumber: $actNumber, actDate: $actDate, invoiceNumber: $invoiceNumber, invoiceDate: $invoiceDate, amount: $amount, vatAmount: $vatAmount, advanceRetention: $advanceRetention, warrantyRetention: $warrantyRetention, totalToPay: $totalToPay, paidAmount: $paidAmount, paymentStatus: $paymentStatus, purpose: $purpose, note: $note, createdAt: $createdAt, createdBy: $createdBy)';
+  return 'SettlementOperation(id: $id, companyId: $companyId, operationType: $operationType, objectId: $objectId, objectName: $objectName, contractorId: $contractorId, contractorName: $contractorName, contractId: $contractId, contractNumber: $contractNumber, periodFrom: $periodFrom, periodTo: $periodTo, actNumber: $actNumber, actDate: $actDate, invoiceNumber: $invoiceNumber, invoiceDate: $invoiceDate, amount: $amount, isVatIncluded: $isVatIncluded, vatRate: $vatRate, vatAmount: $vatAmount, advanceRetention: $advanceRetention, warrantyRetention: $warrantyRetention, totalToPay: $totalToPay, paidAmount: $paidAmount, paymentStatus: $paymentStatus, purpose: $purpose, note: $note, createdAt: $createdAt, createdBy: $createdBy)';
 }
 
 
@@ -72,7 +74,7 @@ abstract mixin class $SettlementOperationCopyWith<$Res>  {
   factory $SettlementOperationCopyWith(SettlementOperation value, $Res Function(SettlementOperation) _then) = _$SettlementOperationCopyWithImpl;
 @useResult
 $Res call({
- String id, String companyId, SettlementOperationType operationType, String objectId, String? objectName, String contractorId, String? contractorName, String contractId, String? contractNumber, DateTime? periodFrom, DateTime? periodTo, String? actNumber, DateTime? actDate, String invoiceNumber, DateTime invoiceDate, double amount, double vatAmount, double advanceRetention, double warrantyRetention, double totalToPay, double paidAmount, SettlementPaymentStatus paymentStatus, String? purpose, String? note, DateTime? createdAt, String? createdBy
+ String id, String companyId, SettlementOperationType operationType, String objectId, String? objectName, String contractorId, String? contractorName, String contractId, String? contractNumber, DateTime? periodFrom, DateTime? periodTo, String? actNumber, DateTime? actDate, String invoiceNumber, DateTime invoiceDate, double amount, bool isVatIncluded, double? vatRate, double vatAmount, double advanceRetention, double warrantyRetention, double totalToPay, double paidAmount, SettlementPaymentStatus paymentStatus, String? purpose, String? note, DateTime? createdAt, String? createdBy
 });
 
 
@@ -89,7 +91,7 @@ class _$SettlementOperationCopyWithImpl<$Res>
 
 /// Create a copy of SettlementOperation
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? companyId = null,Object? operationType = null,Object? objectId = null,Object? objectName = freezed,Object? contractorId = null,Object? contractorName = freezed,Object? contractId = null,Object? contractNumber = freezed,Object? periodFrom = freezed,Object? periodTo = freezed,Object? actNumber = freezed,Object? actDate = freezed,Object? invoiceNumber = null,Object? invoiceDate = null,Object? amount = null,Object? vatAmount = null,Object? advanceRetention = null,Object? warrantyRetention = null,Object? totalToPay = null,Object? paidAmount = null,Object? paymentStatus = null,Object? purpose = freezed,Object? note = freezed,Object? createdAt = freezed,Object? createdBy = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? companyId = null,Object? operationType = null,Object? objectId = null,Object? objectName = freezed,Object? contractorId = null,Object? contractorName = freezed,Object? contractId = null,Object? contractNumber = freezed,Object? periodFrom = freezed,Object? periodTo = freezed,Object? actNumber = freezed,Object? actDate = freezed,Object? invoiceNumber = null,Object? invoiceDate = null,Object? amount = null,Object? isVatIncluded = null,Object? vatRate = freezed,Object? vatAmount = null,Object? advanceRetention = null,Object? warrantyRetention = null,Object? totalToPay = null,Object? paidAmount = null,Object? paymentStatus = null,Object? purpose = freezed,Object? note = freezed,Object? createdAt = freezed,Object? createdBy = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,companyId: null == companyId ? _self.companyId : companyId // ignore: cast_nullable_to_non_nullable
@@ -107,7 +109,9 @@ as String?,actDate: freezed == actDate ? _self.actDate : actDate // ignore: cast
 as DateTime?,invoiceNumber: null == invoiceNumber ? _self.invoiceNumber : invoiceNumber // ignore: cast_nullable_to_non_nullable
 as String,invoiceDate: null == invoiceDate ? _self.invoiceDate : invoiceDate // ignore: cast_nullable_to_non_nullable
 as DateTime,amount: null == amount ? _self.amount : amount // ignore: cast_nullable_to_non_nullable
-as double,vatAmount: null == vatAmount ? _self.vatAmount : vatAmount // ignore: cast_nullable_to_non_nullable
+as double,isVatIncluded: null == isVatIncluded ? _self.isVatIncluded : isVatIncluded // ignore: cast_nullable_to_non_nullable
+as bool,vatRate: freezed == vatRate ? _self.vatRate : vatRate // ignore: cast_nullable_to_non_nullable
+as double?,vatAmount: null == vatAmount ? _self.vatAmount : vatAmount // ignore: cast_nullable_to_non_nullable
 as double,advanceRetention: null == advanceRetention ? _self.advanceRetention : advanceRetention // ignore: cast_nullable_to_non_nullable
 as double,warrantyRetention: null == warrantyRetention ? _self.warrantyRetention : warrantyRetention // ignore: cast_nullable_to_non_nullable
 as double,totalToPay: null == totalToPay ? _self.totalToPay : totalToPay // ignore: cast_nullable_to_non_nullable
@@ -128,7 +132,7 @@ as String?,
 
 
 class _SettlementOperation extends SettlementOperation {
-  const _SettlementOperation({required this.id, required this.companyId, required this.operationType, required this.objectId, this.objectName, required this.contractorId, this.contractorName, required this.contractId, this.contractNumber, this.periodFrom, this.periodTo, this.actNumber, this.actDate, required this.invoiceNumber, required this.invoiceDate, required this.amount, this.vatAmount = 0, this.advanceRetention = 0, this.warrantyRetention = 0, this.totalToPay = 0, this.paidAmount = 0, this.paymentStatus = SettlementPaymentStatus.unpaid, this.purpose, this.note, this.createdAt, this.createdBy}): super._();
+  const _SettlementOperation({required this.id, required this.companyId, required this.operationType, required this.objectId, this.objectName, required this.contractorId, this.contractorName, required this.contractId, this.contractNumber, this.periodFrom, this.periodTo, this.actNumber, this.actDate, required this.invoiceNumber, required this.invoiceDate, required this.amount, this.isVatIncluded = true, this.vatRate, this.vatAmount = 0, this.advanceRetention = 0, this.warrantyRetention = 0, this.totalToPay = 0, this.paidAmount = 0, this.paymentStatus = SettlementPaymentStatus.unpaid, this.purpose, this.note, this.createdAt, this.createdBy}): super._();
   
 
 /// Идентификатор записи.
@@ -161,8 +165,12 @@ class _SettlementOperation extends SettlementOperation {
 @override final  String invoiceNumber;
 /// Дата счёта.
 @override final  DateTime invoiceDate;
-/// Базовая сумма.
+/// Базовая сумма (без НДС).
 @override final  double amount;
+/// Включён ли НДС в введённую сумму (true — «в том числе», false — «сверху»).
+@override@JsonKey() final  bool isVatIncluded;
+/// Ставка НДС (в процентах). null = без НДС.
+@override final  double? vatRate;
 /// Сумма НДС.
 @override@JsonKey() final  double vatAmount;
 /// Авансовые удержания (только акт).
@@ -194,16 +202,16 @@ _$SettlementOperationCopyWith<_SettlementOperation> get copyWith => __$Settlemen
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SettlementOperation&&(identical(other.id, id) || other.id == id)&&(identical(other.companyId, companyId) || other.companyId == companyId)&&(identical(other.operationType, operationType) || other.operationType == operationType)&&(identical(other.objectId, objectId) || other.objectId == objectId)&&(identical(other.objectName, objectName) || other.objectName == objectName)&&(identical(other.contractorId, contractorId) || other.contractorId == contractorId)&&(identical(other.contractorName, contractorName) || other.contractorName == contractorName)&&(identical(other.contractId, contractId) || other.contractId == contractId)&&(identical(other.contractNumber, contractNumber) || other.contractNumber == contractNumber)&&(identical(other.periodFrom, periodFrom) || other.periodFrom == periodFrom)&&(identical(other.periodTo, periodTo) || other.periodTo == periodTo)&&(identical(other.actNumber, actNumber) || other.actNumber == actNumber)&&(identical(other.actDate, actDate) || other.actDate == actDate)&&(identical(other.invoiceNumber, invoiceNumber) || other.invoiceNumber == invoiceNumber)&&(identical(other.invoiceDate, invoiceDate) || other.invoiceDate == invoiceDate)&&(identical(other.amount, amount) || other.amount == amount)&&(identical(other.vatAmount, vatAmount) || other.vatAmount == vatAmount)&&(identical(other.advanceRetention, advanceRetention) || other.advanceRetention == advanceRetention)&&(identical(other.warrantyRetention, warrantyRetention) || other.warrantyRetention == warrantyRetention)&&(identical(other.totalToPay, totalToPay) || other.totalToPay == totalToPay)&&(identical(other.paidAmount, paidAmount) || other.paidAmount == paidAmount)&&(identical(other.paymentStatus, paymentStatus) || other.paymentStatus == paymentStatus)&&(identical(other.purpose, purpose) || other.purpose == purpose)&&(identical(other.note, note) || other.note == note)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.createdBy, createdBy) || other.createdBy == createdBy));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SettlementOperation&&(identical(other.id, id) || other.id == id)&&(identical(other.companyId, companyId) || other.companyId == companyId)&&(identical(other.operationType, operationType) || other.operationType == operationType)&&(identical(other.objectId, objectId) || other.objectId == objectId)&&(identical(other.objectName, objectName) || other.objectName == objectName)&&(identical(other.contractorId, contractorId) || other.contractorId == contractorId)&&(identical(other.contractorName, contractorName) || other.contractorName == contractorName)&&(identical(other.contractId, contractId) || other.contractId == contractId)&&(identical(other.contractNumber, contractNumber) || other.contractNumber == contractNumber)&&(identical(other.periodFrom, periodFrom) || other.periodFrom == periodFrom)&&(identical(other.periodTo, periodTo) || other.periodTo == periodTo)&&(identical(other.actNumber, actNumber) || other.actNumber == actNumber)&&(identical(other.actDate, actDate) || other.actDate == actDate)&&(identical(other.invoiceNumber, invoiceNumber) || other.invoiceNumber == invoiceNumber)&&(identical(other.invoiceDate, invoiceDate) || other.invoiceDate == invoiceDate)&&(identical(other.amount, amount) || other.amount == amount)&&(identical(other.isVatIncluded, isVatIncluded) || other.isVatIncluded == isVatIncluded)&&(identical(other.vatRate, vatRate) || other.vatRate == vatRate)&&(identical(other.vatAmount, vatAmount) || other.vatAmount == vatAmount)&&(identical(other.advanceRetention, advanceRetention) || other.advanceRetention == advanceRetention)&&(identical(other.warrantyRetention, warrantyRetention) || other.warrantyRetention == warrantyRetention)&&(identical(other.totalToPay, totalToPay) || other.totalToPay == totalToPay)&&(identical(other.paidAmount, paidAmount) || other.paidAmount == paidAmount)&&(identical(other.paymentStatus, paymentStatus) || other.paymentStatus == paymentStatus)&&(identical(other.purpose, purpose) || other.purpose == purpose)&&(identical(other.note, note) || other.note == note)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.createdBy, createdBy) || other.createdBy == createdBy));
 }
 
 
 @override
-int get hashCode => Object.hashAll([runtimeType,id,companyId,operationType,objectId,objectName,contractorId,contractorName,contractId,contractNumber,periodFrom,periodTo,actNumber,actDate,invoiceNumber,invoiceDate,amount,vatAmount,advanceRetention,warrantyRetention,totalToPay,paidAmount,paymentStatus,purpose,note,createdAt,createdBy]);
+int get hashCode => Object.hashAll([runtimeType,id,companyId,operationType,objectId,objectName,contractorId,contractorName,contractId,contractNumber,periodFrom,periodTo,actNumber,actDate,invoiceNumber,invoiceDate,amount,isVatIncluded,vatRate,vatAmount,advanceRetention,warrantyRetention,totalToPay,paidAmount,paymentStatus,purpose,note,createdAt,createdBy]);
 
 @override
 String toString() {
-  return 'SettlementOperation(id: $id, companyId: $companyId, operationType: $operationType, objectId: $objectId, objectName: $objectName, contractorId: $contractorId, contractorName: $contractorName, contractId: $contractId, contractNumber: $contractNumber, periodFrom: $periodFrom, periodTo: $periodTo, actNumber: $actNumber, actDate: $actDate, invoiceNumber: $invoiceNumber, invoiceDate: $invoiceDate, amount: $amount, vatAmount: $vatAmount, advanceRetention: $advanceRetention, warrantyRetention: $warrantyRetention, totalToPay: $totalToPay, paidAmount: $paidAmount, paymentStatus: $paymentStatus, purpose: $purpose, note: $note, createdAt: $createdAt, createdBy: $createdBy)';
+  return 'SettlementOperation(id: $id, companyId: $companyId, operationType: $operationType, objectId: $objectId, objectName: $objectName, contractorId: $contractorId, contractorName: $contractorName, contractId: $contractId, contractNumber: $contractNumber, periodFrom: $periodFrom, periodTo: $periodTo, actNumber: $actNumber, actDate: $actDate, invoiceNumber: $invoiceNumber, invoiceDate: $invoiceDate, amount: $amount, isVatIncluded: $isVatIncluded, vatRate: $vatRate, vatAmount: $vatAmount, advanceRetention: $advanceRetention, warrantyRetention: $warrantyRetention, totalToPay: $totalToPay, paidAmount: $paidAmount, paymentStatus: $paymentStatus, purpose: $purpose, note: $note, createdAt: $createdAt, createdBy: $createdBy)';
 }
 
 
@@ -214,7 +222,7 @@ abstract mixin class _$SettlementOperationCopyWith<$Res> implements $SettlementO
   factory _$SettlementOperationCopyWith(_SettlementOperation value, $Res Function(_SettlementOperation) _then) = __$SettlementOperationCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String companyId, SettlementOperationType operationType, String objectId, String? objectName, String contractorId, String? contractorName, String contractId, String? contractNumber, DateTime? periodFrom, DateTime? periodTo, String? actNumber, DateTime? actDate, String invoiceNumber, DateTime invoiceDate, double amount, double vatAmount, double advanceRetention, double warrantyRetention, double totalToPay, double paidAmount, SettlementPaymentStatus paymentStatus, String? purpose, String? note, DateTime? createdAt, String? createdBy
+ String id, String companyId, SettlementOperationType operationType, String objectId, String? objectName, String contractorId, String? contractorName, String contractId, String? contractNumber, DateTime? periodFrom, DateTime? periodTo, String? actNumber, DateTime? actDate, String invoiceNumber, DateTime invoiceDate, double amount, bool isVatIncluded, double? vatRate, double vatAmount, double advanceRetention, double warrantyRetention, double totalToPay, double paidAmount, SettlementPaymentStatus paymentStatus, String? purpose, String? note, DateTime? createdAt, String? createdBy
 });
 
 
@@ -231,7 +239,7 @@ class __$SettlementOperationCopyWithImpl<$Res>
 
 /// Create a copy of SettlementOperation
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? companyId = null,Object? operationType = null,Object? objectId = null,Object? objectName = freezed,Object? contractorId = null,Object? contractorName = freezed,Object? contractId = null,Object? contractNumber = freezed,Object? periodFrom = freezed,Object? periodTo = freezed,Object? actNumber = freezed,Object? actDate = freezed,Object? invoiceNumber = null,Object? invoiceDate = null,Object? amount = null,Object? vatAmount = null,Object? advanceRetention = null,Object? warrantyRetention = null,Object? totalToPay = null,Object? paidAmount = null,Object? paymentStatus = null,Object? purpose = freezed,Object? note = freezed,Object? createdAt = freezed,Object? createdBy = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? companyId = null,Object? operationType = null,Object? objectId = null,Object? objectName = freezed,Object? contractorId = null,Object? contractorName = freezed,Object? contractId = null,Object? contractNumber = freezed,Object? periodFrom = freezed,Object? periodTo = freezed,Object? actNumber = freezed,Object? actDate = freezed,Object? invoiceNumber = null,Object? invoiceDate = null,Object? amount = null,Object? isVatIncluded = null,Object? vatRate = freezed,Object? vatAmount = null,Object? advanceRetention = null,Object? warrantyRetention = null,Object? totalToPay = null,Object? paidAmount = null,Object? paymentStatus = null,Object? purpose = freezed,Object? note = freezed,Object? createdAt = freezed,Object? createdBy = freezed,}) {
   return _then(_SettlementOperation(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,companyId: null == companyId ? _self.companyId : companyId // ignore: cast_nullable_to_non_nullable
@@ -249,7 +257,9 @@ as String?,actDate: freezed == actDate ? _self.actDate : actDate // ignore: cast
 as DateTime?,invoiceNumber: null == invoiceNumber ? _self.invoiceNumber : invoiceNumber // ignore: cast_nullable_to_non_nullable
 as String,invoiceDate: null == invoiceDate ? _self.invoiceDate : invoiceDate // ignore: cast_nullable_to_non_nullable
 as DateTime,amount: null == amount ? _self.amount : amount // ignore: cast_nullable_to_non_nullable
-as double,vatAmount: null == vatAmount ? _self.vatAmount : vatAmount // ignore: cast_nullable_to_non_nullable
+as double,isVatIncluded: null == isVatIncluded ? _self.isVatIncluded : isVatIncluded // ignore: cast_nullable_to_non_nullable
+as bool,vatRate: freezed == vatRate ? _self.vatRate : vatRate // ignore: cast_nullable_to_non_nullable
+as double?,vatAmount: null == vatAmount ? _self.vatAmount : vatAmount // ignore: cast_nullable_to_non_nullable
 as double,advanceRetention: null == advanceRetention ? _self.advanceRetention : advanceRetention // ignore: cast_nullable_to_non_nullable
 as double,warrantyRetention: null == warrantyRetention ? _self.warrantyRetention : warrantyRetention // ignore: cast_nullable_to_non_nullable
 as double,totalToPay: null == totalToPay ? _self.totalToPay : totalToPay // ignore: cast_nullable_to_non_nullable
