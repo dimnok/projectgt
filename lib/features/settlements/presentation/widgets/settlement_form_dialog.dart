@@ -183,7 +183,7 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
     );
-    if (picked == null) return;
+    if (picked == null || !mounted) return;
     setState(() {
       _invoiceDate = picked;
       _invoiceDateController.text = formatRuDate(picked);

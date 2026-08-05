@@ -127,7 +127,6 @@ abstract class SettlementOperationModel with _$SettlementOperationModel {
     final json = toJson();
     json.remove('total_to_pay');
     json.remove('created_at');
-    json.remove('updated_at');
     if (!includeId || id.isEmpty) {
       json.remove('id');
     }
