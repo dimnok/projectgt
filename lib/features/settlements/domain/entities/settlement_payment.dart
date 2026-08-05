@@ -25,10 +25,19 @@ abstract class SettlementPayment with _$SettlementPayment {
     /// Примечание.
     String? note,
 
+    /// Транзакция ДДС (если оплата создана из банковской выписки).
+    String? cashFlowTransactionId,
+
     /// Дата создания.
     DateTime? createdAt,
 
     /// Автор записи.
     String? createdBy,
   }) = _SettlementPayment;
+
+  const SettlementPayment._();
+
+  /// Оплата создана автоматически при обработке банковской выписки.
+  bool get isFromBankStatement =>
+      cashFlowTransactionId != null && cashFlowTransactionId!.isNotEmpty;
 }

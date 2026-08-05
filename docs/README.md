@@ -326,7 +326,7 @@ lib/
 | **Профиль пользователя** | [`profile/`](./profile/) | Управление учётной записью, данные сотрудника |
 | **ФОТ** | [`fot/fot_module.md`](./fot/fot_module.md) | Расчёты заработной платы, бонусы, штрафы |
 | **Работы (смены и планы)** | [`works/works_module.md`](./works/works_module.md) | Ежедневные смены, фото, часы; планы работ |
-| **Взаиморасчёты** | [`settlements/settlements_module.md`](./settlements/settlements_module.md) | Счета на оплату по договорам (акт / аванс / прочее), НДС |
+| **Взаиморасчёты** | [`settlements/settlements_module.md`](./settlements/settlements_module.md) | Счета на оплату по договорам, история оплат, привязка к ДДС из выписки |
 | **ТМЦ** | [`tmc/tmc_module.md`](./tmc/tmc_module.md) | Учёт имущества компании (инструмент, СИЗ, оргтехника); Desktop |
 
 ### 🗂️ Справочники (References Menu Group)

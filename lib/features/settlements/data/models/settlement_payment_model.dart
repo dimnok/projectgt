@@ -16,6 +16,7 @@ abstract class SettlementPaymentModel with _$SettlementPaymentModel {
     @JsonKey(toJson: _dateOnlyToJson) required DateTime paymentDate,
     required double amount,
     String? note,
+    String? cashFlowTransactionId,
     DateTime? createdAt,
     String? createdBy,
   }) = _SettlementPaymentModel;
@@ -35,6 +36,7 @@ abstract class SettlementPaymentModel with _$SettlementPaymentModel {
         paymentDate: payment.paymentDate,
         amount: payment.amount,
         note: payment.note,
+        cashFlowTransactionId: payment.cashFlowTransactionId,
         createdAt: payment.createdAt,
         createdBy: payment.createdBy,
       );
@@ -47,6 +49,7 @@ abstract class SettlementPaymentModel with _$SettlementPaymentModel {
         paymentDate: paymentDate,
         amount: amount,
         note: note,
+        cashFlowTransactionId: cashFlowTransactionId,
         createdAt: createdAt,
         createdBy: createdBy,
       );
@@ -56,6 +59,7 @@ abstract class SettlementPaymentModel with _$SettlementPaymentModel {
     final json = toJson();
     json.remove('created_at');
     json.remove('created_by');
+    json.remove('cash_flow_transaction_id');
     if (!includeId || id.isEmpty) {
       json.remove('id');
     }

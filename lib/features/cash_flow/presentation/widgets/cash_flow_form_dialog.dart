@@ -23,6 +23,9 @@ import 'package:projectgt/features/cash_flow/domain/entities/bank_statement_entr
 import 'package:projectgt/features/cash_flow/domain/entities/cash_flow_category.dart';
 import 'package:projectgt/features/contractors/presentation/screens/contractor_form_screen.dart';
 import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
+import 'package:projectgt/features/settlements/domain/entities/settlement_operation.dart';
+import 'package:projectgt/features/settlements/presentation/state/settlement_state.dart';
+import 'package:projectgt/features/settlements/presentation/utils/settlement_actions.dart';
 
 /// Диалоговое окно создания/редактирования финансовой операции.
 class CashFlowFormDialog extends ConsumerStatefulWidget {
@@ -52,6 +55,7 @@ class _CashFlowFormDialogState extends ConsumerState<CashFlowFormDialog> {
   String? _selectedObjectId;
   String? _selectedContractId;
   String? _selectedContractorId;
+  String? _selectedSettlementOperationId;
 
   @override
   void initState() {
@@ -157,12 +161,18 @@ class _CashFlowFormDialogState extends ConsumerState<CashFlowFormDialog> {
     );
 
     if (widget.initialEntry != null) {
-      await ref
-          .read(cashFlowProvider.notifier)
-          .processBankStatementEntry(
+      await ref.read(cashFlowProvider.notifier).processBankStatementEntry(
             entryId: widget.initialEntry!.id,
             transaction: transaction,
+            settlementOperationId: _selectedSettlementOperationId,
           );
+
+      if (_selectedSettlementOperationId != null) {
+        final contractId = _selectedContractId;
+        if (contractId != null) {
+          syncSettlementProviders(ref, contractId: contractId);
+        }
+      }
     } else {
       await ref.read(cashFlowProvider.notifier).saveTransaction(transaction);
     }
@@ -179,7 +189,9 @@ class _CashFlowFormDialogState extends ConsumerState<CashFlowFormDialog> {
         AppSnackBar.show(
           context: context,
           message: widget.transaction == null
-              ? 'Операция добавлена'
+              ? (_selectedSettlementOperationId != null
+                  ? 'Операция добавлена и привязана к счёту'
+                  : 'Операция добавлена')
               : 'Операция обновлена',
           kind: AppSnackBarKind.success,
         );
@@ -208,6 +220,14 @@ class _CashFlowFormDialogState extends ConsumerState<CashFlowFormDialog> {
     // Фильтруем категории по типу операции
     final filteredCategories = cashFlowState.categories
         .where((c) => c.type.name == _selectedType.name)
+        .toList();
+
+    final isBankImport = widget.initialEntry != null;
+    final contractSettlementsState = _selectedContractId != null
+        ? ref.watch(contractSettlementsProvider(_selectedContractId!))
+        : null;
+    final openSettlementInvoices = (contractSettlementsState?.operations ?? [])
+        .where((op) => op.hasOutstandingDebt)
         .toList();
 
     final content = Form(
@@ -411,12 +431,44 @@ class _CashFlowFormDialogState extends ConsumerState<CashFlowFormDialog> {
             selectedItem: filteredContracts.firstWhereOrNull(
               (c) => c.id == _selectedContractId,
             ),
-            onSelectionChanged: (v) =>
-                setState(() => _selectedContractId = v?.id),
+            onSelectionChanged: (v) => setState(() {
+              _selectedContractId = v?.id;
+              _selectedSettlementOperationId = null;
+            }),
             labelText: 'Договор',
             hintText: 'Не выбрано',
             allowClear: true,
           ),
+          if (isBankImport) ...[
+            const SizedBox(height: 16),
+            PermissionGuard(
+              module: 'settlements',
+              permission: 'update',
+              child: GTDropdown<SettlementOperation>(
+                items: openSettlementInvoices,
+                itemDisplayBuilder: _settlementInvoiceLabel,
+                selectedItem: openSettlementInvoices.firstWhereOrNull(
+                  (op) => op.id == _selectedSettlementOperationId,
+                ),
+                onSelectionChanged: (v) => setState(() {
+                  _selectedSettlementOperationId = v?.id;
+                  if (v != null) {
+                    _selectedObjectId ??= v.objectId;
+                    _selectedContractorId ??= v.contractorId;
+                  }
+                }),
+                labelText: 'Счёт взаиморасчётов',
+                hintText: _selectedContractId == null
+                    ? 'Сначала выберите договор'
+                    : openSettlementInvoices.isEmpty
+                        ? 'Нет неоплаченных счетов'
+                        : 'Не привязывать',
+                allowClear: true,
+                readOnly: _selectedContractId == null ||
+                    openSettlementInvoices.isEmpty,
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
 
           // Комментарий
@@ -452,5 +504,12 @@ class _CashFlowFormDialogState extends ConsumerState<CashFlowFormDialog> {
       footer: footer,
       child: content,
     );
+  }
+
+  /// Подпись счёта в выпадающем списке.
+  String _settlementInvoiceLabel(SettlementOperation op) {
+    final debt = op.positiveDebt;
+    return '№${op.invoiceNumber} от ${formatRuDate(op.invoiceDate)} — '
+        'остаток ${formatCurrency(debt)}';
   }
 }

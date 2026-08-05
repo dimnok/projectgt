@@ -635,6 +635,8 @@
 - contractor_id: UUID, FK — ссылка на контрагента (`contractors.id`)
 - category_id: UUID, FK — ссылка на статью движения ДС (`cash_flow_categories.id`)
 - comment: TEXT — комментарий к операции
+- contractor_name / contractor_inn: TEXT — данные контрагента из выписки (если не сопоставлен)
+- operation_hash: TEXT — хеш для дедупликации при импорте
 - created_at: TIMESTAMPTZ — дата и время создания записи
 - created_by: UUID, FK — ссылка на профиль создателя (`profiles.id`)
 
@@ -645,6 +647,10 @@
 - contractor_id → contractors.id (FK)
 - category_id → cash_flow_categories.id (FK)
 - created_by → profiles.id (FK)
+
+**Обратные связи:**
+- `settlement_payments.cash_flow_transaction_id` → `cash_flow.id` (ON DELETE CASCADE)
+- `bank_statement_entries.linked_transaction_id` → `cash_flow.id`
 
 **RLS-политики:**
 - ✅ Доступна только участникам компании (через `get_my_company_ids()`)
@@ -673,8 +679,8 @@
 - vat_amount: NUMERIC — сумма НДС
 - advance_retention / warranty_retention: NUMERIC — удержания (в UI не используются, default 0)
 - total_to_pay: NUMERIC **GENERATED** — `GREATEST(0, amount + vat_amount − удержания)`
-- paid_amount: NUMERIC — оплачено (в UI не используется, default 0)
-- payment_status: TEXT — `unpaid` | `partial` | `paid` | `overpaid` (в UI не используется)
+- paid_amount: NUMERIC — сумма оплат (пересчитывается триггером из `settlement_payments`)
+- payment_status: TEXT — `unpaid` | `partial` | `paid` | `overpaid` (пересчитывается триггером)
 - purpose / note: TEXT
 - created_at / updated_at / created_by
 
@@ -693,6 +699,37 @@
 - `supabase/migrations/20260803180000_simplify_settlement_operations_constraints.sql`
 - `supabase/migrations/20260804120000_add_settlement_vat_rate.sql`
 - `supabase/migrations/20260804130000_add_settlement_is_vat_included.sql`
+- `supabase/migrations/20260805140000_create_settlement_payments.sql`
+- `supabase/migrations/20260805160000_link_settlement_payments_to_cash_flow.sql`
+
+---
+
+## Таблица `settlement_payments`
+
+**Описание:**
+Оплаты по счетам взаиморасчётов (частичные и полные). Создаются вручную в UI или автоматически при обработке банковской выписки. Подробнее: [`settlements/settlements_module.md`](settlements/settlements_module.md).
+
+**Структура:**
+- id: UUID, PK
+- company_id: UUID, FK → `companies.id` ON DELETE CASCADE
+- settlement_operation_id: UUID, FK → `settlement_operations.id` ON DELETE CASCADE
+- payment_date: DATE — дата оплаты
+- amount: NUMERIC — сумма > 0
+- note: TEXT — примечание
+- cash_flow_transaction_id: UUID, FK → `cash_flow.id` ON DELETE CASCADE (nullable; уникален при NOT NULL)
+- created_at / updated_at: TIMESTAMPTZ
+- created_by: UUID, FK → `auth.users.id`
+
+**Связи:**
+- settlement_operation_id → settlement_operations.id (FK)
+- cash_flow_transaction_id → cash_flow.id (FK, CASCADE)
+
+**Триггеры:**
+- `trg_settlement_payments_sync_paid` — пересчёт `paid_amount` / `payment_status` родительского счёта
+- `trg_guard_linked_settlement_payment` — защита оплат из выписки от ручного изменения
+
+**RLS-политики:**
+- ✅ Включён: SELECT/INSERT/UPDATE/DELETE через `get_my_company_ids()` + `check_permission(..., 'settlements', ...)` (INSERT/UPDATE/DELETE оплат — право `update`)
 
 ---
 

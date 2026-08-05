@@ -2,6 +2,11 @@
 
 **Дата актуализации:** 5 августа 2026 года  
 **Изменения:**
+- **Интеграция с ДДС:** оплата из банковской выписки создаёт `settlement_payment` с привязкой `cash_flow_transaction_id`.
+- Колонка `cash_flow_transaction_id` в `settlement_payments` + уникальный индекс (1 транзакция ДДС = 1 оплата).
+- Триггер `trg_guard_linked_settlement_payment` — защита оплат из выписки от ручного изменения/удаления.
+- В `SettlementDetailsDialog` оплаты из выписки помечаются «Из выписки», edit/delete заблокированы в UI.
+- RPC `process_bank_statement_entry` расширен параметром `p_settlement_operation_id`.
 - Окно деталей счёта (`SettlementDetailsDialog`) с историей оплат.
 - Таблица `settlement_payments` + триггер синхронизации `paid_amount` и `payment_status`.
 - Форма счёта — только реквизиты; оплаты — в деталях.
@@ -13,7 +18,7 @@
 - **Владение таблицами:** `settlement_operations`, `settlement_payments` (Owner — модуль Settlements).
 - **Изоляция:** `company_id` + RLS через `get_my_company_ids()` и `check_permission(..., 'settlements', ...)`.
 - **RBAC-модуль:** `settlements` в `app_modules` (название «Взаиморасчёты», `sort_order = 92`).
-- **Не путать** с вкладкой «Акты» в договоре (`contract_acts`) и с ДДС (`cash_flow`): это отдельный контур учёта выставленных счетов.
+- **Не путать** с вкладкой «Акты» в договоре (`contract_acts`) и с ДДС (`cash_flow`): это разные контуры (начисления vs факт денег), но **оплаты из выписки связаны** через `settlement_payments.cash_flow_transaction_id`.
 - Статус оплаты в `contract_acts` **не синхронизируется** с Settlements (параллельные контуры).
 - `paid_amount` и `payment_status` **не пишутся клиентом** — пересчитываются триггерами из `settlement_payments`.
 
@@ -25,7 +30,7 @@
 - Типы счетов: **По акту**, **Аванс**, **Прочее**.
 - Ручной CRUD счетов; автономер по договору с сохранением префикса.
 - НДС: произвольная ставка, режим «в сумме» / «сверху»; автоматический расчёт базы, НДС и итога.
-- **История оплат:** частичные и полные платежи по счёту, CRUD в окне деталей.
+- **История оплат:** частичные и полные платежи по счёту — вручную в окне деталей или **автоматически из банковской выписки** (модуль ДДС).
 - Автоматический статус оплаты, фильтр, сводки «К оплате / Оплачено / Долг».
 - Общий реестр компании с поиском и фильтрами + вкладка **«Финансы»** в карточке договора.
 - Работает для всех видов договоров (`customer` / `subcontract` / `supply`).
@@ -35,9 +40,9 @@
 | Роль | Таблицы / модули |
 |------|------------------|
 | **Owner** | `settlement_operations`, `settlement_payments` |
-| **Usage** | `contracts`, `contractors`, `objects`, `companies`, `auth.users` (created_by) |
+| **Usage** | `contracts`, `contractors`, `objects`, `companies`, `auth.users` (created_by), `cash_flow` (через `settlement_payments.cash_flow_transaction_id`) |
 | **RBAC** | `app_modules.code = 'settlements'`, `role_permissions` |
-| **Не зависит** | `contract_acts`, `contract_act_lines`, Edge `ks2_operations`, `cash_flow` |
+| **Не зависит** | `contract_acts`, `contract_act_lines`, Edge `ks2_operations` |
 
 ## 🖼️ Слой Presentation
 
@@ -62,6 +67,7 @@
 1. **Сводка:** к оплате / оплачено / остаток / статус.
 2. **Реквизиты:** дата, тип, акт, договор, контрагент, объект, суммы, НДС, примечание.
 3. **Таблица оплат:** дата, сумма, примечание; добавить / редактировать / удалить (право `update`).
+   - Оплаты с `cash_flow_transaction_id` (из выписки): пометка **«Из выписки»**, кнопки edit/delete скрыты; изменение только через удаление транзакции в ДДС.
 4. **Действия:** «Редактировать» (форма счёта), «Удалить» (право `delete`, каскадно удаляет оплаты).
 
 **Навигация:** тап по строке в реестре или вкладке «Финансы» → детали (не форма редактирования).
@@ -108,7 +114,7 @@
 
 ### Сущности
 - `SettlementOperation` (Freezed) — счёт на оплату
-- `SettlementPayment` (Freezed) — одна оплата по счёту
+- `SettlementPayment` (Freezed) — одна оплата по счёту; поле `cashFlowTransactionId` (nullable); геттер `isFromBankStatement`
 - `SettlementOperationType`: `act` | `advance` | `other`
 - `SettlementPaymentStatus`: `unpaid` | `partial` | `paid` | `overpaid`
 - Хелперы:
@@ -129,7 +135,7 @@
 
 ### Модели
 - `SettlementOperationModel` — `toWriteJson` исключает: `total_to_pay`, `payment_status`, `paid_amount`, `created_at`, `created_by`
-- `SettlementPaymentModel` — `toUpdateJson` отправляет только `payment_date`, `amount`, `note`
+- `SettlementPaymentModel` — `toWriteJson` исключает `created_at`, `created_by`, `cash_flow_transaction_id`; `toUpdateJson` — только `payment_date`, `amount`, `note`
 
 ### CRUD (оптимистичное обновление)
 `SettlementListNotifier` / `SettlementPaymentsNotifier`:
@@ -176,7 +182,9 @@ supabase/migrations/
 ├── 20260805120000_settlement_payment_status_trigger.sql
 ├── 20260805130000_backfill_settlement_payment_status.sql
 ├── 20260805140000_create_settlement_payments.sql
-└── 20260805150000_fix_settlement_payment_status_sync.sql
+├── 20260805150000_fix_settlement_payment_status_sync.sql
+├── 20260805160000_link_settlement_payments_to_cash_flow.sql
+└── 20260805170000_fix_settlement_bank_payment_security.sql
 
 docs/settlements/
 └── settlements_module.md
@@ -185,7 +193,7 @@ docs/settlements/
 ## 🗄️ База данных (Audit)
 
 **Источник аудита:** live DB через MCP Supabase (`api.progt.ru`), 05.08.2026.  
-**Миграции:** 8 файлов (см. дерево выше).
+**Миграции:** 10 файлов (см. дерево выше).
 
 ### Таблица `settlement_operations`
 
@@ -226,8 +234,14 @@ docs/settlements/
 | `payment_date` | DATE | NO | Дата оплаты |
 | `amount` | NUMERIC | NO | Сумма > 0 |
 | `note` | TEXT | YES | Примечание |
+| `cash_flow_transaction_id` | UUID | YES | FK → `cash_flow(id)` ON DELETE CASCADE; уникален (partial index) |
 | `created_at` / `updated_at` | TIMESTAMPTZ | NO | |
 | `created_by` | UUID | YES | FK → `auth.users` |
+
+**Индексы:**
+- `idx_settlement_payments_operation` — `(settlement_operation_id, payment_date DESC)`
+- `idx_settlement_payments_company` — `(company_id)`
+- `idx_settlement_payments_cash_flow_unique` — UNIQUE `(cash_flow_transaction_id)` WHERE NOT NULL
 
 ### Триггеры
 
@@ -237,6 +251,7 @@ docs/settlements/
 | `trg_settlement_payment_status` | Пересчёт `payment_status` при изменении сумм счёта |
 | `trg_settlement_payments_sync_paid` | Пересчёт `paid_amount` + `payment_status` из суммы `settlement_payments` |
 | `trg_settlement_payments_updated_at` | `updated_at` на оплатах |
+| `trg_guard_linked_settlement_payment` | Запрет UPDATE/DELETE оплат с `cash_flow_transaction_id` (кроме CASCADE при удалении ДДС) |
 
 ### RLS
 
@@ -262,6 +277,26 @@ docs/settlements/
 3. **Добавить оплату:** детали → «Добавить оплату» → сумма, дата, примечание.
 4. **Редактировать счёт:** детали → «Редактировать» → форма реквизитов.
 5. **Удалить счёт:** детали → «Удалить» (каскадно удаляет оплаты).
+6. **Оплата из выписки (ДДС):** ДДС → Выписка → «Обработать» → выбрать договор → опционально счёт взаиморасчётов → сохранить. Атомарно: `cash_flow` + `settlement_payment` + пометка выписки. Статус счёта пересчитывается триггером.
+
+### Оплаты из банковской выписки
+
+| Шаг | Где | Действие |
+|-----|-----|----------|
+| 1 | ДДС → Выписка | Контекстное меню → «Обработать» |
+| 2 | `CashFlowFormDialog` | Заполнить реквизиты ДДС, выбрать **договор** |
+| 3 | Тот же диалог | Опционально: **Счёт взаиморасчётов** (только неоплаченные по договору; право `settlements` / `update`) |
+| 4 | Сохранение | RPC `process_bank_statement_entry` с `p_settlement_operation_id` |
+
+**Поведение при удалении транзакции ДДС:**
+1. `ON DELETE CASCADE` удаляет связанную `settlement_payment`.
+2. Триггер `sync_settlement_paid_amount_from_payments` пересчитывает `paid_amount` / `payment_status` счёта.
+3. Триггер `on_cash_flow_transaction_deleted` возвращает строку выписки в статус «не обработана».
+
+**Ограничения:**
+- Одна транзакция ДДС → не более одной оплаты (unique index).
+- Повторная обработка той же строки выписки блокируется в RPC (`is_imported = false`).
+- Сумма из выписки целиком записывается в оплату (возможна переплата → статус `overpaid`).
 
 ### Статусы оплаты
 
@@ -285,7 +320,7 @@ docs/settlements/
 | Договоры | FK `contract_id`; вкладка «Финансы»; наследование НДС из договора |
 | Объекты / Контрагенты | FK + dropdown в форме |
 | Роли | модуль `settlements` в матрице прав |
-| ДДС (`cash_flow`) | **нет связи** (roadmap) |
+| ДДС (`cash_flow`) | `settlement_payments.cash_flow_transaction_id` → `cash_flow.id`; создание через RPC `process_bank_statement_entry(p_settlement_operation_id)` из `CashFlowFormDialog` |
 | Акты КС-2 (`contract_acts`) | **нет связи** |
 
 ## 🗺 Roadmap
@@ -298,9 +333,10 @@ docs/settlements/
 - ✅ Окно деталей счёта с таблицей оплат
 - ✅ Статусы оплаты (Dart + SQL-триггеры)
 - ✅ Тесты `computeSettlementPaymentStatus`
+- ✅ Привязка оплат к транзакциям ДДС (обработка банковской выписки)
 
 ### Планы
-- 🟡 Привязка оплат к строкам ДДС
+- 🟡 Автоподбор счёта по назначению платежа / сумме
 - 🟡 Файлы PDF/скан к счёту
 - 🟡 UI для удержаний, периода, назначения
 - 🟢 Табличная часть счёта, печать PDF
@@ -309,4 +345,5 @@ docs/settlements/
 - Автономер: только последние 500 счетов по договору.
 - Фильтрация — на клиенте.
 - `contract_acts.payment_status` не связан с Settlements.
+- Оплаты из выписки нельзя редактировать вручную — только через ДДС.
 - Итог «Остаток» в таблице — сумма положительных долгов (`totalDebt`), не чистый нетто-остаток.

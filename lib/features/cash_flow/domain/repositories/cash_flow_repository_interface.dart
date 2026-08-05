@@ -38,11 +38,13 @@ abstract class ICashFlowRepository {
   Future<CashFlowTransaction> saveTransaction(CashFlowTransaction transaction);
 
   /// Переносит запись из выписки в основную таблицу транзакций.
-  /// 
+  ///
   /// Создает запись в [cash_flow] и помечает [BankStatementEntry] как импортированную.
+  /// При указании [settlementOperationId] также создаёт оплату по счёту взаиморасчётов.
   Future<void> processBankStatementEntry({
     required String entryId,
     required CashFlowTransaction transaction,
+    String? settlementOperationId,
   });
 
   /// Удаляет операцию по её идентификатору.

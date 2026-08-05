@@ -181,11 +181,11 @@ class CashFlowRepository implements ICashFlowRepository {
   Future<void> processBankStatementEntry({
     required String entryId,
     required CashFlowTransaction transaction,
+    String? settlementOperationId,
   }) async {
     final model = CashFlowTransactionModel.fromDomain(transaction);
     final json = model.toJson();
 
-    // Подготовка параметров для RPC
     final params = {
       'p_entry_id': entryId,
       'p_company_id': _activeCompanyId,
@@ -201,6 +201,8 @@ class CashFlowRepository implements ICashFlowRepository {
       'p_comment': json['comment'],
       'p_operation_hash': json['operation_hash'],
       'p_created_by': _client.auth.currentUser?.id,
+      if (settlementOperationId != null)
+        'p_settlement_operation_id': settlementOperationId,
     };
 
     await _client.rpc('process_bank_statement_entry', params: params);

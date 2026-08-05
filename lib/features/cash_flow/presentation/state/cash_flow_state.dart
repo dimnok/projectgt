@@ -332,12 +332,14 @@ class CashFlowNotifier extends StateNotifier<CashFlowState> {
   Future<void> processBankStatementEntry({
     required String entryId,
     required CashFlowTransaction transaction,
+    String? settlementOperationId,
   }) async {
     try {
       state = state.copyWith(status: CashFlowStatus.loading);
       await _repository.processBankStatementEntry(
         entryId: entryId,
         transaction: transaction,
+        settlementOperationId: settlementOperationId,
       );
 
       // Если год транзакции отличается от выбранного, переключаем год

@@ -15,6 +15,7 @@ _SettlementPaymentModel _$SettlementPaymentModelFromJson(
   paymentDate: DateTime.parse(json['payment_date'] as String),
   amount: (json['amount'] as num).toDouble(),
   note: json['note'] as String?,
+  cashFlowTransactionId: json['cash_flow_transaction_id'] as String?,
   createdAt: json['created_at'] == null
       ? null
       : DateTime.parse(json['created_at'] as String),
@@ -30,6 +31,7 @@ Map<String, dynamic> _$SettlementPaymentModelToJson(
   'payment_date': _dateOnlyToJson(instance.paymentDate),
   'amount': instance.amount,
   'note': instance.note,
+  'cash_flow_transaction_id': instance.cashFlowTransactionId,
   'created_at': instance.createdAt?.toIso8601String(),
   'created_by': instance.createdBy,
 };

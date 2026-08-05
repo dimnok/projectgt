@@ -1,7 +1,9 @@
 # Модуль Cash Flow (ДДС)
 
-**Дата последнего обновления:** 1 марта 2026 года
+**Дата последнего обновления:** 5 августа 2026 года  
 **Список изменений:**
+- **Интеграция с Взаиморасчётами:** при обработке выписки можно привязать платёж к счёту (`p_settlement_operation_id` в RPC); создаётся `settlement_payment` с `cash_flow_transaction_id`.
+- **CashFlowFormDialog:** поле «Счёт взаиморасчётов» (неоплаченные счета по выбранному договору; `PermissionGuard` `settlements` / `update`).
 - **Global On Focus Refresh:** Внедрена система автоматического обновления данных при возврате в фокус (TTL 5 минут).
 - **Quiet Background Refresh:** В `CashFlowNotifier` реализован режим `quiet: true`, позволяющий обновлять данные без отображения полноэкранного спиннера загрузки (индикация через AppBar).
 - **Bank Statement Deletion:** реализовано физическое удаление записей из буферной таблицы банковских выписок. Добавлен метод `deleteBankStatementEntry` в репозиторий и notifier, реализовано подтверждение удаления через диалоговое окно.
@@ -36,6 +38,7 @@
 - Привязывать транзакции к объектам строительства, договорам и контрагентам.
 - Формировать аналитику по месяцам и статьям.
 - **Импортировать банковские выписки** для автоматизации ввода данных.
+- **Привязывать платежи из выписки к счетам взаиморасчётов** (опционально, в одном шаге с созданием транзакции ДДС).
 
 ---
 
@@ -54,6 +57,7 @@
 - `public.contractors`: привязка транзакции к контрагенту.
 - `public.company_bank_accounts`: выбор расчетного счета для импорта выписки.
 - `public.profiles`: авторство записей.
+- `public.settlement_operations` / `public.settlement_payments`: опциональная привязка оплаты при обработке выписки (Usage, не Owner).
 - `Infrastructure`: `AppFocusRefreshCoordinator` для автоматического обновления.
 
 ---
@@ -71,7 +75,7 @@
 - `CashFlowTransactionsTable`: Таблица транзакций. Поддерживает контекстное меню (Редактировать/Удалить) через `GTContextMenu`.
 - `BankStatementTable`: Таблица для предпросмотра данных выписки. Поддерживает контекстное меню (Обработать/Детали/Удалить).
 - `BankStatementSettingsDialog`: Диалог настройки маппинга колонок Excel.
-- `CashFlowFormDialog`: Форма создания/редактирования транзакции.
+- `CashFlowFormDialog`: Форма создания/редактирования транзакции. При импорте из выписки (`initialEntry`) — дополнительное поле **«Счёт взаиморасчётов»** (после «Договор»).
 - `CashFlowCategoriesDialog`: Управление справочником статей ДДС.
 - `GTSectionTitle`: Общий виджет заголовка раздела (Design System).
 - `GTContextMenu`: Глобальный виджет контекстного меню (Core). Обеспечивает единый визуальный стиль (скругления 20px, hover-эффекты) и проверку прав доступа.
@@ -96,7 +100,7 @@
 
 ### Репозитории (Data)
 - `ICashFlowRepository`: Интерфейс доступа к данным (без `watchTransactions`).
-- `CashFlowRepository`: Реализация через Supabase. Включает методы для работы с транзакциями, категориями, шаблонами и буферными записями выписок.
+- `CashFlowRepository`: Реализация через Supabase. Метод `processBankStatementEntry` передаёт в RPC опциональный `settlementOperationId` → `p_settlement_operation_id`.
 
 ---
 
@@ -139,6 +143,10 @@ lib/features/cash_flow/
         ├── cash_flow_details_panel.dart
         ├── cash_flow_form_dialog.dart
         └── cash_flow_transactions_table.dart
+
+supabase/migrations/ (релевантные для интеграции):
+├── 20260805160000_link_settlement_payments_to_cash_flow.sql
+└── 20260805170000_fix_settlement_bank_payment_security.sql
 ```
 
 ---
@@ -175,9 +183,11 @@ lib/features/cash_flow/
 **RLS:** ✅ Включён.
 
 ### Функции и Триггеры
-- `get_cash_flow_available_filters(p_company_id, p_start_date, p_end_date)`: RPC-функция для эффективного получения списков уникальных ID (объектов, контрагентов, договоров), задействованных в транзакциях за период.
-- `process_bank_statement_entry(p_entry_id, ...)`: RPC-функция для атомарного переноса записи выписки в реестр (создание транзакции + обновление статуса в буфере).
-- `tr_on_cash_flow_transaction_deleted`: Триггер `AFTER DELETE` на таблице `cash_flow`. Автоматически сбрасывает `is_imported` и `linked_transaction_id` в таблице `bank_statement_entries` при удалении транзакции.
+- `get_cash_flow_available_filters(p_company_id, p_start_date, p_end_date)`: RPC для списков уникальных ID (объектов, контрагентов, договоров) за период.
+- `process_bank_statement_entry(...)`: RPC атомарного переноса записи выписки в реестр. Параметры включают `p_settlement_operation_id UUID DEFAULT NULL`. При указании счёта создаёт `settlement_payment` с `cash_flow_transaction_id`. Проверки: `auth.uid()`, `is_imported = false`, права `settlements` / `update`, совпадение договора.
+- `guard_linked_settlement_payment()`: BEFORE UPDATE/DELETE на `settlement_payments` — защита оплат, связанных с ДДС.
+- `tr_on_cash_flow_transaction_deleted`: AFTER DELETE на `cash_flow` — сброс `is_imported` / `linked_transaction_id` в `bank_statement_entries`.
+- **Каскад:** DELETE `cash_flow` → CASCADE DELETE `settlement_payments` (по `cash_flow_transaction_id`) → пересчёт `paid_amount` счёта.
 
 ---
 
@@ -200,9 +210,18 @@ lib/features/cash_flow/
 6.  **Отображение:** Данные выводятся в таблицу. Записи, хеш которых уже есть в системе, помечаются как дубликаты.
 7.  **Обработка записей:**
     - Выполняется строго через контекстное меню (пункт «Обработать»).
-    - При открытии меню строка подсвечивается основным цветом системы.
+    - Открывается `CashFlowFormDialog(initialEntry: entry)`.
+    - Пользователь заполняет реквизиты ДДС (дата, сумма, статья, объект, контрагент, договор).
+    - **Опционально:** выбирает **счёт взаиморасчётов** по договору (только счета с остатком долга; требуется право `settlements` / `update`).
+    - При сохранении вызывается `processBankStatementEntry` → RPC `process_bank_statement_entry`.
     - Пункт меню блокируется, если запись уже импортирована.
-8.  **Уведомления и Безопасность:**
+8.  **Атомарность RPC `process_bank_statement_entry`:**
+    1. Проверка авторизации (`auth.uid()`) и что строка выписки не обработана.
+    2. INSERT в `cash_flow`.
+    3. Если `p_settlement_operation_id` задан — INSERT в `settlement_payments` (связь `cash_flow_transaction_id`).
+    4. UPDATE `bank_statement_entries` → `is_imported = true`, `linked_transaction_id`.
+    5. При привязке счёта — `syncSettlementProviders` на клиенте обновляет списки взаиморасчётов.
+9.  **Уведомления и Безопасность:**
     - **Strict Account Validation:** Перед парсимгом сервер сверяет ИНН компании и номер счета из заголовка выписки с ожидаемыми данными. При несовпадении импорт прерывается.
     - **Persistent Errors:** Ошибки безопасности и парсинга отображаются в снекбаре, который не исчезает автоматически (требует закрытия пользователем).
     - **Detailed Stats Dialog:** После успешного импорта вместо снекбара выводится модальное окно с итоговой статистикой (всего/добавлено/пропущено).
@@ -211,8 +230,9 @@ lib/features/cash_flow/
 
 ## 🔌 Интеграции
 - **Edge Functions:** `bank_parse` (Node.js/Deno runtime).
-- **SheetJS (xlsx):** Мощный парсер Excel на стороне сервера.
+- **SheetJS (xlsx):** Парсер Excel на стороне сервера.
 - **Riverpod:** Реактивное управление очередью импорта.
+- **Взаиморасчёты (Settlements):** обратная связь `settlement_payments.cash_flow_transaction_id` → `cash_flow.id`. UI: `CashFlowFormDialog` + `contractSettlementsProvider`. Подробнее: [`settlements/settlements_module.md`](../settlements/settlements_module.md).
 
 ---
 
@@ -225,4 +245,6 @@ lib/features/cash_flow/
 - [x] Кнопка "Обработать" (создание транзакций из буфера через атомарную RPC).
 - [x] Унифицированные контекстные меню (GTContextMenu).
 - [x] Автоматическое сопоставление контрагентов по ИНН.
+- [x] Привязка платежей из выписки к счетам взаиморасчётов.
 - [ ] Автоматическое сопоставление категорий по ключевым словам в назначении платежа.
+- [ ] Автоподбор счёта взаиморасчётов по назначению платежа.

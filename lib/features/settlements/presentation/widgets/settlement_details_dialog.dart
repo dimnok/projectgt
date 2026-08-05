@@ -138,6 +138,15 @@ class _SettlementDetailsDialogState
   }
 
   Future<void> _editPayment(SettlementPayment payment) async {
+    if (payment.isFromBankStatement) {
+      AppSnackBar.show(
+        context: context,
+        message:
+            'Оплата из банковской выписки. Измените или удалите транзакцию в модуле ДДС.',
+        kind: AppSnackBarKind.info,
+      );
+      return;
+    }
     final saved = await SettlementPaymentFormDialog.show(
       context,
       settlementOperationId: _operation.id,
@@ -147,6 +156,15 @@ class _SettlementDetailsDialogState
   }
 
   Future<void> _deletePayment(SettlementPayment payment) async {
+    if (payment.isFromBankStatement) {
+      AppSnackBar.show(
+        context: context,
+        message:
+            'Оплата из банковской выписки. Удалите транзакцию в модуле ДДС — оплата по счёту снимется автоматически.',
+        kind: AppSnackBarKind.info,
+      );
+      return;
+    }
     final ok = await GTConfirmationDialog.show(
       context: context,
       title: 'Удалить оплату?',
@@ -706,6 +724,7 @@ class _PaymentRow extends StatelessWidget {
     final scheme = theme.colorScheme;
     final striped = index.isEven;
     final hasNote = payment.note != null && payment.note!.trim().isNotEmpty;
+    final isFromBank = payment.isFromBankStatement;
 
     return Material(
       color: striped
@@ -742,18 +761,23 @@ class _PaymentRow extends StatelessWidget {
             ),
           ),
           note: Text(
-            hasNote ? payment.note! : '—',
+            isFromBank
+                ? 'Из выписки${hasNote ? ': ${payment.note}' : ''}'
+                : (hasNote ? payment.note! : '—'),
             maxLines: 3,
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.bodyMedium?.copyWith(
               fontSize: 13,
               height: 1.25,
-              color: hasNote
-                  ? null
-                  : scheme.onSurface.withValues(alpha: 0.35),
+              color: isFromBank
+                  ? scheme.primary
+                  : (hasNote
+                      ? null
+                      : scheme.onSurface.withValues(alpha: 0.35)),
             ),
           ),
-          actions: Row(
+          actions: canUpdate && !isFromBank
+              ? Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               IconButton(
@@ -783,7 +807,8 @@ class _PaymentRow extends StatelessWidget {
                 ),
               ),
             ],
-          ),
+          )
+              : null,
         ),
       ),
     );
