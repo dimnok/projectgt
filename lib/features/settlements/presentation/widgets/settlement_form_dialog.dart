@@ -86,12 +86,14 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
   late DateTime _invoiceDate;
   double? _vatRate;
   bool _isVatIncluded = true;
+  bool _isVatEnabled = true;
 
   late final TextEditingController _actNumberController;
   late final TextEditingController _invoiceNumberController;
   late final TextEditingController _amountController;
   late final TextEditingController _invoiceDateController;
   late final TextEditingController _noteController;
+  late final TextEditingController _vatRateController;
 
   bool _saving = false;
   bool get _lockedContext => widget.presetContract != null;
@@ -111,16 +113,29 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
     _vatRate = op?.vatRate ??
         (preset != null && preset.vatRate > 0 ? preset.vatRate : 22);
     _isVatIncluded = op?.isVatIncluded ?? preset?.isVatIncluded ?? true;
+    _isVatEnabled = op != null
+        ? (op.vatRate != null && op.vatRate! > 0)
+        : (preset != null ? preset.vatRate > 0 : true);
 
     _actNumberController = TextEditingController(text: op?.actNumber ?? '');
     _invoiceNumberController =
         TextEditingController(text: op?.invoiceNumber ?? '');
+
+    final initialAmount = op == null
+        ? null
+        : (op.isVatIncluded ? (op.amount + op.vatAmount) : op.amount);
     _amountController = TextEditingController(
-      text: op == null ? '' : _fmtAmount(op.amount),
+      text: initialAmount == null ? '' : _fmtAmount(initialAmount),
     );
+
     _invoiceDateController =
         TextEditingController(text: formatRuDate(_invoiceDate));
     _noteController = TextEditingController(text: op?.note ?? '');
+
+    final initialVatText = _vatRate != null && _vatRate! > 0
+        ? (_vatRate! % 1 == 0 ? _vatRate!.toInt().toString() : _vatRate!.toString())
+        : '22';
+    _vatRateController = TextEditingController(text: initialVatText);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -157,6 +172,7 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
     _amountController.dispose();
     _invoiceDateController.dispose();
     _noteController.dispose();
+    _vatRateController.dispose();
     super.dispose();
   }
 
@@ -175,8 +191,8 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
   }
 
   double get _enteredAmount => parseAmount(_amountController.text) ?? 0;
-  double get _vatRateEffective => _vatRate ?? 0;
-  bool get _hasVat => _vatRate != null && _vatRate! > 0;
+  double get _vatRateEffective => _isVatEnabled ? (_vatRate ?? 0) : 0;
+  bool get _hasVat => _isVatEnabled && _vatRateEffective > 0;
 
   /// База (без НДС) в зависимости от режима ввода.
   double get _baseAmount {
@@ -221,6 +237,9 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
 
     setState(() => _saving = true);
 
+    final vatRateToSave = _isVatEnabled ? _vatRateEffective : null;
+    final vatAmountToSave = _isVatEnabled ? _vatAmount : 0.0;
+
     final operation = SettlementOperation(
       id: widget.operation?.id ?? '',
       companyId: companyId,
@@ -233,8 +252,8 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
       invoiceDate: _invoiceDate,
       amount: _baseAmount,
       isVatIncluded: _isVatIncluded,
-      vatRate: _vatRate,
-      vatAmount: _vatAmount,
+      vatRate: vatRateToSave,
+      vatAmount: vatAmountToSave,
       note: _noteController.text.trim().isEmpty
           ? null
           : _noteController.text.trim(),
@@ -374,9 +393,18 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
                       if (item != null) {
                         _objectId = item.objectId;
                         _contractorId = item.contractorId;
-                        if (widget.operation == null && item.vatRate > 0) {
-                          _vatRate = item.vatRate;
-                          _isVatIncluded = item.isVatIncluded;
+                        if (widget.operation == null) {
+                          if (item.vatRate > 0) {
+                            _isVatEnabled = true;
+                            _vatRate = item.vatRate;
+                            _isVatIncluded = item.isVatIncluded;
+                            _vatRateController.text = item.vatRate % 1 == 0
+                                ? item.vatRate.toInt().toString()
+                                : item.vatRate.toString();
+                          } else {
+                            _isVatEnabled = false;
+                            _vatRate = null;
+                          }
                         }
                       }
                     });
@@ -466,15 +494,62 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
               const SizedBox(width: 12),
               Expanded(
                 flex: 2,
-                child: GTDropdown<SettlementVatRateOption>(
-                  items: settlementVatRateOptions,
-                  selectedItem: settlementVatRateOptionFor(_vatRate),
-                  labelText: 'Ставка НДС',
-                  hintText: 'Выберите ставку',
-                  itemDisplayBuilder: (o) => o.label,
-                  onSelectionChanged: (item) {
-                    setState(() => _vatRate = item?.rate);
-                  },
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: _VatEnableRoundButton(
+                        isEnabled: _isVatEnabled,
+                        onToggle: () {
+                          setState(() {
+                            _isVatEnabled = !_isVatEnabled;
+                            if (_isVatEnabled) {
+                              final rate = parseAmount(_vatRateController.text);
+                              if (rate == null || rate <= 0) {
+                                _vatRateController.text = '22';
+                                _vatRate = 22;
+                              } else {
+                                _vatRate = rate;
+                              }
+                            } else {
+                              _vatRate = null;
+                            }
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: GTTextField(
+                        controller: _vatRateController,
+                        labelText: 'Ставка НДС',
+                        suffixText: '%',
+                        hintText: '22',
+                        enabled: _isVatEnabled,
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(
+                              RegExp(r'[0-9.,]')),
+                        ],
+                        onChanged: (val) {
+                          final rate = parseAmount(val);
+                          setState(() {
+                            _vatRate = rate;
+                          });
+                        },
+                        validator: (val) {
+                          if (!_isVatEnabled) return null;
+                          final rate = parseAmount(val);
+                          if (rate == null || rate < 0 || rate > 100) {
+                            return 'Укажите %';
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -818,6 +893,64 @@ class _Item extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Круглая кнопка переключения активности НДС.
+class _VatEnableRoundButton extends StatelessWidget {
+  final bool isEnabled;
+  final VoidCallback onToggle;
+
+  const _VatEnableRoundButton({
+    required this.isEnabled,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Tooltip(
+      message:
+          isEnabled ? 'НДС включён' : 'Без НДС (нажмите, чтобы включить)',
+      child: Material(
+        color: isEnabled
+            ? scheme.primary
+            : scheme.surfaceContainerHighest.withValues(alpha: 0.35),
+        shape: const CircleBorder(),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onToggle,
+          customBorder: const CircleBorder(),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isEnabled
+                    ? scheme.primary
+                    : scheme.outline.withValues(alpha: 0.28),
+                width: 1.5,
+              ),
+            ),
+            child: Center(
+              child: Text(
+                'НДС',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: isEnabled
+                      ? scheme.onPrimary
+                      : scheme.onSurface.withValues(alpha: 0.45),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
