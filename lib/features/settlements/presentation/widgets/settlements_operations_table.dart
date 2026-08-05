@@ -1,7 +1,5 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:projectgt/core/utils/formatters.dart';
-import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
 import 'package:projectgt/features/settlements/domain/entities/settlement_operation.dart';
 import 'package:projectgt/features/settlements/presentation/utils/settlement_ui_labels.dart';
 
@@ -16,9 +14,6 @@ class SettlementsOperationsTable extends StatelessWidget {
   /// Тап по строке.
   final void Function(SettlementOperation operation) onRowTap;
 
-  /// Удаление.
-  final void Function(SettlementOperation operation)? onDelete;
-
   /// Компактный режим (вкладка договора).
   final bool compact;
 
@@ -27,7 +22,6 @@ class SettlementsOperationsTable extends StatelessWidget {
     super.key,
     required this.operations,
     required this.onRowTap,
-    this.onDelete,
     this.compact = false,
   });
 
@@ -35,7 +29,7 @@ class SettlementsOperationsTable extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final columns = _columns(compact: compact, hasActions: onDelete != null);
+    final columns = _columns(compact: compact);
 
     final totalAmount = operations.totalAmount;
     final totalPaid = operations.totalPaid;
@@ -66,7 +60,6 @@ class SettlementsOperationsTable extends StatelessWidget {
                       theme: theme,
                       scheme: scheme,
                       onTap: () => onRowTap(op),
-                      onDelete: onDelete,
                     );
                   },
                 ),
@@ -98,7 +91,6 @@ enum _ColId {
   status,
   paid,
   remaining,
-  actions,
 }
 
 class _ColDef {
@@ -115,42 +107,40 @@ class _ColDef {
   });
 }
 
-List<_ColDef> _columns({required bool compact, required bool hasActions}) {
+List<_ColDef> _columns({required bool compact}) {
   return [
-    _ColDef(id: _ColId.date, title: 'Дата счёта', flex: 9),
-    _ColDef(id: _ColId.type, title: 'Тип', flex: 8),
-    _ColDef(id: _ColId.invoice, title: 'Счёт', flex: 9),
-    _ColDef(id: _ColId.act, title: 'Акт', flex: 8),
-    if (!compact) _ColDef(id: _ColId.contract, title: 'Договор', flex: 9),
-    _ColDef(id: _ColId.contractor, title: 'Контрагент', flex: compact ? 16 : 14),
-    if (!compact) _ColDef(id: _ColId.object, title: 'Объект', flex: 11),
+    const _ColDef(id: _ColId.date, title: 'Дата счёта', flex: 9),
+    const _ColDef(id: _ColId.type, title: 'Тип', flex: 8),
+    const _ColDef(id: _ColId.invoice, title: 'Счёт', flex: 9),
+    const _ColDef(id: _ColId.act, title: 'Акт', flex: 8),
+    if (!compact)
+      const _ColDef(id: _ColId.contract, title: 'Договор', flex: 9),
     _ColDef(
+      id: _ColId.contractor,
+      title: 'Контрагент',
+      flex: compact ? 16 : 14,
+    ),
+    if (!compact) const _ColDef(id: _ColId.object, title: 'Объект', flex: 11),
+    const _ColDef(
       id: _ColId.amount,
       title: 'К оплате',
       flex: 10,
       align: Alignment.centerRight,
     ),
-    _ColDef(id: _ColId.status, title: 'Статус', flex: 10),
+    const _ColDef(id: _ColId.status, title: 'Статус', flex: 10),
     if (!compact)
-      _ColDef(
+      const _ColDef(
         id: _ColId.paid,
         title: 'Оплачено',
         flex: 9,
         align: Alignment.centerRight,
       ),
-    _ColDef(
+    const _ColDef(
       id: _ColId.remaining,
       title: 'Остаток',
       flex: 9,
       align: Alignment.centerRight,
     ),
-    if (hasActions)
-      _ColDef(
-        id: _ColId.actions,
-        title: '',
-        flex: 4,
-        align: Alignment.center,
-      ),
   ];
 }
 
@@ -210,7 +200,6 @@ class _DataRow extends StatelessWidget {
   final ThemeData theme;
   final ColorScheme scheme;
   final VoidCallback onTap;
-  final void Function(SettlementOperation operation)? onDelete;
 
   const _DataRow({
     required this.operation,
@@ -219,7 +208,6 @@ class _DataRow extends StatelessWidget {
     required this.theme,
     required this.scheme,
     required this.onTap,
-    this.onDelete,
   });
 
   @override
@@ -342,23 +330,6 @@ class _DataRow extends StatelessWidget {
                     : scheme.onSurface.withValues(alpha: 0.35),
           ),
           align: TextAlign.right,
-        );
-      case _ColId.actions:
-        return PermissionGuard(
-          module: 'settlements',
-          permission: 'delete',
-          child: IconButton(
-            tooltip: 'Удалить',
-            visualDensity: VisualDensity.compact,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-            onPressed: onDelete == null ? null : () => onDelete!(op),
-            icon: Icon(
-              CupertinoIcons.delete,
-              size: 16,
-              color: scheme.onSurface.withValues(alpha: 0.45),
-            ),
-          ),
         );
     }
   }

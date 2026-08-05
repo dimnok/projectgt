@@ -3,6 +3,7 @@ import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 import 'package:projectgt/features/settlements/data/repositories/settlement_repository_impl.dart';
 import 'package:projectgt/features/settlements/domain/entities/settlement_operation.dart';
+import 'package:projectgt/features/settlements/domain/entities/settlement_payment.dart';
 import 'package:projectgt/features/settlements/domain/repositories/settlement_repository.dart';
 
 /// Провайдер репозитория взаиморасчётов.
@@ -168,3 +169,122 @@ final contractSettlementsProvider = StateNotifierProvider.family<
   final repo = ref.watch(settlementRepositoryProvider);
   return SettlementListNotifier(repo, contractId: contractId);
 });
+
+/// Состояние списка оплат по счёту.
+class SettlementPaymentsState {
+  /// Оплаты.
+  final List<SettlementPayment> payments;
+
+  /// Идёт загрузка.
+  final bool isLoading;
+
+  /// Ошибка.
+  final String? error;
+
+  /// Создаёт состояние.
+  const SettlementPaymentsState({
+    this.payments = const [],
+    this.isLoading = false,
+    this.error,
+  });
+
+  /// Копия с изменениями.
+  SettlementPaymentsState copyWith({
+    List<SettlementPayment>? payments,
+    bool? isLoading,
+    String? error,
+    bool clearError = false,
+  }) {
+    return SettlementPaymentsState(
+      payments: payments ?? this.payments,
+      isLoading: isLoading ?? this.isLoading,
+      error: clearError ? null : (error ?? this.error),
+    );
+  }
+}
+
+/// Notifier оплат по счёту.
+class SettlementPaymentsNotifier extends StateNotifier<SettlementPaymentsState> {
+  final SettlementRepository _repository;
+  final String _operationId;
+
+  /// Создаёт notifier.
+  SettlementPaymentsNotifier(this._repository, this._operationId)
+      : super(const SettlementPaymentsState()) {
+    load();
+  }
+
+  /// Загрузить оплаты.
+  Future<void> load({bool quiet = false}) async {
+    if (!quiet) {
+      state = state.copyWith(isLoading: true, clearError: true);
+    }
+    try {
+      final list = await _repository.getPayments(_operationId);
+      state = state.copyWith(
+        payments: list,
+        isLoading: false,
+        clearError: true,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: e.toString(),
+      );
+    }
+  }
+
+  /// Создать оплату.
+  Future<SettlementPayment?> create(SettlementPayment payment) async {
+    try {
+      final created = await _repository.createPayment(payment);
+      state = state.copyWith(
+        payments: [created, ...state.payments],
+        clearError: true,
+      );
+      return created;
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      return null;
+    }
+  }
+
+  /// Обновить оплату.
+  Future<SettlementPayment?> update(SettlementPayment payment) async {
+    try {
+      final updated = await _repository.updatePayment(payment);
+      final list = [...state.payments];
+      final index = list.indexWhere((p) => p.id == updated.id);
+      if (index >= 0) list[index] = updated;
+      state = state.copyWith(payments: list, clearError: true);
+      return updated;
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      return null;
+    }
+  }
+
+  /// Удалить оплату.
+  Future<bool> delete(String id) async {
+    try {
+      await _repository.deletePayment(id);
+      state = state.copyWith(
+        payments: state.payments.where((p) => p.id != id).toList(),
+        clearError: true,
+      );
+      return true;
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      return false;
+    }
+  }
+}
+
+/// Провайдер оплат по счёту.
+final settlementPaymentsProvider = StateNotifierProvider.autoDispose
+    .family<SettlementPaymentsNotifier, SettlementPaymentsState, String>(
+  (ref, operationId) {
+    final repo = ref.watch(settlementRepositoryProvider);
+    return SettlementPaymentsNotifier(repo, operationId);
+  },
+);

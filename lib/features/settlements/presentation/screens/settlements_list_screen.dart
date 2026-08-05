@@ -3,15 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/theme/theme_settings_provider.dart';
-import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/core/widgets/mobile_atmosphere_backdrop.dart';
 import 'package:projectgt/core/widgets/mobile_atmosphere_main_surface.dart';
 import 'package:projectgt/core/widgets/mobile_atmosphere_screen_header.dart';
 import 'package:projectgt/features/employees/presentation/utils/employees_layout_utils.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
 import 'package:projectgt/features/settlements/domain/entities/settlement_operation.dart';
-import 'package:projectgt/features/settlements/presentation/utils/settlement_actions.dart';
 import 'package:projectgt/features/settlements/presentation/state/settlement_state.dart';
+import 'package:projectgt/features/settlements/presentation/widgets/settlement_details_dialog.dart';
 import 'package:projectgt/features/settlements/presentation/widgets/settlement_form_dialog.dart';
 import 'package:projectgt/features/settlements/presentation/widgets/settlements_filters_toolbar.dart';
 import 'package:projectgt/features/settlements/presentation/widgets/settlements_operations_table.dart';
@@ -60,7 +59,6 @@ class _SettlementsListScreenState extends ConsumerState<SettlementsListScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(settlementListProvider);
     final filtered = _filter(state.operations);
-    final filteredTotals = filtered;
     final appearance = MobileAtmosphereAppearance.of(context);
     final scheme = appearance.scheme;
     final isDark = appearance.isDark;
@@ -186,9 +184,9 @@ class _SettlementsListScreenState extends ConsumerState<SettlementsListScreen> {
                               paymentStatusFilter: _paymentStatusFilter,
                               onPaymentStatusChanged: (v) =>
                                   setState(() => _paymentStatusFilter = v),
-                              totalAmount: filteredTotals.totalAmount,
-                              totalPaid: filteredTotals.totalPaid,
-                              totalDebt: filteredTotals.totalDebt,
+                              totalAmount: filtered.totalAmount,
+                              totalPaid: filtered.totalPaid,
+                              totalDebt: filtered.totalDebt,
                               onRefresh: () => ref
                                   .read(settlementListProvider.notifier)
                                   .load(),
@@ -245,22 +243,7 @@ class _SettlementsListScreenState extends ConsumerState<SettlementsListScreen> {
 
     return SettlementsOperationsTable(
       operations: filtered,
-      onRowTap: (op) => SettlementFormDialog.show(context, operation: op),
-      onDelete: _confirmDelete,
-    );
-  }
-
-  Future<void> _confirmDelete(SettlementOperation op) async {
-    final ok = await showSettlementDeleteConfirmDialog(context, op);
-    if (ok != true || !mounted) return;
-    final success =
-        await ref.read(settlementListProvider.notifier).delete(op.id);
-    if (!mounted) return;
-    syncSettlementProviders(ref, contractId: op.contractId);
-    AppSnackBar.show(
-      context: context,
-      message: success ? 'Счёт удалён' : 'Не удалось удалить',
-      kind: success ? AppSnackBarKind.success : AppSnackBarKind.error,
+      onRowTap: (op) => SettlementDetailsDialog.show(context, operation: op),
     );
   }
 }

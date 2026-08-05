@@ -1,6 +1,8 @@
 import 'package:projectgt/features/settlements/domain/entities/settlement_operation.dart';
 import 'package:projectgt/features/settlements/domain/repositories/settlement_repository.dart';
 import 'package:projectgt/features/settlements/data/models/settlement_operation_model.dart';
+import 'package:projectgt/features/settlements/data/models/settlement_payment_model.dart';
+import 'package:projectgt/features/settlements/domain/entities/settlement_payment.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Реализация [SettlementRepository] через Supabase.
@@ -15,6 +17,7 @@ class SettlementRepositoryImpl implements SettlementRepository {
   SettlementRepositoryImpl(this.client, this.activeCompanyId);
 
   static const _table = 'settlement_operations';
+  static const _paymentsTable = 'settlement_payments';
 
   static const _select = '''
     *,
@@ -45,6 +48,24 @@ class SettlementRepositoryImpl implements SettlementRepository {
           ).toDomain(),
         )
         .toList();
+  }
+
+  @override
+  Future<SettlementOperation?> getOperation(String id) async {
+    if (activeCompanyId.isEmpty || id.isEmpty) return null;
+
+    final row = await client
+        .from(_table)
+        .select(_select)
+        .eq('company_id', activeCompanyId)
+        .eq('id', id)
+        .maybeSingle();
+
+    if (row == null) return null;
+
+    return SettlementOperationModel.fromJson(
+      Map<String, dynamic>.from(row),
+    ).toDomain();
   }
 
   @override
@@ -120,6 +141,75 @@ class SettlementRepositoryImpl implements SettlementRepository {
       }
     }
     return '${prefix ?? ''}${max + 1}';
+  }
+
+  @override
+  Future<List<SettlementPayment>> getPayments(
+    String settlementOperationId,
+  ) async {
+    if (activeCompanyId.isEmpty || settlementOperationId.isEmpty) {
+      return [];
+    }
+
+    final response = await client
+        .from(_paymentsTable)
+        .select()
+        .eq('company_id', activeCompanyId)
+        .eq('settlement_operation_id', settlementOperationId)
+        .order('payment_date', ascending: false)
+        .order('created_at', ascending: false);
+
+    return (response as List)
+        .map(
+          (row) => SettlementPaymentModel.fromJson(
+            Map<String, dynamic>.from(row as Map),
+          ).toDomain(),
+        )
+        .toList();
+  }
+
+  @override
+  Future<SettlementPayment> createPayment(SettlementPayment payment) async {
+    final model = SettlementPaymentModel.fromDomain(payment);
+    final payload = model.toWriteJson(includeId: false);
+    payload['company_id'] = activeCompanyId;
+
+    final row = await client
+        .from(_paymentsTable)
+        .insert(payload)
+        .select()
+        .single();
+
+    return SettlementPaymentModel.fromJson(
+      Map<String, dynamic>.from(row),
+    ).toDomain();
+  }
+
+  @override
+  Future<SettlementPayment> updatePayment(SettlementPayment payment) async {
+    final model = SettlementPaymentModel.fromDomain(payment);
+    final payload = model.toUpdateJson();
+
+    final row = await client
+        .from(_paymentsTable)
+        .update(payload)
+        .eq('id', payment.id)
+        .eq('company_id', activeCompanyId)
+        .select()
+        .single();
+
+    return SettlementPaymentModel.fromJson(
+      Map<String, dynamic>.from(row),
+    ).toDomain();
+  }
+
+  @override
+  Future<void> deletePayment(String id) async {
+    await client
+        .from(_paymentsTable)
+        .delete()
+        .eq('id', id)
+        .eq('company_id', activeCompanyId);
   }
 
   /// Разбивает номер на префикс и завершающую группу цифр.

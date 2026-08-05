@@ -5,12 +5,10 @@ import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/domain/entities/contract.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
-import 'package:projectgt/features/settlements/domain/entities/settlement_operation.dart';
-import 'package:projectgt/features/settlements/presentation/utils/settlement_actions.dart';
 import 'package:projectgt/features/settlements/presentation/state/settlement_state.dart';
+import 'package:projectgt/features/settlements/presentation/widgets/settlement_details_dialog.dart';
 import 'package:projectgt/features/settlements/presentation/widgets/settlement_form_dialog.dart';
 import 'package:projectgt/features/settlements/presentation/widgets/settlements_operations_table.dart';
-import 'package:projectgt/core/widgets/app_snackbar.dart';
 
 /// Вкладка «Финансы» в карточке договора — таблица операций.
 class ContractSettlementsSection extends ConsumerWidget {
@@ -101,34 +99,14 @@ class ContractSettlementsSection extends ConsumerWidget {
             child: SettlementsOperationsTable(
               operations: state.operations,
               compact: true,
-              onRowTap: (op) => SettlementFormDialog.show(
+              onRowTap: (op) => SettlementDetailsDialog.show(
                 context,
                 operation: op,
                 presetContract: contract,
               ),
-              onDelete: (op) => _delete(context, ref, op),
             ),
           ),
       ],
-    );
-  }
-
-  Future<void> _delete(
-    BuildContext context,
-    WidgetRef ref,
-    SettlementOperation op,
-  ) async {
-    final ok = await showSettlementDeleteConfirmDialog(context, op);
-    if (ok != true || !context.mounted) return;
-    final success = await ref
-        .read(contractSettlementsProvider(contract.id).notifier)
-        .delete(op.id);
-    if (!context.mounted) return;
-    syncSettlementProviders(ref, contractId: contract.id);
-    AppSnackBar.show(
-      context: context,
-      message: success ? 'Счёт удалён' : 'Не удалось удалить',
-      kind: success ? AppSnackBarKind.success : AppSnackBarKind.error,
     );
   }
 }
