@@ -122,8 +122,30 @@ abstract class SettlementOperation with _$SettlementOperation {
 
   const SettlementOperation._();
 
+  /// Допуск сравнения денежных сумм (копейки).
+  static const amountEpsilon = 0.005;
+
   /// Остаток к оплате (может быть отрицательным при переплате).
   double get remainingAmount => totalToPay - paidAmount;
+
+  /// Статус оплаты — всегда из сумм (единая логика в приложении).
+  SettlementPaymentStatus get resolvedPaymentStatus =>
+      computeSettlementPaymentStatus(
+        totalToPay: totalToPay,
+        paidAmount: paidAmount,
+      );
+
+  /// Положительный долг по счёту (0 при переплате или полной оплате).
+  double get positiveDebt {
+    final remaining = remainingAmount;
+    return remaining > amountEpsilon ? remaining : 0;
+  }
+
+  /// Есть непогашенный остаток.
+  bool get hasOutstandingDebt => remainingAmount > amountEpsilon;
+
+  /// Есть переплата.
+  bool get hasOverpayment => remainingAmount < -amountEpsilon;
 }
 
 /// Считает «к оплате» по формуле v1.
@@ -138,11 +160,21 @@ double computeSettlementTotalToPay({
 }
 
 /// Считает статус оплаты по суммам.
+///
+/// [totalToPay] — сумма к оплате; [paidAmount] — уже оплачено.
+/// При нулевой сумме к оплате счёт считается оплаченным.
+///
+/// Должна совпадать с SQL-триггером `sync_settlement_payment_status`.
 SettlementPaymentStatus computeSettlementPaymentStatus({
   required double totalToPay,
   required double paidAmount,
 }) {
-  const eps = 0.005;
+  const eps = SettlementOperation.amountEpsilon;
+  if (totalToPay <= eps) {
+    return paidAmount <= eps
+        ? SettlementPaymentStatus.paid
+        : SettlementPaymentStatus.overpaid;
+  }
   if (paidAmount <= eps) {
     return SettlementPaymentStatus.unpaid;
   }
@@ -153,4 +185,16 @@ SettlementPaymentStatus computeSettlementPaymentStatus({
     return SettlementPaymentStatus.paid;
   }
   return SettlementPaymentStatus.overpaid;
+}
+
+/// Агрегированные суммы по списку счетов.
+extension SettlementOperationsTotals on List<SettlementOperation> {
+  /// Сумма «к оплате» по всем счетам.
+  double get totalAmount => fold<double>(0, (s, o) => s + o.totalToPay);
+
+  /// Сумма оплат.
+  double get totalPaid => fold<double>(0, (s, o) => s + o.paidAmount);
+
+  /// Остаток долга (только положительные остатки).
+  double get totalDebt => fold<double>(0, (s, o) => s + o.positiveDebt);
 }

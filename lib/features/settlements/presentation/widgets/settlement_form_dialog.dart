@@ -19,6 +19,7 @@ import 'package:projectgt/features/contractors/presentation/state/contractor_sta
 import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:projectgt/features/settlements/domain/entities/settlement_operation.dart';
 import 'package:projectgt/features/settlements/presentation/state/settlement_state.dart';
+import 'package:projectgt/features/settlements/presentation/utils/settlement_actions.dart';
 import 'package:projectgt/features/settlements/presentation/utils/settlement_ui_labels.dart';
 
 /// Диалог создания / редактирования счёта на оплату.
@@ -94,6 +95,7 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
   late final TextEditingController _invoiceDateController;
   late final TextEditingController _noteController;
   late final TextEditingController _vatRateController;
+  late final TextEditingController _paidAmountController;
 
   bool _saving = false;
   bool get _lockedContext => widget.presetContract != null;
@@ -137,6 +139,11 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
         : '22';
     _vatRateController = TextEditingController(text: initialVatText);
 
+    final initialPaid = op?.paidAmount ?? 0;
+    _paidAmountController = TextEditingController(
+      text: initialPaid > 0 ? _fmtAmount(initialPaid) : '',
+    );
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       ref.read(objectProvider.notifier).loadObjects();
@@ -173,6 +180,7 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
     _invoiceDateController.dispose();
     _noteController.dispose();
     _vatRateController.dispose();
+    _paidAmountController.dispose();
     super.dispose();
   }
 
@@ -209,6 +217,15 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
   /// Итого с НДС.
   double get _totalWithVat => _baseAmount + _vatAmount;
 
+  double get _paidAmount => parseAmount(_paidAmountController.text) ?? 0;
+
+  double get _totalToPayEffective => computeSettlementTotalToPay(
+        amount: _baseAmount,
+        vatAmount: _isVatEnabled ? _vatAmount : 0,
+        advanceRetention: widget.operation?.advanceRetention ?? 0,
+        warrantyRetention: widget.operation?.warrantyRetention ?? 0,
+      );
+
   List<TextInputFormatter> get _moneyFormatters => [
         FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
         amountFormatter(),
@@ -239,24 +256,35 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
 
     final vatRateToSave = _isVatEnabled ? _vatRateEffective : null;
     final vatAmountToSave = _isVatEnabled ? _vatAmount : 0.0;
+    final paidAmount = _paidAmount;
+    final existing = widget.operation;
 
     final operation = SettlementOperation(
-      id: widget.operation?.id ?? '',
+      id: existing?.id ?? '',
       companyId: companyId,
       operationType: _type,
       objectId: _objectId!,
       contractorId: _contractorId!,
       contractId: _contractId!,
+      periodFrom: existing?.periodFrom,
+      periodTo: existing?.periodTo,
       actNumber: _isAct ? _actNumberController.text.trim() : null,
+      actDate: existing?.actDate,
       invoiceNumber: _invoiceNumberController.text.trim(),
       invoiceDate: _invoiceDate,
       amount: _baseAmount,
       isVatIncluded: _isVatIncluded,
       vatRate: vatRateToSave,
       vatAmount: vatAmountToSave,
+      advanceRetention: existing?.advanceRetention ?? 0,
+      warrantyRetention: existing?.warrantyRetention ?? 0,
+      paidAmount: paidAmount,
+      purpose: existing?.purpose,
       note: _noteController.text.trim().isEmpty
           ? null
           : _noteController.text.trim(),
+      createdAt: existing?.createdAt,
+      createdBy: existing?.createdBy,
     );
 
     final notifier = widget.presetContract != null
@@ -281,9 +309,7 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
       return;
     }
 
-    if (widget.presetContract != null) {
-      ref.read(settlementListProvider.notifier).load(quiet: true);
-    }
+    syncSettlementProviders(ref, contractId: result.contractId);
 
     AppSnackBar.show(
       context: context,
@@ -571,7 +597,22 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
           ],
           const SizedBox(height: 12),
 
-          // 10. Примечание
+          // Оплата
+          _SectionDivider(theme: theme),
+          _PaymentSection(
+            paidAmountController: _paidAmountController,
+            totalToPay: _totalToPayEffective,
+            moneyFormatters: _moneyFormatters,
+            onPaidChanged: () => setState(() {}),
+            onMarkFullyPaid: () {
+              setState(() {
+                _paidAmountController.text = _fmtAmount(_totalToPayEffective);
+              });
+            },
+          ),
+          const SizedBox(height: 12),
+
+          // Примечание
           GTTextField(
             controller: _noteController,
             labelText: 'Примечание',
@@ -890,6 +931,144 @@ class _Item extends StatelessWidget {
             fontWeight: emphasize ? FontWeight.w800 : FontWeight.w700,
             color: tone,
             fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Блок оплаты: сумма оплаты, статус и остаток.
+class _PaymentSection extends StatelessWidget {
+  final TextEditingController paidAmountController;
+  final double totalToPay;
+  final List<TextInputFormatter> moneyFormatters;
+  final VoidCallback onPaidChanged;
+  final VoidCallback onMarkFullyPaid;
+
+  const _PaymentSection({
+    required this.paidAmountController,
+    required this.totalToPay,
+    required this.moneyFormatters,
+    required this.onPaidChanged,
+    required this.onMarkFullyPaid,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final paid = parseAmount(paidAmountController.text) ?? 0;
+    final remaining = totalToPay - paid;
+    final paymentStatus = computeSettlementPaymentStatus(
+      totalToPay: totalToPay,
+      paidAmount: paid,
+    );
+    final statusColor = settlementPaymentStatusColor(theme, paymentStatus);
+    final eps = SettlementOperation.amountEpsilon;
+    final hasDebt = remaining > eps;
+    final hasOverpay = remaining < -eps;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: GTTextField(
+                controller: paidAmountController,
+                labelText: 'Оплачено',
+                prefixIcon: CupertinoIcons.checkmark_circle,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: moneyFormatters,
+                onChanged: (_) => onPaidChanged(),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return null;
+                  final n = parseAmount(v);
+                  if (n == null || n < 0) return 'Укажите сумму ≥ 0';
+                  return null;
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: GTTextButton(
+                text: 'Оплачен полностью',
+                onPressed: totalToPay > 0 ? onMarkFullyPaid : null,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: scheme.outline.withValues(alpha: 0.22)),
+            color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: _Item(
+                  label: 'К оплате',
+                  value: formatCurrency(totalToPay),
+                  tone: scheme.onSurface.withValues(alpha: 0.7),
+                ),
+              ),
+              _Divider(),
+              Expanded(
+                child: _Item(
+                  label: 'Остаток',
+                  value: formatCurrency(remaining),
+                  tone: hasDebt
+                      ? scheme.error
+                      : hasOverpay
+                          ? settlementPaymentStatusColor(
+                              theme,
+                              SettlementPaymentStatus.overpaid,
+                            )
+                          : scheme.onSurface.withValues(alpha: 0.7),
+                  emphasize: hasDebt || hasOverpay,
+                ),
+              ),
+              _Divider(),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Статус',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: scheme.onSurface.withValues(alpha: 0.55),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: statusColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        settlementPaymentStatusLabel(paymentStatus),
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: statusColor,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ],

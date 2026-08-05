@@ -102,7 +102,9 @@ class SettlementRepositoryImpl implements SettlementRepository {
         .from(_table)
         .select('invoice_number')
         .eq('company_id', activeCompanyId)
-        .eq('contract_id', contractId);
+        .eq('contract_id', contractId)
+        .order('invoice_date', ascending: false)
+        .limit(500);
 
     int max = 0;
     String? prefix;

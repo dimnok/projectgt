@@ -9,8 +9,8 @@ import 'package:projectgt/core/widgets/mobile_atmosphere_main_surface.dart';
 import 'package:projectgt/core/widgets/mobile_atmosphere_screen_header.dart';
 import 'package:projectgt/features/employees/presentation/utils/employees_layout_utils.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
-import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
 import 'package:projectgt/features/settlements/domain/entities/settlement_operation.dart';
+import 'package:projectgt/features/settlements/presentation/utils/settlement_actions.dart';
 import 'package:projectgt/features/settlements/presentation/state/settlement_state.dart';
 import 'package:projectgt/features/settlements/presentation/widgets/settlement_form_dialog.dart';
 import 'package:projectgt/features/settlements/presentation/widgets/settlements_filters_toolbar.dart';
@@ -32,6 +32,7 @@ class SettlementsListScreen extends ConsumerStatefulWidget {
 
 class _SettlementsListScreenState extends ConsumerState<SettlementsListScreen> {
   SettlementOperationType? _typeFilter;
+  SettlementPaymentStatus? _paymentStatusFilter;
   String _search = '';
 
   static const _screenTitle = 'Взаиморасчёты';
@@ -39,6 +40,10 @@ class _SettlementsListScreenState extends ConsumerState<SettlementsListScreen> {
   List<SettlementOperation> _filter(List<SettlementOperation> ops) {
     return ops.where((op) {
       if (_typeFilter != null && op.operationType != _typeFilter) {
+        return false;
+      }
+      if (_paymentStatusFilter != null &&
+          op.resolvedPaymentStatus != _paymentStatusFilter) {
         return false;
       }
       if (_search.trim().isEmpty) return true;
@@ -55,6 +60,7 @@ class _SettlementsListScreenState extends ConsumerState<SettlementsListScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(settlementListProvider);
     final filtered = _filter(state.operations);
+    final filteredTotals = filtered;
     final appearance = MobileAtmosphereAppearance.of(context);
     final scheme = appearance.scheme;
     final isDark = appearance.isDark;
@@ -177,7 +183,12 @@ class _SettlementsListScreenState extends ConsumerState<SettlementsListScreen> {
                               typeFilter: _typeFilter,
                               onTypeChanged: (v) =>
                                   setState(() => _typeFilter = v),
-                              totalAmount: state.totalAmount,
+                              paymentStatusFilter: _paymentStatusFilter,
+                              onPaymentStatusChanged: (v) =>
+                                  setState(() => _paymentStatusFilter = v),
+                              totalAmount: filteredTotals.totalAmount,
+                              totalPaid: filteredTotals.totalPaid,
+                              totalDebt: filteredTotals.totalDebt,
                               onRefresh: () => ref
                                   .read(settlementListProvider.notifier)
                                   .load(),
@@ -240,33 +251,12 @@ class _SettlementsListScreenState extends ConsumerState<SettlementsListScreen> {
   }
 
   Future<void> _confirmDelete(SettlementOperation op) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Удалить счёт?'),
-        content: Text(
-          'Счёт ${op.invoiceNumber} будет удалён без возможности восстановления.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Отмена'),
-          ),
-          PermissionGuard(
-            module: 'settlements',
-            permission: 'delete',
-            child: TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Удалить'),
-            ),
-          ),
-        ],
-      ),
-    );
+    final ok = await showSettlementDeleteConfirmDialog(context, op);
     if (ok != true || !mounted) return;
     final success =
         await ref.read(settlementListProvider.notifier).delete(op.id);
     if (!mounted) return;
+    syncSettlementProviders(ref, contractId: op.contractId);
     AppSnackBar.show(
       context: context,
       message: success ? 'Счёт удалён' : 'Не удалось удалить',

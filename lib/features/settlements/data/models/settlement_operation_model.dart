@@ -91,7 +91,12 @@ abstract class SettlementOperationModel with _$SettlementOperationModel {
       );
 
   /// В доменную сущность.
-  SettlementOperation toDomain() => SettlementOperation(
+  SettlementOperation toDomain() {
+    final resolved = computeSettlementPaymentStatus(
+      totalToPay: totalToPay,
+      paidAmount: paidAmount,
+    );
+    return SettlementOperation(
         id: id,
         companyId: companyId,
         operationType: operationType,
@@ -115,18 +120,21 @@ abstract class SettlementOperationModel with _$SettlementOperationModel {
         warrantyRetention: warrantyRetention,
         totalToPay: totalToPay,
         paidAmount: paidAmount,
-        paymentStatus: paymentStatus,
+        paymentStatus: resolved,
         purpose: purpose,
         note: note,
         createdAt: createdAt,
         createdBy: createdBy,
       );
+  }
 
   /// JSON для insert/update без generated/id-полей.
   Map<String, dynamic> toWriteJson({required bool includeId}) {
     final json = toJson();
     json.remove('total_to_pay');
+    json.remove('payment_status');
     json.remove('created_at');
+    json.remove('created_by');
     if (!includeId || id.isEmpty) {
       json.remove('id');
     }

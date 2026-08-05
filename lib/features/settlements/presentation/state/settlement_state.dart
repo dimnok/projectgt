@@ -44,9 +44,14 @@ class SettlementListState {
     );
   }
 
-  /// Итоговая сумма счетов (с НДС).
-  double get totalAmount =>
-      operations.fold<double>(0, (s, o) => s + o.totalToPay);
+  /// Итоговая сумма счетов (к оплате).
+  double get totalAmount => operations.totalAmount;
+
+  /// Сумма оплат по всем счетам.
+  double get totalPaid => operations.totalPaid;
+
+  /// Остаток долга (только положительные остатки).
+  double get totalDebt => operations.totalDebt;
 }
 
 /// Notifier списка операций.
@@ -84,37 +89,68 @@ class SettlementListNotifier extends StateNotifier<SettlementListState> {
 
   /// Создать операцию и обновить список.
   Future<SettlementOperation?> create(SettlementOperation operation) async {
+    SettlementOperation? created;
     try {
-      final created = await _repository.createOperation(operation);
-      await load(quiet: true);
-      return created;
+      created = await _repository.createOperation(operation);
     } catch (e) {
       state = state.copyWith(error: e.toString());
       return null;
     }
+    _upsertOperation(created);
+    await _reloadQuietly();
+    return created;
   }
 
   /// Обновить операцию.
   Future<SettlementOperation?> update(SettlementOperation operation) async {
+    SettlementOperation? updated;
     try {
-      final updated = await _repository.updateOperation(operation);
-      await load(quiet: true);
-      return updated;
+      updated = await _repository.updateOperation(operation);
     } catch (e) {
       state = state.copyWith(error: e.toString());
       return null;
     }
+    _upsertOperation(updated);
+    await _reloadQuietly();
+    return updated;
   }
 
   /// Удалить операцию.
   Future<bool> delete(String id) async {
     try {
       await _repository.deleteOperation(id);
-      await load(quiet: true);
-      return true;
     } catch (e) {
       state = state.copyWith(error: e.toString());
       return false;
+    }
+    _removeOperation(id);
+    await _reloadQuietly();
+    return true;
+  }
+
+  void _upsertOperation(SettlementOperation operation) {
+    final list = [...state.operations];
+    final index = list.indexWhere((o) => o.id == operation.id);
+    if (index >= 0) {
+      list[index] = operation;
+    } else {
+      list.insert(0, operation);
+    }
+    state = state.copyWith(operations: list, clearError: true);
+  }
+
+  void _removeOperation(String id) {
+    state = state.copyWith(
+      operations: state.operations.where((o) => o.id != id).toList(),
+      clearError: true,
+    );
+  }
+
+  Future<void> _reloadQuietly() async {
+    try {
+      await load(quiet: true);
+    } catch (_) {
+      // Сохраняем оптимистичное состояние, если фоновая перезагрузка упала.
     }
   }
 }

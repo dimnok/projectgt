@@ -2,25 +2,19 @@
 
 **Дата актуализации:** 5 августа 2026 года  
 **Изменения:**
-- Удалён мёртвый код: `settlementPaymentStatusLabel`, `SettlementVatRateOption*` из `settlement_ui_labels.dart`; лишний `remove('updated_at')` в `toWriteJson`.
-- В форме счёта: проверка `mounted` после выбора даты (`_pickInvoiceDate`).
-- Модель пересмотрена: **операция = счёт на оплату**. Форма собирает только реквизиты счёта.
-- Добавлен **НДС**: гибкий ввод ставки (`vat_rate`), круглая кнопка переключения активности НДС, режим «в сумме / сверху» (`is_vat_included`), автоматический расчёт `vat_amount` и `total_to_pay`.
-- Автономер счёта по договору: `префикс последнего счёта + (max + 1)`.
-- Форма переработана: Объект / Контрагент / Договор в одну строку, цветные стикеры типа, круглая кнопка `НДС` + текстовый ввод процента, компактный переключатель режима, живая сводка.
-- Таблица и панель фильтров упрощены: колонки оплаты/статуса убраны, сводка — «Сумма счетов» (итого с НДС).
-- Расслаблены CHECK-ограничения: для «По акту» нужен только `act_number`; для «Прочее» `purpose` необязателен.
-- Параллельно блоку «Акты» договора (`contract_acts` / КС-2) — **не заменяет** формирование КС-2.
+- Добавлен учёт оплат (этап 1): статусы, поле «Оплачено», фильтр, сводки «К оплате / Оплачено / Долг».
+- Единая логика статуса: `computeSettlementPaymentStatus` + SQL-триггер `sync_settlement_payment_status`.
+- Аудит модуля: сохранение скрытых полей при редактировании, синхронизация провайдеров, оптимистичный CRUD.
+- Централизация: `SettlementOperationsTotals`, `settlement_actions.dart`, `resolvedPaymentStatus`.
 
 ## ⚠️ Важное замечание
 
 - **Владение таблицей:** `settlement_operations` (Owner — модуль Settlements).
 - **Изоляция:** `company_id` + RLS через `get_my_company_ids()` и `check_permission(..., 'settlements', ...)`.
 - **RBAC-модуль:** `settlements` в `app_modules` (название «Взаиморасчёты», `sort_order = 92`).
-- При миграции права скопированы с модуля `contracts` для существующих ролей; далее настраиваются в UI «Роли».
 - **Не путать** с вкладкой «Акты» в договоре (`contract_acts`) и с ДДС (`cash_flow`): это отдельный контур учёта выставленных счетов.
-- Оплата счетов в этой версии **не отслеживается** (поля `paid_amount` / `payment_status` остались в БД с дефолтами, но убраны из UI). Зачёт оплат — roadmap.
-- Файлы счетов (PDF/скан) и связка оплат с ДДС — **не в этой версии** (roadmap).
+- Статус оплаты в `contract_acts` **не синхронизируется** с Settlements (параллельные контуры).
+- История частичных оплат и связка с ДДС — **roadmap (этап 2)**.
 
 ## 📝 Описание
 
@@ -29,9 +23,9 @@
 **Ключевые функции:**
 - Типы счетов: **По акту**, **Аванс**, **Прочее**.
 - Ручной CRUD счетов; автономер по договору с сохранением префикса.
-- НДС: произвольная ставка в процентах (текстовый ввод) и режим «в сумме» / «сверху»; автоматический расчёт базы, НДС и итога.
-- Общий реестр компании с поиском и фильтром по типу + вкладка **«Финансы»** в карточке договора.
-- Сводка: «Сумма счетов» (итого с НДС).
+- НДС: произвольная ставка, режим «в сумме» / «сверху»; автоматический расчёт базы, НДС и итога.
+- **Учёт оплат (этап 1):** поле «Оплачено», автоматический статус, фильтр, сводки.
+- Общий реестр компании с поиском и фильтрами + вкладка **«Финансы»** в карточке договора.
 - Работает для всех видов договоров (`customer` / `subcontract` / `supply`).
 
 ## 🔗 Зависимости
@@ -48,35 +42,36 @@
 ### Экраны
 | Виджет | Назначение |
 |--------|------------|
-| `SettlementsListScreen` | Реестр компании: atmosphere-шапка (как Табель/ФОТ), `MobileAtmosphereMainSurface`, таблица счетов |
+| `SettlementsListScreen` | Реестр компании: atmosphere-шапка, таблица счетов, фильтры |
 | Маршрут | `/settlements` (`AppRoutes.settlements`), право `settlements` / `read` |
-| Меню | `AppDrawer` → «Взаиморасчёты», `AppRoute.settlements` |
+| Меню | `AppDrawer` → «Взаиморасчёты`, `AppRoute.settlements` |
 
 ### Виджеты
 | Виджет | Назначение |
 |--------|------------|
-| `SettlementsFiltersToolbar` | Компактная панель: поиск, фильтр типа, сводка «Сумма счетов», обновить, «Новый» |
-| `SettlementsOperationsTable` | Flex-таблица на всю ширину (без горизонтального скролла); колонка «Сумма» = итого с НДС; строка ИТОГО |
+| `SettlementsFiltersToolbar` | Поиск, фильтр типа, фильтр оплаты, сводки, обновить, «Новый» |
+| `SettlementsOperationsTable` | Flex-таблица: дата, тип, счёт, акт, договор, контрагент, объект, **к оплате**, **статус**, **оплачено**, **остаток** |
 | `SettlementFormDialog` | Создание/редактирование счёта (ширина 920 на desktop) |
 | `ContractSettlementsSection` | Вкладка `ContractDetailNavigationSection.finances` в карточке договора |
 
 ### Форма счёта (`SettlementFormDialog`)
 Поля в логическом порядке:
-1. **Объект** + **Контрагент** (сокращённое имя) + **Договор** — в одну строку; договор фильтруется по объекту и контрагенту.
+1. **Объект** + **Контрагент** + **Договор** — в одну строку.
 2. **Тип** — цветные стикеры: «По акту» / «Аванс» / «Прочее».
 3. **Номер акта** — только для типа «По акту».
-4. **Номер счёта** + **Дата счёта** — в одну строку.
-5. **Сумма** + **Блок НДС** (в одну строку):
-   - **Сумма** (подпись меняется: «Сумма с НДС» / «Сумма без НДС» / «Сумма»).
-   - **Круглая кнопка включения НДС** (`_VatEnableRoundButton`) + **Поле ввода процента НДС** (`GTTextField` с суффиксом `%`, например 22%, 20%, 10%).
-6. **Переключатель режима НДС** (только при включённом НДС и ставке > 0): «НДС в сумме» / «НДС сверху».
-7. **Сводка НДС** (только при включённом НДС и ставке > 0): «Без НДС» / «НДС» / «Итого с НДС».
-8. **Примечание** (4 строки).
+4. **Номер счёта** + **Дата счёта**.
+5. **Сумма** + **Блок НДС** (круглая кнопка `НДС`, поле процента, переключатель «в сумме / сверху»).
+6. **Сводка НДС** (при включённом НДС).
+7. **Блок оплаты:** поле «Оплачено», кнопка «Оплачен полностью», сводка (к оплате / остаток / статус).
+8. **Примечание**.
 
-При выключенном НДС (нажатие на круглую кнопку `НДС`) или нулевой ставке блок НДС (переключатель «в сумме / сверху» + сводка) **скрывается**, а поле процента блокируется.
+При редактировании сохраняются скрытые поля из БД: `period_from/to`, `act_date`, `purpose`, удержания, `created_by`.
 
 ### Утилиты UI
-- `settlement_ui_labels.dart` — подписи типов операций (`settlementOperationTypeLabel`).
+| Файл | Назначение |
+|------|------------|
+| `settlement_ui_labels.dart` | Подписи типов и статусов оплаты, цвета бейджей |
+| `settlement_actions.dart` | `syncSettlementProviders`, `showSettlementDeleteConfirmDialog` |
 
 ### Провайдеры состояния
 | Provider | Назначение |
@@ -85,10 +80,11 @@
 | `settlementListProvider` | Список счетов компании |
 | `contractSettlementsProvider(contractId)` | Список счетов по договору |
 
+После CRUD вызывается `syncSettlementProviders(ref, contractId: ...)` — оба списка остаются синхронными.
+
 ### Design System
 - Шапка: `MobileAtmosphereBackdrop`, `MobileAtmosphereMainSurface`, `MobileAtmosphereChromeCircleButton`
 - Форма: `DesktopDialogContent` (width 920) / `MobileBottomSheetContent`, `GTTextField`, `GTDropdown`, `GTButtons`
-- Элементы НДС: круглая кнопка переключателя активности `_VatEnableRoundButton`, кастомные стикеры типа (`_TypeSegment` / `_TypeSticker`), `_VatModeToggle` на `CupertinoSlidingSegmentedControl`
 - Форматтеры: `formatCurrency`, `formatRuDate`, `parseAmount`, `amountFormatter` из `lib/core/utils/formatters.dart`
 - Права: `PermissionGuard(module: 'settlements', ...)`
 
@@ -97,8 +93,13 @@
 ### Сущности
 - `SettlementOperation` (Freezed) — счёт на оплату
 - `SettlementOperationType`: `act` | `advance` | `other`
-- `SettlementPaymentStatus`: `unpaid` | `partial` | `paid` | `overpaid` (в UI не используется, зарезервировано)
-- Хелперы: `computeSettlementTotalToPay`, `computeSettlementPaymentStatus`, getter `remainingAmount` (зарезервированы)
+- `SettlementPaymentStatus`: `unpaid` | `partial` | `paid` | `overpaid`
+- Хелперы:
+  - `computeSettlementTotalToPay` — сумма к оплате
+  - `computeSettlementPaymentStatus` — статус из сумм (eps = 0.005)
+  - `resolvedPaymentStatus` — **единственный способ** получить статус в UI
+  - `remainingAmount`, `positiveDebt`, `hasOutstandingDebt`, `hasOverpayment`
+- `SettlementOperationsTotals` — extension на `List<SettlementOperation>` (totalAmount, totalPaid, totalDebt)
 
 ### Репозиторий
 - Контракт: `SettlementRepository`
@@ -107,18 +108,24 @@
   - `contractors:contractor_id(short_name)`
   - `contracts:contract_id(number)`
 - Методы: `getOperations({contractId?})`, `createOperation`, `updateOperation`, `deleteOperation`, `getNextInvoiceNumber(contractId)`
+- `getNextInvoiceNumber`: последние 500 счетов по договору (order by `invoice_date` DESC), парсинг суффикса в Dart
 
 ### Автономер счёта
 `getNextInvoiceNumber(contractId)`:
-- Выбирает все `invoice_number` по договору.
-- Извлекает завершающую группу цифр (regex): `сч-13` → 13, `217-3` → 3, `2` → 2.
-- Берёт максимум и его префикс.
-- Возвращает `префикс + (max + 1)`; если счетов нет — `1`.
-- При создании/смене договора номер подставляется автоматически (с перезаписью); при редактировании не меняется.
+- Извлекает завершающую группу цифр (regex): `сч-13` → 13, `217-3` → 3.
+- Берёт максимум и его префикс → `префикс + (max + 1)`.
+- Ограничение: учитываются только последние 500 счетов по дате.
 
 ### Модель
 - `SettlementOperationModel` (Freezed + json_serializable, `FieldRename.snake`)
-- `toWriteJson` исключает generated `total_to_pay` и `created_at` при insert/update
+- `toWriteJson` исключает: `total_to_pay`, `payment_status`, `created_at`, `created_by`
+- `toDomain()` пересчитывает `paymentStatus` через `computeSettlementPaymentStatus`
+
+### CRUD (оптимистичное обновление)
+`SettlementListNotifier`:
+1. Выполняет операцию в репозитории.
+2. Сразу обновляет локальный список (upsert/remove).
+3. Фоновый `load(quiet: true)` — при ошибке reload сохраняется оптимистичное состояние.
 
 ## 📂 Дерево файлов
 
@@ -133,18 +140,25 @@ lib/features/settlements/
 └── presentation/
     ├── screens/settlements_list_screen.dart
     ├── state/settlement_state.dart
-    ├── utils/settlement_ui_labels.dart
+    ├── utils/
+    │   ├── settlement_ui_labels.dart
+    │   └── settlement_actions.dart
     └── widgets/
         ├── settlement_form_dialog.dart
         ├── settlements_filters_toolbar.dart
         ├── settlements_operations_table.dart
         └── contract_settlements_section.dart
 
+test/features/settlements/
+└── compute_settlement_payment_status_test.dart
+
 supabase/migrations/
 ├── 20260720220000_create_settlement_operations.sql
 ├── 20260803180000_simplify_settlement_operations_constraints.sql
 ├── 20260804120000_add_settlement_vat_rate.sql
-└── 20260804130000_add_settlement_is_vat_included.sql
+├── 20260804130000_add_settlement_is_vat_included.sql
+├── 20260805120000_settlement_payment_status_trigger.sql
+└── 20260805130000_backfill_settlement_payment_status.sql
 
 docs/settlements/
 └── settlements_module.md
@@ -153,7 +167,7 @@ docs/settlements/
 ## 🗄️ База данных (Audit)
 
 **Источник аудита:** live DB через MCP Supabase (`api.progt.ru`), 05.08.2026.  
-**Миграции:** 4 файла (см. дерево выше).
+**Миграции:** 6 файлов (см. дерево выше).
 
 ### Таблица `settlement_operations`
 
@@ -165,31 +179,37 @@ docs/settlements/
 | `object_id` | UUID | NO | FK → `objects` |
 | `contractor_id` | UUID | NO | FK → `contractors` |
 | `contract_id` | UUID | NO | FK → `contracts` ON DELETE CASCADE |
-| `period_from` / `period_to` | DATE | YES | Период работ (необязательно) |
+| `period_from` / `period_to` | DATE | YES | Период работ (в UI не редактируется) |
 | `act_number` | TEXT | YES | Номер акта (обязателен для `act`) |
-| `act_date` | DATE | YES | Дата акта (необязательно) |
+| `act_date` | DATE | YES | Дата акта (в UI не редактируется) |
 | `invoice_number` | TEXT | NO | Номер счёта |
 | `invoice_date` | DATE | NO | Дата счёта |
 | `amount` | NUMERIC | NO | База (без НДС) ≥ 0 |
-| `is_vat_included` | BOOLEAN | NO | `true` = НДС в сумме; `false` = НДС сверху (default `true`) |
-| `vat_rate` | NUMERIC | YES | Ставка НДС (22/10/7/5/0). `NULL` = без НДС |
+| `is_vat_included` | BOOLEAN | NO | `true` = НДС в сумме (default `true`) |
+| `vat_rate` | NUMERIC | YES | Ставка НДС. `NULL` = без НДС |
 | `vat_amount` | NUMERIC | NO | Сумма НДС ≥ 0 |
-| `advance_retention` | NUMERIC | NO | Авансовые удержания ≥ 0 (в UI не используется, default 0) |
-| `warranty_retention` | NUMERIC | NO | Гарантийные удержания ≥ 0 (в UI не используется, default 0) |
+| `advance_retention` | NUMERIC | NO | Авансовые удержания ≥ 0 (в UI не редактируется) |
+| `warranty_retention` | NUMERIC | NO | Гарантийные удержания ≥ 0 (в UI не редактируется) |
 | `total_to_pay` | NUMERIC | — | **GENERATED STORED:** `GREATEST(0, amount + vat_amount − advance_retention − warranty_retention)` |
-| `paid_amount` | NUMERIC | NO | Оплачено ≥ 0 (в UI не используется, default 0) |
-| `payment_status` | TEXT | NO | `unpaid` \| `partial` \| `paid` \| `overpaid` (в UI не используется) |
-| `purpose` | TEXT | YES | Назначение (необязательно) |
+| `paid_amount` | NUMERIC | NO | Оплачено ≥ 0 (default 0) |
+| `payment_status` | TEXT | NO | `unpaid` \| `partial` \| `paid` \| `overpaid` — **триггер** |
+| `purpose` | TEXT | YES | Назначение (в UI не редактируется) |
 | `note` | TEXT | YES | Примечание |
 | `created_at` / `updated_at` | TIMESTAMPTZ | NO | `updated_at` — trigger `set_updated_at` |
-| `created_by` | UUID | YES | FK → `auth.users` |
+| `created_by` | UUID | YES | FK → `auth.users` (не перезаписывается при update) |
 
 **CHECK (ключевые):**
 - `operation_type` ∈ (`act`, `advance`, `other`).
 - `payment_status` ∈ (`unpaid`, `partial`, `paid`, `overpaid`).
 - Для `act`: `act_number` не пустой.
 - Для `advance` / `other`: `act_number` IS NULL, `act_date` IS NULL, удержания = 0.
-- `period_to` ≥ `period_from` (если оба заданы).
+
+### Триггеры
+
+| Триггер | Назначение |
+|---------|------------|
+| `trg_settlement_operations_updated_at` | `updated_at = now()` |
+| `trg_settlement_payment_status` | Пересчёт `payment_status` из `paid_amount` и `total_to_pay` (eps = 0.005) |
 
 ### RLS
 
@@ -204,7 +224,6 @@ docs/settlements/
 
 ### Индексы
 
-По миграции:
 - `idx_settlement_operations_company` — `(company_id)`
 - `idx_settlement_operations_contract` — `(contract_id, invoice_date DESC)`
 - `idx_settlement_operations_status` — `(company_id, payment_status)`
@@ -212,7 +231,7 @@ docs/settlements/
 
 ### Edge Functions
 
-**Нет.** Модуль не использует Edge Functions (логика CRUD — клиент → PostgREST).
+**Нет.** Модуль не использует Edge Functions.
 
 ## 🧠 Бизнес-логика
 
@@ -226,62 +245,68 @@ docs/settlements/
 
 ### НДС
 
-Управление НДС осуществляется через круглую кнопку активности `НДС` и поле ввода процента (`GTTextField` с суффиксом `%`).
-По умолчанию предлагаются стандартные значения (22% или ставка из выбранного договора), но пользователь может ввести любой процент вручную.
+- **НДС в сумме** (`is_vat_included = true`): `база = сумма / (1 + ставка/100)`, `итого = сумма`.
+- **НДС сверху** (`is_vat_included = false`): `база = сумма`, `итого = сумма + НДС`.
+- В БД: `amount` = база; `total_to_pay` (generated) = `amount + vat_amount − удержания`.
 
-Режимы:
-- **НДС в сумме** (`is_vat_included = true`, по умолчанию) — введённая сумма включает НДС.
-  - `база = сумма / (1 + ставка/100)`, `НДС = сумма − база`, `итого = сумма`.
-- **НДС сверху** (`is_vat_included = false`) — введённая сумма без НДС, налог начисляется сверху.
-  - `база = сумма`, `НДС = сумма × ставка/100`, `итого = сумма + НДС`.
-- При выключенном НДС или ставке `0%`: `НДС = 0`, `база = сумма`, `итого = сумма`; блок НДС в UI скрыт.
+### Статусы оплаты (этап 1)
 
-В БД всегда хранится `amount` = база (без НДС); `total_to_pay` (generated) = `amount + vat_amount` = итого с НДС. `vat_rate` = числовое значение ставки (или `NULL` при отключенном НДС).
+Статус **не выбирается вручную** — рассчитывается из сумм:
 
-### Формулы
+| Статус | Условие |
+|--------|---------|
+| `unpaid` | `paid_amount ≤ 0` |
+| `partial` | `0 < paid_amount < total_to_pay` |
+| `paid` | `paid_amount ≈ total_to_pay` (или `total_to_pay = 0`) |
+| `overpaid` | `paid_amount > total_to_pay` |
 
 ```text
-итого (total_to_pay) = amount + vat_amount          (generated, не ниже 0)
+total_to_pay = GREATEST(0, amount + vat_amount − advance_retention − warranty_retention)
+остаток      = total_to_pay − paid_amount
+долг         = max(0, остаток)   // при eps = 0.005
 ```
+
+**Источники правды:**
+- Запись: SQL-триггер `sync_settlement_payment_status`
+- Чтение/UI: `resolvedPaymentStatus` → `computeSettlementPaymentStatus`
 
 ### Сценарии
 
-1. **Новый счёт:** выбрать объект/контрагент/договор → номер счёта подставится автоматически → выбрать тип → заполнить реквизиты → ввести сумму и ставку НДС → сохранить.
-2. **Редактирование:** открыть строку реестра → изменить поля → сохранить (номер счёта не пересчитывается).
-3. **Контроль по договору:** вкладка «Финансы» договора — список счетов и сводка «Сумма счетов».
+1. **Новый счёт:** объект/контрагент/договор → автономер → тип → сумма/НДС → (оплата) → сохранить.
+2. **Редактирование:** открыть строку → изменить → сохранить (скрытые поля БД сохраняются).
+3. **Контроль по договору:** вкладка «Финансы» — список + сводки.
+4. **Фильтрация:** по типу, статусу оплаты, текстовый поиск; сводки считаются по отфильтрованному списку.
 
 ## 🔌 Интеграции
 
 | Интеграция | Как |
 |------------|-----|
-| Договоры | FK `contract_id`; вкладка «Финансы» → `ContractSettlementsSection`; ставка и режим НДС наследуются из договора |
+| Договоры | FK `contract_id`; вкладка «Финансы»; наследование НДС из договора |
 | Объекты / Контрагенты | FK + dropdown в форме |
 | Роли | модуль `settlements` в матрице прав |
-| ДДС (`cash_flow`) | **нет связи** |
-| Акты КС-2 (`contract_acts`) | **нет связи**; старый блок не изменялся |
-| Storage / файлы счетов | **нет** |
+| ДДС (`cash_flow`) | **нет связи** (roadmap) |
+| Акты КС-2 (`contract_acts`) | **нет связи** |
+| Storage / файлы счетов | **нет** (roadmap) |
 
 ## 🗺 Roadmap
 
 ### Реализовано
-- ✅ Таблица + RLS + `app_modules` / seed прав с `contracts`
-- ✅ CRUD счетов (ручной ввод)
-- ✅ Реестр `/settlements` + фильтр по типу + flex-таблица
-- ✅ Форма счёта: логичный порядок полей, цветные стикеры типа, круглая кнопка включения НДС и текстовый ввод процента
-- ✅ НДС: гибкая ставка + режим «в сумме / сверху» + автосчёт базы/НДС/итога
-- ✅ Автономер счёта по договору с сохранением префикса
-- ✅ Вкладка «Финансы» в договоре
-- ✅ Аудит кода: удалён неиспользуемый UI-хелперы НДС/статуса оплаты
+- ✅ Таблица + RLS + RBAC
+- ✅ CRUD счетов, автономер, НДС
+- ✅ Реестр `/settlements` + вкладка «Финансы»
+- ✅ **Учёт оплат (этап 1):** статусы, поле «Оплачено», фильтр, сводки
+- ✅ Единая логика статуса (Dart + SQL-триггер)
+- ✅ Тесты `computeSettlementPaymentStatus`
+- ✅ Аудит: сохранение скрытых полей, синхронизация провайдеров, оптимистичный CRUD
 
 ### Планы
-- 🟡 Файлы PDF/скан к счёту
-- 🟡 Зачёт оплат (история частичных оплат отдельными записями)
+- 🟡 История частичных оплат (`settlement_payments`) — этап 2
 - 🟡 Привязка оплат к строкам ДДС
-- 🟡 Связка со старыми `contract_acts` (по решению продукта)
-- 🟢 Табличная часть счёта (позиции: №, наименование, кол-во, ед.изм., цена, сумма)
-- 🟢 Печать счёта в PDF (шапка с реквизитами, банк, QR, подписи)
+- 🟡 Файлы PDF/скан к счёту
+- 🟡 UI для удержаний, периода, назначения
+- 🟢 Табличная часть счёта, печать PDF
 
 ### Известные ограничения
-- Оплата счетов не отслеживается (поля `paid_amount` / `payment_status` зарезервированы в БД, в UI убраны).
-- Старый ручной «статус оплаты» в блоке «Акты» договора **не синхронизируется** с Settlements (параллельные контуры).
-- Автономер учитывает только числовые окончания; при смешанных форматах префикс берётся у счёта с максимальным номером.
+- Автономер: только последние 500 счетов по договору.
+- Фильтрация — на клиенте (при росте данных — серверные фильтры).
+- `contract_acts.payment_status` не связан с Settlements.

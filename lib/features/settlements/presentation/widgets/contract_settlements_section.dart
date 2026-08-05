@@ -5,8 +5,8 @@ import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/domain/entities/contract.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
-import 'package:projectgt/features/roles/presentation/widgets/permission_guard.dart';
 import 'package:projectgt/features/settlements/domain/entities/settlement_operation.dart';
+import 'package:projectgt/features/settlements/presentation/utils/settlement_actions.dart';
 import 'package:projectgt/features/settlements/presentation/state/settlement_state.dart';
 import 'package:projectgt/features/settlements/presentation/widgets/settlement_form_dialog.dart';
 import 'package:projectgt/features/settlements/presentation/widgets/settlements_operations_table.dart';
@@ -42,8 +42,17 @@ class ContractSettlementsSection extends ConsumerWidget {
                 runSpacing: 8,
                 children: [
                   _MiniStat(
-                    label: 'Сумма счетов',
+                    label: 'К оплате',
                     value: formatCurrency(state.totalAmount),
+                  ),
+                  _MiniStat(
+                    label: 'Оплачено',
+                    value: formatCurrency(state.totalPaid),
+                  ),
+                  _MiniStat(
+                    label: 'Долг',
+                    value: formatCurrency(state.totalDebt),
+                    emphasize: state.totalDebt > 0,
                   ),
                 ],
               ),
@@ -86,7 +95,7 @@ class ContractSettlementsSection extends ConsumerWidget {
           )
         else
           SizedBox(
-            height: (state.operations.length * 52.0 + 96)
+            height: (40 + state.operations.length * 44 + 44)
                 .clamp(200.0, 560.0)
                 .toDouble(),
             child: SettlementsOperationsTable(
@@ -109,33 +118,13 @@ class ContractSettlementsSection extends ConsumerWidget {
     WidgetRef ref,
     SettlementOperation op,
   ) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Удалить счёт?'),
-        content: Text('Счёт ${op.invoiceNumber} будет удалён.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Отмена'),
-          ),
-          PermissionGuard(
-            module: 'settlements',
-            permission: 'delete',
-            child: TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Удалить'),
-            ),
-          ),
-        ],
-      ),
-    );
+    final ok = await showSettlementDeleteConfirmDialog(context, op);
     if (ok != true || !context.mounted) return;
     final success = await ref
         .read(contractSettlementsProvider(contract.id).notifier)
         .delete(op.id);
     if (!context.mounted) return;
-    ref.read(settlementListProvider.notifier).load(quiet: true);
+    syncSettlementProviders(ref, contractId: contract.id);
     AppSnackBar.show(
       context: context,
       message: success ? 'Счёт удалён' : 'Не удалось удалить',
@@ -147,10 +136,12 @@ class ContractSettlementsSection extends ConsumerWidget {
 class _MiniStat extends StatelessWidget {
   final String label;
   final String value;
+  final bool emphasize;
 
   const _MiniStat({
     required this.label,
     required this.value,
+    this.emphasize = false,
   });
 
   @override
@@ -179,6 +170,7 @@ class _MiniStat extends StatelessWidget {
             value,
             style: theme.textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w700,
+              color: emphasize ? scheme.error : null,
             ),
           ),
         ],

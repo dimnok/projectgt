@@ -32,8 +32,20 @@ class SettlementsFiltersToolbar extends StatelessWidget {
   /// Колбэк типа.
   final ValueChanged<SettlementOperationType?> onTypeChanged;
 
+  /// Фильтр статуса оплаты.
+  final SettlementPaymentStatus? paymentStatusFilter;
+
+  /// Колбэк статуса оплаты.
+  final ValueChanged<SettlementPaymentStatus?> onPaymentStatusChanged;
+
   /// Сумма всех счетов.
   final double totalAmount;
+
+  /// Сумма оплат.
+  final double totalPaid;
+
+  /// Остаток долга.
+  final double totalDebt;
 
   /// Обновить список.
   final VoidCallback onRefresh;
@@ -48,7 +60,11 @@ class SettlementsFiltersToolbar extends StatelessWidget {
     required this.onSearchChanged,
     required this.typeFilter,
     required this.onTypeChanged,
+    required this.paymentStatusFilter,
+    required this.onPaymentStatusChanged,
     required this.totalAmount,
+    required this.totalPaid,
+    required this.totalDebt,
     required this.onRefresh,
     this.onCreate,
   });
@@ -80,6 +96,17 @@ class SettlementsFiltersToolbar extends StatelessWidget {
             onChanged: onTypeChanged,
             allLabel: 'Все типы',
           ),
+          const SizedBox(width: 8),
+          _SettlementsEnumFilterChip<SettlementPaymentStatus>(
+            label: paymentStatusFilter == null
+                ? 'Оплата'
+                : settlementPaymentStatusLabel(paymentStatusFilter!),
+            values: SettlementPaymentStatus.values,
+            selected: paymentStatusFilter,
+            itemLabel: settlementPaymentStatusLabel,
+            onChanged: onPaymentStatusChanged,
+            allLabel: 'Все статусы',
+          ),
           const Spacer(),
           const SizedBox(width: 12),
           Flexible(
@@ -90,9 +117,26 @@ class SettlementsFiltersToolbar extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _MetricPill(
-                    label: 'Сумма счетов',
+                    label: 'К оплате',
                     value: totalAmount,
                     tone: scheme.onSurface,
+                  ),
+                  const SizedBox(width: 8),
+                  _MetricPill(
+                    label: 'Оплачено',
+                    value: totalPaid,
+                    tone: settlementPaymentStatusColor(
+                      theme,
+                      SettlementPaymentStatus.paid,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _MetricPill(
+                    label: 'Долг',
+                    value: totalDebt,
+                    tone: totalDebt > 0
+                        ? scheme.error
+                        : scheme.onSurface.withValues(alpha: 0.55),
                   ),
                   const SizedBox(width: 8),
                   _IconCapsuleButton(
