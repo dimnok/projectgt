@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:projectgt/features/settlements/domain/entities/settlement_operation.dart';
 import 'package:projectgt/features/settlements/presentation/utils/settlement_ui_labels.dart';
+import 'package:projectgt/features/settlements/presentation/utils/settlements_filter_options.dart';
 
 /// Геометрия компактной панели фильтров взаиморасчётов (как Табель / ФОТ).
 abstract final class SettlementsToolbarMetrics {
@@ -37,8 +38,41 @@ class SettlementsFiltersToolbar extends StatelessWidget {
   /// Колбэк статуса оплаты.
   final ValueChanged<SettlementPaymentStatus?> onPaymentStatusChanged;
 
+  /// Опции фильтра по контрагенту.
+  final List<SettlementsFilterOption> contractorOptions;
+
+  /// Выбранный контрагент.
+  final String? contractorFilterId;
+
+  /// Колбэк контрагента.
+  final ValueChanged<String?> onContractorChanged;
+
+  /// Опции фильтра по объекту.
+  final List<SettlementsFilterOption> objectOptions;
+
+  /// Выбранный объект.
+  final String? objectFilterId;
+
+  /// Колбэк объекта.
+  final ValueChanged<String?> onObjectChanged;
+
+  /// Опции фильтра по договору.
+  final List<SettlementsFilterOption> contractOptions;
+
+  /// Выбранный договор.
+  final String? contractFilterId;
+
+  /// Колбэк договора.
+  final ValueChanged<String?> onContractChanged;
+
   /// Создать счёт (null — скрыть).
   final VoidCallback? onCreate;
+
+  /// Есть активные фильтры (для кнопки сброса).
+  final bool hasActiveFilters;
+
+  /// Сбросить все фильтры.
+  final VoidCallback? onResetFilters;
 
   /// Создаёт панель.
   const SettlementsFiltersToolbar({
@@ -49,8 +83,30 @@ class SettlementsFiltersToolbar extends StatelessWidget {
     required this.onTypeChanged,
     required this.paymentStatusFilter,
     required this.onPaymentStatusChanged,
+    required this.contractorOptions,
+    required this.contractorFilterId,
+    required this.onContractorChanged,
+    required this.objectOptions,
+    required this.objectFilterId,
+    required this.onObjectChanged,
+    required this.contractOptions,
+    required this.contractFilterId,
+    required this.onContractChanged,
+    required this.hasActiveFilters,
+    this.onResetFilters,
     this.onCreate,
   });
+
+  String _optionChipLabel({
+    required String placeholder,
+    required List<SettlementsFilterOption> options,
+    required String? selectedId,
+  }) {
+    final selectedLabel =
+        SettlementsFilterOptionsBuilder.labelForId(options, selectedId);
+    if (selectedLabel == null) return placeholder;
+    return _truncateChipLabel(selectedLabel);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,41 +114,97 @@ class SettlementsFiltersToolbar extends StatelessWidget {
       height: SettlementsToolbarMetrics.height,
       child: Row(
         children: [
-          SizedBox(
-            width: 200,
-            child: _SettlementsToolbarSearch(
-              initialValue: searchQuery,
-              onChanged: onSearchChanged,
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 200,
+                    child: _SettlementsToolbarSearch(
+                      initialValue: searchQuery,
+                      onChanged: onSearchChanged,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _SettlementsOptionFilterChip(
+                    label: _optionChipLabel(
+                      placeholder: 'Контрагент',
+                      options: contractorOptions,
+                      selectedId: contractorFilterId,
+                    ),
+                    options: contractorOptions,
+                    selectedId: contractorFilterId,
+                    onChanged: onContractorChanged,
+                    allLabel: 'Все контрагенты',
+                  ),
+                  const SizedBox(width: 8),
+                  _SettlementsOptionFilterChip(
+                    label: _optionChipLabel(
+                      placeholder: 'Объект',
+                      options: objectOptions,
+                      selectedId: objectFilterId,
+                    ),
+                    options: objectOptions,
+                    selectedId: objectFilterId,
+                    onChanged: onObjectChanged,
+                    allLabel: 'Все объекты',
+                  ),
+                  const SizedBox(width: 8),
+                  _SettlementsOptionFilterChip(
+                    label: _optionChipLabel(
+                      placeholder: 'Договор',
+                      options: contractOptions,
+                      selectedId: contractFilterId,
+                    ),
+                    options: contractOptions,
+                    selectedId: contractFilterId,
+                    onChanged: onContractChanged,
+                    allLabel: 'Все договоры',
+                  ),
+                  const SizedBox(width: 8),
+                  _SettlementsEnumFilterChip<SettlementOperationType>(
+                    label: typeFilter == null
+                        ? 'Тип'
+                        : settlementOperationTypeLabel(typeFilter!),
+                    values: SettlementOperationType.values,
+                    selected: typeFilter,
+                    itemLabel: settlementOperationTypeLabel,
+                    onChanged: onTypeChanged,
+                    allLabel: 'Все типы',
+                  ),
+                  const SizedBox(width: 8),
+                  _SettlementsEnumFilterChip<SettlementPaymentStatus>(
+                    label: paymentStatusFilter == null
+                        ? 'Оплата'
+                        : settlementPaymentStatusLabel(paymentStatusFilter!),
+                    values: SettlementPaymentStatus.values,
+                    selected: paymentStatusFilter,
+                    itemLabel: settlementPaymentStatusLabel,
+                    onChanged: onPaymentStatusChanged,
+                    allLabel: 'Все статусы',
+                  ),
+                  if (hasActiveFilters && onResetFilters != null) ...[
+                    const SizedBox(width: 8),
+                    _ResetFiltersCapsuleButton(onTap: onResetFilters!),
+                  ],
+                ],
+              ),
             ),
           ),
-          const SizedBox(width: 8),
-          _SettlementsEnumFilterChip<SettlementOperationType>(
-            label: typeFilter == null
-                ? 'Тип'
-                : settlementOperationTypeLabel(typeFilter!),
-            values: SettlementOperationType.values,
-            selected: typeFilter,
-            itemLabel: settlementOperationTypeLabel,
-            onChanged: onTypeChanged,
-            allLabel: 'Все типы',
-          ),
-          const SizedBox(width: 8),
-          _SettlementsEnumFilterChip<SettlementPaymentStatus>(
-            label: paymentStatusFilter == null
-                ? 'Оплата'
-                : settlementPaymentStatusLabel(paymentStatusFilter!),
-            values: SettlementPaymentStatus.values,
-            selected: paymentStatusFilter,
-            itemLabel: settlementPaymentStatusLabel,
-            onChanged: onPaymentStatusChanged,
-            allLabel: 'Все статусы',
-          ),
-          const Spacer(),
-          if (onCreate != null) _CreateCapsuleButton(onTap: onCreate!),
+          if (onCreate != null) ...[
+            const SizedBox(width: 8),
+            _CreateCapsuleButton(onTap: onCreate!),
+          ],
         ],
       ),
     );
   }
+}
+
+String _truncateChipLabel(String value, {int maxLength = 22}) {
+  if (value.length <= maxLength) return value;
+  return '${value.substring(0, maxLength - 1)}…';
 }
 
 class _SettlementsToolbarSearch extends StatefulWidget {
@@ -216,6 +328,88 @@ class _SettlementsToolbarSearchState extends State<_SettlementsToolbarSearch> {
   }
 }
 
+class _SettlementsOptionFilterChip extends StatelessWidget {
+  final String label;
+  final List<SettlementsFilterOption> options;
+  final String? selectedId;
+  final ValueChanged<String?> onChanged;
+  final String allLabel;
+
+  const _SettlementsOptionFilterChip({
+    required this.label,
+    required this.options,
+    required this.selectedId,
+    required this.onChanged,
+    required this.allLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final active = selectedId != null;
+
+    return PopupMenuButton<String?>(
+      tooltip: label,
+      constraints: const BoxConstraints(maxHeight: 320),
+      onSelected: onChanged,
+      itemBuilder: (context) => [
+        PopupMenuItem<String?>(
+          onTap: () => onChanged(null),
+          child: Text(allLabel),
+        ),
+        ...options.map(
+          (option) => PopupMenuItem<String?>(
+            value: option.id,
+            child: Text(
+              option.label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+      ],
+      child: Container(
+        height: SettlementsToolbarMetrics.height,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          borderRadius:
+              BorderRadius.circular(SettlementsToolbarMetrics.radius),
+          border: Border.all(
+            color: active
+                ? scheme.primary.withValues(alpha: 0.62)
+                : _barBorder(scheme),
+          ),
+          color: active
+              ? scheme.primary.withValues(alpha: 0.14)
+              : _barFill(scheme),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: theme.textTheme.labelLarge?.copyWith(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: active ? scheme.primary : scheme.onSurface,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              Icons.expand_more_rounded,
+              size: 18,
+              color: active
+                  ? scheme.primary
+                  : scheme.onSurface.withValues(alpha: 0.55),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _SettlementsEnumFilterChip<T extends Enum> extends StatelessWidget {
   final String label;
   final List<T> values;
@@ -244,7 +438,7 @@ class _SettlementsEnumFilterChip<T extends Enum> extends StatelessWidget {
       onSelected: onChanged,
       itemBuilder: (context) => [
         PopupMenuItem<T?>(
-          value: null,
+          onTap: () => onChanged(null),
           child: Text(allLabel),
         ),
         ...values.map(
@@ -289,6 +483,58 @@ class _SettlementsEnumFilterChip<T extends Enum> extends StatelessWidget {
                   : scheme.onSurface.withValues(alpha: 0.55),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ResetFiltersCapsuleButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _ResetFiltersCapsuleButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Tooltip(
+      message: 'Сбросить фильтры',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius:
+              BorderRadius.circular(SettlementsToolbarMetrics.radius),
+          onTap: onTap,
+          child: Container(
+            height: SettlementsToolbarMetrics.height,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              borderRadius:
+                  BorderRadius.circular(SettlementsToolbarMetrics.radius),
+              border: Border.all(color: _barBorder(scheme)),
+              color: _barFill(scheme),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.filter_alt_off_outlined,
+                  size: 18,
+                  color: scheme.onSurface.withValues(alpha: 0.72),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Сбросить',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: scheme.onSurface.withValues(alpha: 0.85),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

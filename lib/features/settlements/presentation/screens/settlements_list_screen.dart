@@ -10,6 +10,7 @@ import 'package:projectgt/features/employees/presentation/utils/employees_layout
 import 'package:projectgt/features/roles/application/permission_service.dart';
 import 'package:projectgt/features/settlements/domain/entities/settlement_operation.dart';
 import 'package:projectgt/features/settlements/presentation/state/settlement_state.dart';
+import 'package:projectgt/features/settlements/presentation/utils/settlements_list_filters.dart';
 import 'package:projectgt/features/settlements/presentation/widgets/settlement_details_dialog.dart';
 import 'package:projectgt/features/settlements/presentation/widgets/settlement_form_dialog.dart';
 import 'package:projectgt/features/settlements/presentation/widgets/settlements_filters_toolbar.dart';
@@ -30,42 +31,37 @@ class SettlementsListScreen extends ConsumerStatefulWidget {
 }
 
 class _SettlementsListScreenState extends ConsumerState<SettlementsListScreen> {
-  SettlementOperationType? _typeFilter;
-  SettlementPaymentStatus? _paymentStatusFilter;
-  String _search = '';
+  SettlementsListFilters _filters = const SettlementsListFilters();
 
   static const _screenTitle = 'Взаиморасчёты';
 
-  List<SettlementOperation> _filter(List<SettlementOperation> ops) {
-    return ops.where((op) {
-      if (_typeFilter != null && op.operationType != _typeFilter) {
-        return false;
-      }
-      if (_paymentStatusFilter != null &&
-          op.resolvedPaymentStatus != _paymentStatusFilter) {
-        return false;
-      }
-      if (_search.trim().isEmpty) return true;
-      final q = _search.trim().toLowerCase();
-      return op.invoiceNumber.toLowerCase().contains(q) ||
-          (op.actNumber?.toLowerCase().contains(q) ?? false) ||
-          (op.contractNumber?.toLowerCase().contains(q) ?? false) ||
-          (op.contractorName?.toLowerCase().contains(q) ?? false) ||
-          (op.objectName?.toLowerCase().contains(q) ?? false);
-    }).toList();
+  void _resetFilters() {
+    setState(() => _filters = _filters.cleared());
   }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(settlementListProvider);
-    final filtered = _filter(state.operations);
+    final operations = state.operations;
+    final syncedFilters = _filters.syncedWith(operations);
+    if (syncedFilters != _filters) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _filters = syncedFilters);
+      });
+    }
+
+    final contractorOptions = syncedFilters.contractorOptions(operations);
+    final objectOptions = syncedFilters.objectOptions(operations);
+    final contractOptions = syncedFilters.contractOptions(operations);
+    final filtered = syncedFilters.apply(operations);
     final appearance = MobileAtmosphereAppearance.of(context);
     final scheme = appearance.scheme;
     final isDark = appearance.isDark;
     final useMobileList = EmployeesLayoutUtils.useEmployeesMobileList(context);
     final theme = Theme.of(context);
-    final canCreate =
-        ref.watch(permissionServiceProvider).can('settlements', 'create');
+    final canCreate = ref
+        .watch(permissionServiceProvider)
+        .can('settlements', 'create');
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
@@ -73,12 +69,14 @@ class _SettlementsListScreenState extends ConsumerState<SettlementsListScreen> {
         statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
         systemNavigationBarColor: appearance.atmosphereBase,
         systemNavigationBarDividerColor: Colors.transparent,
-        systemNavigationBarIconBrightness:
-            isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarIconBrightness: isDark
+            ? Brightness.light
+            : Brightness.dark,
       ),
       child: Scaffold(
-        backgroundColor:
-            isDark ? appearance.atmosphereBase : Colors.transparent,
+        backgroundColor: isDark
+            ? appearance.atmosphereBase
+            : Colors.transparent,
         drawer: const AppDrawer(activeRoute: AppRoute.settlements),
         body: Stack(
           fit: StackFit.expand,
@@ -175,15 +173,52 @@ class _SettlementsListScreenState extends ConsumerState<SettlementsListScreen> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             SettlementsFiltersToolbar(
-                              searchQuery: _search,
-                              onSearchChanged: (v) =>
-                                  setState(() => _search = v),
-                              typeFilter: _typeFilter,
-                              onTypeChanged: (v) =>
-                                  setState(() => _typeFilter = v),
-                              paymentStatusFilter: _paymentStatusFilter,
-                              onPaymentStatusChanged: (v) =>
-                                  setState(() => _paymentStatusFilter = v),
+                              searchQuery: syncedFilters.search,
+                              onSearchChanged: (v) => setState(
+                                () => _filters = syncedFilters.copyWith(
+                                  search: v,
+                                ),
+                              ),
+                              typeFilter: syncedFilters.operationType,
+                              onTypeChanged: (v) => setState(
+                                () => _filters = syncedFilters.copyWith(
+                                  operationType: v,
+                                  clearOperationType: v == null,
+                                ),
+                              ),
+                              paymentStatusFilter: syncedFilters.paymentStatus,
+                              onPaymentStatusChanged: (v) => setState(
+                                () => _filters = syncedFilters.copyWith(
+                                  paymentStatus: v,
+                                  clearPaymentStatus: v == null,
+                                ),
+                              ),
+                              contractorOptions: contractorOptions,
+                              contractorFilterId: syncedFilters.contractorId,
+                              onContractorChanged: (v) => setState(
+                                () => _filters = syncedFilters.withContractor(
+                                  v,
+                                  operations,
+                                ),
+                              ),
+                              objectOptions: objectOptions,
+                              objectFilterId: syncedFilters.objectId,
+                              onObjectChanged: (v) => setState(
+                                () => _filters = syncedFilters.withObject(
+                                  v,
+                                  operations,
+                                ),
+                              ),
+                              contractOptions: contractOptions,
+                              contractFilterId: syncedFilters.contractId,
+                              onContractChanged: (v) => setState(
+                                () => _filters = syncedFilters.withContract(
+                                  v,
+                                  operations,
+                                ),
+                              ),
+                              hasActiveFilters: syncedFilters.hasActive,
+                              onResetFilters: _resetFilters,
                               onCreate: canCreate
                                   ? () => SettlementFormDialog.show(context)
                                   : null,
