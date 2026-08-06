@@ -2,6 +2,7 @@
 
 **Дата актуализации:** 6 августа 2026 года  
 **Изменения:**
+- Таблица реестра (`SettlementsOperationsTable`) приведена к стилю Cash Flow: карточка с рамкой, разделители строк, `Scrollbar`, компактная типографика; ячейки `_ColumnCell` с отступами и ограничением ширины (исправлено наезжание «К оплате» на «Статус»).
 - Упрощена панель реестра: убраны дублирующие сводки «К оплате / Оплачено / Долг» и кнопка «Обновить» (итоги — в подвале таблицы; список обновляется при открытии и после CRUD).
 - **Интеграция с ДДС:** оплата из банковской выписки создаёт `settlement_payment` с привязкой `cash_flow_transaction_id`.
 - Колонка `cash_flow_transaction_id` в `settlement_payments` + уникальный индекс (1 транзакция ДДС = 1 оплата).
@@ -58,7 +59,7 @@
 | Виджет | Назначение |
 |--------|------------|
 | `SettlementsFiltersToolbar` | Поиск, фильтр типа, фильтр оплаты, «Новый» |
-| `SettlementsOperationsTable` | Flex-таблица: дата, тип, счёт, акт, договор, контрагент, объект, **к оплате**, **статус**, **оплачено**, **остаток**; подвал с итогами по отфильтрованным строкам |
+| `SettlementsOperationsTable` | Flex-таблица в стиле Cash Flow (`CashFlowTransactionsTable`): карточка `surface` + `borderRadius: 12`, заголовок/подвал на фоне `onSurface` 3%, строки через `ListView.separated` + `Divider`, `Scrollbar`. Колонки: дата, тип, счёт, акт, договор, контрагент, объект, **к оплате**, **статус**, **оплачено**, **остаток**; подвал «ИТОГО» по отфильтрованным строкам. Параметр `compact` — урезанный набор колонок для вкладки «Финансы» в договоре |
 | `SettlementDetailsDialog` | Детали счёта (ширина 960 на desktop): реквизиты, сводка, таблица оплат, редактирование/удаление |
 | `SettlementFormDialog` | Создание/редактирование реквизитов счёта (ширина 920 на desktop) |
 | `SettlementPaymentFormDialog` | Добавление/редактирование одной оплаты |
@@ -107,6 +108,7 @@
 
 ### Design System
 - Шапка: `MobileAtmosphereBackdrop`, `MobileAtmosphereMainSurface`, `MobileAtmosphereChromeCircleButton`
+- Таблица реестра: визуальный эталон — `CashFlowTransactionsTable` / `BankStatementTable` (рамка, разделители, компактные отступы 16×6, шрифт данных 12px, заголовок 11px bold)
 - Диалоги: `DesktopDialogContent` / `MobileBottomSheetContent`, `GTTextField`, `GTDropdown`, `GTButtons`, `GTConfirmationDialog`
 - Форматтеры: `formatCurrency`, `formatRuDate`, `parseAmount`, `amountFormatter` из `lib/core/utils/formatters.dart`
 - Права: `permissionServiceProvider` / `PermissionGuard(module: 'settlements', ...)`
@@ -327,6 +329,7 @@ docs/settlements/
 ## 🗺 Roadmap
 
 ### Реализовано
+- ✅ Таблица реестра в стиле Cash Flow (desktop) + подвал с итогами
 - ✅ Таблица счетов + RLS + RBAC
 - ✅ CRUD счетов, автономер, НДС
 - ✅ Реестр `/settlements` + вкладка «Финансы»
