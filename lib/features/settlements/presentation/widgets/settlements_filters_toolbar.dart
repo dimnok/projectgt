@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/features/settlements/domain/entities/settlement_operation.dart';
 import 'package:projectgt/features/settlements/presentation/utils/settlement_ui_labels.dart';
 
@@ -18,7 +17,7 @@ Color _barBorder(ColorScheme scheme) =>
 Color _barFill(ColorScheme scheme) =>
     scheme.surfaceContainerHighest.withValues(alpha: 0.45);
 
-/// Компактная панель: поиск, тип, сводка суммы, действия.
+/// Компактная панель: поиск, тип, действия.
 class SettlementsFiltersToolbar extends StatelessWidget {
   /// Текст поиска.
   final String searchQuery;
@@ -38,18 +37,6 @@ class SettlementsFiltersToolbar extends StatelessWidget {
   /// Колбэк статуса оплаты.
   final ValueChanged<SettlementPaymentStatus?> onPaymentStatusChanged;
 
-  /// Сумма всех счетов.
-  final double totalAmount;
-
-  /// Сумма оплат.
-  final double totalPaid;
-
-  /// Остаток долга.
-  final double totalDebt;
-
-  /// Обновить список.
-  final VoidCallback onRefresh;
-
   /// Создать счёт (null — скрыть).
   final VoidCallback? onCreate;
 
@@ -62,18 +49,11 @@ class SettlementsFiltersToolbar extends StatelessWidget {
     required this.onTypeChanged,
     required this.paymentStatusFilter,
     required this.onPaymentStatusChanged,
-    required this.totalAmount,
-    required this.totalPaid,
-    required this.totalDebt,
-    required this.onRefresh,
     this.onCreate,
   });
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-
     return SizedBox(
       height: SettlementsToolbarMetrics.height,
       child: Row(
@@ -108,50 +88,7 @@ class SettlementsFiltersToolbar extends StatelessWidget {
             allLabel: 'Все статусы',
           ),
           const Spacer(),
-          const SizedBox(width: 12),
-          Flexible(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              reverse: true,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _MetricPill(
-                    label: 'К оплате',
-                    value: totalAmount,
-                    tone: scheme.onSurface,
-                  ),
-                  const SizedBox(width: 8),
-                  _MetricPill(
-                    label: 'Оплачено',
-                    value: totalPaid,
-                    tone: settlementPaymentStatusColor(
-                      theme,
-                      SettlementPaymentStatus.paid,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  _MetricPill(
-                    label: 'Долг',
-                    value: totalDebt,
-                    tone: totalDebt > 0
-                        ? scheme.error
-                        : scheme.onSurface.withValues(alpha: 0.55),
-                  ),
-                  const SizedBox(width: 8),
-                  _IconCapsuleButton(
-                    tooltip: 'Обновить',
-                    icon: Icons.refresh_rounded,
-                    onTap: onRefresh,
-                  ),
-                  if (onCreate != null) ...[
-                    const SizedBox(width: 6),
-                    _CreateCapsuleButton(onTap: onCreate!),
-                  ],
-                ],
-              ),
-            ),
-          ),
+          if (onCreate != null) _CreateCapsuleButton(onTap: onCreate!),
         ],
       ),
     );
@@ -352,98 +289,6 @@ class _SettlementsEnumFilterChip<T extends Enum> extends StatelessWidget {
                   : scheme.onSurface.withValues(alpha: 0.55),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MetricPill extends StatelessWidget {
-  final String label;
-  final double value;
-  final Color tone;
-
-  const _MetricPill({
-    required this.label,
-    required this.value,
-    required this.tone,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final money = formatCurrency(value);
-
-    return Container(
-      height: SettlementsToolbarMetrics.height,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      decoration: BoxDecoration(
-        borderRadius:
-            BorderRadius.circular(SettlementsToolbarMetrics.radius),
-        border: Border.all(color: _barBorder(scheme)),
-        color: _barFill(scheme),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            '$label ',
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: scheme.onSurface.withValues(alpha: 0.55),
-            ),
-          ),
-          Text(
-            money,
-            style: theme.textTheme.labelLarge?.copyWith(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: tone,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _IconCapsuleButton extends StatelessWidget {
-  final String tooltip;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _IconCapsuleButton({
-    required this.tooltip,
-    required this.icon,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius:
-              BorderRadius.circular(SettlementsToolbarMetrics.radius),
-          onTap: onTap,
-          child: Container(
-            width: SettlementsToolbarMetrics.height,
-            height: SettlementsToolbarMetrics.height,
-            decoration: BoxDecoration(
-              borderRadius:
-                  BorderRadius.circular(SettlementsToolbarMetrics.radius),
-              border: Border.all(color: _barBorder(scheme)),
-              color: _barFill(scheme),
-            ),
-            child: Icon(
-              icon,
-              size: 18,
-              color: scheme.onSurface.withValues(alpha: 0.75),
-            ),
-          ),
         ),
       ),
     );

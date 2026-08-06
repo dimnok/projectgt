@@ -184,12 +184,6 @@ class _SettlementsListScreenState extends ConsumerState<SettlementsListScreen> {
                               paymentStatusFilter: _paymentStatusFilter,
                               onPaymentStatusChanged: (v) =>
                                   setState(() => _paymentStatusFilter = v),
-                              totalAmount: filtered.totalAmount,
-                              totalPaid: filtered.totalPaid,
-                              totalDebt: filtered.totalDebt,
-                              onRefresh: () => ref
-                                  .read(settlementListProvider.notifier)
-                                  .load(),
                               onCreate: canCreate
                                   ? () => SettlementFormDialog.show(context)
                                   : null,
