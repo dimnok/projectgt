@@ -2,6 +2,7 @@
 
 **Дата актуализации:** 9 августа 2026  
 **Изменения:**
+- **Файлы счетов:** таблица `settlement_files`, bucket `settlement_files` (Storage); прикрепление PDF/сканов в деталях счёта (`SettlementFilesSection`); загрузка/скачивание/удаление; очистка Storage при удалении счёта.
 - **Мобильные детали счёта:** `SettlementDetailsDialog` — адаптивная вёрстка в bottom sheet: сводка 2×2, реквизиты столбцом, оплаты карточками (`_PaymentsMobileList`); десктопный диалог и таблица оплат без изменений.
 - **Мобильный реестр:** отдельный UI карточками (`SettlementOperationCard`, `SettlementsOperationsMobileView`); поиск в шапке; десктопная таблица и фильтры без изменений.
 - Добавлен геттер `invoiceTotal` (`amount + vatAmount`) для отображения суммы счёта на мобильных карточках.
@@ -15,7 +16,7 @@
 
 ## ⚠️ Важное замечание
 
-- **Owner-таблицы:** `settlement_operations`, `settlement_payments`.
+- **Owner-таблицы:** `settlement_operations`, `settlement_payments`, `settlement_files`.
 - **Изоляция:** `company_id` + RLS (`get_my_company_ids()`, `check_permission(..., 'settlements', ...)`).
 - **RBAC:** модуль `settlements` в `app_modules` (`sort_order = 92`).
 - `paid_amount` и `payment_status` **не пишутся клиентом** — пересчитываются триггерами из `settlement_payments`.
@@ -30,6 +31,7 @@
 - CRUD счетов и ручных оплат; автоподсказка номера счёта по договору.
 - НДС: ставка, режим «в сумме» / «сверху».
 - Оплаты из банковской выписки (модуль ДДС).
+- **Вложения к счёту:** несколько файлов (PDF, DOC/XLS, JPG/PNG) в деталях счёта; Storage bucket `settlement_files`.
 - Реестр компании + вкладка «Финансы» в карточке договора.
 - Фильтры и поиск в реестре (клиентская фильтрация загруженного списка).
 - **Мобильный реестр:** список карточек с поиском в шапке; расширенные фильтры — только на десктопе (планируется на мобильном).
@@ -39,8 +41,9 @@
 
 | Роль | Сущности |
 |------|----------|
-| Owner | `settlement_operations`, `settlement_payments` |
+| Owner | `settlement_operations`, `settlement_payments`, `settlement_files` |
 | Usage | `contracts`, `contractors`, `objects`, `companies`, `cash_flow` |
+| Storage | bucket `settlement_files` (приватный) |
 | RBAC | `app_modules`, `role_permissions` |
 | Не связан | `contract_acts`, Edge `ks2_operations` |
 
@@ -63,10 +66,10 @@
 
 **Адаптивность деталей счёта:** порог — `ResponsiveUtils.isDesktop` (`width >= desktopBreakpoint`). Показ через `showAdaptiveModal`: десктоп — диалог 960px; мобильный/планшет — bottom sheet.
 
-| Режим | Обёртка | Сводка | Реквизиты | Оплаты |
-|-------|---------|--------|-----------|--------|
-| Мобильный | `MobileBottomSheetContent` | Сетка 2×2 (к оплате / оплачено / остаток / статус) | Подпись сверху, значение снизу | Карточки с датой, суммой, примечанием |
-| Десктоп | `DesktopDialogContent` | Горизонтальная полоса 4 колонки | Строка: подпись 140px + значение | Таблица `_PaymentsTable` |
+| Режим | Обёртка | Сводка | Реквизиты | Документы | Оплаты |
+|-------|---------|--------|-----------|-----------|--------|
+| Мобильный | `MobileBottomSheetContent` | Сетка 2×2 (к оплате / оплачено / остаток / статус) | Подпись сверху, значение снизу | Карточки файлов | Карточки с датой, суммой, примечанием |
+| Десктоп | `DesktopDialogContent` | Горизонтальная полоса 4 колонки | Строка: подпись 140px + значение | Список в рамке | Таблица `_PaymentsTable` |
 
 ### Виджеты
 
@@ -80,7 +83,8 @@
 | `SettlementsOperationsMobileView` | Мобильный список карточек + итоговая панель (к оплате / оплачено / остаток) |
 | `SettlementOperationCard` | Карточка счёта: номер, дата, контрагент, объект, тип, сумма (`invoiceTotal`), статус оплаты |
 | `SettlementsMobileSearchField` | Компактный поиск в шапке мобильного реестра (`GTTextField`) |
-| `SettlementDetailsDialog` | Детали счёта: сводка, реквизиты, оплаты, редактирование/удаление. Десктоп — `DesktopDialogContent` + таблица оплат; мобильный — `MobileBottomSheetContent` (`scrollable: true`), сводка 2×2, реквизиты столбцом, оплаты карточками (`_PaymentsMobileList`) |
+| `SettlementDetailsDialog` | Детали счёта: сводка, реквизиты, документы, оплаты, редактирование/удаление |
+| `SettlementFilesSection` | Блок «Документы»: список вложений, прикрепить / скачать / удалить |
 | `SettlementFormDialog` | Создание/редактирование реквизитов счёта |
 | `SettlementPaymentFormDialog` | Ручная оплата по счёту |
 
@@ -95,6 +99,17 @@
 | `moneyInputFormatters()` | `core/utils/formatters.dart` | Готовый список форматтеров для ввода сумм |
 | `dateOnlyToJson(DateTime?)` | `core/utils/formatters.dart` | Сериализация дат в `yyyy-MM-dd` для JSON-моделей Supabase |
 | `formatAmount(num)` | `core/utils/formatters.dart` | Форматирование сумм (замена локальных `_fmtAmount`) |
+| `saveFileBytesToUserDevice(...)` | `core/utils/attachment_file_save.dart` | Сохранение скачанного файла на устройство |
+
+### Файлы счёта (upload / download)
+
+| Хелпер | Файл | Назначение |
+|--------|------|------------|
+| `openSettlementFileUploadFlow(...)` | `settlement_file_upload_flow.dart` | Выбор файла, диалог имени/описания, загрузка в Storage |
+| `downloadSettlementFileForUser(...)` | `settlement_file_download_flow.dart` | Скачивание из Storage + сохранение пользователю |
+
+Форматы: `pdf`, `doc`, `docx`, `xls`, `xlsx`, `jpg`, `jpeg`, `png`.  
+Прикрепление — только после создания счёта (нужен `operation.id`). Права: просмотр/скачивание — `read`; загрузка/удаление — `update`.
 
 ### Провайдеры
 
@@ -104,6 +119,9 @@
 | `settlementListProvider` | Все счета компании |
 | `contractSettlementsProvider(contractId)` | Счета по договору |
 | `settlementPaymentsProvider(operationId)` | Оплаты по счёту (autoDispose) |
+| `settlementFileRepositoryProvider` | DI репозитория файлов |
+| `settlementFilesProvider(operationId)` | Файлы по счёту (autoDispose) |
+| `settlementFileDownloadingIdsProvider(operationId)` | Индикация скачивания |
 
 ### Синхронизация состояния
 
@@ -132,7 +150,7 @@ UI фильтров — `MenuAnchor` (как в модуле «Табель»): 
 
 ### Сущности
 
-- `SettlementOperation` — счёт; `SettlementPayment` — оплата.
+- `SettlementOperation` — счёт; `SettlementPayment` — оплата; `SettlementFile` — вложение.
 - `SettlementOperationType`: `act` \| `advance` \| `other`.
 - `SettlementPaymentStatus`: `unpaid` \| `partial` \| `paid` \| `overpaid`.
 - Статус в UI: только `resolvedPaymentStatus` → `computeSettlementPaymentStatus` (eps = 0.005).
@@ -171,6 +189,19 @@ UI фильтров — `MenuAnchor` (как в модуле «Табель»): 
 `cash_flow_transaction_id` не пишется клиентом.  
 Сериализация дат (`period_from`, `period_to`, `act_date`, `invoice_date`, `payment_date`) — через общий `dateOnlyToJson` из `core/utils/formatters.dart`.
 
+### Репозиторий файлов (`SettlementFileRepositoryImpl`)
+
+| Метод | Описание |
+|-------|----------|
+| `getFiles(operationId)` | Список вложений по счёту |
+| `uploadFile(...)` | Upload в Storage + insert в `settlement_files` |
+| `deleteFile(fileId, filePath)` | Удаление метаданных и объекта Storage |
+| `deleteAllForOperation(operationId)` | Удаление всех вложений счёта (перед удалением счёта) |
+| `downloadFile(filePath)` | Байты из Storage |
+
+Путь в Storage: `{company_id}/{operation_id}/{timestamp}_{safe_name}`.  
+Оригинальное имя (кириллица) — в колонке `name`; в пути — ASCII-safe.
+
 ## 📂 Дерево файлов
 
 ```
@@ -178,25 +209,37 @@ lib/features/settlements/
 ├── domain/
 │   ├── entities/
 │   │   ├── settlement_operation.dart
-│   │   └── settlement_payment.dart
-│   ├── repositories/settlement_repository.dart
+│   │   ├── settlement_payment.dart
+│   │   └── settlement_file.dart
+│   ├── repositories/
+│   │   ├── settlement_repository.dart
+│   │   └── settlement_file_repository.dart
 │   └── utils/invoice_number_sequence.dart
 ├── data/
+│   ├── datasources/settlement_file_data_source.dart
 │   ├── models/
 │   │   ├── settlement_operation_model.dart
-│   │   └── settlement_payment_model.dart
-│   └── repositories/settlement_repository_impl.dart
+│   │   ├── settlement_payment_model.dart
+│   │   └── settlement_file_model.dart
+│   └── repositories/
+│       ├── settlement_repository_impl.dart
+│       └── settlement_file_repository_impl.dart
 └── presentation/
     ├── screens/settlements_list_screen.dart
-    ├── state/settlement_state.dart
+    ├── state/
+    │   ├── settlement_state.dart
+    │   └── settlement_files_state.dart
     ├── utils/
     │   ├── settlement_actions.dart
+    │   ├── settlement_file_download_flow.dart
+    │   ├── settlement_file_upload_flow.dart
     │   ├── settlement_ui_labels.dart
     │   ├── settlements_filter_options.dart
     │   └── settlements_list_filters.dart
     └── widgets/
         ├── contract_settlements_section.dart
         ├── settlement_details_dialog.dart
+        ├── settlement_files_section.dart
         ├── settlement_form_dialog.dart
         ├── settlement_payment_form_dialog.dart
         ├── settlements_extra_filters_dropdown.dart
@@ -215,7 +258,26 @@ test/features/settlements/
 
 ## 🗄️ База данных (Audit)
 
-**RLS:** ✅ на `settlement_operations` и `settlement_payments`.
+**RLS:** ✅ на `settlement_operations`, `settlement_payments` и `settlement_files`.
+
+### `settlement_files`
+
+| Колонка | Тип | Примечание |
+|---------|-----|------------|
+| `id` | UUID | PK |
+| `company_id` | UUID | FK → `companies` |
+| `settlement_operation_id` | UUID | FK → `settlement_operations`, ON DELETE CASCADE |
+| `name` | TEXT | Отображаемое имя |
+| `file_path` | TEXT | Путь в bucket `settlement_files` |
+| `size` | BIGINT | Размер в байтах |
+| `type` | TEXT | MIME-тип |
+| `description` | TEXT | Необязательное описание |
+| `created_at` | TIMESTAMPTZ | |
+| `created_by` | UUID | FK → `auth.users` |
+
+**Индексы:** `(settlement_operation_id, created_at DESC)`, `(company_id)`.
+
+**Storage:** приватный bucket `settlement_files`; путь `{company_id}/{operation_id}/{timestamp}_{safe_name}`; RLS по `company_id` + `check_permission(..., 'settlements', ...)`.
 
 ### `settlement_operations`
 
@@ -270,6 +332,7 @@ test/features/settlements/
 |---------|--------|--------|--------|--------|
 | `settlement_operations` | read | create | update | delete |
 | `settlement_payments` | read | update | update | update |
+| `settlement_files` | read | update | — | update |
 
 ### Edge Functions
 
@@ -303,7 +366,8 @@ total_to_pay = max(0, amount + vat_amount - advance_retention - warranty_retenti
 1. **Новый счёт** → форма → `syncSettlementProviders`.
 2. **Детали** → тап по строке/карточке; при открытии — `getOperation` + загрузка оплат; UI адаптируется под ширину экрана.
 3. **Оплата** → вручную в деталях или из выписки ДДС.
-4. **Удаление счёта** → только из деталей; каскадно удаляет оплаты.
+4. **Документы** → в деталях счёта: прикрепить / скачать / удалить файл.
+5. **Удаление счёта** → только из деталей; каскадно удаляет оплаты; файлы удаляются из Storage через `deleteAllForOperation` до удаления счёта.
 
 ### Оплаты из выписки (ДДС)
 
@@ -317,6 +381,7 @@ total_to_pay = max(0, amount + vat_amount - advance_retention - warranty_retenti
 |--------|-------|
 | Договоры | FK, вкладка «Финансы», наследование НДС |
 | ДДС | `cash_flow_transaction_id`, RPC при обработке выписки |
+| Storage | bucket `settlement_files` для вложений счетов |
 | Роли | `settlements` в матрице прав |
 | Акты КС-2 | Нет связи |
 
@@ -328,6 +393,7 @@ total_to_pay = max(0, amount + vat_amount - advance_retention - warranty_retenti
 - Реестр, фильтры, вкладка «Финансы»
 - **Мобильный реестр:** карточки, поиск в шапке, итоги внизу экрана
 - **Мобильные детали счёта:** bottom sheet, сводка 2×2, реквизиты столбцом, оплаты карточками
+- **Файлы счетов:** `settlement_files` + Storage, UI в деталях счёта
 - Статусы оплаты (Dart + SQL)
 - Интеграция с ДДС
 - Оптимизированная синхронизация провайдеров
@@ -341,10 +407,11 @@ total_to_pay = max(0, amount + vat_amount - advance_retention - warranty_retenti
 - 🟡 Серверные фильтры и пагинация реестра (эталон — Cash Flow)
 - 🟡 UNIQUE на `(company_id, contract_id, invoice_number)` + обработка конфликта
 - 🟡 UI для удержаний, периода, назначения
-- 🟢 PDF/сканы к счёту
+- 🟢 Иконка «есть вложения» в реестре счетов; превью PDF
 
 ### Известные ограничения
 
+- Файлы прикрепляются только после создания счёта (нужен `id` операции).
 - Реестр загружает все счета компании; фильтрация на клиенте; лимит PostgREST ~1000 строк.
 - Дубликаты номеров счёта при одновременном создании не блокируются.
 - `contract_acts.payment_status` не связан с Settlements.

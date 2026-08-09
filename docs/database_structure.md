@@ -733,6 +733,34 @@
 
 ---
 
+## Таблица `settlement_files`
+
+**Описание:**
+Вложения к счетам взаиморасчётов (PDF, сканы, документы). Метаданные в PostgreSQL, файлы — в Storage bucket `settlement_files`. Подробнее: [`settlements/settlements_module.md`](settlements/settlements_module.md).
+
+**Структура:**
+- id: UUID, PK
+- company_id: UUID, FK → `companies.id` ON DELETE CASCADE
+- settlement_operation_id: UUID, FK → `settlement_operations.id` ON DELETE CASCADE
+- name: TEXT — отображаемое имя
+- file_path: TEXT — путь в Storage
+- size: BIGINT — размер в байтах
+- type: TEXT — MIME-тип
+- description: TEXT — необязательное описание
+- created_at: TIMESTAMPTZ
+- created_by: UUID, FK → `auth.users.id`
+
+**Storage:**
+- Bucket: `settlement_files` (приватный)
+- Путь: `{company_id}/{operation_id}/{timestamp}_{safe_name}`
+
+**RLS-политики:**
+- ✅ Включён: SELECT — `read`; INSERT/DELETE — `update` (через `get_my_company_ids()` + `check_permission`)
+
+**Миграция:** `supabase/migrations/20260809120000_create_settlement_files.sql`
+
+---
+
 ## Примечания
 - Для таблиц из схемы storage (файлы) и auth (пользователи) — см. документацию Supabase.
 - Все политики RLS реализуют строгую безопасность на уровне строк, если включены.

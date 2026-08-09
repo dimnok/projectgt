@@ -4,7 +4,9 @@ import 'package:projectgt/features/company/presentation/providers/company_provid
 import 'package:projectgt/features/settlements/data/repositories/settlement_repository_impl.dart';
 import 'package:projectgt/features/settlements/domain/entities/settlement_operation.dart';
 import 'package:projectgt/features/settlements/domain/entities/settlement_payment.dart';
+import 'package:projectgt/features/settlements/domain/repositories/settlement_file_repository.dart';
 import 'package:projectgt/features/settlements/domain/repositories/settlement_repository.dart';
+import 'package:projectgt/features/settlements/presentation/state/settlement_files_state.dart';
 
 /// Провайдер репозитория взаиморасчётов.
 final settlementRepositoryProvider = Provider<SettlementRepository>((ref) {
@@ -58,11 +60,15 @@ class SettlementListState {
 /// Notifier списка операций.
 class SettlementListNotifier extends StateNotifier<SettlementListState> {
   final SettlementRepository _repository;
+  final SettlementFileRepository _fileRepository;
   final String? _contractId;
 
   /// Создаёт notifier. [contractId] ограничивает выборку договором.
-  SettlementListNotifier(this._repository, {String? contractId})
-      : _contractId = contractId,
+  SettlementListNotifier(
+    this._repository,
+    this._fileRepository, {
+    String? contractId,
+  })  : _contractId = contractId,
         super(const SettlementListState()) {
     load();
   }
@@ -117,6 +123,7 @@ class SettlementListNotifier extends StateNotifier<SettlementListState> {
   /// Удалить операцию.
   Future<bool> delete(String id) async {
     try {
+      await _fileRepository.deleteAllForOperation(id);
       await _repository.deleteOperation(id);
     } catch (e) {
       state = state.copyWith(error: e.toString());
@@ -149,14 +156,16 @@ class SettlementListNotifier extends StateNotifier<SettlementListState> {
 final settlementListProvider =
     StateNotifierProvider<SettlementListNotifier, SettlementListState>((ref) {
   final repo = ref.watch(settlementRepositoryProvider);
-  return SettlementListNotifier(repo);
+  final fileRepo = ref.watch(settlementFileRepositoryProvider);
+  return SettlementListNotifier(repo, fileRepo);
 });
 
 /// Провайдер операций по договору (вкладка «Финансы»).
 final contractSettlementsProvider = StateNotifierProvider.family<
     SettlementListNotifier, SettlementListState, String>((ref, contractId) {
   final repo = ref.watch(settlementRepositoryProvider);
-  return SettlementListNotifier(repo, contractId: contractId);
+  final fileRepo = ref.watch(settlementFileRepositoryProvider);
+  return SettlementListNotifier(repo, fileRepo, contractId: contractId);
 });
 
 /// Состояние списка оплат по счёту.

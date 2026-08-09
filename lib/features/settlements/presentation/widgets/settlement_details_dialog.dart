@@ -16,6 +16,7 @@ import 'package:projectgt/features/settlements/domain/entities/settlement_paymen
 import 'package:projectgt/features/settlements/presentation/state/settlement_state.dart';
 import 'package:projectgt/features/settlements/presentation/utils/settlement_actions.dart';
 import 'package:projectgt/features/settlements/presentation/utils/settlement_ui_labels.dart';
+import 'package:projectgt/features/settlements/presentation/widgets/settlement_files_section.dart';
 import 'package:projectgt/features/settlements/presentation/widgets/settlement_form_dialog.dart';
 import 'package:projectgt/features/settlements/presentation/widgets/settlement_payment_form_dialog.dart';
 
@@ -299,6 +300,11 @@ class _SettlementDetailsDialogState
                 multiline: true,
               ),
           ],
+        ),
+        const SizedBox(height: 16),
+        SettlementFilesSection(
+          settlementOperationId: _operation.id,
+          compact: !isDesktop,
         ),
         const SizedBox(height: 16),
         Row(

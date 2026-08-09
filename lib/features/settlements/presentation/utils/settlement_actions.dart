@@ -49,7 +49,7 @@ Future<bool> showSettlementDeleteConfirmDialog(
     context: context,
     title: 'Удалить счёт?',
     message:
-        'Счёт ${operation.invoiceNumber} и все связанные оплаты будут удалены без возможности восстановления.',
+        'Счёт ${operation.invoiceNumber}, все прикреплённые файлы и оплаты будут удалены без возможности восстановления.',
     confirmText: 'Удалить',
     cancelText: 'Отмена',
     type: GTConfirmationType.danger,
