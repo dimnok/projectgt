@@ -267,6 +267,27 @@ class GtFormatters {
     return phone;
   }
 
+  /// Форматирует российский телефон для документов.
+  /// Пример: `74951202866` -> `+7 (495) 120-28-66`
+  static String formatPhoneRu(String? phone) {
+    if (phone == null || phone.trim().isEmpty) return '';
+
+    var digits = phone.replaceAll(RegExp(r'\D'), '');
+    if (digits.length == 11 &&
+        (digits.startsWith('7') || digits.startsWith('8'))) {
+      digits = digits.substring(1);
+    }
+
+    if (digits.length == 10) {
+      return '+7 (${digits.substring(0, 3)}) '
+          '${digits.substring(3, 6)}-'
+          '${digits.substring(6, 8)}-'
+          '${digits.substring(8, 10)}';
+    }
+
+    return phone.trim();
+  }
+
   /// Форматирует сумму с разделением тысяч пробелом в реальном времени.
   /// Пример: 1234567.89 -> "1 234 567.89"
   static TextInputFormatter amountFormatter() => _AmountInputFormatter();
@@ -638,6 +659,9 @@ String? dateOnlyToJson(DateTime? date) => GtFormatters.dateOnlyToJson(date);
 
 /// Алиас для форматирования номера телефона для отображения (+7 XXX XXX XX XX).
 String formatPhone(String? phone) => GtFormatters.formatPhone(phone);
+
+/// Алиас для форматирования телефона в документах (+7 (495) 120-28-66).
+String formatPhoneRu(String? phone) => GtFormatters.formatPhoneRu(phone);
 
 /// Алиас: канон для БД (`7XXXXXXXXXX`).
 String? normalizeRuPhoneForStorage(String? phone) =>

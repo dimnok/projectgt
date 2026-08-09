@@ -2,6 +2,7 @@
 
 **Дата актуализации:** 9 августа 2026  
 **Изменения:**
+- **PDF «Счёт на оплату»:** клиентская генерация из деталей счёта (`Сформировать PDF`); предпросмотр через `PdfPreviewScreen`; данные из счёта, профиля компании, банковского счёта и контрагента.
 - **Файлы счетов:** таблица `settlement_files`, bucket `settlement_files` (Storage); прикрепление PDF/сканов в деталях счёта (`SettlementFilesSection`); загрузка/скачивание/удаление; очистка Storage при удалении счёта.
 - **Мобильные детали счёта:** `SettlementDetailsDialog` — адаптивная вёрстка в bottom sheet: сводка 2×2, реквизиты столбцом, оплаты карточками (`_PaymentsMobileList`); десктопный диалог и таблица оплат без изменений.
 - **Мобильный реестр:** отдельный UI карточками (`SettlementOperationCard`, `SettlementsOperationsMobileView`); поиск в шапке; десктопная таблица и фильтры без изменений.
@@ -32,6 +33,7 @@
 - НДС: ставка, режим «в сумме» / «сверху».
 - Оплаты из банковской выписки (модуль ДДС).
 - **Вложения к счёту:** несколько файлов (PDF, DOC/XLS, JPG/PNG) в деталях счёта; Storage bucket `settlement_files`.
+- **Формирование PDF счёта на оплату** в приложении (без внешних сервисов): банковский блок, поставщик/покупатель, таблица позиций, итоги, сумма прописью, подписи.
 - Реестр компании + вкладка «Финансы» в карточке договора.
 - Фильтры и поиск в реестре (клиентская фильтрация загруженного списка).
 - **Мобильный реестр:** список карточек с поиском в шапке; расширенные фильтры — только на десктопе (планируется на мобильном).
@@ -43,6 +45,7 @@
 |------|----------|
 | Owner | `settlement_operations`, `settlement_payments`, `settlement_files` |
 | Usage | `contracts`, `contractors`, `objects`, `companies`, `cash_flow` |
+| Usage (PDF) | `CompanyProfile`, `CompanyBankAccount` (модуль Company), полные реквизиты `Contractor` |
 | Storage | bucket `settlement_files` (приватный) |
 | RBAC | `app_modules`, `role_permissions` |
 | Не связан | `contract_acts`, Edge `ks2_operations` |
@@ -83,7 +86,7 @@
 | `SettlementsOperationsMobileView` | Мобильный список карточек + итоговая панель (к оплате / оплачено / остаток) |
 | `SettlementOperationCard` | Карточка счёта: номер, дата, контрагент, объект, тип, сумма (`invoiceTotal`), статус оплаты |
 | `SettlementsMobileSearchField` | Компактный поиск в шапке мобильного реестра (`GTTextField`) |
-| `SettlementDetailsDialog` | Детали счёта: сводка, реквизиты, документы, оплаты, редактирование/удаление |
+| `SettlementDetailsDialog` | Детали счёта: сводка, реквизиты, документы, оплаты; кнопка **«Сформировать PDF»**; редактирование/удаление |
 | `SettlementFilesSection` | Блок «Документы»: список вложений, прикрепить / скачать / удалить |
 | `SettlementFormDialog` | Создание/редактирование реквизитов счёта |
 | `SettlementPaymentFormDialog` | Ручная оплата по счёту |
@@ -99,6 +102,9 @@
 | `moneyInputFormatters()` | `core/utils/formatters.dart` | Готовый список форматтеров для ввода сумм |
 | `dateOnlyToJson(DateTime?)` | `core/utils/formatters.dart` | Сериализация дат в `yyyy-MM-dd` для JSON-моделей Supabase |
 | `formatAmount(num)` | `core/utils/formatters.dart` | Форматирование сумм (замена локальных `_fmtAmount`) |
+| `formatPhoneRu(String?)` | `core/utils/formatters.dart` | Телефон для документов: `+7 (495) 120-28-66` |
+| `moneyToWordsRu(double)` | `core/utils/money_to_words_ru.dart` | Сумма прописью для PDF счёта |
+| `moneyNumericWithUnitsRu(double)` | `core/utils/money_to_words_ru.dart` | Числовая сумма с «рубля / копейки» |
 | `saveFileBytesToUserDevice(...)` | `core/utils/attachment_file_save.dart` | Сохранение скачанного файла на устройство |
 
 ### Файлы счёта (upload / download)
@@ -110,6 +116,32 @@
 
 Форматы: `pdf`, `doc`, `docx`, `xls`, `xlsx`, `jpg`, `jpeg`, `png`.  
 Прикрепление — только после создания счёта (нужен `operation.id`). Права: просмотр/скачивание — `read`; загрузка/удаление — `update`.
+
+### PDF «Счёт на оплату» (генерация на клиенте)
+
+| Компонент | Файл | Назначение |
+|-----------|------|------------|
+| `openSettlementInvoicePdfPreview(...)` | `settlement_invoice_generate_flow.dart` | Загрузка данных, валидация, переход на предпросмотр |
+| `validateSettlementInvoicePdfData(...)` | `settlement_invoice_generate_flow.dart` | Проверка реквизитов компании, банка, контрагента |
+| `SettlementInvoicePdfData` | `services/settlement_invoice_pdf_data.dart` | DTO: операция + компания + банк + контрагент; тексты позиции и назначения платежа |
+| `SettlementInvoicePdfService.build(...)` | `services/settlement_invoice_pdf_service.dart` | Сборка PDF (`pdf` + шрифты Inter из assets) |
+| `PdfPreviewScreen` | `features/profile/.../pdf_preview_screen.dart` | Предпросмотр, печать, сохранение файла |
+
+**Точка входа:** кнопка «Сформировать PDF» в `SettlementDetailsDialog` (доступна при `settlements` / `read`).
+
+**Источники данных:**
+
+| Блок PDF | Источник |
+|----------|----------|
+| Банк, ИНН/КПП, получатель | `companyProfileProvider`, `companyBankAccountsProvider` (основной или первый счёт) |
+| Покупатель | `getContractorUseCase` по `contractorId` |
+| Суммы, НДС, номер, дата | `SettlementOperation` |
+| Наименование в таблице | `note`, иначе стандарт по типу (`act` / `advance` / `other`) |
+| Назначение платежа (банк. блок) | `Оплата по счету № … от …` + НДС при наличии |
+
+**Структура PDF:** банковская таблица + назначение платежа → заголовок → поставщик/покупатель (с тел./e-mail при наличии) → основание → таблица (без колонки НДС) → итоги справа → нижний блок (наименования, сумма прописью, НДС прописью) → подписи руководителя и бухгалтера столбцом.
+
+**Ограничения:** PDF не сохраняется автоматически в `settlement_files`; одна строка в таблице позиций; удержания отображаются в итогах, если заданы в БД.
 
 ### Провайдеры
 
@@ -164,8 +196,16 @@ UI фильтров — `MenuAnchor` (как в модуле «Табель»): 
 | `invoice_number_sequence.dart` | Парсинг и расчёт следующего номера (зеркало SQL RPC) |
 | `settlement_actions.dart` | `syncSettlementProviders`, `findSettlementOperationInProviders`, диалог удаления |
 | `settlement_ui_labels.dart` | Подписи и цвета статусов |
+| `settlement_invoice_generate_flow.dart` | Сценарий формирования PDF счёта |
 | `settlements_list_filters.dart` | Состояние и логика фильтров |
 | `settlements_filter_options.dart` | Опции фильтров из операций |
+
+### Сервисы PDF
+
+| Файл | Назначение |
+|------|------------|
+| `settlement_invoice_pdf_data.dart` | DTO и бизнес-тексты для шаблона счёта |
+| `settlement_invoice_pdf_service.dart` | Вёрстка PDF (A4, `pw.Table`, `pw.MultiPage`) |
 
 ### Репозиторий (`SettlementRepositoryImpl`)
 
@@ -226,6 +266,9 @@ lib/features/settlements/
 │       └── settlement_file_repository_impl.dart
 └── presentation/
     ├── screens/settlements_list_screen.dart
+    ├── services/
+    │   ├── settlement_invoice_pdf_data.dart
+    │   └── settlement_invoice_pdf_service.dart
     ├── state/
     │   ├── settlement_state.dart
     │   └── settlement_files_state.dart
@@ -233,6 +276,7 @@ lib/features/settlements/
     │   ├── settlement_actions.dart
     │   ├── settlement_file_download_flow.dart
     │   ├── settlement_file_upload_flow.dart
+    │   ├── settlement_invoice_generate_flow.dart
     │   ├── settlement_ui_labels.dart
     │   ├── settlements_filter_options.dart
     │   └── settlements_list_filters.dart
@@ -367,7 +411,8 @@ total_to_pay = max(0, amount + vat_amount - advance_retention - warranty_retenti
 2. **Детали** → тап по строке/карточке; при открытии — `getOperation` + загрузка оплат; UI адаптируется под ширину экрана.
 3. **Оплата** → вручную в деталях или из выписки ДДС.
 4. **Документы** → в деталях счёта: прикрепить / скачать / удалить файл.
-5. **Удаление счёта** → только из деталей; каскадно удаляет оплаты; файлы удаляются из Storage через `deleteAllForOperation` до удаления счёта.
+5. **PDF счёта** → «Сформировать PDF» → проверка реквизитов → `PdfPreviewScreen` → печать/сохранение.
+6. **Удаление счёта** → только из деталей; каскадно удаляет оплаты; файлы удаляются из Storage через `deleteAllForOperation` до удаления счёта.
 
 ### Оплаты из выписки (ДДС)
 
@@ -380,6 +425,9 @@ total_to_pay = max(0, amount + vat_amount - advance_retention - warranty_retenti
 | Модуль | Связь |
 |--------|-------|
 | Договоры | FK, вкладка «Финансы», наследование НДС |
+| Компания | Реквизиты и банковский счёт для PDF |
+| Контрагенты | Полные реквизиты покупателя для PDF |
+| Профиль (UI) | `PdfPreviewScreen` для предпросмотра PDF |
 | ДДС | `cash_flow_transaction_id`, RPC при обработке выписки |
 | Storage | bucket `settlement_files` для вложений счетов |
 | Роли | `settlements` в матрице прав |
@@ -394,6 +442,7 @@ total_to_pay = max(0, amount + vat_amount - advance_retention - warranty_retenti
 - **Мобильный реестр:** карточки, поиск в шапке, итоги внизу экрана
 - **Мобильные детали счёта:** bottom sheet, сводка 2×2, реквизиты столбцом, оплаты карточками
 - **Файлы счетов:** `settlement_files` + Storage, UI в деталях счёта
+- **PDF счёта на оплату:** клиентская генерация, предпросмотр, печать/сохранение
 - Статусы оплаты (Dart + SQL)
 - Интеграция с ДДС
 - Оптимизированная синхронизация провайдеров
@@ -407,11 +456,14 @@ total_to_pay = max(0, amount + vat_amount - advance_retention - warranty_retenti
 - 🟡 Серверные фильтры и пагинация реестра (эталон — Cash Flow)
 - 🟡 UNIQUE на `(company_id, contract_id, invoice_number)` + обработка конфликта
 - 🟡 UI для удержаний, периода, назначения
-- 🟢 Иконка «есть вложения» в реестре счетов; превью PDF
+- 🟢 Автосохранение сформированного PDF в `settlement_files`
+- 🟢 Иконка «есть вложения» в реестре счетов
 
 ### Известные ограничения
 
 - Файлы прикрепляются только после создания счёта (нужен `id` операции).
+- Сформированный PDF не прикрепляется к счёту автоматически (только ручное сохранение из предпросмотра или отдельная загрузка).
+- Для PDF обязательны: ИНН и название компании, банковский счёт, ИНН и название контрагента.
 - Реестр загружает все счета компании; фильтрация на клиенте; лимит PostgREST ~1000 строк.
 - Дубликаты номеров счёта при одновременном создании не блокируются.
 - `contract_acts.payment_status` не связан с Settlements.

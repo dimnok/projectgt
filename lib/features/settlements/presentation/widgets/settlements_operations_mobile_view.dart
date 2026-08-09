@@ -25,7 +25,6 @@ class SettlementsOperationsMobileView extends StatelessWidget {
     final appearance = MobileAtmosphereAppearance.of(context);
     final cardStyle = MobileAtmosphereCardStyle.fromAppearance(appearance);
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
 
     return Column(

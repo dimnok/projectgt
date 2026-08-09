@@ -16,6 +16,7 @@ import 'package:projectgt/features/settlements/domain/entities/settlement_paymen
 import 'package:projectgt/features/settlements/presentation/state/settlement_state.dart';
 import 'package:projectgt/features/settlements/presentation/utils/settlement_actions.dart';
 import 'package:projectgt/features/settlements/presentation/utils/settlement_ui_labels.dart';
+import 'package:projectgt/features/settlements/presentation/utils/settlement_invoice_generate_flow.dart';
 import 'package:projectgt/features/settlements/presentation/widgets/settlement_files_section.dart';
 import 'package:projectgt/features/settlements/presentation/widgets/settlement_form_dialog.dart';
 import 'package:projectgt/features/settlements/presentation/widgets/settlement_payment_form_dialog.dart';
@@ -206,25 +207,32 @@ class _SettlementDetailsDialogState
     final content = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (canUpdate || canDelete)
-          Wrap(
-            alignment: WrapAlignment.end,
-            spacing: 4,
-            runSpacing: 4,
-            children: [
-              if (canUpdate)
-                GTTextButton(
-                  text: 'Редактировать',
-                  onPressed: _openEdit,
-                ),
-              if (canDelete)
-                GTTextButton(
-                  text: 'Удалить',
-                  onPressed: _deleteInvoice,
-                ),
-            ],
-          ),
-        if (canUpdate || canDelete) const SizedBox(height: 8),
+        Wrap(
+          alignment: WrapAlignment.end,
+          spacing: 4,
+          runSpacing: 4,
+          children: [
+            GTTextButton(
+              text: 'Сформировать PDF',
+              onPressed: () => openSettlementInvoicePdfPreview(
+                context: context,
+                ref: ref,
+                operation: _operation,
+              ),
+            ),
+            if (canUpdate)
+              GTTextButton(
+                text: 'Редактировать',
+                onPressed: _openEdit,
+              ),
+            if (canDelete)
+              GTTextButton(
+                text: 'Удалить',
+                onPressed: _deleteInvoice,
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
         _SummaryStrip(
           compact: !isDesktop,
           totalToPay: totalToPay,
