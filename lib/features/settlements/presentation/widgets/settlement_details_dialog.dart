@@ -87,12 +87,20 @@ class _SettlementDetailsDialogState
     setState(() => _operation = fresh);
   }
 
+  Future<void> _refreshOperationFromProviders() async {
+    final fresh = findSettlementOperationInProviders(
+      ref,
+      operationId: _operation.id,
+      contractId: _operation.contractId,
+    );
+    if (!mounted || fresh == null) return;
+    setState(() => _operation = fresh);
+  }
+
   Future<void> _syncAfterPaymentChange() async {
-    await ref
-        .read(settlementPaymentsProvider(_operation.id).notifier)
-        .load(quiet: true);
-    await _refreshOperation();
-    syncSettlementProviders(ref, contractId: _operation.contractId);
+    await syncSettlementProviders(ref, contractId: _operation.contractId);
+    if (!mounted) return;
+    await _refreshOperationFromProviders();
   }
 
   Future<void> _openEdit() async {
@@ -102,8 +110,7 @@ class _SettlementDetailsDialogState
       presetContract: widget.presetContract,
     );
     if (!mounted) return;
-    await _refreshOperation();
-    syncSettlementProviders(ref, contractId: _operation.contractId);
+    await _refreshOperationFromProviders();
   }
 
   Future<void> _deleteInvoice() async {
@@ -118,8 +125,9 @@ class _SettlementDetailsDialogState
 
     final success = await notifier.delete(_operation.id);
     if (!mounted) return;
-    syncSettlementProviders(ref, contractId: _operation.contractId);
     if (success) {
+      await syncSettlementProviders(ref, contractId: _operation.contractId);
+      if (!mounted) return;
       Navigator.of(context).pop();
     }
     AppSnackBar.show(

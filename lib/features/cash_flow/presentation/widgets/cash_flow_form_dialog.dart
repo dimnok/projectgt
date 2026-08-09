@@ -170,7 +170,7 @@ class _CashFlowFormDialogState extends ConsumerState<CashFlowFormDialog> {
       if (_selectedSettlementOperationId != null) {
         final contractId = _selectedContractId;
         if (contractId != null) {
-          syncSettlementProviders(ref, contractId: contractId);
+          await syncSettlementProviders(ref, contractId: contractId);
         }
       }
     } else {

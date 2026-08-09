@@ -291,7 +291,7 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
       return;
     }
 
-    syncSettlementProviders(ref, contractId: result.contractId);
+    await syncSettlementProviders(ref, contractId: result.contractId);
 
     AppSnackBar.show(
       context: context,

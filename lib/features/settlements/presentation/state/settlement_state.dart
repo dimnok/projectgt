@@ -98,7 +98,6 @@ class SettlementListNotifier extends StateNotifier<SettlementListState> {
       return null;
     }
     _upsertOperation(created);
-    await _reloadQuietly();
     return created;
   }
 
@@ -112,7 +111,6 @@ class SettlementListNotifier extends StateNotifier<SettlementListState> {
       return null;
     }
     _upsertOperation(updated);
-    await _reloadQuietly();
     return updated;
   }
 
@@ -125,7 +123,6 @@ class SettlementListNotifier extends StateNotifier<SettlementListState> {
       return false;
     }
     _removeOperation(id);
-    await _reloadQuietly();
     return true;
   }
 
@@ -145,14 +142,6 @@ class SettlementListNotifier extends StateNotifier<SettlementListState> {
       operations: state.operations.where((o) => o.id != id).toList(),
       clearError: true,
     );
-  }
-
-  Future<void> _reloadQuietly() async {
-    try {
-      await load(quiet: true);
-    } catch (_) {
-      // Сохраняем оптимистичное состояние, если фоновая перезагрузка упала.
-    }
   }
 }
 
