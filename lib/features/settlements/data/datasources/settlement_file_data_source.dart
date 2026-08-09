@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:projectgt/features/settlements/data/models/settlement_file_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -15,6 +16,14 @@ abstract class SettlementFileDataSource {
   Future<SettlementFileModel> uploadFile({
     required String settlementOperationId,
     required File file,
+    required String fileName,
+    String? description,
+  });
+
+  /// Загрузить файл из байтов.
+  Future<SettlementFileModel> uploadFileBytes({
+    required String settlementOperationId,
+    required List<int> bytes,
     required String fileName,
     String? description,
   });
@@ -73,14 +82,29 @@ class SupabaseSettlementFileDataSource implements SettlementFileDataSource {
     required String fileName,
     String? description,
   }) async {
+    return uploadFileBytes(
+      settlementOperationId: settlementOperationId,
+      bytes: await file.readAsBytes(),
+      fileName: fileName,
+      description: description,
+    );
+  }
+
+  @override
+  Future<SettlementFileModel> uploadFileBytes({
+    required String settlementOperationId,
+    required List<int> bytes,
+    required String fileName,
+    String? description,
+  }) async {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final safeName = _buildSafeStorageFileName(fileName);
     final storagePath =
         '$activeCompanyId/$settlementOperationId/${timestamp}_$safeName';
 
-    await client.storage.from(settlementFilesBucket).upload(
+    await client.storage.from(settlementFilesBucket).uploadBinary(
           storagePath,
-          file,
+          Uint8List.fromList(bytes),
           fileOptions: FileOptions(
             cacheControl: '3600',
             upsert: false,
@@ -94,7 +118,7 @@ class SupabaseSettlementFileDataSource implements SettlementFileDataSource {
       'settlement_operation_id': settlementOperationId,
       'name': fileName,
       'file_path': storagePath,
-      'size': await file.length(),
+      'size': bytes.length,
       'type': _contentTypeForFileName(fileName),
       'description': description,
       if (userId != null) 'created_by': userId,

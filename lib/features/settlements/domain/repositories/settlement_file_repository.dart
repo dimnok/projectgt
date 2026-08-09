@@ -15,6 +15,14 @@ abstract class SettlementFileRepository {
     String? description,
   });
 
+  /// Загрузить файл из байтов и сохранить метаданные.
+  Future<SettlementFile> uploadFileBytes({
+    required String settlementOperationId,
+    required List<int> bytes,
+    required String fileName,
+    String? description,
+  });
+
   /// Удалить файл (метаданные и объект в Storage).
   Future<void> deleteFile(String fileId, String filePath);
 

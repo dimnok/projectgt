@@ -8,6 +8,12 @@ import 'package:projectgt/features/settlements/data/repositories/settlement_file
 import 'package:projectgt/features/settlements/domain/entities/settlement_file.dart';
 import 'package:projectgt/features/settlements/domain/repositories/settlement_file_repository.dart';
 
+/// Результат сохранения автосгенерированного PDF счёта.
+typedef PersistGeneratedInvoicePdfResult = ({
+  SettlementFile? file,
+  bool replaced,
+});
+
 /// Провайдер репозитория файлов счетов.
 final settlementFileRepositoryProvider = Provider<SettlementFileRepository>(
   (ref) {
@@ -68,16 +74,19 @@ class SettlementFilesNotifier extends StateNotifier<SettlementFilesState> {
   /// Загрузить список файлов.
   Future<void> load({bool quiet = false}) async {
     if (!quiet) {
+      if (!mounted) return;
       state = state.copyWith(isLoading: true, clearError: true);
     }
     try {
       final files = await _repository.getFiles(_operationId);
+      if (!mounted) return;
       state = state.copyWith(
         files: files,
         isLoading: false,
         clearError: true,
       );
     } catch (e) {
+      if (!mounted) return;
       state = state.copyWith(
         isLoading: false,
         error: e.toString(),
@@ -98,12 +107,14 @@ class SettlementFilesNotifier extends StateNotifier<SettlementFilesState> {
         fileName: fileName,
         description: description,
       );
+      if (!mounted) return created;
       state = state.copyWith(
         files: [created, ...state.files],
         clearError: true,
       );
       return created;
     } catch (e) {
+      if (!mounted) return null;
       state = state.copyWith(error: e.toString());
       return null;
     }
@@ -113,12 +124,14 @@ class SettlementFilesNotifier extends StateNotifier<SettlementFilesState> {
   Future<bool> deleteFile(String fileId, String filePath) async {
     try {
       await _repository.deleteFile(fileId, filePath);
+      if (!mounted) return true;
       state = state.copyWith(
         files: state.files.where((f) => f.id != fileId).toList(),
         clearError: true,
       );
       return true;
     } catch (e) {
+      if (!mounted) return false;
       state = state.copyWith(error: e.toString());
       return false;
     }

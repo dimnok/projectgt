@@ -35,6 +35,22 @@ class SettlementFileRepositoryImpl implements SettlementFileRepository {
   }
 
   @override
+  Future<SettlementFile> uploadFileBytes({
+    required String settlementOperationId,
+    required List<int> bytes,
+    required String fileName,
+    String? description,
+  }) async {
+    final model = await dataSource.uploadFileBytes(
+      settlementOperationId: settlementOperationId,
+      bytes: bytes,
+      fileName: fileName,
+      description: description,
+    );
+    return model.toDomain();
+  }
+
+  @override
   Future<void> deleteFile(String fileId, String filePath) async {
     await dataSource.deleteFile(fileId, filePath);
   }

@@ -21,6 +21,7 @@ import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:projectgt/features/settlements/domain/entities/settlement_operation.dart';
 import 'package:projectgt/features/settlements/presentation/state/settlement_state.dart';
 import 'package:projectgt/features/settlements/presentation/utils/settlement_actions.dart';
+import 'package:projectgt/features/settlements/presentation/utils/settlement_invoice_generate_flow.dart';
 import 'package:projectgt/features/settlements/presentation/utils/settlement_ui_labels.dart';
 
 /// Диалог создания / редактирования счёта на оплату.
@@ -244,14 +245,15 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
           )
         : ref.read(settlementListProvider.notifier);
 
-    final result = widget.operation == null
+    final isCreate = widget.operation == null;
+    final result = isCreate
         ? await notifier.create(operation)
         : await notifier.update(operation);
 
     if (!mounted) return;
-    setState(() => _saving = false);
 
     if (result == null) {
+      setState(() => _saving = false);
       AppSnackBar.show(
         context: context,
         message: 'Не удалось сохранить счёт',
@@ -262,12 +264,28 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
 
     await syncSettlementProviders(ref, contractId: result.contractId);
 
+    var message = isCreate ? 'Счёт создан' : 'Счёт обновлён';
+    var kind = AppSnackBarKind.success;
+
+    final pdfMessage = await generateAndPersistSettlementInvoicePdfOnSave(
+      ref: ref,
+      operation: result,
+      isCreate: isCreate,
+    );
+    if (pdfMessage != null) {
+      message = pdfMessage;
+      if (pdfMessage.contains('не хватает') ||
+          pdfMessage.contains('Не удалось')) {
+        kind = AppSnackBarKind.warning;
+      }
+    }
+
     if (!mounted) return;
+    setState(() => _saving = false);
     AppSnackBar.show(
       context: context,
-      message:
-          widget.operation == null ? 'Счёт создан' : 'Счёт обновлён',
-      kind: AppSnackBarKind.success,
+      message: message,
+      kind: kind,
     );
     Navigator.of(context).pop();
   }
