@@ -205,23 +205,27 @@ class _SettlementDetailsDialogState
     final content = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            if (canUpdate)
-              GTTextButton(
-                text: 'Редактировать',
-                onPressed: _openEdit,
-              ),
-            if (canDelete)
-              GTTextButton(
-                text: 'Удалить',
-                onPressed: _deleteInvoice,
-              ),
-          ],
-        ),
-        const SizedBox(height: 8),
+        if (canUpdate || canDelete)
+          Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 4,
+            runSpacing: 4,
+            children: [
+              if (canUpdate)
+                GTTextButton(
+                  text: 'Редактировать',
+                  onPressed: _openEdit,
+                ),
+              if (canDelete)
+                GTTextButton(
+                  text: 'Удалить',
+                  onPressed: _deleteInvoice,
+                ),
+            ],
+          ),
+        if (canUpdate || canDelete) const SizedBox(height: 8),
         _SummaryStrip(
+          compact: !isDesktop,
           totalToPay: totalToPay,
           paidAmount: paidAmount,
           remaining: remaining,
@@ -230,45 +234,70 @@ class _SettlementDetailsDialogState
         ),
         const SizedBox(height: 16),
         _InfoSection(
+          compact: !isDesktop,
           title: 'Реквизиты',
           children: [
-            _InfoRow(label: 'Дата счёта', value: formatRuDate(_operation.invoiceDate)),
             _InfoRow(
+              compact: !isDesktop,
+              label: 'Дата счёта',
+              value: formatRuDate(_operation.invoiceDate),
+            ),
+            _InfoRow(
+              compact: !isDesktop,
               label: 'Тип',
               value: settlementOperationTypeLabel(_operation.operationType),
             ),
             if (_operation.actNumber != null &&
                 _operation.actNumber!.isNotEmpty)
-              _InfoRow(label: 'Акт', value: _operation.actNumber!),
+              _InfoRow(
+                compact: !isDesktop,
+                label: 'Акт',
+                value: _operation.actNumber!,
+              ),
             _InfoRow(
+              compact: !isDesktop,
               label: 'Договор',
               value: _operation.contractNumber ?? '—',
             ),
             _InfoRow(
+              compact: !isDesktop,
               label: 'Контрагент',
               value: _operation.contractorName ?? '—',
             ),
             _InfoRow(
+              compact: !isDesktop,
               label: 'Объект',
               value: _operation.objectName ?? '—',
             ),
             _InfoRow(
+              compact: !isDesktop,
               label: 'Сумма без НДС',
               value: formatCurrency(_operation.amount),
             ),
             if (_operation.vatRate != null && _operation.vatRate! > 0) ...[
               _InfoRow(
+                compact: !isDesktop,
                 label: 'НДС (${formatQuantity(_operation.vatRate!)}%)',
                 value: formatCurrency(_operation.vatAmount),
               ),
               _InfoRow(
+                compact: !isDesktop,
                 label: 'Итого с НДС',
                 value: formatCurrency(totalToPay),
               ),
             ] else
-              _InfoRow(label: 'К оплате', value: formatCurrency(totalToPay)),
+              _InfoRow(
+                compact: !isDesktop,
+                label: 'К оплате',
+                value: formatCurrency(totalToPay),
+              ),
             if (_operation.note != null && _operation.note!.isNotEmpty)
-              _InfoRow(label: 'Примечание', value: _operation.note!),
+              _InfoRow(
+                compact: !isDesktop,
+                label: 'Примечание',
+                value: _operation.note!,
+                multiline: true,
+              ),
           ],
         ),
         const SizedBox(height: 16),
@@ -318,8 +347,15 @@ class _SettlementDetailsDialogState
               ),
             ),
           )
-        else
+        else if (isDesktop)
           _PaymentsTable(
+            payments: paymentsState.payments,
+            canUpdate: canUpdate,
+            onEdit: _editPayment,
+            onDelete: _deletePayment,
+          )
+        else
+          _PaymentsMobileList(
             payments: paymentsState.payments,
             canUpdate: canUpdate,
             onEdit: _editPayment,
@@ -345,12 +381,14 @@ class _SettlementDetailsDialogState
     return MobileBottomSheetContent(
       title: title,
       footer: footer,
+      scrollable: true,
       child: content,
     );
   }
 }
 
 class _SummaryStrip extends StatelessWidget {
+  final bool compact;
   final double totalToPay;
   final double paidAmount;
   final double remaining;
@@ -358,6 +396,7 @@ class _SummaryStrip extends StatelessWidget {
   final Color statusColor;
 
   const _SummaryStrip({
+    this.compact = false,
     required this.totalToPay,
     required this.paidAmount,
     required this.remaining,
@@ -371,88 +410,174 @@ class _SummaryStrip extends StatelessWidget {
     final scheme = theme.colorScheme;
     final hasDebt = remaining > SettlementOperation.amountEpsilon;
     final hasOverpay = remaining < -SettlementOperation.amountEpsilon;
+    final remainingTone = hasDebt
+        ? scheme.error
+        : hasOverpay
+            ? settlementPaymentStatusColor(
+                theme,
+                SettlementPaymentStatus.overpaid,
+              )
+            : null;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 12 : 14,
+        vertical: compact ? 10 : 12,
+      ),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: scheme.outline.withValues(alpha: 0.22)),
         color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _SummaryItem(
-              label: 'К оплате',
-              value: formatCurrency(totalToPay),
-            ),
-          ),
-          _SummaryDivider(scheme: scheme),
-          Expanded(
-            child: _SummaryItem(
-              label: 'Оплачено',
-              value: formatCurrency(paidAmount),
-            ),
-          ),
-          _SummaryDivider(scheme: scheme),
-          Expanded(
-            child: _SummaryItem(
-              label: 'Остаток',
-              value: formatCurrency(remaining),
-              tone: hasDebt
-                  ? scheme.error
-                  : hasOverpay
-                      ? settlementPaymentStatusColor(
-                          theme,
-                          SettlementPaymentStatus.overpaid,
-                        )
-                      : null,
-              emphasize: hasDebt || hasOverpay,
-            ),
-          ),
-          _SummaryDivider(scheme: scheme),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: compact
+          ? Column(
               children: [
-                Text(
-                  'Статус',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: scheme.onSurface.withValues(alpha: 0.55),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _SummaryItem(
+                        compact: true,
+                        label: 'К оплате',
+                        value: formatCurrency(totalToPay),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _SummaryItem(
+                        compact: true,
+                        label: 'Оплачено',
+                        value: formatCurrency(paidAmount),
+                      ),
+                    ),
+                  ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Divider(
+                    height: 1,
+                    color: scheme.outline.withValues(alpha: 0.18),
                   ),
                 ),
-                const SizedBox(height: 4),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    statusLabel,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: statusColor,
-                      fontWeight: FontWeight.w700,
+                Row(
+                  children: [
+                    Expanded(
+                      child: _SummaryItem(
+                        compact: true,
+                        label: 'Остаток',
+                        value: formatCurrency(remaining),
+                        tone: remainingTone,
+                        emphasize: hasDebt || hasOverpay,
+                      ),
                     ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _SummaryStatusItem(
+                        compact: true,
+                        statusLabel: statusLabel,
+                        statusColor: statusColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            )
+          : Row(
+              children: [
+                Expanded(
+                  child: _SummaryItem(
+                    label: 'К оплате',
+                    value: formatCurrency(totalToPay),
+                  ),
+                ),
+                _SummaryDivider(scheme: scheme),
+                Expanded(
+                  child: _SummaryItem(
+                    label: 'Оплачено',
+                    value: formatCurrency(paidAmount),
+                  ),
+                ),
+                _SummaryDivider(scheme: scheme),
+                Expanded(
+                  child: _SummaryItem(
+                    label: 'Остаток',
+                    value: formatCurrency(remaining),
+                    tone: remainingTone,
+                    emphasize: hasDebt || hasOverpay,
+                  ),
+                ),
+                _SummaryDivider(scheme: scheme),
+                Expanded(
+                  child: _SummaryStatusItem(
+                    statusLabel: statusLabel,
+                    statusColor: statusColor,
                   ),
                 ),
               ],
             ),
+    );
+  }
+}
+
+class _SummaryStatusItem extends StatelessWidget {
+  final bool compact;
+  final String statusLabel;
+  final Color statusColor;
+
+  const _SummaryStatusItem({
+    this.compact = false,
+    required this.statusLabel,
+    required this.statusColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return Column(
+      crossAxisAlignment:
+          compact ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Статус',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.labelSmall?.copyWith(
+            fontSize: compact ? 10 : null,
+            color: scheme.onSurface.withValues(alpha: 0.55),
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: statusColor.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Text(
+            statusLabel,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: statusColor,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
 
 class _SummaryItem extends StatelessWidget {
+  final bool compact;
   final String label;
   final String value;
   final Color? tone;
   final bool emphasize;
 
   const _SummaryItem({
+    this.compact = false,
     required this.label,
     required this.value,
     this.tone,
@@ -464,18 +589,26 @@ class _SummaryItem extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+          compact ? CrossAxisAlignment.center : CrossAxisAlignment.start,
       children: [
         Text(
           label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: theme.textTheme.labelSmall?.copyWith(
+            fontSize: compact ? 10 : null,
             color: scheme.onSurface.withValues(alpha: 0.55),
           ),
         ),
         const SizedBox(height: 2),
         Text(
           value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: compact ? TextAlign.center : TextAlign.start,
           style: theme.textTheme.titleSmall?.copyWith(
+            fontSize: compact ? 12 : null,
             fontWeight: emphasize ? FontWeight.w800 : FontWeight.w700,
             color: tone,
             fontFeatures: const [FontFeature.tabularFigures()],
@@ -503,10 +636,12 @@ class _SummaryDivider extends StatelessWidget {
 }
 
 class _InfoSection extends StatelessWidget {
+  final bool compact;
   final String title;
   final List<Widget> children;
 
   const _InfoSection({
+    this.compact = false,
     required this.title,
     required this.children,
   });
@@ -539,18 +674,47 @@ class _InfoSection extends StatelessWidget {
 }
 
 class _InfoRow extends StatelessWidget {
+  final bool compact;
   final String label;
   final String value;
+  final bool multiline;
 
   const _InfoRow({
+    this.compact = false,
     required this.label,
     required this.value,
+    this.multiline = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final labelStyle = theme.textTheme.bodySmall?.copyWith(
+      color: scheme.onSurface.withValues(alpha: 0.55),
+    );
+    final valueStyle = theme.textTheme.bodyMedium?.copyWith(
+      fontWeight: FontWeight.w600,
+      height: multiline ? 1.35 : null,
+    );
+
+    if (compact) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(label, style: labelStyle),
+            const SizedBox(height: 2),
+            Text(
+              value,
+              style: valueStyle,
+            ),
+          ],
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
@@ -558,21 +722,133 @@ class _InfoRow extends StatelessWidget {
         children: [
           SizedBox(
             width: 140,
-            child: Text(
-              label,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: scheme.onSurface.withValues(alpha: 0.55),
-              ),
-            ),
+            child: Text(label, style: labelStyle),
           ),
           Expanded(
             child: Text(
               value,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+              style: valueStyle,
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Карточный список оплат для мобильного bottom sheet.
+class _PaymentsMobileList extends StatelessWidget {
+  final List<SettlementPayment> payments;
+  final bool canUpdate;
+  final void Function(SettlementPayment payment) onEdit;
+  final void Function(SettlementPayment payment) onDelete;
+
+  const _PaymentsMobileList({
+    required this.payments,
+    required this.canUpdate,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        for (var i = 0; i < payments.length; i++) ...[
+          if (i > 0) const SizedBox(height: 8),
+          _PaymentMobileCard(
+            payment: payments[i],
+            canUpdate: canUpdate,
+            onEdit: () => onEdit(payments[i]),
+            onDelete: () => onDelete(payments[i]),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _PaymentMobileCard extends StatelessWidget {
+  final SettlementPayment payment;
+  final bool canUpdate;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  const _PaymentMobileCard({
+    required this.payment,
+    required this.canUpdate,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final hasNote = payment.note != null && payment.note!.trim().isNotEmpty;
+    final isFromBank = payment.isFromBankStatement;
+    final noteText = isFromBank
+        ? 'Из выписки${hasNote ? ': ${payment.note}' : ''}'
+        : (hasNote ? payment.note! : '—');
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: scheme.outline.withValues(alpha: 0.22)),
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.25),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  formatRuDate(payment.paymentDate),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Text(
+                formatCurrency(payment.amount),
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            noteText,
+            style: theme.textTheme.bodySmall?.copyWith(
+              height: 1.3,
+              color: isFromBank
+                  ? scheme.primary
+                  : (hasNote
+                      ? scheme.onSurface.withValues(alpha: 0.75)
+                      : scheme.onSurface.withValues(alpha: 0.35)),
+            ),
+          ),
+          if (canUpdate && !isFromBank) ...[
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                GTTextButton(
+                  text: 'Изменить',
+                  onPressed: onEdit,
+                ),
+                GTTextButton(
+                  text: 'Удалить',
+                  onPressed: onDelete,
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
