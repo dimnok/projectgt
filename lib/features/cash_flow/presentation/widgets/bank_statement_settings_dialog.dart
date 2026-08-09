@@ -8,6 +8,7 @@ import 'package:projectgt/core/widgets/gt_dropdown.dart';
 import 'package:projectgt/core/widgets/gt_text_field.dart';
 import 'package:projectgt/features/cash_flow/domain/entities/bank_import_template.dart';
 import 'package:projectgt/features/cash_flow/presentation/state/cash_flow_state.dart';
+import 'package:projectgt/features/cash_flow/presentation/widgets/category_rules_panel.dart';
 
 /// Диалоговое окно настроек импорта банковских выписок.
 ///
@@ -23,7 +24,9 @@ class BankStatementSettingsDialog extends ConsumerStatefulWidget {
 }
 
 class _BankStatementSettingsDialogState
-    extends ConsumerState<BankStatementSettingsDialog> {
+    extends ConsumerState<BankStatementSettingsDialog>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
   String? _selectedTemplateId;
   final _bankNameController = TextEditingController();
   final _startRowController = TextEditingController(text: '1');
@@ -41,7 +44,14 @@ class _BankStatementSettingsDialogState
   final _numColController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
   void dispose() {
+    _tabController.dispose();
     _bankNameController.dispose();
     _startRowController.dispose();
     _dateFormatController.dispose();
@@ -197,36 +207,73 @@ class _BankStatementSettingsDialogState
     final templates = state.bankImportTemplates;
 
     return DesktopDialogContent(
-      title: 'Настройки импорта выписок',
-      footer: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          if (_selectedTemplateId != null)
-            GTSecondaryButton(
-              text: 'Удалить шаблон',
-              onPressed: _deleteTemplate,
+      title: 'Настройки выписки',
+      footer: _tabController.index == 0
+          ? Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                if (_selectedTemplateId != null)
+                  GTSecondaryButton(
+                    text: 'Удалить шаблон',
+                    onPressed: _deleteTemplate,
+                  )
+                else
+                  const SizedBox.shrink(),
+                Row(
+                  children: [
+                    GTSecondaryButton(
+                      text: 'Отмена',
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                    const SizedBox(width: 12),
+                    GTPrimaryButton(
+                      text: 'Сохранить шаблон',
+                      onPressed: _saveTemplate,
+                    ),
+                  ],
+                ),
+              ],
             )
-          else
-            const SizedBox.shrink(),
-          Row(
-            children: [
-              GTSecondaryButton(
-                text: 'Отмена',
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-              const SizedBox(width: 12),
-              GTPrimaryButton(
-                text: 'Сохранить шаблон',
-                onPressed: _saveTemplate,
-              ),
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                GTPrimaryButton(
+                  text: 'Закрыть',
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TabBar(
+            controller: _tabController,
+            onTap: (_) => setState(() {}),
+            tabs: const [
+              Tab(text: 'Шаблоны Excel'),
+              Tab(text: 'Правила автосопоставления'),
             ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 520,
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                SingleChildScrollView(child: _buildTemplatesTab(theme, templates)),
+                const SingleChildScrollView(child: CategoryRulesPanel()),
+              ],
+            ),
           ),
         ],
       ),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+    );
+  }
+
+  Widget _buildTemplatesTab(ThemeData theme, List<BankImportTemplate> templates) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
             if (templates.isNotEmpty) ...[
               const Text(
                 'Выберите существующий шаблон или создайте новый',
@@ -330,8 +377,6 @@ class _BankStatementSettingsDialogState
             _buildMappingRow('Примечание/Назначение', _commentColController),
             _buildMappingRow('Номер операции', _numColController),
           ],
-        ),
-      ),
     );
   }
 

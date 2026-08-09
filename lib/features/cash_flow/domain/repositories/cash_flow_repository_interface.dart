@@ -1,7 +1,10 @@
 import 'package:projectgt/features/cash_flow/domain/entities/available_filters.dart';
 import 'package:projectgt/features/cash_flow/domain/entities/bank_import_template.dart';
 import 'package:projectgt/features/cash_flow/domain/entities/bank_statement_entry.dart';
+import 'package:projectgt/features/cash_flow/domain/entities/bank_statement_match_result.dart';
+import 'package:projectgt/features/cash_flow/domain/entities/bank_statement_matching_context.dart';
 import 'package:projectgt/features/cash_flow/domain/entities/cash_flow_category.dart';
+import 'package:projectgt/features/cash_flow/domain/entities/cash_flow_category_rule.dart';
 import 'package:projectgt/features/cash_flow/domain/entities/cash_flow_transaction.dart';
 import 'package:projectgt/features/cash_flow/domain/entities/monthly_analytics.dart';
 
@@ -82,5 +85,23 @@ abstract class ICashFlowRepository {
     List<String>? contractIds,
     List<String>? types,
     String? search,
+  });
+
+  /// Получает правила автосопоставления статей ДДС.
+  Future<List<CashFlowCategoryRule>> getCategoryRules();
+
+  /// Сохраняет правило автосопоставления.
+  Future<CashFlowCategoryRule> saveCategoryRule(CashFlowCategoryRule rule);
+
+  /// Удаляет правило автосопоставления.
+  Future<void> deleteCategoryRule(String id);
+
+  /// Загружает контекст для автосопоставления выписки (история + открытые счета).
+  Future<BankStatementMatchingContext> getMatchingContext();
+
+  /// Пакетно переносит строки выписки в реестр ДДС.
+  Future<BankStatementBatchProcessResult> batchProcessBankStatementEntries({
+    required String companyId,
+    required List<Map<String, dynamic>> items,
   });
 }

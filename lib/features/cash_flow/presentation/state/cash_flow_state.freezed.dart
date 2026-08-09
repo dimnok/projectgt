@@ -20,8 +20,10 @@ mixin _$CashFlowState {
  CashFlowView get currentView;/// Список финансовых операций.
  List<CashFlowTransaction> get transactions;/// Список категорий ДДС.
  List<CashFlowCategory> get categories;/// Список шаблонов импорта банковских выписок.
- List<BankImportTemplate> get bankImportTemplates;/// Список записей из текущей загруженной выписки.
- List<BankStatementEntry> get bankStatementEntries;/// Данные аналитики по месяцам за весь год.
+ List<BankImportTemplate> get bankImportTemplates;/// Правила автосопоставления статей ДДС.
+ List<CashFlowCategoryRule> get categoryRules;/// Список записей из текущей загруженной выписки.
+ List<BankStatementEntry> get bankStatementEntries;/// Результаты автосопоставления строк выписки (ключ — entry.id).
+ Map<String, BankStatementMatchResult> get bankStatementMatches;/// Данные аналитики по месяцам за весь год.
  List<MonthlyAnalytics> get yearlyAnalytics;/// Доступные ID для фильтрации ( Option B ).
  AvailableFilters get availableFilters;/// Сообщение об ошибке.
  String? get errorMessage;/// Поисковый запрос.
@@ -46,16 +48,16 @@ $CashFlowStateCopyWith<CashFlowState> get copyWith => _$CashFlowStateCopyWithImp
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is CashFlowState&&(identical(other.status, status) || other.status == status)&&(identical(other.currentView, currentView) || other.currentView == currentView)&&const DeepCollectionEquality().equals(other.transactions, transactions)&&const DeepCollectionEquality().equals(other.categories, categories)&&const DeepCollectionEquality().equals(other.bankImportTemplates, bankImportTemplates)&&const DeepCollectionEquality().equals(other.bankStatementEntries, bankStatementEntries)&&const DeepCollectionEquality().equals(other.yearlyAnalytics, yearlyAnalytics)&&(identical(other.availableFilters, availableFilters) || other.availableFilters == availableFilters)&&(identical(other.errorMessage, errorMessage) || other.errorMessage == errorMessage)&&(identical(other.searchQuery, searchQuery) || other.searchQuery == searchQuery)&&(identical(other.bankStatementSearchQuery, bankStatementSearchQuery) || other.bankStatementSearchQuery == bankStatementSearchQuery)&&(identical(other.selectedYear, selectedYear) || other.selectedYear == selectedYear)&&(identical(other.selectedObjectId, selectedObjectId) || other.selectedObjectId == selectedObjectId)&&(identical(other.selectedContractorId, selectedContractorId) || other.selectedContractorId == selectedContractorId)&&const DeepCollectionEquality().equals(other.selectedContractIds, selectedContractIds)&&const DeepCollectionEquality().equals(other.selectedOperationTypes, selectedOperationTypes)&&(identical(other.selectedBankAccountId, selectedBankAccountId) || other.selectedBankAccountId == selectedBankAccountId)&&(identical(other.hasMore, hasMore) || other.hasMore == hasMore)&&(identical(other.isLoadingMore, isLoadingMore) || other.isLoadingMore == isLoadingMore)&&(identical(other.isDetailedAnalytics, isDetailedAnalytics) || other.isDetailedAnalytics == isDetailedAnalytics));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CashFlowState&&(identical(other.status, status) || other.status == status)&&(identical(other.currentView, currentView) || other.currentView == currentView)&&const DeepCollectionEquality().equals(other.transactions, transactions)&&const DeepCollectionEquality().equals(other.categories, categories)&&const DeepCollectionEquality().equals(other.bankImportTemplates, bankImportTemplates)&&const DeepCollectionEquality().equals(other.categoryRules, categoryRules)&&const DeepCollectionEquality().equals(other.bankStatementEntries, bankStatementEntries)&&const DeepCollectionEquality().equals(other.bankStatementMatches, bankStatementMatches)&&const DeepCollectionEquality().equals(other.yearlyAnalytics, yearlyAnalytics)&&(identical(other.availableFilters, availableFilters) || other.availableFilters == availableFilters)&&(identical(other.errorMessage, errorMessage) || other.errorMessage == errorMessage)&&(identical(other.searchQuery, searchQuery) || other.searchQuery == searchQuery)&&(identical(other.bankStatementSearchQuery, bankStatementSearchQuery) || other.bankStatementSearchQuery == bankStatementSearchQuery)&&(identical(other.selectedYear, selectedYear) || other.selectedYear == selectedYear)&&(identical(other.selectedObjectId, selectedObjectId) || other.selectedObjectId == selectedObjectId)&&(identical(other.selectedContractorId, selectedContractorId) || other.selectedContractorId == selectedContractorId)&&const DeepCollectionEquality().equals(other.selectedContractIds, selectedContractIds)&&const DeepCollectionEquality().equals(other.selectedOperationTypes, selectedOperationTypes)&&(identical(other.selectedBankAccountId, selectedBankAccountId) || other.selectedBankAccountId == selectedBankAccountId)&&(identical(other.hasMore, hasMore) || other.hasMore == hasMore)&&(identical(other.isLoadingMore, isLoadingMore) || other.isLoadingMore == isLoadingMore)&&(identical(other.isDetailedAnalytics, isDetailedAnalytics) || other.isDetailedAnalytics == isDetailedAnalytics));
 }
 
 
 @override
-int get hashCode => Object.hashAll([runtimeType,status,currentView,const DeepCollectionEquality().hash(transactions),const DeepCollectionEquality().hash(categories),const DeepCollectionEquality().hash(bankImportTemplates),const DeepCollectionEquality().hash(bankStatementEntries),const DeepCollectionEquality().hash(yearlyAnalytics),availableFilters,errorMessage,searchQuery,bankStatementSearchQuery,selectedYear,selectedObjectId,selectedContractorId,const DeepCollectionEquality().hash(selectedContractIds),const DeepCollectionEquality().hash(selectedOperationTypes),selectedBankAccountId,hasMore,isLoadingMore,isDetailedAnalytics]);
+int get hashCode => Object.hashAll([runtimeType,status,currentView,const DeepCollectionEquality().hash(transactions),const DeepCollectionEquality().hash(categories),const DeepCollectionEquality().hash(bankImportTemplates),const DeepCollectionEquality().hash(categoryRules),const DeepCollectionEquality().hash(bankStatementEntries),const DeepCollectionEquality().hash(bankStatementMatches),const DeepCollectionEquality().hash(yearlyAnalytics),availableFilters,errorMessage,searchQuery,bankStatementSearchQuery,selectedYear,selectedObjectId,selectedContractorId,const DeepCollectionEquality().hash(selectedContractIds),const DeepCollectionEquality().hash(selectedOperationTypes),selectedBankAccountId,hasMore,isLoadingMore,isDetailedAnalytics]);
 
 @override
 String toString() {
-  return 'CashFlowState(status: $status, currentView: $currentView, transactions: $transactions, categories: $categories, bankImportTemplates: $bankImportTemplates, bankStatementEntries: $bankStatementEntries, yearlyAnalytics: $yearlyAnalytics, availableFilters: $availableFilters, errorMessage: $errorMessage, searchQuery: $searchQuery, bankStatementSearchQuery: $bankStatementSearchQuery, selectedYear: $selectedYear, selectedObjectId: $selectedObjectId, selectedContractorId: $selectedContractorId, selectedContractIds: $selectedContractIds, selectedOperationTypes: $selectedOperationTypes, selectedBankAccountId: $selectedBankAccountId, hasMore: $hasMore, isLoadingMore: $isLoadingMore, isDetailedAnalytics: $isDetailedAnalytics)';
+  return 'CashFlowState(status: $status, currentView: $currentView, transactions: $transactions, categories: $categories, bankImportTemplates: $bankImportTemplates, categoryRules: $categoryRules, bankStatementEntries: $bankStatementEntries, bankStatementMatches: $bankStatementMatches, yearlyAnalytics: $yearlyAnalytics, availableFilters: $availableFilters, errorMessage: $errorMessage, searchQuery: $searchQuery, bankStatementSearchQuery: $bankStatementSearchQuery, selectedYear: $selectedYear, selectedObjectId: $selectedObjectId, selectedContractorId: $selectedContractorId, selectedContractIds: $selectedContractIds, selectedOperationTypes: $selectedOperationTypes, selectedBankAccountId: $selectedBankAccountId, hasMore: $hasMore, isLoadingMore: $isLoadingMore, isDetailedAnalytics: $isDetailedAnalytics)';
 }
 
 
@@ -66,7 +68,7 @@ abstract mixin class $CashFlowStateCopyWith<$Res>  {
   factory $CashFlowStateCopyWith(CashFlowState value, $Res Function(CashFlowState) _then) = _$CashFlowStateCopyWithImpl;
 @useResult
 $Res call({
- CashFlowStatus status, CashFlowView currentView, List<CashFlowTransaction> transactions, List<CashFlowCategory> categories, List<BankImportTemplate> bankImportTemplates, List<BankStatementEntry> bankStatementEntries, List<MonthlyAnalytics> yearlyAnalytics, AvailableFilters availableFilters, String? errorMessage, String searchQuery, String bankStatementSearchQuery, int selectedYear, String? selectedObjectId, String? selectedContractorId, List<String> selectedContractIds, List<String> selectedOperationTypes, String? selectedBankAccountId, bool hasMore, bool isLoadingMore, bool isDetailedAnalytics
+ CashFlowStatus status, CashFlowView currentView, List<CashFlowTransaction> transactions, List<CashFlowCategory> categories, List<BankImportTemplate> bankImportTemplates, List<CashFlowCategoryRule> categoryRules, List<BankStatementEntry> bankStatementEntries, Map<String, BankStatementMatchResult> bankStatementMatches, List<MonthlyAnalytics> yearlyAnalytics, AvailableFilters availableFilters, String? errorMessage, String searchQuery, String bankStatementSearchQuery, int selectedYear, String? selectedObjectId, String? selectedContractorId, List<String> selectedContractIds, List<String> selectedOperationTypes, String? selectedBankAccountId, bool hasMore, bool isLoadingMore, bool isDetailedAnalytics
 });
 
 
@@ -83,15 +85,17 @@ class _$CashFlowStateCopyWithImpl<$Res>
 
 /// Create a copy of CashFlowState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? status = null,Object? currentView = null,Object? transactions = null,Object? categories = null,Object? bankImportTemplates = null,Object? bankStatementEntries = null,Object? yearlyAnalytics = null,Object? availableFilters = null,Object? errorMessage = freezed,Object? searchQuery = null,Object? bankStatementSearchQuery = null,Object? selectedYear = null,Object? selectedObjectId = freezed,Object? selectedContractorId = freezed,Object? selectedContractIds = null,Object? selectedOperationTypes = null,Object? selectedBankAccountId = freezed,Object? hasMore = null,Object? isLoadingMore = null,Object? isDetailedAnalytics = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? status = null,Object? currentView = null,Object? transactions = null,Object? categories = null,Object? bankImportTemplates = null,Object? categoryRules = null,Object? bankStatementEntries = null,Object? bankStatementMatches = null,Object? yearlyAnalytics = null,Object? availableFilters = null,Object? errorMessage = freezed,Object? searchQuery = null,Object? bankStatementSearchQuery = null,Object? selectedYear = null,Object? selectedObjectId = freezed,Object? selectedContractorId = freezed,Object? selectedContractIds = null,Object? selectedOperationTypes = null,Object? selectedBankAccountId = freezed,Object? hasMore = null,Object? isLoadingMore = null,Object? isDetailedAnalytics = null,}) {
   return _then(_self.copyWith(
 status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as CashFlowStatus,currentView: null == currentView ? _self.currentView : currentView // ignore: cast_nullable_to_non_nullable
 as CashFlowView,transactions: null == transactions ? _self.transactions : transactions // ignore: cast_nullable_to_non_nullable
 as List<CashFlowTransaction>,categories: null == categories ? _self.categories : categories // ignore: cast_nullable_to_non_nullable
 as List<CashFlowCategory>,bankImportTemplates: null == bankImportTemplates ? _self.bankImportTemplates : bankImportTemplates // ignore: cast_nullable_to_non_nullable
-as List<BankImportTemplate>,bankStatementEntries: null == bankStatementEntries ? _self.bankStatementEntries : bankStatementEntries // ignore: cast_nullable_to_non_nullable
-as List<BankStatementEntry>,yearlyAnalytics: null == yearlyAnalytics ? _self.yearlyAnalytics : yearlyAnalytics // ignore: cast_nullable_to_non_nullable
+as List<BankImportTemplate>,categoryRules: null == categoryRules ? _self.categoryRules : categoryRules // ignore: cast_nullable_to_non_nullable
+as List<CashFlowCategoryRule>,bankStatementEntries: null == bankStatementEntries ? _self.bankStatementEntries : bankStatementEntries // ignore: cast_nullable_to_non_nullable
+as List<BankStatementEntry>,bankStatementMatches: null == bankStatementMatches ? _self.bankStatementMatches : bankStatementMatches // ignore: cast_nullable_to_non_nullable
+as Map<String, BankStatementMatchResult>,yearlyAnalytics: null == yearlyAnalytics ? _self.yearlyAnalytics : yearlyAnalytics // ignore: cast_nullable_to_non_nullable
 as List<MonthlyAnalytics>,availableFilters: null == availableFilters ? _self.availableFilters : availableFilters // ignore: cast_nullable_to_non_nullable
 as AvailableFilters,errorMessage: freezed == errorMessage ? _self.errorMessage : errorMessage // ignore: cast_nullable_to_non_nullable
 as String?,searchQuery: null == searchQuery ? _self.searchQuery : searchQuery // ignore: cast_nullable_to_non_nullable
@@ -125,7 +129,7 @@ $AvailableFiltersCopyWith<$Res> get availableFilters {
 
 
 class _CashFlowState extends CashFlowState {
-  const _CashFlowState({required this.status, this.currentView = CashFlowView.transactions, final  List<CashFlowTransaction> transactions = const [], final  List<CashFlowCategory> categories = const [], final  List<BankImportTemplate> bankImportTemplates = const [], final  List<BankStatementEntry> bankStatementEntries = const [], final  List<MonthlyAnalytics> yearlyAnalytics = const [], this.availableFilters = const AvailableFilters(), this.errorMessage, this.searchQuery = '', this.bankStatementSearchQuery = '', required this.selectedYear, this.selectedObjectId, this.selectedContractorId, final  List<String> selectedContractIds = const [], final  List<String> selectedOperationTypes = const [], this.selectedBankAccountId, this.hasMore = true, this.isLoadingMore = false, this.isDetailedAnalytics = false}): _transactions = transactions,_categories = categories,_bankImportTemplates = bankImportTemplates,_bankStatementEntries = bankStatementEntries,_yearlyAnalytics = yearlyAnalytics,_selectedContractIds = selectedContractIds,_selectedOperationTypes = selectedOperationTypes,super._();
+  const _CashFlowState({required this.status, this.currentView = CashFlowView.transactions, final  List<CashFlowTransaction> transactions = const [], final  List<CashFlowCategory> categories = const [], final  List<BankImportTemplate> bankImportTemplates = const [], final  List<CashFlowCategoryRule> categoryRules = const [], final  List<BankStatementEntry> bankStatementEntries = const [], final  Map<String, BankStatementMatchResult> bankStatementMatches = const {}, final  List<MonthlyAnalytics> yearlyAnalytics = const [], this.availableFilters = const AvailableFilters(), this.errorMessage, this.searchQuery = '', this.bankStatementSearchQuery = '', required this.selectedYear, this.selectedObjectId, this.selectedContractorId, final  List<String> selectedContractIds = const [], final  List<String> selectedOperationTypes = const [], this.selectedBankAccountId, this.hasMore = true, this.isLoadingMore = false, this.isDetailedAnalytics = false}): _transactions = transactions,_categories = categories,_bankImportTemplates = bankImportTemplates,_categoryRules = categoryRules,_bankStatementEntries = bankStatementEntries,_bankStatementMatches = bankStatementMatches,_yearlyAnalytics = yearlyAnalytics,_selectedContractIds = selectedContractIds,_selectedOperationTypes = selectedOperationTypes,super._();
   
 
 /// Текущий статус состояния.
@@ -159,6 +163,15 @@ class _CashFlowState extends CashFlowState {
   return EqualUnmodifiableListView(_bankImportTemplates);
 }
 
+/// Правила автосопоставления статей ДДС.
+ final  List<CashFlowCategoryRule> _categoryRules;
+/// Правила автосопоставления статей ДДС.
+@override@JsonKey() List<CashFlowCategoryRule> get categoryRules {
+  if (_categoryRules is EqualUnmodifiableListView) return _categoryRules;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_categoryRules);
+}
+
 /// Список записей из текущей загруженной выписки.
  final  List<BankStatementEntry> _bankStatementEntries;
 /// Список записей из текущей загруженной выписки.
@@ -166,6 +179,15 @@ class _CashFlowState extends CashFlowState {
   if (_bankStatementEntries is EqualUnmodifiableListView) return _bankStatementEntries;
   // ignore: implicit_dynamic_type
   return EqualUnmodifiableListView(_bankStatementEntries);
+}
+
+/// Результаты автосопоставления строк выписки (ключ — entry.id).
+ final  Map<String, BankStatementMatchResult> _bankStatementMatches;
+/// Результаты автосопоставления строк выписки (ключ — entry.id).
+@override@JsonKey() Map<String, BankStatementMatchResult> get bankStatementMatches {
+  if (_bankStatementMatches is EqualUnmodifiableMapView) return _bankStatementMatches;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableMapView(_bankStatementMatches);
 }
 
 /// Данные аналитики по месяцам за весь год.
@@ -228,16 +250,16 @@ _$CashFlowStateCopyWith<_CashFlowState> get copyWith => __$CashFlowStateCopyWith
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CashFlowState&&(identical(other.status, status) || other.status == status)&&(identical(other.currentView, currentView) || other.currentView == currentView)&&const DeepCollectionEquality().equals(other._transactions, _transactions)&&const DeepCollectionEquality().equals(other._categories, _categories)&&const DeepCollectionEquality().equals(other._bankImportTemplates, _bankImportTemplates)&&const DeepCollectionEquality().equals(other._bankStatementEntries, _bankStatementEntries)&&const DeepCollectionEquality().equals(other._yearlyAnalytics, _yearlyAnalytics)&&(identical(other.availableFilters, availableFilters) || other.availableFilters == availableFilters)&&(identical(other.errorMessage, errorMessage) || other.errorMessage == errorMessage)&&(identical(other.searchQuery, searchQuery) || other.searchQuery == searchQuery)&&(identical(other.bankStatementSearchQuery, bankStatementSearchQuery) || other.bankStatementSearchQuery == bankStatementSearchQuery)&&(identical(other.selectedYear, selectedYear) || other.selectedYear == selectedYear)&&(identical(other.selectedObjectId, selectedObjectId) || other.selectedObjectId == selectedObjectId)&&(identical(other.selectedContractorId, selectedContractorId) || other.selectedContractorId == selectedContractorId)&&const DeepCollectionEquality().equals(other._selectedContractIds, _selectedContractIds)&&const DeepCollectionEquality().equals(other._selectedOperationTypes, _selectedOperationTypes)&&(identical(other.selectedBankAccountId, selectedBankAccountId) || other.selectedBankAccountId == selectedBankAccountId)&&(identical(other.hasMore, hasMore) || other.hasMore == hasMore)&&(identical(other.isLoadingMore, isLoadingMore) || other.isLoadingMore == isLoadingMore)&&(identical(other.isDetailedAnalytics, isDetailedAnalytics) || other.isDetailedAnalytics == isDetailedAnalytics));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CashFlowState&&(identical(other.status, status) || other.status == status)&&(identical(other.currentView, currentView) || other.currentView == currentView)&&const DeepCollectionEquality().equals(other._transactions, _transactions)&&const DeepCollectionEquality().equals(other._categories, _categories)&&const DeepCollectionEquality().equals(other._bankImportTemplates, _bankImportTemplates)&&const DeepCollectionEquality().equals(other._categoryRules, _categoryRules)&&const DeepCollectionEquality().equals(other._bankStatementEntries, _bankStatementEntries)&&const DeepCollectionEquality().equals(other._bankStatementMatches, _bankStatementMatches)&&const DeepCollectionEquality().equals(other._yearlyAnalytics, _yearlyAnalytics)&&(identical(other.availableFilters, availableFilters) || other.availableFilters == availableFilters)&&(identical(other.errorMessage, errorMessage) || other.errorMessage == errorMessage)&&(identical(other.searchQuery, searchQuery) || other.searchQuery == searchQuery)&&(identical(other.bankStatementSearchQuery, bankStatementSearchQuery) || other.bankStatementSearchQuery == bankStatementSearchQuery)&&(identical(other.selectedYear, selectedYear) || other.selectedYear == selectedYear)&&(identical(other.selectedObjectId, selectedObjectId) || other.selectedObjectId == selectedObjectId)&&(identical(other.selectedContractorId, selectedContractorId) || other.selectedContractorId == selectedContractorId)&&const DeepCollectionEquality().equals(other._selectedContractIds, _selectedContractIds)&&const DeepCollectionEquality().equals(other._selectedOperationTypes, _selectedOperationTypes)&&(identical(other.selectedBankAccountId, selectedBankAccountId) || other.selectedBankAccountId == selectedBankAccountId)&&(identical(other.hasMore, hasMore) || other.hasMore == hasMore)&&(identical(other.isLoadingMore, isLoadingMore) || other.isLoadingMore == isLoadingMore)&&(identical(other.isDetailedAnalytics, isDetailedAnalytics) || other.isDetailedAnalytics == isDetailedAnalytics));
 }
 
 
 @override
-int get hashCode => Object.hashAll([runtimeType,status,currentView,const DeepCollectionEquality().hash(_transactions),const DeepCollectionEquality().hash(_categories),const DeepCollectionEquality().hash(_bankImportTemplates),const DeepCollectionEquality().hash(_bankStatementEntries),const DeepCollectionEquality().hash(_yearlyAnalytics),availableFilters,errorMessage,searchQuery,bankStatementSearchQuery,selectedYear,selectedObjectId,selectedContractorId,const DeepCollectionEquality().hash(_selectedContractIds),const DeepCollectionEquality().hash(_selectedOperationTypes),selectedBankAccountId,hasMore,isLoadingMore,isDetailedAnalytics]);
+int get hashCode => Object.hashAll([runtimeType,status,currentView,const DeepCollectionEquality().hash(_transactions),const DeepCollectionEquality().hash(_categories),const DeepCollectionEquality().hash(_bankImportTemplates),const DeepCollectionEquality().hash(_categoryRules),const DeepCollectionEquality().hash(_bankStatementEntries),const DeepCollectionEquality().hash(_bankStatementMatches),const DeepCollectionEquality().hash(_yearlyAnalytics),availableFilters,errorMessage,searchQuery,bankStatementSearchQuery,selectedYear,selectedObjectId,selectedContractorId,const DeepCollectionEquality().hash(_selectedContractIds),const DeepCollectionEquality().hash(_selectedOperationTypes),selectedBankAccountId,hasMore,isLoadingMore,isDetailedAnalytics]);
 
 @override
 String toString() {
-  return 'CashFlowState(status: $status, currentView: $currentView, transactions: $transactions, categories: $categories, bankImportTemplates: $bankImportTemplates, bankStatementEntries: $bankStatementEntries, yearlyAnalytics: $yearlyAnalytics, availableFilters: $availableFilters, errorMessage: $errorMessage, searchQuery: $searchQuery, bankStatementSearchQuery: $bankStatementSearchQuery, selectedYear: $selectedYear, selectedObjectId: $selectedObjectId, selectedContractorId: $selectedContractorId, selectedContractIds: $selectedContractIds, selectedOperationTypes: $selectedOperationTypes, selectedBankAccountId: $selectedBankAccountId, hasMore: $hasMore, isLoadingMore: $isLoadingMore, isDetailedAnalytics: $isDetailedAnalytics)';
+  return 'CashFlowState(status: $status, currentView: $currentView, transactions: $transactions, categories: $categories, bankImportTemplates: $bankImportTemplates, categoryRules: $categoryRules, bankStatementEntries: $bankStatementEntries, bankStatementMatches: $bankStatementMatches, yearlyAnalytics: $yearlyAnalytics, availableFilters: $availableFilters, errorMessage: $errorMessage, searchQuery: $searchQuery, bankStatementSearchQuery: $bankStatementSearchQuery, selectedYear: $selectedYear, selectedObjectId: $selectedObjectId, selectedContractorId: $selectedContractorId, selectedContractIds: $selectedContractIds, selectedOperationTypes: $selectedOperationTypes, selectedBankAccountId: $selectedBankAccountId, hasMore: $hasMore, isLoadingMore: $isLoadingMore, isDetailedAnalytics: $isDetailedAnalytics)';
 }
 
 
@@ -248,7 +270,7 @@ abstract mixin class _$CashFlowStateCopyWith<$Res> implements $CashFlowStateCopy
   factory _$CashFlowStateCopyWith(_CashFlowState value, $Res Function(_CashFlowState) _then) = __$CashFlowStateCopyWithImpl;
 @override @useResult
 $Res call({
- CashFlowStatus status, CashFlowView currentView, List<CashFlowTransaction> transactions, List<CashFlowCategory> categories, List<BankImportTemplate> bankImportTemplates, List<BankStatementEntry> bankStatementEntries, List<MonthlyAnalytics> yearlyAnalytics, AvailableFilters availableFilters, String? errorMessage, String searchQuery, String bankStatementSearchQuery, int selectedYear, String? selectedObjectId, String? selectedContractorId, List<String> selectedContractIds, List<String> selectedOperationTypes, String? selectedBankAccountId, bool hasMore, bool isLoadingMore, bool isDetailedAnalytics
+ CashFlowStatus status, CashFlowView currentView, List<CashFlowTransaction> transactions, List<CashFlowCategory> categories, List<BankImportTemplate> bankImportTemplates, List<CashFlowCategoryRule> categoryRules, List<BankStatementEntry> bankStatementEntries, Map<String, BankStatementMatchResult> bankStatementMatches, List<MonthlyAnalytics> yearlyAnalytics, AvailableFilters availableFilters, String? errorMessage, String searchQuery, String bankStatementSearchQuery, int selectedYear, String? selectedObjectId, String? selectedContractorId, List<String> selectedContractIds, List<String> selectedOperationTypes, String? selectedBankAccountId, bool hasMore, bool isLoadingMore, bool isDetailedAnalytics
 });
 
 
@@ -265,15 +287,17 @@ class __$CashFlowStateCopyWithImpl<$Res>
 
 /// Create a copy of CashFlowState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? status = null,Object? currentView = null,Object? transactions = null,Object? categories = null,Object? bankImportTemplates = null,Object? bankStatementEntries = null,Object? yearlyAnalytics = null,Object? availableFilters = null,Object? errorMessage = freezed,Object? searchQuery = null,Object? bankStatementSearchQuery = null,Object? selectedYear = null,Object? selectedObjectId = freezed,Object? selectedContractorId = freezed,Object? selectedContractIds = null,Object? selectedOperationTypes = null,Object? selectedBankAccountId = freezed,Object? hasMore = null,Object? isLoadingMore = null,Object? isDetailedAnalytics = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? status = null,Object? currentView = null,Object? transactions = null,Object? categories = null,Object? bankImportTemplates = null,Object? categoryRules = null,Object? bankStatementEntries = null,Object? bankStatementMatches = null,Object? yearlyAnalytics = null,Object? availableFilters = null,Object? errorMessage = freezed,Object? searchQuery = null,Object? bankStatementSearchQuery = null,Object? selectedYear = null,Object? selectedObjectId = freezed,Object? selectedContractorId = freezed,Object? selectedContractIds = null,Object? selectedOperationTypes = null,Object? selectedBankAccountId = freezed,Object? hasMore = null,Object? isLoadingMore = null,Object? isDetailedAnalytics = null,}) {
   return _then(_CashFlowState(
 status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as CashFlowStatus,currentView: null == currentView ? _self.currentView : currentView // ignore: cast_nullable_to_non_nullable
 as CashFlowView,transactions: null == transactions ? _self._transactions : transactions // ignore: cast_nullable_to_non_nullable
 as List<CashFlowTransaction>,categories: null == categories ? _self._categories : categories // ignore: cast_nullable_to_non_nullable
 as List<CashFlowCategory>,bankImportTemplates: null == bankImportTemplates ? _self._bankImportTemplates : bankImportTemplates // ignore: cast_nullable_to_non_nullable
-as List<BankImportTemplate>,bankStatementEntries: null == bankStatementEntries ? _self._bankStatementEntries : bankStatementEntries // ignore: cast_nullable_to_non_nullable
-as List<BankStatementEntry>,yearlyAnalytics: null == yearlyAnalytics ? _self._yearlyAnalytics : yearlyAnalytics // ignore: cast_nullable_to_non_nullable
+as List<BankImportTemplate>,categoryRules: null == categoryRules ? _self._categoryRules : categoryRules // ignore: cast_nullable_to_non_nullable
+as List<CashFlowCategoryRule>,bankStatementEntries: null == bankStatementEntries ? _self._bankStatementEntries : bankStatementEntries // ignore: cast_nullable_to_non_nullable
+as List<BankStatementEntry>,bankStatementMatches: null == bankStatementMatches ? _self._bankStatementMatches : bankStatementMatches // ignore: cast_nullable_to_non_nullable
+as Map<String, BankStatementMatchResult>,yearlyAnalytics: null == yearlyAnalytics ? _self._yearlyAnalytics : yearlyAnalytics // ignore: cast_nullable_to_non_nullable
 as List<MonthlyAnalytics>,availableFilters: null == availableFilters ? _self.availableFilters : availableFilters // ignore: cast_nullable_to_non_nullable
 as AvailableFilters,errorMessage: freezed == errorMessage ? _self.errorMessage : errorMessage // ignore: cast_nullable_to_non_nullable
 as String?,searchQuery: null == searchQuery ? _self.searchQuery : searchQuery // ignore: cast_nullable_to_non_nullable

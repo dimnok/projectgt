@@ -11,6 +11,11 @@ import 'package:projectgt/features/cash_flow/domain/entities/monthly_analytics.d
 import 'package:projectgt/features/cash_flow/domain/entities/available_filters.dart';
 import 'package:projectgt/features/cash_flow/domain/repositories/cash_flow_repository_interface.dart';
 import 'package:projectgt/features/cash_flow/application/bank_import_service.dart';
+import 'package:projectgt/features/cash_flow/application/bank_statement_auto_process_service.dart';
+import 'package:projectgt/features/cash_flow/domain/entities/cash_flow_category_rule.dart';
+import 'package:projectgt/features/cash_flow/domain/entities/bank_statement_match_result.dart';
+import 'package:projectgt/domain/entities/contract.dart';
+import 'package:projectgt/features/contractors/domain/entities/contractor.dart';
 import 'package:projectgt/features/company/domain/entities/company_bank_account.dart';
 
 part 'cash_flow_state.freezed.dart';
@@ -59,8 +64,14 @@ abstract class CashFlowState with _$CashFlowState {
     /// Список шаблонов импорта банковских выписок.
     @Default([]) List<BankImportTemplate> bankImportTemplates,
 
+    /// Правила автосопоставления статей ДДС.
+    @Default([]) List<CashFlowCategoryRule> categoryRules,
+
     /// Список записей из текущей загруженной выписки.
     @Default([]) List<BankStatementEntry> bankStatementEntries,
+
+    /// Результаты автосопоставления строк выписки (ключ — entry.id).
+    @Default({}) Map<String, BankStatementMatchResult> bankStatementMatches,
 
     /// Данные аналитики по месяцам за весь год.
     @Default([]) List<MonthlyAnalytics> yearlyAnalytics,
@@ -122,6 +133,13 @@ abstract class CashFlowState with _$CashFlowState {
         .toList();
   }
 
+  /// Число строк выписки готовых к автоматической обработке.
+  int get autoProcessableBankStatementCount {
+    return bankStatementEntries
+        .where((e) => bankStatementMatches[e.id]?.isAutoProcessable ?? false)
+        .length;
+  }
+
   /// Начальное состояние.
   factory CashFlowState.initial() => CashFlowState(
     status: CashFlowStatus.initial,
@@ -134,12 +152,16 @@ abstract class CashFlowState with _$CashFlowState {
 class CashFlowNotifier extends StateNotifier<CashFlowState> {
   final ICashFlowRepository _repository;
   final BankImportService _importService;
+  final BankStatementAutoProcessService _autoProcessService;
   static const int _pageSize = 50;
   int _currentPage = 0;
 
   /// Создаёт [CashFlowNotifier].
-  CashFlowNotifier(this._repository, this._importService)
-    : super(CashFlowState.initial());
+  CashFlowNotifier(
+    this._repository,
+    this._importService,
+    this._autoProcessService,
+  ) : super(CashFlowState.initial());
 
   /// Загружает начальные данные модуля (первая страница транзакций и категории).
   /// [quiet] — если true, статус loading не устанавливается (для фонового обновления).
@@ -191,6 +213,7 @@ class CashFlowNotifier extends StateNotifier<CashFlowState> {
         ),
         _repository.getBankImportTemplates(),
         _repository.getAvailableFilters(fromDate: fromDate, toDate: toDate),
+        _repository.getCategoryRules(),
       ]);
 
       final transactions = results[0] as List<CashFlowTransaction>;
@@ -219,6 +242,7 @@ class CashFlowNotifier extends StateNotifier<CashFlowState> {
         categories: results[1] as List<CashFlowCategory>,
         yearlyAnalytics: results[2] as List<MonthlyAnalytics>,
         bankImportTemplates: results[3] as List<BankImportTemplate>,
+        categoryRules: results[5] as List<CashFlowCategoryRule>,
         availableFilters: availableFilters,
         selectedObjectId: updatedObjectId,
         selectedContractorId: updatedContractorId,
@@ -490,12 +514,118 @@ class CashFlowNotifier extends StateNotifier<CashFlowState> {
       state = state.copyWith(
         status: CashFlowStatus.success,
         bankStatementEntries: entries,
+        bankStatementMatches: {},
       );
     } catch (e) {
       state = state.copyWith(
         status: CashFlowStatus.error,
         errorMessage: e.toString(),
       );
+    }
+  }
+
+  /// Вычисляет автосопоставление для текущих строк выписки.
+  Future<void> computeBankStatementMatches({
+    required List<Contractor> contractors,
+    required List<Contract> contracts,
+  }) async {
+    if (state.bankStatementEntries.isEmpty) {
+      state = state.copyWith(bankStatementMatches: {});
+      return;
+    }
+
+    try {
+      final duplicateHashes = _duplicateOperationHashes();
+      final matches = await _autoProcessService.computeMatches(
+        entries: state.bankStatementEntries,
+        contractors: contractors,
+        contracts: contracts,
+        categories: state.categories,
+        rules: state.categoryRules,
+        duplicateHashes: duplicateHashes,
+      );
+      state = state.copyWith(bankStatementMatches: matches);
+    } catch (e) {
+      state = state.copyWith(
+        status: CashFlowStatus.error,
+        errorMessage: e.toString(),
+      );
+    }
+  }
+
+  /// Пакетно обрабатывает строки выписки с высокой уверенностью.
+  Future<BankStatementBatchProcessResult> batchProcessReadyBankStatementEntries({
+    required String companyId,
+    bool linkSettlements = true,
+  }) async {
+    state = state.copyWith(status: CashFlowStatus.loading);
+    try {
+      final result = await _autoProcessService.processAutoMatched(
+        entries: state.bankStatementEntries,
+        matches: state.bankStatementMatches,
+        companyId: companyId,
+        linkSettlements: linkSettlements,
+      );
+
+      await loadAllData(quiet: true);
+      if (state.selectedBankAccountId != null) {
+        await loadBankStatementEntries(state.selectedBankAccountId!);
+      }
+
+      return result;
+    } catch (e) {
+      state = state.copyWith(
+        status: CashFlowStatus.error,
+        errorMessage: e.toString(),
+      );
+      rethrow;
+    }
+  }
+
+  Set<String> _duplicateOperationHashes() {
+    return state.transactions
+        .map((t) => t.operationHash)
+        .whereType<String>()
+        .toSet();
+  }
+
+  /// Сохраняет правило автосопоставления категории.
+  Future<void> saveCategoryRule(CashFlowCategoryRule rule) async {
+    state = state.copyWith(status: CashFlowStatus.loading);
+    try {
+      await _repository.saveCategoryRule(rule);
+      final rules = await _repository.getCategoryRules();
+      state = state.copyWith(
+        status: CashFlowStatus.success,
+        categoryRules: rules,
+        bankStatementMatches: {},
+      );
+    } catch (e) {
+      state = state.copyWith(
+        status: CashFlowStatus.error,
+        errorMessage: e.toString(),
+      );
+      rethrow;
+    }
+  }
+
+  /// Удаляет правило автосопоставления категории.
+  Future<void> deleteCategoryRule(String id) async {
+    state = state.copyWith(status: CashFlowStatus.loading);
+    try {
+      await _repository.deleteCategoryRule(id);
+      final rules = await _repository.getCategoryRules();
+      state = state.copyWith(
+        status: CashFlowStatus.success,
+        categoryRules: rules,
+        bankStatementMatches: {},
+      );
+    } catch (e) {
+      state = state.copyWith(
+        status: CashFlowStatus.error,
+        errorMessage: e.toString(),
+      );
+      rethrow;
     }
   }
 
@@ -629,6 +759,8 @@ final cashFlowProvider = StateNotifierProvider<CashFlowNotifier, CashFlowState>(
   (ref) {
     final repository = ref.watch(cashFlowRepositoryProvider);
     final importService = ref.watch(bankImportServiceProvider);
-    return CashFlowNotifier(repository, importService)..loadAllData();
+    final autoProcessService = ref.watch(bankStatementAutoProcessServiceProvider);
+    return CashFlowNotifier(repository, importService, autoProcessService)
+        ..loadAllData();
   },
 );

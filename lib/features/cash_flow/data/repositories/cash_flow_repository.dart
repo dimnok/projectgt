@@ -3,7 +3,10 @@ import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/features/cash_flow/domain/entities/available_filters.dart';
 import 'package:projectgt/features/cash_flow/domain/entities/bank_import_template.dart';
 import 'package:projectgt/features/cash_flow/domain/entities/bank_statement_entry.dart';
+import 'package:projectgt/features/cash_flow/domain/entities/bank_statement_match_result.dart';
+import 'package:projectgt/features/cash_flow/domain/entities/bank_statement_matching_context.dart';
 import 'package:projectgt/features/cash_flow/domain/entities/cash_flow_category.dart';
+import 'package:projectgt/features/cash_flow/domain/entities/cash_flow_category_rule.dart';
 import 'package:projectgt/features/cash_flow/domain/entities/cash_flow_transaction.dart';
 import 'package:projectgt/features/cash_flow/domain/entities/monthly_analytics.dart';
 import 'package:projectgt/features/cash_flow/domain/repositories/cash_flow_repository_interface.dart';
@@ -11,6 +14,7 @@ import 'package:projectgt/features/cash_flow/data/models/cash_flow_transaction_m
 import 'package:projectgt/features/cash_flow/data/models/cash_flow_category_model.dart';
 import 'package:projectgt/features/cash_flow/data/models/bank_import_template_model.dart';
 import 'package:projectgt/features/cash_flow/data/models/bank_statement_entry_model.dart';
+import 'package:projectgt/features/cash_flow/data/models/cash_flow_category_rule_model.dart';
 
 /// Реализация репозитория Cash Flow с использованием Supabase.
 class CashFlowRepository implements ICashFlowRepository {
@@ -24,6 +28,7 @@ class CashFlowRepository implements ICashFlowRepository {
   static const _categoriesTable = 'cash_flow_categories';
   static const _bankTemplatesTable = 'bank_import_templates';
   static const _bankEntriesTable = 'bank_statement_entries';
+  static const _categoryRulesTable = 'cash_flow_category_rules';
 
   @override
   Future<List<BankStatementEntry>> getBankStatementEntries(String accountId) async {
@@ -403,6 +408,145 @@ class CashFlowRepository implements ICashFlowRepository {
 
     final sortedKeys = grouped.keys.toList()..sort();
     return sortedKeys.map((key) => grouped[key]!).toList();
+  }
+
+  static const _categoryRuleSelect = '''
+    *,
+    cash_flow_categories:category_id(name)
+  ''';
+
+  @override
+  Future<List<CashFlowCategoryRule>> getCategoryRules() async {
+    final response = await _client
+        .from(_categoryRulesTable)
+        .select(_categoryRuleSelect)
+        .eq('company_id', _activeCompanyId)
+        .order('operation_type')
+        .order('priority', ascending: false)
+        .order('keyword');
+
+    return (response as List)
+        .map(
+          (json) => CashFlowCategoryRuleModel.fromJson(
+            Map<String, dynamic>.from(json as Map),
+          ).toDomain(),
+        )
+        .toList();
+  }
+
+  @override
+  Future<CashFlowCategoryRule> saveCategoryRule(CashFlowCategoryRule rule) async {
+    final model = CashFlowCategoryRuleModel.fromDomain(rule);
+    final json = model.toJson();
+    json['company_id'] = _activeCompanyId;
+
+    if (rule.id.isEmpty) {
+      json.remove('id');
+    }
+
+    if (json['created_at'] == null) {
+      json.remove('created_at');
+    }
+
+    final response = await _client
+        .from(_categoryRulesTable)
+        .upsert(json)
+        .select(_categoryRuleSelect)
+        .single();
+
+    return CashFlowCategoryRuleModel.fromJson(
+      Map<String, dynamic>.from(response),
+    ).toDomain();
+  }
+
+  @override
+  Future<void> deleteCategoryRule(String id) async {
+    await _client
+        .from(_categoryRulesTable)
+        .delete()
+        .eq('id', id)
+        .eq('company_id', _activeCompanyId);
+  }
+
+  @override
+  Future<BankStatementMatchingContext> getMatchingContext() async {
+    if (_activeCompanyId.isEmpty) {
+      return BankStatementMatchingContext.empty;
+    }
+
+    final response = await _client.rpc(
+      'get_bank_statement_matching_context',
+      params: {'p_company_id': _activeCompanyId},
+    );
+
+    if (response == null) {
+      return BankStatementMatchingContext.empty;
+    }
+
+    final data = Map<String, dynamic>.from(response as Map);
+
+    final hintsList = data['contractor_hints'] as List? ?? [];
+    final hints = <String, ContractorCashFlowHint>{};
+    for (final raw in hintsList) {
+      final map = Map<String, dynamic>.from(raw as Map);
+      final contractorId = map['contractor_id']?.toString();
+      if (contractorId == null) continue;
+      hints[contractorId] = ContractorCashFlowHint(
+        contractorId: contractorId,
+        contractId: map['contract_id']?.toString(),
+        objectId: map['object_id']?.toString(),
+        categoryId: map['category_id']?.toString(),
+      );
+    }
+
+    final settlementsList = data['open_settlements'] as List? ?? [];
+    final settlements = settlementsList.map((raw) {
+      final map = Map<String, dynamic>.from(raw as Map);
+      return OpenSettlementCandidate(
+        id: map['id'] as String,
+        contractId: map['contract_id'] as String,
+        contractorId: map['contractor_id'] as String,
+        remainingAmount: (map['remaining_amount'] as num).toDouble(),
+        invoiceNumber: map['invoice_number'] as String,
+      );
+    }).toList();
+
+    return BankStatementMatchingContext(
+      contractorHints: hints,
+      openSettlements: settlements,
+    );
+  }
+
+  @override
+  Future<BankStatementBatchProcessResult> batchProcessBankStatementEntries({
+    required String companyId,
+    required List<Map<String, dynamic>> items,
+  }) async {
+    final response = await _client.rpc(
+      'batch_process_bank_statement_entries',
+      params: {
+        'p_company_id': companyId,
+        'p_items': items,
+        'p_created_by': _client.auth.currentUser?.id,
+      },
+    );
+
+    final data = Map<String, dynamic>.from(response as Map);
+    final processed = (data['processed'] as num?)?.toInt() ?? 0;
+    final failuresRaw = data['failed'] as List? ?? [];
+
+    final failures = failuresRaw.map((raw) {
+      final map = Map<String, dynamic>.from(raw as Map);
+      return BankStatementBatchFailure(
+        entryId: map['entry_id']?.toString() ?? '',
+        error: map['error']?.toString() ?? 'Неизвестная ошибка',
+      );
+    }).toList();
+
+    return BankStatementBatchProcessResult(
+      processed: processed,
+      failures: failures,
+    );
   }
 }
 

@@ -112,6 +112,8 @@ import 'package:projectgt/domain/usecases/employee_rate/get_employee_rates_useca
 import 'package:projectgt/features/cash_flow/domain/repositories/cash_flow_repository_interface.dart';
 import 'package:projectgt/features/cash_flow/data/repositories/cash_flow_repository.dart';
 import 'package:projectgt/features/cash_flow/application/bank_import_service.dart';
+import 'package:projectgt/features/cash_flow/application/bank_statement_auto_process_service.dart';
+import 'package:projectgt/features/cash_flow/domain/services/bank_statement_matching_service.dart';
 import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 
 /// Провайдер Supabase клиента для доступа к базе данных.
@@ -298,6 +300,16 @@ final cashFlowRepositoryProvider = Provider<ICashFlowRepository>((ref) {
 final bankImportServiceProvider = Provider<BankImportService>((ref) {
   final repository = ref.watch(cashFlowRepositoryProvider);
   return BankImportService(repository);
+});
+
+/// Провайдер сервиса автосопоставления и пакетной обработки выписки.
+final bankStatementAutoProcessServiceProvider =
+    Provider<BankStatementAutoProcessService>((ref) {
+  final repository = ref.watch(cashFlowRepositoryProvider);
+  return BankStatementAutoProcessService(
+    repository,
+    BankStatementMatchingService(),
+  );
 });
 
 // UseCases - Auth

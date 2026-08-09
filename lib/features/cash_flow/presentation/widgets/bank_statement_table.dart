@@ -5,6 +5,7 @@ import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/widgets/gt_section_title.dart';
 import 'package:projectgt/core/widgets/gt_context_menu.dart';
 import 'package:projectgt/features/cash_flow/domain/entities/bank_statement_entry.dart';
+import 'package:projectgt/features/cash_flow/domain/entities/bank_statement_match_result.dart';
 import 'package:projectgt/features/cash_flow/domain/entities/cash_flow_transaction.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
 import 'package:projectgt/features/cash_flow/presentation/state/cash_flow_state.dart';
@@ -17,6 +18,9 @@ class BankStatementTable extends ConsumerStatefulWidget {
   /// Список записей банковской выписки для отображения.
   final List<BankStatementEntry> entries;
 
+  /// Результаты автосопоставления (ключ — entry.id).
+  final Map<String, BankStatementMatchResult> matchResults;
+
   /// Обратный вызов при нажатии на запись.
   final void Function(BankStatementEntry) onEntryTap;
 
@@ -24,6 +28,7 @@ class BankStatementTable extends ConsumerStatefulWidget {
   const BankStatementTable({
     super.key,
     required this.entries,
+    this.matchResults = const {},
     required this.onEntryTap,
   });
 
@@ -110,6 +115,7 @@ class _BankStatementTableState extends ConsumerState<BankStatementTable> {
                                   return _BankStatementEntryRow(
                                     entry: entry,
                                     isDuplicate: isDuplicate,
+                                    matchResult: widget.matchResults[entry.id],
                                     onTap: () => widget.onEntryTap(entry),
                                   );
                                 },
@@ -174,11 +180,13 @@ class _BankStatementTableState extends ConsumerState<BankStatementTable> {
 class _BankStatementEntryRow extends ConsumerStatefulWidget {
   final BankStatementEntry entry;
   final bool isDuplicate;
+  final BankStatementMatchResult? matchResult;
   final VoidCallback onTap;
 
   const _BankStatementEntryRow({
     required this.entry,
     required this.isDuplicate,
+    this.matchResult,
     required this.onTap,
   });
 
@@ -276,23 +284,8 @@ class _BankStatementEntryRowState
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Иконка типа
-              widget.isDuplicate
-                  ? const Tooltip(
-                      message: 'Эта операция уже есть в системе (дубликат)',
-                      child: Icon(
-                        CupertinoIcons.exclamationmark_triangle_fill,
-                        size: 18,
-                        color: Colors.orange,
-                      ),
-                    )
-                  : Icon(
-                      isIncome
-                          ? CupertinoIcons.plus_circle
-                          : CupertinoIcons.minus_circle,
-                      size: 18,
-                      color: isIncome ? Colors.green : Colors.red,
-                    ),
+              // Иконка типа / статус автосопоставления
+              _buildLeadingIcon(theme, isIncome, isAlreadyImported),
               const SizedBox(width: 14),
               // Дата
               Expanded(
@@ -357,6 +350,62 @@ class _BankStatementEntryRowState
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildLeadingIcon(
+    ThemeData theme,
+    bool isIncome,
+    bool isAlreadyImported,
+  ) {
+    if (widget.isDuplicate) {
+      return const Tooltip(
+        message: 'Эта операция уже есть в системе (дубликат)',
+        child: Icon(
+          CupertinoIcons.exclamationmark_triangle_fill,
+          size: 18,
+          color: Colors.orange,
+        ),
+      );
+    }
+
+    final match = widget.matchResult;
+    if (match != null && !isAlreadyImported) {
+      switch (match.confidence) {
+        case BankStatementMatchConfidence.high:
+          return Tooltip(
+            message: match.matchReasons.join('\n'),
+            child: Icon(
+              CupertinoIcons.checkmark_seal_fill,
+              size: 18,
+              color: Colors.green.shade700,
+            ),
+          );
+        case BankStatementMatchConfidence.medium:
+          return Tooltip(
+            message: match.matchReasons.join('\n'),
+            child: Icon(
+              CupertinoIcons.exclamationmark_circle,
+              size: 18,
+              color: Colors.orange.shade700,
+            ),
+          );
+        case BankStatementMatchConfidence.low:
+          return Tooltip(
+            message: match.matchReasons.join('\n'),
+            child: Icon(
+              CupertinoIcons.question_circle,
+              size: 18,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          );
+      }
+    }
+
+    return Icon(
+      isIncome ? CupertinoIcons.plus_circle : CupertinoIcons.minus_circle,
+      size: 18,
+      color: isIncome ? Colors.green : Colors.red,
     );
   }
 }
