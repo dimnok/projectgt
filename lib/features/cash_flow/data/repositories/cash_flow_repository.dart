@@ -354,20 +354,22 @@ class CashFlowRepository implements ICashFlowRepository {
     final response = await query.gte('date', fromDate).lte('date', toDate);
 
     final List<dynamic> data = response as List;
-    final Map<String, MonthlyAnalytics> grouped = {};
+    // Ключ: year * 100 + month — хронологическая сортировка без парсинга локализованных строк.
+    final Map<int, MonthlyAnalytics> grouped = {};
 
     for (final item in data) {
-      final date = DateTime.parse(item['date']);
+      final date = DateTime.parse(item['date']).toLocal();
       final type =
           item['type'] == 'income' ? CashFlowType.income : CashFlowType.expense;
       final amount = (item['amount'] as num).toDouble();
       final categoryName =
           item['cash_flow_categories']?['name'] ?? 'Без категории';
 
-      final key = GtFormatters.formatCompactMonthYear(date);
-      final current = grouped[key] ??
+      final monthKey = date.year * 100 + date.month;
+      final monthLabel = GtFormatters.formatCompactMonthYear(date);
+      final current = grouped[monthKey] ??
           MonthlyAnalytics(
-            monthYear: key,
+            monthYear: monthLabel,
             income: 0,
             expense: 0,
             categoryIncomes: {},
@@ -378,8 +380,8 @@ class CashFlowRepository implements ICashFlowRepository {
         final newCategoryIncomes = Map<String, double>.from(current.categoryIncomes);
         newCategoryIncomes[categoryName] = (newCategoryIncomes[categoryName] ?? 0) + amount;
         
-        grouped[key] = MonthlyAnalytics(
-          monthYear: key,
+        grouped[monthKey] = MonthlyAnalytics(
+          monthYear: monthLabel,
           income: current.income + amount,
           expense: current.expense,
           categoryIncomes: newCategoryIncomes,
@@ -389,8 +391,8 @@ class CashFlowRepository implements ICashFlowRepository {
         final newCategoryExpenses = Map<String, double>.from(current.categoryExpenses);
         newCategoryExpenses[categoryName] = (newCategoryExpenses[categoryName] ?? 0) + amount;
 
-        grouped[key] = MonthlyAnalytics(
-          monthYear: key,
+        grouped[monthKey] = MonthlyAnalytics(
+          monthYear: monthLabel,
           income: current.income,
           expense: current.expense + amount,
           categoryIncomes: current.categoryIncomes,
@@ -399,16 +401,8 @@ class CashFlowRepository implements ICashFlowRepository {
       }
     }
 
-    // Сортируем по месяцам
-    final List<MapEntry<DateTime, MonthlyAnalytics>> entries = [];
-    grouped.forEach((key, value) {
-      final date = GtFormatters.parseDate(key, 'MMM yyyy') ?? DateTime.now();
-      entries.add(MapEntry(date, value));
-    });
-
-    entries.sort((a, b) => a.key.compareTo(b.key));
-
-    return entries.map((e) => e.value).toList();
+    final sortedKeys = grouped.keys.toList()..sort();
+    return sortedKeys.map((key) => grouped[key]!).toList();
   }
 }
 
