@@ -148,17 +148,6 @@ abstract class SettlementOperation with _$SettlementOperation {
   bool get hasOverpayment => remainingAmount < -amountEpsilon;
 }
 
-/// Считает «к оплате» по формуле v1.
-double computeSettlementTotalToPay({
-  required double amount,
-  required double vatAmount,
-  double advanceRetention = 0,
-  double warrantyRetention = 0,
-}) {
-  final value = amount + vatAmount - advanceRetention - warrantyRetention;
-  return value < 0 ? 0 : value;
-}
-
 /// Считает статус оплаты по суммам.
 ///
 /// [totalToPay] — сумма к оплате; [paidAmount] — уже оплачено.

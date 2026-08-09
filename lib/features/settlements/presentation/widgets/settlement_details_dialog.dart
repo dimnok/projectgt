@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:projectgt/core/utils/adaptive_dialog.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/core/widgets/app_snackbar.dart';
@@ -38,30 +39,14 @@ class SettlementDetailsDialog extends ConsumerStatefulWidget {
     BuildContext context, {
     required SettlementOperation operation,
     Contract? presetContract,
-  }) {
-    final isDesktop = ResponsiveUtils.isDesktop(context);
-    final child = SettlementDetailsDialog(
-      operation: operation,
-      presetContract: presetContract,
-    );
-    if (isDesktop) {
-      return showDialog<void>(
-        context: context,
-        builder: (_) => Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.all(24),
-          child: child,
+  }) =>
+      showAdaptiveModal<void>(
+        context,
+        builder: (_) => SettlementDetailsDialog(
+          operation: operation,
+          presetContract: presetContract,
         ),
       );
-    }
-    return showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => child,
-    );
-  }
 
   @override
   ConsumerState<SettlementDetailsDialog> createState() =>

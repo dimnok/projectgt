@@ -127,43 +127,67 @@ class SettlementsFiltersToolbar extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  _SettlementsOptionFilterChip(
+                  _SettlementsFilterChip<String>(
                     label: _optionChipLabel(
                       placeholder: 'Контрагент',
                       options: contractorOptions,
                       selectedId: contractorFilterId,
                     ),
-                    options: contractorOptions,
-                    selectedId: contractorFilterId,
+                    values: [
+                      for (final o in contractorOptions) o.id,
+                    ],
+                    selected: contractorFilterId,
+                    itemLabel: (id) =>
+                        SettlementsFilterOptionsBuilder.labelForId(
+                          contractorOptions,
+                          id,
+                        ) ??
+                        id,
                     onChanged: onContractorChanged,
                     allLabel: 'Все контрагенты',
                   ),
                   const SizedBox(width: 8),
-                  _SettlementsOptionFilterChip(
+                  _SettlementsFilterChip<String>(
                     label: _optionChipLabel(
                       placeholder: 'Объект',
                       options: objectOptions,
                       selectedId: objectFilterId,
                     ),
-                    options: objectOptions,
-                    selectedId: objectFilterId,
+                    values: [
+                      for (final o in objectOptions) o.id,
+                    ],
+                    selected: objectFilterId,
+                    itemLabel: (id) =>
+                        SettlementsFilterOptionsBuilder.labelForId(
+                          objectOptions,
+                          id,
+                        ) ??
+                        id,
                     onChanged: onObjectChanged,
                     allLabel: 'Все объекты',
                   ),
                   const SizedBox(width: 8),
-                  _SettlementsOptionFilterChip(
+                  _SettlementsFilterChip<String>(
                     label: _optionChipLabel(
                       placeholder: 'Договор',
                       options: contractOptions,
                       selectedId: contractFilterId,
                     ),
-                    options: contractOptions,
-                    selectedId: contractFilterId,
+                    values: [
+                      for (final o in contractOptions) o.id,
+                    ],
+                    selected: contractFilterId,
+                    itemLabel: (id) =>
+                        SettlementsFilterOptionsBuilder.labelForId(
+                          contractOptions,
+                          id,
+                        ) ??
+                        id,
                     onChanged: onContractChanged,
                     allLabel: 'Все договоры',
                   ),
                   const SizedBox(width: 8),
-                  _SettlementsEnumFilterChip<SettlementOperationType>(
+                  _SettlementsFilterChip<SettlementOperationType>(
                     label: typeFilter == null
                         ? 'Тип'
                         : settlementOperationTypeLabel(typeFilter!),
@@ -174,7 +198,7 @@ class SettlementsFiltersToolbar extends StatelessWidget {
                     allLabel: 'Все типы',
                   ),
                   const SizedBox(width: 8),
-                  _SettlementsEnumFilterChip<SettlementPaymentStatus>(
+                  _SettlementsFilterChip<SettlementPaymentStatus>(
                     label: paymentStatusFilter == null
                         ? 'Оплата'
                         : settlementPaymentStatusLabel(paymentStatusFilter!),
@@ -328,89 +352,7 @@ class _SettlementsToolbarSearchState extends State<_SettlementsToolbarSearch> {
   }
 }
 
-class _SettlementsOptionFilterChip extends StatelessWidget {
-  final String label;
-  final List<SettlementsFilterOption> options;
-  final String? selectedId;
-  final ValueChanged<String?> onChanged;
-  final String allLabel;
-
-  const _SettlementsOptionFilterChip({
-    required this.label,
-    required this.options,
-    required this.selectedId,
-    required this.onChanged,
-    required this.allLabel,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final active = selectedId != null;
-
-    return PopupMenuButton<String?>(
-      tooltip: label,
-      constraints: const BoxConstraints(maxHeight: 320),
-      onSelected: onChanged,
-      itemBuilder: (context) => [
-        PopupMenuItem<String?>(
-          onTap: () => onChanged(null),
-          child: Text(allLabel),
-        ),
-        ...options.map(
-          (option) => PopupMenuItem<String?>(
-            value: option.id,
-            child: Text(
-              option.label,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ),
-      ],
-      child: Container(
-        height: SettlementsToolbarMetrics.height,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          borderRadius:
-              BorderRadius.circular(SettlementsToolbarMetrics.radius),
-          border: Border.all(
-            color: active
-                ? scheme.primary.withValues(alpha: 0.62)
-                : _barBorder(scheme),
-          ),
-          color: active
-              ? scheme.primary.withValues(alpha: 0.14)
-              : _barFill(scheme),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label,
-              style: theme.textTheme.labelLarge?.copyWith(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: active ? scheme.primary : scheme.onSurface,
-              ),
-            ),
-            const SizedBox(width: 4),
-            Icon(
-              Icons.expand_more_rounded,
-              size: 18,
-              color: active
-                  ? scheme.primary
-                  : scheme.onSurface.withValues(alpha: 0.55),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SettlementsEnumFilterChip<T extends Enum> extends StatelessWidget {
+class _SettlementsFilterChip<T> extends StatelessWidget {
   final String label;
   final List<T> values;
   final T? selected;
@@ -418,7 +360,7 @@ class _SettlementsEnumFilterChip<T extends Enum> extends StatelessWidget {
   final ValueChanged<T?> onChanged;
   final String allLabel;
 
-  const _SettlementsEnumFilterChip({
+  const _SettlementsFilterChip({
     required this.label,
     required this.values,
     required this.selected,
@@ -435,6 +377,7 @@ class _SettlementsEnumFilterChip<T extends Enum> extends StatelessWidget {
 
     return PopupMenuButton<T?>(
       tooltip: label,
+      constraints: const BoxConstraints(maxHeight: 320),
       onSelected: onChanged,
       itemBuilder: (context) => [
         PopupMenuItem<T?>(
@@ -444,7 +387,11 @@ class _SettlementsEnumFilterChip<T extends Enum> extends StatelessWidget {
         ...values.map(
           (v) => PopupMenuItem<T?>(
             value: v,
-            child: Text(itemLabel(v)),
+            child: Text(
+              itemLabel(v),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ),
       ],

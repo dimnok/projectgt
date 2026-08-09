@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/core/utils/adaptive_dialog.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/core/widgets/app_snackbar.dart';
@@ -44,32 +45,14 @@ class SettlementFormDialog extends ConsumerStatefulWidget {
     BuildContext context, {
     SettlementOperation? operation,
     Contract? presetContract,
-  }) {
-    final isDesktop = ResponsiveUtils.isDesktop(context);
-    if (isDesktop) {
-      return showDialog<void>(
-        context: context,
-        builder: (_) => Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.all(24),
-          child: SettlementFormDialog(
-            operation: operation,
-            presetContract: presetContract,
-          ),
+  }) =>
+      showAdaptiveModal<void>(
+        context,
+        builder: (_) => SettlementFormDialog(
+          operation: operation,
+          presetContract: presetContract,
         ),
       );
-    }
-    return showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => SettlementFormDialog(
-        operation: operation,
-        presetContract: presetContract,
-      ),
-    );
-  }
 
   @override
   ConsumerState<SettlementFormDialog> createState() =>
@@ -125,7 +108,7 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
         ? null
         : (op.isVatIncluded ? (op.amount + op.vatAmount) : op.amount);
     _amountController = TextEditingController(
-      text: initialAmount == null ? '' : _fmtAmount(initialAmount),
+      text: initialAmount == null ? '' : formatAmount(initialAmount),
     );
 
     _invoiceDateController =
@@ -161,10 +144,6 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
     }
   }
 
-  String _fmtAmount(num value) => GtFormatters.formatAmount(value)
-      .replaceAll('\u00A0', ' ')
-      .replaceAll('\u202F', ' ');
-
   @override
   void dispose() {
     _actNumberController.dispose();
@@ -177,12 +156,7 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
   }
 
   Future<void> _pickInvoiceDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _invoiceDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
-    );
+    final picked = await pickRuDate(context, initialDate: _invoiceDate);
     if (picked == null || !mounted) return;
     setState(() {
       _invoiceDate = picked;
@@ -208,11 +182,6 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
 
   /// Итого с НДС.
   double get _totalWithVat => _baseAmount + _vatAmount;
-
-  List<TextInputFormatter> get _moneyFormatters => [
-        FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-        amountFormatter(),
-      ];
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
@@ -293,6 +262,7 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
 
     await syncSettlementProviders(ref, contractId: result.contractId);
 
+    if (!mounted) return;
     AppSnackBar.show(
       context: context,
       message:
@@ -497,7 +467,7 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
                   prefixIcon: CupertinoIcons.money_rubl_circle,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: _moneyFormatters,
+                  inputFormatters: moneyInputFormatters(),
                   onChanged: (_) => setState(() {}),
                   validator: (v) {
                     final n = parseAmount(v);

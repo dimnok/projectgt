@@ -16,7 +16,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$SettlementPaymentModel {
 
- String get id; String get companyId; String get settlementOperationId;@JsonKey(toJson: _dateOnlyToJson) DateTime get paymentDate; double get amount; String? get note; String? get cashFlowTransactionId; DateTime? get createdAt; String? get createdBy;
+ String get id; String get companyId; String get settlementOperationId;@JsonKey(toJson: dateOnlyToJson) DateTime get paymentDate; double get amount; String? get note; String? get cashFlowTransactionId; DateTime? get createdAt; String? get createdBy;
 /// Create a copy of SettlementPaymentModel
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -49,7 +49,7 @@ abstract mixin class $SettlementPaymentModelCopyWith<$Res>  {
   factory $SettlementPaymentModelCopyWith(SettlementPaymentModel value, $Res Function(SettlementPaymentModel) _then) = _$SettlementPaymentModelCopyWithImpl;
 @useResult
 $Res call({
- String id, String companyId, String settlementOperationId,@JsonKey(toJson: _dateOnlyToJson) DateTime paymentDate, double amount, String? note, String? cashFlowTransactionId, DateTime? createdAt, String? createdBy
+ String id, String companyId, String settlementOperationId,@JsonKey(toJson: dateOnlyToJson) DateTime paymentDate, double amount, String? note, String? cashFlowTransactionId, DateTime? createdAt, String? createdBy
 });
 
 
@@ -88,13 +88,13 @@ as String?,
 
 @JsonSerializable(fieldRename: FieldRename.snake)
 class _SettlementPaymentModel extends SettlementPaymentModel {
-  const _SettlementPaymentModel({required this.id, required this.companyId, required this.settlementOperationId, @JsonKey(toJson: _dateOnlyToJson) required this.paymentDate, required this.amount, this.note, this.cashFlowTransactionId, this.createdAt, this.createdBy}): super._();
+  const _SettlementPaymentModel({required this.id, required this.companyId, required this.settlementOperationId, @JsonKey(toJson: dateOnlyToJson) required this.paymentDate, required this.amount, this.note, this.cashFlowTransactionId, this.createdAt, this.createdBy}): super._();
   factory _SettlementPaymentModel.fromJson(Map<String, dynamic> json) => _$SettlementPaymentModelFromJson(json);
 
 @override final  String id;
 @override final  String companyId;
 @override final  String settlementOperationId;
-@override@JsonKey(toJson: _dateOnlyToJson) final  DateTime paymentDate;
+@override@JsonKey(toJson: dateOnlyToJson) final  DateTime paymentDate;
 @override final  double amount;
 @override final  String? note;
 @override final  String? cashFlowTransactionId;
@@ -134,7 +134,7 @@ abstract mixin class _$SettlementPaymentModelCopyWith<$Res> implements $Settleme
   factory _$SettlementPaymentModelCopyWith(_SettlementPaymentModel value, $Res Function(_SettlementPaymentModel) _then) = __$SettlementPaymentModelCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String companyId, String settlementOperationId,@JsonKey(toJson: _dateOnlyToJson) DateTime paymentDate, double amount, String? note, String? cashFlowTransactionId, DateTime? createdAt, String? createdBy
+ String id, String companyId, String settlementOperationId,@JsonKey(toJson: dateOnlyToJson) DateTime paymentDate, double amount, String? note, String? cashFlowTransactionId, DateTime? createdAt, String? createdBy
 });
 
 

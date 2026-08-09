@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$SettlementOperationModel {
 
- String get id; String get companyId; SettlementOperationType get operationType; String get objectId; String get contractorId; String get contractId;@JsonKey(toJson: _dateOnlyToJson) DateTime? get periodFrom;@JsonKey(toJson: _dateOnlyToJson) DateTime? get periodTo; String? get actNumber;@JsonKey(toJson: _dateOnlyToJson) DateTime? get actDate; String get invoiceNumber;@JsonKey(toJson: _dateOnlyToJson) DateTime get invoiceDate; double get amount; bool get isVatIncluded; double? get vatRate; double get vatAmount; double get advanceRetention; double get warrantyRetention; double get totalToPay; double get paidAmount; SettlementPaymentStatus get paymentStatus; String? get purpose; String? get note; DateTime? get createdAt; String? get createdBy;@JsonKey(includeToJson: false) String? get objectName;@JsonKey(includeToJson: false) String? get contractorName;@JsonKey(includeToJson: false) String? get contractNumber;
+ String get id; String get companyId; SettlementOperationType get operationType; String get objectId; String get contractorId; String get contractId;@JsonKey(toJson: dateOnlyToJson) DateTime? get periodFrom;@JsonKey(toJson: dateOnlyToJson) DateTime? get periodTo; String? get actNumber;@JsonKey(toJson: dateOnlyToJson) DateTime? get actDate; String get invoiceNumber;@JsonKey(toJson: dateOnlyToJson) DateTime get invoiceDate; double get amount; bool get isVatIncluded; double? get vatRate; double get vatAmount; double get advanceRetention; double get warrantyRetention; double get totalToPay; double get paidAmount; SettlementPaymentStatus get paymentStatus; String? get purpose; String? get note; DateTime? get createdAt; String? get createdBy;@JsonKey(includeToJson: false) String? get objectName;@JsonKey(includeToJson: false) String? get contractorName;@JsonKey(includeToJson: false) String? get contractNumber;
 /// Create a copy of SettlementOperationModel
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -46,7 +46,7 @@ abstract mixin class $SettlementOperationModelCopyWith<$Res>  {
   factory $SettlementOperationModelCopyWith(SettlementOperationModel value, $Res Function(SettlementOperationModel) _then) = _$SettlementOperationModelCopyWithImpl;
 @useResult
 $Res call({
- String id, String companyId, SettlementOperationType operationType, String objectId, String contractorId, String contractId,@JsonKey(toJson: _dateOnlyToJson) DateTime? periodFrom,@JsonKey(toJson: _dateOnlyToJson) DateTime? periodTo, String? actNumber,@JsonKey(toJson: _dateOnlyToJson) DateTime? actDate, String invoiceNumber,@JsonKey(toJson: _dateOnlyToJson) DateTime invoiceDate, double amount, bool isVatIncluded, double? vatRate, double vatAmount, double advanceRetention, double warrantyRetention, double totalToPay, double paidAmount, SettlementPaymentStatus paymentStatus, String? purpose, String? note, DateTime? createdAt, String? createdBy,@JsonKey(includeToJson: false) String? objectName,@JsonKey(includeToJson: false) String? contractorName,@JsonKey(includeToJson: false) String? contractNumber
+ String id, String companyId, SettlementOperationType operationType, String objectId, String contractorId, String contractId,@JsonKey(toJson: dateOnlyToJson) DateTime? periodFrom,@JsonKey(toJson: dateOnlyToJson) DateTime? periodTo, String? actNumber,@JsonKey(toJson: dateOnlyToJson) DateTime? actDate, String invoiceNumber,@JsonKey(toJson: dateOnlyToJson) DateTime invoiceDate, double amount, bool isVatIncluded, double? vatRate, double vatAmount, double advanceRetention, double warrantyRetention, double totalToPay, double paidAmount, SettlementPaymentStatus paymentStatus, String? purpose, String? note, DateTime? createdAt, String? createdBy,@JsonKey(includeToJson: false) String? objectName,@JsonKey(includeToJson: false) String? contractorName,@JsonKey(includeToJson: false) String? contractNumber
 });
 
 
@@ -104,7 +104,7 @@ as String?,
 
 @JsonSerializable(fieldRename: FieldRename.snake)
 class _SettlementOperationModel extends SettlementOperationModel {
-  const _SettlementOperationModel({required this.id, required this.companyId, required this.operationType, required this.objectId, required this.contractorId, required this.contractId, @JsonKey(toJson: _dateOnlyToJson) this.periodFrom, @JsonKey(toJson: _dateOnlyToJson) this.periodTo, this.actNumber, @JsonKey(toJson: _dateOnlyToJson) this.actDate, required this.invoiceNumber, @JsonKey(toJson: _dateOnlyToJson) required this.invoiceDate, required this.amount, this.isVatIncluded = true, this.vatRate, this.vatAmount = 0, this.advanceRetention = 0, this.warrantyRetention = 0, this.totalToPay = 0, this.paidAmount = 0, this.paymentStatus = SettlementPaymentStatus.unpaid, this.purpose, this.note, this.createdAt, this.createdBy, @JsonKey(includeToJson: false) this.objectName, @JsonKey(includeToJson: false) this.contractorName, @JsonKey(includeToJson: false) this.contractNumber}): super._();
+  const _SettlementOperationModel({required this.id, required this.companyId, required this.operationType, required this.objectId, required this.contractorId, required this.contractId, @JsonKey(toJson: dateOnlyToJson) this.periodFrom, @JsonKey(toJson: dateOnlyToJson) this.periodTo, this.actNumber, @JsonKey(toJson: dateOnlyToJson) this.actDate, required this.invoiceNumber, @JsonKey(toJson: dateOnlyToJson) required this.invoiceDate, required this.amount, this.isVatIncluded = true, this.vatRate, this.vatAmount = 0, this.advanceRetention = 0, this.warrantyRetention = 0, this.totalToPay = 0, this.paidAmount = 0, this.paymentStatus = SettlementPaymentStatus.unpaid, this.purpose, this.note, this.createdAt, this.createdBy, @JsonKey(includeToJson: false) this.objectName, @JsonKey(includeToJson: false) this.contractorName, @JsonKey(includeToJson: false) this.contractNumber}): super._();
   
 
 @override final  String id;
@@ -113,12 +113,12 @@ class _SettlementOperationModel extends SettlementOperationModel {
 @override final  String objectId;
 @override final  String contractorId;
 @override final  String contractId;
-@override@JsonKey(toJson: _dateOnlyToJson) final  DateTime? periodFrom;
-@override@JsonKey(toJson: _dateOnlyToJson) final  DateTime? periodTo;
+@override@JsonKey(toJson: dateOnlyToJson) final  DateTime? periodFrom;
+@override@JsonKey(toJson: dateOnlyToJson) final  DateTime? periodTo;
 @override final  String? actNumber;
-@override@JsonKey(toJson: _dateOnlyToJson) final  DateTime? actDate;
+@override@JsonKey(toJson: dateOnlyToJson) final  DateTime? actDate;
 @override final  String invoiceNumber;
-@override@JsonKey(toJson: _dateOnlyToJson) final  DateTime invoiceDate;
+@override@JsonKey(toJson: dateOnlyToJson) final  DateTime invoiceDate;
 @override final  double amount;
 @override@JsonKey() final  bool isVatIncluded;
 @override final  double? vatRate;
@@ -166,7 +166,7 @@ abstract mixin class _$SettlementOperationModelCopyWith<$Res> implements $Settle
   factory _$SettlementOperationModelCopyWith(_SettlementOperationModel value, $Res Function(_SettlementOperationModel) _then) = __$SettlementOperationModelCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String companyId, SettlementOperationType operationType, String objectId, String contractorId, String contractId,@JsonKey(toJson: _dateOnlyToJson) DateTime? periodFrom,@JsonKey(toJson: _dateOnlyToJson) DateTime? periodTo, String? actNumber,@JsonKey(toJson: _dateOnlyToJson) DateTime? actDate, String invoiceNumber,@JsonKey(toJson: _dateOnlyToJson) DateTime invoiceDate, double amount, bool isVatIncluded, double? vatRate, double vatAmount, double advanceRetention, double warrantyRetention, double totalToPay, double paidAmount, SettlementPaymentStatus paymentStatus, String? purpose, String? note, DateTime? createdAt, String? createdBy,@JsonKey(includeToJson: false) String? objectName,@JsonKey(includeToJson: false) String? contractorName,@JsonKey(includeToJson: false) String? contractNumber
+ String id, String companyId, SettlementOperationType operationType, String objectId, String contractorId, String contractId,@JsonKey(toJson: dateOnlyToJson) DateTime? periodFrom,@JsonKey(toJson: dateOnlyToJson) DateTime? periodTo, String? actNumber,@JsonKey(toJson: dateOnlyToJson) DateTime? actDate, String invoiceNumber,@JsonKey(toJson: dateOnlyToJson) DateTime invoiceDate, double amount, bool isVatIncluded, double? vatRate, double vatAmount, double advanceRetention, double warrantyRetention, double totalToPay, double paidAmount, SettlementPaymentStatus paymentStatus, String? purpose, String? note, DateTime? createdAt, String? createdBy,@JsonKey(includeToJson: false) String? objectName,@JsonKey(includeToJson: false) String? contractorName,@JsonKey(includeToJson: false) String? contractNumber
 });
 
 

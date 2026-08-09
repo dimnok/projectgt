@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/features/settlements/domain/entities/settlement_operation.dart';
 
 part 'settlement_operation_model.freezed.dart';
@@ -16,12 +17,12 @@ abstract class SettlementOperationModel with _$SettlementOperationModel {
     required String objectId,
     required String contractorId,
     required String contractId,
-    @JsonKey(toJson: _dateOnlyToJson) DateTime? periodFrom,
-    @JsonKey(toJson: _dateOnlyToJson) DateTime? periodTo,
+    @JsonKey(toJson: dateOnlyToJson) DateTime? periodFrom,
+    @JsonKey(toJson: dateOnlyToJson) DateTime? periodTo,
     String? actNumber,
-    @JsonKey(toJson: _dateOnlyToJson) DateTime? actDate,
+    @JsonKey(toJson: dateOnlyToJson) DateTime? actDate,
     required String invoiceNumber,
-    @JsonKey(toJson: _dateOnlyToJson) required DateTime invoiceDate,
+    @JsonKey(toJson: dateOnlyToJson) required DateTime invoiceDate,
     required double amount,
     @Default(true) bool isVatIncluded,
     double? vatRate,
@@ -141,12 +142,4 @@ abstract class SettlementOperationModel with _$SettlementOperationModel {
     }
     return json;
   }
-}
-
-String? _dateOnlyToJson(DateTime? date) {
-  if (date == null) return null;
-  final y = date.year.toString().padLeft(4, '0');
-  final m = date.month.toString().padLeft(2, '0');
-  final d = date.day.toString().padLeft(2, '0');
-  return '$y-$m-$d';
 }

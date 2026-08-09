@@ -85,6 +85,11 @@ class GtFormatters {
   /// Пример: 2025-09-14 -> "2025-09-14".
   static String formatDateForApi(DateTime date) => _apiDateFormat.format(date);
 
+  /// Сериализует дату в формат `yyyy-MM-dd` для JSON-моделей Supabase (DATE-колонки).
+  /// Возвращает `null` для `null`-значения, чтобы не писать пустые даты.
+  static String? dateOnlyToJson(DateTime? date) =>
+      date == null ? null : _apiDateFormat.format(date);
+
   /// Форматирует месяц и год полностью.
   ///
   /// UTC-инстанты учитываются в локальном поясе устройства.
@@ -265,6 +270,16 @@ class GtFormatters {
   /// Форматирует сумму с разделением тысяч пробелом в реальном времени.
   /// Пример: 1234567.89 -> "1 234 567.89"
   static TextInputFormatter amountFormatter() => _AmountInputFormatter();
+
+  /// Готовый список форматтеров для ввода денежных сумм.
+  ///
+  /// Сначала разрешает только цифры, точку и запятую, затем применяет
+  /// [amountFormatter] для группировки тысяч и нормализации запятой.
+  /// Используйте в `inputFormatters` текстовых полей с денежным вводом.
+  static List<TextInputFormatter> moneyInputFormatters() => [
+        FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+        amountFormatter(),
+      ];
 
   /// Форматирует количество в реальном времени (до 3 знаков после запятой).
   static TextInputFormatter quantityFormatter() => _QuantityInputFormatter();
@@ -602,6 +617,11 @@ String formatPercentage(num value, {int decimalDigits = 0}) =>
 /// Алиас для получения форматтера сумм (разделение тысяч пробелом).
 TextInputFormatter amountFormatter() => GtFormatters.amountFormatter();
 
+/// Алиас для готового списка форматтеров ввода денежных сумм.
+/// Разрешает только цифры/`,`.`.` и применяет [amountFormatter].
+List<TextInputFormatter> moneyInputFormatters() =>
+    GtFormatters.moneyInputFormatters();
+
 /// Алиас для получения форматтера количества (до 3 знаков после запятой).
 TextInputFormatter quantityFormatter() => GtFormatters.quantityFormatter();
 
@@ -611,6 +631,10 @@ double? parseAmount(String? text) => GtFormatters.parseAmount(text);
 /// Алиас для парсинга даты из строки.
 DateTime? parseDate(String? text, String format) =>
     GtFormatters.parseDate(text, format);
+
+/// Алиас для сериализации даты в `yyyy-MM-dd` (для JSON-моделей Supabase DATE-колонок).
+/// Возвращает `null` для `null`-значения.
+String? dateOnlyToJson(DateTime? date) => GtFormatters.dateOnlyToJson(date);
 
 /// Алиас для форматирования номера телефона для отображения (+7 XXX XXX XX XX).
 String formatPhone(String? phone) => GtFormatters.formatPhone(phone);

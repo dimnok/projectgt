@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/features/settlements/domain/entities/settlement_payment.dart';
 
 part 'settlement_payment_model.freezed.dart';
@@ -13,7 +14,7 @@ abstract class SettlementPaymentModel with _$SettlementPaymentModel {
     required String id,
     required String companyId,
     required String settlementOperationId,
-    @JsonKey(toJson: _dateOnlyToJson) required DateTime paymentDate,
+    @JsonKey(toJson: dateOnlyToJson) required DateTime paymentDate,
     required double amount,
     String? note,
     String? cashFlowTransactionId,
@@ -68,15 +69,8 @@ abstract class SettlementPaymentModel with _$SettlementPaymentModel {
 
   /// JSON для update — только редактируемые поля.
   Map<String, dynamic> toUpdateJson() => {
-        'payment_date': _dateOnlyToJson(paymentDate),
+        'payment_date': dateOnlyToJson(paymentDate),
         'amount': amount,
         'note': note,
       };
-}
-
-String _dateOnlyToJson(DateTime date) {
-  final y = date.year.toString().padLeft(4, '0');
-  final m = date.month.toString().padLeft(2, '0');
-  final d = date.day.toString().padLeft(2, '0');
-  return '$y-$m-$d';
 }

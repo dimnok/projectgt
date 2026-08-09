@@ -26,6 +26,19 @@ class SettlementRepositoryImpl implements SettlementRepository {
     contracts:contract_id(number)
   ''';
 
+  /// Колонки оплаты для выборки (без служебных `created_by`).
+  static const _paymentSelect = '''
+    id,
+    company_id,
+    settlement_operation_id,
+    payment_date,
+    amount,
+    note,
+    cash_flow_transaction_id,
+    created_at,
+    created_by
+  ''';
+
   @override
   Future<List<SettlementOperation>> getOperations({String? contractId}) async {
     if (activeCompanyId.isEmpty) return [];
@@ -143,7 +156,7 @@ class SettlementRepositoryImpl implements SettlementRepository {
 
     final response = await client
         .from(_paymentsTable)
-        .select()
+        .select(_paymentSelect)
         .eq('company_id', activeCompanyId)
         .eq('settlement_operation_id', settlementOperationId)
         .order('payment_date', ascending: false)
@@ -167,7 +180,7 @@ class SettlementRepositoryImpl implements SettlementRepository {
     final row = await client
         .from(_paymentsTable)
         .insert(payload)
-        .select()
+        .select(_paymentSelect)
         .single();
 
     return SettlementPaymentModel.fromJson(
@@ -185,7 +198,7 @@ class SettlementRepositoryImpl implements SettlementRepository {
         .update(payload)
         .eq('id', payment.id)
         .eq('company_id', activeCompanyId)
-        .select()
+        .select(_paymentSelect)
         .single();
 
     return SettlementPaymentModel.fromJson(

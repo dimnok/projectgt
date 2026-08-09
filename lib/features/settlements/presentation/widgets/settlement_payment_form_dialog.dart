@@ -1,7 +1,6 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:projectgt/core/utils/adaptive_dialog.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/core/widgets/app_snackbar.dart';
@@ -34,30 +33,14 @@ class SettlementPaymentFormDialog extends ConsumerStatefulWidget {
     BuildContext context, {
     required String settlementOperationId,
     SettlementPayment? payment,
-  }) {
-    final isDesktop = ResponsiveUtils.isDesktop(context);
-    final child = SettlementPaymentFormDialog(
-      settlementOperationId: settlementOperationId,
-      payment: payment,
-    );
-    if (isDesktop) {
-      return showDialog<bool>(
-        context: context,
-        builder: (_) => Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.all(24),
-          child: child,
+  }) =>
+      showAdaptiveModal<bool>(
+        context,
+        builder: (_) => SettlementPaymentFormDialog(
+          settlementOperationId: settlementOperationId,
+          payment: payment,
         ),
       );
-    }
-    return showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => child,
-    );
-  }
 
   @override
   ConsumerState<SettlementPaymentFormDialog> createState() =>
@@ -73,17 +56,13 @@ class _SettlementPaymentFormDialogState
   late final TextEditingController _noteController;
   bool _saving = false;
 
-  String _fmtAmount(num value) => GtFormatters.formatAmount(value)
-      .replaceAll('\u00A0', ' ')
-      .replaceAll('\u202F', ' ');
-
   @override
   void initState() {
     super.initState();
     final payment = widget.payment;
     _paymentDate = payment?.paymentDate ?? DateTime.now();
     _amountController = TextEditingController(
-      text: payment != null ? _fmtAmount(payment.amount) : '',
+      text: payment != null ? formatAmount(payment.amount) : '',
     );
     _dateController = TextEditingController(text: formatRuDate(_paymentDate));
     _noteController = TextEditingController(text: payment?.note ?? '');
@@ -97,18 +76,8 @@ class _SettlementPaymentFormDialogState
     super.dispose();
   }
 
-  List<TextInputFormatter> get _moneyFormatters => [
-        FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-        amountFormatter(),
-      ];
-
   Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _paymentDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
-    );
+    final picked = await pickRuDate(context, initialDate: _paymentDate);
     if (picked == null || !mounted) return;
     setState(() {
       _paymentDate = picked;
@@ -206,7 +175,7 @@ class _SettlementPaymentFormDialogState
             labelText: 'Сумма',
             prefixIcon: CupertinoIcons.money_rubl,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: _moneyFormatters,
+            inputFormatters: moneyInputFormatters(),
             validator: (v) {
               if (v == null || v.trim().isEmpty) return 'Укажите сумму';
               final n = parseAmount(v);

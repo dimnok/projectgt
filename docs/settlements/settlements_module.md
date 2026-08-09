@@ -5,6 +5,10 @@
 - Оптимизирована синхронизация после CRUD: один вызов `syncSettlementProviders` вместо дублирующих перезагрузок.
 - Автономер счёта — RPC `get_next_settlement_invoice_number` (без лимита 500 на клиенте).
 - Добавлены `invoice_number_sequence.dart` и тесты нумерации.
+- **Рефакторинг (аудит DRY):** устранены дубликаты форматтеров/диалогов между файлами модуля; dead code удалён; явные колонки в выборках оплат; исправлен `BuildContext` после `await`.
+  - Общие хелперы вынесены в `core/utils`: `dateOnlyToJson`, `moneyInputFormatters()`, `showAdaptiveModal()`, `pickRuDate()`.
+  - Унифицирован generic-чип фильтра `_SettlementsFilterChip<T>` (вместо двух почти идентичных Option/Enum).
+  - Удалён неиспользуемый `computeSettlementTotalToPay` (считается в БД GENERATED ALWAYS).
 
 ## ⚠️ Важное замечание
 
@@ -49,11 +53,23 @@
 
 | Виджет | Назначение |
 |--------|------------|
-| `SettlementsFiltersToolbar` | Поиск, каскадные фильтры, тип, статус оплаты, «Сбросить», «Новый» |
+| `SettlementsFiltersToolbar` | Поиск, каскадные фильтры, тип, статус оплаты, «Сбросить», «Новый». Использует единый generic-чип `_SettlementsFilterChip<T>` (Option — `T=String` id, Enum — `T=EnumType`) |
 | `SettlementsOperationsTable` | Таблица счетов; `compact` — для вкладки договора |
 | `SettlementDetailsDialog` | Детали, сводка, таблица оплат, редактирование/удаление |
 | `SettlementFormDialog` | Создание/редактирование реквизитов счёта |
 | `SettlementPaymentFormDialog` | Ручная оплата по счёту |
+
+### Общие хелперы (core/utils)
+
+Диалоги модуля используют общие утилиты проекта (устранено дублирование между файлами):
+
+| Хелпер | Файл | Назначение |
+|--------|------|------------|
+| `showAdaptiveModal<T>(context, builder)` | `core/utils/adaptive_dialog.dart` | `Dialog` на десктопе / `showModalBottomSheet` на мобильном. Название намеренно отличается от Flutter `showAdaptiveDialog` |
+| `pickRuDate(context, initialDate)` | `core/utils/adaptive_dialog.dart` | Единый `DatePicker` (диапазон 2020–2100) |
+| `moneyInputFormatters()` | `core/utils/formatters.dart` | Готовый список форматтеров для ввода сумм |
+| `dateOnlyToJson(DateTime?)` | `core/utils/formatters.dart` | Сериализация дат в `yyyy-MM-dd` для JSON-моделей Supabase |
+| `formatAmount(num)` | `core/utils/formatters.dart` | Форматирование сумм (замена локальных `_fmtAmount`) |
 
 ### Провайдеры
 
@@ -117,7 +133,7 @@
 | `createOperation` / `updateOperation` / `deleteOperation` | CRUD |
 | `getNextInvoiceNumber(contractId)` | RPC `get_next_settlement_invoice_number` |
 
-**Оплаты:**
+**Оплаты** — select с явным перечислением колонок `_paymentSelect` (без `select()` «всё»):
 
 | Метод | Описание |
 |-------|----------|
@@ -125,7 +141,8 @@
 
 `toWriteJson` счёта исключает: `total_to_pay`, `payment_status`, `paid_amount`, `created_at`, `created_by`.  
 `toUpdateJson` оплаты — только `payment_date`, `amount`, `note`.  
-`cash_flow_transaction_id` не пишется клиентом.
+`cash_flow_transaction_id` не пишется клиентом.  
+Сериализация дат (`period_from`, `period_to`, `act_date`, `invoice_date`, `payment_date`) — через общий `dateOnlyToJson` из `core/utils/formatters.dart`.
 
 ## 📂 Дерево файлов
 
@@ -281,6 +298,7 @@ total_to_pay = max(0, amount + vat_amount - advance_retention - warranty_retenti
 - Оптимизированная синхронизация провайдеров
 - RPC автономера счёта
 - Тесты: статус оплаты, нумерация
+- Рефакторинг DRY: общие хелперы в `core/utils`, унифицированный chip-фильтр, явные колонки в выборках оплат, удалён dead code (`computeSettlementTotalToPay`), исправлен `BuildContext` после `await`
 
 ### Планы
 

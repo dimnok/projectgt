@@ -28,7 +28,7 @@ Map<String, dynamic> _$SettlementPaymentModelToJson(
   'id': instance.id,
   'company_id': instance.companyId,
   'settlement_operation_id': instance.settlementOperationId,
-  'payment_date': _dateOnlyToJson(instance.paymentDate),
+  'payment_date': dateOnlyToJson(instance.paymentDate),
   'amount': instance.amount,
   'note': instance.note,
   'cash_flow_transaction_id': instance.cashFlowTransactionId,
