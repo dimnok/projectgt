@@ -2,6 +2,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/features/cash_flow/domain/entities/bank_import_template.dart';
 import 'package:projectgt/features/cash_flow/domain/entities/bank_statement_entry.dart';
 import 'package:projectgt/features/cash_flow/domain/entities/cash_flow_category.dart';
@@ -73,6 +74,9 @@ abstract class CashFlowState with _$CashFlowState {
     /// Поисковый запрос.
     @Default('') String searchQuery,
 
+    /// Поисковый запрос по записям банковской выписки (ИНН или сумма).
+    @Default('') String bankStatementSearchQuery,
+
     /// Выбранный год для фильтрации.
     required int selectedYear,
 
@@ -102,6 +106,21 @@ abstract class CashFlowState with _$CashFlowState {
   }) = _CashFlowState;
 
   const CashFlowState._();
+
+  /// Записи выписки, отфильтрованные по [bankStatementSearchQuery].
+  List<BankStatementEntry> get filteredBankStatementEntries {
+    if (bankStatementSearchQuery.trim().isEmpty) {
+      return bankStatementEntries;
+    }
+    return bankStatementEntries
+        .where(
+          (entry) => _bankStatementEntryMatchesSearch(
+            entry,
+            bankStatementSearchQuery,
+          ),
+        )
+        .toList();
+  }
 
   /// Начальное состояние.
   factory CashFlowState.initial() => CashFlowState(
@@ -269,6 +288,12 @@ class CashFlowNotifier extends StateNotifier<CashFlowState> {
       contractIds: state.selectedContractIds,
       operationTypes: state.selectedOperationTypes,
     );
+  }
+
+  /// Устанавливает поисковый запрос по записям банковской выписки.
+  void setBankStatementSearchQuery(String query) {
+    if (state.bankStatementSearchQuery == query) return;
+    state = state.copyWith(bankStatementSearchQuery: query);
   }
 
   /// Устанавливает фильтр по объекту и перезагружает данные.
@@ -553,6 +578,50 @@ class CashFlowNotifier extends StateNotifier<CashFlowState> {
       rethrow;
     }
   }
+}
+
+/// Проверяет, соответствует ли запись выписки поисковому запросу.
+///
+/// Поддерживает поиск по ИНН контрагента и сумме платежа.
+bool _bankStatementEntryMatchesSearch(
+  BankStatementEntry entry,
+  String query,
+) {
+  final trimmed = query.trim();
+  if (trimmed.isEmpty) return true;
+
+  final queryLower = trimmed.toLowerCase();
+
+  final inn = entry.contractorInn;
+  if (inn != null && inn.isNotEmpty) {
+    final innLower = inn.toLowerCase();
+    if (innLower.contains(queryLower)) return true;
+
+    final queryDigits = queryLower.replaceAll(RegExp(r'\D'), '');
+    final innDigits = inn.replaceAll(RegExp(r'\D'), '');
+    if (queryDigits.isNotEmpty && innDigits.contains(queryDigits)) {
+      return true;
+    }
+  }
+
+  final normalizedQuery = queryLower.replaceAll(' ', '').replaceAll(',', '.');
+  final parsedAmount = double.tryParse(normalizedQuery);
+  if (parsedAmount != null &&
+      (entry.amount - parsedAmount).abs() < 0.005) {
+    return true;
+  }
+
+  final amountFormatted = formatCurrency(entry.amount).toLowerCase();
+  if (amountFormatted.contains(queryLower)) return true;
+
+  final queryNoSpaces = queryLower.replaceAll(' ', '');
+  final amountRaw = entry.amount.toStringAsFixed(2);
+  final amountRu = amountRaw.replaceAll('.', ',');
+  if (amountRaw.contains(queryNoSpaces) || amountRu.contains(queryNoSpaces)) {
+    return true;
+  }
+
+  return false;
 }
 
 /// Провайдер состояния Cash Flow.

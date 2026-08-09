@@ -205,7 +205,7 @@ class BankStatementView extends ConsumerWidget {
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: BankStatementTable(
-                  entries: state.bankStatementEntries,
+                  entries: state.filteredBankStatementEntries,
                   onEntryTap: (entry) {
                     showDialog(
                       context: context,

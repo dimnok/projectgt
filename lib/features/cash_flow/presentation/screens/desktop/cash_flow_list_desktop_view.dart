@@ -35,6 +35,17 @@ class _CashFlowListDesktopViewState
   final TextEditingController _searchController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final state = ref.read(cashFlowProvider);
+      _searchController.text = state.currentView == CashFlowView.transactions
+          ? state.searchQuery
+          : state.bankStatementSearchQuery;
+    });
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
@@ -45,6 +56,19 @@ class _CashFlowListDesktopViewState
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final notifier = ref.read(cashFlowProvider.notifier);
+
+    ref.listen<CashFlowView>(
+      cashFlowProvider.select((s) => s.currentView),
+      (previous, next) {
+        final state = ref.read(cashFlowProvider);
+        final query = next == CashFlowView.transactions
+            ? state.searchQuery
+            : state.bankStatementSearchQuery;
+        if (_searchController.text != query) {
+          _searchController.text = query;
+        }
+      },
+    );
 
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -104,13 +128,11 @@ class _CashFlowListDesktopViewState
                                 controller: _searchController,
                                 hintText: isTransactions
                                     ? 'Поиск операций...'
-                                    : 'Поиск в выписках...',
+                                    : 'Поиск по ИНН или сумме...',
                                 prefixIcon: CupertinoIcons.search,
                                 onChanged: isTransactions
                                     ? notifier.setSearchQuery
-                                    : (query) {
-                                        // TODO: Реализовать поиск по выпискам
-                                      },
+                                    : notifier.setBankStatementSearchQuery,
                               ),
                               const SizedBox(height: 12),
                               if (isTransactions)
