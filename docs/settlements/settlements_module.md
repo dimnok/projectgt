@@ -7,7 +7,7 @@
 - Добавлены `invoice_number_sequence.dart` и тесты нумерации.
 - **Рефакторинг (аудит DRY):** устранены дубликаты форматтеров/диалогов между файлами модуля; dead code удалён; явные колонки в выборках оплат; исправлен `BuildContext` после `await`.
   - Общие хелперы вынесены в `core/utils`: `dateOnlyToJson`, `moneyInputFormatters()`, `showAdaptiveModal()`, `pickRuDate()`.
-  - Унифицирован generic-чип фильтра `_SettlementsFilterChip<T>` (вместо двух почти идентичных Option/Enum).
+  - Фильтры реестра приведены к стилю модуля «Табель»: `MenuAnchor`, иконки, прокрутка, галочки; тип и оплата объединены в `SettlementsExtraFiltersDropdown`.
   - Удалён неиспользуемый `computeSettlementTotalToPay` (считается в БД GENERATED ALWAYS).
 
 ## ⚠️ Важное замечание
@@ -53,7 +53,10 @@
 
 | Виджет | Назначение |
 |--------|------------|
-| `SettlementsFiltersToolbar` | Поиск, каскадные фильтры, тип, статус оплаты, «Сбросить», «Новый». Использует единый generic-чип `_SettlementsFilterChip<T>` (Option — `T=String` id, Enum — `T=EnumType`) |
+| `SettlementsFiltersToolbar` | Поиск, каскадные фильтры (контрагент / объект / договор), объединённый фильтр тип+оплата, «Сбросить», «Новый» |
+| `SettlementsOptionBarDropdown` | Выпадающий фильтр по сущности (стиль `TimesheetObjectsBarDropdown`) |
+| `SettlementsExtraFiltersDropdown` | Объединённый фильтр типа операции и статуса оплаты (стиль `TimesheetListFilterDropdown`) |
+| `SettlementsToolbarMetrics` | Геометрия панели фильтров (высота 34, радиус 18) |
 | `SettlementsOperationsTable` | Таблица счетов; `compact` — для вкладки договора |
 | `SettlementDetailsDialog` | Детали, сводка, таблица оплат, редактирование/удаление |
 | `SettlementFormDialog` | Создание/редактирование реквизитов счёта |
@@ -98,9 +101,10 @@
 |--------|------|
 | Поиск | номер счёта, акт, договор, контрагент, объект |
 | Контрагент / Объект / Договор | каскадная связь |
-| Тип / Оплата | enum |
+| Тип / Оплата | enum; объединены в одну кнопку «Фильтры» |
 
-Опции выпадающих списков — `SettlementsFilterOptionsBuilder` из загруженных операций.
+Опции выпадающих списков — `SettlementsFilterOptionsBuilder` из загруженных операций.  
+UI фильтров — `MenuAnchor` (как в модуле «Табель»): иконки, заголовки секций, галочки, прокрутка длинных списков.
 
 ## ⚙️ Domain / Data
 
@@ -172,8 +176,11 @@ lib/features/settlements/
         ├── settlement_details_dialog.dart
         ├── settlement_form_dialog.dart
         ├── settlement_payment_form_dialog.dart
+        ├── settlements_extra_filters_dropdown.dart
         ├── settlements_filters_toolbar.dart
-        └── settlements_operations_table.dart
+        ├── settlements_option_bar_dropdown.dart
+        ├── settlements_operations_table.dart
+        └── settlements_toolbar_metrics.dart
 
 test/features/settlements/
 ├── compute_settlement_payment_status_test.dart
