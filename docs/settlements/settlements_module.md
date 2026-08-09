@@ -2,6 +2,8 @@
 
 **Дата актуализации:** 9 августа 2026  
 **Изменения:**
+- **Мобильный реестр:** отдельный UI карточками (`SettlementOperationCard`, `SettlementsOperationsMobileView`); поиск в шапке; десктопная таблица и фильтры без изменений.
+- Добавлен геттер `invoiceTotal` (`amount + vatAmount`) для отображения суммы счёта на мобильных карточках.
 - Оптимизирована синхронизация после CRUD: один вызов `syncSettlementProviders` вместо дублирующих перезагрузок.
 - Автономер счёта — RPC `get_next_settlement_invoice_number` (без лимита 500 на клиенте).
 - Добавлены `invoice_number_sequence.dart` и тесты нумерации.
@@ -29,6 +31,7 @@
 - Оплаты из банковской выписки (модуль ДДС).
 - Реестр компании + вкладка «Финансы» в карточке договора.
 - Фильтры и поиск в реестре (клиентская фильтрация загруженного списка).
+- **Мобильный реестр:** список карточек с поиском в шапке; расширенные фильтры — только на десктопе (планируется на мобильном).
 
 ## 🔗 Зависимости
 
@@ -45,9 +48,16 @@
 
 | Элемент | Назначение |
 |---------|------------|
-| `SettlementsListScreen` | Реестр счетов компании |
+| `SettlementsListScreen` | Реестр счетов компании; на узком экране — карточки, на широком — таблица в `MobileAtmosphereMainSurface` |
 | `/settlements` | Маршрут, право `settlements` / `read` |
 | `ContractSettlementsSection` | Вкладка «Финансы» в договоре |
+
+**Адаптивность реестра:** порог — `EmployeesLayoutUtils.useEmployeesMobileList` (`shortestSide < tabletBreakpoint`). Одна логика данных (`settlementListProvider`, `SettlementsListFilters`), разный UI.
+
+| Режим | Шапка | Контент |
+|-------|-------|---------|
+| Мобильный | Меню · поиск (`SettlementsMobileSearchField`) · «+» (create) · тема | Карточки на фоне `MobileAtmosphereBackdrop`, итоговая панель внизу |
+| Десктоп | Заголовок «Взаиморасчёты» | `SettlementsFiltersToolbar` + `SettlementsOperationsTable` |
 
 ### Виджеты
 
@@ -57,7 +67,10 @@
 | `SettlementsOptionBarDropdown` | Выпадающий фильтр по сущности (стиль `TimesheetObjectsBarDropdown`) |
 | `SettlementsExtraFiltersDropdown` | Объединённый фильтр типа операции и статуса оплаты (стиль `TimesheetListFilterDropdown`) |
 | `SettlementsToolbarMetrics` | Геометрия панели фильтров (высота 34, радиус 18) |
-| `SettlementsOperationsTable` | Таблица счетов; `compact` — для вкладки договора |
+| `SettlementsOperationsTable` | Таблица счетов (десктоп); `compact` — для вкладки договора |
+| `SettlementsOperationsMobileView` | Мобильный список карточек + итоговая панель (к оплате / оплачено / остаток) |
+| `SettlementOperationCard` | Карточка счёта: номер, дата, контрагент, объект, тип, сумма (`invoiceTotal`), статус оплаты |
+| `SettlementsMobileSearchField` | Компактный поиск в шапке мобильного реестра (`GTTextField`) |
 | `SettlementDetailsDialog` | Детали, сводка, таблица оплат, редактирование/удаление |
 | `SettlementFormDialog` | Создание/редактирование реквизитов счёта |
 | `SettlementPaymentFormDialog` | Ручная оплата по счёту |
@@ -114,7 +127,8 @@ UI фильтров — `MenuAnchor` (как в модуле «Табель»): 
 - `SettlementOperationType`: `act` \| `advance` \| `other`.
 - `SettlementPaymentStatus`: `unpaid` \| `partial` \| `paid` \| `overpaid`.
 - Статус в UI: только `resolvedPaymentStatus` → `computeSettlementPaymentStatus` (eps = 0.005).
-- `SettlementOperationsTotals` — итоги по списку (`totalAmount`, `totalPaid`, `totalDebt`).
+- `invoiceTotal` — сумма счёта (база + НДС, без удержаний); на мобильных карточках.
+- `SettlementOperationsTotals` — итоги по списку (`totalAmount` = Σ `total_to_pay`, `totalPaid`, `totalDebt`).
 
 ### Утилиты
 
@@ -178,6 +192,9 @@ lib/features/settlements/
         ├── settlement_payment_form_dialog.dart
         ├── settlements_extra_filters_dropdown.dart
         ├── settlements_filters_toolbar.dart
+        ├── settlements_mobile_search_field.dart
+        ├── settlement_operation_card.dart
+        ├── settlements_operations_mobile_view.dart
         ├── settlements_option_bar_dropdown.dart
         ├── settlements_operations_table.dart
         └── settlements_toolbar_metrics.dart
@@ -300,6 +317,7 @@ total_to_pay = max(0, amount + vat_amount - advance_retention - warranty_retenti
 
 - CRUD счетов и оплат, RLS, RBAC
 - Реестр, фильтры, вкладка «Финансы»
+- **Мобильный реестр:** карточки, поиск в шапке, итоги внизу экрана
 - Статусы оплаты (Dart + SQL)
 - Интеграция с ДДС
 - Оптимизированная синхронизация провайдеров
@@ -309,6 +327,7 @@ total_to_pay = max(0, amount + vat_amount - advance_retention - warranty_retenti
 
 ### Планы
 
+- 🟡 Мобильные фильтры реестра (контрагент, объект, тип, статус)
 - 🟡 Серверные фильтры и пагинация реестра (эталон — Cash Flow)
 - 🟡 UNIQUE на `(company_id, contract_id, invoice_number)` + обработка конфликта
 - 🟡 UI для удержаний, периода, назначения

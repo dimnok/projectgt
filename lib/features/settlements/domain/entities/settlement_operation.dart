@@ -146,6 +146,9 @@ abstract class SettlementOperation with _$SettlementOperation {
 
   /// Есть переплата.
   bool get hasOverpayment => remainingAmount < -amountEpsilon;
+
+  /// Итого по счёту (база + НДС, без удержаний).
+  double get invoiceTotal => amount + vatAmount;
 }
 
 /// Считает статус оплаты по суммам.
