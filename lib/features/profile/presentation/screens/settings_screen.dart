@@ -24,10 +24,7 @@ class SettingsScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: const AppBarWidget(
-        title: 'Настройки',
-        leading: BackButton(),
-      ),
+      appBar: const AppBarWidget(title: 'Настройки', leading: BackButton()),
       body: ContentConstrainedBox(
         child: ListView(
           padding: const EdgeInsets.all(16),
@@ -119,9 +116,13 @@ class SettingsScreen extends ConsumerWidget {
     }
   }
 
-  void _showFontPicker(BuildContext context, String currentFont,
-      ThemeSettingsNotifier notifier) {
-    final isDesktop = kIsWeb ||
+  void _showFontPicker(
+    BuildContext context,
+    String currentFont,
+    ThemeSettingsNotifier notifier,
+  ) {
+    final isDesktop =
+        kIsWeb ||
         defaultTargetPlatform == TargetPlatform.macOS ||
         defaultTargetPlatform == TargetPlatform.windows ||
         defaultTargetPlatform == TargetPlatform.linux;
@@ -135,8 +136,10 @@ class SettingsScreen extends ConsumerWidget {
           return ListTile(
             title: Text(font),
             trailing: isSelected
-                ? Icon(CupertinoIcons.check_mark,
-                    color: Theme.of(context).colorScheme.primary)
+                ? Icon(
+                    CupertinoIcons.check_mark,
+                    color: Theme.of(context).colorScheme.primary,
+                  )
                 : null,
             onTap: () {
               notifier.setFontFamily(font);
@@ -184,9 +187,13 @@ class SettingsScreen extends ConsumerWidget {
     }
   }
 
-  void _showTextScalePicker(BuildContext context, double currentScale,
-      ThemeSettingsNotifier notifier) {
-    final isDesktop = kIsWeb ||
+  void _showTextScalePicker(
+    BuildContext context,
+    double currentScale,
+    ThemeSettingsNotifier notifier,
+  ) {
+    final isDesktop =
+        kIsWeb ||
         defaultTargetPlatform == TargetPlatform.macOS ||
         defaultTargetPlatform == TargetPlatform.windows ||
         defaultTargetPlatform == TargetPlatform.linux;
@@ -234,9 +241,13 @@ class SettingsScreen extends ConsumerWidget {
     }
   }
 
-  void _showThemeModePicker(BuildContext context, ThemeMode currentMode,
-      ThemeSettingsNotifier notifier) {
-    final isDesktop = kIsWeb ||
+  void _showThemeModePicker(
+    BuildContext context,
+    ThemeMode currentMode,
+    ThemeSettingsNotifier notifier,
+  ) {
+    final isDesktop =
+        kIsWeb ||
         defaultTargetPlatform == TargetPlatform.macOS ||
         defaultTargetPlatform == TargetPlatform.windows ||
         defaultTargetPlatform == TargetPlatform.linux;
@@ -250,8 +261,10 @@ class SettingsScreen extends ConsumerWidget {
             leading: const Icon(CupertinoIcons.settings),
             title: const Text('Системная'),
             trailing: currentMode == ThemeMode.system
-                ? Icon(CupertinoIcons.check_mark,
-                    color: Theme.of(context).colorScheme.primary)
+                ? Icon(
+                    CupertinoIcons.check_mark,
+                    color: Theme.of(context).colorScheme.primary,
+                  )
                 : null,
             onTap: () {
               notifier.setThemeMode(ThemeMode.system);
@@ -262,8 +275,10 @@ class SettingsScreen extends ConsumerWidget {
             leading: const Icon(CupertinoIcons.sun_max),
             title: const Text('Светлая'),
             trailing: currentMode == ThemeMode.light
-                ? Icon(CupertinoIcons.check_mark,
-                    color: Theme.of(context).colorScheme.primary)
+                ? Icon(
+                    CupertinoIcons.check_mark,
+                    color: Theme.of(context).colorScheme.primary,
+                  )
                 : null,
             onTap: () {
               notifier.setThemeMode(ThemeMode.light);
@@ -274,8 +289,10 @@ class SettingsScreen extends ConsumerWidget {
             leading: const Icon(CupertinoIcons.moon),
             title: const Text('Тёмная'),
             trailing: currentMode == ThemeMode.dark
-                ? Icon(CupertinoIcons.check_mark,
-                    color: Theme.of(context).colorScheme.primary)
+                ? Icon(
+                    CupertinoIcons.check_mark,
+                    color: Theme.of(context).colorScheme.primary,
+                  )
                 : null,
             onTap: () {
               notifier.setThemeMode(ThemeMode.dark);
@@ -323,9 +340,13 @@ class SettingsScreen extends ConsumerWidget {
     }
   }
 
-  void _showSchemePicker(BuildContext context, FlexScheme? currentScheme,
-      ThemeSettingsNotifier notifier) {
-    final isDesktop = kIsWeb ||
+  void _showSchemePicker(
+    BuildContext context,
+    FlexScheme? currentScheme,
+    ThemeSettingsNotifier notifier,
+  ) {
+    final isDesktop =
+        kIsWeb ||
         defaultTargetPlatform == TargetPlatform.macOS ||
         defaultTargetPlatform == TargetPlatform.windows ||
         defaultTargetPlatform == TargetPlatform.linux;
@@ -362,18 +383,19 @@ class SettingsScreen extends ConsumerWidget {
                 color: color,
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .outline
-                      .withValues(alpha: 0.3),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.outline.withValues(alpha: 0.3),
                   width: 1,
                 ),
               ),
             ),
             title: Text(name),
             trailing: isSelected
-                ? Icon(CupertinoIcons.check_mark,
-                    color: Theme.of(context).colorScheme.primary)
+                ? Icon(
+                    CupertinoIcons.check_mark,
+                    color: Theme.of(context).colorScheme.primary,
+                  )
                 : null,
             onTap: () {
               notifier.setScheme(scheme);
@@ -395,10 +417,7 @@ class SettingsScreen extends ConsumerWidget {
               text: 'Отмена',
               onPressed: () => Navigator.of(context).pop(),
             ),
-            child: SizedBox(
-              height: 400,
-              child: buildContent(context),
-            ),
+            child: SizedBox(height: 400, child: buildContent(context)),
           ),
         ),
       );

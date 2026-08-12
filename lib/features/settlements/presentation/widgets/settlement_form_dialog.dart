@@ -35,25 +35,20 @@ class SettlementFormDialog extends ConsumerStatefulWidget {
   final Contract? presetContract;
 
   /// Создаёт диалог.
-  const SettlementFormDialog({
-    super.key,
-    this.operation,
-    this.presetContract,
-  });
+  const SettlementFormDialog({super.key, this.operation, this.presetContract});
 
   /// Показать диалог / bottom sheet.
   static Future<void> show(
     BuildContext context, {
     SettlementOperation? operation,
     Contract? presetContract,
-  }) =>
-      showAdaptiveModal<void>(
-        context,
-        builder: (_) => SettlementFormDialog(
-          operation: operation,
-          presetContract: presetContract,
-        ),
-      );
+  }) => showAdaptiveModal<void>(
+    context,
+    builder: (_) => SettlementFormDialog(
+      operation: operation,
+      presetContract: presetContract,
+    ),
+  );
 
   @override
   ConsumerState<SettlementFormDialog> createState() =>
@@ -94,7 +89,8 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
     _contractId = op?.contractId ?? preset?.id;
     _type = op?.operationType ?? SettlementOperationType.act;
     _invoiceDate = op?.invoiceDate ?? DateTime.now();
-    _vatRate = op?.vatRate ??
+    _vatRate =
+        op?.vatRate ??
         (preset != null && preset.vatRate > 0 ? preset.vatRate : 22);
     _isVatIncluded = op?.isVatIncluded ?? preset?.isVatIncluded ?? true;
     _isVatEnabled = op != null
@@ -102,8 +98,9 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
         : (preset != null ? preset.vatRate > 0 : true);
 
     _actNumberController = TextEditingController(text: op?.actNumber ?? '');
-    _invoiceNumberController =
-        TextEditingController(text: op?.invoiceNumber ?? '');
+    _invoiceNumberController = TextEditingController(
+      text: op?.invoiceNumber ?? '',
+    );
 
     final initialAmount = op == null
         ? null
@@ -112,12 +109,15 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
       text: initialAmount == null ? '' : formatAmount(initialAmount),
     );
 
-    _invoiceDateController =
-        TextEditingController(text: formatRuDate(_invoiceDate));
+    _invoiceDateController = TextEditingController(
+      text: formatRuDate(_invoiceDate),
+    );
     _noteController = TextEditingController(text: op?.note ?? '');
 
     final initialVatText = _vatRate != null && _vatRate! > 0
-        ? (_vatRate! % 1 == 0 ? _vatRate!.toInt().toString() : _vatRate!.toString())
+        ? (_vatRate! % 1 == 0
+              ? _vatRate!.toInt().toString()
+              : _vatRate!.toString())
         : '22';
     _vatRateController = TextEditingController(text: initialVatText);
 
@@ -282,11 +282,7 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
 
     if (!mounted) return;
     setState(() => _saving = false);
-    AppSnackBar.show(
-      context: context,
-      message: message,
-      kind: kind,
-    );
+    AppSnackBar.show(context: context, message: message, kind: kind);
     Navigator.of(context).pop();
   }
 
@@ -304,18 +300,20 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
     final filteredContracts = _contractorId == null
         ? filteredByObject
         : filteredByObject
-            .where((c) => c.contractorId == _contractorId)
-            .toList();
+              .where((c) => c.contractorId == _contractorId)
+              .toList();
 
     final selectedObject = objects.firstWhereOrNull((o) => o.id == _objectId);
-    final selectedContractor =
-        contractors.firstWhereOrNull((c) => c.id == _contractorId);
+    final selectedContractor = contractors.firstWhereOrNull(
+      (c) => c.id == _contractorId,
+    );
     final selectedContract =
         filteredContracts.firstWhereOrNull((c) => c.id == _contractId) ??
-            contracts.firstWhereOrNull((c) => c.id == _contractId);
+        contracts.firstWhereOrNull((c) => c.id == _contractId);
 
-    final title =
-        widget.operation == null ? 'Новый счёт' : 'Редактировать счёт';
+    final title = widget.operation == null
+        ? 'Новый счёт'
+        : 'Редактировать счёт';
 
     final content = Form(
       key: _formKey,
@@ -346,7 +344,8 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
                       }
                     });
                   },
-                  validator: (_) => _objectId == null ? 'Выберите объект' : null,
+                  validator: (_) =>
+                      _objectId == null ? 'Выберите объект' : null,
                 ),
               ),
               const SizedBox(width: 12),
@@ -408,7 +407,8 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
                       _suggestNextInvoiceNumber(item.id, force: true);
                     }
                   },
-                  validator: (_) => _contractId == null ? 'Выберите договор' : null,
+                  validator: (_) =>
+                      _contractId == null ? 'Выберите договор' : null,
                 ),
               ),
             ],
@@ -437,9 +437,8 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
             GTTextField(
               controller: _actNumberController,
               labelText: 'Номер акта',
-              validator: (v) => (v == null || v.trim().isEmpty)
-                  ? 'Укажите номер акта'
-                  : null,
+              validator: (v) =>
+                  (v == null || v.trim().isEmpty) ? 'Укажите номер акта' : null,
             ),
             const SizedBox(height: 12),
           ],
@@ -483,8 +482,9 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
                       ? (_isVatIncluded ? 'Сумма с НДС' : 'Сумма без НДС')
                       : 'Сумма',
                   prefixIcon: CupertinoIcons.money_rubl_circle,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   inputFormatters: moneyInputFormatters(),
                   onChanged: (_) => setState(() {}),
                   validator: (v) {
@@ -531,10 +531,10 @@ class _SettlementFormDialogState extends ConsumerState<SettlementFormDialog> {
                         hintText: '22',
                         enabled: _isVatEnabled,
                         keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true),
+                          decimal: true,
+                        ),
                         inputFormatters: [
-                          FilteringTextInputFormatter.allow(
-                              RegExp(r'[0-9.,]')),
+                          FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
                         ],
                         onChanged: (val) {
                           final rate = parseAmount(val);
@@ -702,10 +702,7 @@ class _TypeSticker extends StatelessWidget {
               Container(
                 width: 8,
                 height: 8,
-                decoration: BoxDecoration(
-                  color: color,
-                  shape: BoxShape.circle,
-                ),
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
               ),
               const SizedBox(width: 8),
               Flexible(
@@ -757,10 +754,7 @@ class _VatModeToggle extends StatelessWidget {
   final bool isVatIncluded;
   final ValueChanged<bool> onChanged;
 
-  const _VatModeToggle({
-    required this.isVatIncluded,
-    required this.onChanged,
-  });
+  const _VatModeToggle({required this.isVatIncluded, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -915,8 +909,7 @@ class _VatEnableRoundButton extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     return Tooltip(
-      message:
-          isEnabled ? 'НДС включён' : 'Без НДС (нажмите, чтобы включить)',
+      message: isEnabled ? 'НДС включён' : 'Без НДС (нажмите, чтобы включить)',
       child: Material(
         color: isEnabled
             ? scheme.primary
