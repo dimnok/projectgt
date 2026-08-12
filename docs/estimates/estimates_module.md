@@ -1,8 +1,8 @@
 # Модуль Сметы (Estimates)
 
-**Дата актуализации:** 15 июня 2026 года  
-**Изменения:** В боковой панели **«Исполнение»** (`estimate_completion_history_panel.dart`) в истории выполнения позиции сметы отображается **ФИО пользователя, открывшего смену** (`works.opened_by` → `profiles.short_name` / `full_name`), мелким шрифтом под участком и этажом. Данные подтягиваются из join `work_items` → `works` → `profiles` без изменений схемы БД.
-**Статус:** Актуально (Clean Architecture, Riverpod, Strict Multi-tenancy, RBAC, Subsystem Filter Bar, VOR Excel/PDF Storage Flow, VOR Tab Dynamic Columns, Cumulative Excel with Excess Column, Estimate Revisions/Addendums, VOR Draft Delete by Creator)
+**Дата актуализации:** 12 августа 2026 года  
+**Изменения:** Загрузка подписанного PDF ВОР на **Flutter Web** переведена на байты (`PlatformFile.bytes` + `uploadBinary` в Storage) вместо `dart:io` `File` — устранена ошибка `Unsupported operation: _Namespace` в браузере. На mobile/desktop файл читается через `File.readAsBytes()`. Обновлены `vor_pdf_actions.dart`, `vor_approve_dialog.dart`, `estimate_data_source.uploadVorPdf`, контракт репозитория и `VorActions.uploadPdf`.
+**Статус:** Актуально (Clean Architecture, Riverpod, Strict Multi-tenancy, RBAC, Subsystem Filter Bar, VOR Excel/PDF Storage Flow, VOR Tab Dynamic Columns, Cumulative Excel with Excess Column, Estimate Revisions/Addendums, VOR Draft Delete by Creator, VOR Signed PDF Web Upload)
 
 ---
 
@@ -12,6 +12,7 @@
 - **RLS-ограничение ВОР:** стандартный `UPDATE` для `public.vors` разрешен только пока запись находится в статусах `draft` или `pending`. Для загрузки PDF после подписания используется отдельная `SECURITY DEFINER` функция `public.set_vor_pdf_document(...)`.
 - **Удаление черновика ВОР:** отдельного RBAC-права «удалить ВОР» нет — используется модуль `estimates`, действие `delete`, плюс исключение для создателя (`vors.created_by = auth.uid()`). Владелец компании проходит через `check_permission` (`is_owner = true`). Подписанные и «на подписании» ведомости удалить нельзя.
 - **Storage:** для документов ВОР используется закрытый bucket `vor_documents`. Excel-файлы генерируются через Edge Functions, подписанные PDF загружаются с клиента и открываются через signed URL.
+- **Flutter Web (signed PDF):** на Web **не использовать** `dart:io` `File` для загрузки PDF — `dart:io` в браузере недоступен, ошибка `Unsupported operation: _Namespace`. Клиент читает `PlatformFile.bytes` (`FilePicker` с `withData: kIsWeb`) и передает `Uint8List` в `uploadVorPdf`; datasource вызывает `storage.uploadBinary` с `contentType: application/pdf`. На mobile/desktop байты получаются через `File(path).readAsBytes()`.
 - **UI-особенность:** в реестре ВОР у подписанных записей кнопка PDF меняет цвет по состоянию файла: красный, если PDF еще не загружен, зеленый, если файл уже есть.
 
 ---
@@ -25,7 +26,7 @@
 - **Гибрид данных:** план берется из `public.estimates`, факт работ агрегируется из `public.work_items`.
 - **VOR Engine:** создание ВОР через `get_next_vor_number(...)` + `populate_vor_items(...)`.
 - **Excel export:** генерация Excel ВОР через `generate_vor_v2`, повторное скачивание из Storage без обязательной регенерации.
-- **Signed PDF flow:** у подписанной ВОР можно загрузить signed PDF в Storage, затем открыть его по signed URL.
+- **Signed PDF flow:** у подписанной ВОР можно загрузить signed PDF в Storage (`uploadBinary`), затем открыть его по signed URL. На Web — только через байты, без `File`.
 - **Накопительная ведомость:** отдельный cumulative export по всем ВОР договора через `export-cumulative-vor`. Включает расчет превышения (excess quantity) относительно плановых объемов сметы.
 - **Версионирование (LC / ДС):** отслеживание изменений сметы через ревизии (`estimate_revisions`). Поддержка дополнительных соглашений с сохранением истории изменений каждой позиции по `position_id`.
 - **Авто-миграция:** автоматическое создание базовой ревизии ("Основная") для старых смет при первом обращении к функционалу ДС.
@@ -81,10 +82,10 @@
 - `lib/features/estimates/presentation/widgets/vor_recalculate_confirm_dialog.dart` — подтверждение пересчёта черновика ВОР при появлении новых работ за период.
 - `lib/features/estimates/presentation/widgets/vor_card_details.dart` — история статусов и файлов, отображение signed PDF metadata.
 - `lib/features/estimates/presentation/widgets/vor_create_dialog.dart` — создание ВОР по периоду и системам.
-- `lib/features/estimates/presentation/widgets/vor_approve_dialog.dart` — подтверждение подписания и предварительный выбор PDF.
+- `lib/features/estimates/presentation/widgets/vor_approve_dialog.dart` — подтверждение подписания и предварительный выбор PDF (`FilePicker` с `withData: kIsWeb`).
 - `lib/features/estimates/presentation/widgets/vor_tab_table_view.dart` — таб `ВОР` с динамическими колонками.
-- `lib/features/estimates/presentation/providers/estimate_providers.dart` — Riverpod-провайдеры, TTL cache, invalidation, `VorActions`, `estimateCompletionHistoryProvider`.
-- `lib/features/estimates/presentation/utils/vor_pdf_actions.dart` — upload/open сценарии для signed PDF.
+- `lib/features/estimates/presentation/providers/estimate_providers.dart` — Riverpod-провайдеры, TTL cache, invalidation, `VorActions` (`uploadPdf` принимает `Uint8List bytes`), `estimateCompletionHistoryProvider`.
+- `lib/features/estimates/presentation/utils/vor_pdf_actions.dart` — upload/open signed PDF: Web — `PlatformFile.bytes` + `VorActions.uploadPdf(bytes)`; mobile/desktop — `File.readAsBytes()`; открытие через signed URL и `url_launcher`.
 
 ### Слой Application / Services
 - `lib/features/estimates/presentation/services/vor_export_service.dart` — скачивание/фоновая генерация Excel ВОР, отчет по материалам.
@@ -94,10 +95,10 @@
 - `lib/domain/entities/estimate.dart` — доменная сущность сметной позиции.
 - `lib/domain/entities/estimate_completion_history.dart` — запись истории выполнения: `date`, `quantity`, `section`, `floor`, `openedByName`.
 - `lib/domain/entities/vor.dart` — доменная сущность ВОР и истории статусов.
-- `lib/domain/repositories/estimate_repository.dart` — контракт репозитория смет и ВОР.
+- `lib/domain/repositories/estimate_repository.dart` — контракт репозитория смет и ВОР (`uploadVorPdf`: `Uint8List bytes`, `fileName`).
 
 ### Слой Data
-- `lib/data/datasources/estimate_data_source.dart` — Supabase datasource, CRUD смет, VOR RPC/storage flow, `getEstimateCompletionHistory` (join `work_items` / `works` / `profiles`).
+- `lib/data/datasources/estimate_data_source.dart` — Supabase datasource, CRUD смет, VOR RPC/storage flow, `uploadVorPdf` → `vor_documents.uploadBinary` (`contentType: application/pdf`), `getEstimateCompletionHistory` (join `work_items` / `works` / `profiles`).
 - `lib/data/models/estimate_model.dart` — DTO смет.
 - `lib/data/models/vor_model.dart` — DTO ВОР, mapping `pdf_url/excel_url/status_history`.
 - `lib/data/repositories/estimate_repository_impl.dart` — bridge data/domain; маппинг `openedByName` из nested `works.profiles` (`_resolveOpenedByName`: приоритет `short_name`, затем `full_name`).
@@ -377,13 +378,19 @@ lib/features/estimates/
 3. Если скачать не удалось, выполняется повторная серверная генерация.
 
 ### Signed PDF flow
-1. При подписании пользователь может сразу выбрать signed PDF в `vor_approve_dialog.dart`.
-2. Если файл не выбран в момент подписания, позже его можно загрузить из карточки подписанной ВОР.
-3. PDF загружается в bucket `vor_documents`.
-4. Для signed PDF используется безопасный путь вида `contract_id/vor_id/timestamp_safe_name.pdf`.
-5. Обновление `vors.pdf_url` происходит через `set_vor_pdf_document(...)`, потому что обычный `UPDATE` для `approved` запрещен RLS-политикой.
-6. После загрузки в `vor_status_history` пишется дополнительная запись с комментарием `Загружен подписанный ВОР PDF`.
-7. Открытие PDF выполняется через signed URL и `url_launcher`.
+1. При подписании пользователь может сразу выбрать signed PDF в `vor_approve_dialog.dart` (`FilePicker.pickFiles`, `withData: kIsWeb` на Web).
+2. Если файл не выбран в момент подписания, позже его можно загрузить из карточки подписанной ВОР (кнопка PDF в `vor_list_dialog.dart`).
+3. **Чтение файла на клиенте:**
+   - **Web:** `PlatformFile.bytes` из `FilePicker` (путь `file.path` в браузере не используется).
+   - **Mobile / Desktop:** `File(file.path).readAsBytes()` если `bytes` не пришли из picker.
+4. `VorActions.uploadPdf` → `EstimateRepository.uploadVorPdf(vorId, bytes, fileName)`.
+5. Datasource загружает PDF в bucket `vor_documents` через `storage.uploadBinary` (`contentType: application/pdf`), не через `storage.upload(File)`.
+6. Для signed PDF используется безопасный путь вида `contract_id/vor_id/timestamp_safe_name.pdf`.
+7. Обновление `vors.pdf_url` происходит через `set_vor_pdf_document(...)`, потому что обычный `UPDATE` для `approved` запрещен RLS-политикой.
+8. После загрузки в `vor_status_history` пишется дополнительная запись с комментарием `Загружен подписанный ВОР PDF`.
+9. Открытие PDF выполняется через `getVorPdfViewUrl` (signed URL) и `url_launcher` (`VorPdfActions.openPdf`).
+
+> **Не использовать** `dart:io` `File` на Web при загрузке signed PDF: ошибка `Unsupported operation: _Namespace`. Эталон кроссплатформенной загрузки — аватар сотрудника (`EmployeeAvatarController`, модуль Employees).
 
 ### Очистка файлов
 1. Удаление ВОР разрешено только для `draft` и только пользователям из таблицы прав выше.
@@ -414,6 +421,7 @@ lib/features/estimates/
 ### Storage
 - bucket `vor_documents`
 - Excel и PDF хранятся в одном bucket
+- загрузка signed PDF с клиента: `uploadBinary` (`Uint8List`, `application/pdf`)
 - чтение PDF выполняется через signed URL
 
 ### Связанные модули
@@ -437,6 +445,7 @@ lib/features/estimates/
 - 🟢 Удаление черновика ВОР создателем без права `estimates.delete` (RLS + UI) — **Done**
 - 🟢 Пересчёт черновика ВОР при новых работах за период (`recalculate_vor`, `vor_recalculate_confirm_dialog`) — **Done**
 - 🟢 Signed PDF upload/view для подписанной ВОР — **Done**
+- 🟢 Загрузка signed PDF ВОР на Flutter Web (`Unsupported operation: _Namespace`) — **Done** (12.08.2026, bytes + `uploadBinary`)
 - 🟢 Цветовая индикация наличия PDF в карточке ВОР — **Done**
 - 🟢 Отображение автора и даты загрузки PDF в секции файлов — **Done**
 - 🟢 Система версионирования смет (LC / ДС) — **Done**

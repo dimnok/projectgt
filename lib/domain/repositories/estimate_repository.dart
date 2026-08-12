@@ -4,7 +4,6 @@ import '../entities/estimate_completion_history.dart';
 import '../entities/estimate_revision.dart';
 import '../entities/vor.dart';
 import '../entities/vor_recalc_preview.dart';
-import 'dart:io';
 import 'dart:typed_data';
 
 /// Абстракция репозитория для работы со сметами.
@@ -83,7 +82,7 @@ abstract class EstimateRepository {
   /// Загружает подписанный PDF-файл для ведомости ВОР.
   Future<void> uploadVorPdf({
     required String vorId,
-    required File file,
+    required Uint8List bytes,
     required String fileName,
   });
 

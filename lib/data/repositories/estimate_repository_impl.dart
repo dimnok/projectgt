@@ -5,7 +5,6 @@ import '../../domain/entities/estimate_revision.dart';
 import '../../domain/entities/vor.dart';
 import '../../domain/entities/vor_recalc_preview.dart';
 import '../../domain/repositories/estimate_repository.dart';
-import 'dart:io';
 import 'dart:typed_data';
 import '../datasources/estimate_data_source.dart';
 import '../models/estimate_model.dart';
@@ -205,10 +204,14 @@ class EstimateRepositoryImpl implements EstimateRepository {
   @override
   Future<void> uploadVorPdf({
     required String vorId,
-    required File file,
+    required Uint8List bytes,
     required String fileName,
   }) async {
-    await dataSource.uploadVorPdf(vorId: vorId, file: file, fileName: fileName);
+    await dataSource.uploadVorPdf(
+      vorId: vorId,
+      bytes: bytes,
+      fileName: fileName,
+    );
   }
 
   @override

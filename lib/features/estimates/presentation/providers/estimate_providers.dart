@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -529,10 +528,14 @@ class VorActions {
   Future<void> uploadPdf({
     required String contractId,
     required String vorId,
-    required File file,
+    required Uint8List bytes,
     required String fileName,
   }) async {
-    await repository.uploadVorPdf(vorId: vorId, file: file, fileName: fileName);
+    await repository.uploadVorPdf(
+      vorId: vorId,
+      bytes: bytes,
+      fileName: fileName,
+    );
 
     ref.invalidate(vorsProvider(contractId));
   }

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -49,15 +50,16 @@ class VorPdfActions {
     required VorActions actions,
     PlatformFile? selectedFile,
   }) async {
-    final file = selectedFile ?? await _pickPdfFile();
-    if (file == null) return;
+    final platformFile = selectedFile ?? await _pickPdfFile();
+    if (platformFile == null) return;
     if (!context.mounted) return;
 
-    final filePath = file.path;
-    if (filePath == null || filePath.isEmpty) {
+    final bytes = await _readPdfBytes(platformFile);
+    if (!context.mounted) return;
+    if (bytes == null) {
       SnackBarUtils.showErrorOverlay(
         context,
-        'Не удалось получить путь к выбранному PDF-файлу',
+        'Не удалось прочитать выбранный PDF-файл',
       );
       return;
     }
@@ -66,8 +68,8 @@ class VorPdfActions {
       await actions.uploadPdf(
         contractId: vor.contractId,
         vorId: vor.id,
-        file: File(filePath),
-        fileName: _ensurePdfExtension(file.name),
+        bytes: bytes,
+        fileName: _ensurePdfExtension(platformFile.name),
       );
 
       if (!context.mounted) return;
@@ -86,9 +88,22 @@ class VorPdfActions {
       type: FileType.custom,
       allowedExtensions: ['pdf'],
       allowMultiple: false,
+      withData: kIsWeb,
     );
 
     return result?.files.single;
+  }
+
+  static Future<Uint8List?> _readPdfBytes(PlatformFile file) async {
+    if (file.bytes != null) {
+      return file.bytes;
+    }
+
+    if (!kIsWeb && file.path != null && file.path!.isNotEmpty) {
+      return File(file.path!).readAsBytes();
+    }
+
+    return null;
   }
 
   static String _ensurePdfExtension(String fileName) {

@@ -95,7 +95,7 @@ abstract class EstimateDataSource {
   /// Загружает подписанный PDF-файл для ведомости ВОР.
   Future<void> uploadVorPdf({
     required String vorId,
-    required File file,
+    required Uint8List bytes,
     required String fileName,
   });
 
@@ -1775,7 +1775,7 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
   @override
   Future<void> uploadVorPdf({
     required String vorId,
-    required File file,
+    required Uint8List bytes,
     required String fileName,
   }) async {
     final vorData = await client
@@ -1798,10 +1798,14 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
 
     await client.storage
         .from('vor_documents')
-        .upload(
+        .uploadBinary(
           storagePath,
-          file,
-          fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
+          bytes,
+          fileOptions: const FileOptions(
+            cacheControl: '3600',
+            upsert: false,
+            contentType: 'application/pdf',
+          ),
         );
 
     try {
