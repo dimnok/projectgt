@@ -58,6 +58,22 @@ class EmployeeTimesheetObjectHours {
   final num hours;
 }
 
+/// Примечание к дню на конкретном объекте.
+@immutable
+class EmployeeTimesheetDayComment {
+  /// Создаёт примечание с текстом [text] на [objectId].
+  const EmployeeTimesheetDayComment({
+    required this.objectId,
+    required this.text,
+  });
+
+  /// Идентификатор объекта, к которому относится примечание.
+  final String objectId;
+
+  /// Текст примечания без пробелов по краям.
+  final String text;
+}
+
 /// Агрегированные часы сотрудника за месяц для вкладки «Табель».
 @immutable
 class EmployeeTimesheetMonthData {
@@ -66,6 +82,7 @@ class EmployeeTimesheetMonthData {
     required this.shiftHoursByDay,
     required this.manualHoursByDay,
     required this.hoursByObjectByDay,
+    required this.commentsByDay,
   });
 
   /// Часы из закрытых смен по дням (сумма за день).
@@ -77,11 +94,15 @@ class EmployeeTimesheetMonthData {
   /// Часы по объектам за каждый день (смены + ручной ввод).
   final Map<DateTime, List<EmployeeTimesheetObjectHours>> hoursByObjectByDay;
 
+  /// Уникальные примечания за день (смены + ручной ввод).
+  final Map<DateTime, List<EmployeeTimesheetDayComment>> commentsByDay;
+
   /// Пустая сводка.
   static const empty = EmployeeTimesheetMonthData(
     shiftHoursByDay: {},
     manualHoursByDay: {},
     hoursByObjectByDay: {},
+    commentsByDay: {},
   );
 
   /// Сумма часов из смен.
@@ -116,6 +137,10 @@ class EmployeeTimesheetMonthData {
   /// Срезы часов по объектам за [day] (объекты с нулём часов не входят).
   List<EmployeeTimesheetObjectHours> objectsForDay(DateTime day) =>
       hoursByObjectByDay[_normalizeDate(day)] ?? const [];
+
+  /// Примечания за [day] (пустой список, если комментариев нет).
+  List<EmployeeTimesheetDayComment> commentsForDay(DateTime day) =>
+      commentsByDay[_normalizeDate(day)] ?? const [];
 
   /// Уникальные объекты месяца с суммой часов, по убыванию часов.
   List<EmployeeTimesheetObjectHours> get objectsLegend {
@@ -173,10 +198,12 @@ final employeeTimesheetMonthProvider = FutureProvider.autoDispose
 
       final shiftHoursByDay = <DateTime, num>{};
       final objectHoursAcc = <DateTime, Map<String, num>>{};
+      final commentsAcc = <DateTime, List<EmployeeTimesheetDayComment>>{};
       for (final entry in shiftEntries) {
         final date = _normalizeDate(entry.date);
         shiftHoursByDay[date] = (shiftHoursByDay[date] ?? 0) + entry.hours;
         _addObjectHours(objectHoursAcc, date, entry.objectId, entry.hours);
+        _addDayComment(commentsAcc, date, entry.objectId, entry.comment);
       }
 
       final manualHoursByDay = <DateTime, num>{};
@@ -184,14 +211,32 @@ final employeeTimesheetMonthProvider = FutureProvider.autoDispose
         final date = _normalizeDate(record.date);
         manualHoursByDay[date] = (manualHoursByDay[date] ?? 0) + record.hours;
         _addObjectHours(objectHoursAcc, date, record.objectId, record.hours);
+        _addDayComment(commentsAcc, date, record.objectId, record.comment);
       }
 
       return EmployeeTimesheetMonthData(
         shiftHoursByDay: shiftHoursByDay,
         manualHoursByDay: manualHoursByDay,
         hoursByObjectByDay: _freezeObjectHours(objectHoursAcc),
+        commentsByDay: commentsAcc,
       );
     });
+
+void _addDayComment(
+  Map<DateTime, List<EmployeeTimesheetDayComment>> acc,
+  DateTime date,
+  String objectId,
+  String? comment,
+) {
+  final text = comment?.trim();
+  if (text == null || text.isEmpty) return;
+  final list = acc.putIfAbsent(date, () => <EmployeeTimesheetDayComment>[]);
+  final exists = list.any(
+    (item) => item.objectId == objectId && item.text == text,
+  );
+  if (exists) return;
+  list.add(EmployeeTimesheetDayComment(objectId: objectId, text: text));
+}
 
 void _addObjectHours(
   Map<DateTime, Map<String, num>> acc,

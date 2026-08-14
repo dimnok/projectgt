@@ -2,11 +2,12 @@
 
 **Дата актуализации:** 14 августа 2026 года
 
-**Изменения в этой версии (14.08.2026, легенда объектов во вкладке «Табель»):**
+**Изменения в этой версии (14.08.2026, легенда объектов и примечания во вкладке «Табель»):**
 - Полоска дней в [`EmployeeTimesheetSection`](../../lib/features/employees/presentation/widgets/employee_timesheet_section.dart) окрашивается **по объекту**; если за день несколько объектов — сегменты пропорционально часам
 - Под полоской — **цветовая легенда** столбиком (название объекта + часы за месяц, без рамки и без подписи «Объекты»); имена из [`employeesModuleObjectsProvider`](../../lib/features/employees/presentation/providers/employees_module_objects_provider.dart)
+- **Примечание к дню:** точка под полоской часов (нейтральный цвет, как метки легенды), если у смены или ручной посещаемости есть `comment`; текст в подсказке дня (`Примечание: объект: текст`)
 - Подсказка по дню: дата, итог часов и разбивка по объектам; у баннеров легенды подсказки нет
-- Данные: [`EmployeeTimesheetMonthData.hoursByObjectByDay`](../../lib/features/employees/presentation/providers/employee_timesheet_month_provider.dart) — сумма смен + ручная посещаемость по `objectId`
+- Данные: [`EmployeeTimesheetMonthData.hoursByObjectByDay`](../../lib/features/employees/presentation/providers/employee_timesheet_month_provider.dart) и `commentsByDay` — сумма смен + ручная посещаемость по `objectId`
 
 **Предыдущая версия (29.07.2026, вкладка «Табель» в карточке):**
 - **Третья вкладка «Табель»** в [`EmployeeDetailsModal`](../../lib/features/employees/presentation/widgets/employee_details_modal.dart) и [`EmployeesMobileEmployeeDetailsSheet`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_details_sheet.dart): сегмент **«Обзор» / «Заявления» / «Табель»**
@@ -198,7 +199,7 @@
 | [`employees_table_filters_toolbar.dart`](../../lib/features/employees/presentation/widgets/employees_table_filters_toolbar.dart) | Фильтры; индикатор загрузки picklist объектов в триггере dropdown — `CupertinoActivityIndicator`; `EmployeesObjectTableFilterValue.toExportFilterJson()` для экспорта |
 | [`employee_details_modal.dart`](../../lib/features/employees/presentation/widgets/employee_details_modal.dart) | Детальная карточка (desktop); вкладки **«Обзор» / «Заявления» / «Табель»** (`IndexedStack`, компактный `CustomSlidingSegmentedControl`); «Табель» только при `timesheet.read`; safe `viewTab` при отзыве права; вход в редактирование — `GTTextButton` «Редактировать»; `ref.listen` на `employeeProvider` и `permissionServiceProvider` |
 | [`employee_applications_section.dart`](../../lib/features/employees/presentation/widgets/employee_applications_section.dart) | **Вкладка «Заявления»:** типы заявлений, компактный список сканов (одна строка + icon actions), просмотр / скачивание / удаление |
-| [`employee_timesheet_section.dart`](../../lib/features/employees/presentation/widgets/employee_timesheet_section.dart) | **Вкладка «Табель»:** месяц одного сотрудника — сводка часов/дней, полоска дней с цветом объекта, легенда объектов, без прокрутки; ленивая загрузка; баннер `includeInTimesheet` |
+| [`employee_timesheet_section.dart`](../../lib/features/employees/presentation/widgets/employee_timesheet_section.dart) | **Вкладка «Табель»:** месяц одного сотрудника — сводка часов/дней, полоска дней с цветом объекта и точкой примечания, легенда объектов, без прокрутки; ленивая загрузка; баннер `includeInTimesheet` |
 | [`employee_application_forms.dart`](../../lib/features/employees/presentation/widgets/employee_application_forms.dart) | Формы отпуска и БС для карточки сотрудника (PDF + загрузка скана) |
 | [`employee_application_scan_preview.dart`](../../lib/features/employees/presentation/widgets/employee_application_scan_preview.dart) | Просмотр PDF (`printing`) и изображений в диалоге |
 | [`employee_edit_form.dart`](../../lib/features/employees/presentation/widgets/employee_edit_form.dart) | Форма редактирования; кнопка «Сохранить» при отправке — `CupertinoActivityIndicator`; `_saveChanges` — guard `employees.update` |
@@ -264,7 +265,7 @@
 | `employeeAvatarControllerProvider` | [`employee_avatar_controller.dart`](../../lib/features/employees/presentation/providers/employee_avatar_controller.dart) | Загрузка / удаление / скачивание фото; уведомления через `AppSnackBar` |
 | `employeeApplicationsProvider(employeeId)` | [`employee_applications_provider.dart`](../../lib/features/employees/presentation/providers/employee_applications_provider.dart) | Список заявлений, upload/delete/download сканов; autoDispose family |
 | `employeeApplicationBusyIdsProvider(employeeId)` | там же | Индикация загрузки при скачивании / просмотре |
-| `employeeTimesheetMonthProvider(key)` | [`employee_timesheet_month_provider.dart`](../../lib/features/employees/presentation/providers/employee_timesheet_month_provider.dart) | Часы одного сотрудника за месяц (`EmployeeTimesheetMonthKey`: `employeeId` + месяц); `hoursByObjectByDay` для легенды; autoDispose family; источники — репозитории Timesheet |
+| `employeeTimesheetMonthProvider(key)` | [`employee_timesheet_month_provider.dart`](../../lib/features/employees/presentation/providers/employee_timesheet_month_provider.dart) | Часы одного сотрудника за месяц (`EmployeeTimesheetMonthKey`: `employeeId` + месяц); `hoursByObjectByDay` и `commentsByDay` для легенды и примечаний; autoDispose family; источники — репозитории Timesheet |
 
 ### Жизненный цикл экранов (Riverpod / Web)
 
@@ -663,9 +664,10 @@ Bucket **`employee_applications`** (private, `public: false`):
     3. Параллельная загрузка: `EmployeeAttendanceRepository.getAttendanceRecords(employeeId, start, end)` + `TimesheetRepository.getShiftHoursForEmployee(…)`.
     4. **Инвариант суммы:** `dayTotal = shiftHours + manualHours` (как ячейка сетки Timesheet); UI показывает итог по дню и месяц.
     5. **Объекты:** часы группируются по `objectId` (смены + посещаемость) → цвет полоски дня и легенда столбиком под ней (без рамки и без заголовка «Объекты»); при нескольких объектах за день полоска делится пропорционально часам; tooltip только у дня, не у баннера легенды.
-    6. Переключатель месяца — без перехода в будущие месяцы; полоска дней без горизонтального скролла (`Expanded` на каждый день).
-    7. Проставление часов **не** доступно из карточки — только модуль Timesheet (`EmployeeAttendanceDialog`).
-    8. После успешного сохранения посещаемости в Timesheet — `invalidate` провайдера месяца сотрудника (карточка, если открыта, обновится).
+    6. **Примечания:** непустой `comment` из смен и ручной посещаемости → точка под полоской дня и блок «Примечание» в tooltip.
+    7. Переключатель месяца — без перехода в будущие месяцы; полоска дней без горизонтального скролла (`Expanded` на каждый день).
+    8. Проставление часов **не** доступно из карточки — только модуль Timesheet (`EmployeeAttendanceDialog`).
+    9. После успешного сохранения посещаемости в Timesheet — `invalidate` провайдера месяца сотрудника (карточка, если открыта, обновится).
 
 ---
 

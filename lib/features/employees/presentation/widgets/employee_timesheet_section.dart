@@ -10,7 +10,8 @@ import 'package:projectgt/features/timesheet/presentation/widgets/timesheet_hour
 
 /// Вкладка «Табель» в карточке сотрудника.
 ///
-/// Компактный просмотр месяца: сводка часов и полоска дней.
+/// Компактный просмотр месяца: сводка часов, полоска дней и легенда объектов.
+/// На дне с примечанием — точка под полоской, текст в подсказке при наведении.
 /// Данные загружаются при первом показе ([isActive] = true).
 class EmployeeTimesheetSection extends ConsumerStatefulWidget {
   /// Сотрудник, чей табель отображается.
@@ -286,6 +287,7 @@ class _MonthDaysStrip extends StatelessWidget {
                   final isWeekend =
                       day.weekday == DateTime.saturday ||
                       day.weekday == DateTime.sunday;
+                  final comments = data.commentsForDay(day);
                   final hoursLabel = hasHours ? _formatHours(hours) : '·';
 
                   return Tooltip(
@@ -293,6 +295,7 @@ class _MonthDaysStrip extends StatelessWidget {
                       day: day,
                       hours: hours,
                       slices: slices,
+                      comments: comments,
                       objectNames: objectNames,
                     ),
                     child: Column(
@@ -319,7 +322,25 @@ class _MonthDaysStrip extends StatelessWidget {
                           colors: colors,
                           emptyColor: scheme.outline.withValues(alpha: 0.2),
                         ),
-                        const SizedBox(height: 5),
+                        SizedBox(
+                          height: 5,
+                          child: comments.isNotEmpty
+                              ? Center(
+                                  child: ExcludeSemantics(
+                                    child: Container(
+                                      width: 4,
+                                      height: 4,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: scheme.onSurface.withValues(
+                                          alpha: 0.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : null,
+                        ),
                         FittedBox(
                           fit: BoxFit.scaleDown,
                           child: Text(
@@ -557,19 +578,36 @@ String _dayTooltip({
   required DateTime day,
   required num hours,
   required List<EmployeeTimesheetObjectHours> slices,
+  required List<EmployeeTimesheetDayComment> comments,
   required Map<String, String> objectNames,
 }) {
   final date = formatRuDate(day);
-  if (hours <= 0) return date;
+  if (hours <= 0 && comments.isEmpty) return date;
 
-  final buffer = StringBuffer('$date — ${_formatHours(hours)} ч');
-  for (final slice in slices) {
-    buffer
-      ..write('\n')
-      ..write(_objectDisplayName(slice.objectId, objectNames))
-      ..write(': ')
-      ..write(_formatHours(slice.hours))
-      ..write(' ч');
+  final buffer = StringBuffer();
+  if (hours > 0) {
+    buffer.write('$date — ${_formatHours(hours)} ч');
+    for (final slice in slices) {
+      buffer
+        ..write('\n')
+        ..write(_objectDisplayName(slice.objectId, objectNames))
+        ..write(': ')
+        ..write(_formatHours(slice.hours))
+        ..write(' ч');
+    }
+  } else {
+    buffer.write(date);
+  }
+
+  if (comments.isNotEmpty) {
+    buffer.write('\nПримечание:');
+    for (final comment in comments) {
+      buffer
+        ..write('\n')
+        ..write(_objectDisplayName(comment.objectId, objectNames))
+        ..write(': ')
+        ..write(comment.text);
+    }
   }
   return buffer.toString();
 }
