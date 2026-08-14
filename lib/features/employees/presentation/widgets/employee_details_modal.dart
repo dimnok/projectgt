@@ -14,6 +14,7 @@ import 'package:projectgt/domain/entities/employee.dart';
 import 'package:projectgt/features/employees/presentation/providers/employee_avatar_controller.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_applications_section.dart';
+import 'package:projectgt/features/employees/presentation/widgets/employee_card_placeholder_tab.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_business_trip_summary_widget.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_edit_form.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_rate_summary_widget.dart';
@@ -22,7 +23,8 @@ import 'package:projectgt/features/employees/presentation/widgets/employee_trip_
 import 'package:projectgt/features/employees/presentation/widgets/editable_inline_text_row.dart';
 import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:projectgt/presentation/widgets/custom_sliding_segmented_control.dart';
-import 'package:projectgt/presentation/state/employee_state.dart' as employee_state;
+import 'package:projectgt/presentation/state/employee_state.dart'
+    as employee_state;
 
 /// Модальное окно с детальной информацией о сотруднике.
 class EmployeeDetailsModal extends ConsumerStatefulWidget {
@@ -94,14 +96,16 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
     final permissionService = ref.watch(permissionServiceProvider);
     final canUpdate = permissionService.can('employees', 'update');
     final canViewTimesheet = permissionService.can('timesheet', 'read');
-    final timesheetTabIndex = canViewTimesheet ? 2 : -1;
-    // Синхронно сбрасываем вкладку, если право на табель отозвано
-    // (иначе IndexedStack может указать на отсутствующий child).
-    final viewTab = (!canViewTimesheet && _viewTab >= 2) ? 0 : _viewTab;
+    const timesheetTabIndex = 2;
+    // Индексы вкладок фиксированы: 0 Обзор, 1 Заявления, 2 Табель, 3 ТМЦ, 4 Финансы.
+    // Если право на табель отозвано, сбрасываем только вкладку «Табель».
+    final viewTab = (!canViewTimesheet && _viewTab == timesheetTabIndex)
+        ? 0
+        : _viewTab;
     if (viewTab != _viewTab) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        if (_viewTab >= 2 &&
+        if (_viewTab == timesheetTabIndex &&
             !ref.read(permissionServiceProvider).can('timesheet', 'read')) {
           setState(() => _viewTab = 0);
         }
@@ -115,7 +119,7 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
           _syncDialogCloseButton();
         });
       }
-      if (!next.can('timesheet', 'read') && _viewTab >= 2) {
+      if (!next.can('timesheet', 'read') && _viewTab == 2) {
         setState(() => _viewTab = 0);
       }
     });
@@ -198,7 +202,21 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
                             key: ValueKey('timesheet_tab_${_employee.id}'),
                             employee: _employee,
                             isActive: viewTab == timesheetTabIndex,
+                          )
+                        else
+                          const SizedBox.shrink(
+                            key: ValueKey('timesheet_tab_hidden'),
                           ),
+                        const EmployeeCardPlaceholderTab(
+                          key: ValueKey('tmc_tab'),
+                          title: 'ТМЦ',
+                          icon: CupertinoIcons.cube_box,
+                        ),
+                        const EmployeeCardPlaceholderTab(
+                          key: ValueKey('finance_tab'),
+                          title: 'Финансы',
+                          icon: CupertinoIcons.money_rubl,
+                        ),
                       ],
                     ),
                   ],
@@ -230,7 +248,10 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
       children: {
         0: _buildViewTabLabel(theme, viewTab, 0, 'Обзор'),
         1: _buildViewTabLabel(theme, viewTab, 1, 'Заявления'),
-        if (canViewTimesheet) 2: _buildViewTabLabel(theme, viewTab, 2, 'Табель'),
+        if (canViewTimesheet)
+          2: _buildViewTabLabel(theme, viewTab, 2, 'Табель'),
+        3: _buildViewTabLabel(theme, viewTab, 3, 'ТМЦ'),
+        4: _buildViewTabLabel(theme, viewTab, 4, 'Финансы'),
       },
     );
   }
@@ -244,7 +265,7 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
     final scheme = theme.colorScheme;
     final selected = viewTab == index;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       child: Text(
         label,
         textAlign: TextAlign.center,
@@ -283,7 +304,9 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
                   GTContextMenuItem(
                     icon: CupertinoIcons.camera,
                     label: 'Заменить фото',
-                    onTap: () => ref.read(employeeAvatarControllerProvider.notifier).uploadAvatar(_employee, ImageSource.gallery, context),
+                    onTap: () => ref
+                        .read(employeeAvatarControllerProvider.notifier)
+                        .uploadAvatar(_employee, ImageSource.gallery, context),
                   ),
                 );
               } else {
@@ -291,14 +314,18 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
                   GTContextMenuItem(
                     icon: CupertinoIcons.photo,
                     label: 'Выбрать из галереи',
-                    onTap: () => ref.read(employeeAvatarControllerProvider.notifier).uploadAvatar(_employee, ImageSource.gallery, context),
+                    onTap: () => ref
+                        .read(employeeAvatarControllerProvider.notifier)
+                        .uploadAvatar(_employee, ImageSource.gallery, context),
                   ),
                 );
                 items.add(
                   GTContextMenuItem(
                     icon: CupertinoIcons.camera,
                     label: 'Сделать фото',
-                    onTap: () => ref.read(employeeAvatarControllerProvider.notifier).uploadAvatar(_employee, ImageSource.camera, context),
+                    onTap: () => ref
+                        .read(employeeAvatarControllerProvider.notifier)
+                        .uploadAvatar(_employee, ImageSource.camera, context),
                   ),
                 );
               }
@@ -312,7 +339,9 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
                   label: 'Скачать',
                   onTap: () {
                     // Сохраняем ссылку на notifier до закрытия контекстного меню
-                    final notifier = ref.read(employeeAvatarControllerProvider.notifier);
+                    final notifier = ref.read(
+                      employeeAvatarControllerProvider.notifier,
+                    );
                     // Вызываем метод асинхронно, чтобы меню успело закрыться
                     Future.microtask(() {
                       if (!mounted) return;
@@ -330,7 +359,9 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
                   icon: CupertinoIcons.delete,
                   label: 'Удалить',
                   isDestructive: true,
-                  onTap: () => ref.read(employeeAvatarControllerProvider.notifier).deleteAvatar(_employee, context),
+                  onTap: () => ref
+                      .read(employeeAvatarControllerProvider.notifier)
+                      .deleteAvatar(_employee, context),
                 ),
               );
             }
@@ -348,28 +379,30 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
             children: [
               CircleAvatar(
                 radius: 48,
-                backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+                backgroundColor: theme.colorScheme.primary.withValues(
+                  alpha: 0.1,
+                ),
                 child: isLoadingAvatar
                     ? const CupertinoActivityIndicator(radius: 20)
                     : (!hasPhoto
-                        ? Icon(
-                            CupertinoIcons.person,
-                            size: 48,
-                            color: theme.colorScheme.primary,
-                          )
-                        : ClipOval(
-                            child: CachedNetworkImage(
-                              imageUrl: _employee.photoUrl!,
-                              width: 96,
-                              height: 96,
-                              fit: BoxFit.cover,
-                              errorWidget: (context, url, error) => Icon(
-                                CupertinoIcons.person,
-                                size: 48,
-                                color: theme.colorScheme.primary,
+                          ? Icon(
+                              CupertinoIcons.person,
+                              size: 48,
+                              color: theme.colorScheme.primary,
+                            )
+                          : ClipOval(
+                              child: CachedNetworkImage(
+                                imageUrl: _employee.photoUrl!,
+                                width: 96,
+                                height: 96,
+                                fit: BoxFit.cover,
+                                errorWidget: (context, url, error) => Icon(
+                                  CupertinoIcons.person,
+                                  size: 48,
+                                  color: theme.colorScheme.primary,
+                                ),
                               ),
-                            ),
-                          )),
+                            )),
               ),
               AnimatedPositioned(
                 duration: const Duration(milliseconds: 300),
@@ -386,7 +419,10 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
                       decoration: BoxDecoration(
                         color: theme.colorScheme.primary,
                         shape: BoxShape.circle,
-                        border: Border.all(color: theme.colorScheme.surface, width: 2),
+                        border: Border.all(
+                          color: theme.colorScheme.surface,
+                          width: 2,
+                        ),
                       ),
                       child: Icon(
                         CupertinoIcons.camera_fill,
@@ -410,15 +446,16 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
                 transitionBuilder: (Widget child, Animation<double> animation) {
                   return FadeTransition(opacity: animation, child: child);
                 },
-                layoutBuilder: (Widget? currentChild, List<Widget> previousChildren) {
-                  return Stack(
-                    alignment: Alignment.centerLeft,
-                    children: <Widget>[
-                      ...previousChildren,
-                      if (currentChild != null) currentChild,
-                    ],
-                  );
-                },
+                layoutBuilder:
+                    (Widget? currentChild, List<Widget> previousChildren) {
+                      return Stack(
+                        alignment: Alignment.centerLeft,
+                        children: <Widget>[
+                          ...previousChildren,
+                          if (currentChild != null) currentChild,
+                        ],
+                      );
+                    },
                 child: !_isEditing
                     ? Text(
                         _employee.fullName,
@@ -449,7 +486,9 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
                             Text(
                               _employee.position!,
                               style: theme.textTheme.titleMedium?.copyWith(
-                                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                                color: theme.colorScheme.onSurface.withValues(
+                                  alpha: 0.7,
+                                ),
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -482,10 +521,11 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
                                     const SizedBox(width: 8),
                                     Text(
                                       statusText,
-                                      style: theme.textTheme.labelMedium?.copyWith(
-                                        color: statusColor,
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                      style: theme.textTheme.labelMedium
+                                          ?.copyWith(
+                                            color: statusColor,
+                                            fontWeight: FontWeight.bold,
+                                          ),
                                     ),
                                   ],
                                 ),
@@ -697,7 +737,9 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
                       child: Text(
                         'Паспорт',
                         style: TextStyle(
-                          color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.5,
+                          ),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -720,15 +762,14 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
                       child: Text(
                         'Выдан',
                         style: TextStyle(
-                          color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.5,
+                          ),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
-                    Expanded(
-                      flex: 5,
-                      child: _buildPassportIssueDateAndCode(),
-                    ),
+                    Expanded(flex: 5, child: _buildPassportIssueDateAndCode()),
                   ],
                 ),
               ),
@@ -751,7 +792,9 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
                       child: Text(
                         'Дата рождения',
                         style: TextStyle(
-                          color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.5,
+                          ),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -807,15 +850,14 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
                       child: Text(
                         'Размеры',
                         style: TextStyle(
-                          color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.5,
+                          ),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
-                    Expanded(
-                      flex: 5,
-                      child: _buildSizesInfoRow(),
-                    ),
+                    Expanded(flex: 5, child: _buildSizesInfoRow()),
                   ],
                 ),
               ),
@@ -832,41 +874,52 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
       fontSize: 12,
       color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
     );
-    const valueStyle = TextStyle(
-      fontWeight: FontWeight.w500,
-      fontSize: 14,
-    );
+    const valueStyle = TextStyle(fontWeight: FontWeight.w500, fontSize: 14);
 
     final items = <Widget>[];
 
     if (_employee.passportSeries?.isNotEmpty == true) {
-      items.add(Text.rich(TextSpan(children: [
-        TextSpan(text: 'Серия  ', style: labelStyle),
-        TextSpan(text: _employee.passportSeries!, style: valueStyle),
-      ])));
+      items.add(
+        Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(text: 'Серия  ', style: labelStyle),
+              TextSpan(text: _employee.passportSeries!, style: valueStyle),
+            ],
+          ),
+        ),
+      );
     }
     if (_employee.passportNumber?.isNotEmpty == true) {
-      items.add(Text.rich(TextSpan(children: [
-        TextSpan(text: 'Номер  ', style: labelStyle),
-        TextSpan(text: _employee.passportNumber!, style: valueStyle),
-      ])));
+      items.add(
+        Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(text: 'Номер  ', style: labelStyle),
+              TextSpan(text: _employee.passportNumber!, style: valueStyle),
+            ],
+          ),
+        ),
+      );
     }
     if (_employee.citizenship?.isNotEmpty == true) {
-      items.add(Text.rich(TextSpan(children: [
-        TextSpan(text: 'Гражданство  ', style: labelStyle),
-        TextSpan(text: _employee.citizenship!, style: valueStyle),
-      ])));
+      items.add(
+        Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(text: 'Гражданство  ', style: labelStyle),
+              TextSpan(text: _employee.citizenship!, style: valueStyle),
+            ],
+          ),
+        ),
+      );
     }
 
     if (items.isEmpty) {
       return const Text('—', style: TextStyle(fontWeight: FontWeight.w500));
     }
 
-    return Wrap(
-      spacing: 24,
-      runSpacing: 8,
-      children: items,
-    );
+    return Wrap(spacing: 24, runSpacing: 8, children: items);
   }
 
   Widget _buildPassportIssueDateAndCode() {
@@ -875,35 +928,48 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
       fontSize: 12,
       color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
     );
-    const valueStyle = TextStyle(
-      fontWeight: FontWeight.w500,
-      fontSize: 14,
-    );
+    const valueStyle = TextStyle(fontWeight: FontWeight.w500, fontSize: 14);
 
     final items = <Widget>[];
 
     if (_employee.passportIssueDate != null) {
-      items.add(Text.rich(TextSpan(children: [
-        TextSpan(text: 'Дата  ', style: labelStyle),
-        TextSpan(text: formatRuDate(_employee.passportIssueDate!), style: valueStyle),
-      ])));
+      items.add(
+        Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(text: 'Дата  ', style: labelStyle),
+              TextSpan(
+                text: formatRuDate(_employee.passportIssueDate!),
+                style: valueStyle,
+              ),
+            ],
+          ),
+        ),
+      );
     }
     if (_employee.passportDepartmentCode?.isNotEmpty == true) {
-      items.add(Text.rich(TextSpan(children: [
-        TextSpan(text: 'Код  ', style: labelStyle),
-        TextSpan(text: GtFormatters.formatPassportDepartmentCode(_employee.passportDepartmentCode), style: valueStyle),
-      ])));
+      items.add(
+        Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(text: 'Код  ', style: labelStyle),
+              TextSpan(
+                text: GtFormatters.formatPassportDepartmentCode(
+                  _employee.passportDepartmentCode,
+                ),
+                style: valueStyle,
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     if (items.isEmpty) {
       return const Text('—', style: TextStyle(fontWeight: FontWeight.w500));
     }
 
-    return Wrap(
-      spacing: 24,
-      runSpacing: 8,
-      children: items,
-    );
+    return Wrap(spacing: 24, runSpacing: 8, children: items);
   }
 
   Widget _buildSizesInfoRow() {
@@ -912,56 +978,69 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
       fontSize: 12,
       color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
     );
-    const valueStyle = TextStyle(
-      fontWeight: FontWeight.w500,
-      fontSize: 14,
-    );
+    const valueStyle = TextStyle(fontWeight: FontWeight.w500, fontSize: 14);
 
     final items = <Widget>[];
 
     if (_employee.clothingSize?.isNotEmpty == true) {
-      items.add(Text.rich(TextSpan(children: [
-        TextSpan(text: 'Одежда  ', style: labelStyle),
-        TextSpan(text: _employee.clothingSize!, style: valueStyle),
-      ])));
+      items.add(
+        Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(text: 'Одежда  ', style: labelStyle),
+              TextSpan(text: _employee.clothingSize!, style: valueStyle),
+            ],
+          ),
+        ),
+      );
     }
     if (_employee.shoeSize?.isNotEmpty == true) {
-      items.add(Text.rich(TextSpan(children: [
-        TextSpan(text: 'Обувь  ', style: labelStyle),
-        TextSpan(text: _employee.shoeSize!, style: valueStyle),
-      ])));
+      items.add(
+        Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(text: 'Обувь  ', style: labelStyle),
+              TextSpan(text: _employee.shoeSize!, style: valueStyle),
+            ],
+          ),
+        ),
+      );
     }
     if (_employee.height?.isNotEmpty == true) {
-      items.add(Text.rich(TextSpan(children: [
-        TextSpan(text: 'Рост  ', style: labelStyle),
-        TextSpan(text: _employee.height!, style: valueStyle),
-      ])));
+      items.add(
+        Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(text: 'Рост  ', style: labelStyle),
+              TextSpan(text: _employee.height!, style: valueStyle),
+            ],
+          ),
+        ),
+      );
     }
 
     if (items.isEmpty) {
       return const Text('—', style: TextStyle(fontWeight: FontWeight.w500));
     }
 
-    return Wrap(
-      spacing: 24,
-      runSpacing: 8,
-      children: items,
-    );
+    return Wrap(spacing: 24, runSpacing: 8, children: items);
   }
 
   String _formatBirthDateWithAge() {
     if (_employee.birthDate == null) return '—';
-    
+
     final now = DateTime.now();
     int age = now.year - _employee.birthDate!.year;
-    if (now.month < _employee.birthDate!.month || (now.month == _employee.birthDate!.month && now.day < _employee.birthDate!.day)) {
+    if (now.month < _employee.birthDate!.month ||
+        (now.month == _employee.birthDate!.month &&
+            now.day < _employee.birthDate!.day)) {
       age--;
     }
-    
+
     String ageText;
     final lastDigit = age % 10;
     final lastTwoDigits = age % 100;
-    
+
     if (lastTwoDigits >= 11 && lastTwoDigits <= 14) {
       ageText = 'лет';
     } else if (lastDigit == 1) {
@@ -971,7 +1050,7 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
     } else {
       ageText = 'лет';
     }
-    
+
     return '${formatRuDate(_employee.birthDate!)} ($age $ageText)';
   }
 

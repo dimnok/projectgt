@@ -12,6 +12,7 @@ import 'package:projectgt/domain/entities/business_trip_rate.dart';
 import 'package:projectgt/domain/entities/employee.dart';
 import 'package:projectgt/features/employees/presentation/providers/employee_avatar_controller.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_applications_section.dart';
+import 'package:projectgt/features/employees/presentation/widgets/employee_card_placeholder_tab.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_business_trip_summary_widget.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_rate_summary_widget.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_timesheet_section.dart';
@@ -383,14 +384,17 @@ class _EmployeesMobileEmployeeDetailsBodyState
     final employee = widget.employee;
     final objects = widget.objects;
     final canUpdate = widget.canUpdate;
-    final canViewTimesheet =
-        ref.watch(permissionServiceProvider).can('timesheet', 'read');
-    final timesheetTabIndex = canViewTimesheet ? 2 : -1;
-    final viewTab = (!canViewTimesheet && _viewTab >= 2) ? 0 : _viewTab;
+    final canViewTimesheet = ref
+        .watch(permissionServiceProvider)
+        .can('timesheet', 'read');
+    const timesheetTabIndex = 2;
+    final viewTab = (!canViewTimesheet && _viewTab == timesheetTabIndex)
+        ? 0
+        : _viewTab;
     if (viewTab != _viewTab) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        if (_viewTab >= 2 &&
+        if (_viewTab == timesheetTabIndex &&
             !ref.read(permissionServiceProvider).can('timesheet', 'read')) {
           setState(() => _viewTab = 0);
         }
@@ -410,7 +414,7 @@ class _EmployeesMobileEmployeeDetailsBodyState
     final isAvatarBusy = avatarAsync is AsyncLoading;
 
     ref.listen(permissionServiceProvider, (_, next) {
-      if (!next.can('timesheet', 'read') && _viewTab >= 2) {
+      if (!next.can('timesheet', 'read') && _viewTab == 2) {
         setState(() => _viewTab = 0);
       }
     });
@@ -431,319 +435,354 @@ class _EmployeesMobileEmployeeDetailsBodyState
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-        _sectionCard(
-          theme,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Semantics(
-                  button: canUpdate || hasPhoto,
-                  label: 'Фото сотрудника, открыть действия',
-                  child: Material(
-                    type: MaterialType.transparency,
-                    child: InkWell(
-                      onTap: canUpdate || hasPhoto
-                          ? () => _openAvatarActionsSheet(
-                              context,
-                              ref,
-                              employee,
-                              canUpdate: canUpdate,
-                            )
-                          : null,
-                      borderRadius: BorderRadius.circular(_avatarRadius),
-                      child: SizedBox(
-                        width: _avatarSide,
-                        height: _avatarSide,
-                        child: Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            Container(
-                              width: _avatarSide,
-                              height: _avatarSide,
-                              clipBehavior: Clip.antiAlias,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(
-                                  _avatarRadius,
-                                ),
-                                border: Border.all(
-                                  color: scheme.outline.withValues(alpha: 0.25),
-                                ),
-                                color: scheme.surfaceContainerHighest,
+                _sectionCard(
+                  theme,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Semantics(
+                          button: canUpdate || hasPhoto,
+                          label: 'Фото сотрудника, открыть действия',
+                          child: Material(
+                            type: MaterialType.transparency,
+                            child: InkWell(
+                              onTap: canUpdate || hasPhoto
+                                  ? () => _openAvatarActionsSheet(
+                                      context,
+                                      ref,
+                                      employee,
+                                      canUpdate: canUpdate,
+                                    )
+                                  : null,
+                              borderRadius: BorderRadius.circular(
+                                _avatarRadius,
                               ),
-                              child: hasPhoto
-                                  ? CachedNetworkImage(
-                                      imageUrl: employee.photoUrl!,
+                              child: SizedBox(
+                                width: _avatarSide,
+                                height: _avatarSide,
+                                child: Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    Container(
                                       width: _avatarSide,
                                       height: _avatarSide,
-                                      fit: BoxFit.cover,
-                                      errorWidget: (context, url, error) => Center(
-                                        child: Text(
-                                          initials,
-                                          style: TextStyle(
-                                            color: scheme.primary,
-                                            fontSize: 22,
-                                            fontWeight: FontWeight.w600,
+                                      clipBehavior: Clip.antiAlias,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(
+                                          _avatarRadius,
+                                        ),
+                                        border: Border.all(
+                                          color: scheme.outline.withValues(
+                                            alpha: 0.25,
+                                          ),
+                                        ),
+                                        color: scheme.surfaceContainerHighest,
+                                      ),
+                                      child: hasPhoto
+                                          ? CachedNetworkImage(
+                                              imageUrl: employee.photoUrl!,
+                                              width: _avatarSide,
+                                              height: _avatarSide,
+                                              fit: BoxFit.cover,
+                                              errorWidget:
+                                                  (context, url, error) =>
+                                                      Center(
+                                                        child: Text(
+                                                          initials,
+                                                          style: TextStyle(
+                                                            color:
+                                                                scheme.primary,
+                                                            fontSize: 22,
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                          ),
+                                                        ),
+                                                      ),
+                                            )
+                                          : Center(
+                                              child: Text(
+                                                initials,
+                                                style: TextStyle(
+                                                  color: scheme.primary,
+                                                  fontSize: 22,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ),
+                                    ),
+                                    if (isAvatarBusy)
+                                      Positioned.fill(
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(
+                                            _avatarRadius,
+                                          ),
+                                          child: ColoredBox(
+                                            color: scheme.scrim.withValues(
+                                              alpha: 0.45,
+                                            ),
+                                            child: Center(
+                                              child: CupertinoActivityIndicator(
+                                                color: scheme.onSurface,
+                                                radius: 14,
+                                              ),
+                                            ),
                                           ),
                                         ),
                                       ),
-                                    )
-                                  : Center(
-                                      child: Text(
-                                        initials,
-                                        style: TextStyle(
+                                    Positioned(
+                                      right: -2,
+                                      bottom: -2,
+                                      child: DecoratedBox(
+                                        decoration: BoxDecoration(
                                           color: scheme.primary,
-                                          fontSize: 22,
-                                          fontWeight: FontWeight.w600,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: scheme.surface,
+                                            width: 2,
+                                          ),
+                                        ),
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(5),
+                                          child: Icon(
+                                            CupertinoIcons.camera_fill,
+                                            size: 14,
+                                            color: scheme.onPrimary,
+                                          ),
                                         ),
                                       ),
                                     ),
+                                  ],
+                                ),
+                              ),
                             ),
-                            if (isAvatarBusy)
-                              Positioned.fill(
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(
-                                    _avatarRadius,
-                                  ),
-                                  child: ColoredBox(
-                                    color: scheme.scrim.withValues(alpha: 0.45),
-                                    child: Center(
-                                      child: CupertinoActivityIndicator(
-                                        color: scheme.onSurface,
-                                        radius: 14,
-                                      ),
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      employee.fullName,
+                                      style: theme.textTheme.titleMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w700,
+                                            height: 1.2,
+                                          ),
                                     ),
                                   ),
+                                  if (canUpdate)
+                                    _sectionEditButton(
+                                      context,
+                                      tooltip:
+                                          'Изменить ФИО, работу и контакты',
+                                      onPressed: () {
+                                        EmployeesMobileEmployeeEditBlocks.showProfileEditor(
+                                          context,
+                                          employee: employee,
+                                          objects: objects,
+                                        );
+                                      },
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                employee.position?.trim().isNotEmpty == true
+                                    ? employee.position!.trim()
+                                    : 'Должность не указана',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: scheme.onSurfaceVariant,
                                 ),
                               ),
-                            Positioned(
-                              right: -2,
-                              bottom: -2,
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  color: scheme.primary,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: scheme.surface,
-                                    width: 2,
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 10,
+                                    height: 10,
+                                    decoration: BoxDecoration(
+                                      color: statusColor,
+                                      shape: BoxShape.circle,
+                                    ),
                                   ),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(5),
-                                  child: Icon(
-                                    CupertinoIcons.camera_fill,
-                                    size: 14,
-                                    color: scheme.onPrimary,
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    statusText,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
-                                ),
+                                  const SizedBox(width: 10),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: employmentColor.withValues(
+                                        alpha: 0.18,
+                                      ),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      EmployeeUIUtils.getEmploymentTypeText(
+                                        employee.employmentType,
+                                      ),
+                                      style: theme.textTheme.labelSmall
+                                          ?.copyWith(
+                                            color: employmentColor,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
+                      ],
                     ),
-                  ),
+                    const SizedBox(height: 12),
+                    _kv(
+                      theme,
+                      'Телефон',
+                      employee.phone?.trim().isNotEmpty == true
+                          ? employee.phone!.trim()
+                          : '—',
+                    ),
+                    _kv(
+                      theme,
+                      'Дата приёма',
+                      employee.employmentDate != null
+                          ? formatRuDate(employee.employmentDate!)
+                          : '—',
+                    ),
+                    _kv(
+                      theme,
+                      'Текущая ставка',
+                      employee.currentHourlyRate != null
+                          ? formatCurrency(employee.currentHourlyRate!)
+                          : '—',
+                    ),
+                    _kv(
+                      theme,
+                      'Объекты',
+                      objectNames.isNotEmpty ? objectNames : '—',
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              employee.fullName,
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                height: 1.2,
-                              ),
-                            ),
-                          ),
-                          if (canUpdate)
-                            _sectionEditButton(
+                _sectionCard(
+                  theme,
+                  title: 'Ставки и суточные',
+                  children: [
+                    EmployeeRateSummaryWidget(
+                      employee: employee,
+                      labelStyle: labelStyle,
+                      valueStyle: valueStyle,
+                      theme: theme,
+                      canManageRates: canUpdate,
+                    ),
+                    EmployeeBusinessTripSummaryWidget(
+                      employee: employee,
+                      labelStyle: labelStyle,
+                      valueStyle: valueStyle,
+                      theme: theme,
+                      onAddBusinessTrip: widget.onAddBusinessTrip,
+                      onEditBusinessTrip: widget.onEditBusinessTrip,
+                    ),
+                  ],
+                ),
+                _sectionCard(
+                  theme,
+                  title: 'Документы',
+                  titleTrailing: canUpdate
+                      ? _sectionEditButton(
+                          context,
+                          tooltip: 'Изменить документы',
+                          onPressed: () {
+                            EmployeesMobileEmployeeEditBlocks.showDocumentsEditor(
                               context,
-                              tooltip: 'Изменить ФИО, работу и контакты',
-                              onPressed: () {
-                                EmployeesMobileEmployeeEditBlocks.showProfileEditor(
-                                  context,
-                                  employee: employee,
-                                  objects: objects,
-                                );
-                              },
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        employee.position?.trim().isNotEmpty == true
-                            ? employee.position!.trim()
-                            : 'Должность не указана',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Container(
-                            width: 10,
-                            height: 10,
-                            decoration: BoxDecoration(
-                              color: statusColor,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            statusText,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: employmentColor.withValues(alpha: 0.18),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              EmployeeUIUtils.getEmploymentTypeText(
-                                employee.employmentType,
-                              ),
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: employmentColor,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                              employee: employee,
+                            );
+                          },
+                        )
+                      : null,
+                  children: [
+                    _kv(theme, 'Паспорт', _passportLine(employee)),
+                    _kv(
+                      theme,
+                      'Кем выдан',
+                      _dashIfEmpty(employee.passportIssuedBy),
+                    ),
+                    _kv(
+                      theme,
+                      'Дата выдачи',
+                      employee.passportIssueDate != null
+                          ? formatRuDate(employee.passportIssueDate!)
+                          : '—',
+                    ),
+                    _kv(
+                      theme,
+                      'Код подразделения',
+                      _dashIfEmpty(employee.passportDepartmentCode),
+                    ),
+                    _kv(theme, 'ИНН', _dashIfEmpty(employee.inn)),
+                    _kv(theme, 'СНИЛС', _dashIfEmpty(employee.snils)),
+                    _kv(
+                      theme,
+                      'Адрес регистрации',
+                      _dashIfEmpty(employee.registrationAddress),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _kv(
-              theme,
-              'Телефон',
-              employee.phone?.trim().isNotEmpty == true
-                  ? employee.phone!.trim()
-                  : '—',
-            ),
-            _kv(
-              theme,
-              'Дата приёма',
-              employee.employmentDate != null
-                  ? formatRuDate(employee.employmentDate!)
-                  : '—',
-            ),
-            _kv(
-              theme,
-              'Текущая ставка',
-              employee.currentHourlyRate != null
-                  ? formatCurrency(employee.currentHourlyRate!)
-                  : '—',
-            ),
-            _kv(theme, 'Объекты', objectNames.isNotEmpty ? objectNames : '—'),
-          ],
-        ),
-        _sectionCard(
-          theme,
-          title: 'Ставки и суточные',
-          children: [
-            EmployeeRateSummaryWidget(
-              employee: employee,
-              labelStyle: labelStyle,
-              valueStyle: valueStyle,
-              theme: theme,
-              canManageRates: canUpdate,
-            ),
-            EmployeeBusinessTripSummaryWidget(
-              employee: employee,
-              labelStyle: labelStyle,
-              valueStyle: valueStyle,
-              theme: theme,
-              onAddBusinessTrip: widget.onAddBusinessTrip,
-              onEditBusinessTrip: widget.onEditBusinessTrip,
-            ),
-          ],
-        ),
-        _sectionCard(
-          theme,
-          title: 'Документы',
-          titleTrailing: canUpdate
-              ? _sectionEditButton(
-                  context,
-                  tooltip: 'Изменить документы',
-                  onPressed: () {
-                    EmployeesMobileEmployeeEditBlocks.showDocumentsEditor(
-                      context,
-                      employee: employee,
-                    );
-                  },
-                )
-              : null,
-          children: [
-            _kv(theme, 'Паспорт', _passportLine(employee)),
-            _kv(theme, 'Кем выдан', _dashIfEmpty(employee.passportIssuedBy)),
-            _kv(
-              theme,
-              'Дата выдачи',
-              employee.passportIssueDate != null
-                  ? formatRuDate(employee.passportIssueDate!)
-                  : '—',
-            ),
-            _kv(
-              theme,
-              'Код подразделения',
-              _dashIfEmpty(employee.passportDepartmentCode),
-            ),
-            _kv(theme, 'ИНН', _dashIfEmpty(employee.inn)),
-            _kv(theme, 'СНИЛС', _dashIfEmpty(employee.snils)),
-            _kv(
-              theme,
-              'Адрес регистрации',
-              _dashIfEmpty(employee.registrationAddress),
-            ),
-          ],
-        ),
-        _sectionCard(
-          theme,
-          title: 'Личные данные',
-          titleTrailing: canUpdate
-              ? _sectionEditButton(
-                  context,
-                  tooltip: 'Изменить личные данные',
-                  onPressed: () {
-                    EmployeesMobileEmployeeEditBlocks.showPersonalEditor(
-                      context,
-                      employee: employee,
-                    );
-                  },
-                )
-              : null,
-          children: [
-            _kv(
-              theme,
-              'Дата рождения',
-              employee.birthDate != null
-                  ? formatRuDate(employee.birthDate!)
-                  : '—',
-            ),
-            _kv(theme, 'Место рождения', _dashIfEmpty(employee.birthPlace)),
-            _kv(theme, 'Гражданство', _dashIfEmpty(employee.citizenship)),
-            _kv(theme, 'Размер одежды', _dashIfEmpty(employee.clothingSize)),
-            _kv(theme, 'Размер обуви', _dashIfEmpty(employee.shoeSize)),
-            _kv(theme, 'Рост', _dashIfEmpty(employee.height)),
-          ],
-        ),
+                _sectionCard(
+                  theme,
+                  title: 'Личные данные',
+                  titleTrailing: canUpdate
+                      ? _sectionEditButton(
+                          context,
+                          tooltip: 'Изменить личные данные',
+                          onPressed: () {
+                            EmployeesMobileEmployeeEditBlocks.showPersonalEditor(
+                              context,
+                              employee: employee,
+                            );
+                          },
+                        )
+                      : null,
+                  children: [
+                    _kv(
+                      theme,
+                      'Дата рождения',
+                      employee.birthDate != null
+                          ? formatRuDate(employee.birthDate!)
+                          : '—',
+                    ),
+                    _kv(
+                      theme,
+                      'Место рождения',
+                      _dashIfEmpty(employee.birthPlace),
+                    ),
+                    _kv(
+                      theme,
+                      'Гражданство',
+                      _dashIfEmpty(employee.citizenship),
+                    ),
+                    _kv(
+                      theme,
+                      'Размер одежды',
+                      _dashIfEmpty(employee.clothingSize),
+                    ),
+                    _kv(theme, 'Размер обуви', _dashIfEmpty(employee.shoeSize)),
+                    _kv(theme, 'Рост', _dashIfEmpty(employee.height)),
+                  ],
+                ),
               ],
             ),
             EmployeeApplicationsSection(
@@ -755,7 +794,19 @@ class _EmployeesMobileEmployeeDetailsBodyState
                 key: ValueKey('timesheet_tab_${employee.id}'),
                 employee: employee,
                 isActive: viewTab == timesheetTabIndex,
-              ),
+              )
+            else
+              const SizedBox.shrink(key: ValueKey('timesheet_tab_hidden')),
+            const EmployeeCardPlaceholderTab(
+              key: ValueKey('tmc_tab'),
+              title: 'ТМЦ',
+              icon: CupertinoIcons.cube_box,
+            ),
+            const EmployeeCardPlaceholderTab(
+              key: ValueKey('finance_tab'),
+              title: 'Финансы',
+              icon: CupertinoIcons.money_rubl,
+            ),
           ],
         ),
       ],
@@ -777,49 +828,36 @@ class _EmployeesMobileEmployeeDetailsBodyState
       border: Border.all(color: scheme.outline.withValues(alpha: 0.22)),
       padding: const EdgeInsets.all(2),
       children: {
-        0: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 5),
-          child: Text(
-            'Обзор',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 12,
-              height: 1.2,
-              fontWeight: viewTab == 0 ? FontWeight.w700 : FontWeight.normal,
-              color: viewTab == 0 ? scheme.primary : scheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-        1: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 5),
-          child: Text(
-            'Заявления',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 12,
-              height: 1.2,
-              fontWeight: viewTab == 1 ? FontWeight.w700 : FontWeight.normal,
-              color: viewTab == 1 ? scheme.primary : scheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-        if (canViewTimesheet)
-          2: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 5),
-            child: Text(
-              'Табель',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12,
-                height: 1.2,
-                fontWeight:
-                    viewTab == 2 ? FontWeight.w700 : FontWeight.normal,
-                color:
-                    viewTab == 2 ? scheme.primary : scheme.onSurfaceVariant,
-              ),
-            ),
-          ),
+        0: _mobileTabLabel(scheme, viewTab, 0, 'Обзор'),
+        1: _mobileTabLabel(scheme, viewTab, 1, 'Заявления'),
+        if (canViewTimesheet) 2: _mobileTabLabel(scheme, viewTab, 2, 'Табель'),
+        3: _mobileTabLabel(scheme, viewTab, 3, 'ТМЦ'),
+        4: _mobileTabLabel(scheme, viewTab, 4, 'Финансы'),
       },
+    );
+  }
+
+  Widget _mobileTabLabel(
+    ColorScheme scheme,
+    int viewTab,
+    int index,
+    String label,
+  ) {
+    final selected = viewTab == index;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 11,
+          height: 1.2,
+          fontWeight: selected ? FontWeight.w700 : FontWeight.normal,
+          color: selected ? scheme.primary : scheme.onSurfaceVariant,
+        ),
+      ),
     );
   }
 

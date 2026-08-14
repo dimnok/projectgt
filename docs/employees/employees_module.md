@@ -2,7 +2,11 @@
 
 **Дата актуализации:** 14 августа 2026 года
 
-**Изменения в этой версии (14.08.2026, легенда объектов и примечания во вкладке «Табель»):**
+**Изменения в этой версии (14.08.2026, вкладки «ТМЦ» и «Финансы»):**
+- В карточке сотрудника (desktop и mobile) добавлены вкладки **«ТМЦ»** и **«Финансы»** — пока заглушки [`EmployeeCardPlaceholderTab`](../../lib/features/employees/presentation/widgets/employee_card_placeholder_tab.dart)
+- Индексы вкладок фиксированы: 0 «Обзор», 1 «Заявления», 2 «Табель», 3 «ТМЦ», 4 «Финансы»; при отсутствии `timesheet.read` скрывается только «Табель», остальные вкладки не сдвигаются
+
+**Предыдущая версия (14.08.2026, легенда объектов и примечания во вкладке «Табель»):**
 - Полоска дней в [`EmployeeTimesheetSection`](../../lib/features/employees/presentation/widgets/employee_timesheet_section.dart) окрашивается **по объекту**; если за день несколько объектов — сегменты пропорционально часам
 - Под полоской — **цветовая легенда** столбиком (название объекта + часы за месяц, без рамки и без подписи «Объекты»); имена из [`employeesModuleObjectsProvider`](../../lib/features/employees/presentation/providers/employees_module_objects_provider.dart)
 - **Примечание к дню:** точка под полоской часов (нейтральный цвет, как метки легенды), если у смены или ручной посещаемости есть `comment`; текст в подсказке дня (`Примечание: объект: текст`)
@@ -118,7 +122,7 @@
 - **текущая ставка** не хранится в строке `employees`: подгружается из `employee_rates`, где `valid_to IS NULL`, и кладётся в `Employee.currentHourlyRate` / `EmployeeModel.currentHourlyRate` (только на клиенте)
 - флаг **`can_be_responsible`** хранится в БД в `employees`, в доменной модели [`Employee`](../../lib/domain/entities/employee.dart) **не** сериализуется; кэш `EmployeeState.canBeResponsibleMap` сейчас никем не читается, обновляется точечно через `toggleCanBeResponsible`; массовая подгрузка `getCanBeResponsibleMap()` по умолчанию **не выполняется** (`includeResponsibilityMap: false`), чтобы убрать дублирующий запрос при каждом открытии списка — подгрузка включается явно только в сценариях, где это потребуется
 - **две раскладки списка**: `EmployeesTableScreen` (таблица) и `EmployeesListMobileScreen` (карточки) — выбор по [`EmployeesLayoutUtils.useEmployeesMobileList`](../../lib/features/employees/presentation/utils/employees_layout_utils.dart) (`shortestSide` vs breakpoint планшета)
-- **вкладки карточки:** «Обзор» (анкета, ставки, личные данные), «Заявления» (PDF + сканы), **«Табель»** (read-only месяц одного сотрудника, легенда объектов, при `timesheet.read`); вкладки «Документы» и «Доп. информация» — в roadmap
+- **вкладки карточки:** «Обзор», «Заявления», **«Табель»** (при `timesheet.read`), **«ТМЦ»** и **«Финансы»** (заглушки); вкладки «Документы» и «Доп. информация» — в roadmap
 
 ---
 
@@ -133,6 +137,7 @@
 - история и текущая ставка (`employee_rates`)
 - **заявления:** формирование образца (отпуск / отпуск без содержания / увольнение), печать PDF, загрузка подписанного скана, список с просмотром и скачиванием
 - **табель в карточке:** просмотр часов за месяц (смены + ручная посещаемость); массовое проставление — только в модуле Timesheet
+- **вкладки «ТМЦ» и «Финансы»** в карточке: пока заглушки («Раздел в разработке»)
 - переключение **`can_be_responsible`**
 - inline на таблице: **статус**, **объекты** (`object_ids`)
 - экспорт XLSX на сервере (**Edge Function** + клиентский сервис)
@@ -197,9 +202,10 @@
 |------|------------|
 | [`employees_table_actions_bar.dart`](../../lib/features/employees/presentation/widgets/employees_table_actions_bar.dart) | Панель действий таблицы |
 | [`employees_table_filters_toolbar.dart`](../../lib/features/employees/presentation/widgets/employees_table_filters_toolbar.dart) | Фильтры; индикатор загрузки picklist объектов в триггере dropdown — `CupertinoActivityIndicator`; `EmployeesObjectTableFilterValue.toExportFilterJson()` для экспорта |
-| [`employee_details_modal.dart`](../../lib/features/employees/presentation/widgets/employee_details_modal.dart) | Детальная карточка (desktop); вкладки **«Обзор» / «Заявления» / «Табель»** (`IndexedStack`, компактный `CustomSlidingSegmentedControl`); «Табель» только при `timesheet.read`; safe `viewTab` при отзыве права; вход в редактирование — `GTTextButton` «Редактировать»; `ref.listen` на `employeeProvider` и `permissionServiceProvider` |
+| [`employee_details_modal.dart`](../../lib/features/employees/presentation/widgets/employee_details_modal.dart) | Детальная карточка (desktop); вкладки **«Обзор» / «Заявления» / «Табель» / «ТМЦ» / «Финансы»** (`IndexedStack`); «Табель» только при `timesheet.read`; «ТМЦ» и «Финансы» — заглушки; safe `viewTab` при отзыве права на табель; вход в редактирование — `GTTextButton` «Редактировать»; `ref.listen` на `employeeProvider` и `permissionServiceProvider` |
 | [`employee_applications_section.dart`](../../lib/features/employees/presentation/widgets/employee_applications_section.dart) | **Вкладка «Заявления»:** типы заявлений, компактный список сканов (одна строка + icon actions), просмотр / скачивание / удаление |
 | [`employee_timesheet_section.dart`](../../lib/features/employees/presentation/widgets/employee_timesheet_section.dart) | **Вкладка «Табель»:** месяц одного сотрудника — сводка часов/дней, полоска дней с цветом объекта и точкой примечания, легенда объектов, без прокрутки; ленивая загрузка; баннер `includeInTimesheet` |
+| [`employee_card_placeholder_tab.dart`](../../lib/features/employees/presentation/widgets/employee_card_placeholder_tab.dart) | Заглушка вкладок **«ТМЦ»** и **«Финансы»** («Раздел в разработке») |
 | [`employee_application_forms.dart`](../../lib/features/employees/presentation/widgets/employee_application_forms.dart) | Формы отпуска и БС для карточки сотрудника (PDF + загрузка скана) |
 | [`employee_application_scan_preview.dart`](../../lib/features/employees/presentation/widgets/employee_application_scan_preview.dart) | Просмотр PDF (`printing`) и изображений в диалоге |
 | [`employee_edit_form.dart`](../../lib/features/employees/presentation/widgets/employee_edit_form.dart) | Форма редактирования; кнопка «Сохранить» при отправке — `CupertinoActivityIndicator`; `_saveChanges` — guard `employees.update` |
@@ -215,7 +221,7 @@
 | [`employees_mobile_add_employee_button.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_add_employee_button.dart) | FAB / кнопка добавления |
 | [`employees_mobile_employee_card.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_card.dart) | Карточка в списке |
 | [`employees_mobile_swipeable_employee_card.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_swipeable_employee_card.dart) | Свайп по карточке |
-| [`employees_mobile_employee_details_sheet.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_details_sheet.dart) | Bottom sheet деталей; вкладки **«Обзор» / «Заявления» / «Табель»** (`IndexedStack`, компактный сегмент); «Табель» при `timesheet.read`; кнопки «Изменить» — при `employees.update` |
+| [`employees_mobile_employee_details_sheet.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_details_sheet.dart) | Bottom sheet деталей; те же вкладки, что на desktop; «Табель» при `timesheet.read`; кнопки «Изменить» — при `employees.update` |
 | [`employees_mobile_employee_edit_blocks.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_edit_blocks.dart) | Блоки редактирования на мобильном; `_persistEmployeeUpdate` — guard `employees.update` |
 
 ### Design System (`lib/core/widgets/`)
@@ -233,7 +239,7 @@
 | `AppSnackBar` | [`app_snackbar.dart`](../../lib/core/widgets/app_snackbar.dart) | **Весь модуль:** таблица, mobile-список, формы, диалоги, заявления, [`EmployeeAvatarController`](../../lib/features/employees/presentation/providers/employee_avatar_controller.dart) |
 | `GTContextMenu` | [`gt_context_menu.dart`](../../lib/core/widgets/gt_context_menu.dart) | [`employee_details_modal.dart`](../../lib/features/employees/presentation/widgets/employee_details_modal.dart) |
 | `GTConfirmationDialog` | [`gt_confirmation_dialog.dart`](../../lib/core/widgets/gt_confirmation_dialog.dart) | удаление заявления в [`employee_applications_section.dart`](../../lib/features/employees/presentation/widgets/employee_applications_section.dart) |
-| `CustomSlidingSegmentedControl` | [`custom_sliding_segmented_control.dart`](../../lib/presentation/widgets/custom_sliding_segmented_control.dart) | переключатель вкладок «Обзор» / «Заявления» / «Табель» в карточке |
+| `CustomSlidingSegmentedControl` | [`custom_sliding_segmented_control.dart`](../../lib/presentation/widgets/custom_sliding_segmented_control.dart) | переключатель вкладок «Обзор» / «Заявления» / «Табель» / «ТМЦ» / «Финансы» в карточке |
 
 Табличный экран построен на кастомной вёрстке (`Table` / `LayoutBuilder` и т.д.), без внешних grid-библиотек — в духе правил проекта (см. [`flutter.mdc`](../../.cursor/rules/flutter.mdc)).
 
@@ -248,7 +254,7 @@
 
 | Право | Список (таблица / mobile) | Карточка (modal / bottom sheet) |
 |-------|---------------------------|----------------------------------|
-| `employees.read` | Просмотр списка, открытие карточки | Просмотр «Обзор» и «Заявления» (список/сканы) |
+| `employees.read` | Просмотр списка, открытие карточки | Просмотр «Обзор», «Заявления» (список/сканы), заглушки **«ТМЦ»** и **«Финансы»** |
 | `timesheet.read` | — | Вкладка **«Табель»** (просмотр часов за месяц) |
 | `employees.create` | «Добавить сотрудника» | — |
 | `employees.update` | Inline статус/объекты, свайпы (mobile), редактирование | Desktop: **«Редактировать»** → форма; mobile: иконки «изменить»; «+» ставки, суточные, фото; **формирование заявлений и загрузка сканов**; удаление заявлений |
@@ -399,6 +405,7 @@ lib/
 │           ├── employee_application_forms.dart
 │           ├── employee_application_scan_preview.dart
 │           ├── employee_timesheet_section.dart
+│           ├── employee_card_placeholder_tab.dart
 │           ├── add_employee_rate_dialog.dart
 │           ├── add_employee_simple_dialog.dart
 │           ├── editable_inline_text_row.dart
@@ -730,7 +737,8 @@ Bucket **`employee_applications`** (private, `public: false`):
 - Desktop-карточка: кнопка «Редактировать» вместо иконки карандаша в секции «Личные данные»
 - **Вкладка «Заявления»:** PDF (отпуск, БС), загрузка сканов, компактный список (icon actions), просмотр/скачивание; таблица `employee_applications` + bucket Storage
 - **Вкладка «Табель»:** read-only месяц одного сотрудника (`EmployeeTimesheetSection` + `employeeTimesheetMonthProvider`); право `timesheet.read`; ленивая загрузка; **цветовая легенда объектов** на полоске дней
-- **UX карточки:** `IndexedStack` для вкладок; компактный переключатель «Обзор» / «Заявления» / «Табель»
+- **UX карточки:** `IndexedStack` для вкладок; переключатель «Обзор» / «Заявления» / «Табель» / «ТМЦ» / «Финансы»
+- **Вкладки «ТМЦ» и «Финансы»:** заглушки (`EmployeeCardPlaceholderTab`), содержимое не реализовано
 - **PDF:** работодатель «ООО «ГТ Инжиниринг»» в шапке заявлений
 
 ### Известные баги (приоритет)
@@ -756,10 +764,12 @@ Bucket **`employee_applications`** (private, `public: false`):
 - Схема `employee_rates` и часть индексов не воспроизводятся из одного `CREATE` в репозитории
 - **Заявления:** типы «отпуск», «отпуск без содержания», **«увольнение»**; PDF на сервер не сохраняется; workflow согласования не реализован
 - **Табель в карточке:** только просмотр; проставление часов — в модуле Timesheet
+- **ТМЦ и Финансы в карточке:** только заглушки, данных нет
 - Вкладки **«Документы»** (файлы) и **«Доп. информация»** (журнал записей) — запланированы, не реализованы
 
 ### Возможные шаги
 
+- Содержимое вкладок «ТМЦ» и «Финансы» в карточке
 - Вкладки «Документы» и «Доп. информация» в карточке
 - Улучшить читаемость полоски дней табеля на mobile (недели / адаптивная плотность)
 - Дополнительные типы заявлений (перевод, …)
