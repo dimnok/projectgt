@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/domain/entities/employee.dart';
 import 'package:projectgt/features/employees/presentation/providers/employee_timesheet_month_provider.dart';
+import 'package:projectgt/features/employees/presentation/providers/employees_module_objects_provider.dart';
 import 'package:projectgt/features/timesheet/presentation/widgets/timesheet_hours_loading_indicator.dart';
 
 /// Вкладка «Табель» в карточке сотрудника.
@@ -53,9 +54,9 @@ class _EmployeeTimesheetSectionState
   }
 
   EmployeeTimesheetMonthKey get _monthKey => EmployeeTimesheetMonthKey(
-        employeeId: widget.employee.id,
-        monthStart: _monthStart,
-      );
+    employeeId: widget.employee.id,
+    monthStart: _monthStart,
+  );
 
   void _shiftMonth(int delta) {
     final next = DateTime(_monthStart.year, _monthStart.month + delta);
@@ -79,6 +80,10 @@ class _EmployeeTimesheetSectionState
     final scheme = theme.colorScheme;
     final asyncData = ref.watch(employeeTimesheetMonthProvider(_monthKey));
     final includeInTimesheet = widget.employee.includeInTimesheet;
+    final objectNames = {
+      for (final object in ref.watch(employeesModuleObjectsProvider))
+        object.id: object.name,
+    };
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -106,7 +111,9 @@ class _EmployeeTimesheetSectionState
             child: SelectableText.rich(
               TextSpan(
                 text: 'Не удалось загрузить табель.\n$error',
-                style: theme.textTheme.bodyMedium?.copyWith(color: scheme.error),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: scheme.error,
+                ),
               ),
             ),
           ),
@@ -114,6 +121,7 @@ class _EmployeeTimesheetSectionState
             monthStart: _monthStart,
             data: data,
             theme: theme,
+            objectNames: objectNames,
           ),
         ),
       ],
@@ -126,15 +134,19 @@ class _TimesheetMonthBody extends StatelessWidget {
     required this.monthStart,
     required this.data,
     required this.theme,
+    required this.objectNames,
   });
 
   final DateTime monthStart;
   final EmployeeTimesheetMonthData data;
   final ThemeData theme;
+  final Map<String, String> objectNames;
 
   @override
   Widget build(BuildContext context) {
     final daysInMonth = DateTime(monthStart.year, monthStart.month + 1, 0).day;
+    final legend = data.objectsLegend;
+    final colors = _TimesheetObjectColors.fromLegend(legend);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -146,7 +158,18 @@ class _TimesheetMonthBody extends StatelessWidget {
           daysInMonth: daysInMonth,
           data: data,
           theme: theme,
+          objectNames: objectNames,
+          colors: colors,
         ),
+        if (legend.isNotEmpty) ...[
+          const SizedBox(height: 20),
+          _ObjectsLegend(
+            legend: legend,
+            objectNames: objectNames,
+            colors: colors,
+            theme: theme,
+          ),
+        ],
       ],
     );
   }
@@ -232,12 +255,16 @@ class _MonthDaysStrip extends StatelessWidget {
     required this.daysInMonth,
     required this.data,
     required this.theme,
+    required this.objectNames,
+    required this.colors,
   });
 
   final DateTime monthStart;
   final int daysInMonth;
   final EmployeeTimesheetMonthData data;
   final ThemeData theme;
+  final Map<String, String> objectNames;
+  final _TimesheetObjectColors colors;
 
   @override
   Widget build(BuildContext context) {
@@ -252,19 +279,22 @@ class _MonthDaysStrip extends StatelessWidget {
             Expanded(
               child: Builder(
                 builder: (context) {
-                  final day =
-                      DateTime(monthStart.year, monthStart.month, i);
+                  final day = DateTime(monthStart.year, monthStart.month, i);
                   final hours = data.dayTotal(day);
+                  final slices = data.objectsForDay(day);
                   final hasHours = hours > 0;
-                  final isWeekend = day.weekday == DateTime.saturday ||
+                  final isWeekend =
+                      day.weekday == DateTime.saturday ||
                       day.weekday == DateTime.sunday;
-                  final hoursLabel =
-                      hasHours ? _formatHours(hours) : '·';
+                  final hoursLabel = hasHours ? _formatHours(hours) : '·';
 
                   return Tooltip(
-                    message: hasHours
-                        ? '${formatRuDate(day)} — ${_formatHours(hours)} ч'
-                        : formatRuDate(day),
+                    message: _dayTooltip(
+                      day: day,
+                      hours: hours,
+                      slices: slices,
+                      objectNames: objectNames,
+                    ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -283,15 +313,11 @@ class _MonthDaysStrip extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 5),
-                        Container(
-                          height: 8,
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(3),
-                            color: hasHours
-                                ? scheme.primary
-                                : scheme.outline.withValues(alpha: 0.2),
-                          ),
+                        _DayHoursBar(
+                          slices: slices,
+                          hasHours: hasHours,
+                          colors: colors,
+                          emptyColor: scheme.outline.withValues(alpha: 0.2),
                         ),
                         const SizedBox(height: 5),
                         FittedBox(
@@ -301,8 +327,9 @@ class _MonthDaysStrip extends StatelessWidget {
                             maxLines: 1,
                             style: theme.textTheme.labelSmall?.copyWith(
                               fontSize: 10,
-                              fontWeight:
-                                  hasHours ? FontWeight.w700 : FontWeight.w400,
+                              fontWeight: hasHours
+                                  ? FontWeight.w700
+                                  : FontWeight.w400,
                               height: 1.1,
                               color: hasHours
                                   ? scheme.onSurface
@@ -321,6 +348,230 @@ class _MonthDaysStrip extends StatelessWidget {
       ),
     );
   }
+}
+
+class _DayHoursBar extends StatelessWidget {
+  const _DayHoursBar({
+    required this.slices,
+    required this.hasHours,
+    required this.colors,
+    required this.emptyColor,
+  });
+
+  final List<EmployeeTimesheetObjectHours> slices;
+  final bool hasHours;
+  final _TimesheetObjectColors colors;
+  final Color emptyColor;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!hasHours || slices.isEmpty) {
+      return Container(
+        height: 8,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(3),
+          color: emptyColor,
+        ),
+      );
+    }
+
+    if (slices.length == 1) {
+      return Container(
+        height: 8,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(3),
+          color: colors.colorFor(slices.first.objectId),
+        ),
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(3),
+      child: SizedBox(
+        height: 8,
+        width: double.infinity,
+        child: Row(
+          children: [
+            for (var i = 0; i < slices.length; i++) ...[
+              if (i > 0) const SizedBox(width: 1),
+              Expanded(
+                flex: _barFlex(slices[i].hours),
+                child: ColoredBox(color: colors.colorFor(slices[i].objectId)),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ObjectsLegend extends StatelessWidget {
+  const _ObjectsLegend({
+    required this.legend,
+    required this.objectNames,
+    required this.colors,
+    required this.theme,
+  });
+
+  final List<EmployeeTimesheetObjectHours> legend;
+  final Map<String, String> objectNames;
+  final _TimesheetObjectColors colors;
+  final ThemeData theme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'Легенда объектов за месяц',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (var i = 0; i < legend.length; i++) ...[
+            if (i > 0) const SizedBox(height: 8),
+            _LegendChip(
+              name: _objectDisplayName(legend[i].objectId, objectNames),
+              hours: legend[i].hours,
+              color: colors.colorFor(legend[i].objectId),
+              theme: theme,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _LegendChip extends StatelessWidget {
+  const _LegendChip({
+    required this.name,
+    required this.hours,
+    required this.color,
+    required this.theme,
+  });
+
+  final String name;
+  final num hours;
+  final Color color;
+  final ThemeData theme;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = theme.colorScheme;
+    final hoursLabel = '${_formatHours(hours)} ч';
+
+    return Semantics(
+      label: '$name, $hoursLabel',
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 280),
+        padding: const EdgeInsets.fromLTRB(8, 6, 10, 6),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withValues(alpha: 0.38)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 7),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 180),
+              child: Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  height: 1.15,
+                  color: scheme.onSurface,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              hoursLabel,
+              style: theme.textTheme.labelSmall?.copyWith(
+                fontWeight: FontWeight.w500,
+                height: 1.15,
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Палитра цветов объектов на полоске дней и в легенде.
+class _TimesheetObjectColors {
+  const _TimesheetObjectColors(this._byId);
+
+  final Map<String, Color> _byId;
+
+  /// Назначает цвета по порядку легенды (больше часов — раньше в палитре).
+  factory _TimesheetObjectColors.fromLegend(
+    List<EmployeeTimesheetObjectHours> legend,
+  ) {
+    return _TimesheetObjectColors({
+      for (var i = 0; i < legend.length; i++)
+        legend[i].objectId: _kObjectPalette[i % _kObjectPalette.length],
+    });
+  }
+
+  Color colorFor(String objectId) => _byId[objectId] ?? _kObjectPalette.first;
+}
+
+/// Контрастные цвета, читаемые в светлой и тёмной теме (без красного выходных).
+const _kObjectPalette = <Color>[
+  Color(0xFF5B8DEF),
+  Color(0xFF3DCC8A),
+  Color(0xFFE8B84A),
+  Color(0xFFB07CE8),
+  Color(0xFF2EC4B6),
+  Color(0xFFE07A5F),
+  Color(0xFF7AA2F7),
+  Color(0xFF8FCB6D),
+  Color(0xFFD4A017),
+  Color(0xFF9B8EC8),
+];
+
+int _barFlex(num hours) {
+  final scaled = (hours * 100).round();
+  return scaled < 1 ? 1 : scaled;
+}
+
+String _objectDisplayName(String objectId, Map<String, String> names) {
+  final name = names[objectId]?.trim();
+  if (name != null && name.isNotEmpty) return name;
+  return 'Объект';
+}
+
+String _dayTooltip({
+  required DateTime day,
+  required num hours,
+  required List<EmployeeTimesheetObjectHours> slices,
+  required Map<String, String> objectNames,
+}) {
+  final date = formatRuDate(day);
+  if (hours <= 0) return date;
+
+  final buffer = StringBuffer('$date — ${_formatHours(hours)} ч');
+  for (final slice in slices) {
+    buffer
+      ..write('\n')
+      ..write(_objectDisplayName(slice.objectId, objectNames))
+      ..write(': ')
+      ..write(_formatHours(slice.hours))
+      ..write(' ч');
+  }
+  return buffer.toString();
 }
 
 class _ExcludedBanner extends StatelessWidget {
@@ -381,7 +632,8 @@ class _MonthSwitcher extends StatelessWidget {
     final now = DateTime.now();
     final currentMonth = DateTime(now.year, now.month);
     final viewed = DateTime(monthStart.year, monthStart.month);
-    final canGoForward = (viewed.year * 12 + viewed.month) <
+    final canGoForward =
+        (viewed.year * 12 + viewed.month) <
         (currentMonth.year * 12 + currentMonth.month);
     final accent = scheme.primary;
     final label = formatMonthYear(monthStart).replaceFirst(RegExp(r'\s+'), '-');

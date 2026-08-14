@@ -1,8 +1,11 @@
 # Модуль Timesheet (Табель рабочего времени)
 
-**Дата актуализации:** 29 июля 2026 года (вкладка «Табель» в карточке сотрудника)
+**Дата актуализации:** 14 августа 2026 года (легенда объектов во вкладке карточки)
 
-**Изменения в этой версии:**
+**Изменения в этой версии (14.08.2026):**
+- **Карточка сотрудника → вкладка «Табель»:** цветовая легенда объектов (полоска дней по `objectId`, столбик баннеров без рамки); UI в Employees, данные те же API. Подробности — [`docs/employees/employees_module.md`](../employees/employees_module.md)
+
+**Предыдущая версия (29.07.2026, вкладка «Табель» в карточке сотрудника):**
 - **Обратная связь с карточкой Employees:** вкладка «Табель» в карточке сотрудника (read-only месяц одного человека) — UI в модуле Employees; данные через `getAttendanceRecords` + `getShiftHoursForEmployee`
 - **Invalidate после посещаемости:** в [`timesheet_calendar_view.dart`](../../lib/features/timesheet/presentation/widgets/timesheet_calendar_view.dart) после успешного `EmployeeAttendanceDialog` — кроме `reloadHoursEntries()` вызывается `ref.invalidate(employeeTimesheetMonthProvider(…))`, чтобы открытая карточка обновила сводку
 - Проставление часов по-прежнему **только** из сетки Timesheet (иконка календаря); из карточки сотрудника — только просмотр
@@ -277,7 +280,7 @@
 
 Маршрут `go_router` `/employees/:employeeId` из табеля **не** используется — только модальные поверхности.
 
-**Вкладка «Табель» в карточке (модуль Employees):** read-only просмотр часов одного сотрудника за месяц (`EmployeeTimesheetSection`); право `timesheet.read`; данные — те же API `getAttendanceRecords` / `getShiftHoursForEmployee`; после диалога посещаемости в сетке — invalidate провайдера карточки.
+**Вкладка «Табель» в карточке (модуль Employees):** read-only просмотр часов одного сотрудника за месяц (`EmployeeTimesheetSection`); право `timesheet.read`; данные — те же API `getAttendanceRecords` / `getShiftHoursForEmployee`; полоска дней окрашена по объекту, под ней легенда столбиком; после диалога посещаемости в сетке — invalidate провайдера карточки.
 
 ---
 
@@ -606,7 +609,7 @@ employee_attendance ──> objects
 - `works`, `employees`, `objects`, `company`, `roles`
 - **`employees`:** поле `include_in_timesheet` в карточке; sync каталога через `timesheetEmployeeCatalogChanged` + `reloadEmployeesCatalog`
 - **Карточка из табеля:** `EmployeeDetailsModal`, `EmployeesMobileEmployeeDetailsSheet`, `EmployeeNotifier.ensureEmployeeCardDetails`, `employeesModuleObjectsProvider`
-- **Вкладка «Табель» в карточке:** UI Employees (`EmployeeTimesheetSection`); API Timesheet; invalidate после attendance dialog
+- **Вкладка «Табель» в карточке:** UI Employees (`EmployeeTimesheetSection`); API Timesheet; цветовая легенда объектов; invalidate после attendance dialog
 - UI-паттерны модуля «Сотрудники»: `EmployeesLayoutUtils`, стиль `EmployeesTableFiltersToolbar`
 
 ### Пакеты
