@@ -269,6 +269,15 @@ class _TmcListScreenState extends ConsumerState<TmcListScreen> {
                       ),
                     );
               },
+              onClearFilters: () {
+                ref.read(tmcItemsListProvider.notifier).applyFilters(
+                  listState.filters.copyWith(
+                    clearSearch: true,
+                    clearCategoryId: true,
+                    clearAccountingType: true,
+                  ),
+                );
+              },
               categories: categories,
               onRefresh: () => ref.read(tmcItemsListProvider.notifier).load(),
               onCreate: canCreate

@@ -44,6 +44,9 @@ class TmcFiltersToolbar extends StatelessWidget {
   /// Создать новую позицию.
   final VoidCallback? onCreate;
 
+  /// Сбросить все фильтры реестра одним действием.
+  final VoidCallback? onClearFilters;
+
   /// Создаёт панель фильтров реестра.
   const TmcFiltersToolbar({
     super.key,
@@ -56,6 +59,7 @@ class TmcFiltersToolbar extends StatelessWidget {
     required this.categories,
     this.onRefresh,
     this.onCreate,
+    this.onClearFilters,
   });
 
   @override
@@ -64,7 +68,10 @@ class TmcFiltersToolbar extends StatelessWidget {
     final scheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
 
-    final hasActiveFilters = categoryId != null || accountingType != null;
+    final hasActiveFilters =
+        searchQuery.trim().isNotEmpty ||
+        categoryId != null ||
+        accountingType != null;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -99,13 +106,10 @@ class TmcFiltersToolbar extends StatelessWidget {
                   theme: theme,
                   isDark: isDark,
                 ),
-                if (hasActiveFilters) ...[
+                if (hasActiveFilters && onClearFilters != null) ...[
                   const SizedBox(width: 6),
                   _ClearFiltersButton(
-                    onTap: () {
-                      onCategoryChanged(null);
-                      onAccountingTypeChanged(null);
-                    },
+                    onTap: onClearFilters!,
                     scheme: scheme,
                     theme: theme,
                   ),
