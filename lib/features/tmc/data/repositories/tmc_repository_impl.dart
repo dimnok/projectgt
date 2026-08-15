@@ -97,6 +97,7 @@ class TmcRepositoryImpl implements TmcRepository {
     String? search,
     String? categoryId,
     TmcAccountingType? accountingType,
+    String? itemId,
     int limit = 50,
     int offset = 0,
   }) async {
@@ -113,6 +114,7 @@ class TmcRepositoryImpl implements TmcRepository {
         'p_accounting_type': accountingType?.dbValue,
         'p_limit': limit,
         'p_offset': offset,
+        'p_item_id': itemId,
       },
     );
 
@@ -153,11 +155,9 @@ class TmcRepositoryImpl implements TmcRepository {
       );
     }).toList();
 
-    final totalCount = rows.isEmpty
-        ? 0
-        : tmcParseInt(
-            Map<String, dynamic>.from(rows.first as Map)['total_count'],
-          );
+    final totalCount = tmcParseInt(
+      Map<String, dynamic>.from(rows.first as Map)['total_count'],
+    );
 
     return (items: models, totalCount: totalCount);
   }
@@ -179,21 +179,19 @@ class TmcRepositoryImpl implements TmcRepository {
       Map<String, dynamic>.from(row),
     ).toDomain();
 
-    // Обогащаем остатками из list RPC (одна позиция через stock breakdown).
-    final page = await listItems(search: item.name, limit: 100, offset: 0);
-    for (final candidate in page.items) {
-      if (candidate.id == id) {
-        return item.copyWith(
-          quantity: candidate.quantity,
-          qtyInStock: candidate.qtyInStock,
-          qtyIssued: candidate.qtyIssued,
-          qtyOnObject: candidate.qtyOnObject,
-          locationSummary: candidate.locationSummary,
-          totalCost: candidate.totalCost,
-        );
-      }
-    }
-    return item;
+    // Обогащаем остатками из list RPC по id позиции.
+    final page = await listItems(itemId: id, limit: 1, offset: 0);
+    if (page.items.isEmpty) return item;
+
+    final enriched = page.items.first;
+    return item.copyWith(
+      quantity: enriched.quantity,
+      qtyInStock: enriched.qtyInStock,
+      qtyIssued: enriched.qtyIssued,
+      qtyOnObject: enriched.qtyOnObject,
+      locationSummary: enriched.locationSummary,
+      totalCost: enriched.totalCost,
+    );
   }
 
   @override

@@ -167,13 +167,13 @@ class _TmcItemFormDialogState extends ConsumerState<TmcItemFormDialog> {
         );
       }
 
-      ref.invalidate(tmcItemsListProvider);
+      ref.read(tmcItemsListProvider.notifier).load();
       ref.invalidate(tmcDashboardProvider);
       if (!isCreate) {
         ref.invalidate(tmcItemProvider(widget.item!.id));
       }
       if (shouldReceive) {
-        ref.invalidate(tmcOperationsProvider);
+        ref.read(tmcOperationsProvider.notifier).load();
       }
       if (!mounted) return;
       Navigator.of(context).pop();

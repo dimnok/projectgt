@@ -70,42 +70,6 @@ abstract class TmcUnitModel with _$TmcUnitModel {
     });
   }
 
-  /// Из доменной сущности.
-  factory TmcUnitModel.fromDomain(TmcUnit unit) => TmcUnitModel(
-    id: unit.id,
-    companyId: unit.companyId,
-    itemId: unit.itemId,
-    inventoryNumber: unit.inventoryNumber,
-    serialNumber: unit.serialNumber,
-    barcode: unit.barcode,
-    purchaseDate: unit.purchaseDate,
-    purchasePrice: unit.purchasePrice,
-    conditionId: unit.conditionId,
-    status: unit.status,
-    locationType: unit.locationType,
-    warehouseId: unit.warehouseId,
-    objectId: unit.objectId,
-    employeeId: unit.employeeId,
-    locationNote: unit.locationNote,
-    usageObjectId: unit.usageObjectId,
-    responsibleEmployeeId: unit.responsibleEmployeeId,
-    lastIssueDate: unit.lastIssueDate,
-    nextInspectionDate: unit.nextInspectionDate,
-    warrantyUntil: unit.warrantyUntil,
-    comment: unit.comment,
-    photoUrl: unit.photoUrl,
-    isArchived: unit.isArchived,
-    archivedAt: unit.archivedAt,
-    createdAt: unit.createdAt,
-    updatedAt: unit.updatedAt,
-    createdBy: unit.createdBy,
-    itemName: unit.itemName,
-    conditionName: unit.conditionName,
-    warehouseName: unit.warehouseName,
-    objectName: unit.objectName,
-    employeeName: unit.employeeName,
-  );
-
   /// В доменную сущность.
   TmcUnit toDomain() => TmcUnit(
     id: id,
@@ -141,15 +105,4 @@ abstract class TmcUnitModel with _$TmcUnitModel {
     objectName: objectName,
     employeeName: employeeName,
   );
-
-  /// JSON для insert/update без generated/id-полей.
-  Map<String, dynamic> toWriteJson({required bool includeId}) {
-    final json = toJson();
-    json.remove('created_at');
-    json.remove('updated_at');
-    if (!includeId || id.isEmpty) {
-      json.remove('id');
-    }
-    return json;
-  }
 }

@@ -34,22 +34,6 @@ abstract class TmcConditionModel with _$TmcConditionModel {
   factory TmcConditionModel.fromJson(Map<String, dynamic> json) =>
       _$TmcConditionModelFromJson(json);
 
-  /// Из доменной сущности.
-  factory TmcConditionModel.fromDomain(TmcCondition condition) =>
-      TmcConditionModel(
-        id: condition.id,
-        companyId: condition.companyId,
-        code: condition.code,
-        name: condition.name,
-        sortOrder: condition.sortOrder,
-        isSystem: condition.isSystem,
-        isArchived: condition.isArchived,
-        archivedAt: condition.archivedAt,
-        createdAt: condition.createdAt,
-        updatedAt: condition.updatedAt,
-        createdBy: condition.createdBy,
-      );
-
   /// В доменную сущность.
   TmcCondition toDomain() => TmcCondition(
         id: id,

@@ -24,6 +24,7 @@ abstract class TmcRepository {
     String? search,
     String? categoryId,
     TmcAccountingType? accountingType,
+    String? itemId,
     int limit = 50,
     int offset = 0,
   });

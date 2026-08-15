@@ -165,6 +165,38 @@ class TmcItemsListNotifier extends StateNotifier<TmcItemsListState> {
     );
     await load();
   }
+
+  /// Есть предыдущая страница реестра.
+  bool get hasPreviousPage => state.filters.offset > 0;
+
+  /// Есть следующая страница реестра.
+  bool get hasNextPage =>
+      state.filters.offset + state.items.length < state.totalCount;
+
+  /// Перейти на предыдущую страницу.
+  Future<void> goToPreviousPage() async {
+    if (!hasPreviousPage) return;
+    final newOffset = state.filters.offset - state.filters.limit;
+    state = state.copyWith(
+      filters: state.filters.copyWith(
+        offset: newOffset < 0 ? 0 : newOffset,
+      ),
+      clearError: true,
+    );
+    await load();
+  }
+
+  /// Перейти на следующую страницу.
+  Future<void> goToNextPage() async {
+    if (!hasNextPage) return;
+    state = state.copyWith(
+      filters: state.filters.copyWith(
+        offset: state.filters.offset + state.filters.limit,
+      ),
+      clearError: true,
+    );
+    await load();
+  }
 }
 
 /// Провайдер списка позиций ТМЦ с фильтрами.

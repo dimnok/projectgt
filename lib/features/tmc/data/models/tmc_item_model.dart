@@ -45,7 +45,6 @@ abstract class TmcItemModel with _$TmcItemModel {
     @JsonKey(includeToJson: false) String? categoryName,
     @JsonKey(includeToJson: false) String? subcategoryName,
     @JsonKey(includeToJson: false) String? supplierName,
-    @JsonKey(includeToJson: false) int? totalCount,
   }) = _TmcItemModel;
 
   const TmcItemModel._();

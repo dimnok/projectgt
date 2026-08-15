@@ -397,9 +397,9 @@ class _TmcOperationDialogState extends ConsumerState<TmcOperationDialog> {
     try {
       final payload = _buildPayload();
       await ref.read(tmcRepositoryProvider).postOperation(payload);
-      ref.invalidate(tmcItemsListProvider);
+      ref.read(tmcItemsListProvider.notifier).load();
       ref.invalidate(tmcDashboardProvider);
-      ref.invalidate(tmcOperationsProvider);
+      ref.read(tmcOperationsProvider.notifier).load();
       ref.invalidate(tmcStockProvider);
       ref.invalidate(tmcAssignmentsProvider);
       final itemId = widget.presetItem?.id ?? widget.presetUnit?.itemId;

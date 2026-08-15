@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/theme/theme_settings_provider.dart';
+import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/mobile_atmosphere_backdrop.dart';
 import 'package:projectgt/core/widgets/mobile_atmosphere_main_surface.dart';
 import 'package:projectgt/core/widgets/mobile_atmosphere_screen_header.dart';
@@ -41,7 +42,6 @@ class TmcListScreen extends ConsumerStatefulWidget {
 }
 
 class _TmcListScreenState extends ConsumerState<TmcListScreen> {
-  String _search = '';
   String? _openedItemId;
   TmcModuleSection _section = TmcModuleSection.registry;
 
@@ -231,13 +231,13 @@ class _TmcListScreenState extends ConsumerState<TmcListScreen> {
   }) {
     switch (section) {
       case TmcModuleSection.registry:
+        final searchQuery = listState.filters.search ?? '';
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             TmcFiltersToolbar(
-              searchQuery: _search,
+              searchQuery: searchQuery,
               onSearchChanged: (v) {
-                setState(() => _search = v);
                 ref
                     .read(tmcItemsListProvider.notifier)
                     .applyFilters(
@@ -277,6 +277,7 @@ class _TmcListScreenState extends ConsumerState<TmcListScreen> {
             ),
             const SizedBox(height: 8),
             Expanded(child: _buildRegistryBody(listState, canViewCost)),
+            _buildRegistryPagination(listState),
           ],
         );
       case TmcModuleSection.operations:
@@ -310,11 +311,10 @@ class _TmcListScreenState extends ConsumerState<TmcListScreen> {
       );
     }
     if (state.items.isEmpty) {
+      final hasSearch = (state.filters.search ?? '').trim().isNotEmpty;
       return Center(
         child: Text(
-          _search.trim().isEmpty
-              ? TmcUiLabels.emptyItems
-              : TmcUiLabels.emptyFiltered,
+          hasSearch ? TmcUiLabels.emptyFiltered : TmcUiLabels.emptyItems,
           style: theme.textTheme.bodyLarge?.copyWith(
             color: scheme.onSurface.withValues(alpha: 0.55),
           ),
@@ -326,6 +326,54 @@ class _TmcListScreenState extends ConsumerState<TmcListScreen> {
       items: state.items,
       showCost: showCost,
       onRowTap: (item) => _openItem(item.id),
+    );
+  }
+
+  Widget _buildRegistryPagination(TmcItemsListState state) {
+    if (state.totalCount <= state.filters.limit) {
+      return const SizedBox.shrink();
+    }
+
+    final notifier = ref.read(tmcItemsListProvider.notifier);
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final from = state.filters.offset + 1;
+    final to = state.filters.offset + state.items.length;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        children: [
+          GTTextButton(
+            text: 'Назад',
+            onPressed: notifier.hasPreviousPage && !state.isLoading
+                ? notifier.goToPreviousPage
+                : null,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            TmcUiLabels.itemsPageRange(from, to, state.totalCount),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: scheme.onSurface.withValues(alpha: 0.7),
+            ),
+          ),
+          const SizedBox(width: 8),
+          GTTextButton(
+            text: 'Далее',
+            onPressed: notifier.hasNextPage && !state.isLoading
+                ? notifier.goToNextPage
+                : null,
+          ),
+          if (state.isLoading) ...[
+            const SizedBox(width: 8),
+            const SizedBox(
+              width: 16,
+              height: 16,
+              child: CupertinoActivityIndicator(radius: 8),
+            ),
+          ],
+        ],
+      ),
     );
   }
 

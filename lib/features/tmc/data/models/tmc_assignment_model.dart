@@ -64,38 +64,6 @@ abstract class TmcAssignmentModel with _$TmcAssignmentModel {
     }).copyWith(unitPrice: tmcParseNullableDouble(rawPrice));
   }
 
-  /// Из доменной сущности.
-  factory TmcAssignmentModel.fromDomain(TmcAssignment assignment) =>
-      TmcAssignmentModel(
-        id: assignment.id,
-        companyId: assignment.companyId,
-        itemId: assignment.itemId,
-        unitId: assignment.unitId,
-        employeeId: assignment.employeeId,
-        objectId: assignment.objectId,
-        quantity: assignment.quantity,
-        issuedAt: assignment.issuedAt,
-        plannedReturnDate: assignment.plannedReturnDate,
-        conditionId: assignment.conditionId,
-        issueOperationId: assignment.issueOperationId,
-        clothingSize: assignment.clothingSize,
-        heightCm: assignment.heightCm,
-        season: assignment.season,
-        serviceLifeDays: assignment.serviceLifeDays,
-        nextReplacementDate: assignment.nextReplacementDate,
-        comment: assignment.comment,
-        returnedAt: assignment.returnedAt,
-        isActive: assignment.isActive,
-        createdAt: assignment.createdAt,
-        updatedAt: assignment.updatedAt,
-        createdBy: assignment.createdBy,
-        itemName: assignment.itemName,
-        inventoryNumber: assignment.inventoryNumber,
-        employeeName: assignment.employeeName,
-        objectName: assignment.objectName,
-        unitPrice: assignment.unitPrice,
-      );
-
   /// В доменную сущность.
   TmcAssignment toDomain() => TmcAssignment(
         id: id,

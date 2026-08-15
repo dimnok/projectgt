@@ -50,30 +50,6 @@ abstract class TmcWriteOffModel with _$TmcWriteOffModel {
     });
   }
 
-  /// Из доменной сущности.
-  factory TmcWriteOffModel.fromDomain(TmcWriteOff writeOff) =>
-      TmcWriteOffModel(
-        id: writeOff.id,
-        companyId: writeOff.companyId,
-        itemId: writeOff.itemId,
-        unitId: writeOff.unitId,
-        writtenOffAt: writeOff.writtenOffAt,
-        reason: writeOff.reason,
-        quantity: writeOff.quantity,
-        conditionId: writeOff.conditionId,
-        bookValue: writeOff.bookValue,
-        responsibleEmployeeId: writeOff.responsibleEmployeeId,
-        objectId: writeOff.objectId,
-        actNumber: writeOff.actNumber,
-        comment: writeOff.comment,
-        operationId: writeOff.operationId,
-        createdAt: writeOff.createdAt,
-        updatedAt: writeOff.updatedAt,
-        createdBy: writeOff.createdBy,
-        itemName: writeOff.itemName,
-        inventoryNumber: writeOff.inventoryNumber,
-      );
-
   /// В доменную сущность.
   TmcWriteOff toDomain() => TmcWriteOff(
         id: id,

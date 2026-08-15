@@ -51,7 +51,6 @@ _TmcItemModel _$TmcItemModelFromJson(Map<String, dynamic> json) =>
       categoryName: json['category_name'] as String?,
       subcategoryName: json['subcategory_name'] as String?,
       supplierName: json['supplier_name'] as String?,
-      totalCount: (json['total_count'] as num?)?.toInt(),
     );
 
 Map<String, dynamic> _$TmcItemModelToJson(_TmcItemModel instance) =>

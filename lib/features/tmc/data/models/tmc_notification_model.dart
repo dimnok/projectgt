@@ -34,22 +34,6 @@ abstract class TmcNotificationModel with _$TmcNotificationModel {
   factory TmcNotificationModel.fromJson(Map<String, dynamic> json) =>
       _$TmcNotificationModelFromJson(json);
 
-  /// Из доменной сущности.
-  factory TmcNotificationModel.fromDomain(TmcNotification notification) =>
-      TmcNotificationModel(
-        id: notification.id,
-        companyId: notification.companyId,
-        userId: notification.userId,
-        notificationType: notification.notificationType,
-        title: notification.title,
-        body: notification.body,
-        itemId: notification.itemId,
-        unitId: notification.unitId,
-        payload: notification.payload,
-        isRead: notification.isRead,
-        createdAt: notification.createdAt,
-      );
-
   /// В доменную сущность.
   TmcNotification toDomain() => TmcNotification(
         id: id,

@@ -178,6 +178,10 @@ abstract final class TmcUiLabels {
   /// Пустой фильтр.
   static const emptyFiltered = 'Ничего не найдено по фильтрам';
 
+  /// Подпись диапазона записей в реестре: «1–50 из 120».
+  static String itemsPageRange(int from, int to, int total) =>
+      '$from–$to из $total';
+
   /// Пустой журнал.
   static const emptyOperations = 'Операций пока нет';
 

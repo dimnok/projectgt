@@ -49,29 +49,6 @@ abstract class TmcOperationItemModel with _$TmcOperationItemModel {
     });
   }
 
-  /// Из доменной сущности.
-  factory TmcOperationItemModel.fromDomain(TmcOperationItem item) =>
-      TmcOperationItemModel(
-        id: item.id,
-        companyId: item.companyId,
-        operationId: item.operationId,
-        itemId: item.itemId,
-        unitId: item.unitId,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        conditionId: item.conditionId,
-        completenessNote: item.completenessNote,
-        comment: item.comment,
-        clothingSize: item.clothingSize,
-        heightCm: item.heightCm,
-        season: item.season,
-        serviceLifeDays: item.serviceLifeDays,
-        nextReplacementDate: item.nextReplacementDate,
-        createdAt: item.createdAt,
-        itemName: item.itemName,
-        inventoryNumber: item.inventoryNumber,
-      );
-
   /// В доменную сущность.
   TmcOperationItem toDomain() => TmcOperationItem(
         id: id,
@@ -157,39 +134,6 @@ abstract class TmcOperationModel with _$TmcOperationModel {
 
     return _$TmcOperationModelFromJson(normalized).copyWith(items: items);
   }
-
-  /// Из доменной сущности.
-  factory TmcOperationModel.fromDomain(TmcOperation operation) =>
-      TmcOperationModel(
-        id: operation.id,
-        companyId: operation.companyId,
-        operationType: operation.operationType,
-        operatedAt: operation.operatedAt,
-        documentNumber: operation.documentNumber,
-        basis: operation.basis,
-        comment: operation.comment,
-        fromLocationType: operation.fromLocationType,
-        fromWarehouseId: operation.fromWarehouseId,
-        fromObjectId: operation.fromObjectId,
-        fromEmployeeId: operation.fromEmployeeId,
-        fromLocationNote: operation.fromLocationNote,
-        toLocationType: operation.toLocationType,
-        toWarehouseId: operation.toWarehouseId,
-        toObjectId: operation.toObjectId,
-        toEmployeeId: operation.toEmployeeId,
-        toLocationNote: operation.toLocationNote,
-        responsibleEmployeeId: operation.responsibleEmployeeId,
-        objectId: operation.objectId,
-        reversesOperationId: operation.reversesOperationId,
-        plannedReturnDate: operation.plannedReturnDate,
-        conditionId: operation.conditionId,
-        createdAt: operation.createdAt,
-        updatedAt: operation.updatedAt,
-        createdBy: operation.createdBy,
-        items: operation.items
-            .map(TmcOperationItemModel.fromDomain)
-            .toList(),
-      );
 
   /// В доменную сущность.
   TmcOperation toDomain() => TmcOperation(
