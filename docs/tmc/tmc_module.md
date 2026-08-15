@@ -2,12 +2,18 @@
 
 **Дата актуализации:** 15 августа 2026  
 
-**Изменения в этой версии (15.08.2026, встроенные разделы + аудит документации):**
+**Изменения в этой версии (15.08.2026, журнал операций UI):**
+- `TmcOperationsPanel`: компактная таблица (дата / тип / позиции / кол-во), высота строки 40 px.
+- Фильтр типа — сегментная полоска «Тип» (инверсия выбранного сегмента), визуально отдельно от пилюль `TmcSectionNavBar`.
+- Короткие подписи типов: `TmcUiLabels.operationTypeShort`.
+- Повторный аудит БД через MCP Supabase (`api.progt.ru`): 17 таблиц `tmc_*`, RLS ✅, 13 функций `tmc_*`, bucket `tmc` (`public = false`), `role_permissions` по `tmc` = 0. Схема без изменений.
+
+**Предыдущая версия (15.08.2026, встроенные разделы + аудит документации):**
 - Все разделы модуля открываются внутри основной области `TmcListScreen` (`TmcModuleSection` + `TmcSectionNavBar`), без отдельных экранов.
 - Карточка позиции — встроенный просмотр (`TmcItemDetailsPanel`); «назад» возвращает в текущий раздел.
 - Удалены экраны-оболочки: `TmcOperationsScreen`, `TmcStockScreen`, `TmcReportsScreen`, `TmcInventoryScreen`, `TmcNotificationsScreen`, диалог `TmcCatalogsDialog`.
 - Маршруты `/tmc/operations`, `/tmc/stock`, `/tmc/reports`, `/tmc/inventory`, `/tmc/notifications` сняты. Остались `/tmc` и `/tmc/items/:itemId`.
-- Аудит БД через MCP Supabase (`api.progt.ru`): 17 таблиц `tmc_*`, RLS ✅, 13 функций `tmc_*`, bucket `tmc`, `role_permissions` по `tmc` = 0.
+- Аудит БД: 17 таблиц `tmc_*`, RLS ✅, 13 функций `tmc_*`, bucket `tmc`, `role_permissions` по `tmc` = 0.
 
 **Предыдущая версия (15.08.2026, встроенная карточка):**
 - Карточка позиции открывается внутри основной области модуля (`TmcItemDetailsPanel`), а не отдельным экраном. Кнопка «назад» возвращает в реестр.
@@ -120,7 +126,7 @@
 | `TmcModuleSection` | Панель | Примечание |
 |--------------------|--------|------------|
 | `registry` | `TmcFiltersToolbar` + `TmcItemsTable` | Поиск, категория, тип учёта, «Новая позиция» |
-| `operations` | `TmcOperationsPanel` | Фильтр типа операции + список |
+| `operations` | `TmcOperationsPanel` | Сегментный фильтр типа + компактная таблица (дата / тип / позиции / кол-во) |
 | `stock` | `TmcStockPanel` | Склад + поиск; тап открывает карточку |
 | `reports` | `TmcReportsPanel` | Excel; действие требует `export` |
 | `inventory` | `TmcInventoryPanel` | Заглушка «в разработке» |
@@ -146,6 +152,7 @@
 | `TmcSectionNavBar` | Пилюли разделов (`TmcModuleSection`) |
 | `TmcFiltersToolbar` | Поиск / категория / тип учёта / обновить / «Новая позиция» (только реестр) |
 | `TmcItemsTable` | Колонки: №, наименование, категория, на складе, выдано, где лежит, цена/стоимость (`view_cost`), действия. «Выдать»/«Возврат» + `GTContextMenu` |
+| `TmcOperationsPanel` | Журнал: сегментный фильтр типа (полоска «Тип», выбранный — инверсия); таблица дата / тип / позиции / кол-во (строка 40 px). Не путать с пилюлями `TmcSectionNavBar` |
 | `TmcItemDetailsPanel` | Карточка: вкладки Основное / Единицы / Закупка / История; быстрые операции |
 | `TmcItemFormDialog` | Создание / правка позиции; при создании — поступление и S/N |
 | `TmcOperationDialog` | Операция → RPC `tmc_post_operation`; индивидуальный учёт — выбор единицы; поступление — S/N |
@@ -158,7 +165,7 @@ Design System: `MobileAtmosphereBackdrop`, `MobileAtmosphereMainSurface`, `Mobil
 ### Сервисы / утилиты
 
 - `TmcExcelExportService` — выгрузки Excel (`excel` + `FileSaver`).
-- `tmc_ui_labels.dart` — подписи статусов/типов; хелперы `parseQuantity` / `parsePrice`, `receiptUnitCount`, `nonEmptySerials`, `warehouseLabel`, `unitLabel`.
+- `tmc_ui_labels.dart` — подписи статусов/типов; `operationTypeShort` для фильтра журнала; хелперы `parseQuantity` / `parsePrice`, `receiptUnitCount`, `nonEmptySerials`, `warehouseLabel`, `unitLabel`.
 
 ### Провайдеры (Riverpod)
 
@@ -479,6 +486,7 @@ individual:   quantity = COUNT(tmc_units) WHERE not archived AND status <> writt
 - ✅ Схема БД + RLS + seed категорий/состояний + `app_modules`
 - ✅ RPC операций, дашборда, списка, инв. номеров, **остатков по складам**, recalc quantity
 - ✅ Desktop: один экран `TmcListScreen`, встроенные разделы и карточка позиции
+- ✅ Журнал операций: компактная таблица + сегментный фильтр типа
 - ✅ Серийные номера единиц (ввод при поступлении и правка в карточке)
 - ✅ Контекстное меню и быстрые действия в реестре
 - ✅ Self SELECT assignments; уведомления только свои
@@ -505,21 +513,22 @@ individual:   quantity = COUNT(tmc_units) WHERE not archived AND status <> writt
 
 ---
 
-## ✅ Чек-лист аудита (15.08.2026)
+## ✅ Чек-лист аудита (15.08.2026, повтор после UI журнала)
 
 | Проверка | Результат |
 |----------|-----------|
 | Файлы `lib/features/tmc/` | ✅ screens: `tmc_list_screen`, `tmc_item_details_screen`; панели разделов в `widgets/` |
+| Журнал операций UI | ✅ `TmcOperationsPanel`: сегментный фильтр + компактная таблица |
 | Удалённые экраны-оболочки | ✅ `Tmc*Screen` разделов и `TmcCatalogsDialog` отсутствуют |
 | Маршруты | ✅ `/tmc`, `/tmc/items/:itemId`; дочерние разделы сняты |
 | Провайдеры | ✅ 13 `final` в `tmc_providers.dart`; `tmcUnitsProvider` нет |
-| Таблицы live `tmc_%` | ✅ 17, RLS ✅ на всех |
+| Таблицы live `tmc_%` | ✅ 17, RLS ✅ на всех (live rows без изменений относительно аудита ранее 15.08) |
 | RPC `tmc_*` | ✅ 13 (вкл. `tmc_create_item_with_receipt`, `tmc_receipt_serial_number`) |
 | Триггеры recalc qty | ✅ на `tmc_balances`, `tmc_units` |
 | Edge Functions ТМЦ | ❌ нет в `supabase/functions/` (`list_edge_functions` в MCP нет) |
 | Bucket `tmc` | ✅ `public = false` |
 | `role_permissions` seed `tmc` | ❌ 0 записей (`module_code = 'tmc'`) |
-| Grants `authenticated` на `tmc_balances` | ✅ нет INSERT/UPDATE/DELETE (есть SELECT) |
+| Grants `authenticated` на `tmc_balances` | ✅ нет INSERT/UPDATE/DELETE (есть SELECT, REFERENCES, TRIGGER, TRUNCATE) |
 | Миграции в репозитории | ✅ 9 файлов `*tmc*` |
 | Миграции applied (live) | ✅ вкл. `20260815120000_tmc_create_item_serial_number`, `tmc_receipt_serial_numbers` |
 | Документация соответствует коду | ✅ этот файл |

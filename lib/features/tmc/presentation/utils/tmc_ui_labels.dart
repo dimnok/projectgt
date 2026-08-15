@@ -64,6 +64,36 @@ abstract final class TmcUiLabels {
   /// Подпись типа операции.
   static String operationType(TmcOperationType type) => type.displayName;
 
+  /// Короткая подпись типа операции для фильтров журнала.
+  static String operationTypeShort(TmcOperationType type) => switch (type) {
+    TmcOperationType.receipt => 'Поступление',
+    TmcOperationType.issue => 'Выдача',
+    TmcOperationType.returnFromEmployee => 'Возврат',
+    TmcOperationType.transferToObject => 'На объект',
+    TmcOperationType.moveBetweenWarehouses => 'Между складами',
+    TmcOperationType.sendToRepair => 'В ремонт',
+    TmcOperationType.returnFromRepair => 'Из ремонта',
+    TmcOperationType.writeOff => 'Списание',
+    TmcOperationType.changeCondition => 'Состояние',
+    TmcOperationType.correction => 'Корректировка',
+    _ => type.displayName,
+  };
+
+  /// Фильтр журнала: все типы операций.
+  static const operationsFilterAll = 'Все';
+
+  /// Колонка журнала: дата.
+  static const operationsColDate = 'Дата';
+
+  /// Колонка журнала: тип операции.
+  static const operationsColType = 'Тип';
+
+  /// Колонка журнала: позиции.
+  static const operationsColItems = 'Позиции';
+
+  /// Колонка журнала: количество.
+  static const operationsColQty = 'Кол-во';
+
   /// Подпись причины списания.
   static String writeOffReason(TmcWriteOffReason reason) => reason.displayName;
 
