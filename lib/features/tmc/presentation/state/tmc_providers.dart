@@ -13,6 +13,7 @@ import 'package:projectgt/features/tmc/domain/entities/tmc_assignment.dart';
 import 'package:projectgt/features/tmc/domain/entities/tmc_unit.dart';
 import 'package:projectgt/features/tmc/domain/entities/tmc_warehouse.dart';
 import 'package:projectgt/features/tmc/domain/entities/tmc_stock_balance.dart';
+import 'package:projectgt/features/tmc/domain/entities/tmc_notification.dart';
 
 /// Провайдер репозитория ТМЦ.
 final tmcRepositoryProvider = Provider<TmcRepository>((ref) {
@@ -332,4 +333,11 @@ final tmcItemOperationsProvider =
     FutureProvider.family<List<TmcOperation>, String>((ref, itemId) async {
       final repo = ref.watch(tmcRepositoryProvider);
       return repo.listOperations(itemId: itemId, limit: 200);
+    });
+
+/// In-app уведомления текущего пользователя по ТМЦ.
+final tmcNotificationsProvider =
+    FutureProvider.autoDispose<List<TmcNotification>>((ref) async {
+      final repo = ref.watch(tmcRepositoryProvider);
+      return repo.listNotifications();
     });

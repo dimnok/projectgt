@@ -15,7 +15,7 @@ abstract final class TmcToolbarMetrics {
   static const double radius = 8;
 }
 
-/// Панель разделов, фильтров и главного действия реестра ТМЦ.
+/// Панель поиска, фильтров и создания позиции реестра ТМЦ.
 class TmcFiltersToolbar extends StatelessWidget {
   /// Поисковый запрос.
   final String searchQuery;
@@ -44,25 +44,7 @@ class TmcFiltersToolbar extends StatelessWidget {
   /// Создать новую позицию.
   final VoidCallback? onCreate;
 
-  /// Справочники.
-  final VoidCallback? onCatalogs;
-
-  /// Журнал операций.
-  final VoidCallback? onOperations;
-
-  /// Остатки по складам.
-  final VoidCallback? onStock;
-
-  /// Отчёты.
-  final VoidCallback? onReports;
-
-  /// Инвентаризация.
-  final VoidCallback? onInventory;
-
-  /// Уведомления.
-  final VoidCallback? onNotifications;
-
-  /// Создаёт панель фильтров и разделов.
+  /// Создаёт панель фильтров реестра.
   const TmcFiltersToolbar({
     super.key,
     required this.searchQuery,
@@ -74,12 +56,6 @@ class TmcFiltersToolbar extends StatelessWidget {
     required this.categories,
     this.onRefresh,
     this.onCreate,
-    this.onCatalogs,
-    this.onOperations,
-    this.onStock,
-    this.onReports,
-    this.onInventory,
-    this.onNotifications,
   });
 
   @override
@@ -90,232 +66,73 @@ class TmcFiltersToolbar extends StatelessWidget {
 
     final hasActiveFilters = categoryId != null || accountingType != null;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // Горизонтальная панель разделов (табы ТМЦ)
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _NavPill(
-                icon: CupertinoIcons.list_bullet,
-                label: TmcUiLabels.registry,
-                selected: true,
-                scheme: scheme,
-                theme: theme,
-                isDark: isDark,
-              ),
-              if (onOperations != null) ...[
-                const SizedBox(width: 6),
-                _NavPill(
-                  icon: CupertinoIcons.doc_text,
-                  label: TmcUiLabels.operationsJournal,
-                  onTap: onOperations,
+        Expanded(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _SearchField(
+                  value: searchQuery,
+                  onChanged: onSearchChanged,
                   scheme: scheme,
                   theme: theme,
                   isDark: isDark,
                 ),
-              ],
-              if (onStock != null) ...[
-                const SizedBox(width: 6),
-                _NavPill(
-                  icon: CupertinoIcons.cube_box,
-                  label: TmcUiLabels.stockBalances,
-                  onTap: onStock,
+                const SizedBox(width: 8),
+                _CategoryFilterChip(
+                  categories: categories,
+                  categoryId: categoryId,
+                  onChanged: onCategoryChanged,
                   scheme: scheme,
                   theme: theme,
                   isDark: isDark,
                 ),
-              ],
-              if (onReports != null) ...[
-                const SizedBox(width: 6),
-                _NavPill(
-                  icon: CupertinoIcons.chart_bar,
-                  label: TmcUiLabels.reports,
-                  onTap: onReports,
+                const SizedBox(width: 8),
+                _AccountingFilterChip(
+                  value: accountingType,
+                  onChanged: onAccountingTypeChanged,
                   scheme: scheme,
                   theme: theme,
                   isDark: isDark,
                 ),
+                if (hasActiveFilters) ...[
+                  const SizedBox(width: 6),
+                  _ClearFiltersButton(
+                    onTap: () {
+                      onCategoryChanged(null);
+                      onAccountingTypeChanged(null);
+                    },
+                    scheme: scheme,
+                    theme: theme,
+                  ),
+                ],
+                if (onRefresh != null) ...[
+                  const SizedBox(width: 6),
+                  _IconAction(
+                    tooltip: 'Обновить список',
+                    icon: CupertinoIcons.arrow_clockwise,
+                    onTap: onRefresh!,
+                    scheme: scheme,
+                    isDark: isDark,
+                  ),
+                ],
               ],
-              if (onInventory != null) ...[
-                const SizedBox(width: 6),
-                _NavPill(
-                  icon: CupertinoIcons.checkmark_seal,
-                  label: TmcUiLabels.inventory,
-                  onTap: onInventory,
-                  scheme: scheme,
-                  theme: theme,
-                  isDark: isDark,
-                ),
-              ],
-              if (onNotifications != null) ...[
-                const SizedBox(width: 6),
-                _NavPill(
-                  icon: CupertinoIcons.bell,
-                  label: TmcUiLabels.notifications,
-                  onTap: onNotifications,
-                  scheme: scheme,
-                  theme: theme,
-                  isDark: isDark,
-                ),
-              ],
-              if (onCatalogs != null) ...[
-                const SizedBox(width: 6),
-                _NavPill(
-                  icon: CupertinoIcons.book,
-                  label: TmcUiLabels.catalogs,
-                  onTap: onCatalogs,
-                  scheme: scheme,
-                  theme: theme,
-                  isDark: isDark,
-                ),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(height: 10),
-
-        // Панель поиска, фильтров и создания
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _SearchField(
-                      value: searchQuery,
-                      onChanged: onSearchChanged,
-                      scheme: scheme,
-                      theme: theme,
-                      isDark: isDark,
-                    ),
-                    const SizedBox(width: 8),
-                    _CategoryFilterChip(
-                      categories: categories,
-                      categoryId: categoryId,
-                      onChanged: onCategoryChanged,
-                      scheme: scheme,
-                      theme: theme,
-                      isDark: isDark,
-                    ),
-                    const SizedBox(width: 8),
-                    _AccountingFilterChip(
-                      value: accountingType,
-                      onChanged: onAccountingTypeChanged,
-                      scheme: scheme,
-                      theme: theme,
-                      isDark: isDark,
-                    ),
-                    if (hasActiveFilters) ...[
-                      const SizedBox(width: 6),
-                      _ClearFiltersButton(
-                        onTap: () {
-                          onCategoryChanged(null);
-                          onAccountingTypeChanged(null);
-                        },
-                        scheme: scheme,
-                        theme: theme,
-                      ),
-                    ],
-                    if (onRefresh != null) ...[
-                      const SizedBox(width: 6),
-                      _IconAction(
-                        tooltip: 'Обновить список',
-                        icon: CupertinoIcons.arrow_clockwise,
-                        onTap: onRefresh!,
-                        scheme: scheme,
-                        isDark: isDark,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
             ),
-            if (onCreate != null) ...[
-              const SizedBox(width: 12),
-              GTPrimaryButton(
-                text: TmcUiLabels.newItem,
-                icon: CupertinoIcons.plus,
-                onPressed: onCreate,
-              ),
-            ],
-          ],
+          ),
         ),
+        if (onCreate != null) ...[
+          const SizedBox(width: 12),
+          GTPrimaryButton(
+            text: TmcUiLabels.newItem,
+            icon: CupertinoIcons.plus,
+            onPressed: onCreate,
+          ),
+        ],
       ],
-    );
-  }
-}
-
-/// Элегантный таб-пилл раздела.
-class _NavPill extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback? onTap;
-  final ColorScheme scheme;
-  final ThemeData theme;
-  final bool isDark;
-
-  const _NavPill({
-    required this.icon,
-    required this.label,
-    required this.scheme,
-    required this.theme,
-    required this.isDark,
-    this.selected = false,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final fg = selected
-        ? scheme.onSurface
-        : scheme.onSurface.withValues(alpha: 0.65);
-
-    final bg = selected
-        ? scheme.surfaceContainerHighest.withValues(alpha: isDark ? 0.65 : 0.75)
-        : Colors.transparent;
-
-    final borderColor = selected
-        ? scheme.outline.withValues(alpha: isDark ? 0.4 : 0.3)
-        : scheme.outline.withValues(alpha: isDark ? 0.18 : 0.12);
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        hoverColor: scheme.onSurface.withValues(alpha: 0.04),
-        child: Container(
-          height: 30,
-          padding: const EdgeInsets.symmetric(horizontal: 11),
-          decoration: BoxDecoration(
-            color: bg,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: borderColor),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 13, color: fg),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: fg,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

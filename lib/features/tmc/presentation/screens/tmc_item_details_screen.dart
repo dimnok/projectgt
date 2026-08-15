@@ -1,8 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:projectgt/core/common/app_router.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
 import 'package:projectgt/features/tmc/domain/entities/tmc_enums.dart';
@@ -14,15 +12,16 @@ import 'package:projectgt/features/tmc/presentation/utils/tmc_ui_labels.dart';
 import 'package:projectgt/features/tmc/presentation/widgets/tmc_item_form_dialog.dart';
 import 'package:projectgt/features/tmc/presentation/widgets/tmc_operation_dialog.dart';
 import 'package:projectgt/features/tmc/presentation/widgets/tmc_unit_form_dialog.dart';
-import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 
-/// Карточка позиции каталога ТМЦ.
-class TmcItemDetailsScreen extends ConsumerWidget {
+/// Встроенная карточка позиции ТМЦ (без отдельного экрана).
+///
+/// Показывается внутри основной области модуля вместо таблицы реестра.
+class TmcItemDetailsPanel extends ConsumerWidget {
   /// Id позиции.
   final String itemId;
 
-  /// Создаёт экран.
-  const TmcItemDetailsScreen({super.key, required this.itemId});
+  /// Создаёт карточку позиции.
+  const TmcItemDetailsPanel({super.key, required this.itemId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -33,65 +32,59 @@ class TmcItemDetailsScreen extends ConsumerWidget {
     final canUpdate = permissions.can('tmc', 'update');
     final canViewCost = permissions.can('tmc', 'view_cost');
 
-    return Scaffold(
-      appBar: AppBarWidget(
-        title: TmcUiLabels.itemCard,
-        leading: BackButton(onPressed: () => context.go(AppRoutes.tmc)),
-      ),
-      body: itemAsync.when(
-        loading: () => const Center(child: CupertinoActivityIndicator()),
-        error: (e, _) => Center(child: Text(e.toString())),
-        data: (item) {
-          if (item == null) {
-            return const Center(child: Text('Позиция не найдена'));
-          }
-          return DefaultTabController(
-            length: 4,
-            child: Column(
-              children: [
-                _QuickActions(item: item, permissions: permissions),
-                const TabBar(
-                  tabs: [
-                    Tab(text: TmcUiLabels.sectionMain),
-                    Tab(text: TmcUiLabels.sectionUnits),
-                    Tab(text: TmcUiLabels.sectionPurchase),
-                    Tab(text: TmcUiLabels.sectionHistory),
-                  ],
-                ),
-                Expanded(
-                  child: TabBarView(
-                    children: [
-                      _MainTab(
+    return itemAsync.when(
+      loading: () => const Center(child: CupertinoActivityIndicator()),
+      error: (e, _) => Center(child: Text(e.toString())),
+      data: (item) {
+        if (item == null) {
+          return const Center(child: Text('Позиция не найдена'));
+        }
+        return DefaultTabController(
+          length: 4,
+          child: Column(
+            children: [
+              _QuickActions(item: item, permissions: permissions),
+              const TabBar(
+                tabs: [
+                  Tab(text: TmcUiLabels.sectionMain),
+                  Tab(text: TmcUiLabels.sectionUnits),
+                  Tab(text: TmcUiLabels.sectionPurchase),
+                  Tab(text: TmcUiLabels.sectionHistory),
+                ],
+              ),
+              Expanded(
+                child: TabBarView(
+                  children: [
+                    _MainTab(
+                      item: item,
+                      canViewCost: canViewCost,
+                      canUpdate: canUpdate,
+                    ),
+                    unitsAsync.when(
+                      data: (units) => _UnitsTab(
+                        units: units,
                         item: item,
-                        canViewCost: canViewCost,
+                        permissions: permissions,
                         canUpdate: canUpdate,
                       ),
-                      unitsAsync.when(
-                        data: (units) => _UnitsTab(
-                          units: units,
-                          item: item,
-                          permissions: permissions,
-                          canUpdate: canUpdate,
-                        ),
-                        loading: () =>
-                            const Center(child: CupertinoActivityIndicator()),
-                        error: (e, _) => Center(child: Text(e.toString())),
-                      ),
-                      _PurchaseTab(item: item, canViewCost: canViewCost),
-                      opsAsync.when(
-                        data: (ops) => _HistoryTab(operations: ops),
-                        loading: () =>
-                            const Center(child: CupertinoActivityIndicator()),
-                        error: (e, _) => Center(child: Text(e.toString())),
-                      ),
-                    ],
-                  ),
+                      loading: () =>
+                          const Center(child: CupertinoActivityIndicator()),
+                      error: (e, _) => Center(child: Text(e.toString())),
+                    ),
+                    _PurchaseTab(item: item, canViewCost: canViewCost),
+                    opsAsync.when(
+                      data: (ops) => _HistoryTab(operations: ops),
+                      loading: () =>
+                          const Center(child: CupertinoActivityIndicator()),
+                      error: (e, _) => Center(child: Text(e.toString())),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          );
-        },
-      ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

@@ -1,49 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/core/widgets/app_snackbar.dart';
-import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/gt_text_field.dart';
-import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
 import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 import 'package:projectgt/features/tmc/domain/entities/tmc_category.dart';
 import 'package:projectgt/features/tmc/domain/entities/tmc_warehouse.dart';
 import 'package:projectgt/features/tmc/presentation/state/tmc_providers.dart';
 import 'package:projectgt/features/tmc/presentation/utils/tmc_ui_labels.dart';
 
-/// Диалог управления справочниками складов и категорий ТМЦ.
-class TmcCatalogsDialog extends ConsumerStatefulWidget {
-  /// Создаёт диалог.
-  const TmcCatalogsDialog({super.key});
-
-  /// Показать диалог.
-  static Future<void> show(BuildContext context) {
-    final isDesktop = ResponsiveUtils.isDesktop(context);
-    if (isDesktop) {
-      return showDialog<void>(
-        context: context,
-        builder: (_) => const Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: EdgeInsets.all(24),
-          child: TmcCatalogsDialog(),
-        ),
-      );
-    }
-    return showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => const TmcCatalogsDialog(),
-    );
-  }
+/// Справочники складов и категорий ТМЦ.
+class TmcCatalogsPanel extends ConsumerStatefulWidget {
+  /// Создаёт панель справочников.
+  const TmcCatalogsPanel({super.key});
 
   @override
-  ConsumerState<TmcCatalogsDialog> createState() => _TmcCatalogsDialogState();
+  ConsumerState<TmcCatalogsPanel> createState() => _TmcCatalogsPanelState();
 }
 
-class _TmcCatalogsDialogState extends ConsumerState<TmcCatalogsDialog> {
+class _TmcCatalogsPanelState extends ConsumerState<TmcCatalogsPanel> {
   final _warehouseNameController = TextEditingController();
   final _categoryNameController = TextEditingController();
   bool _savingWarehouse = false;
@@ -122,12 +97,11 @@ class _TmcCatalogsDialogState extends ConsumerState<TmcCatalogsDialog> {
   Widget build(BuildContext context) {
     final warehousesAsync = ref.watch(tmcWarehousesProvider);
     final categoriesAsync = ref.watch(tmcCategoriesProvider);
-    final isDesktop = ResponsiveUtils.isDesktop(context);
 
-    final content = DefaultTabController(
+    return DefaultTabController(
       length: 2,
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const TabBar(
             tabs: [
@@ -135,8 +109,7 @@ class _TmcCatalogsDialogState extends ConsumerState<TmcCatalogsDialog> {
               Tab(text: 'Категории'),
             ],
           ),
-          SizedBox(
-            height: 360,
+          Expanded(
             child: TabBarView(
               children: [
                 _ListTab(
@@ -164,24 +137,6 @@ class _TmcCatalogsDialogState extends ConsumerState<TmcCatalogsDialog> {
         ],
       ),
     );
-
-    final footer = GTPrimaryButton(
-      text: 'Закрыть',
-      onPressed: () => Navigator.of(context).pop(),
-    );
-
-    if (isDesktop) {
-      return DesktopDialogContent(
-        title: TmcUiLabels.catalogs,
-        footer: footer,
-        child: content,
-      );
-    }
-    return MobileBottomSheetContent(
-      title: TmcUiLabels.catalogs,
-      footer: footer,
-      child: content,
-    );
   }
 }
 
@@ -205,7 +160,7 @@ class _ListTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.only(top: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

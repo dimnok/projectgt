@@ -2,7 +2,17 @@
 
 **Дата актуализации:** 15 августа 2026  
 
-**Изменения в этой версии (15.08.2026, реестр и серийные номера):**
+**Изменения в этой версии (15.08.2026, встроенные разделы + аудит документации):**
+- Все разделы модуля открываются внутри основной области `TmcListScreen` (`TmcModuleSection` + `TmcSectionNavBar`), без отдельных экранов.
+- Карточка позиции — встроенный просмотр (`TmcItemDetailsPanel`); «назад» возвращает в текущий раздел.
+- Удалены экраны-оболочки: `TmcOperationsScreen`, `TmcStockScreen`, `TmcReportsScreen`, `TmcInventoryScreen`, `TmcNotificationsScreen`, диалог `TmcCatalogsDialog`.
+- Маршруты `/tmc/operations`, `/tmc/stock`, `/tmc/reports`, `/tmc/inventory`, `/tmc/notifications` сняты. Остались `/tmc` и `/tmc/items/:itemId`.
+- Аудит БД через MCP Supabase (`api.progt.ru`): 17 таблиц `tmc_*`, RLS ✅, 13 функций `tmc_*`, bucket `tmc`, `role_permissions` по `tmc` = 0.
+
+**Предыдущая версия (15.08.2026, встроенная карточка):**
+- Карточка позиции открывается внутри основной области модуля (`TmcItemDetailsPanel`), а не отдельным экраном. Кнопка «назад» возвращает в реестр.
+
+**Предыдущая версия (15.08.2026, реестр и серийные номера):**
 - Реестр: адаптивная таблица без слипания колонок; колонки «Учёт» и «Статус» убраны из списка (архив — бейдж у названия).
 - Действия в строке: кнопка «Выдать» / «Возврат» + меню `···` / правый клик (`GTContextMenu`).
 - Индивидуальные единицы: поле `tmc_units.serial_number`; ввод S/N при поступлении (`TmcSerialNumbersEditor`) и правка в `TmcUnitFormDialog`.
@@ -15,7 +25,7 @@
 - Карточка сотрудника читает те же выдачи: [`EmployeeTmcSection`](../../lib/features/employees/presentation/widgets/employee_tmc_section.dart)
 
 **Предыдущая версия (29.07.2026):**
-- UI видимости остатков: колонки «На складе / Выдано / Где лежит» в реестре; экран `/tmc/stock`.
+- UI видимости остатков: колонки «На складе / Выдано / Где лежит» в реестре; раздел остатков по складам.
 - Поле «Количество» в операции **Поступление** всегда доступно (в т.ч. для индивидуального учёта).
 - `tmc_items.quantity` синхронизируется триггерами с `tmc_balances` / `tmc_units` (`tmc_recalc_item_quantity`).
 - RPC `tmc_list_items` отдаёт `qty_in_stock`, `qty_issued`, `qty_on_object`, `location_summary`.
@@ -52,7 +62,7 @@
 - склады;
 - индивидуальные единицы с инвентарными номерами;
 - остатки по местам хранения (балансы + единицы);
-- экран остатков по складам;
+- раздел остатков по складам (внутри модуля);
 - журнал операций движения;
 - выдача сотрудникам (assignments);
 - ремонт и списание;
@@ -65,8 +75,9 @@
 | Функция | Статус |
 |---------|--------|
 | Реестр позиций + KPI + колонки остатков/места | ✅ |
-| Экран остатков по складам (`/tmc/stock`) | ✅ |
-| Карточка позиции / единицы | ✅ |
+| Раздел остатков по складам | ✅ |
+| Встроенные разделы (без отдельных экранов) | ✅ |
+| Карточка позиции внутри модуля | ✅ |
 | Серийные номера единиц (S/N) | ✅ |
 | Справочники (склады, категории) | ✅ |
 | Операции через RPC (кол-во в поступлении всегда) | ✅ |
@@ -104,32 +115,45 @@
 
 ## 🖥 Слой Presentation
 
-### Экраны и маршруты
+Один экран-оболочка: `TmcListScreen`. Шапка модуля (меню, заголовок «ТМЦ», тема) постоянна. KPI (`TmcKpiCards`) и панель разделов (`TmcSectionNavBar`) остаются на месте. Ниже меняется содержимое:
 
-| Экран | Маршрут | Примечание |
-|-------|---------|------------|
-| `TmcListScreen` | `/tmc` | Реестр, KPI, фильтры; колонки остатков |
-| `TmcItemDetailsScreen` | `/tmc/items/:id` | Карточка; «Поступление» — первое действие |
-| `TmcStockScreen` | `/tmc/stock` | Остатки по складам (фильтр склада + поиск) |
-| `TmcOperationsScreen` | `/tmc/operations` | Журнал операций |
-| `TmcReportsScreen` | `/tmc/reports` | Excel; требует `export` |
-| `TmcNotificationsScreen` | `/tmc/notifications` | Свои уведомления |
-| `TmcInventoryScreen` | `/tmc/inventory` | Заглушка «в разработке» |
+| `TmcModuleSection` | Панель | Примечание |
+|--------------------|--------|------------|
+| `registry` | `TmcFiltersToolbar` + `TmcItemsTable` | Поиск, категория, тип учёта, «Новая позиция» |
+| `operations` | `TmcOperationsPanel` | Фильтр типа операции + список |
+| `stock` | `TmcStockPanel` | Склад + поиск; тап открывает карточку |
+| `reports` | `TmcReportsPanel` | Excel; действие требует `export` |
+| `inventory` | `TmcInventoryPanel` | Заглушка «в разработке» |
+| `notifications` | `TmcNotificationsPanel` | Свои уведомления (`tmcNotificationsProvider`) |
+| `catalogs` | `TmcCatalogsPanel` | Склады / категории; пункт виден при `manage_catalogs` |
 
-Все маршруты `/tmc*` — desktop-guarded (`AppRoutes.tmcStock = '/tmc/stock'`).
+Карточка позиции (`TmcItemDetailsPanel`) открывается **поверх текущего раздела** (`Offstage` + `TickerMode`): фильтры раздела не сбрасываются. «Назад» закрывает карточку. Переключение пилюли закрывает карточку и меняет раздел.
+
+### Маршруты (`app_router.dart`)
+
+| Маршрут | Виджет | Примечание |
+|---------|--------|------------|
+| `/tmc` | `TmcListScreen` | Основной вход; право `tmc.read`; desktop-guard |
+| `/tmc/items/:itemId` | `TmcListScreen(openedItemId:)` | Deep link на карточку внутри той же оболочки |
+
+Дочерние маршруты разделов (`/tmc/operations` и т.п.) **удалены**.
 
 ### Виджеты
 
 | Виджет | Назначение |
 |--------|------------|
-| `TmcKpiCards` | KPI дашборда |
-| `TmcFiltersToolbar` | Разделы (пилюли) + поиск / категория / тип учёта + «Новая позиция» |
-| `TmcItemsTable` | Таблица: №, наименование, категория, **на складе**, **выдано**, **где лежит**, цена/стоимость (при `view_cost`), действия |
-| `TmcItemFormDialog` | Создание / правка позиции; при создании можно сразу принять на склад и указать S/N |
-| `TmcOperationDialog` | Операция → RPC; для индивидуального учёта — выбор единицы (инв. / S/N); поступление — поля S/N |
+| `TmcKpiCards` | KPI: на складе / выдано / на объекте / стоимость (`view_cost`); доп. сигналы ремонт/утеря/списание |
+| `TmcSectionNavBar` | Пилюли разделов (`TmcModuleSection`) |
+| `TmcFiltersToolbar` | Поиск / категория / тип учёта / обновить / «Новая позиция» (только реестр) |
+| `TmcItemsTable` | Колонки: №, наименование, категория, на складе, выдано, где лежит, цена/стоимость (`view_cost`), действия. «Выдать»/«Возврат» + `GTContextMenu` |
+| `TmcItemDetailsPanel` | Карточка: вкладки Основное / Единицы / Закупка / История; быстрые операции |
+| `TmcItemFormDialog` | Создание / правка позиции; при создании — поступление и S/N |
+| `TmcOperationDialog` | Операция → RPC `tmc_post_operation`; индивидуальный учёт — выбор единицы; поступление — S/N |
 | `TmcSerialNumbersEditor` | Поля серийных номеров при поступлении нескольких экземпляров |
 | `TmcUnitFormDialog` | Правка единицы: инв. №, S/N, штрихкод, гарантия |
-| `TmcCatalogsDialog` | Склады / категории (`manage_catalogs`) |
+| `TmcCatalogsPanel` | Склады / категории (`manage_catalogs`) |
+
+Design System: `MobileAtmosphereBackdrop`, `MobileAtmosphereMainSurface`, `MobileAtmosphereChromeCircleButton`, `GTPrimaryButton`, `GTDropdown`, `GTTextField`, `GTContextMenu`, `AppSnackBar`, `AppDrawer`. Форматтеры: `formatCurrency`, `formatQuantity`, `formatRuDate`, `formatRuDateTime`.
 
 ### Сервисы / утилиты
 
@@ -143,12 +167,14 @@
 - `tmcRepositoryProvider`
 - `tmcDashboardProvider`
 - `tmcItemsListProvider` / фильтры `TmcItemsListFilters`
-- `tmcItemProvider`, `tmcUnitsProvider` / `tmcItemUnitsProvider`, `tmcItemOperationsProvider`
+- `tmcItemProvider`, `tmcItemUnitsProvider`, `tmcItemOperationsProvider`
 - `tmcCategoriesProvider`, `tmcConditionsProvider`, `tmcWarehousesProvider`
 - `tmcStockProvider` (`TmcStockQuery`: warehouseId + search)
 - `tmcOperationsProvider`
 - `tmcAssignmentsProvider(employeeId)`
-- уведомления и др.
+- `tmcNotificationsProvider`
+
+Провайдера `tmcUnitsProvider` **нет** (ошибка прошлых редакций документации).
 
 ### Права в UI (роли)
 
@@ -185,7 +211,7 @@
 
 Freezed: `TmcItem` (+ поля `qtyInStock`, `qtyIssued`, `qtyOnObject`, `locationSummary`), `TmcUnit`, `TmcWarehouse`, `TmcCategory`, `TmcCondition`, `TmcOperation` (+ items), `TmcAssignment` (+ join `unitPrice` из `tmc_items.unit_price`), `TmcRepair`, `TmcWriteOff`, `TmcInventory` (+ items), `TmcNotification`, `TmcDashboardStats`.
 
-Plain class: `TmcStockBalance` — строка остатка для экрана складов.
+Plain class: `TmcStockBalance` — строка остатка для раздела складов.
 
 ### Репозиторий
 
@@ -224,21 +250,22 @@ lib/features/tmc/
 └── presentation/
     ├── screens/
     │   ├── tmc_list_screen.dart
-    │   ├── tmc_item_details_screen.dart
-    │   ├── tmc_stock_screen.dart
-    │   ├── tmc_operations_screen.dart
-    │   ├── tmc_reports_screen.dart
-    │   ├── tmc_notifications_screen.dart
-    │   └── tmc_inventory_screen.dart
+    │   └── tmc_item_details_screen.dart
     ├── widgets/
     │   ├── tmc_kpi_cards.dart
+    │   ├── tmc_section_nav.dart
     │   ├── tmc_filters_toolbar.dart
     │   ├── tmc_items_table.dart
     │   ├── tmc_item_form_dialog.dart
     │   ├── tmc_operation_dialog.dart
     │   ├── tmc_serial_numbers_editor.dart
     │   ├── tmc_unit_form_dialog.dart
-    │   └── tmc_catalogs_dialog.dart
+    │   ├── tmc_operations_panel.dart
+    │   ├── tmc_stock_panel.dart
+    │   ├── tmc_reports_panel.dart
+    │   ├── tmc_inventory_panel.dart
+    │   ├── tmc_notifications_panel.dart
+    │   └── tmc_catalogs_panel.dart
     ├── services/
     │   └── tmc_excel_export_service.dart
     ├── state/
@@ -281,11 +308,27 @@ Wiring вне фичи: `app_router.dart`, `app_drawer.dart`, `app_module_availa
 
 ### Таблицы (live)
 
-17 таблиц `tmc_*`. **RLS:** ✅ включён на всех.
+17 таблиц `tmc_*`. **RLS:** ✅ включён на всех (`relrowsecurity = true`, `relforcerowsecurity = false`).
 
-| Таблица | RLS |
-|--------|-----|
-| `tmc_assignments` … `tmc_write_offs` (все 17) | ✅ `true` |
+| Таблица | RLS | live rows (`pg_stat_user_tables`, 15.08.2026) |
+|---------|-----|-----------------------------------------------|
+| `tmc_assignments` | ✅ | 4 |
+| `tmc_attachments` | ✅ | 0 |
+| `tmc_balances` | ✅ | 6 |
+| `tmc_categories` | ✅ | 12 |
+| `tmc_condition_history` | ✅ | 0 |
+| `tmc_conditions` | ✅ | 18 |
+| `tmc_inventories` | ✅ | 0 |
+| `tmc_inventory_items` | ✅ | 0 |
+| `tmc_inventory_number_seq` | ✅ | 1 |
+| `tmc_items` | ✅ | 13 |
+| `tmc_notifications` | ✅ | 0 |
+| `tmc_operation_items` | ✅ | 26 |
+| `tmc_operations` | ✅ | 26 |
+| `tmc_repairs` | ✅ | 0 |
+| `tmc_units` | ✅ | 46 |
+| `tmc_warehouses` | ✅ | 4 |
+| `tmc_write_offs` | ✅ | 0 |
 
 #### `tmc_items` (каталог)
 
@@ -343,18 +386,19 @@ Wiring вне фичи: `app_router.dart`, `app_drawer.dart`, `app_module_availa
 
 Права по типам операций в `tmc_post_operation` — без изменений (receipt→`create`, issue→`issue`, move→`move`, …).
 
-### Триггеры (важные)
+### Триггеры (live)
 
-| Триггер | Таблица | Смысл |
-|---------|--------|-------|
-| `trg_tmc_balances_recalc_qty` | `tmc_balances` | AFTER I/U/D → recalc item qty |
-| `trg_tmc_units_recalc_qty` | `tmc_units` | AFTER I/U/D → recalc item qty |
-| `trg_tmc_*_updated_at` | ряд таблиц | `set_updated_at()` |
+| Триггер | Таблица | Функция |
+|---------|---------|---------|
+| `trg_tmc_balances_recalc_qty` | `tmc_balances` | `tmc_trg_recalc_item_qty` |
+| `trg_tmc_units_recalc_qty` | `tmc_units` | `tmc_trg_recalc_item_qty` |
+| `trg_tmc_warehouses_protect_system` | `tmc_warehouses` | `tmc_protect_system_warehouse` |
+| `trg_tmc_*_updated_at` | assignments, categories, conditions, inventories, inventory_items, items, operations, repairs, units, warehouses, write_offs | `set_updated_at()` |
 
 ### Edge Functions
 
-**Нет** функций, специфичных для ТМЦ. Логика — Postgres RPC + клиент PostgREST.  
-(Инструмент `list_edge_functions` в текущем MCP недоступен; по коду модуля вызовов Edge нет.)
+В `supabase/functions/` **нет** каталогов `tmc*`. В коде модуля нет `functions.invoke`. Логика — Postgres RPC + клиент PostgREST.  
+Инструмент `list_edge_functions` в текущем MCP **отсутствует**; проверка — файлы репозитория + grep по `lib/features/tmc`.
 
 ### Storage
 
@@ -375,7 +419,7 @@ Bucket `tmc` ✅ существует. Клиентская загрузка ф�
 Создание позиции каталога  → quantity = 0, на складе ничего нет
 Поступление (receipt)      → выбор склада + количество → balances/units
 tmc_items.quantity         → сумма/count по balances или units (триггер)
-Реестр / stock screen      → live разбивка и места хранения
+Реестр / раздел остатков  → live разбивка и места хранения
 ```
 
 ### Формула quantity (recalc)
@@ -434,7 +478,7 @@ individual:   quantity = COUNT(tmc_units) WHERE not archived AND status <> writt
 
 - ✅ Схема БД + RLS + seed категорий/состояний + `app_modules`
 - ✅ RPC операций, дашборда, списка, инв. номеров, **остатков по складам**, recalc quantity
-- ✅ Desktop: реестр с остатками, карточка, stock screen, операции, отчёты, уведомления, справочники
+- ✅ Desktop: один экран `TmcListScreen`, встроенные разделы и карточка позиции
 - ✅ Серийные номера единиц (ввод при поступлении и правка в карточке)
 - ✅ Контекстное меню и быстрые действия в реестре
 - ✅ Self SELECT assignments; уведомления только свои
@@ -455,7 +499,7 @@ individual:   quantity = COUNT(tmc_units) WHERE not archived AND status <> writt
 ### Известные ограничения
 
 - Не-Owner без прав в «Ролях» модуль недоступен.
-- Инвентаризация в меню — UI «в разработке».
+- Инвентаризация в меню — UI «в разработке» (`TmcInventoryPanel`).
 - `total_cost` в KPI скрыт без `view_cost`.
 - `getItem` обогащает остатки через `listItems` по имени (при дубликатах имён — риск неоднозначности; редкий кейс).
 
@@ -465,12 +509,17 @@ individual:   quantity = COUNT(tmc_units) WHERE not archived AND status <> writt
 
 | Проверка | Результат |
 |----------|-----------|
-| Файлы `lib/features/tmc/` | ✅ dart-файлы модуля (+ `tmc_unit_form_dialog`, `tmc_serial_numbers_editor`) |
-| Таблицы live `tmc_%` | ✅ 17, RLS ✅ |
+| Файлы `lib/features/tmc/` | ✅ screens: `tmc_list_screen`, `tmc_item_details_screen`; панели разделов в `widgets/` |
+| Удалённые экраны-оболочки | ✅ `Tmc*Screen` разделов и `TmcCatalogsDialog` отсутствуют |
+| Маршруты | ✅ `/tmc`, `/tmc/items/:itemId`; дочерние разделы сняты |
+| Провайдеры | ✅ 13 `final` в `tmc_providers.dart`; `tmcUnitsProvider` нет |
+| Таблицы live `tmc_%` | ✅ 17, RLS ✅ на всех |
 | RPC `tmc_*` | ✅ 13 (вкл. `tmc_create_item_with_receipt`, `tmc_receipt_serial_number`) |
 | Триггеры recalc qty | ✅ на `tmc_balances`, `tmc_units` |
-| Edge Functions ТМЦ | ❌ не используются (`list_edge_functions` в MCP недоступен; в коде вызовов нет) |
-| Bucket `tmc` | ✅ |
+| Edge Functions ТМЦ | ❌ нет в `supabase/functions/` (`list_edge_functions` в MCP нет) |
+| Bucket `tmc` | ✅ `public = false` |
 | `role_permissions` seed `tmc` | ❌ 0 записей (`module_code = 'tmc'`) |
+| Grants `authenticated` на `tmc_balances` | ✅ нет INSERT/UPDATE/DELETE (есть SELECT) |
 | Миграции в репозитории | ✅ 9 файлов `*tmc*` |
+| Миграции applied (live) | ✅ вкл. `20260815120000_tmc_create_item_serial_number`, `tmc_receipt_serial_numbers` |
 | Документация соответствует коду | ✅ этот файл |

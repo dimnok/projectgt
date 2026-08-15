@@ -37,6 +37,12 @@ abstract final class TmcUiLabels {
   /// Карточка позиции.
   static const itemCard = 'Карточка ТМЦ';
 
+  /// Возврат из карточки к текущему разделу.
+  static const backToRegistry = 'К реестру';
+
+  /// Возврат назад.
+  static const back = 'Назад';
+
   /// Новая позиция.
   static const newItem = 'Новая позиция';
 
