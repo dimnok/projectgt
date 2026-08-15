@@ -16,6 +16,7 @@ import 'package:projectgt/features/employees/presentation/widgets/employee_card_
 import 'package:projectgt/features/employees/presentation/widgets/employee_business_trip_summary_widget.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_rate_summary_widget.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_timesheet_section.dart';
+import 'package:projectgt/features/employees/presentation/widgets/employee_tmc_section.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_trip_editor_form.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employees_mobile_atmosphere.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employees_mobile_employee_edit_blocks.dart';
@@ -388,6 +389,7 @@ class _EmployeesMobileEmployeeDetailsBodyState
         .watch(permissionServiceProvider)
         .can('timesheet', 'read');
     const timesheetTabIndex = 2;
+    const tmcTabIndex = 3;
     final viewTab = (!canViewTimesheet && _viewTab == timesheetTabIndex)
         ? 0
         : _viewTab;
@@ -797,10 +799,10 @@ class _EmployeesMobileEmployeeDetailsBodyState
               )
             else
               const SizedBox.shrink(key: ValueKey('timesheet_tab_hidden')),
-            const EmployeeCardPlaceholderTab(
-              key: ValueKey('tmc_tab'),
-              title: 'ТМЦ',
-              icon: CupertinoIcons.cube_box,
+            EmployeeTmcSection(
+              key: ValueKey('tmc_tab_${employee.id}'),
+              employee: employee,
+              isActive: viewTab == tmcTabIndex,
             ),
             const EmployeeCardPlaceholderTab(
               key: ValueKey('finance_tab'),

@@ -40,6 +40,7 @@ _TmcAssignmentModel _$TmcAssignmentModelFromJson(Map<String, dynamic> json) =>
       inventoryNumber: json['inventory_number'] as String?,
       employeeName: json['employee_name'] as String?,
       objectName: json['object_name'] as String?,
+      unitPrice: tmcParseNullableDouble(json['unit_price']),
     );
 
 Map<String, dynamic> _$TmcAssignmentModelToJson(_TmcAssignmentModel instance) =>

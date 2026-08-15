@@ -39,6 +39,8 @@ abstract class TmcAssignmentModel with _$TmcAssignmentModel {
     @JsonKey(includeToJson: false) String? inventoryNumber,
     @JsonKey(includeToJson: false) String? employeeName,
     @JsonKey(includeToJson: false) String? objectName,
+    @JsonKey(includeToJson: false, fromJson: tmcParseNullableDouble)
+    double? unitPrice,
   }) = _TmcAssignmentModel;
 
   const TmcAssignmentModel._();
@@ -49,6 +51,7 @@ abstract class TmcAssignmentModel with _$TmcAssignmentModel {
 
   /// Из JSON с join-полями.
   factory TmcAssignmentModel.fromJson(Map<String, dynamic> json) {
+    final rawPrice = json['unit_price'] ?? json['tmc_items']?['unit_price'];
     return _$TmcAssignmentModelFromJson({
       ...json,
       'item_name': json['item_name'] ?? json['tmc_items']?['name'],
@@ -57,7 +60,8 @@ abstract class TmcAssignmentModel with _$TmcAssignmentModel {
       'employee_name':
           json['employee_name'] ?? tmcEmployeeNameFromJson(json['employees']),
       'object_name': json['object_name'] ?? json['objects']?['name'],
-    });
+      'unit_price': rawPrice,
+    }).copyWith(unitPrice: tmcParseNullableDouble(rawPrice));
   }
 
   /// Из доменной сущности.
@@ -89,6 +93,7 @@ abstract class TmcAssignmentModel with _$TmcAssignmentModel {
         inventoryNumber: assignment.inventoryNumber,
         employeeName: assignment.employeeName,
         objectName: assignment.objectName,
+        unitPrice: assignment.unitPrice,
       );
 
   /// В доменную сущность.
@@ -119,5 +124,6 @@ abstract class TmcAssignmentModel with _$TmcAssignmentModel {
         inventoryNumber: inventoryNumber,
         employeeName: employeeName,
         objectName: objectName,
+        unitPrice: unitPrice,
       );
 }

@@ -41,7 +41,8 @@ mixin _$TmcAssignment {
  String? get itemName;/// Инвентарный номер (join).
  String? get inventoryNumber;/// ФИО сотрудника (join).
  String? get employeeName;/// Название объекта (join).
- String? get objectName;
+ String? get objectName;/// Цена позиции (join с каталогом).
+ double? get unitPrice;
 /// Create a copy of TmcAssignment
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -52,16 +53,16 @@ $TmcAssignmentCopyWith<TmcAssignment> get copyWith => _$TmcAssignmentCopyWithImp
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is TmcAssignment&&(identical(other.id, id) || other.id == id)&&(identical(other.companyId, companyId) || other.companyId == companyId)&&(identical(other.itemId, itemId) || other.itemId == itemId)&&(identical(other.unitId, unitId) || other.unitId == unitId)&&(identical(other.employeeId, employeeId) || other.employeeId == employeeId)&&(identical(other.objectId, objectId) || other.objectId == objectId)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.issuedAt, issuedAt) || other.issuedAt == issuedAt)&&(identical(other.plannedReturnDate, plannedReturnDate) || other.plannedReturnDate == plannedReturnDate)&&(identical(other.conditionId, conditionId) || other.conditionId == conditionId)&&(identical(other.issueOperationId, issueOperationId) || other.issueOperationId == issueOperationId)&&(identical(other.clothingSize, clothingSize) || other.clothingSize == clothingSize)&&(identical(other.heightCm, heightCm) || other.heightCm == heightCm)&&(identical(other.season, season) || other.season == season)&&(identical(other.serviceLifeDays, serviceLifeDays) || other.serviceLifeDays == serviceLifeDays)&&(identical(other.nextReplacementDate, nextReplacementDate) || other.nextReplacementDate == nextReplacementDate)&&(identical(other.comment, comment) || other.comment == comment)&&(identical(other.returnedAt, returnedAt) || other.returnedAt == returnedAt)&&(identical(other.isActive, isActive) || other.isActive == isActive)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.createdBy, createdBy) || other.createdBy == createdBy)&&(identical(other.itemName, itemName) || other.itemName == itemName)&&(identical(other.inventoryNumber, inventoryNumber) || other.inventoryNumber == inventoryNumber)&&(identical(other.employeeName, employeeName) || other.employeeName == employeeName)&&(identical(other.objectName, objectName) || other.objectName == objectName));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is TmcAssignment&&(identical(other.id, id) || other.id == id)&&(identical(other.companyId, companyId) || other.companyId == companyId)&&(identical(other.itemId, itemId) || other.itemId == itemId)&&(identical(other.unitId, unitId) || other.unitId == unitId)&&(identical(other.employeeId, employeeId) || other.employeeId == employeeId)&&(identical(other.objectId, objectId) || other.objectId == objectId)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.issuedAt, issuedAt) || other.issuedAt == issuedAt)&&(identical(other.plannedReturnDate, plannedReturnDate) || other.plannedReturnDate == plannedReturnDate)&&(identical(other.conditionId, conditionId) || other.conditionId == conditionId)&&(identical(other.issueOperationId, issueOperationId) || other.issueOperationId == issueOperationId)&&(identical(other.clothingSize, clothingSize) || other.clothingSize == clothingSize)&&(identical(other.heightCm, heightCm) || other.heightCm == heightCm)&&(identical(other.season, season) || other.season == season)&&(identical(other.serviceLifeDays, serviceLifeDays) || other.serviceLifeDays == serviceLifeDays)&&(identical(other.nextReplacementDate, nextReplacementDate) || other.nextReplacementDate == nextReplacementDate)&&(identical(other.comment, comment) || other.comment == comment)&&(identical(other.returnedAt, returnedAt) || other.returnedAt == returnedAt)&&(identical(other.isActive, isActive) || other.isActive == isActive)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.createdBy, createdBy) || other.createdBy == createdBy)&&(identical(other.itemName, itemName) || other.itemName == itemName)&&(identical(other.inventoryNumber, inventoryNumber) || other.inventoryNumber == inventoryNumber)&&(identical(other.employeeName, employeeName) || other.employeeName == employeeName)&&(identical(other.objectName, objectName) || other.objectName == objectName)&&(identical(other.unitPrice, unitPrice) || other.unitPrice == unitPrice));
 }
 
 
 @override
-int get hashCode => Object.hashAll([runtimeType,id,companyId,itemId,unitId,employeeId,objectId,quantity,issuedAt,plannedReturnDate,conditionId,issueOperationId,clothingSize,heightCm,season,serviceLifeDays,nextReplacementDate,comment,returnedAt,isActive,createdAt,updatedAt,createdBy,itemName,inventoryNumber,employeeName,objectName]);
+int get hashCode => Object.hashAll([runtimeType,id,companyId,itemId,unitId,employeeId,objectId,quantity,issuedAt,plannedReturnDate,conditionId,issueOperationId,clothingSize,heightCm,season,serviceLifeDays,nextReplacementDate,comment,returnedAt,isActive,createdAt,updatedAt,createdBy,itemName,inventoryNumber,employeeName,objectName,unitPrice]);
 
 @override
 String toString() {
-  return 'TmcAssignment(id: $id, companyId: $companyId, itemId: $itemId, unitId: $unitId, employeeId: $employeeId, objectId: $objectId, quantity: $quantity, issuedAt: $issuedAt, plannedReturnDate: $plannedReturnDate, conditionId: $conditionId, issueOperationId: $issueOperationId, clothingSize: $clothingSize, heightCm: $heightCm, season: $season, serviceLifeDays: $serviceLifeDays, nextReplacementDate: $nextReplacementDate, comment: $comment, returnedAt: $returnedAt, isActive: $isActive, createdAt: $createdAt, updatedAt: $updatedAt, createdBy: $createdBy, itemName: $itemName, inventoryNumber: $inventoryNumber, employeeName: $employeeName, objectName: $objectName)';
+  return 'TmcAssignment(id: $id, companyId: $companyId, itemId: $itemId, unitId: $unitId, employeeId: $employeeId, objectId: $objectId, quantity: $quantity, issuedAt: $issuedAt, plannedReturnDate: $plannedReturnDate, conditionId: $conditionId, issueOperationId: $issueOperationId, clothingSize: $clothingSize, heightCm: $heightCm, season: $season, serviceLifeDays: $serviceLifeDays, nextReplacementDate: $nextReplacementDate, comment: $comment, returnedAt: $returnedAt, isActive: $isActive, createdAt: $createdAt, updatedAt: $updatedAt, createdBy: $createdBy, itemName: $itemName, inventoryNumber: $inventoryNumber, employeeName: $employeeName, objectName: $objectName, unitPrice: $unitPrice)';
 }
 
 
@@ -72,7 +73,7 @@ abstract mixin class $TmcAssignmentCopyWith<$Res>  {
   factory $TmcAssignmentCopyWith(TmcAssignment value, $Res Function(TmcAssignment) _then) = _$TmcAssignmentCopyWithImpl;
 @useResult
 $Res call({
- String id, String companyId, String itemId, String? unitId, String employeeId, String? objectId, double quantity, DateTime issuedAt, DateTime? plannedReturnDate, String? conditionId, String? issueOperationId, String? clothingSize, double? heightCm, String? season, int? serviceLifeDays, DateTime? nextReplacementDate, String? comment, DateTime? returnedAt, bool isActive, DateTime? createdAt, DateTime? updatedAt, String? createdBy, String? itemName, String? inventoryNumber, String? employeeName, String? objectName
+ String id, String companyId, String itemId, String? unitId, String employeeId, String? objectId, double quantity, DateTime issuedAt, DateTime? plannedReturnDate, String? conditionId, String? issueOperationId, String? clothingSize, double? heightCm, String? season, int? serviceLifeDays, DateTime? nextReplacementDate, String? comment, DateTime? returnedAt, bool isActive, DateTime? createdAt, DateTime? updatedAt, String? createdBy, String? itemName, String? inventoryNumber, String? employeeName, String? objectName, double? unitPrice
 });
 
 
@@ -89,7 +90,7 @@ class _$TmcAssignmentCopyWithImpl<$Res>
 
 /// Create a copy of TmcAssignment
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? companyId = null,Object? itemId = null,Object? unitId = freezed,Object? employeeId = null,Object? objectId = freezed,Object? quantity = null,Object? issuedAt = null,Object? plannedReturnDate = freezed,Object? conditionId = freezed,Object? issueOperationId = freezed,Object? clothingSize = freezed,Object? heightCm = freezed,Object? season = freezed,Object? serviceLifeDays = freezed,Object? nextReplacementDate = freezed,Object? comment = freezed,Object? returnedAt = freezed,Object? isActive = null,Object? createdAt = freezed,Object? updatedAt = freezed,Object? createdBy = freezed,Object? itemName = freezed,Object? inventoryNumber = freezed,Object? employeeName = freezed,Object? objectName = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? companyId = null,Object? itemId = null,Object? unitId = freezed,Object? employeeId = null,Object? objectId = freezed,Object? quantity = null,Object? issuedAt = null,Object? plannedReturnDate = freezed,Object? conditionId = freezed,Object? issueOperationId = freezed,Object? clothingSize = freezed,Object? heightCm = freezed,Object? season = freezed,Object? serviceLifeDays = freezed,Object? nextReplacementDate = freezed,Object? comment = freezed,Object? returnedAt = freezed,Object? isActive = null,Object? createdAt = freezed,Object? updatedAt = freezed,Object? createdBy = freezed,Object? itemName = freezed,Object? inventoryNumber = freezed,Object? employeeName = freezed,Object? objectName = freezed,Object? unitPrice = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,companyId: null == companyId ? _self.companyId : companyId // ignore: cast_nullable_to_non_nullable
@@ -117,7 +118,8 @@ as String?,itemName: freezed == itemName ? _self.itemName : itemName // ignore: 
 as String?,inventoryNumber: freezed == inventoryNumber ? _self.inventoryNumber : inventoryNumber // ignore: cast_nullable_to_non_nullable
 as String?,employeeName: freezed == employeeName ? _self.employeeName : employeeName // ignore: cast_nullable_to_non_nullable
 as String?,objectName: freezed == objectName ? _self.objectName : objectName // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,unitPrice: freezed == unitPrice ? _self.unitPrice : unitPrice // ignore: cast_nullable_to_non_nullable
+as double?,
   ));
 }
 
@@ -128,7 +130,7 @@ as String?,
 
 
 class _TmcAssignment implements TmcAssignment {
-  const _TmcAssignment({required this.id, required this.companyId, required this.itemId, this.unitId, required this.employeeId, this.objectId, this.quantity = 1, required this.issuedAt, this.plannedReturnDate, this.conditionId, this.issueOperationId, this.clothingSize, this.heightCm, this.season, this.serviceLifeDays, this.nextReplacementDate, this.comment, this.returnedAt, this.isActive = true, this.createdAt, this.updatedAt, this.createdBy, this.itemName, this.inventoryNumber, this.employeeName, this.objectName});
+  const _TmcAssignment({required this.id, required this.companyId, required this.itemId, this.unitId, required this.employeeId, this.objectId, this.quantity = 1, required this.issuedAt, this.plannedReturnDate, this.conditionId, this.issueOperationId, this.clothingSize, this.heightCm, this.season, this.serviceLifeDays, this.nextReplacementDate, this.comment, this.returnedAt, this.isActive = true, this.createdAt, this.updatedAt, this.createdBy, this.itemName, this.inventoryNumber, this.employeeName, this.objectName, this.unitPrice});
   
 
 /// Идентификатор записи.
@@ -183,6 +185,8 @@ class _TmcAssignment implements TmcAssignment {
 @override final  String? employeeName;
 /// Название объекта (join).
 @override final  String? objectName;
+/// Цена позиции (join с каталогом).
+@override final  double? unitPrice;
 
 /// Create a copy of TmcAssignment
 /// with the given fields replaced by the non-null parameter values.
@@ -194,16 +198,16 @@ _$TmcAssignmentCopyWith<_TmcAssignment> get copyWith => __$TmcAssignmentCopyWith
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TmcAssignment&&(identical(other.id, id) || other.id == id)&&(identical(other.companyId, companyId) || other.companyId == companyId)&&(identical(other.itemId, itemId) || other.itemId == itemId)&&(identical(other.unitId, unitId) || other.unitId == unitId)&&(identical(other.employeeId, employeeId) || other.employeeId == employeeId)&&(identical(other.objectId, objectId) || other.objectId == objectId)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.issuedAt, issuedAt) || other.issuedAt == issuedAt)&&(identical(other.plannedReturnDate, plannedReturnDate) || other.plannedReturnDate == plannedReturnDate)&&(identical(other.conditionId, conditionId) || other.conditionId == conditionId)&&(identical(other.issueOperationId, issueOperationId) || other.issueOperationId == issueOperationId)&&(identical(other.clothingSize, clothingSize) || other.clothingSize == clothingSize)&&(identical(other.heightCm, heightCm) || other.heightCm == heightCm)&&(identical(other.season, season) || other.season == season)&&(identical(other.serviceLifeDays, serviceLifeDays) || other.serviceLifeDays == serviceLifeDays)&&(identical(other.nextReplacementDate, nextReplacementDate) || other.nextReplacementDate == nextReplacementDate)&&(identical(other.comment, comment) || other.comment == comment)&&(identical(other.returnedAt, returnedAt) || other.returnedAt == returnedAt)&&(identical(other.isActive, isActive) || other.isActive == isActive)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.createdBy, createdBy) || other.createdBy == createdBy)&&(identical(other.itemName, itemName) || other.itemName == itemName)&&(identical(other.inventoryNumber, inventoryNumber) || other.inventoryNumber == inventoryNumber)&&(identical(other.employeeName, employeeName) || other.employeeName == employeeName)&&(identical(other.objectName, objectName) || other.objectName == objectName));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TmcAssignment&&(identical(other.id, id) || other.id == id)&&(identical(other.companyId, companyId) || other.companyId == companyId)&&(identical(other.itemId, itemId) || other.itemId == itemId)&&(identical(other.unitId, unitId) || other.unitId == unitId)&&(identical(other.employeeId, employeeId) || other.employeeId == employeeId)&&(identical(other.objectId, objectId) || other.objectId == objectId)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.issuedAt, issuedAt) || other.issuedAt == issuedAt)&&(identical(other.plannedReturnDate, plannedReturnDate) || other.plannedReturnDate == plannedReturnDate)&&(identical(other.conditionId, conditionId) || other.conditionId == conditionId)&&(identical(other.issueOperationId, issueOperationId) || other.issueOperationId == issueOperationId)&&(identical(other.clothingSize, clothingSize) || other.clothingSize == clothingSize)&&(identical(other.heightCm, heightCm) || other.heightCm == heightCm)&&(identical(other.season, season) || other.season == season)&&(identical(other.serviceLifeDays, serviceLifeDays) || other.serviceLifeDays == serviceLifeDays)&&(identical(other.nextReplacementDate, nextReplacementDate) || other.nextReplacementDate == nextReplacementDate)&&(identical(other.comment, comment) || other.comment == comment)&&(identical(other.returnedAt, returnedAt) || other.returnedAt == returnedAt)&&(identical(other.isActive, isActive) || other.isActive == isActive)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.createdBy, createdBy) || other.createdBy == createdBy)&&(identical(other.itemName, itemName) || other.itemName == itemName)&&(identical(other.inventoryNumber, inventoryNumber) || other.inventoryNumber == inventoryNumber)&&(identical(other.employeeName, employeeName) || other.employeeName == employeeName)&&(identical(other.objectName, objectName) || other.objectName == objectName)&&(identical(other.unitPrice, unitPrice) || other.unitPrice == unitPrice));
 }
 
 
 @override
-int get hashCode => Object.hashAll([runtimeType,id,companyId,itemId,unitId,employeeId,objectId,quantity,issuedAt,plannedReturnDate,conditionId,issueOperationId,clothingSize,heightCm,season,serviceLifeDays,nextReplacementDate,comment,returnedAt,isActive,createdAt,updatedAt,createdBy,itemName,inventoryNumber,employeeName,objectName]);
+int get hashCode => Object.hashAll([runtimeType,id,companyId,itemId,unitId,employeeId,objectId,quantity,issuedAt,plannedReturnDate,conditionId,issueOperationId,clothingSize,heightCm,season,serviceLifeDays,nextReplacementDate,comment,returnedAt,isActive,createdAt,updatedAt,createdBy,itemName,inventoryNumber,employeeName,objectName,unitPrice]);
 
 @override
 String toString() {
-  return 'TmcAssignment(id: $id, companyId: $companyId, itemId: $itemId, unitId: $unitId, employeeId: $employeeId, objectId: $objectId, quantity: $quantity, issuedAt: $issuedAt, plannedReturnDate: $plannedReturnDate, conditionId: $conditionId, issueOperationId: $issueOperationId, clothingSize: $clothingSize, heightCm: $heightCm, season: $season, serviceLifeDays: $serviceLifeDays, nextReplacementDate: $nextReplacementDate, comment: $comment, returnedAt: $returnedAt, isActive: $isActive, createdAt: $createdAt, updatedAt: $updatedAt, createdBy: $createdBy, itemName: $itemName, inventoryNumber: $inventoryNumber, employeeName: $employeeName, objectName: $objectName)';
+  return 'TmcAssignment(id: $id, companyId: $companyId, itemId: $itemId, unitId: $unitId, employeeId: $employeeId, objectId: $objectId, quantity: $quantity, issuedAt: $issuedAt, plannedReturnDate: $plannedReturnDate, conditionId: $conditionId, issueOperationId: $issueOperationId, clothingSize: $clothingSize, heightCm: $heightCm, season: $season, serviceLifeDays: $serviceLifeDays, nextReplacementDate: $nextReplacementDate, comment: $comment, returnedAt: $returnedAt, isActive: $isActive, createdAt: $createdAt, updatedAt: $updatedAt, createdBy: $createdBy, itemName: $itemName, inventoryNumber: $inventoryNumber, employeeName: $employeeName, objectName: $objectName, unitPrice: $unitPrice)';
 }
 
 
@@ -214,7 +218,7 @@ abstract mixin class _$TmcAssignmentCopyWith<$Res> implements $TmcAssignmentCopy
   factory _$TmcAssignmentCopyWith(_TmcAssignment value, $Res Function(_TmcAssignment) _then) = __$TmcAssignmentCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String companyId, String itemId, String? unitId, String employeeId, String? objectId, double quantity, DateTime issuedAt, DateTime? plannedReturnDate, String? conditionId, String? issueOperationId, String? clothingSize, double? heightCm, String? season, int? serviceLifeDays, DateTime? nextReplacementDate, String? comment, DateTime? returnedAt, bool isActive, DateTime? createdAt, DateTime? updatedAt, String? createdBy, String? itemName, String? inventoryNumber, String? employeeName, String? objectName
+ String id, String companyId, String itemId, String? unitId, String employeeId, String? objectId, double quantity, DateTime issuedAt, DateTime? plannedReturnDate, String? conditionId, String? issueOperationId, String? clothingSize, double? heightCm, String? season, int? serviceLifeDays, DateTime? nextReplacementDate, String? comment, DateTime? returnedAt, bool isActive, DateTime? createdAt, DateTime? updatedAt, String? createdBy, String? itemName, String? inventoryNumber, String? employeeName, String? objectName, double? unitPrice
 });
 
 
@@ -231,7 +235,7 @@ class __$TmcAssignmentCopyWithImpl<$Res>
 
 /// Create a copy of TmcAssignment
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? companyId = null,Object? itemId = null,Object? unitId = freezed,Object? employeeId = null,Object? objectId = freezed,Object? quantity = null,Object? issuedAt = null,Object? plannedReturnDate = freezed,Object? conditionId = freezed,Object? issueOperationId = freezed,Object? clothingSize = freezed,Object? heightCm = freezed,Object? season = freezed,Object? serviceLifeDays = freezed,Object? nextReplacementDate = freezed,Object? comment = freezed,Object? returnedAt = freezed,Object? isActive = null,Object? createdAt = freezed,Object? updatedAt = freezed,Object? createdBy = freezed,Object? itemName = freezed,Object? inventoryNumber = freezed,Object? employeeName = freezed,Object? objectName = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? companyId = null,Object? itemId = null,Object? unitId = freezed,Object? employeeId = null,Object? objectId = freezed,Object? quantity = null,Object? issuedAt = null,Object? plannedReturnDate = freezed,Object? conditionId = freezed,Object? issueOperationId = freezed,Object? clothingSize = freezed,Object? heightCm = freezed,Object? season = freezed,Object? serviceLifeDays = freezed,Object? nextReplacementDate = freezed,Object? comment = freezed,Object? returnedAt = freezed,Object? isActive = null,Object? createdAt = freezed,Object? updatedAt = freezed,Object? createdBy = freezed,Object? itemName = freezed,Object? inventoryNumber = freezed,Object? employeeName = freezed,Object? objectName = freezed,Object? unitPrice = freezed,}) {
   return _then(_TmcAssignment(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,companyId: null == companyId ? _self.companyId : companyId // ignore: cast_nullable_to_non_nullable
@@ -259,7 +263,8 @@ as String?,itemName: freezed == itemName ? _self.itemName : itemName // ignore: 
 as String?,inventoryNumber: freezed == inventoryNumber ? _self.inventoryNumber : inventoryNumber // ignore: cast_nullable_to_non_nullable
 as String?,employeeName: freezed == employeeName ? _self.employeeName : employeeName // ignore: cast_nullable_to_non_nullable
 as String?,objectName: freezed == objectName ? _self.objectName : objectName // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,unitPrice: freezed == unitPrice ? _self.unitPrice : unitPrice // ignore: cast_nullable_to_non_nullable
+as double?,
   ));
 }
 

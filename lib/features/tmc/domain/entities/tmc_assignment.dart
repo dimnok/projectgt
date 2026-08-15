@@ -84,5 +84,8 @@ abstract class TmcAssignment with _$TmcAssignment {
 
     /// Название объекта (join).
     String? objectName,
+
+    /// Цена позиции (join с каталогом).
+    double? unitPrice,
   }) = _TmcAssignment;
 }

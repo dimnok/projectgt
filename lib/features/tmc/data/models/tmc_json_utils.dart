@@ -32,6 +32,13 @@ double tmcParseDouble(dynamic value, [double fallback = 0]) {
   return double.tryParse(value as String) ?? fallback;
 }
 
+/// Парсинг необязательного числа из JSON.
+double? tmcParseNullableDouble(dynamic value) {
+  if (value == null) return null;
+  if (value is num) return value.toDouble();
+  return double.tryParse(value.toString());
+}
+
 /// Парсинг целого из JSON.
 int tmcParseInt(dynamic value, [int fallback = 0]) {
   if (value == null) return fallback;

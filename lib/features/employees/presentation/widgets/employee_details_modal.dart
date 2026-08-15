@@ -19,6 +19,7 @@ import 'package:projectgt/features/employees/presentation/widgets/employee_busin
 import 'package:projectgt/features/employees/presentation/widgets/employee_edit_form.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_rate_summary_widget.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_timesheet_section.dart';
+import 'package:projectgt/features/employees/presentation/widgets/employee_tmc_section.dart';
 import 'package:projectgt/features/employees/presentation/widgets/employee_trip_editor_form.dart';
 import 'package:projectgt/features/employees/presentation/widgets/editable_inline_text_row.dart';
 import 'package:projectgt/features/objects/domain/entities/object.dart';
@@ -97,6 +98,7 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
     final canUpdate = permissionService.can('employees', 'update');
     final canViewTimesheet = permissionService.can('timesheet', 'read');
     const timesheetTabIndex = 2;
+    const tmcTabIndex = 3;
     // Индексы вкладок фиксированы: 0 Обзор, 1 Заявления, 2 Табель, 3 ТМЦ, 4 Финансы.
     // Если право на табель отозвано, сбрасываем только вкладку «Табель».
     final viewTab = (!canViewTimesheet && _viewTab == timesheetTabIndex)
@@ -207,10 +209,10 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
                           const SizedBox.shrink(
                             key: ValueKey('timesheet_tab_hidden'),
                           ),
-                        const EmployeeCardPlaceholderTab(
-                          key: ValueKey('tmc_tab'),
-                          title: 'ТМЦ',
-                          icon: CupertinoIcons.cube_box,
+                        EmployeeTmcSection(
+                          key: ValueKey('tmc_tab_${_employee.id}'),
+                          employee: _employee,
+                          isActive: viewTab == tmcTabIndex,
                         ),
                         const EmployeeCardPlaceholderTab(
                           key: ValueKey('finance_tab'),

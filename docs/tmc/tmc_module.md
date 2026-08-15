@@ -1,8 +1,13 @@
 # Модуль ТМЦ (TMC)
 
-**Дата актуализации:** 29 июля 2026  
+**Дата актуализации:** 15 августа 2026  
 
-**Изменения:**
+**Изменения в этой версии (15.08.2026, стоимость в выдаче):**
+- [`TmcAssignment.unitPrice`](../../lib/features/tmc/domain/entities/tmc_assignment.dart) — join-поле, не колонка `tmc_assignments`
+- `listAssignments`: select `tmc_items:item_id(name, unit_price)`; разбор `tmcParseNullableDouble`
+- Карточка сотрудника читает те же выдачи: [`EmployeeTmcSection`](../../lib/features/employees/presentation/widgets/employee_tmc_section.dart)
+
+**Предыдущая версия (29.07.2026):**
 - UI видимости остатков: колонки «На складе / Выдано / Где лежит» в реестре; экран `/tmc/stock`.
 - Поле «Количество» в операции **Поступление** всегда доступно (в т.ч. для индивидуального учёта).
 - `tmc_items.quantity` синхронизируется триггерами с `tmc_balances` / `tmc_units` (`tmc_recalc_item_quantity`).
@@ -168,7 +173,7 @@
 
 ### Сущности
 
-Freezed: `TmcItem` (+ поля `qtyInStock`, `qtyIssued`, `qtyOnObject`, `locationSummary`), `TmcUnit`, `TmcWarehouse`, `TmcCategory`, `TmcCondition`, `TmcOperation` (+ items), `TmcAssignment`, `TmcRepair`, `TmcWriteOff`, `TmcInventory` (+ items), `TmcNotification`, `TmcDashboardStats`.
+Freezed: `TmcItem` (+ поля `qtyInStock`, `qtyIssued`, `qtyOnObject`, `locationSummary`), `TmcUnit`, `TmcWarehouse`, `TmcCategory`, `TmcCondition`, `TmcOperation` (+ items), `TmcAssignment` (+ join `unitPrice` из `tmc_items.unit_price`), `TmcRepair`, `TmcWriteOff`, `TmcInventory` (+ items), `TmcNotification`, `TmcDashboardStats`.
 
 Plain class: `TmcStockBalance` — строка остатка для экрана складов.
 
@@ -393,7 +398,7 @@ individual:   quantity = COUNT(tmc_units) WHERE not archived AND status <> writt
 | Интеграция | Как |
 |------------|-----|
 | Роли / RBAC | `app_modules.code = tmc`, `check_permission` |
-| Сотрудники | FK, выдача, `PropertyScreen` |
+| Сотрудники | FK, выдача, `PropertyScreen`, вкладка «ТМЦ» в карточке (`EmployeeTmcSection`) |
 | Объекты | местонахождение |
 | Контрагенты | поставщик позиции |
 | Профиль | выданное имущество ← `tmc_assignments` |
@@ -414,6 +419,7 @@ individual:   quantity = COUNT(tmc_units) WHERE not archived AND status <> writt
 - ✅ Desktop: реестр с остатками, карточка, stock screen, операции, отчёты, уведомления, справочники
 - ✅ Self SELECT assignments; уведомления только свои
 - ✅ Профиль «Выданное имущество»
+- ✅ Карточка сотрудника: вкладка «ТМЦ» (просмотр активных выдач + стоимость)
 - ✅ Desktop-only guard; тесты enums/export
 
 ### Планы / долги

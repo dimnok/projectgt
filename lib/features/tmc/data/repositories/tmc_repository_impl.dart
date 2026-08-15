@@ -68,7 +68,7 @@ class TmcRepositoryImpl implements TmcRepository {
 
   static const _assignmentSelect = '''
     *,
-    tmc_items:item_id(name),
+    tmc_items:item_id(name, unit_price),
     tmc_units:unit_id(inventory_number),
     employees:employee_id(last_name, first_name, middle_name),
     objects:object_id(name)

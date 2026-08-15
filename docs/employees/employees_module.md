@@ -1,9 +1,17 @@
 # Модуль Employees (Сотрудники)
 
-**Дата актуализации:** 14 августа 2026 года
+**Дата актуализации:** 15 августа 2026 года
 
-**Изменения в этой версии (14.08.2026, вкладки «ТМЦ» и «Финансы»):**
-- В карточке сотрудника (desktop и mobile) добавлены вкладки **«ТМЦ»** и **«Финансы»** — пока заглушки [`EmployeeCardPlaceholderTab`](../../lib/features/employees/presentation/widgets/employee_card_placeholder_tab.dart)
+**Изменения в этой версии (15.08.2026, вкладка «ТМЦ» — выданное имущество):**
+- Заглушка вкладки **«ТМЦ»** заменена на [`EmployeeTmcSection`](../../lib/features/employees/presentation/widgets/employee_tmc_section.dart): список активных выдач (`tmc_assignments.is_active`)
+- Данные: [`tmcAssignmentsProvider(employeeId)`](../../lib/features/tmc/presentation/state/tmc_providers.dart); ленивая загрузка при первом выборе вкладки (`isActive` / `_wasActivated`)
+- Строка: порядковый номер, наименование, инв. №, дата выдачи, объект; справа стоимость = `unit_price × quantity` (`formatCurrency`); цена — join `tmc_items.unit_price` (не колонка `tmc_assignments`)
+- Просмотр чужих выдач — `tmc.read` (RLS `tmc_select_tmc_assignments`); без права — пустой список и текст «Нет права просмотра ТМЦ»; свои выдачи по-прежнему через self SELECT в профиле
+- Вкладка **«Финансы»** — по-прежнему заглушка [`EmployeeCardPlaceholderTab`](../../lib/features/employees/presentation/widgets/employee_card_placeholder_tab.dart)
+- Кнопка «Выдать» / возврат из карточки **не** реализованы; запись выдачи — в модуле ТМЦ (`tmc_post_operation`)
+
+**Предыдущая версия (14.08.2026, вкладки «ТМЦ» и «Финансы»):**
+- В карточке сотрудника (desktop и mobile) добавлены вкладки **«ТМЦ»** и **«Финансы»** — «ТМЦ» и «Финансы» были заглушками [`EmployeeCardPlaceholderTab`](../../lib/features/employees/presentation/widgets/employee_card_placeholder_tab.dart)
 - Индексы вкладок фиксированы: 0 «Обзор», 1 «Заявления», 2 «Табель», 3 «ТМЦ», 4 «Финансы»; при отсутствии `timesheet.read` скрывается только «Табель», остальные вкладки не сдвигаются
 
 **Предыдущая версия (14.08.2026, легенда объектов и примечания во вкладке «Табель»):**
@@ -114,6 +122,7 @@
 - `work_plans` — в т.ч. колонка `responsible_id` (FK на `employees`)
 - `business_trip_rates` — суточные в карточке сотрудника (owner схемы — модуль **FOT** / объекты; RLS в карточке — `employees.read` / `employees.update`)
 - таблицы **FOT** (`payroll_*`, функции расчёта) — чтение ставок и сотрудников
+- `tmc_assignments` / `tmc_items` — вкладка «ТМЦ» (owner схемы — модуль **TMC**; RLS: `tmc.read` или self SELECT)
 
 Особенности реализации:
 
@@ -122,7 +131,7 @@
 - **текущая ставка** не хранится в строке `employees`: подгружается из `employee_rates`, где `valid_to IS NULL`, и кладётся в `Employee.currentHourlyRate` / `EmployeeModel.currentHourlyRate` (только на клиенте)
 - флаг **`can_be_responsible`** хранится в БД в `employees`, в доменной модели [`Employee`](../../lib/domain/entities/employee.dart) **не** сериализуется; кэш `EmployeeState.canBeResponsibleMap` сейчас никем не читается, обновляется точечно через `toggleCanBeResponsible`; массовая подгрузка `getCanBeResponsibleMap()` по умолчанию **не выполняется** (`includeResponsibilityMap: false`), чтобы убрать дублирующий запрос при каждом открытии списка — подгрузка включается явно только в сценариях, где это потребуется
 - **две раскладки списка**: `EmployeesTableScreen` (таблица) и `EmployeesListMobileScreen` (карточки) — выбор по [`EmployeesLayoutUtils.useEmployeesMobileList`](../../lib/features/employees/presentation/utils/employees_layout_utils.dart) (`shortestSide` vs breakpoint планшета)
-- **вкладки карточки:** «Обзор», «Заявления», **«Табель»** (при `timesheet.read`), **«ТМЦ»** и **«Финансы»** (заглушки); вкладки «Документы» и «Доп. информация» — в roadmap
+- **вкладки карточки:** «Обзор», «Заявления», **«Табель»** (при `timesheet.read`), **«ТМЦ»** (активные выдачи), **«Финансы»** (заглушка); вкладки «Документы» и «Доп. информация» — в roadmap
 
 ---
 
@@ -137,7 +146,8 @@
 - история и текущая ставка (`employee_rates`)
 - **заявления:** формирование образца (отпуск / отпуск без содержания / увольнение), печать PDF, загрузка подписанного скана, список с просмотром и скачиванием
 - **табель в карточке:** просмотр часов за месяц (смены + ручная посещаемость); массовое проставление — только в модуле Timesheet
-- **вкладки «ТМЦ» и «Финансы»** в карточке: пока заглушки («Раздел в разработке»)
+- **ТМЦ в карточке:** просмотр активных выдач (номер, наименование, инв. №, дата, объект, стоимость); выдача/возврат — в модуле ТМЦ
+- **вкладка «Финансы»** в карточке: заглушка («Раздел в разработке»)
 - переключение **`can_be_responsible`**
 - inline на таблице: **статус**, **объекты** (`object_ids`)
 - экспорт XLSX на сервере (**Edge Function** + клиентский сервис)
@@ -202,10 +212,11 @@
 |------|------------|
 | [`employees_table_actions_bar.dart`](../../lib/features/employees/presentation/widgets/employees_table_actions_bar.dart) | Панель действий таблицы |
 | [`employees_table_filters_toolbar.dart`](../../lib/features/employees/presentation/widgets/employees_table_filters_toolbar.dart) | Фильтры; индикатор загрузки picklist объектов в триггере dropdown — `CupertinoActivityIndicator`; `EmployeesObjectTableFilterValue.toExportFilterJson()` для экспорта |
-| [`employee_details_modal.dart`](../../lib/features/employees/presentation/widgets/employee_details_modal.dart) | Детальная карточка (desktop); вкладки **«Обзор» / «Заявления» / «Табель» / «ТМЦ» / «Финансы»** (`IndexedStack`); «Табель» только при `timesheet.read`; «ТМЦ» и «Финансы» — заглушки; safe `viewTab` при отзыве права на табель; вход в редактирование — `GTTextButton` «Редактировать»; `ref.listen` на `employeeProvider` и `permissionServiceProvider` |
+| [`employee_details_modal.dart`](../../lib/features/employees/presentation/widgets/employee_details_modal.dart) | Детальная карточка (desktop); вкладки **«Обзор» / «Заявления» / «Табель» / «ТМЦ» / «Финансы»** (`IndexedStack`); «Табель» только при `timesheet.read`; «ТМЦ» — [`EmployeeTmcSection`](../../lib/features/employees/presentation/widgets/employee_tmc_section.dart); «Финансы» — заглушка; safe `viewTab` при отзыве права на табель; вход в редактирование — `GTTextButton` «Редактировать»; `ref.listen` на `employeeProvider` и `permissionServiceProvider` |
 | [`employee_applications_section.dart`](../../lib/features/employees/presentation/widgets/employee_applications_section.dart) | **Вкладка «Заявления»:** типы заявлений, компактный список сканов (одна строка + icon actions), просмотр / скачивание / удаление |
 | [`employee_timesheet_section.dart`](../../lib/features/employees/presentation/widgets/employee_timesheet_section.dart) | **Вкладка «Табель»:** месяц одного сотрудника — сводка часов/дней, полоска дней с цветом объекта и точкой примечания, легенда объектов, без прокрутки; ленивая загрузка; баннер `includeInTimesheet` |
-| [`employee_card_placeholder_tab.dart`](../../lib/features/employees/presentation/widgets/employee_card_placeholder_tab.dart) | Заглушка вкладок **«ТМЦ»** и **«Финансы»** («Раздел в разработке») |
+| [`employee_tmc_section.dart`](../../lib/features/employees/presentation/widgets/employee_tmc_section.dart) | **Вкладка «ТМЦ»:** активные выдачи; номер строки; стоимость `unit_price × quantity`; ленивая загрузка; пустое состояние при отсутствии `tmc.read` |
+| [`employee_card_placeholder_tab.dart`](../../lib/features/employees/presentation/widgets/employee_card_placeholder_tab.dart) | Заглушка вкладки **«Финансы»** («Раздел в разработке») |
 | [`employee_application_forms.dart`](../../lib/features/employees/presentation/widgets/employee_application_forms.dart) | Формы отпуска и БС для карточки сотрудника (PDF + загрузка скана) |
 | [`employee_application_scan_preview.dart`](../../lib/features/employees/presentation/widgets/employee_application_scan_preview.dart) | Просмотр PDF (`printing`) и изображений в диалоге |
 | [`employee_edit_form.dart`](../../lib/features/employees/presentation/widgets/employee_edit_form.dart) | Форма редактирования; кнопка «Сохранить» при отправке — `CupertinoActivityIndicator`; `_saveChanges` — guard `employees.update` |
@@ -221,7 +232,7 @@
 | [`employees_mobile_add_employee_button.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_add_employee_button.dart) | FAB / кнопка добавления |
 | [`employees_mobile_employee_card.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_card.dart) | Карточка в списке |
 | [`employees_mobile_swipeable_employee_card.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_swipeable_employee_card.dart) | Свайп по карточке |
-| [`employees_mobile_employee_details_sheet.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_details_sheet.dart) | Bottom sheet деталей; те же вкладки, что на desktop; «Табель» при `timesheet.read`; кнопки «Изменить» — при `employees.update` |
+| [`employees_mobile_employee_details_sheet.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_details_sheet.dart) | Bottom sheet деталей; те же вкладки, что на desktop; «Табель» при `timesheet.read`; «ТМЦ» — [`EmployeeTmcSection`](../../lib/features/employees/presentation/widgets/employee_tmc_section.dart); кнопки «Изменить» — при `employees.update` |
 | [`employees_mobile_employee_edit_blocks.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_edit_blocks.dart) | Блоки редактирования на мобильном; `_persistEmployeeUpdate` — guard `employees.update` |
 
 ### Design System (`lib/core/widgets/`)
@@ -254,8 +265,9 @@
 
 | Право | Список (таблица / mobile) | Карточка (modal / bottom sheet) |
 |-------|---------------------------|----------------------------------|
-| `employees.read` | Просмотр списка, открытие карточки | Просмотр «Обзор», «Заявления» (список/сканы), заглушки **«ТМЦ»** и **«Финансы»** |
+| `employees.read` | Просмотр списка, открытие карточки | Просмотр «Обзор», «Заявления» (список/сканы), вкладка **«ТМЦ»** (список пуст без `tmc.read`, если это не своя карточка), заглушка **«Финансы»** |
 | `timesheet.read` | — | Вкладка **«Табель»** (просмотр часов за месяц) |
+| `tmc.read` | — | Вкладка **«ТМЦ»**: чужие активные выдачи (`tmc_assignments`) |
 | `employees.create` | «Добавить сотрудника» | — |
 | `employees.update` | Inline статус/объекты, свайпы (mobile), редактирование | Desktop: **«Редактировать»** → форма; mobile: иконки «изменить»; «+» ставки, суточные, фото; **формирование заявлений и загрузка сканов**; удаление заявлений |
 | `employees.delete` | Удаление выбранных | — |
@@ -272,6 +284,7 @@
 | `employeeApplicationsProvider(employeeId)` | [`employee_applications_provider.dart`](../../lib/features/employees/presentation/providers/employee_applications_provider.dart) | Список заявлений, upload/delete/download сканов; autoDispose family |
 | `employeeApplicationBusyIdsProvider(employeeId)` | там же | Индикация загрузки при скачивании / просмотре |
 | `employeeTimesheetMonthProvider(key)` | [`employee_timesheet_month_provider.dart`](../../lib/features/employees/presentation/providers/employee_timesheet_month_provider.dart) | Часы одного сотрудника за месяц (`EmployeeTimesheetMonthKey`: `employeeId` + месяц); `hoursByObjectByDay` и `commentsByDay` для легенды и примечаний; autoDispose family; источники — репозитории Timesheet |
+| `tmcAssignmentsProvider(employeeId)` | [`tmc_providers.dart`](../../lib/features/tmc/presentation/state/tmc_providers.dart) | Активные и архивные выдачи ТМЦ; вкладка «ТМЦ» фильтрует `isActive`; owner — модуль TMC |
 
 ### Жизненный цикл экранов (Riverpod / Web)
 
@@ -405,6 +418,7 @@ lib/
 │           ├── employee_application_forms.dart
 │           ├── employee_application_scan_preview.dart
 │           ├── employee_timesheet_section.dart
+│           ├── employee_tmc_section.dart
 │           ├── employee_card_placeholder_tab.dart
 │           ├── add_employee_rate_dialog.dart
 │           ├── add_employee_simple_dialog.dart
@@ -705,6 +719,14 @@ Bucket **`employee_applications`** (private, `public: false`):
 - sync каталога табеля при смысловых правках справочника: `timesheetEmployeeCatalogChanged` + `reloadEmployeesCatalog` (см. [`docs/timesheet/timesheet_module.md`](../timesheet/timesheet_module.md))
 - чекбокс `include_in_timesheet` в форме редактирования карточки
 
+### ТМЦ
+
+- owner таблиц — модуль **TMC** ([`docs/tmc/tmc_module.md`](../tmc/tmc_module.md)); Employees только читает
+- [`EmployeeTmcSection`](../../lib/features/employees/presentation/widgets/employee_tmc_section.dart) → `TmcRepository.listAssignments(employeeId)` → `tmc_assignments` + join `tmc_items.unit_price`
+- RLS (аудит 15.08.2026): `tmc_assignments.relrowsecurity = true`; SELECT при `tmc.read` или self SELECT по `profiles.object.employee_id`
+- выдача/возврат из карточки нет; операции — RPC `tmc_post_operation`
+- Edge Functions для ТМЦ в репозитории **нет** (в `supabase/functions/` нет `tmc*`)
+
 ### Profile (заявления)
 
 - Модуль **Profile** содержит self-service заявления ([`ApplicationsScreen`](../../lib/features/profile/presentation/screens/applications_screen.dart)) для **текущего пользователя** (`Profile`).
@@ -738,7 +760,8 @@ Bucket **`employee_applications`** (private, `public: false`):
 - **Вкладка «Заявления»:** PDF (отпуск, БС), загрузка сканов, компактный список (icon actions), просмотр/скачивание; таблица `employee_applications` + bucket Storage
 - **Вкладка «Табель»:** read-only месяц одного сотрудника (`EmployeeTimesheetSection` + `employeeTimesheetMonthProvider`); право `timesheet.read`; ленивая загрузка; **цветовая легенда объектов** на полоске дней
 - **UX карточки:** `IndexedStack` для вкладок; переключатель «Обзор» / «Заявления» / «Табель» / «ТМЦ» / «Финансы»
-- **Вкладки «ТМЦ» и «Финансы»:** заглушки (`EmployeeCardPlaceholderTab`), содержимое не реализовано
+- **Вкладка «ТМЦ»:** просмотр активных выдач (`EmployeeTmcSection` + `tmcAssignmentsProvider`); стоимость из `tmc_items.unit_price`
+- **Вкладка «Финансы»:** заглушка (`EmployeeCardPlaceholderTab`)
 - **PDF:** работодатель «ООО «ГТ Инжиниринг»» в шапке заявлений
 
 ### Известные баги (приоритет)
@@ -764,12 +787,14 @@ Bucket **`employee_applications`** (private, `public: false`):
 - Схема `employee_rates` и часть индексов не воспроизводятся из одного `CREATE` в репозитории
 - **Заявления:** типы «отпуск», «отпуск без содержания», **«увольнение»**; PDF на сервер не сохраняется; workflow согласования не реализован
 - **Табель в карточке:** только просмотр; проставление часов — в модуле Timesheet
-- **ТМЦ и Финансы в карточке:** только заглушки, данных нет
+- **ТМЦ в карточке:** только просмотр активных выдач; выдача/возврат — в модуле ТМЦ
+- **Финансы в карточке:** заглушка, данных нет
 - Вкладки **«Документы»** (файлы) и **«Доп. информация»** (журнал записей) — запланированы, не реализованы
 
 ### Возможные шаги
 
-- Содержимое вкладок «ТМЦ» и «Финансы» в карточке
+- Выдача и возврат ТМЦ из карточки сотрудника (`tmc.issue`)
+- Содержимое вкладки «Финансы» в карточке
 - Вкладки «Документы» и «Доп. информация» в карточке
 - Улучшить читаемость полоски дней табеля на mobile (недели / адаптивная плотность)
 - Дополнительные типы заявлений (перевод, …)
