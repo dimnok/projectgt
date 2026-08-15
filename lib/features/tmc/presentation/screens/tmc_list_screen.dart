@@ -9,8 +9,6 @@ import 'package:projectgt/core/widgets/mobile_atmosphere_backdrop.dart';
 import 'package:projectgt/core/widgets/mobile_atmosphere_main_surface.dart';
 import 'package:projectgt/core/widgets/mobile_atmosphere_screen_header.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
-import 'package:projectgt/features/tmc/domain/entities/tmc_enums.dart';
-import 'package:projectgt/features/tmc/domain/entities/tmc_item.dart';
 import 'package:projectgt/features/tmc/presentation/state/tmc_providers.dart';
 import 'package:projectgt/features/tmc/presentation/utils/tmc_ui_labels.dart';
 import 'package:projectgt/features/tmc/presentation/widgets/tmc_catalogs_dialog.dart';
@@ -18,7 +16,6 @@ import 'package:projectgt/features/tmc/presentation/widgets/tmc_filters_toolbar.
 import 'package:projectgt/features/tmc/presentation/widgets/tmc_item_form_dialog.dart';
 import 'package:projectgt/features/tmc/presentation/widgets/tmc_items_table.dart';
 import 'package:projectgt/features/tmc/presentation/widgets/tmc_kpi_cards.dart';
-import 'package:projectgt/features/tmc/presentation/widgets/tmc_operation_dialog.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 
 const _kHeaderPadding = EdgeInsets.fromLTRB(16, 20, 16, 8);
@@ -48,8 +45,6 @@ class _TmcListScreenState extends ConsumerState<TmcListScreen> {
     final theme = Theme.of(context);
 
     final canCreate = permissions.can('tmc', 'create');
-    final canIssue = permissions.can('tmc', 'issue');
-    final canMove = permissions.can('tmc', 'move');
     final canViewCost = permissions.can('tmc', 'view_cost');
     final canCatalogs = permissions.can('tmc', 'manage_catalogs');
 
@@ -59,12 +54,14 @@ class _TmcListScreenState extends ConsumerState<TmcListScreen> {
         statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
         systemNavigationBarColor: appearance.atmosphereBase,
         systemNavigationBarDividerColor: Colors.transparent,
-        systemNavigationBarIconBrightness:
-            isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarIconBrightness: isDark
+            ? Brightness.light
+            : Brightness.dark,
       ),
       child: Scaffold(
-        backgroundColor:
-            isDark ? appearance.atmosphereBase : Colors.transparent,
+        backgroundColor: isDark
+            ? appearance.atmosphereBase
+            : Colors.transparent,
         drawer: const AppDrawer(activeRoute: AppRoute.tmc),
         body: Stack(
           fit: StackFit.expand,
@@ -105,7 +102,9 @@ class _TmcListScreenState extends ConsumerState<TmcListScreen> {
                               ? Icons.light_mode_outlined
                               : Icons.dark_mode_outlined,
                           onTap: () {
-                            ref.read(themeSettingsProvider.notifier).setThemeMode(
+                            ref
+                                .read(themeSettingsProvider.notifier)
+                                .setThemeMode(
                                   isDark ? ThemeMode.light : ThemeMode.dark,
                                 );
                           },
@@ -122,78 +121,76 @@ class _TmcListScreenState extends ConsumerState<TmcListScreen> {
                           children: [
                             dashboardAsync.when(
                               data: (stats) => Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
+                                padding: const EdgeInsets.only(bottom: 10),
                                 child: TmcKpiCards(
                                   stats: stats,
                                   showCost: canViewCost,
                                 ),
                               ),
                               loading: () => const Padding(
-                                padding: EdgeInsets.all(12),
+                                padding: EdgeInsets.only(bottom: 10),
                                 child: LinearProgressIndicator(),
                               ),
                               error: (e, _) => Text(e.toString()),
                             ),
-                            categoriesAsync.when(
-                              data: (categories) => TmcFiltersToolbar(
-                                searchQuery: _search,
-                                onSearchChanged: (v) {
-                                  setState(() => _search = v);
-                                  ref
-                                      .read(tmcItemsListProvider.notifier)
-                                      .applyFilters(
-                                        listState.filters.copyWith(
-                                          search: v.trim().isEmpty ? null : v,
-                                          clearSearch: v.trim().isEmpty,
-                                        ),
-                                      );
-                                },
-                                categoryId: listState.filters.categoryId,
-                                onCategoryChanged: (id) {
-                                  ref
-                                      .read(tmcItemsListProvider.notifier)
-                                      .applyFilters(
-                                        listState.filters.copyWith(
-                                          categoryId: id,
-                                          clearCategoryId: id == null,
-                                        ),
-                                      );
-                                },
-                                accountingType:
-                                    listState.filters.accountingType,
-                                onAccountingTypeChanged: (t) {
-                                  ref
-                                      .read(tmcItemsListProvider.notifier)
-                                      .applyFilters(
-                                        listState.filters.copyWith(
-                                          accountingType: t,
-                                          clearAccountingType: t == null,
-                                        ),
-                                      );
-                                },
-                                categories: categories,
-                                onRefresh: () =>
-                                    ref.read(tmcItemsListProvider.notifier).load(),
-                                onCreate: canCreate
-                                    ? () => TmcItemFormDialog.show(context)
-                                    : null,
-                                onCatalogs: canCatalogs
-                                    ? () => TmcCatalogsDialog.show(context)
-                                    : null,
-                                onOperations: () =>
-                                    context.push(AppRoutes.tmcOperations),
-                                onStock: () =>
-                                    context.push(AppRoutes.tmcStock),
-                                onReports: () =>
-                                    context.push(AppRoutes.tmcReports),
-                                onNotifications: () =>
-                                    context.push(AppRoutes.tmcNotifications),
-                              ),
-                              loading: () => const LinearProgressIndicator(),
-                              error: (e, _) => Text(e.toString()),
+                            TmcFiltersToolbar(
+                              searchQuery: _search,
+                              onSearchChanged: (v) {
+                                setState(() => _search = v);
+                                ref
+                                    .read(tmcItemsListProvider.notifier)
+                                    .applyFilters(
+                                      listState.filters.copyWith(
+                                        search: v.trim().isEmpty ? null : v,
+                                        clearSearch: v.trim().isEmpty,
+                                      ),
+                                    );
+                              },
+                              categoryId: listState.filters.categoryId,
+                              onCategoryChanged: (id) {
+                                ref
+                                    .read(tmcItemsListProvider.notifier)
+                                    .applyFilters(
+                                      listState.filters.copyWith(
+                                        categoryId: id,
+                                        clearCategoryId: id == null,
+                                      ),
+                                    );
+                              },
+                              accountingType: listState.filters.accountingType,
+                              onAccountingTypeChanged: (t) {
+                                ref
+                                    .read(tmcItemsListProvider.notifier)
+                                    .applyFilters(
+                                      listState.filters.copyWith(
+                                        accountingType: t,
+                                        clearAccountingType: t == null,
+                                      ),
+                                    );
+                              },
+                              categories:
+                                  categoriesAsync.valueOrNull ?? const [],
+                              onRefresh: () => ref
+                                  .read(tmcItemsListProvider.notifier)
+                                  .load(),
+                              onCreate: canCreate
+                                  ? () => TmcItemFormDialog.show(context)
+                                  : null,
+                              onCatalogs: canCatalogs
+                                  ? () => TmcCatalogsDialog.show(context)
+                                  : null,
+                              onOperations: () =>
+                                  context.push(AppRoutes.tmcOperations),
+                              onStock: () => context.push(AppRoutes.tmcStock),
+                              onReports: () =>
+                                  context.push(AppRoutes.tmcReports),
+                              onInventory: () =>
+                                  context.push(AppRoutes.tmcInventory),
+                              onNotifications: () =>
+                                  context.push(AppRoutes.tmcNotifications),
                             ),
-                            const SizedBox(height: 12),
-                            Expanded(child: _buildBody(listState, canIssue, canMove, canViewCost)),
+                            const SizedBox(height: 8),
+                            Expanded(child: _buildBody(listState, canViewCost)),
                           ],
                         ),
                       ),
@@ -208,12 +205,7 @@ class _TmcListScreenState extends ConsumerState<TmcListScreen> {
     );
   }
 
-  Widget _buildBody(
-    TmcItemsListState state,
-    bool canIssue,
-    bool canMove,
-    bool showCost,
-  ) {
+  Widget _buildBody(TmcItemsListState state, bool showCost) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 
@@ -245,33 +237,6 @@ class _TmcListScreenState extends ConsumerState<TmcListScreen> {
       items: state.items,
       showCost: showCost,
       onRowTap: (item) => context.push('${AppRoutes.tmc}/items/${item.id}'),
-      onIssue: canIssue ? _quickIssue : null,
-      onReturn: canIssue ? _quickReturn : null,
-      onMove: canMove ? _quickMove : null,
-    );
-  }
-
-  void _quickIssue(TmcItem item) {
-    TmcOperationDialog.show(
-      context,
-      operationType: TmcOperationType.issue,
-      item: item,
-    );
-  }
-
-  void _quickReturn(TmcItem item) {
-    TmcOperationDialog.show(
-      context,
-      operationType: TmcOperationType.returnFromEmployee,
-      item: item,
-    );
-  }
-
-  void _quickMove(TmcItem item) {
-    TmcOperationDialog.show(
-      context,
-      operationType: TmcOperationType.moveBetweenWarehouses,
-      item: item,
     );
   }
 }

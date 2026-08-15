@@ -178,10 +178,7 @@ class TmcRepositoryImpl implements TmcRepository {
             Map<String, dynamic>.from(rows.first as Map)['total_count'],
           );
 
-    return (
-      items: models,
-      totalCount: totalCount,
-    );
+    return (items: models, totalCount: totalCount);
   }
 
   @override
@@ -197,8 +194,9 @@ class TmcRepositoryImpl implements TmcRepository {
 
     if (row == null) return null;
 
-    final item =
-        TmcItemModel.fromJson(Map<String, dynamic>.from(row)).toDomain();
+    final item = TmcItemModel.fromJson(
+      Map<String, dynamic>.from(row),
+    ).toDomain();
 
     // Обогащаем остатками из list RPC (одна позиция через stock breakdown).
     final page = await listItems(search: item.name, limit: 100, offset: 0);
@@ -242,6 +240,7 @@ class TmcRepositoryImpl implements TmcRepository {
     String? warehouseId,
     double? unitPrice,
     String? conditionId,
+    List<String>? serialNumbers,
   }) async {
     if (!_hasCompany) {
       throw StateError('Не выбрана активная компания');
@@ -264,6 +263,14 @@ class TmcRepositoryImpl implements TmcRepository {
       if (unitPrice != null) receive['unit_price'] = unitPrice;
       if (conditionId != null && conditionId.isNotEmpty) {
         receive['condition_id'] = conditionId;
+      }
+      final sns = (serialNumbers ?? const <String>[])
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty)
+          .toList(growable: false);
+      if (sns.isNotEmpty) {
+        receive['serial_numbers'] = sns;
+        receive['serial_number'] = sns.first;
       }
       payload['receive'] = receive;
     }
@@ -355,6 +362,22 @@ class TmcRepositoryImpl implements TmcRepository {
         .maybeSingle();
 
     if (row == null) return null;
+
+    return TmcUnitModel.fromJson(Map<String, dynamic>.from(row)).toDomain();
+  }
+
+  @override
+  Future<TmcUnit> updateUnit(TmcUnit unit) async {
+    final model = TmcUnitModel.fromDomain(unit);
+    final payload = model.toWriteJson(includeId: false);
+
+    final row = await client
+        .from('tmc_units')
+        .update(payload)
+        .eq('id', unit.id)
+        .eq('company_id', activeCompanyId)
+        .select(_unitSelect)
+        .single();
 
     return TmcUnitModel.fromJson(Map<String, dynamic>.from(row)).toDomain();
   }
@@ -517,7 +540,9 @@ class TmcRepositoryImpl implements TmcRepository {
         .select()
         .single();
 
-    return TmcWarehouseModel.fromJson(Map<String, dynamic>.from(row)).toDomain();
+    return TmcWarehouseModel.fromJson(
+      Map<String, dynamic>.from(row),
+    ).toDomain();
   }
 
   @override
@@ -533,7 +558,9 @@ class TmcRepositoryImpl implements TmcRepository {
         .select()
         .single();
 
-    return TmcWarehouseModel.fromJson(Map<String, dynamic>.from(row)).toDomain();
+    return TmcWarehouseModel.fromJson(
+      Map<String, dynamic>.from(row),
+    ).toDomain();
   }
 
   @override
@@ -595,7 +622,9 @@ class TmcRepositoryImpl implements TmcRepository {
 
     if (row == null) return null;
 
-    return TmcOperationModel.fromJson(Map<String, dynamic>.from(row)).toDomain();
+    return TmcOperationModel.fromJson(
+      Map<String, dynamic>.from(row),
+    ).toDomain();
   }
 
   @override
@@ -653,10 +682,7 @@ class TmcRepositoryImpl implements TmcRepository {
   }
 
   @override
-  Future<List<TmcRepair>> listRepairs({
-    int limit = 50,
-    int offset = 0,
-  }) async {
+  Future<List<TmcRepair>> listRepairs({int limit = 50, int offset = 0}) async {
     if (!_hasCompany) return [];
 
     final response = await client
@@ -736,7 +762,9 @@ class TmcRepositoryImpl implements TmcRepository {
         .select()
         .single();
 
-    return TmcInventoryModel.fromJson(Map<String, dynamic>.from(row)).toDomain();
+    return TmcInventoryModel.fromJson(
+      Map<String, dynamic>.from(row),
+    ).toDomain();
   }
 
   @override
@@ -756,8 +784,9 @@ class TmcRepositoryImpl implements TmcRepository {
         ''')
         .single();
 
-    return TmcInventoryItemModel.fromJson(Map<String, dynamic>.from(row))
-        .toDomain();
+    return TmcInventoryItemModel.fromJson(
+      Map<String, dynamic>.from(row),
+    ).toDomain();
   }
 
   @override
@@ -773,7 +802,9 @@ class TmcRepositoryImpl implements TmcRepository {
         .select(_inventorySelect)
         .single();
 
-    return TmcInventoryModel.fromJson(Map<String, dynamic>.from(row)).toDomain();
+    return TmcInventoryModel.fromJson(
+      Map<String, dynamic>.from(row),
+    ).toDomain();
   }
 
   @override

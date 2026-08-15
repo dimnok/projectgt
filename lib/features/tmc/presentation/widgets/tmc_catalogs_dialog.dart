@@ -62,7 +62,9 @@ class _TmcCatalogsDialogState extends ConsumerState<TmcCatalogsDialog> {
     setState(() => _savingWarehouse = true);
     try {
       final companyId = ref.read(activeCompanyIdProvider) ?? '';
-      await ref.read(tmcRepositoryProvider).createWarehouse(
+      await ref
+          .read(tmcRepositoryProvider)
+          .createWarehouse(
             TmcWarehouse(id: '', companyId: companyId, name: name),
           );
       _warehouseNameController.clear();
@@ -91,7 +93,9 @@ class _TmcCatalogsDialogState extends ConsumerState<TmcCatalogsDialog> {
     setState(() => _savingCategory = true);
     try {
       final companyId = ref.read(activeCompanyIdProvider) ?? '';
-      await ref.read(tmcRepositoryProvider).createCategory(
+      await ref
+          .read(tmcRepositoryProvider)
+          .createCategory(
             TmcCategory(id: '', companyId: companyId, name: name),
           );
       _categoryNameController.clear();
@@ -139,9 +143,7 @@ class _TmcCatalogsDialogState extends ConsumerState<TmcCatalogsDialog> {
                   async: warehousesAsync,
                   nameBuilder: (w) {
                     final warehouse = w as TmcWarehouse;
-                    return warehouse.isMain
-                        ? '${warehouse.name} (основной)'
-                        : warehouse.name;
+                    return TmcUiLabels.warehouseLabel(warehouse);
                   },
                   controller: _warehouseNameController,
                   label: 'Новый склад',
@@ -210,10 +212,7 @@ class _ListTab extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: GTTextField(
-                  controller: controller,
-                  labelText: label,
-                ),
+                child: GTTextField(controller: controller, labelText: label),
               ),
               const SizedBox(width: 8),
               GTPrimaryButton(

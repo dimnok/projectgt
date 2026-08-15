@@ -14,6 +14,7 @@ import 'package:projectgt/features/tmc/domain/entities/tmc_item.dart';
 import 'package:projectgt/features/tmc/domain/entities/tmc_warehouse.dart';
 import 'package:projectgt/features/tmc/presentation/state/tmc_providers.dart';
 import 'package:projectgt/features/tmc/presentation/utils/tmc_ui_labels.dart';
+import 'package:projectgt/features/tmc/presentation/widgets/tmc_serial_numbers_editor.dart';
 
 /// Диалог создания / редактирования позиции каталога ТМЦ.
 class TmcItemFormDialog extends ConsumerStatefulWidget {
@@ -57,6 +58,7 @@ class _TmcItemFormDialogState extends ConsumerState<TmcItemFormDialog> {
   late final TextEditingController _unitPriceController;
   late final TextEditingController _descriptionController;
   late final TextEditingController _quantityController;
+  final _serialNumbersKey = GlobalKey<TmcSerialNumbersEditorState>();
 
   TmcAccountingType _accountingType = TmcAccountingType.individual;
   String? _categoryId;
@@ -76,7 +78,9 @@ class _TmcItemFormDialogState extends ConsumerState<TmcItemFormDialog> {
     _unitPriceController = TextEditingController(
       text: item != null ? item.unitPrice.toString() : '0',
     );
-    _descriptionController = TextEditingController(text: item?.description ?? '');
+    _descriptionController = TextEditingController(
+      text: item?.description ?? '',
+    );
     _quantityController = TextEditingController(text: '1');
     _accountingType = item?.accountingType ?? TmcAccountingType.individual;
     _categoryId = item?.categoryId;
@@ -100,14 +104,14 @@ class _TmcItemFormDialogState extends ConsumerState<TmcItemFormDialog> {
     final companyId = ref.read(activeCompanyIdProvider) ?? '';
     final repo = ref.read(tmcRepositoryProvider);
 
-    final unitPrice =
-        double.tryParse(_unitPriceController.text.replaceAll(',', '.')) ?? 0;
+    final unitPrice = TmcUiLabels.parsePrice(_unitPriceController.text) ?? 0;
 
+    final qty = TmcUiLabels.parseQuantity(_quantityController.text) ?? 0;
     final isCreate = widget.item == null;
-    final shouldReceive = isCreate &&
+    final shouldReceive =
+        isCreate &&
         _receiveOnCreate &&
-        double.tryParse(_quantityController.text.replaceAll(',', '.')) != null &&
-        (double.tryParse(_quantityController.text.replaceAll(',', '.')) ?? 0) > 0 &&
+        qty > 0 &&
         _warehouseId != null &&
         _warehouseId!.isNotEmpty;
 
@@ -131,14 +135,16 @@ class _TmcItemFormDialogState extends ConsumerState<TmcItemFormDialog> {
         );
 
         if (shouldReceive) {
-          final qty = double.tryParse(
-                  _quantityController.text.replaceAll(',', '.')) ??
-              1;
           await repo.createItemWithReceipt(
             item: baseItem,
             receiveQuantity: qty,
             warehouseId: _warehouseId,
             unitPrice: unitPrice,
+            serialNumbers: _accountingType == TmcAccountingType.individual
+                ? TmcUiLabels.nonEmptySerials(
+                    _serialNumbersKey.currentState?.values,
+                  )
+                : null,
           );
         } else {
           await repo.createItem(baseItem);
@@ -170,7 +176,9 @@ class _TmcItemFormDialogState extends ConsumerState<TmcItemFormDialog> {
       Navigator.of(context).pop();
       AppSnackBar.show(
         context: context,
-        message: shouldReceive ? 'Позиция создана и принята на склад' : 'Сохранено',
+        message: shouldReceive
+            ? 'Позиция создана и принята на склад'
+            : 'Сохранено',
         kind: AppSnackBarKind.success,
       );
     } catch (e) {
@@ -196,8 +204,9 @@ class _TmcItemFormDialogState extends ConsumerState<TmcItemFormDialog> {
     // Автовыбор основного склада при первой загрузке
     warehousesAsync.whenData((warehouses) {
       if (_warehouseId == null && _receiveOnCreate) {
-        final main =
-            warehouses.where((w) => w.isMain && !w.isArchived).firstOrNull;
+        final main = warehouses
+            .where((w) => w.isMain && !w.isArchived)
+            .firstOrNull;
         if (main != null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) setState(() => _warehouseId = main.id);
@@ -231,8 +240,7 @@ class _TmcItemFormDialogState extends ConsumerState<TmcItemFormDialog> {
                 items: categories,
                 selectedItem: selected,
                 itemDisplayBuilder: (c) => c.name,
-                onSelectionChanged: (c) =>
-                    setState(() => _categoryId = c?.id),
+                onSelectionChanged: (c) => setState(() => _categoryId = c?.id),
                 allowClear: true,
               );
             },
@@ -308,8 +316,9 @@ class _TmcItemFormDialogState extends ConsumerState<TmcItemFormDialog> {
               const SizedBox(height: 8),
               warehousesAsync.when(
                 data: (warehouses) {
-                  final active =
-                      warehouses.where((w) => !w.isArchived).toList();
+                  final active = warehouses
+                      .where((w) => !w.isArchived)
+                      .toList();
                   TmcWarehouse? selected;
                   for (final w in active) {
                     if (w.id == _warehouseId) selected = w;
@@ -319,8 +328,7 @@ class _TmcItemFormDialogState extends ConsumerState<TmcItemFormDialog> {
                     hintText: 'Выберите склад',
                     items: active,
                     selectedItem: selected,
-                    itemDisplayBuilder: (w) =>
-                        w.isMain ? '${w.name} (основной)' : w.name,
+                    itemDisplayBuilder: TmcUiLabels.warehouseLabel,
                     onSelectionChanged: (w) =>
                         setState(() => _warehouseId = w?.id),
                     allowClear: false,
@@ -333,16 +341,26 @@ class _TmcItemFormDialogState extends ConsumerState<TmcItemFormDialog> {
               GTTextField(
                 controller: _quantityController,
                 labelText: 'Количество',
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                onChanged: (_) => setState(() {}),
                 validator: (v) {
                   if (!_receiveOnCreate) return null;
-                  final n = double.tryParse(
-                      (v ?? '').replaceAll(',', '.'));
+                  final n = TmcUiLabels.parseQuantity(v ?? '');
                   if (n == null || n <= 0) return 'Укажите количество больше 0';
                   return null;
                 },
               ),
+              if (_accountingType == TmcAccountingType.individual) ...[
+                const SizedBox(height: 12),
+                TmcSerialNumbersEditor(
+                  key: _serialNumbersKey,
+                  unitCount: TmcUiLabels.receiptUnitCount(
+                    _quantityController.text,
+                  ),
+                ),
+              ],
             ],
           ],
         ],
@@ -369,17 +387,9 @@ class _TmcItemFormDialogState extends ConsumerState<TmcItemFormDialog> {
     );
 
     if (isDesktop) {
-      return DesktopDialogContent(
-        title: title,
-        footer: footer,
-        child: form,
-      );
+      return DesktopDialogContent(title: title, footer: footer, child: form);
     }
 
-    return MobileBottomSheetContent(
-      title: title,
-      footer: footer,
-      child: form,
-    );
+    return MobileBottomSheetContent(title: title, footer: footer, child: form);
   }
 }

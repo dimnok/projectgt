@@ -312,10 +312,12 @@ class _GTDropdownState<T> extends State<GTDropdown<T>> {
     // Позиция панели: якоря по углам цели, чтобы при открытии вверх нижний край
     // меню совпадал с верхом поля (а не с отступом на полную maxHeight — иначе
     // при коротком списке остаётся большой разрыв).
-    final Alignment targetAnchor =
-        openUpwards ? Alignment.topLeft : Alignment.bottomLeft;
-    final Alignment followerAnchor =
-        openUpwards ? Alignment.bottomLeft : Alignment.topLeft;
+    final Alignment targetAnchor = openUpwards
+        ? Alignment.topLeft
+        : Alignment.bottomLeft;
+    final Alignment followerAnchor = openUpwards
+        ? Alignment.bottomLeft
+        : Alignment.topLeft;
     final Offset anchorOffset = openUpwards
         ? const Offset(0, -_kDropdownOffset)
         : const Offset(0, _kDropdownOffset);

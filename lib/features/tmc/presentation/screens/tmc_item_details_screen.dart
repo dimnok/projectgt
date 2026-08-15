@@ -13,6 +13,7 @@ import 'package:projectgt/features/tmc/presentation/state/tmc_providers.dart';
 import 'package:projectgt/features/tmc/presentation/utils/tmc_ui_labels.dart';
 import 'package:projectgt/features/tmc/presentation/widgets/tmc_item_form_dialog.dart';
 import 'package:projectgt/features/tmc/presentation/widgets/tmc_operation_dialog.dart';
+import 'package:projectgt/features/tmc/presentation/widgets/tmc_unit_form_dialog.dart';
 import 'package:projectgt/presentation/widgets/app_bar_widget.dart';
 
 /// Карточка позиции каталога ТМЦ.
@@ -48,10 +49,7 @@ class TmcItemDetailsScreen extends ConsumerWidget {
             length: 4,
             child: Column(
               children: [
-                _QuickActions(
-                  item: item,
-                  permissions: permissions,
-                ),
+                _QuickActions(item: item, permissions: permissions),
                 const TabBar(
                   tabs: [
                     Tab(text: TmcUiLabels.sectionMain),
@@ -63,12 +61,17 @@ class TmcItemDetailsScreen extends ConsumerWidget {
                 Expanded(
                   child: TabBarView(
                     children: [
-                      _MainTab(item: item, canViewCost: canViewCost, canUpdate: canUpdate),
+                      _MainTab(
+                        item: item,
+                        canViewCost: canViewCost,
+                        canUpdate: canUpdate,
+                      ),
                       unitsAsync.when(
                         data: (units) => _UnitsTab(
                           units: units,
                           item: item,
                           permissions: permissions,
+                          canUpdate: canUpdate,
                         ),
                         loading: () =>
                             const Center(child: CupertinoActivityIndicator()),
@@ -97,10 +100,7 @@ class _QuickActions extends StatelessWidget {
   final TmcItem item;
   final PermissionService permissions;
 
-  const _QuickActions({
-    required this.item,
-    required this.permissions,
-  });
+  const _QuickActions({required this.item, required this.permissions});
 
   @override
   Widget build(BuildContext context) {
@@ -224,13 +224,10 @@ class _MainTab extends StatelessWidget {
               ? item.locationSummary!
               : '—',
         ),
-        if (canViewCost)
-          _InfoRow('Цена', formatCurrency(item.unitPrice)),
-        if (canViewCost)
-          _InfoRow('Стоимость', formatCurrency(item.totalCost)),
+        if (canViewCost) _InfoRow('Цена', formatCurrency(item.unitPrice)),
+        if (canViewCost) _InfoRow('Стоимость', formatCurrency(item.totalCost)),
         _InfoRow('Статус', TmcUiLabels.itemStatus(item.status)),
-        if (item.description != null)
-          _InfoRow('Описание', item.description!),
+        if (item.description != null) _InfoRow('Описание', item.description!),
         if (canUpdate)
           Padding(
             padding: const EdgeInsets.only(top: 16),
@@ -270,9 +267,7 @@ class _PurchaseTab extends StatelessWidget {
         if (canViewCost) _InfoRow('Цена', formatCurrency(item.unitPrice)),
         _InfoRow(
           'Гарантия до',
-          item.warrantyUntil != null
-              ? formatRuDate(item.warrantyUntil!)
-              : '—',
+          item.warrantyUntil != null ? formatRuDate(item.warrantyUntil!) : '—',
         ),
       ],
     );
@@ -283,48 +278,214 @@ class _UnitsTab extends StatelessWidget {
   final List<TmcUnit> units;
   final TmcItem item;
   final PermissionService permissions;
+  final bool canUpdate;
 
   const _UnitsTab({
     required this.units,
     required this.item,
     required this.permissions,
+    required this.canUpdate,
   });
 
   @override
   Widget build(BuildContext context) {
     if (units.isEmpty) {
-      return const Center(child: Text('Единиц не найдено'));
+      return const Center(child: Text('Конкретных единиц не найдено'));
     }
+
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final canIssue = permissions.can('tmc', 'issue');
+    final canMove = permissions.can('tmc', 'move');
+    final canRepair = permissions.can('tmc', 'repair');
+    final canWriteOff = permissions.can('tmc', 'write_off');
+
     return ListView.separated(
       padding: const EdgeInsets.all(12),
       itemCount: units.length,
       separatorBuilder: (_, __) => const Divider(height: 1),
       itemBuilder: (context, index) {
         final unit = units[index];
-        return ListTile(
-          title: Text(unit.inventoryNumber),
-          subtitle: Text(
-            '${TmcUiLabels.unitStatus(unit.status)} · ${unit.warehouseName ?? unit.objectName ?? unit.employeeName ?? '—'}',
-          ),
-          trailing: permissions.can('tmc', 'issue')
-              ? IconButton(
-                  icon: const Icon(CupertinoIcons.arrow_right_circle),
-                  onPressed: () => TmcOperationDialog.show(
-                    context,
-                    operationType: TmcOperationType.issue,
-                    item: item,
-                    unit: unit,
+        final isStock = unit.status == TmcUnitStatus.inStock;
+        final isIssued = unit.status == TmcUnitStatus.issued;
+        final hasSn = unit.serialNumber?.trim().isNotEmpty == true;
+
+        final locationText =
+            unit.warehouseName ??
+            unit.objectName ??
+            (unit.employeeName != null
+                ? 'Сотрудник: ${unit.employeeName}'
+                : '—');
+
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: canUpdate
+                ? () => TmcUnitFormDialog.show(context, unit: unit)
+                : null,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Иконка
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      color: scheme.surfaceContainerHighest.withValues(
+                        alpha: 0.5,
+                      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: Icon(
+                      CupertinoIcons.tag,
+                      size: 18,
+                      color: scheme.onSurface.withValues(alpha: 0.7),
+                    ),
                   ),
-                )
-              : null,
-          onTap: permissions.can('tmc', 'issue')
-              ? () => TmcOperationDialog.show(
-                    context,
-                    operationType: TmcOperationType.issue,
-                    item: item,
-                    unit: unit,
-                  )
-              : null,
+                  const SizedBox(width: 12),
+
+                  // Описание единицы (Инвентарный № + Серийный №)
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Инв. № ${unit.inventoryNumber}',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        if (hasSn)
+                          Text(
+                            'S/N: ${unit.serialNumber!.trim()}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: scheme.onSurface,
+                            ),
+                          )
+                        else
+                          Text(
+                            canUpdate
+                                ? 'Серийный номер не указан — нажмите, чтобы добавить'
+                                : 'Серийный номер не указан',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: scheme.onSurface.withValues(alpha: 0.45),
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${TmcUiLabels.unitStatus(unit.status)} · $locationText',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurface.withValues(alpha: 0.65),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Кнопки действий над конкретным экземпляром
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (canUpdate)
+                        Tooltip(
+                          message: hasSn
+                              ? 'Изменить серийный номер'
+                              : 'Указать серийный номер',
+                          child: IconButton(
+                            icon: const Icon(CupertinoIcons.pencil, size: 18),
+                            onPressed: () =>
+                                TmcUnitFormDialog.show(context, unit: unit),
+                          ),
+                        ),
+                      if (canIssue && isStock)
+                        Tooltip(
+                          message: 'Выдать этот инструмент',
+                          child: IconButton(
+                            icon: const Icon(
+                              CupertinoIcons.arrow_up_right_circle,
+                              size: 20,
+                            ),
+                            onPressed: () => TmcOperationDialog.show(
+                              context,
+                              operationType: TmcOperationType.issue,
+                              item: item,
+                              unit: unit,
+                            ),
+                          ),
+                        ),
+                      if (canIssue && isIssued)
+                        Tooltip(
+                          message: 'Принять возврат',
+                          child: IconButton(
+                            icon: const Icon(
+                              CupertinoIcons.arrow_down_left_circle,
+                              size: 20,
+                            ),
+                            onPressed: () => TmcOperationDialog.show(
+                              context,
+                              operationType:
+                                  TmcOperationType.returnFromEmployee,
+                              item: item,
+                              unit: unit,
+                            ),
+                          ),
+                        ),
+                      if (canMove)
+                        Tooltip(
+                          message: 'Переместить',
+                          child: IconButton(
+                            icon: const Icon(
+                              CupertinoIcons.arrow_2_circlepath,
+                              size: 20,
+                            ),
+                            onPressed: () => TmcOperationDialog.show(
+                              context,
+                              operationType:
+                                  TmcOperationType.moveBetweenWarehouses,
+                              item: item,
+                              unit: unit,
+                            ),
+                          ),
+                        ),
+                      if (canRepair)
+                        Tooltip(
+                          message: 'В ремонт',
+                          child: IconButton(
+                            icon: const Icon(CupertinoIcons.wrench, size: 18),
+                            onPressed: () => TmcOperationDialog.show(
+                              context,
+                              operationType: TmcOperationType.sendToRepair,
+                              item: item,
+                              unit: unit,
+                            ),
+                          ),
+                        ),
+                      if (canWriteOff)
+                        Tooltip(
+                          message: 'Списать',
+                          child: IconButton(
+                            icon: const Icon(CupertinoIcons.trash, size: 18),
+                            onPressed: () => TmcOperationDialog.show(
+                              context,
+                              operationType: TmcOperationType.writeOff,
+                              item: item,
+                              unit: unit,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
         );
       },
     );
@@ -374,11 +535,10 @@ class _InfoRow extends StatelessWidget {
             child: Text(
               label,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.55),
-                  ),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.55),
+              ),
             ),
           ),
           Expanded(child: Text(value)),

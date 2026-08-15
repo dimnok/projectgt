@@ -1,9 +1,20 @@
 import 'package:projectgt/features/tmc/domain/entities/tmc_enums.dart';
+import 'package:projectgt/features/tmc/domain/entities/tmc_unit.dart';
+import 'package:projectgt/features/tmc/domain/entities/tmc_warehouse.dart';
 
 /// Русские подписи UI модуля ТМЦ.
 abstract final class TmcUiLabels {
   /// Название модуля.
   static const moduleTitle = 'ТМЦ';
+
+  /// Текущий раздел: реестр позиций.
+  static const registry = 'Реестр';
+
+  /// Подсказка поиска в реестре.
+  static const searchHint = 'Поиск по названию…';
+
+  /// Уведомления.
+  static const notifications = 'Уведомления';
 
   /// Журнал операций.
   static const operationsJournal = 'Журнал операций';
@@ -127,4 +138,59 @@ abstract final class TmcUiLabels {
 
   /// Пустой журнал.
   static const emptyOperations = 'Операций пока нет';
+
+  /// Максимум полей S/N в форме поступления (остальные единицы — без номера).
+  static const maxSerialFields = 30;
+
+  /// Разбор числа из поля ввода (`1,5` / `1.5`).
+  static double? parseNumber(String text) =>
+      double.tryParse(text.replaceAll(',', '.'));
+
+  /// Разбор количества из поля ввода (`1,5` / `1.5`).
+  static double? parseQuantity(String text) => parseNumber(text);
+
+  /// Разбор цены из поля ввода (`1,5` / `1.5`).
+  static double? parsePrice(String text) => parseNumber(text);
+
+  /// Число экземпляров при поступлении (≥ 1). Не обрезает реальное количество.
+  static int receiptUnitCount(String text) {
+    final n = (parseQuantity(text) ?? 1).ceil();
+    return n < 1 ? 1 : n;
+  }
+
+  /// Непустые серийные номера из формы.
+  static List<String> nonEmptySerials(List<String>? values) {
+    if (values == null) return const [];
+    return [
+      for (final s in values)
+        if (s.trim().isNotEmpty) s.trim(),
+    ];
+  }
+
+  /// Подпись склада в списках.
+  static String warehouseLabel(TmcWarehouse warehouse) =>
+      warehouse.isMain ? '${warehouse.name} (основной)' : warehouse.name;
+
+  /// Подпись единицы: инв. №, опционально S/N, статус и место.
+  static String unitLabel(
+    TmcUnit unit, {
+    bool includeStatus = true,
+    bool includeLocation = true,
+  }) {
+    final parts = <String>['Инв. № ${unit.inventoryNumber}'];
+    final sn = unit.serialNumber?.trim();
+    if (sn != null && sn.isNotEmpty) {
+      parts.add('S/N: $sn');
+    }
+    if (includeStatus) {
+      parts.add(unit.status.displayName);
+    }
+    if (includeLocation) {
+      final loc = unit.warehouseName ?? unit.objectName ?? unit.employeeName;
+      if (loc != null && loc.isNotEmpty) {
+        parts.add(loc);
+      }
+    }
+    return parts.join(' · ');
+  }
 }

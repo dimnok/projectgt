@@ -45,6 +45,7 @@ abstract class TmcRepository {
     String? warehouseId,
     double? unitPrice,
     String? conditionId,
+    List<String>? serialNumbers,
   });
 
   /// Обновить позицию каталога.
@@ -58,6 +59,9 @@ abstract class TmcRepository {
 
   /// Единица по id.
   Future<TmcUnit?> getUnit(String id);
+
+  /// Обновить единицу ТМЦ (серийный номер, инвентарный номер, штрихкод, гарантия и т.д.).
+  Future<TmcUnit> updateUnit(TmcUnit unit);
 
   /// Список категорий.
   Future<List<TmcCategory>> listCategories();

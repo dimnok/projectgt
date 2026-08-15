@@ -17,6 +17,7 @@ import 'package:projectgt/features/tmc/domain/entities/tmc_unit.dart';
 import 'package:projectgt/features/tmc/domain/entities/tmc_warehouse.dart';
 import 'package:projectgt/features/tmc/presentation/state/tmc_providers.dart';
 import 'package:projectgt/features/tmc/presentation/utils/tmc_ui_labels.dart';
+import 'package:projectgt/features/tmc/presentation/widgets/tmc_serial_numbers_editor.dart';
 import 'package:projectgt/presentation/state/employee_state.dart' as emp_state;
 
 /// Унифицированный диалог складской операции ТМЦ.
@@ -81,6 +82,7 @@ class _TmcOperationDialogState extends ConsumerState<TmcOperationDialog> {
   final _repairReasonController = TextEditingController();
   final _repairOrgController = TextEditingController();
   final _writeOffActController = TextEditingController();
+  final _serialNumbersKey = GlobalKey<TmcSerialNumbersEditorState>();
 
   String? _warehouseId;
   String? _toWarehouseId;
@@ -125,8 +127,9 @@ class _TmcOperationDialogState extends ConsumerState<TmcOperationDialog> {
     if (!_needsUnit || itemId == null || widget.presetUnit != null) return;
     setState(() => _unitsLoading = true);
     try {
-      final units =
-          await ref.read(tmcRepositoryProvider).listUnits(itemId: itemId);
+      final units = await ref
+          .read(tmcRepositoryProvider)
+          .listUnits(itemId: itemId);
       if (!mounted) return;
       setState(() {
         _units = units
@@ -221,11 +224,10 @@ class _TmcOperationDialogState extends ConsumerState<TmcOperationDialog> {
     }
 
     final unit = _activeUnit;
-    final qty = (_isIndividual &&
-            widget.operationType != TmcOperationType.receipt)
+    final qty =
+        (_isIndividual && widget.operationType != TmcOperationType.receipt)
         ? 1.0
-        : (double.tryParse(_quantityController.text.replaceAll(',', '.')) ??
-            1);
+        : (TmcUiLabels.parseQuantity(_quantityController.text) ?? 1);
 
     // Исходная локация из единицы (для индивидуальных операций)
     final fromType = unit?.locationType.dbValue;
@@ -233,6 +235,11 @@ class _TmcOperationDialogState extends ConsumerState<TmcOperationDialog> {
     final fromObject = unit?.objectId;
     final fromEmployee = unit?.employeeId ?? _employeeId;
     final fromNote = unit?.locationNote;
+
+    final serialNumbers =
+        widget.operationType == TmcOperationType.receipt && _isIndividual
+        ? TmcUiLabels.nonEmptySerials(_serialNumbersKey.currentState?.values)
+        : const <String>[];
 
     final payload = <String, dynamic>{
       'operation_type': widget.operationType.dbValue,
@@ -250,6 +257,8 @@ class _TmcOperationDialogState extends ConsumerState<TmcOperationDialog> {
           if (_selectedUnitId != null) 'unit_id': _selectedUnitId,
           'quantity': qty,
           if (_conditionId != null) 'condition_id': _conditionId,
+          if (serialNumbers.isNotEmpty) 'serial_numbers': serialNumbers,
+          if (serialNumbers.isNotEmpty) 'serial_number': serialNumbers.first,
         },
       ],
     };
@@ -399,25 +408,35 @@ class _TmcOperationDialogState extends ConsumerState<TmcOperationDialog> {
         if (itemName.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: Text(itemName, style: Theme.of(context).textTheme.titleSmall),
+            child: Text(
+              itemName,
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
           ),
-        if (widget.presetUnit?.inventoryNumber != null)
+        if (widget.presetUnit != null) ...[
           Text(
-            'Инв. № ${widget.presetUnit!.inventoryNumber}',
-            style: Theme.of(context).textTheme.bodySmall,
+            TmcUiLabels.unitLabel(
+              widget.presetUnit!,
+              includeStatus: false,
+              includeLocation: false,
+            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
           ),
+          const SizedBox(height: 8),
+        ],
         if (_needsUnit && widget.presetUnit == null) ...[
           const SizedBox(height: 12),
           if (_unitsLoading)
             const LinearProgressIndicator()
           else
             GTDropdown<TmcUnit>(
-              labelText: 'Единица (инв. номер)',
-              hintText: 'Выберите единицу',
+              labelText: 'Конкретный инструмент (инв. / серийный №)',
+              hintText: 'Выберите экземпляр',
               items: _units,
               selectedItem: _activeUnit,
-              itemDisplayBuilder: (u) =>
-                  '${u.inventoryNumber}${u.status.displayName.isNotEmpty ? ' · ${u.status.displayName}' : ''}',
+              itemDisplayBuilder: TmcUiLabels.unitLabel,
               onSelectionChanged: (u) {
                 setState(() {
                   _selectedUnitId = u?.id;
@@ -434,7 +453,16 @@ class _TmcOperationDialogState extends ConsumerState<TmcOperationDialog> {
             controller: _quantityController,
             labelText: 'Количество',
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            onChanged: (_) => setState(() {}),
           ),
+          if (_isIndividual &&
+              widget.operationType == TmcOperationType.receipt) ...[
+            const SizedBox(height: 12),
+            TmcSerialNumbersEditor(
+              key: _serialNumbersKey,
+              unitCount: TmcUiLabels.receiptUnitCount(_quantityController.text),
+            ),
+          ],
         ],
         const SizedBox(height: 12),
         GTTextField(
@@ -551,16 +579,19 @@ class _TmcOperationDialogState extends ConsumerState<TmcOperationDialog> {
       );
     }
 
-    final needsWarehouse = type == TmcOperationType.receipt ||
+    final needsWarehouse =
+        type == TmcOperationType.receipt ||
         type == TmcOperationType.issue ||
         type == TmcOperationType.returnFromEmployee ||
         type == TmcOperationType.transferToObject ||
         type == TmcOperationType.moveBetweenWarehouses;
 
-    final needsEmployee = type == TmcOperationType.issue ||
+    final needsEmployee =
+        type == TmcOperationType.issue ||
         type == TmcOperationType.returnFromEmployee;
 
-    final needsObject = type == TmcOperationType.transferToObject ||
+    final needsObject =
+        type == TmcOperationType.transferToObject ||
         type == TmcOperationType.issue;
 
     final needsCondition = type == TmcOperationType.changeCondition;
@@ -582,8 +613,7 @@ class _TmcOperationDialogState extends ConsumerState<TmcOperationDialog> {
                 items: warehouses,
                 selectedItem: selected,
                 itemDisplayBuilder: (w) => w.name,
-                onSelectionChanged: (w) =>
-                    setState(() => _warehouseId = w?.id),
+                onSelectionChanged: (w) => setState(() => _warehouseId = w?.id),
                 allowClear: true,
               );
             },
@@ -643,8 +673,7 @@ class _TmcOperationDialogState extends ConsumerState<TmcOperationDialog> {
                 items: conditions,
                 selectedItem: selected,
                 itemDisplayBuilder: (c) => c.name,
-                onSelectionChanged: (c) =>
-                    setState(() => _conditionId = c?.id),
+                onSelectionChanged: (c) => setState(() => _conditionId = c?.id),
                 allowClear: true,
               );
             },

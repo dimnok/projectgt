@@ -10,7 +10,6 @@ import 'package:projectgt/features/tmc/domain/repositories/tmc_repository.dart';
 import 'package:projectgt/features/tmc/domain/entities/tmc_category.dart';
 import 'package:projectgt/features/tmc/domain/entities/tmc_condition.dart';
 import 'package:projectgt/features/tmc/domain/entities/tmc_assignment.dart';
-import 'package:projectgt/features/tmc/domain/entities/tmc_inventory.dart';
 import 'package:projectgt/features/tmc/domain/entities/tmc_unit.dart';
 import 'package:projectgt/features/tmc/domain/entities/tmc_warehouse.dart';
 import 'package:projectgt/features/tmc/domain/entities/tmc_stock_balance.dart';
@@ -153,10 +152,7 @@ class TmcItemsListNotifier extends StateNotifier<TmcItemsListState> {
         clearError: true,
       );
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: e.toString(),
-      );
+      state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
@@ -168,24 +164,14 @@ class TmcItemsListNotifier extends StateNotifier<TmcItemsListState> {
     );
     await load();
   }
-
-  /// Перейти на страницу [page] (с нуля).
-  Future<void> goToPage(int page) async {
-    final offset = page * state.filters.limit;
-    state = state.copyWith(
-      filters: state.filters.copyWith(offset: offset),
-      clearError: true,
-    );
-    await load();
-  }
 }
 
 /// Провайдер списка позиций ТМЦ с фильтрами.
 final tmcItemsListProvider =
     StateNotifierProvider<TmcItemsListNotifier, TmcItemsListState>((ref) {
-  final repo = ref.watch(tmcRepositoryProvider);
-  return TmcItemsListNotifier(repo);
-});
+      final repo = ref.watch(tmcRepositoryProvider);
+      return TmcItemsListNotifier(repo);
+    });
 
 /// Справочник категорий ТМЦ.
 final tmcCategoriesProvider = FutureProvider<List<TmcCategory>>((ref) async {
@@ -210,13 +196,16 @@ typedef TmcStockQuery = ({String? warehouseId, String search});
 
 /// Остатки ТМЦ по складам.
 final tmcStockProvider =
-    FutureProvider.family<List<TmcStockBalance>, TmcStockQuery>((ref, query) async {
-  final repo = ref.watch(tmcRepositoryProvider);
-  return repo.listStock(
-    warehouseId: query.warehouseId,
-    search: query.search.isEmpty ? null : query.search,
-  );
-});
+    FutureProvider.family<List<TmcStockBalance>, TmcStockQuery>((
+      ref,
+      query,
+    ) async {
+      final repo = ref.watch(tmcRepositoryProvider);
+      return repo.listStock(
+        warehouseId: query.warehouseId,
+        search: query.search.isEmpty ? null : query.search,
+      );
+    });
 
 /// Состояние списка операций ТМЦ.
 class TmcOperationsListState {
@@ -253,8 +242,9 @@ class TmcOperationsListState {
       operations: operations ?? this.operations,
       isLoading: isLoading ?? this.isLoading,
       error: clearError ? null : (error ?? this.error),
-      operationType:
-          clearOperationType ? null : (operationType ?? this.operationType),
+      operationType: clearOperationType
+          ? null
+          : (operationType ?? this.operationType),
     );
   }
 }
@@ -265,7 +255,7 @@ class TmcOperationsListNotifier extends StateNotifier<TmcOperationsListState> {
 
   /// Создаёт notifier.
   TmcOperationsListNotifier(this._repository)
-      : super(const TmcOperationsListState()) {
+    : super(const TmcOperationsListState()) {
     load();
   }
 
@@ -285,10 +275,7 @@ class TmcOperationsListNotifier extends StateNotifier<TmcOperationsListState> {
         clearError: true,
       );
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: e.toString(),
-      );
+      state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
@@ -305,43 +292,44 @@ class TmcOperationsListNotifier extends StateNotifier<TmcOperationsListState> {
 
 /// Провайдер списка операций ТМЦ.
 final tmcOperationsProvider =
-    StateNotifierProvider<TmcOperationsListNotifier, TmcOperationsListState>(
-        (ref) {
-  final repo = ref.watch(tmcRepositoryProvider);
-  return TmcOperationsListNotifier(repo);
-});
+    StateNotifierProvider<TmcOperationsListNotifier, TmcOperationsListState>((
+      ref,
+    ) {
+      final repo = ref.watch(tmcRepositoryProvider);
+      return TmcOperationsListNotifier(repo);
+    });
 
 /// Позиция каталога по id.
-final tmcItemProvider = FutureProvider.family<TmcItem?, String>((ref, id) async {
+final tmcItemProvider = FutureProvider.family<TmcItem?, String>((
+  ref,
+  id,
+) async {
   final repo = ref.watch(tmcRepositoryProvider);
   return repo.getItem(id);
 });
 
 /// Единицы позиции.
-final tmcItemUnitsProvider =
-    FutureProvider.family<List<TmcUnit>, String>((ref, itemId) async {
+final tmcItemUnitsProvider = FutureProvider.family<List<TmcUnit>, String>((
+  ref,
+  itemId,
+) async {
   final repo = ref.watch(tmcRepositoryProvider);
   return repo.listUnits(itemId: itemId);
 });
 
 /// Выдачи сотрудника (null — все).
 final tmcAssignmentsProvider =
-    FutureProvider.family<List<TmcAssignment>, String?>(
-  (ref, employeeId) async {
-    final repo = ref.watch(tmcRepositoryProvider);
-    return repo.listAssignments(employeeId: employeeId);
-  },
-);
-
-/// Список инвентаризаций.
-final tmcInventoriesProvider = FutureProvider<List<TmcInventory>>((ref) async {
-  final repo = ref.watch(tmcRepositoryProvider);
-  return repo.listInventories();
-});
+    FutureProvider.family<List<TmcAssignment>, String?>((
+      ref,
+      employeeId,
+    ) async {
+      final repo = ref.watch(tmcRepositoryProvider);
+      return repo.listAssignments(employeeId: employeeId);
+    });
 
 /// Операции по позиции.
 final tmcItemOperationsProvider =
     FutureProvider.family<List<TmcOperation>, String>((ref, itemId) async {
-  final repo = ref.watch(tmcRepositoryProvider);
-  return repo.listOperations(itemId: itemId, limit: 200);
-});
+      final repo = ref.watch(tmcRepositoryProvider);
+      return repo.listOperations(itemId: itemId, limit: 200);
+    });
