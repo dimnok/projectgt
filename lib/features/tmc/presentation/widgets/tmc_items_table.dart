@@ -8,7 +8,6 @@ import 'package:projectgt/core/widgets/gt_context_menu.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
 import 'package:projectgt/features/tmc/domain/entities/tmc_enums.dart';
 import 'package:projectgt/features/tmc/domain/entities/tmc_item.dart';
-import 'package:projectgt/features/tmc/presentation/utils/tmc_ui_labels.dart';
 import 'package:projectgt/features/tmc/presentation/widgets/tmc_item_form_dialog.dart';
 import 'package:projectgt/features/tmc/presentation/widgets/tmc_operation_dialog.dart';
 
@@ -287,32 +286,6 @@ class _TmcItemsTableState extends ConsumerState<TmcItemsTable> {
     final permissions = ref.watch(permissionServiceProvider);
     final canIssue = permissions.can('tmc', 'issue');
     final columns = _buildColumns();
-
-    if (widget.items.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                CupertinoIcons.cube_box,
-                size: 44,
-                color: scheme.onSurface.withValues(alpha: 0.35),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                TmcUiLabels.emptyItems,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: scheme.onSurface.withValues(alpha: 0.55),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
 
     return LayoutBuilder(
       builder: (context, constraints) {

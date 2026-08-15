@@ -2,12 +2,10 @@ import 'package:projectgt/features/tmc/data/models/tmc_assignment_model.dart';
 import 'package:projectgt/features/tmc/data/models/tmc_category_model.dart';
 import 'package:projectgt/features/tmc/data/models/tmc_condition_model.dart';
 import 'package:projectgt/features/tmc/data/models/tmc_dashboard_stats_model.dart';
-import 'package:projectgt/features/tmc/data/models/tmc_inventory_model.dart';
 import 'package:projectgt/features/tmc/data/models/tmc_item_model.dart';
 import 'package:projectgt/features/tmc/data/models/tmc_json_utils.dart';
 import 'package:projectgt/features/tmc/data/models/tmc_notification_model.dart';
 import 'package:projectgt/features/tmc/data/models/tmc_operation_model.dart';
-import 'package:projectgt/features/tmc/data/models/tmc_repair_model.dart';
 import 'package:projectgt/features/tmc/data/models/tmc_unit_model.dart';
 import 'package:projectgt/features/tmc/data/models/tmc_warehouse_model.dart';
 import 'package:projectgt/features/tmc/data/models/tmc_write_off_model.dart';
@@ -16,11 +14,9 @@ import 'package:projectgt/features/tmc/domain/entities/tmc_category.dart';
 import 'package:projectgt/features/tmc/domain/entities/tmc_condition.dart';
 import 'package:projectgt/features/tmc/domain/entities/tmc_dashboard_stats.dart';
 import 'package:projectgt/features/tmc/domain/entities/tmc_enums.dart';
-import 'package:projectgt/features/tmc/domain/entities/tmc_inventory.dart';
 import 'package:projectgt/features/tmc/domain/entities/tmc_item.dart';
 import 'package:projectgt/features/tmc/domain/entities/tmc_notification.dart';
 import 'package:projectgt/features/tmc/domain/entities/tmc_operation.dart';
-import 'package:projectgt/features/tmc/domain/entities/tmc_repair.dart';
 import 'package:projectgt/features/tmc/domain/entities/tmc_stock_balance.dart';
 import 'package:projectgt/features/tmc/domain/entities/tmc_unit.dart';
 import 'package:projectgt/features/tmc/domain/entities/tmc_warehouse.dart';
@@ -74,25 +70,10 @@ class TmcRepositoryImpl implements TmcRepository {
     objects:object_id(name)
   ''';
 
-  static const _repairSelect = '''
-    *,
-    tmc_items:item_id(name),
-    tmc_units:unit_id(inventory_number)
-  ''';
-
   static const _writeOffSelect = '''
     *,
     tmc_items:item_id(name),
     tmc_units:unit_id(inventory_number)
-  ''';
-
-  static const _inventorySelect = '''
-    *,
-    tmc_inventory_items(
-      *,
-      tmc_items:item_id(name),
-      tmc_units:unit_id(inventory_number)
-    )
   ''';
 
   @override
@@ -308,21 +289,6 @@ class TmcRepositoryImpl implements TmcRepository {
   }
 
   @override
-  Future<void> archiveItem(String id) async {
-    if (!_hasCompany) return;
-
-    await client
-        .from('tmc_items')
-        .update({
-          'is_archived': true,
-          'status': 'archived',
-          'archived_at': DateTime.now().toUtc().toIso8601String(),
-        })
-        .eq('id', id)
-        .eq('company_id', activeCompanyId);
-  }
-
-  @override
   Future<List<TmcUnit>> listUnits({String? itemId, String? status}) async {
     if (!_hasCompany) return [];
 
@@ -348,22 +314,6 @@ class TmcRepositoryImpl implements TmcRepository {
           ).toDomain(),
         )
         .toList();
-  }
-
-  @override
-  Future<TmcUnit?> getUnit(String id) async {
-    if (!_hasCompany) return null;
-
-    final row = await client
-        .from('tmc_units')
-        .select(_unitSelect)
-        .eq('id', id)
-        .eq('company_id', activeCompanyId)
-        .maybeSingle();
-
-    if (row == null) return null;
-
-    return TmcUnitModel.fromJson(Map<String, dynamic>.from(row)).toDomain();
   }
 
   @override
@@ -425,36 +375,6 @@ class TmcRepositoryImpl implements TmcRepository {
         .single();
 
     return TmcCategoryModel.fromJson(Map<String, dynamic>.from(row)).toDomain();
-  }
-
-  @override
-  Future<TmcCategory> updateCategory(TmcCategory category) async {
-    final model = TmcCategoryModel.fromDomain(category);
-    final payload = model.toWriteJson(includeId: false);
-
-    final row = await client
-        .from('tmc_categories')
-        .update(payload)
-        .eq('id', category.id)
-        .eq('company_id', activeCompanyId)
-        .select()
-        .single();
-
-    return TmcCategoryModel.fromJson(Map<String, dynamic>.from(row)).toDomain();
-  }
-
-  @override
-  Future<void> archiveCategory(String id) async {
-    if (!_hasCompany) return;
-
-    await client
-        .from('tmc_categories')
-        .update({
-          'is_archived': true,
-          'archived_at': DateTime.now().toUtc().toIso8601String(),
-        })
-        .eq('id', id)
-        .eq('company_id', activeCompanyId);
   }
 
   @override
@@ -552,24 +472,6 @@ class TmcRepositoryImpl implements TmcRepository {
   }
 
   @override
-  Future<TmcWarehouse> updateWarehouse(TmcWarehouse warehouse) async {
-    final model = TmcWarehouseModel.fromDomain(warehouse);
-    final payload = model.toWriteJson(includeId: false);
-
-    final row = await client
-        .from('tmc_warehouses')
-        .update(payload)
-        .eq('id', warehouse.id)
-        .eq('company_id', activeCompanyId)
-        .select()
-        .single();
-
-    return TmcWarehouseModel.fromJson(
-      Map<String, dynamic>.from(row),
-    ).toDomain();
-  }
-
-  @override
   Future<List<TmcOperation>> listOperations({
     TmcOperationType? operationType,
     String? itemId,
@@ -615,8 +517,7 @@ class TmcRepositoryImpl implements TmcRepository {
         .toList();
   }
 
-  @override
-  Future<TmcOperation?> getOperation(String id) async {
+  Future<TmcOperation?> _getOperation(String id) async {
     if (!_hasCompany) return null;
 
     final row = await client
@@ -655,7 +556,7 @@ class TmcRepositoryImpl implements TmcRepository {
       throw StateError('RPC tmc_post_operation не вернул operation_id');
     }
 
-    final operation = await getOperation(operationId);
+    final operation = await _getOperation(operationId);
     if (operation == null) {
       throw StateError('Операция $operationId не найдена после проведения');
     }
@@ -688,26 +589,6 @@ class TmcRepositoryImpl implements TmcRepository {
   }
 
   @override
-  Future<List<TmcRepair>> listRepairs({int limit = 50, int offset = 0}) async {
-    if (!_hasCompany) return [];
-
-    final response = await client
-        .from('tmc_repairs')
-        .select(_repairSelect)
-        .eq('company_id', activeCompanyId)
-        .order('sent_at', ascending: false)
-        .range(offset, offset + limit - 1);
-
-    return (response as List)
-        .map(
-          (row) => TmcRepairModel.fromJson(
-            Map<String, dynamic>.from(row as Map),
-          ).toDomain(),
-        )
-        .toList();
-  }
-
-  @override
   Future<List<TmcWriteOff>> listWriteOffs({
     int limit = 50,
     int offset = 0,
@@ -728,89 +609,6 @@ class TmcRepositoryImpl implements TmcRepository {
           ).toDomain(),
         )
         .toList();
-  }
-
-  @override
-  Future<List<TmcInventory>> listInventories({
-    int limit = 50,
-    int offset = 0,
-  }) async {
-    if (!_hasCompany) return [];
-
-    final response = await client
-        .from('tmc_inventories')
-        .select(_inventorySelect)
-        .eq('company_id', activeCompanyId)
-        .order('started_at', ascending: false)
-        .range(offset, offset + limit - 1);
-
-    return (response as List)
-        .map(
-          (row) => TmcInventoryModel.fromJson(
-            Map<String, dynamic>.from(row as Map),
-          ).toDomain(),
-        )
-        .toList();
-  }
-
-  @override
-  Future<TmcInventory> createInventory(TmcInventory inventory) async {
-    if (!_hasCompany) {
-      throw StateError('Не выбрана активная компания');
-    }
-    final model = TmcInventoryModel.fromDomain(inventory);
-    final payload = model.toWriteJson(includeId: false);
-    payload['company_id'] = activeCompanyId;
-
-    final row = await client
-        .from('tmc_inventories')
-        .insert(payload)
-        .select()
-        .single();
-
-    return TmcInventoryModel.fromJson(
-      Map<String, dynamic>.from(row),
-    ).toDomain();
-  }
-
-  @override
-  Future<TmcInventoryItem> updateInventoryItem(TmcInventoryItem item) async {
-    final model = TmcInventoryItemModel.fromDomain(item);
-    final payload = model.toWriteJson();
-
-    final row = await client
-        .from('tmc_inventory_items')
-        .update(payload)
-        .eq('id', item.id)
-        .eq('company_id', activeCompanyId)
-        .select('''
-          *,
-          tmc_items:item_id(name),
-          tmc_units:unit_id(inventory_number)
-        ''')
-        .single();
-
-    return TmcInventoryItemModel.fromJson(
-      Map<String, dynamic>.from(row),
-    ).toDomain();
-  }
-
-  @override
-  Future<TmcInventory> completeInventory(String inventoryId) async {
-    final row = await client
-        .from('tmc_inventories')
-        .update({
-          'status': 'completed',
-          'completed_at': DateTime.now().toUtc().toIso8601String(),
-        })
-        .eq('id', inventoryId)
-        .eq('company_id', activeCompanyId)
-        .select(_inventorySelect)
-        .single();
-
-    return TmcInventoryModel.fromJson(
-      Map<String, dynamic>.from(row),
-    ).toDomain();
   }
 
   @override
@@ -852,17 +650,5 @@ class TmcRepositoryImpl implements TmcRepository {
         .update({'is_read': true})
         .eq('id', id)
         .eq('company_id', activeCompanyId);
-  }
-
-  @override
-  Future<String> nextInventoryNumber() async {
-    if (!_hasCompany) return '';
-
-    final response = await client.rpc(
-      'tmc_next_inventory_number',
-      params: {'p_company_id': activeCompanyId},
-    );
-
-    return response?.toString() ?? '';
   }
 }

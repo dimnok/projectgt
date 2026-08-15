@@ -2,7 +2,17 @@
 
 **Дата актуализации:** 15 августа 2026  
 
-**Изменения в этой версии (15.08.2026, целостность выдач):**
+**Изменения в этой версии (15.08.2026, аудит + чистка мёртвого кода):**
+- Проведён аудит модуля (структура, бизнес-логика, UI, БД через MCP Supabase).
+- Удалены неиспользуемые методы `TmcRepository` (архивация, `getUnit`, правка категорий/складов, инвентаризация, `listRepairs`, `nextInventoryNumber` и др.) — в коде не вызывались.
+- Удалены Dart-сущности и модели `TmcRepair` / `TmcInventory` (таблицы `tmc_repairs`, `tmc_inventories` в БД **сохранены**; клиентский API — при реализации UI).
+- `getOperation` убран из публичного контракта; в `TmcRepositoryImpl` — приватный `_getOperation` для `postOperation`.
+- `TmcItemsTable`: пустой реестр обрабатывает `TmcListScreen`, не таблица.
+- Отчёт «В ремонте» — `listUnits(status: 'in_repair')`, не `tmc_repairs`.
+- Миграции в репозитории: **11** файлов `*tmc*` (вкл. `140000`, `141000`); на live применены.
+- RPC `tmc_*` на live: **15** функций (вкл. `tmc_close_unit_assignments`, `tmc_consume_employee_assignments`).
+
+**Предыдущая версия (15.08.2026, целостность выдач):**
 - Возврат количественного учёта списывает выдачи FIFO по количеству (не закрывает одну запись целиком).
 - Списание и ремонт закрывают активную выдачу единицы; количественное — если списание с сотрудника.
 - Выдать индивидуальную единицу можно только со склада; единица должна принадлежать выбранной позиции.
@@ -159,9 +169,9 @@
 | `TmcKpiCards` | KPI: на складе / выдано / на объекте / стоимость (`view_cost`); доп. сигналы ремонт/утеря/списание |
 | `TmcSectionNavBar` | Пилюли разделов (`TmcModuleSection`) |
 | `TmcFiltersToolbar` | Поиск / категория / тип учёта / обновить / «Новая позиция» (только реестр) |
-| `TmcItemsTable` | Колонки: №, наименование, категория, на складе, выдано, где лежит, цена/стоимость (`view_cost`), действия. «Выдать»/«Возврат» + `GTContextMenu` |
+| `TmcItemsTable` | Колонки: №, наименование, категория, на складе, выдано, где лежит, цена/стоимость (`view_cost`), действия. «Выдать»/«Возврат» + `GTContextMenu`. Пустой список — в `TmcListScreen` |
 | `TmcOperationsPanel` | Журнал: сегментный фильтр типа (полоска «Тип», выбранный — инверсия); таблица дата / тип / позиции / кол-во (строка 40 px). Не путать с пилюлями `TmcSectionNavBar` |
-| `TmcItemDetailsPanel` | Карточка: вкладки Основное / Единицы / Закупка / История; быстрые операции |
+| `TmcItemDetailsPanel` | Карточка: вкладки Основное / Единицы / Закупка / История; быстрые операции. Файл: `screens/tmc_item_details_screen.dart` (виджет, не отдельный Route-экран) |
 | `TmcItemFormDialog` | Создание / правка позиции; при создании — поступление и S/N |
 | `TmcOperationDialog` | Операция → RPC `tmc_post_operation`; индивидуальный учёт — выбор единицы; поступление — S/N |
 | `TmcSerialNumbersEditor` | Поля серийных номеров при поступлении нескольких экземпляров |
@@ -224,29 +234,39 @@ Design System: `MobileAtmosphereBackdrop`, `MobileAtmosphereMainSurface`, `Mobil
 
 ### Сущности
 
-Freezed: `TmcItem` (+ поля `qtyInStock`, `qtyIssued`, `qtyOnObject`, `locationSummary`), `TmcUnit`, `TmcWarehouse`, `TmcCategory`, `TmcCondition`, `TmcOperation` (+ items), `TmcAssignment` (+ join `unitPrice` из `tmc_items.unit_price`), `TmcRepair`, `TmcWriteOff`, `TmcInventory` (+ items), `TmcNotification`, `TmcDashboardStats`.
+Freezed: `TmcItem` (+ поля `qtyInStock`, `qtyIssued`, `qtyOnObject`, `locationSummary`), `TmcUnit`, `TmcWarehouse`, `TmcCategory`, `TmcCondition`, `TmcOperation` (+ items), `TmcAssignment` (+ join `unitPrice` из `tmc_items.unit_price`), `TmcWriteOff`, `TmcNotification`, `TmcDashboardStats`.
 
 Plain class: `TmcStockBalance` — строка остатка для раздела складов.
 
+**Без Dart-модели (только БД):** `tmc_repairs`, `tmc_inventories`, `tmc_inventory_items`, `tmc_balances`, `tmc_attachments`, `tmc_condition_history`. Ремонт в UI — через операции и `tmc_units.status = in_repair`; инвентаризация — заглушка `TmcInventoryPanel`.
+
+Слой **use cases** в модуле **отсутствует** (как в остальных фичах проекта): оркестрация в Notifier'ах, диалогах и RPC.
+
 ### Репозиторий
 
-- Контракт: `TmcRepository`
-- Реализация: `TmcRepositoryImpl`
+- Контракт: `TmcRepository` (19 публичных методов)
+- Реализация: `TmcRepositoryImpl` (~660 строк после чистки)
+- DI: `tmcRepositoryProvider` в `presentation/state/` импортирует `TmcRepositoryImpl` напрямую
 
-Ключевые методы:
-- каталог: `listItems` → RPC `tmc_list_items` (с разбивкой остатков); `getItem` обогащает остатками через list; create/update **без** поля `quantity` в payload;
-- `listStock` → RPC `tmc_list_stock`;
-- справочники: categories / conditions / warehouses;
-- единицы: `listUnits`, `getUnit`, `updateUnit`, `nextInventoryNumber`;
-- `createItemWithReceipt` → RPC `tmc_create_item_with_receipt` (опционально `serial_numbers`);
-- операции: `listOperations`, `getOperation`, **`postOperation` → RPC `tmc_post_operation`**;
-- assignments, repairs, write-offs, inventories;
-- notifications; dashboard → `tmc_dashboard_stats`.
+| Группа | Методы |
+|--------|--------|
+| Дашборд | `getDashboardStats` → RPC `tmc_dashboard_stats` |
+| Каталог | `listItems` → RPC `tmc_list_items`; `getItem` (обогащение остатками через list по **имени**); `createItem`, `createItemWithReceipt` → RPC `tmc_create_item_with_receipt`; `updateItem` (**без** `quantity` в payload) |
+| Остатки | `listStock` → RPC `tmc_list_stock` |
+| Единицы | `listUnits`, `updateUnit` (статус/место **не** в payload — только RPC) |
+| Справочники | `listCategories`, `createCategory`; `listConditions`; `listWarehouses`, `createWarehouse` |
+| Операции | `listOperations`, `postOperation` → RPC `tmc_post_operation` (внутри — `_getOperation`) |
+| Выдачи / списания | `listAssignments`, `listWriteOffs` |
+| Уведомления | `listNotifications`, `markNotificationRead` |
+
+**Удалено из контракта (мёртвый код, 15.08.2026):** `archiveItem`, `archiveCategory`, `getUnit`, `updateCategory`, `updateWarehouse`, `getOperation` (публичный), `listRepairs`, `listInventories`, `createInventory`, `updateInventoryItem`, `completeInventory`, `nextInventoryNumber`.
 
 ### Модели
 
 Freezed + `json_serializable` (`FieldRename.snake`), helpers в `tmc_json_utils.dart`.  
-`TmcItemModel.toWriteJson` удаляет `quantity` и `total_cost`.
+Модели: item, unit, warehouse, category, condition, operation (+ items), assignment, write_off, notification, dashboard_stats.  
+`TmcItemModel.toWriteJson` удаляет `quantity` и `total_cost`.  
+`listItems` / `listStock` маппят domain напрямую, минуя `TmcItemModel` / отдельную balance-модель.
 
 ---
 
@@ -255,11 +275,14 @@ Freezed + `json_serializable` (`FieldRename.snake`), helpers в `tmc_json_utils.
 ```
 lib/features/tmc/
 ├── data/
-│   ├── models/          # Freezed + .g.dart модели
+│   ├── models/          # item, unit, warehouse, category, condition, operation,
+│   │                    # assignment, write_off, notification, dashboard_stats,
+│   │                    # tmc_json_utils.dart
 │   └── repositories/
 │       └── tmc_repository_impl.dart
 ├── domain/
 │   ├── entities/        # Freezed + tmc_enums.dart + tmc_stock_balance.dart
+│   │                    # (без tmc_repair / tmc_inventory — только БД)
 │   └── repositories/
 │       └── tmc_repository.dart
 └── presentation/
@@ -315,7 +338,7 @@ Wiring вне фичи: `app_router.dart`, `app_drawer.dart`, `app_module_availa
 ## 🗄️ База данных (Audit)
 
 **Источник аудита:** live DB через MCP Supabase (`api.progt.ru`), 15.08.2026.  
-**Миграции в репозитории:** `20260729120*_tmc_*.sql`, `20260729130000_tmc_stock_visibility.sql`, `20260730120000_tmc_main_warehouse.sql`, `20260815120000_tmc_create_item_serial_number.sql`, `20260815130000_tmc_receipt_serial_numbers.sql`.
+**Миграции в репозитории:** 11 файлов `*tmc*` — от `20260729120000_create_tmc_module.sql` до `20260815141000_tmc_post_operation_assignment_integrity.sql` (все applied на live).
 
 ### `app_modules`
 
@@ -371,8 +394,10 @@ Wiring вне фичи: `app_router.dart`, `app_drawer.dart`, `app_module_availa
 
 Исключения:
 - `tmc_assignments` — self SELECT по employee профиля;
-- `tmc_notifications` — только `user_id = auth.uid()`;
+- `tmc_notifications` — только `user_id = auth.uid()` (без `tmc.read` для админов на live);
 - `tmc_balances` — DML для `authenticated` отозван.
+
+**RLS drift (live vs миграция `20260729120000`):** на live INSERT/UPDATE для `tmc_categories` и `tmc_warehouses` — через `tmc.create` / `tmc.update`, а не только `manage_catalogs`. Операции в приложении идут через SECURITY DEFINER RPC.
 
 ### Индексы
 
@@ -467,7 +492,7 @@ individual:   quantity = COUNT(tmc_units) WHERE not archived AND status <> writt
 
 ### Инвентаризация
 
-Схема и RPC-тип `inventory_adjust` есть. UI — заглушка.
+Схема БД и RPC-тип `inventory_adjust` есть. UI — заглушка `TmcInventoryPanel`. Клиентский API репозитория для `tmc_inventories` **удалён** (будет добавлен при реализации раздела).
 
 ### Уведомления
 
@@ -506,42 +531,54 @@ individual:   quantity = COUNT(tmc_units) WHERE not archived AND status <> writt
 - ✅ Профиль «Выданное имущество»
 - ✅ Карточка сотрудника: вкладка «ТМЦ» (просмотр активных выдач + стоимость)
 - ✅ Desktop-only guard; тесты enums/export
+- ✅ Аудит модуля + удаление мёртвого кода репозитория (15.08.2026)
 
 ### Планы / долги
 
-- 🟡 Полноценная инвентаризация UI
+- 🟡 Полноценная инвентаризация UI (+ восстановить entity/model и методы репозитория)
+- 🟡 Списание количественного ТМЦ с сотрудника в UI (RPC поддерживает, диалог — нет)
+- 🟡 Централизовать правила «когда можно выдать/вернуть» (сейчас в диалоге, карточке и таблице)
+- 🟡 Вынести построение payload операции из `TmcOperationDialog` в domain
+- 🟡 Исправить `getItem` — обогащение по id, не по имени
 - 🟡 Mobile / QR
 - 🟡 Загрузка фото/вложений в Storage
 - 🟡 Авто-уведомления по срокам
 - 🟡 Обогащение Excel-отчётов реальными `tmc_balances` (не только units)
+- 🟡 Отчёт «В ремонте» через `tmc_repairs` (сейчас `listUnits(in_repair)`)
 - 🟢 Seed прав ТМЦ для типовых ролей
 - 🟢 Импорт каталога (`import` скрыт)
+- 🟢 UI архивации позиций / правка категорий и складов (методы репозитория удалены)
 
 ### Известные ограничения
 
 - Не-Owner без прав в «Ролях» модуль недоступен.
 - Инвентаризация в меню — UI «в разработке» (`TmcInventoryPanel`).
 - `total_cost` в KPI скрыт без `view_cost`.
-- `getItem` обогащает остатки через `listItems` по имени (при дубликатах имён — риск неоднозначности; редкий кейс).
+- `getItem` обогащает остатки через `listItems` по имени (при дубликатах имён или limit — риск нулевых остатков).
+- `listAssignments` возвращает все выдачи; фильтр `is_active` — в UI (`PropertyScreen`, `EmployeeTmcSection`).
+- Типы операций в enum/RPC без UI: `return_from_object`, `move_between_objects`, `transfer_between_employees`, `reserve`, `unreserve`, `shortage`, `inventory_adjust`, `correction`.
 
 ---
 
-## ✅ Чек-лист аудита (15.08.2026, повтор после UI журнала)
+## ✅ Чек-лист аудита (15.08.2026, после чистки кода)
 
 | Проверка | Результат |
 |----------|-----------|
-| Файлы `lib/features/tmc/` | ✅ screens: `tmc_list_screen`, `tmc_item_details_screen`; панели разделов в `widgets/` |
+| Файлы `lib/features/tmc/` | ✅ ~73 исходников (+ generated); `screens`: `tmc_list_screen`, `tmc_item_details_screen` (`TmcItemDetailsPanel`) |
 | Журнал операций UI | ✅ `TmcOperationsPanel`: сегментный фильтр + компактная таблица |
 | Удалённые экраны-оболочки | ✅ `Tmc*Screen` разделов и `TmcCatalogsDialog` отсутствуют |
 | Маршруты | ✅ `/tmc`, `/tmc/items/:itemId`; дочерние разделы сняты |
 | Провайдеры | ✅ 13 `final` в `tmc_providers.dart`; `tmcUnitsProvider` нет |
-| Таблицы live `tmc_%` | ✅ 17, RLS ✅ на всех (live rows без изменений относительно аудита ранее 15.08) |
+| `TmcRepository` методы | ✅ 19 публичных; мёртвые методы удалены |
+| Dart entity repair/inventory | ❌ удалены; таблицы БД сохранены |
+| Таблицы live `tmc_%` | ✅ 17, RLS ✅ на всех |
 | RPC `tmc_*` | ✅ 15 (вкл. `tmc_close_unit_assignments`, `tmc_consume_employee_assignments`) |
 | Триггеры recalc qty | ✅ на `tmc_balances`, `tmc_units` |
-| Edge Functions ТМЦ | ❌ нет в `supabase/functions/` (`list_edge_functions` в MCP нет) |
+| Edge Functions ТМЦ | ❌ нет в `supabase/functions/` |
 | Bucket `tmc` | ✅ `public = false` |
 | `role_permissions` seed `tmc` | ❌ 0 записей (`module_code = 'tmc'`) |
-| Grants `authenticated` на `tmc_balances` | ✅ нет INSERT/UPDATE/DELETE (есть SELECT, REFERENCES, TRIGGER, TRUNCATE) |
-| Миграции в репозитории | ✅ 9 файлов `*tmc*` |
-| Миграции applied (live) | ✅ вкл. `20260815120000_tmc_create_item_serial_number`, `tmc_receipt_serial_numbers` |
-| Документация соответствует коду | ✅ этот файл |
+| Grants `authenticated` на `tmc_balances` | ✅ нет INSERT/UPDATE/DELETE |
+| Миграции в репозитории | ✅ **11** файлов `*tmc*` |
+| Миграции applied (live) | ✅ вкл. `140000`, `141000`, serial numbers |
+| Тесты | ✅ `test/features/tmc/tmc_enums_and_export_test.dart` |
+| Документация соответствует коду | ✅ этот файл (15.08.2026) |
