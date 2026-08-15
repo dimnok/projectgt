@@ -103,4 +103,40 @@ final permissionsList = [
     code: 'manage_catalogs',
     icon: CupertinoIcons.book,
   ),
+  const PermissionUiModel(
+    id: 'approve',
+    name: 'Согласование',
+    code: 'approve',
+    icon: CupertinoIcons.checkmark_seal,
+  ),
+  const PermissionUiModel(
+    id: 'prepare_invoice',
+    name: 'Счета',
+    code: 'prepare_invoice',
+    icon: CupertinoIcons.doc_plaintext,
+  ),
+  const PermissionUiModel(
+    id: 'approve_invoice',
+    name: 'Согласование счетов',
+    code: 'approve_invoice',
+    icon: CupertinoIcons.doc_checkmark,
+  ),
+  const PermissionUiModel(
+    id: 'payment',
+    name: 'Оплата',
+    code: 'payment',
+    icon: CupertinoIcons.creditcard,
+  ),
+  const PermissionUiModel(
+    id: 'receive',
+    name: 'Получение',
+    code: 'receive',
+    icon: CupertinoIcons.cube_box,
+  ),
+  const PermissionUiModel(
+    id: 'view_all',
+    name: 'Все заявки',
+    code: 'view_all',
+    icon: CupertinoIcons.list_bullet,
+  ),
 ];

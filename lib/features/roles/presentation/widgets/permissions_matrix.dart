@@ -43,6 +43,17 @@ class PermissionsMatrix extends StatelessWidget {
     'timesheet': ['import'],
     'works': ['export', 'import'],
     'tmc': ['import'],
+    'purchase_requests': [
+      'export',
+      'import',
+      'issue',
+      'move',
+      'repair',
+      'write_off',
+      'inventory',
+      'view_cost',
+      'manage_catalogs',
+    ],
   };
 
   /// Конструктор виджета.

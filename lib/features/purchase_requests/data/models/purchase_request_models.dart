@@ -1,0 +1,197 @@
+import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request.dart';
+import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_item.dart';
+import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_settings.dart';
+import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_status.dart';
+
+/// Модель заявки для Supabase.
+class PurchaseRequestModel {
+  /// Создаёт модель.
+  const PurchaseRequestModel({
+    required this.id,
+    required this.companyId,
+    required this.number,
+    required this.objectId,
+    this.objectName,
+    required this.createdBy,
+    this.currentAssigneeId,
+    required this.status,
+    this.comment,
+    this.totalAmount = 0,
+    this.createdAt,
+    this.updatedAt,
+    this.submittedAt,
+    this.completedAt,
+  });
+
+  final String id;
+  final String companyId;
+  final String number;
+  final String objectId;
+  final String? objectName;
+  final String createdBy;
+  final String? currentAssigneeId;
+  final PurchaseRequestStatus status;
+  final String? comment;
+  final double totalAmount;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final DateTime? submittedAt;
+  final DateTime? completedAt;
+
+  /// Из JSON (PostgREST / RPC).
+  factory PurchaseRequestModel.fromJson(Map<String, dynamic> json) {
+    final statusRaw = json['status'] as String? ?? 'draft';
+    return PurchaseRequestModel(
+      id: json['id'] as String,
+      companyId: json['company_id'] as String,
+      number: json['number'] as String,
+      objectId: json['object_id'] as String,
+      objectName: json['objects']?['name'] as String?,
+      createdBy: json['created_by'] as String,
+      currentAssigneeId: json['current_assignee_id'] as String?,
+      status: PurchaseRequestStatusX.fromDb(statusRaw) ??
+          PurchaseRequestStatus.draft,
+      comment: json['comment'] as String?,
+      totalAmount: (json['total_amount'] as num?)?.toDouble() ?? 0,
+      createdAt: _parseDateTime(json['created_at']),
+      updatedAt: _parseDateTime(json['updated_at']),
+      submittedAt: _parseDateTime(json['submitted_at']),
+      completedAt: _parseDateTime(json['completed_at']),
+    );
+  }
+
+  /// В доменную сущность.
+  PurchaseRequest toDomain() => PurchaseRequest(
+        id: id,
+        companyId: companyId,
+        number: number,
+        objectId: objectId,
+        objectName: objectName,
+        createdBy: createdBy,
+        currentAssigneeId: currentAssigneeId,
+        status: status,
+        comment: comment,
+        totalAmount: totalAmount,
+        createdAt: createdAt,
+        updatedAt: updatedAt,
+        submittedAt: submittedAt,
+        completedAt: completedAt,
+      );
+
+  static DateTime? _parseDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    return DateTime.parse(value as String);
+  }
+}
+
+/// Модель позиции заявки.
+class PurchaseRequestItemModel {
+  /// Создаёт модель позиции.
+  const PurchaseRequestItemModel({
+    required this.id,
+    required this.requestId,
+    required this.name,
+    required this.quantity,
+    required this.unit,
+    this.comment,
+    this.sortOrder = 0,
+    this.createdAt,
+  });
+
+  final String id;
+  final String requestId;
+  final String name;
+  final double quantity;
+  final String unit;
+  final String? comment;
+  final int sortOrder;
+  final DateTime? createdAt;
+
+  /// Из JSON.
+  factory PurchaseRequestItemModel.fromJson(Map<String, dynamic> json) {
+    return PurchaseRequestItemModel(
+      id: json['id'] as String,
+      requestId: json['request_id'] as String,
+      name: json['name'] as String,
+      quantity: (json['quantity'] as num).toDouble(),
+      unit: json['unit'] as String? ?? 'шт',
+      comment: json['comment'] as String?,
+      sortOrder: (json['sort_order'] as num?)?.toInt() ?? 0,
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
+          : null,
+    );
+  }
+
+  /// В доменную сущность.
+  PurchaseRequestItem toDomain() => PurchaseRequestItem(
+        id: id,
+        requestId: requestId,
+        name: name,
+        quantity: quantity,
+        unit: unit,
+        comment: comment,
+        sortOrder: sortOrder,
+        createdAt: createdAt,
+      );
+
+  /// JSON для insert/update.
+  Map<String, dynamic> toWriteJson({required String companyId}) => {
+        'company_id': companyId,
+        'request_id': requestId,
+        'name': name,
+        'quantity': quantity,
+        'unit': unit,
+        'comment': comment,
+        'sort_order': sortOrder,
+      };
+}
+
+/// Модель настроек модуля.
+class PurchaseRequestSettingsModel {
+  /// Создаёт модель настроек.
+  const PurchaseRequestSettingsModel({
+    required this.companyId,
+    this.firstApproverId,
+    this.invoicePreparerId,
+    this.invoiceApproverId,
+    this.accountantId,
+    this.receiverMode = PurchaseRequestReceiverMode.initiator,
+    this.fixedReceiverId,
+  });
+
+  final String companyId;
+  final String? firstApproverId;
+  final String? invoicePreparerId;
+  final String? invoiceApproverId;
+  final String? accountantId;
+  final PurchaseRequestReceiverMode receiverMode;
+  final String? fixedReceiverId;
+
+  /// Из JSON.
+  factory PurchaseRequestSettingsModel.fromJson(Map<String, dynamic> json) {
+    return PurchaseRequestSettingsModel(
+      companyId: json['company_id'] as String,
+      firstApproverId: json['first_approver_id'] as String?,
+      invoicePreparerId: json['invoice_preparer_id'] as String?,
+      invoiceApproverId: json['invoice_approver_id'] as String?,
+      accountantId: json['accountant_id'] as String?,
+      receiverMode: PurchaseRequestReceiverModeX.fromDb(
+        json['receiver_mode'] as String?,
+      ),
+      fixedReceiverId: json['fixed_receiver_id'] as String?,
+    );
+  }
+
+  /// В доменную сущность.
+  PurchaseRequestSettings toDomain() => PurchaseRequestSettings(
+        companyId: companyId,
+        firstApproverId: firstApproverId,
+        invoicePreparerId: invoicePreparerId,
+        invoiceApproverId: invoiceApproverId,
+        accountantId: accountantId,
+        receiverMode: receiverMode,
+        fixedReceiverId: fixedReceiverId,
+      );
+}

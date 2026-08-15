@@ -74,6 +74,9 @@ enum AppRoute {
   /// Экран модуля ТМЦ.
   tmc,
 
+  /// Заявки на закупку.
+  purchaseRequests,
+
   /// Экран модуля "Компания".
   company,
 }
@@ -333,6 +336,14 @@ class AppDrawer extends ConsumerWidget {
                             icon: CupertinoIcons.doc_text,
                             route: AppRoute.settlements,
                             routeName: 'settlements',
+                          ),
+                          _buildMenuItem(
+                            context: context,
+                            module: 'purchase_requests',
+                            title: 'Заявки',
+                            icon: CupertinoIcons.cart,
+                            route: AppRoute.purchaseRequests,
+                            routeName: 'purchase_requests',
                           ),
                           _buildMenuItem(
                             context: context,

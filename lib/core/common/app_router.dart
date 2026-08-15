@@ -37,6 +37,8 @@ import 'package:projectgt/features/materials/presentation/screens/material_scree
 import 'package:projectgt/features/cash_flow/presentation/screens/cash_flow_list_screen.dart';
 import 'package:projectgt/features/settlements/presentation/screens/settlements_list_screen.dart';
 import 'package:projectgt/features/tmc/presentation/screens/tmc_list_screen.dart';
+import 'package:projectgt/features/purchase_requests/presentation/screens/purchase_requests_list_screen.dart';
+import 'package:projectgt/features/purchase_requests/presentation/screens/purchase_request_details_screen.dart';
 // Telegram moderation экраны удалены
 import 'package:projectgt/core/navigation/app_module_availability.dart';
 import 'package:projectgt/core/navigation/app_route_observer.dart';
@@ -653,6 +655,40 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
 
       GoRoute(
+        path: AppRoutes.purchaseRequests,
+        name: 'purchase_requests',
+        builder: (context, state) {
+          return Consumer(
+            builder: (context, ref, child) {
+              final service = ref.watch(permissionServiceProvider);
+              if (service.can('purchase_requests', 'read')) {
+                return const PurchaseRequestsListScreen();
+              }
+              return _buildAccessDeniedScreen();
+            },
+          );
+        },
+        routes: [
+          GoRoute(
+            path: ':id',
+            name: 'purchase_request_details',
+            builder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return Consumer(
+                builder: (context, ref, child) {
+                  final service = ref.watch(permissionServiceProvider);
+                  if (!service.can('purchase_requests', 'read')) {
+                    return _buildAccessDeniedScreen();
+                  }
+                  return PurchaseRequestDetailsScreen(requestId: id);
+                },
+              );
+            },
+          ),
+        ],
+      ),
+
+      GoRoute(
         path: AppRoutes.tmc,
         name: 'tmc',
         builder: (context, state) {
@@ -779,6 +815,9 @@ class AppRoutes {
 
   /// Модуль ТМЦ (товарно-материальные ценности)
   static const String tmc = '/tmc';
+
+  /// Заявки на закупку
+  static const String purchaseRequests = '/purchase_requests';
 
   // Telegram маршруты удалены
 
