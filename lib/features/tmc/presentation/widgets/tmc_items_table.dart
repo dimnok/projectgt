@@ -218,6 +218,17 @@ class _TmcItemsTableState extends ConsumerState<TmcItemsTable> {
               item,
             ),
           ),
+        if (canMove)
+          GTContextMenuItem(
+            icon: CupertinoIcons.location,
+            label: 'Переместить на объект',
+            enabled: hasStock,
+            onTap: () => _openOperation(
+              context,
+              TmcOperationType.transferToObject,
+              item,
+            ),
+          ),
         if (canCreate)
           GTContextMenuItem(
             icon: CupertinoIcons.plus_circle,
@@ -233,6 +244,16 @@ class _TmcItemsTableState extends ConsumerState<TmcItemsTable> {
             label: 'Отправить в ремонт',
             onTap: () =>
                 _openOperation(context, TmcOperationType.sendToRepair, item),
+          ),
+        if (canRepair)
+          GTContextMenuItem(
+            icon: CupertinoIcons.arrow_uturn_left,
+            label: 'Принять из ремонта',
+            onTap: () => _openOperation(
+              context,
+              TmcOperationType.returnFromRepair,
+              item,
+            ),
           ),
         if (canWriteOff)
           GTContextMenuItem(

@@ -2,7 +2,15 @@
 
 **Дата актуализации:** 15 августа 2026  
 
-**Изменения в этой версии (15.08.2026, журнал операций UI):**
+**Изменения в этой версии (15.08.2026, целостность выдач):**
+- Возврат количественного учёта списывает выдачи FIFO по количеству (не закрывает одну запись целиком).
+- Списание и ремонт закрывают активную выдачу единицы; количественное — если списание с сотрудника.
+- Выдать индивидуальную единицу можно только со склада; единица должна принадлежать выбранной позиции.
+- Списание без места «откуда» сервер не проводит.
+- В UI подключены уже существовавшие операции «На объект» и «Из ремонта».
+- Правка единицы больше не отправляет статус и место (только инв. №, S/N, штрихкод, гарантия, комментарий).
+
+**Предыдущая версия (15.08.2026, журнал операций UI):**
 - `TmcOperationsPanel`: компактная таблица (дата / тип / позиции / кол-во), высота строки 40 px.
 - Фильтр типа — сегментная полоска «Тип» (инверсия выбранного сегмента), визуально отдельно от пилюль `TmcSectionNavBar`.
 - Короткие подписи типов: `TmcUiLabels.operationTypeShort`.
@@ -289,7 +297,9 @@ supabase/migrations/
 ├── 20260729130000_tmc_stock_visibility.sql
 ├── 20260730120000_tmc_main_warehouse.sql
 ├── 20260815120000_tmc_create_item_serial_number.sql
-└── 20260815130000_tmc_receipt_serial_numbers.sql
+├── 20260815130000_tmc_receipt_serial_numbers.sql
+├── 20260815140000_tmc_operation_assignment_integrity.sql
+└── 20260815141000_tmc_post_operation_assignment_integrity.sql
 
 docs/tmc/
 └── tmc_module.md
@@ -390,6 +400,8 @@ Wiring вне фичи: `app_router.dart`, `app_drawer.dart`, `app_module_availa
 | `tmc_adjust_balance` | Helper остатков |
 | `tmc_status_for_location` / `tmc_status_for_operation` | Маппинг статуса |
 | `tmc_protect_system_warehouse` | Защита системного склада |
+| `tmc_close_unit_assignments` | Закрытие активных выдач единицы |
+| `tmc_consume_employee_assignments` | FIFO-списание количества с выдач сотрудника |
 
 Права по типам операций в `tmc_post_operation` — без изменений (receipt→`create`, issue→`issue`, move→`move`, …).
 
@@ -439,9 +451,10 @@ individual:   quantity = COUNT(tmc_units) WHERE not archived AND status <> writt
 ### Статус единицы
 
 - поступление на склад → `in_stock`;
-- выдача → `issued` + `tmc_assignments`;
-- ремонт → `in_repair` + `tmc_repairs`;
-- списание → `written_off` + `tmc_write_offs`.
+- выдача → `issued` + `tmc_assignments` (только из `in_stock`);
+- возврат количественный → FIFO по `issued_at`: количество выдачи уменьшается или запись закрывается;
+- ремонт → `in_repair` + `tmc_repairs`, активная выдача единицы закрывается;
+- списание → `written_off` + `tmc_write_offs`, активная выдача единицы закрывается.
 
 ### Основной сценарий
 
@@ -523,7 +536,7 @@ individual:   quantity = COUNT(tmc_units) WHERE not archived AND status <> writt
 | Маршруты | ✅ `/tmc`, `/tmc/items/:itemId`; дочерние разделы сняты |
 | Провайдеры | ✅ 13 `final` в `tmc_providers.dart`; `tmcUnitsProvider` нет |
 | Таблицы live `tmc_%` | ✅ 17, RLS ✅ на всех (live rows без изменений относительно аудита ранее 15.08) |
-| RPC `tmc_*` | ✅ 13 (вкл. `tmc_create_item_with_receipt`, `tmc_receipt_serial_number`) |
+| RPC `tmc_*` | ✅ 15 (вкл. `tmc_close_unit_assignments`, `tmc_consume_employee_assignments`) |
 | Триггеры recalc qty | ✅ на `tmc_balances`, `tmc_units` |
 | Edge Functions ТМЦ | ❌ нет в `supabase/functions/` (`list_edge_functions` в MCP нет) |
 | Bucket `tmc` | ✅ `public = false` |

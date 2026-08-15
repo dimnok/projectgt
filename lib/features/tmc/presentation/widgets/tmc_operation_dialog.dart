@@ -102,6 +102,27 @@ class _TmcOperationDialogState extends ConsumerState<TmcOperationDialog> {
   bool get _needsUnit =>
       _isIndividual && widget.operationType != TmcOperationType.receipt;
 
+  /// Единицы, допустимые для текущего типа операции (как кнопки в карточке).
+  bool _unitAllowedForOperation(TmcUnit unit) {
+    switch (widget.operationType) {
+      case TmcOperationType.issue:
+      case TmcOperationType.transferToObject:
+      case TmcOperationType.moveBetweenWarehouses:
+        return unit.status == TmcUnitStatus.inStock;
+      case TmcOperationType.returnFromEmployee:
+        return unit.status == TmcUnitStatus.issued;
+      case TmcOperationType.returnFromRepair:
+        return unit.status == TmcUnitStatus.inRepair;
+      case TmcOperationType.sendToRepair:
+        return unit.status != TmcUnitStatus.writtenOff &&
+            unit.status != TmcUnitStatus.inRepair;
+      case TmcOperationType.writeOff:
+        return unit.status != TmcUnitStatus.writtenOff;
+      default:
+        return unit.status != TmcUnitStatus.writtenOff;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -132,9 +153,7 @@ class _TmcOperationDialogState extends ConsumerState<TmcOperationDialog> {
           .listUnits(itemId: itemId);
       if (!mounted) return;
       setState(() {
-        _units = units
-            .where((u) => u.status != TmcUnitStatus.writtenOff)
-            .toList();
+        _units = units.where(_unitAllowedForOperation).toList();
         _unitsLoading = false;
       });
     } catch (e) {
@@ -207,6 +226,11 @@ class _TmcOperationDialogState extends ConsumerState<TmcOperationDialog> {
         if (_repairReasonController.text.trim().isEmpty) {
           return 'Укажите причину ремонта';
         }
+        if (!_isIndividual && _warehouseId == null) {
+          return 'Выберите склад';
+        }
+      case TmcOperationType.returnFromRepair:
+        if (_warehouseId == null) return 'Выберите склад возврата';
       case TmcOperationType.writeOff:
         if (!_isIndividual && _warehouseId == null) {
           return 'Выберите склад списания';
@@ -323,6 +347,19 @@ class _TmcOperationDialogState extends ConsumerState<TmcOperationDialog> {
               : _repairOrgController.text.trim(),
         };
         break;
+      case TmcOperationType.returnFromRepair:
+        payload['from_location_type'] =
+            fromType ?? TmcLocationType.repairOrg.dbValue;
+        payload['from_warehouse_id'] = fromWarehouse;
+        payload['from_object_id'] = fromObject;
+        payload['from_employee_id'] = fromEmployee;
+        payload['from_location_note'] = fromNote ??
+            (_repairOrgController.text.trim().isEmpty
+                ? 'Ремонт'
+                : _repairOrgController.text.trim());
+        payload['to_location_type'] = TmcLocationType.warehouse.dbValue;
+        payload['to_warehouse_id'] = _warehouseId;
+        break;
       case TmcOperationType.writeOff:
         payload['from_location_type'] =
             fromType ?? TmcLocationType.warehouse.dbValue;
@@ -363,6 +400,8 @@ class _TmcOperationDialogState extends ConsumerState<TmcOperationDialog> {
       ref.invalidate(tmcItemsListProvider);
       ref.invalidate(tmcDashboardProvider);
       ref.invalidate(tmcOperationsProvider);
+      ref.invalidate(tmcStockProvider);
+      ref.invalidate(tmcAssignmentsProvider);
       final itemId = widget.presetItem?.id ?? widget.presetUnit?.itemId;
       if (itemId != null) {
         ref.invalidate(tmcItemProvider(itemId));
@@ -530,6 +569,64 @@ class _TmcOperationDialogState extends ConsumerState<TmcOperationDialog> {
             controller: _repairOrgController,
             labelText: 'Организация ремонта',
           ),
+          if (!_isIndividual) ...[
+            const SizedBox(height: 12),
+            warehousesAsync.when(
+              data: (warehouses) {
+                TmcWarehouse? selected;
+                for (final w in warehouses) {
+                  if (w.id == _warehouseId) selected = w;
+                }
+                return GTDropdown<TmcWarehouse>(
+                  labelText: 'Склад (откуда)',
+                  hintText: 'Выберите склад',
+                  items: warehouses,
+                  selectedItem: selected,
+                  itemDisplayBuilder: (w) => w.name,
+                  onSelectionChanged: (w) =>
+                      setState(() => _warehouseId = w?.id),
+                  allowClear: true,
+                );
+              },
+              loading: () => const LinearProgressIndicator(),
+              error: (e, _) => Text(e.toString()),
+            ),
+          ],
+        ],
+      );
+    }
+
+    if (type == TmcOperationType.returnFromRepair) {
+      return Column(
+        children: [
+          warehousesAsync.when(
+            data: (warehouses) {
+              TmcWarehouse? selected;
+              for (final w in warehouses) {
+                if (w.id == _warehouseId) selected = w;
+              }
+              return GTDropdown<TmcWarehouse>(
+                labelText: 'Склад (куда)',
+                hintText: 'Выберите склад',
+                items: warehouses,
+                selectedItem: selected,
+                itemDisplayBuilder: (w) => w.name,
+                onSelectionChanged: (w) =>
+                    setState(() => _warehouseId = w?.id),
+                allowClear: true,
+              );
+            },
+            loading: () => const LinearProgressIndicator(),
+            error: (e, _) => Text(e.toString()),
+          ),
+          if (!_isIndividual) ...[
+            const SizedBox(height: 12),
+            GTTextField(
+              controller: _repairOrgController,
+              labelText: 'Организация ремонта',
+              hintText: 'Как при отправке в ремонт',
+            ),
+          ],
         ],
       );
     }

@@ -169,6 +169,9 @@ class _TmcItemFormDialogState extends ConsumerState<TmcItemFormDialog> {
 
       ref.invalidate(tmcItemsListProvider);
       ref.invalidate(tmcDashboardProvider);
+      if (!isCreate) {
+        ref.invalidate(tmcItemProvider(widget.item!.id));
+      }
       if (shouldReceive) {
         ref.invalidate(tmcOperationsProvider);
       }

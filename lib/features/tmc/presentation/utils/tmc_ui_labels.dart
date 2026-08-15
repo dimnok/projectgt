@@ -151,11 +151,17 @@ abstract final class TmcUiLabels {
   /// Действие: возврат.
   static const actionReturn = 'Возврат';
 
-  /// Действие: переместить.
+  /// Действие: переместить между складами.
   static const actionMove = 'Переместить';
+
+  /// Действие: переместить на объект.
+  static const actionMoveToObject = 'На объект';
 
   /// Действие: ремонт.
   static const actionRepair = 'В ремонт';
+
+  /// Действие: возврат из ремонта.
+  static const actionReturnFromRepair = 'Из ремонта';
 
   /// Действие: списать.
   static const actionWriteOff = 'Списать';

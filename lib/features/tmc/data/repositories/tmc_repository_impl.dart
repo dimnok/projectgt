@@ -368,8 +368,14 @@ class TmcRepositoryImpl implements TmcRepository {
 
   @override
   Future<TmcUnit> updateUnit(TmcUnit unit) async {
-    final model = TmcUnitModel.fromDomain(unit);
-    final payload = model.toWriteJson(includeId: false);
+    // Статус и место меняет только RPC tmc_post_operation.
+    final payload = <String, dynamic>{
+      'inventory_number': unit.inventoryNumber,
+      'serial_number': unit.serialNumber,
+      'barcode': unit.barcode,
+      'warranty_until': tmcDateOnlyToJson(unit.warrantyUntil),
+      'comment': unit.comment,
+    };
 
     final row = await client
         .from('tmc_units')

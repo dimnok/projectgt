@@ -138,12 +138,30 @@ class _QuickActions extends StatelessWidget {
                 item: item,
               ),
             ),
+          if (permissions.can('tmc', 'move'))
+            _ActionChip(
+              label: TmcUiLabels.actionMoveToObject,
+              onTap: () => TmcOperationDialog.show(
+                context,
+                operationType: TmcOperationType.transferToObject,
+                item: item,
+              ),
+            ),
           if (permissions.can('tmc', 'repair'))
             _ActionChip(
               label: TmcUiLabels.actionRepair,
               onTap: () => TmcOperationDialog.show(
                 context,
                 operationType: TmcOperationType.sendToRepair,
+                item: item,
+              ),
+            ),
+          if (permissions.can('tmc', 'repair'))
+            _ActionChip(
+              label: TmcUiLabels.actionReturnFromRepair,
+              onTap: () => TmcOperationDialog.show(
+                context,
+                operationType: TmcOperationType.returnFromRepair,
                 item: item,
               ),
             ),
@@ -301,6 +319,7 @@ class _UnitsTab extends StatelessWidget {
         final unit = units[index];
         final isStock = unit.status == TmcUnitStatus.inStock;
         final isIssued = unit.status == TmcUnitStatus.issued;
+        final isInRepair = unit.status == TmcUnitStatus.inRepair;
         final hasSn = unit.serialNumber?.trim().isNotEmpty == true;
 
         final locationText =
@@ -430,9 +449,9 @@ class _UnitsTab extends StatelessWidget {
                             ),
                           ),
                         ),
-                      if (canMove)
+                      if (canMove && isStock)
                         Tooltip(
-                          message: 'Переместить',
+                          message: 'Переместить между складами',
                           child: IconButton(
                             icon: const Icon(
                               CupertinoIcons.arrow_2_circlepath,
@@ -447,7 +466,23 @@ class _UnitsTab extends StatelessWidget {
                             ),
                           ),
                         ),
-                      if (canRepair)
+                      if (canMove && isStock)
+                        Tooltip(
+                          message: TmcUiLabels.actionMoveToObject,
+                          child: IconButton(
+                            icon: const Icon(
+                              CupertinoIcons.location,
+                              size: 18,
+                            ),
+                            onPressed: () => TmcOperationDialog.show(
+                              context,
+                              operationType: TmcOperationType.transferToObject,
+                              item: item,
+                              unit: unit,
+                            ),
+                          ),
+                        ),
+                      if (canRepair && !isInRepair)
                         Tooltip(
                           message: 'В ремонт',
                           child: IconButton(
@@ -455,6 +490,22 @@ class _UnitsTab extends StatelessWidget {
                             onPressed: () => TmcOperationDialog.show(
                               context,
                               operationType: TmcOperationType.sendToRepair,
+                              item: item,
+                              unit: unit,
+                            ),
+                          ),
+                        ),
+                      if (canRepair && isInRepair)
+                        Tooltip(
+                          message: TmcUiLabels.actionReturnFromRepair,
+                          child: IconButton(
+                            icon: const Icon(
+                              CupertinoIcons.arrow_uturn_left,
+                              size: 18,
+                            ),
+                            onPressed: () => TmcOperationDialog.show(
+                              context,
+                              operationType: TmcOperationType.returnFromRepair,
                               item: item,
                               unit: unit,
                             ),
