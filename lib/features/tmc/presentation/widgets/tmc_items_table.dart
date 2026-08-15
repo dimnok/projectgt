@@ -54,12 +54,16 @@ class TmcItemsTable extends ConsumerStatefulWidget {
   /// Показывать стоимость.
   final bool showCost;
 
+  /// Смещение нумерации строк (пагинация реестра).
+  final int rowNumberOffset;
+
   /// Создаёт таблицу.
   const TmcItemsTable({
     super.key,
     required this.items,
     required this.onRowTap,
     this.showCost = false,
+    this.rowNumberOffset = 0,
   });
 
   @override
@@ -344,6 +348,7 @@ class _TmcItemsTableState extends ConsumerState<TmcItemsTable> {
                             columns: columns,
                             columnWidths: columnWidths,
                             index: index,
+                            rowNumber: widget.rowNumberOffset + index + 1,
                             theme: theme,
                             scheme: scheme,
                             isDark: isDark,
@@ -446,6 +451,7 @@ class _DataRow extends StatelessWidget {
   final List<_ColDef> columns;
   final Map<_ColId, double> columnWidths;
   final int index;
+  final int rowNumber;
   final ThemeData theme;
   final ColorScheme scheme;
   final bool isDark;
@@ -460,6 +466,7 @@ class _DataRow extends StatelessWidget {
     required this.columns,
     required this.columnWidths,
     required this.index,
+    required this.rowNumber,
     required this.theme,
     required this.scheme,
     required this.isDark,
@@ -474,7 +481,7 @@ class _DataRow extends StatelessWidget {
     switch (col.id) {
       case _ColId.number:
         return Text(
-          '${index + 1}',
+          '$rowNumber',
           textAlign: TextAlign.center,
           style: theme.textTheme.bodySmall?.copyWith(
             color: scheme.onSurface.withValues(alpha: 0.4),

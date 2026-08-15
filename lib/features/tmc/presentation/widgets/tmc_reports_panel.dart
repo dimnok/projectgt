@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
+import 'package:projectgt/features/tmc/domain/entities/tmc_enums.dart';
 import 'package:projectgt/features/tmc/presentation/services/tmc_excel_export_service.dart';
 import 'package:projectgt/features/tmc/presentation/state/tmc_providers.dart';
 import 'package:projectgt/features/tmc/presentation/utils/tmc_ui_labels.dart';
@@ -47,22 +48,22 @@ class TmcReportsPanel extends ConsumerWidget {
           );
         case 'repair':
           bytes = exporter.exportUnits(
-            await repo.listUnits(status: 'in_repair'),
+            await repo.listUnits(status: TmcUnitStatus.inRepair.dbValue),
             includeCost: includeCost,
           );
         case 'employees':
           bytes = exporter.exportUnits(
-            await repo.listUnits(status: 'issued'),
+            await repo.listUnits(status: TmcUnitStatus.issued.dbValue),
             includeCost: includeCost,
           );
         case 'objects':
           bytes = exporter.exportUnits(
-            await repo.listUnits(status: 'on_object'),
+            await repo.listUnits(status: TmcUnitStatus.onObject.dbValue),
             includeCost: includeCost,
           );
         case 'balances':
           bytes = exporter.exportUnits(
-            await repo.listUnits(status: 'in_stock'),
+            await repo.listUnits(status: TmcUnitStatus.inStock.dbValue),
             includeCost: includeCost,
           );
         case 'catalog':

@@ -2,6 +2,13 @@
 
 **Дата актуализации:** 15 августа 2026  
 
+**Изменения в этой версии (15.08.2026, аудит + доработки):**
+- **Реестр:** нумерация строк учитывает `offset` пагинации (`TmcItemsTable.rowNumberOffset`).
+- **Data:** маппинг RPC `tmc_list_items` — `TmcItemModel.domainFromListRpcRow()`; отчёты используют `TmcUnitStatus.*.dbValue`.
+- **Кэш UI:** после поступления и правки единицы инвалидируется `tmcStockProvider`.
+- **Repository:** `updateItem` / `updateUnit` — guard `_hasCompany` (как у `createItem`).
+- **Уведомления:** в списке показывается тип (`TmcNotificationType.displayName`).
+
 **Изменения в этой версии (15.08.2026, исправления реестра + документация):**
 - **Реестр:** пагинация в UI — кнопки «Назад» / «Далее», подпись `1–50 из N` (`TmcUiLabels.itemsPageRange`); `TmcItemsListNotifier.goToPreviousPage` / `goToNextPage`.
 - **Фильтры реестра:** после операций, сохранения позиции и правки единицы список обновляется через `notifier.load()`, а не `invalidate(tmcItemsListProvider)` — поиск, категория и тип учёта **не сбрасываются**. Журнал операций — `tmcOperationsProvider.notifier.load()` (фильтр типа сохраняется).
@@ -210,7 +217,13 @@ Design System: `MobileAtmosphereBackdrop`, `MobileAtmosphereMainSurface`, `Mobil
 - `tmcAssignmentsProvider(employeeId)`
 - `tmcNotificationsProvider`
 
-**Notifiers:**
+**Notifiers и state-классы:**
+
+| Класс | Назначение |
+|-------|------------|
+| `TmcItemsListFilters` | Поиск, категория, тип учёта, `limit`/`offset` |
+| `TmcItemsListState` | `items`, `totalCount`, `isLoading`, `error`, `filters` |
+| `TmcOperationsListState` | `operations`, `isLoading`, `error`, `operationType` |
 
 | Notifier | Методы | Примечание |
 |----------|--------|------------|
@@ -249,6 +262,7 @@ Design System: `MobileAtmosphereBackdrop`, `MobileAtmosphereMainSurface`, `Mobil
 - `TmcLocationType`: `warehouse`, `object`, `employee`, `office`, `repair_org`, `other`
 - `TmcOperationType`: `receipt`, `issue`, `return_from_employee`, `transfer_to_object`, `return_from_object`, `move_between_objects`, `move_between_warehouses`, `transfer_between_employees`, `reserve`, `unreserve`, `send_to_repair`, `return_from_repair`, `change_condition`, `inventory_adjust`, `write_off`, `shortage`, `correction`
 - `TmcWriteOffReason`: `wear`, `breakdown`, `loss`, `shortage`, `obsolescence`, `end_of_life`, `other`
+- `TmcNotificationType` (`tmc_notification.dart`): `warranty_expiring`, `service_due`, `return_due`, `not_returned`, `needs_repair`, `ppe_replacement`, `shortage`, `no_movement`, `other`
 
 ### Сущности
 
@@ -294,7 +308,7 @@ Freezed + `json_serializable` (`FieldRename.snake`), helpers в `tmc_json_utils.
 Модели: item, unit, warehouse, category, condition, operation (+ items), assignment, write_off, notification, dashboard_stats.  
 `fromDomain` — только в моделях с записью: item, category, warehouse. Read-only модели — только `fromJson` + `toDomain`.  
 `TmcItemModel.toWriteJson` удаляет `quantity` и `total_cost`. `TmcUnitModel.toWriteJson` **удалён** (не использовался).  
-`listItems` / `listStock` маппят domain напрямую, минуя `TmcItemModel` / отдельную balance-модель.
+`listItems` / `listStock` маппят domain через `TmcItemModel.domainFromListRpcRow()` и inline `TmcStockBalance` соответственно.
 
 ---
 
@@ -586,14 +600,17 @@ individual:   quantity = COUNT(tmc_units) WHERE not archived AND status <> writt
 - Инвентаризация в меню — UI «в разработке» (`TmcInventoryPanel`).
 - `total_cost` в KPI скрыт без `view_cost`.
 - `listAssignments` возвращает все выдачи; фильтр `is_active` — в UI (`PropertyScreen`, `EmployeeTmcSection`).
-- Типы операций в enum/RPC без UI: `return_from_object`, `move_between_objects`, `transfer_between_employees`, `reserve`, `unreserve`, `shortage`, `inventory_adjust`, `correction`.
+- Типы операций в enum/RPC без диалога создания: `return_from_object`, `move_between_objects`, `transfer_between_employees`, `reserve`, `unreserve`, `shortage`, `inventory_adjust`. `correction` — только фильтр журнала (`TmcOperationsPanel`), без `TmcOperationDialog`.
 
 ---
 
-## ✅ Чек-лист аудита (15.08.2026, после исправлений реестра)
+## ✅ Чек-лист аудита (15.08.2026, после аудита и доработок)
 
 | Проверка | Результат |
 |----------|-----------|
+| Нумерация строк реестра при пагинации | ✅ `TmcItemsTable.rowNumberOffset` |
+| Маппинг `listItems` | ✅ `TmcItemModel.domainFromListRpcRow()` |
+| Инвалидация `tmcStockProvider` после поступления / правки единицы | ✅ |
 | Файлы `lib/features/tmc/` | ✅ ~73 исходников (+ generated); `screens`: `tmc_list_screen`, `tmc_item_details_screen` (`TmcItemDetailsPanel`) |
 | Пагинация реестра | ✅ `goToPreviousPage` / `goToNextPage`, подпись диапазона в `TmcListScreen` |
 | Сохранение фильтров после мутаций | ✅ `load()` вместо `invalidate` для `tmcItemsListProvider` и `tmcOperationsProvider` |
@@ -614,4 +631,4 @@ individual:   quantity = COUNT(tmc_units) WHERE not archived AND status <> writt
 | Миграции в репозитории | ✅ **12** файлов `*tmc*` |
 | Миграции applied (live) | ✅ вкл. `150000` (`p_item_id`) |
 | Тесты | ✅ `test/features/tmc/tmc_enums_and_export_test.dart` |
-| Документация соответствует коду | ✅ этот файл (15.08.2026) |
+| Документация соответствует коду | ✅ ~97% (см. Enums, `correction`, state-классы) |

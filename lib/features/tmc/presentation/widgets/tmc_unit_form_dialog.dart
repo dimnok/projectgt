@@ -102,6 +102,7 @@ class _TmcUnitFormDialogState extends ConsumerState<TmcUnitFormDialog> {
 
       ref.invalidate(tmcItemUnitsProvider(widget.unit.itemId));
       ref.invalidate(tmcItemProvider(widget.unit.itemId));
+      ref.invalidate(tmcStockProvider);
       ref.read(tmcItemsListProvider.notifier).load();
 
       if (!mounted) return;

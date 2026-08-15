@@ -65,6 +65,22 @@ abstract class TmcItemModel with _$TmcItemModel {
     });
   }
 
+  /// Доменная позиция из строки RPC [tmc_list_items] (с live-остатками).
+  static TmcItem domainFromListRpcRow(
+    Map<String, dynamic> map, {
+    required String companyId,
+  }) {
+    return TmcItemModel.fromJson({
+      ...map,
+      'company_id': companyId,
+    }).toDomain().copyWith(
+      qtyInStock: tmcParseDouble(map['qty_in_stock']),
+      qtyIssued: tmcParseDouble(map['qty_issued']),
+      qtyOnObject: tmcParseDouble(map['qty_on_object']),
+      locationSummary: map['location_summary'] as String?,
+    );
+  }
+
   /// Из доменной сущности.
   factory TmcItemModel.fromDomain(TmcItem item) => TmcItemModel(
         id: item.id,

@@ -123,37 +123,14 @@ class TmcRepositoryImpl implements TmcRepository {
       return (items: <TmcItem>[], totalCount: 0);
     }
 
-    final models = rows.map((row) {
-      final map = Map<String, dynamic>.from(row as Map);
-      return TmcItem(
-        id: map['id'] as String,
-        companyId: activeCompanyId,
-        name: map['name'] as String,
-        accountingType: TmcAccountingType.values.firstWhere(
-          (e) => e.dbValue == map['accounting_type'],
-        ),
-        sku: map['sku'] as String?,
-        unitOfMeasure: map['unit_of_measure'] as String? ?? 'шт',
-        quantity: tmcParseDouble(map['quantity']),
-        qtyInStock: tmcParseDouble(map['qty_in_stock']),
-        qtyIssued: tmcParseDouble(map['qty_issued']),
-        qtyOnObject: tmcParseDouble(map['qty_on_object']),
-        locationSummary: map['location_summary'] as String?,
-        unitPrice: tmcParseDouble(map['unit_price']),
-        totalCost: tmcParseDouble(map['total_cost']),
-        status: TmcItemStatus.values.firstWhere(
-          (e) => e.dbValue == map['status'],
-        ),
-        photoUrl: map['photo_url'] as String?,
-        deliveryDate: tmcParseDate(map['delivery_date']),
-        createdAt: map['created_at'] == null
-            ? null
-            : DateTime.parse(map['created_at'] as String),
-        categoryName: map['category_name'] as String?,
-        subcategoryName: map['subcategory_name'] as String?,
-        supplierName: map['supplier_name'] as String?,
-      );
-    }).toList();
+    final models = rows
+        .map(
+          (row) => TmcItemModel.domainFromListRpcRow(
+            Map<String, dynamic>.from(row as Map),
+            companyId: activeCompanyId,
+          ),
+        )
+        .toList();
 
     final totalCount = tmcParseInt(
       Map<String, dynamic>.from(rows.first as Map)['total_count'],
@@ -272,6 +249,10 @@ class TmcRepositoryImpl implements TmcRepository {
 
   @override
   Future<TmcItem> updateItem(TmcItem item) async {
+    if (!_hasCompany) {
+      throw StateError('Не выбрана активная компания');
+    }
+
     final model = TmcItemModel.fromDomain(item);
     final payload = model.toWriteJson(includeId: false);
 
@@ -316,6 +297,10 @@ class TmcRepositoryImpl implements TmcRepository {
 
   @override
   Future<TmcUnit> updateUnit(TmcUnit unit) async {
+    if (!_hasCompany) {
+      throw StateError('Не выбрана активная компания');
+    }
+
     // Статус и место меняет только RPC tmc_post_operation.
     final payload = <String, dynamic>{
       'inventory_number': unit.inventoryNumber,

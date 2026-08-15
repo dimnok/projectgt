@@ -334,6 +334,7 @@ class _TmcListScreenState extends ConsumerState<TmcListScreen> {
     return TmcItemsTable(
       items: state.items,
       showCost: showCost,
+      rowNumberOffset: state.filters.offset,
       onRowTap: (item) => _openItem(item.id),
     );
   }

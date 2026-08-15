@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/widgets/app_snackbar.dart';
+import 'package:projectgt/features/tmc/domain/entities/tmc_notification.dart';
 import 'package:projectgt/features/tmc/presentation/state/tmc_providers.dart';
 
 /// Уведомления модуля ТМЦ.
@@ -40,6 +41,7 @@ class TmcNotificationsPanel extends ConsumerWidget {
               ),
               subtitle: Text(
                 [
+                  n.notificationType.displayName,
                   if (n.body != null && n.body!.isNotEmpty) n.body!,
                   if (n.createdAt != null) formatRuDateTime(n.createdAt!),
                 ].join('\n'),
