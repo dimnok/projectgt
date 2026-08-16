@@ -121,6 +121,7 @@ class _PurchaseRequestActionsBarState
       ref.invalidate(purchaseRequestDetailsProvider(widget.requestId));
       ref.invalidate(purchaseRequestHistoryProvider(widget.requestId));
       ref.invalidate(purchaseRequestItemsProvider(widget.requestId));
+      ref.invalidate(purchaseRequestListProvider);
     } catch (e) {
       if (mounted) {
         AppSnackBar.show(

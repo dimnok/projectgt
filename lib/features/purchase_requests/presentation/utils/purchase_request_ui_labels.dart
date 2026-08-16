@@ -22,21 +22,28 @@ abstract final class PurchaseRequestUiLabels {
 
   /// Цвет статуса для бейджа.
   static Color statusColor(ThemeData theme, PurchaseRequestStatus status) {
-    final scheme = theme.colorScheme;
+    final dark = theme.brightness == Brightness.dark;
     return switch (status) {
       PurchaseRequestStatus.draft =>
-        scheme.onSurface.withValues(alpha: 0.55),
-      PurchaseRequestStatus.approval ||
-      PurchaseRequestStatus.invoiceApproval ||
-      PurchaseRequestStatus.accounting ||
+        dark ? const Color(0xFFB0BEC5) : const Color(0xFF546E7A),
+      PurchaseRequestStatus.approval =>
+        dark ? const Color(0xFF64B5F6) : const Color(0xFF1565C0),
+      PurchaseRequestStatus.revision =>
+        dark ? const Color(0xFFFFB74D) : const Color(0xFFE65100),
+      PurchaseRequestStatus.invoicePreparation =>
+        dark ? const Color(0xFFBA68C8) : const Color(0xFF7B1FA2),
+      PurchaseRequestStatus.invoiceApproval =>
+        dark ? const Color(0xFF4FC3F7) : const Color(0xFF0277BD),
+      PurchaseRequestStatus.accounting =>
+        dark ? const Color(0xFF4DD0E1) : const Color(0xFF00838F),
       PurchaseRequestStatus.paymentQueue =>
-        scheme.primary,
-      PurchaseRequestStatus.revision => scheme.tertiary,
-      PurchaseRequestStatus.invoicePreparation => scheme.secondary,
-      PurchaseRequestStatus.paid || PurchaseRequestStatus.received =>
-        Colors.green.shade700,
+        dark ? const Color(0xFFFFD54F) : const Color(0xFFF9A825),
+      PurchaseRequestStatus.paid =>
+        dark ? const Color(0xFF69F0AE) : const Color(0xFF2E7D32),
+      PurchaseRequestStatus.received =>
+        dark ? const Color(0xFFA5D6A7) : const Color(0xFF1B5E20),
       PurchaseRequestStatus.cancelled =>
-        scheme.onSurface.withValues(alpha: 0.35),
+        dark ? const Color(0xFFEF9A9A) : const Color(0xFFC62828),
     };
   }
 }

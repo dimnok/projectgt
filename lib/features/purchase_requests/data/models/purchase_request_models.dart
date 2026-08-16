@@ -94,6 +94,7 @@ class PurchaseRequestItemModel {
     required this.name,
     required this.quantity,
     required this.unit,
+    this.article,
     this.comment,
     this.sortOrder = 0,
     this.createdAt,
@@ -104,6 +105,7 @@ class PurchaseRequestItemModel {
   final String name;
   final double quantity;
   final String unit;
+  final String? article;
   final String? comment;
   final int sortOrder;
   final DateTime? createdAt;
@@ -116,6 +118,7 @@ class PurchaseRequestItemModel {
       name: json['name'] as String,
       quantity: (json['quantity'] as num).toDouble(),
       unit: json['unit'] as String? ?? 'шт',
+      article: json['article'] as String?,
       comment: json['comment'] as String?,
       sortOrder: (json['sort_order'] as num?)?.toInt() ?? 0,
       createdAt: json['created_at'] != null
@@ -131,6 +134,7 @@ class PurchaseRequestItemModel {
         name: name,
         quantity: quantity,
         unit: unit,
+        article: article,
         comment: comment,
         sortOrder: sortOrder,
         createdAt: createdAt,
@@ -143,6 +147,7 @@ class PurchaseRequestItemModel {
         'name': name,
         'quantity': quantity,
         'unit': unit,
+        'article': article,
         'comment': comment,
         'sort_order': sortOrder,
       };

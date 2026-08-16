@@ -63,6 +63,7 @@ abstract class PurchaseRequestRepository {
     required String name,
     required double quantity,
     required String unit,
+    String? article,
     String? comment,
   });
 

@@ -2,7 +2,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:projectgt/core/theme/theme_settings_provider.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/gt_text_field.dart';
@@ -14,7 +13,9 @@ import 'package:projectgt/features/employees/presentation/utils/employees_layout
 import 'package:projectgt/features/roles/application/permission_service.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_status.dart';
 import 'package:projectgt/features/purchase_requests/presentation/state/purchase_request_providers.dart';
+import 'package:projectgt/features/purchase_requests/presentation/screens/desktop/purchase_requests_list_desktop_view.dart';
 import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_card.dart';
+import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_details_panel.dart';
 import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_create_dialog.dart';
 import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_module_utils.dart';
 import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_settings_dialog.dart';
@@ -33,18 +34,27 @@ class PurchaseRequestsListScreen extends ConsumerStatefulWidget {
 
 class _PurchaseRequestsListScreenState
     extends ConsumerState<PurchaseRequestsListScreen> {
-  PurchaseRequestListFilter _filter = PurchaseRequestListFilter.onMe;
-  String _search = '';
+  String? _selectedRequestId;
+  final _mobileSearchController = TextEditingController();
 
-  PurchaseRequestListParams get _params => PurchaseRequestListParams(
-        filter: _filter,
-        search: _search.trim().isEmpty ? null : _search.trim(),
-      );
+  @override
+  void dispose() {
+    _mobileSearchController.dispose();
+    super.dispose();
+  }
 
   Future<void> _openCreate() async {
     final id = await PurchaseRequestCreateDialog.show(context);
     if (id == null || !mounted) return;
-    context.pushNamed('purchase_request_details', pathParameters: {'id': id});
+    setState(() => _selectedRequestId = id);
+  }
+
+  void _selectRequest(String id) {
+    setState(() => _selectedRequestId = id);
+  }
+
+  void _closeDetails() {
+    setState(() => _selectedRequestId = null);
   }
 
   Future<void> _openSettings() async {
@@ -54,7 +64,17 @@ class _PurchaseRequestsListScreenState
 
   @override
   Widget build(BuildContext context) {
-    final listState = ref.watch(purchaseRequestListProvider(_params));
+    final listState = ref.watch(purchaseRequestListProvider);
+    final listNotifier = ref.read(purchaseRequestListProvider.notifier);
+
+    ref.listen(purchaseRequestListProvider, (previous, next) {
+      if (_selectedRequestId == null) return;
+      final stillVisible =
+          next.items.any((item) => item.id == _selectedRequestId);
+      if (!stillVisible && !next.isLoading) {
+        setState(() => _selectedRequestId = null);
+      }
+    });
     final settingsAsync = ref.watch(purchaseRequestSettingsProvider);
     final appearance = MobileAtmosphereAppearance.of(context);
     final isDark = appearance.isDark;
@@ -100,6 +120,8 @@ class _PurchaseRequestsListScreenState
                       isOwner: isOwner,
                       canCreate: canCreate && settingsConfigured,
                       showSearch: settingsConfigured,
+                      showBack: useMobile && _selectedRequestId != null,
+                      onBack: _closeDetails,
                     ),
                   ),
                   if (!settingsConfigured)
@@ -110,49 +132,68 @@ class _PurchaseRequestsListScreenState
                         onConfigure: _openSettings,
                       ),
                     )
-                  else ...[
-                    _FilterBar(
-                    filter: _filter,
-                    onChanged: (f) => setState(() => _filter = f),
-                  ),
-                  if (useMobile)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                      child: GTTextField(
-                        hintText: 'Поиск',
-                        prefixIcon: Icons.search,
-                        onChanged: (v) => setState(() => _search = v),
+                  else if (useMobile && _selectedRequestId != null)
+                    Expanded(
+                      child: MobileAtmosphereMainSurface(
+                        child: PurchaseRequestDetailsPanel(
+                          requestId: _selectedRequestId!,
+                        ),
+                      ),
+                    )
+                  else if (useMobile) ...[
+                      _FilterBar(
+                        filter: listState.filter,
+                        onChanged: listNotifier.setFilter,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                        child: GTTextField(
+                          controller: _mobileSearchController,
+                          hintText: 'Поиск',
+                          prefixIcon: Icons.search,
+                          onChanged: listNotifier.setSearchQuery,
+                        ),
+                      ),
+                      Expanded(
+                        child: listState.isLoading && listState.items.isEmpty
+                            ? const Center(child: CupertinoActivityIndicator())
+                            : listState.error != null
+                                ? Center(child: Text(listState.error!))
+                                : listState.items.isEmpty
+                                    ? const Center(child: Text('Нет заявок'))
+                                    : MobileAtmosphereMainSurface(
+                                        child: ListView.builder(
+                                          padding: const EdgeInsets.only(top: 4),
+                                          itemCount: listState.items.length,
+                                          itemBuilder: (context, index) {
+                                            final item = listState.items[index];
+                                            final cardStyle =
+                                                MobileAtmosphereCardStyle
+                                                    .fromAppearance(appearance);
+                                            return PurchaseRequestCard(
+                                              item: item,
+                                              style: cardStyle,
+                                              onTap: () =>
+                                                  _selectRequest(item.id),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                      ),
+                    ]
+                  else
+                    Expanded(
+                      child: PurchaseRequestsListDesktopView(
+                        key: const ValueKey('purchase_requests_desktop'),
+                        canCreate: canCreate,
+                        isOwner: isOwner,
+                        selectedRequestId: _selectedRequestId,
+                        onSelectRequest: _selectRequest,
+                        onCloseDetails: _closeDetails,
+                        onCreate: _openCreate,
+                        onSettings: _openSettings,
                       ),
                     ),
-                  Expanded(
-                    child: listState.isLoading && listState.items.isEmpty
-                        ? const Center(child: CupertinoActivityIndicator())
-                        : listState.error != null
-                            ? Center(child: Text(listState.error!))
-                            : listState.items.isEmpty
-                                ? const Center(child: Text('Нет заявок'))
-                                : MobileAtmosphereMainSurface(
-                                    child: ListView.builder(
-                                      padding: const EdgeInsets.only(top: 4),
-                                      itemCount: listState.items.length,
-                                      itemBuilder: (context, index) {
-                                        final item = listState.items[index];
-                                        final cardStyle =
-                                            MobileAtmosphereCardStyle
-                                                .fromAppearance(appearance);
-                                        return PurchaseRequestCard(
-                                          item: item,
-                                          style: cardStyle,
-                                          onTap: () => context.pushNamed(
-                                            'purchase_request_details',
-                                            pathParameters: {'id': item.id},
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                    ),
-                  ],
                 ],
               ),
             ),
@@ -170,6 +211,8 @@ class _PurchaseRequestsListScreenState
     required bool isOwner,
     required bool canCreate,
     required bool showSearch,
+    bool showBack = false,
+    VoidCallback? onBack,
   }) {
     final menuButton = Builder(
       builder: (ctx) => MobileAtmosphereChromeCircleButton(
@@ -189,15 +232,15 @@ class _PurchaseRequestsListScreenState
             );
       },
     );
-    final settingsButton = isOwner
+    final settingsButton = isOwner && useMobile
         ? MobileAtmosphereChromeCircleButton(
             appearance: appearance,
-            tooltip: 'Настройка согласующих',
+            tooltip: 'Настройки',
             icon: Icons.settings_outlined,
             onTap: _openSettings,
           )
         : null;
-    final addButton = canCreate
+    final addButton = canCreate && useMobile
         ? MobileAtmosphereChromeCircleButton(
             appearance: appearance,
             tooltip: 'Новая заявка',
@@ -209,22 +252,33 @@ class _PurchaseRequestsListScreenState
     if (useMobile) {
       return Row(
         children: [
-          menuButton,
+          if (showBack && onBack != null)
+            MobileAtmosphereChromeCircleButton(
+              appearance: appearance,
+              tooltip: 'Назад',
+              icon: Icons.arrow_back_rounded,
+              onTap: onBack,
+            )
+          else
+            menuButton,
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Заявки',
+              showBack ? 'Заявка' : 'Заявки',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
             ),
           ),
           themeButton,
-          if (settingsButton != null) ...[
+          if (!showBack && settingsButton != null) ...[
             const SizedBox(width: 8),
             settingsButton,
           ],
-          if (addButton != null) ...[const SizedBox(width: 8), addButton],
+          if (!showBack && addButton != null) ...[
+            const SizedBox(width: 8),
+            addButton,
+          ],
         ],
       );
     }
@@ -240,16 +294,17 @@ class _PurchaseRequestsListScreenState
               ),
         ),
         const Spacer(),
-        if (showSearch)
+        if (showSearch && useMobile)
           SizedBox(
             width: 240,
             child: GTTextField(
+              controller: _mobileSearchController,
               hintText: 'Поиск',
               prefixIcon: Icons.search,
-              onChanged: (v) => setState(() => _search = v),
+              onChanged: ref.read(purchaseRequestListProvider.notifier).setSearchQuery,
             ),
           ),
-        const SizedBox(width: 8),
+        if (showSearch && useMobile) const SizedBox(width: 8),
         themeButton,
         if (settingsButton != null) ...[
           const SizedBox(width: 8),

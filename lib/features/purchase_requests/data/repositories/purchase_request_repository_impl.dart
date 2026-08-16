@@ -232,6 +232,7 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
     required String name,
     required double quantity,
     required String unit,
+    String? article,
     String? comment,
   }) async {
     final row = await client
@@ -242,6 +243,7 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
           'name': name,
           'quantity': quantity,
           'unit': unit,
+          'article': article,
           'comment': comment,
         })
         .select()
@@ -260,6 +262,7 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
           'name': item.name,
           'quantity': item.quantity,
           'unit': item.unit,
+          'article': item.article,
           'comment': item.comment,
           'sort_order': item.sortOrder,
         })

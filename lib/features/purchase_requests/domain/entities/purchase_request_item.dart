@@ -12,6 +12,7 @@ abstract class PurchaseRequestItem with _$PurchaseRequestItem {
     required String name,
     required double quantity,
     @Default('шт') String unit,
+    String? article,
     String? comment,
     @Default(0) int sortOrder,
     DateTime? createdAt,
