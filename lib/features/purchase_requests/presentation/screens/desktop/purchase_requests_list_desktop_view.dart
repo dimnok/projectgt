@@ -262,6 +262,7 @@ class _PurchaseRequestsContentPanel extends StatelessWidget {
                   requestId: selectedRequestId!,
                   showCloseButton: true,
                   onClose: onCloseDetails,
+                  onDeleted: onCloseDetails,
                 )
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,

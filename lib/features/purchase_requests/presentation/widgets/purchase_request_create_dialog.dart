@@ -10,6 +10,9 @@ import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/gt_dropdown.dart';
 import 'package:projectgt/core/widgets/gt_text_field.dart';
 import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
+import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request.dart';
+import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_item.dart';
+import 'package:projectgt/features/purchase_requests/domain/repositories/purchase_request_repository.dart';
 import 'package:projectgt/features/purchase_requests/presentation/state/purchase_request_providers.dart';
 
 /// Ширина десктопного окна создания заявки.
@@ -27,15 +30,17 @@ const _kArticleColWidth = 128.0;
 const _kRowActionWidth = 36.0;
 const _kColGap = 10.0;
 
-/// Позиция в форме создания заявки (до сохранения в БД).
+/// Позиция в форме заявки (до сохранения в БД).
 class _PendingPurchaseItem {
   _PendingPurchaseItem({
     required this.name,
     required this.quantity,
     required this.unit,
+    this.id,
     this.article,
   });
 
+  final String? id;
   final String name;
   final double quantity;
   final String unit;
@@ -44,11 +49,21 @@ class _PendingPurchaseItem {
 
 /// Контроллеры одной строки позиции в форме.
 class _PurchaseItemRowControllers {
-  _PurchaseItemRowControllers() {
+  _PurchaseItemRowControllers({this.itemId}) {
     unitController.text = 'шт';
     qtyController.text = '1';
   }
 
+  factory _PurchaseItemRowControllers.fromItem(PurchaseRequestItem item) {
+    final row = _PurchaseItemRowControllers(itemId: item.id);
+    row.nameController.text = item.name;
+    row.unitController.text = item.unit;
+    row.qtyController.text = _quantityDraftText(item.quantity);
+    row.articleController.text = item.article ?? '';
+    return row;
+  }
+
+  final String? itemId;
   final nameController = TextEditingController();
   final unitController = TextEditingController();
   final qtyController = TextEditingController();
@@ -74,6 +89,7 @@ class _PurchaseItemRowControllers {
     final article = articleController.text.trim();
 
     return _PendingPurchaseItem(
+      id: itemId,
       name: name,
       quantity: qty,
       unit: unit,
@@ -82,21 +98,46 @@ class _PurchaseItemRowControllers {
   }
 }
 
-/// Диалог создания новой заявки (черновик).
+String _quantityDraftText(double quantity) {
+  if (quantity == quantity.roundToDouble()) {
+    return quantity.round().toString();
+  }
+  return quantity.toString();
+}
+
+/// Диалог создания или редактирования черновика заявки.
 class PurchaseRequestCreateDialog extends ConsumerStatefulWidget {
   /// Создаёт диалог.
-  const PurchaseRequestCreateDialog({super.key});
+  const PurchaseRequestCreateDialog({
+    super.key,
+    this.request,
+    this.initialItems,
+  });
 
-  /// Показать диалог. Возвращает id созданной заявки.
-  static Future<String?> show(BuildContext context) {
+  /// Заявка для режима редактирования.
+  final PurchaseRequest? request;
+
+  /// Текущие позиции заявки (режим редактирования).
+  final List<PurchaseRequestItem>? initialItems;
+
+  /// Показать диалог. Возвращает id созданной или сохранённой заявки.
+  static Future<String?> show(
+    BuildContext context, {
+    PurchaseRequest? request,
+    List<PurchaseRequestItem>? initialItems,
+  }) {
     final isDesktop = ResponsiveUtils.isDesktop(context);
+    final dialog = PurchaseRequestCreateDialog(
+      request: request,
+      initialItems: initialItems,
+    );
     if (isDesktop) {
       return showDialog<String?>(
         context: context,
-        builder: (_) => const Dialog(
+        builder: (_) => Dialog(
           backgroundColor: Colors.transparent,
-          insetPadding: EdgeInsets.all(24),
-          child: PurchaseRequestCreateDialog(),
+          insetPadding: const EdgeInsets.all(24),
+          child: dialog,
         ),
       );
     }
@@ -105,7 +146,7 @@ class PurchaseRequestCreateDialog extends ConsumerStatefulWidget {
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => const PurchaseRequestCreateDialog(),
+      builder: (_) => dialog,
     );
   }
 
@@ -123,10 +164,26 @@ class _PurchaseRequestCreateDialogState
   ];
   bool _submitting = false;
 
+  bool get _isEdit => widget.request != null;
+
   @override
   void initState() {
     super.initState();
     ref.read(objectProvider.notifier).loadObjects();
+    final request = widget.request;
+    if (request == null) return;
+
+    _objectId = request.objectId;
+    _commentController.text = request.comment ?? '';
+    final items = widget.initialItems ?? const <PurchaseRequestItem>[];
+    if (items.isEmpty) return;
+
+    for (final row in _itemRows) {
+      row.dispose();
+    }
+    _itemRows
+      ..clear()
+      ..addAll(items.map(_PurchaseItemRowControllers.fromItem));
   }
 
   @override
@@ -182,22 +239,22 @@ class _PurchaseRequestCreateDialogState
     setState(() => _submitting = true);
     try {
       final repo = ref.read(purchaseRequestRepositoryProvider);
-      final id = await repo.createDraft(
-        objectId: _objectId!,
-        comment: _commentController.text.trim().isEmpty
-            ? null
-            : _commentController.text.trim(),
-      );
-
-      for (final item in pendingItems) {
-        await repo.addItem(
-          requestId: id,
-          name: item.name,
-          quantity: item.quantity,
-          unit: item.unit,
-          article: item.article,
-        );
-      }
+      final comment = _commentController.text.trim().isEmpty
+          ? null
+          : _commentController.text.trim();
+      final id = _isEdit
+          ? await _saveExisting(
+              repo: repo,
+              objectId: _objectId!,
+              comment: comment,
+              pendingItems: pendingItems,
+            )
+          : await _createNew(
+              repo: repo,
+              objectId: _objectId!,
+              comment: comment,
+              pendingItems: pendingItems,
+            );
 
       if (!mounted) return;
       Navigator.of(context).pop(id);
@@ -211,6 +268,77 @@ class _PurchaseRequestCreateDialogState
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
+  }
+
+  Future<String> _createNew({
+    required PurchaseRequestRepository repo,
+    required String objectId,
+    required String? comment,
+    required List<_PendingPurchaseItem> pendingItems,
+  }) async {
+    final id = await repo.createDraft(objectId: objectId, comment: comment);
+    for (final item in pendingItems) {
+      await repo.addItem(
+        requestId: id,
+        name: item.name,
+        quantity: item.quantity,
+        unit: item.unit,
+        article: item.article,
+      );
+    }
+    return id;
+  }
+
+  Future<String> _saveExisting({
+    required PurchaseRequestRepository repo,
+    required String objectId,
+    required String? comment,
+    required List<_PendingPurchaseItem> pendingItems,
+  }) async {
+    final request = widget.request!;
+    await repo.updateHeader(
+      requestId: request.id,
+      objectId: objectId,
+      comment: comment,
+    );
+
+    final existingById = {
+      for (final item in widget.initialItems ?? const <PurchaseRequestItem>[])
+        item.id: item,
+    };
+    final keptIds = <String>{};
+
+    for (final item in pendingItems) {
+      final existingId = item.id;
+      if (existingId != null && existingById.containsKey(existingId)) {
+        keptIds.add(existingId);
+        final original = existingById[existingId]!;
+        await repo.updateItem(
+          original.copyWith(
+            name: item.name,
+            quantity: item.quantity,
+            unit: item.unit,
+            article: item.article,
+          ),
+        );
+      } else {
+        await repo.addItem(
+          requestId: request.id,
+          name: item.name,
+          quantity: item.quantity,
+          unit: item.unit,
+          article: item.article,
+        );
+      }
+    }
+
+    for (final existingId in existingById.keys) {
+      if (!keptIds.contains(existingId)) {
+        await repo.deleteItem(existingId);
+      }
+    }
+
+    return request.id;
   }
 
   @override
@@ -277,22 +405,23 @@ class _PurchaseRequestCreateDialogState
         ),
         const SizedBox(height: 20),
         GTPrimaryButton(
-          text: 'Создать заявку',
+          text: _isEdit ? 'Сохранить' : 'Создать заявку',
           isLoading: _submitting,
           onPressed: _submitting ? null : _submit,
         ),
       ],
     );
 
+    final title = _isEdit ? 'Редактировать заявку' : 'Новая заявка';
     if (isDesktop) {
       return DesktopDialogContent(
-        title: 'Новая заявка',
+        title: title,
         width: _kCreateDialogWidth,
         child: content,
       );
     }
     return MobileBottomSheetContent(
-      title: 'Новая заявка',
+      title: title,
       child: SingleChildScrollView(child: content),
     );
   }

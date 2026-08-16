@@ -69,14 +69,14 @@ abstract class PurchaseRequestRepository {
     String? comment,
   });
 
-  /// Обновить шапку (черновик / доработка).
+  /// Обновить шапку своего черновика (объект, комментарий).
   Future<void> updateHeader({
     required String requestId,
     required String objectId,
     String? comment,
   });
 
-  /// Удалить черновик.
+  /// Удалить свой черновик.
   Future<void> deleteDraft(String requestId);
 
   /// Добавить позицию.

@@ -103,6 +103,44 @@ void main() {
 
       expect(actions.canSubmit, isTrue);
       expect(actions.canEditItems, isTrue);
+      expect(actions.canEditDraft, isTrue);
+      expect(actions.canDeleteDraft, isTrue);
+    });
+
+    test('other user cannot edit or delete someone else draft', () {
+      final actions = resolvePurchaseRequestActions(
+        request: request(
+          status: PurchaseRequestStatus.draft,
+          createdBy: otherId,
+          assigneeId: otherId,
+        ),
+        currentUserId: userId,
+        permissions: permissions(
+          grants: const {
+            'purchase_requests': {'create': true, 'view_all': true},
+          },
+        ),
+      );
+
+      expect(actions.canEditDraft, isFalse);
+      expect(actions.canDeleteDraft, isFalse);
+      expect(actions.canEditItems, isFalse);
+    });
+
+    test('creator cannot edit or delete after draft', () {
+      final actions = resolvePurchaseRequestActions(
+        request: request(status: PurchaseRequestStatus.revision),
+        currentUserId: userId,
+        permissions: permissions(
+          grants: const {
+            'purchase_requests': {'create': true},
+          },
+        ),
+      );
+
+      expect(actions.canEditItems, isTrue);
+      expect(actions.canEditDraft, isFalse);
+      expect(actions.canDeleteDraft, isFalse);
     });
 
     test('assignee can submit invoices at invoice preparation', () {

@@ -1,7 +1,7 @@
 # Модуль Заявки на закупку (Purchase Requests)
 
 **Дата:** 16.08.2026  
-**Изменения:** блок «Счета» — просмотр и скачивание файла (`downloadInvoiceFile`, `previewPurchaseRequestInvoiceFile`, `openAttachmentFilePreview`); Storage SELECT по праву `read`; тесты previewable (21). Ранее в тот же день: реестр без сброса фильтра, rollback Storage при ошибке upload, диалоги Design System.
+**Изменения:** правка и удаление **своего** черновика (`canEditDraft` / `canDeleteDraft`, RPC только `draft` + автор). Ранее: блок «Счета» — просмотр и скачивание файла; реестр без сброса фильтра.
 
 ---
 
@@ -18,6 +18,7 @@
 - **ФИО в UI:** единая логика `pickProfileDisplayName` / `formatUserDisplayLabel` (`lib/core/utils/user_display_utils.dart`); в списке — RPC `purchase_request_list` (`created_by_name`); в деталях и истории — batch-запрос к `profiles`.
 - **Gate «Настройки» в UI:** `isCompanyOwnerProvider` → `Profile.isOwner` из `company_members.is_owner` (не `systemRole`).
 - **Write без компании:** все мутации репозитория вызывают `_requireCompany()` → `PurchaseRequestCompanyRequiredException`.
+- **Свой черновик:** правка шапки/позиций и удаление заявки — только автор, только статус `draft` (RPC + UI). Право `view_all` чужой черновик удалить не может. На этапе `revision` можно менять позиции, но не шапку и не удалять заявку.
 - **Список после действий:** `invalidatePurchaseRequestCaches` **не** делает `invalidate` notifier списка (это сбрасывало фильтр на «На мне»). Вызывается `refreshPurchaseRequestList` → `PurchaseRequestListNotifier.load(quiet: true)` с текущими `filter`/`search`.
 - **Edge Functions:** в `supabase/functions/` нет функций модуля; инструмент MCP `list_edge_functions` в текущем сервере отсутствует.
 
@@ -38,6 +39,8 @@
 | Общий бейдж статуса (`PurchaseRequestStatusBadge`) | ✅ |
 | Цветные бейджи статусов (светлая / тёмная тема) | ✅ |
 | Создание черновика: объект, комментарий, многострочные позиции | ✅ |
+| Редактирование своего черновика (объект, комментарий, позиции) | ✅ |
+| Удаление своего черновика | ✅ |
 | Обновление списка сразу после создания заявки | ✅ |
 | Фильтр и поиск сохраняются после действий по заявке | ✅ |
 | Открытая заявка не закрывается, если её нет в текущем фильтре (напр. черновик при «На мне») | ✅ |
@@ -47,7 +50,7 @@
 | Единые design tokens панели деталей (отступы, радиусы, границы) | ✅ |
 | История: вертикальный таймлайн (кто → что → когда) | ✅ |
 | Добавление / удаление позиций в `draft` / `revision` (в т.ч. артикул из деталей) | ✅ |
-| Редактирование позиции (`updateItem`) | 🟡 метод репозитория есть, UI нет |
+| Редактирование позиции (`updateItem`) | ✅ в диалоге правки черновика |
 | Workflow-кнопки (согласование, оплата, получение, отмена) | ✅ |
 | Кнопка «Отправить на согласование» (этап `invoice_preparation`) | ✅ |
 | Секция «Счета» в панели деталей (добавление / удаление / файл) | ✅ |
@@ -61,7 +64,7 @@
 | Редактирование счёта после создания | 🔴 только удаление + повторное добавление |
 | Отдельный блок «Документы» (не invoice) | 🔴 не реализовано |
 | UI уведомлений | 🔴 не реализовано |
-| Удаление черновика / правка шапки (объект, комментарий) | 🟡 RPC + методы репозитория есть, UI нет |
+| Удаление черновика / правка шапки (объект, комментарий) | ✅ только своя заявка в `draft` |
 
 ---
 
@@ -125,7 +128,7 @@
 | `widgets/purchase_request_history_timeline.dart` | Вертикальный таймлайн истории (точка + линия, кто → что → когда) |
 | `widgets/purchase_request_card.dart` | Карточка в мобильном списке (превью позиций, сумма, бейдж статуса) |
 | `widgets/purchase_request_status_badge.dart` | Общий бейдж статуса для списка и таблицы (единый стиль, `maxLines: 1`) |
-| `widgets/purchase_request_create_dialog.dart` | Создание: объект, комментарий; позиции — строки (наименование, ед. изм., кол-во, артикул) |
+| `widgets/purchase_request_create_dialog.dart` | Создание и редактирование черновика: объект, комментарий, позиции |
 | `widgets/purchase_request_settings_dialog.dart` | Настройки маршрута (4 роли + режим получателя); пользователи — через `purchaseRequestCompanyUsersProvider` |
 | `widgets/purchase_request_actions_bar.dart` | Кнопки workflow; `resolvePurchaseRequestActions` (права + assignee + статус); `hasAny`; предупреждения submit только после `AsyncValue.hasValue` |
 | `utils/purchase_request_invoice_utils.dart` | `purchaseRequestInvoicesReadyForSubmit()`, `isPurchaseRequestInvoiceFilePreviewable()` |
@@ -554,8 +557,8 @@ supabase/migrations/
 |---------|------------|
 | `purchase_request_list` | Список: `mine` / `on_me` / `all` / `archive`; `created_by_name` из `profiles` |
 | `purchase_request_create_draft` | Черновик (+ gate: settings configured) |
-| `purchase_request_update_header` | Обновление объекта/комментария в `draft`/`revision` |
-| `purchase_request_delete_draft` | Удаление черновика |
+| `purchase_request_update_header` | Объект/комментарий: только автор, только `draft`, право `create` |
+| `purchase_request_delete_draft` | Удаление: только автор, только `draft`, право `create` |
 | `purchase_request_submit` | `draft`/`revision` → `approval` |
 | `purchase_request_approve` | Согласование → `invoice_preparation` |
 | `purchase_request_return` | Возврат на доработку → `revision` |
@@ -705,6 +708,7 @@ stateDiagram-v2
 | Действие | Permission | Assignee / автор | Доп. условия |
 |----------|------------|------------------|--------------|
 | Создание / submit | `create` | автор | ≥1 позиция; settings configured |
+| Правка / удаление заявки | `create` | **только автор** | только `draft`; UI: `canEditDraft` / `canDeleteDraft` |
 | Добавление / удаление позиций | `create` (RLS) | автор | `draft` / `revision`; `canEditItems` в UI |
 | approve / return | `approve` | current | return: обязателен comment |
 | submit invoices | `prepare_invoice` | current | ≥1 счёт + файл у каждого; UI блокирует кнопку до готовности |
@@ -728,7 +732,8 @@ stateDiagram-v2
 ### Позиции
 
 - **Добавление / удаление** — только в `draft` и `revision` (RLS + `canEditItems`; требуется permission `create`)
-- **Изменение полей** существующей позиции — `updateItem` в репозитории (PostgREST UPDATE), **UI нет**
+- **Изменение полей** существующей позиции — `updateItem` (PostgREST UPDATE); в UI — диалог редактирования черновика (`PurchaseRequestCreateDialog`)
+- **Шапка заявки** (объект, комментарий) — RPC `purchase_request_update_header`, только автор и только `draft`
 - Submit без позиций — предупреждение на клиенте **после загрузки позиций** + ошибка на сервере
 - `unit` — свободный текст; `article` — опциональный; в диалоге из деталей артикул **запрашивается**
 - `sort_order` при insert не задаётся клиентом (default 0; порядок по `created_at`)
@@ -803,8 +808,8 @@ stateDiagram-v2
 - Gate «Настройки» через `isCompanyOwnerProvider` / `Profile.isOwner`
 - Методы репозитория: `updateHeader`, `deleteDraft`, `updateItem`
 - Общие утилиты ФИО (`user_display_utils.dart`)
-- Юнит-тесты: `test/features/purchase_requests/purchase_request_logic_test.dart` (21 тест, в т.ч. `isPurchaseRequestInvoiceFilePreviewable`)
-- Панель деталей: KPI-сводка, таблица позиций, **секция счетов**, таймлайн истории, workflow actions
+- Юнит-тесты: `test/features/purchase_requests/purchase_request_logic_test.dart` (в т.ч. `canEditDraft` / `canDeleteDraft`, previewable)
+- Панель деталей: KPI-сводка, таблица позиций, **секция счетов**, таймлайн истории, workflow actions, кнопки правки/удаления своего черновика
 - `invalidatePurchaseRequestCaches` + `idleActionsMessage` + `showPurchaseRequestFormDialog`
 - Настройки маршрута (owner), кнопка «Настройки»
 - Матрица прав, drawer, router
@@ -816,7 +821,7 @@ stateDiagram-v2
 - Редактирование счёта после создания — только удаление и повторное добавление (нет `updateInvoice` в UI; RLS UPDATE на `invoice_preparation` есть)
 - Отдельный блок «Документы» (файлы не типа `invoice`) не в UI
 - Уведомления пишутся в БД, но не отображаются
-- Нет UI для `updateHeader`, `deleteDraft`, `updateItem`
+- Нет UI для правки отдельной позиции вне диалога черновика (в `revision` — только «Добавить» / удалить строку)
 - Бизнес-логика workflow в presentation, не в domain use cases
 - `metadata` истории не маппится в entity и не показывается в таймлайне
 - ФИО в деталях/истории — дополнительный round-trip к `profiles`
@@ -831,13 +836,12 @@ stateDiagram-v2
 1. Редактирование счёта (update полей / замена файла без удаления)
 2. Секция «Документы» с Storage (типы кроме `invoice`)
 3. Badge / список уведомлений в модуле
-4. UI для `updateHeader`, `deleteDraft`, редактирования позиции
-5. Domain use cases / перенос `resolvePurchaseRequestActions` из виджета
-6. RPC или view для истории с `user_name` (убрать batch на клиенте)
-7. Маппинг `metadata` истории в entity и отображение в таймлайне
-8. Load-more / offset пагинация списка
-9. Экспорт списка заявок (если потребуется `export` permission)
-10. Cross-link в `docs/database_structure.md`
+4. Domain use cases / перенос `resolvePurchaseRequestActions` из виджета
+5. RPC или view для истории с `user_name` (убрать batch на клиенте)
+6. Маппинг `metadata` истории в entity и отображение в таймлайне
+7. Load-more / offset пагинация списка
+8. Экспорт списка заявок (если потребуется `export` permission)
+9. Cross-link в `docs/database_structure.md`
 
 ---
 

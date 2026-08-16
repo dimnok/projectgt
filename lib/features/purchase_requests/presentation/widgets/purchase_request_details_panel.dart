@@ -5,12 +5,15 @@ import 'package:projectgt/core/di/providers.dart';
 import 'package:projectgt/core/utils/supabase_error_message.dart';
 import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
+import 'package:projectgt/core/widgets/gt_confirmation_dialog.dart';
 import 'package:projectgt/core/widgets/gt_text_field.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request.dart';
+import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_item.dart';
 import 'package:projectgt/features/purchase_requests/presentation/state/purchase_request_providers.dart';
 import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_form_dialog.dart';
 import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_ui_labels.dart';
 import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_actions_bar.dart';
+import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_create_dialog.dart';
 import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_details_summary.dart';
 import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_details_tokens.dart';
 import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_history_timeline.dart';
@@ -25,6 +28,7 @@ class PurchaseRequestDetailsPanel extends ConsumerWidget {
     super.key,
     required this.requestId,
     this.onClose,
+    this.onDeleted,
     this.showCloseButton = false,
   });
 
@@ -33,6 +37,9 @@ class PurchaseRequestDetailsPanel extends ConsumerWidget {
 
   /// Закрыть панель и вернуться к списку.
   final VoidCallback? onClose;
+
+  /// Закрыть панель после удаления черновика.
+  final VoidCallback? onDeleted;
 
   /// Показать кнопку «назад» в шапке панели.
   final bool showCloseButton;
@@ -53,7 +60,7 @@ class PurchaseRequestDetailsPanel extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildHeader(context, theme, requestAsync),
+            _buildHeader(context, ref, theme, requestAsync, itemsAsync, uid, permissions),
             Expanded(
               child: requestAsync.when(
                 loading: () =>
@@ -213,8 +220,12 @@ class PurchaseRequestDetailsPanel extends ConsumerWidget {
 
   Widget _buildHeader(
     BuildContext context,
+    WidgetRef ref,
     ThemeData theme,
     AsyncValue<PurchaseRequest?> requestAsync,
+    AsyncValue<List<PurchaseRequestItem>> itemsAsync,
+    String? uid,
+    PermissionService permissions,
   ) {
     final hasBack = showCloseButton && onClose != null;
 
@@ -255,10 +266,93 @@ class PurchaseRequestDetailsPanel extends ConsumerWidget {
                 },
               ),
             ),
+            requestAsync.maybeWhen(
+              data: (request) {
+                if (request == null) return const SizedBox.shrink();
+                final actions = resolvePurchaseRequestActions(
+                  request: request,
+                  currentUserId: uid,
+                  permissions: permissions,
+                );
+                if (!actions.canEditDraft && !actions.canDeleteDraft) {
+                  return const SizedBox.shrink();
+                }
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (actions.canEditDraft)
+                      IconButton(
+                        tooltip: 'Редактировать',
+                        icon: const Icon(Icons.edit_outlined),
+                        onPressed: () => _editDraft(
+                          context,
+                          ref,
+                          request,
+                          itemsAsync.valueOrNull ?? const [],
+                        ),
+                      ),
+                    if (actions.canDeleteDraft)
+                      IconButton(
+                        tooltip: 'Удалить',
+                        icon: const Icon(Icons.delete_outline_rounded),
+                        onPressed: () => _deleteDraft(context, ref, request),
+                      ),
+                  ],
+                );
+              },
+              orElse: () => const SizedBox.shrink(),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _editDraft(
+    BuildContext context,
+    WidgetRef ref,
+    PurchaseRequest request,
+    List<PurchaseRequestItem> items,
+  ) async {
+    final id = await PurchaseRequestCreateDialog.show(
+      context,
+      request: request,
+      initialItems: items,
+    );
+    if (id == null || !context.mounted) return;
+    invalidatePurchaseRequestCaches(ref, requestId);
+  }
+
+  Future<void> _deleteDraft(
+    BuildContext context,
+    WidgetRef ref,
+    PurchaseRequest request,
+  ) async {
+    final confirmed = await GTConfirmationDialog.show(
+      context: context,
+      title: 'Удалить заявку',
+      message: 'Черновик будет удалён без возможности восстановления.',
+      emphasisText: request.number,
+      confirmText: 'Удалить',
+      cancelText: 'Отмена',
+      type: GTConfirmationType.danger,
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    try {
+      await ref
+          .read(purchaseRequestRepositoryProvider)
+          .deleteDraft(request.id);
+      invalidatePurchaseRequestCaches(ref, requestId);
+      onDeleted?.call();
+    } catch (e) {
+      if (!context.mounted) return;
+      AppSnackBar.show(
+        context: context,
+        message: formatSupabaseErrorMessage(e),
+        kind: AppSnackBarKind.error,
+      );
+    }
   }
 
   Future<void> _addItem(BuildContext context, WidgetRef ref) async {

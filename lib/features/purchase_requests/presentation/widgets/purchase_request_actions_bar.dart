@@ -27,6 +27,8 @@ class PurchaseRequestActionSet {
     this.canMarkReceived = false,
     this.canCancel = false,
     this.canEditItems = false,
+    this.canEditDraft = false,
+    this.canDeleteDraft = false,
   });
 
   /// Можно отправить заявку.
@@ -62,6 +64,12 @@ class PurchaseRequestActionSet {
   /// Можно редактировать позиции.
   final bool canEditItems;
 
+  /// Можно править свою заявку целиком (шапка и позиции), только черновик.
+  final bool canEditDraft;
+
+  /// Можно удалить свою заявку, только черновик.
+  final bool canDeleteDraft;
+
   /// Есть ли хотя бы одно действие в панели.
   bool get hasAny =>
       canSubmit ||
@@ -93,9 +101,15 @@ PurchaseRequestActionSet resolvePurchaseRequestActions({
       permissions.can('purchase_requests', 'create') &&
       (status == PurchaseRequestStatus.draft ||
           status == PurchaseRequestStatus.revision);
+  final canOwnDraft =
+      isCreator &&
+      permissions.can('purchase_requests', 'create') &&
+      status == PurchaseRequestStatus.draft;
 
   return PurchaseRequestActionSet(
     canEditItems: canMutateDraft,
+    canEditDraft: canOwnDraft,
+    canDeleteDraft: canOwnDraft,
     canSubmit: canMutateDraft,
     canApprove:
         isAssignee &&

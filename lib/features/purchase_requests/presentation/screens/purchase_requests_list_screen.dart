@@ -132,6 +132,7 @@ class _PurchaseRequestsListScreenState
                         padding: EdgeInsets.zero,
                         child: PurchaseRequestDetailsPanel(
                           requestId: _selectedRequestId!,
+                          onDeleted: _closeDetails,
                         ),
                       ),
                     )
