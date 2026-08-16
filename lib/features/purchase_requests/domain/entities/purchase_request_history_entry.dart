@@ -1,3 +1,4 @@
+import 'package:projectgt/core/utils/user_display_utils.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_status.dart';
 
 /// Запись истории заявки.
@@ -43,10 +44,7 @@ class PurchaseRequestHistoryEntry {
   final DateTime createdAt;
 
   /// Отображаемое имя пользователя.
-  String get userLabel =>
-      (userName != null && userName!.trim().isNotEmpty)
-          ? userName!.trim()
-          : '—';
+  String get userLabel => formatUserDisplayLabel(userName);
 
   /// Маппинг из PostgREST.
   factory PurchaseRequestHistoryEntry.fromJson(Map<String, dynamic> json) {
@@ -56,10 +54,17 @@ class PurchaseRequestHistoryEntry {
       userId: json['user_id'] as String,
       userName: json['user_name'] as String?,
       action: json['action'] as String,
-      fromStatus: PurchaseRequestStatusX.fromDb(json['from_status'] as String?),
-      toStatus: PurchaseRequestStatusX.fromDb(json['to_status'] as String?),
+      fromStatus: _statusFromHistoryJson(json['from_status']),
+      toStatus: _statusFromHistoryJson(json['to_status']),
       comment: json['comment'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
+}
+
+PurchaseRequestStatus? _statusFromHistoryJson(Object? value) {
+  if (value == null) return null;
+  final raw = value as String;
+  if (raw.isEmpty) return null;
+  return PurchaseRequestStatusX.parseFromDb(raw, context: 'history');
 }

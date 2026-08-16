@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'dart:typed_data';
 
 import 'package:projectgt/core/utils/formatters.dart';
@@ -43,9 +44,9 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
 
   static const _requestSelect = '*, objects:object_id(name)';
 
-  PurchaseRequest _mapRequest(dynamic row) =>
-      PurchaseRequestModel.fromJson(Map<String, dynamic>.from(row as Map))
-          .toDomain();
+  PurchaseRequest _mapRequest(dynamic row) => PurchaseRequestModel.fromJson(
+    Map<String, dynamic>.from(row as Map),
+  ).toDomain();
 
   Future<String?> _fetchCreatedByName(String userId) async {
     final names = await _fetchUserNames({userId});
@@ -182,18 +183,16 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
         .toSet();
     final userNames = await _fetchUserNames(userIds);
 
-    return rows
-        .map((row) {
-          final userId = row['user_id'] as String?;
-          if (userId != null) {
-            final name = userNames[userId];
-            if (name != null) {
-              row['user_name'] = name;
-            }
-          }
-          return PurchaseRequestHistoryEntry.fromJson(row);
-        })
-        .toList();
+    return rows.map((row) {
+      final userId = row['user_id'] as String?;
+      if (userId != null) {
+        final name = userNames[userId];
+        if (name != null) {
+          row['user_name'] = name;
+        }
+      }
+      return PurchaseRequestHistoryEntry.fromJson(row);
+    }).toList();
   }
 
   @override
@@ -255,8 +254,9 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
           'supplier_id': supplierId,
           'amount': amount,
           'invoice_number': invoiceNumber,
-          'invoice_date':
-              invoiceDate != null ? dateOnlyToJson(invoiceDate) : null,
+          'invoice_date': invoiceDate != null
+              ? dateOnlyToJson(invoiceDate)
+              : null,
           'comment': comment,
           if (userId != null) 'created_by': userId,
         })
@@ -275,7 +275,7 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
       );
       final invoice = PurchaseRequestInvoiceModel.fromJson(invoiceMap);
       return invoice.copyWithFile(fileModel).toDomain();
-    } catch (error) {
+    } catch (_) {
       await client
           .from(_invoicesTable)
           .delete()
@@ -306,9 +306,7 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
         .eq('company_id', activeCompanyId)
         .eq('id', invoiceId);
 
-    if (paths.isNotEmpty) {
-      await client.storage.from(purchaseRequestsStorageBucket).remove(paths);
-    }
+    await _removeStoragePaths(paths);
   }
 
   Future<PurchaseRequestFileModel> _uploadInvoiceFile({
@@ -322,36 +320,59 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
     final storagePath =
         '$activeCompanyId/$requestId/invoices/$invoiceId/${timestamp}_$safeName';
 
-    await client.storage.from(purchaseRequestsStorageBucket).uploadBinary(
-          storagePath,
-          Uint8List.fromList(bytes),
-          fileOptions: FileOptions(
-            cacheControl: '3600',
-            upsert: false,
-            contentType: _contentTypeForFileName(fileName),
-          ),
-        );
+    var uploaded = false;
+    try {
+      await client.storage
+          .from(purchaseRequestsStorageBucket)
+          .uploadBinary(
+            storagePath,
+            Uint8List.fromList(bytes),
+            fileOptions: FileOptions(
+              cacheControl: '3600',
+              upsert: false,
+              contentType: _contentTypeForFileName(fileName),
+            ),
+          );
+      uploaded = true;
 
-    final userId = client.auth.currentUser?.id;
-    final row = await client
-        .from(_filesTable)
-        .insert({
-          'company_id': activeCompanyId,
-          'request_id': requestId,
-          'invoice_id': invoiceId,
-          'type': 'invoice',
-          'storage_path': storagePath,
-          'file_name': fileName,
-          'mime_type': _contentTypeForFileName(fileName),
-          'size': bytes.length,
-          if (userId != null) 'uploaded_by': userId,
-        })
-        .select()
-        .single();
+      final userId = client.auth.currentUser?.id;
+      final row = await client
+          .from(_filesTable)
+          .insert({
+            'company_id': activeCompanyId,
+            'request_id': requestId,
+            'invoice_id': invoiceId,
+            'type': 'invoice',
+            'storage_path': storagePath,
+            'file_name': fileName,
+            'mime_type': _contentTypeForFileName(fileName),
+            'size': bytes.length,
+            if (userId != null) 'uploaded_by': userId,
+          })
+          .select()
+          .single();
 
-    return PurchaseRequestFileModel.fromJson(
-      Map<String, dynamic>.from(row),
-    );
+      return PurchaseRequestFileModel.fromJson(Map<String, dynamic>.from(row));
+    } catch (_) {
+      if (uploaded) {
+        await _removeStoragePaths([storagePath]);
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> _removeStoragePaths(List<String> paths) async {
+    if (paths.isEmpty) return;
+    try {
+      await client.storage.from(purchaseRequestsStorageBucket).remove(paths);
+    } catch (error, stackTrace) {
+      developer.log(
+        'Не удалось удалить файлы заявок из Storage: $paths',
+        name: 'PurchaseRequestRepository',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
   static String _buildSafeStorageFileName(String fileName) {
@@ -631,8 +652,9 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
       'purchase_request_mark_paid',
       params: {
         'p_request_id': requestId,
-        'p_payment_date':
-            paymentDate != null ? dateOnlyToJson(paymentDate) : null,
+        'p_payment_date': paymentDate != null
+            ? dateOnlyToJson(paymentDate)
+            : null,
         'p_comment': comment,
       },
     );
@@ -650,8 +672,9 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
       'purchase_request_mark_received',
       params: {
         'p_request_id': requestId,
-        'p_received_date':
-            receivedDate != null ? dateOnlyToJson(receivedDate) : null,
+        'p_received_date': receivedDate != null
+            ? dateOnlyToJson(receivedDate)
+            : null,
         'p_comment': comment,
       },
     );

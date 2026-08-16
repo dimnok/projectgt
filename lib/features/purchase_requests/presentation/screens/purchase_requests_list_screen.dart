@@ -36,8 +36,6 @@ class PurchaseRequestsListScreen extends ConsumerStatefulWidget {
 class _PurchaseRequestsListScreenState
     extends ConsumerState<PurchaseRequestsListScreen> {
   String? _selectedRequestId;
-  /// Заявка после создания или явного выбора — не сбрасывать при смене фильтра.
-  String? _pinnedRequestId;
   final _mobileSearchController = TextEditingController();
 
   @override
@@ -49,29 +47,21 @@ class _PurchaseRequestsListScreenState
   Future<void> _openCreate() async {
     final id = await PurchaseRequestCreateDialog.show(context);
     if (id == null || !mounted) return;
-    ref.invalidate(purchaseRequestListProvider);
-    setState(() {
-      _selectedRequestId = id;
-      _pinnedRequestId = id;
-    });
+    refreshPurchaseRequestList(ref);
+    setState(() => _selectedRequestId = id);
   }
 
   void _selectRequest(String id) {
-    setState(() {
-      _selectedRequestId = id;
-      _pinnedRequestId = id;
-    });
+    setState(() => _selectedRequestId = id);
   }
 
   void _closeDetails() {
-    setState(() {
-      _selectedRequestId = null;
-      _pinnedRequestId = null;
-    });
+    setState(() => _selectedRequestId = null);
   }
 
   Future<void> _openSettings() async {
     await PurchaseRequestSettingsDialog.show(context);
+    if (!mounted) return;
     ref.invalidate(purchaseRequestSettingsProvider);
   }
 
@@ -79,16 +69,6 @@ class _PurchaseRequestsListScreenState
   Widget build(BuildContext context) {
     final listState = ref.watch(purchaseRequestListProvider);
     final listNotifier = ref.read(purchaseRequestListProvider.notifier);
-
-    ref.listen(purchaseRequestListProvider, (previous, next) {
-      if (_selectedRequestId == null) return;
-      if (_selectedRequestId == _pinnedRequestId) return;
-      final stillVisible =
-          next.items.any((item) => item.id == _selectedRequestId);
-      if (!stillVisible && !next.isLoading && mounted) {
-        setState(() => _selectedRequestId = null);
-      }
-    });
     final settingsAsync = ref.watch(purchaseRequestSettingsProvider);
     final appearance = MobileAtmosphereAppearance.of(context);
     final isDark = appearance.isDark;
@@ -107,12 +87,14 @@ class _PurchaseRequestsListScreenState
         statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
         systemNavigationBarColor: appearance.atmosphereBase,
         systemNavigationBarDividerColor: Colors.transparent,
-        systemNavigationBarIconBrightness:
-            isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarIconBrightness: isDark
+            ? Brightness.light
+            : Brightness.dark,
       ),
       child: Scaffold(
-        backgroundColor:
-            isDark ? appearance.atmosphereBase : Colors.transparent,
+        backgroundColor: isDark
+            ? appearance.atmosphereBase
+            : Colors.transparent,
         drawer: const AppDrawer(activeRoute: AppRoute.purchaseRequests),
         body: Stack(
           fit: StackFit.expand,
@@ -132,7 +114,6 @@ class _PurchaseRequestsListScreenState
                       useMobile,
                       isOwner: isOwner,
                       canCreate: canCreate && settingsConfigured,
-                      showSearch: settingsConfigured,
                       showBack: useMobile && _selectedRequestId != null,
                       onBack: _closeDetails,
                     ),
@@ -155,51 +136,50 @@ class _PurchaseRequestsListScreenState
                       ),
                     )
                   else if (useMobile) ...[
-                      PurchaseRequestFilterBar.mobile(
-                        filter: listState.filter,
-                        onChanged: listNotifier.setFilter,
+                    PurchaseRequestFilterBar.mobile(
+                      filter: listState.filter,
+                      onChanged: listNotifier.setFilter,
+                    ),
+                    if (listState.isTruncatedByLimit)
+                      const PurchaseRequestListLimitBanner(
+                        limit: kPurchaseRequestListLimit,
                       ),
-                      if (listState.isTruncatedByLimit)
-                        const PurchaseRequestListLimitBanner(
-                          limit: kPurchaseRequestListLimit,
-                        ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                        child: GTTextField(
-                          controller: _mobileSearchController,
-                          hintText: 'Поиск',
-                          prefixIcon: Icons.search,
-                          onChanged: listNotifier.setSearchQuery,
-                        ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                      child: GTTextField(
+                        controller: _mobileSearchController,
+                        hintText: 'Поиск',
+                        prefixIcon: Icons.search,
+                        onChanged: listNotifier.setSearchQuery,
                       ),
-                      Expanded(
-                        child: listState.isLoading && listState.items.isEmpty
-                            ? const Center(child: CupertinoActivityIndicator())
-                            : listState.error != null
-                                ? Center(child: Text(listState.error!))
-                                : listState.items.isEmpty
-                                    ? const Center(child: Text('Нет заявок'))
-                                    : MobileAtmosphereMainSurface(
-                                        child: ListView.builder(
-                                          padding: const EdgeInsets.only(top: 4),
-                                          itemCount: listState.items.length,
-                                          itemBuilder: (context, index) {
-                                            final item = listState.items[index];
-                                            final cardStyle =
-                                                MobileAtmosphereCardStyle
-                                                    .fromAppearance(appearance);
-                                            return PurchaseRequestCard(
-                                              item: item,
-                                              style: cardStyle,
-                                              onTap: () =>
-                                                  _selectRequest(item.id),
-                                            );
-                                          },
-                                        ),
-                                      ),
-                      ),
-                    ]
-                  else
+                    ),
+                    Expanded(
+                      child: listState.isLoading && listState.items.isEmpty
+                          ? const Center(child: CupertinoActivityIndicator())
+                          : listState.error != null
+                          ? Center(child: Text(listState.error!))
+                          : listState.items.isEmpty
+                          ? const Center(child: Text('Нет заявок'))
+                          : MobileAtmosphereMainSurface(
+                              child: ListView.builder(
+                                padding: const EdgeInsets.only(top: 4),
+                                itemCount: listState.items.length,
+                                itemBuilder: (context, index) {
+                                  final item = listState.items[index];
+                                  final cardStyle =
+                                      MobileAtmosphereCardStyle.fromAppearance(
+                                        appearance,
+                                      );
+                                  return PurchaseRequestCard(
+                                    item: item,
+                                    style: cardStyle,
+                                    onTap: () => _selectRequest(item.id),
+                                  );
+                                },
+                              ),
+                            ),
+                    ),
+                  ] else
                     Expanded(
                       child: PurchaseRequestsListDesktopView(
                         key: const ValueKey('purchase_requests_desktop'),
@@ -228,7 +208,6 @@ class _PurchaseRequestsListScreenState
     bool useMobile, {
     required bool isOwner,
     required bool canCreate,
-    required bool showSearch,
     bool showBack = false,
     VoidCallback? onBack,
   }) {
@@ -245,9 +224,9 @@ class _PurchaseRequestsListScreenState
       tooltip: isDark ? 'Светлая тема' : 'Тёмная тема',
       icon: isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
       onTap: () {
-        ref.read(themeSettingsProvider.notifier).setThemeMode(
-              isDark ? ThemeMode.light : ThemeMode.dark,
-            );
+        ref
+            .read(themeSettingsProvider.notifier)
+            .setThemeMode(isDark ? ThemeMode.light : ThemeMode.dark);
       },
     );
     final settingsButton = isOwner && useMobile
@@ -283,9 +262,9 @@ class _PurchaseRequestsListScreenState
           Expanded(
             child: Text(
               showBack ? 'Заявка' : 'Заявки',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
             ),
           ),
           themeButton,
@@ -307,9 +286,9 @@ class _PurchaseRequestsListScreenState
         const SizedBox(width: 12),
         Text(
           'Заявки на закупку',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
         ),
         const Spacer(),
         themeButton,
@@ -359,9 +338,9 @@ class _ModuleSetupPlaceholder extends StatelessWidget {
             Text(
               isOwner
                   ? 'Укажите, кто согласует заявки, счета и оплату. '
-                      'После этого сотрудники смогут создавать заявки.'
+                        'После этого сотрудники смогут создавать заявки.'
                   : 'Обратитесь к владельцу компании — '
-                      'он должен настроить маршрут заявок.',
+                        'он должен настроить маршрут заявок.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
               ),

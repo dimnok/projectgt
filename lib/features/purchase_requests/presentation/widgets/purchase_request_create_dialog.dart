@@ -65,8 +65,7 @@ class _PurchaseItemRowControllers {
     final name = nameController.text.trim();
     if (name.isEmpty) return null;
 
-    final qty =
-        double.tryParse(qtyController.text.replaceAll(',', '.')) ?? 0;
+    final qty = double.tryParse(qtyController.text.replaceAll(',', '.')) ?? 0;
     if (qty <= 0) return null;
 
     final unit = unitController.text.trim().isEmpty
@@ -200,7 +199,6 @@ class _PurchaseRequestCreateDialogState
         );
       }
 
-      ref.invalidate(purchaseRequestListProvider);
       if (!mounted) return;
       Navigator.of(context).pop(id);
     } catch (e) {
@@ -232,8 +230,10 @@ class _PurchaseRequestCreateDialogState
           items: objects.map((o) => o.id).toList(),
           selectedItem: _objectId,
           itemDisplayBuilder: (id) {
-            final obj = objects.firstWhere((o) => o.id == id);
-            return obj.name;
+            for (final obj in objects) {
+              if (obj.id == id) return obj.name;
+            }
+            return id;
           },
           onSelectionChanged: (v) => setState(() => _objectId = v),
         ),

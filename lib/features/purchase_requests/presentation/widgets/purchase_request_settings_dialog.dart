@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
@@ -66,8 +67,7 @@ class _PurchaseRequestSettingsDialogState
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final users =
-          await ref.read(purchaseRequestCompanyUsersProvider.future);
+      final users = await ref.read(purchaseRequestCompanyUsersProvider.future);
       final settings = await ref.read(purchaseRequestSettingsProvider.future);
       if (!mounted) return;
       _users = users;
@@ -118,7 +118,9 @@ class _PurchaseRequestSettingsDialogState
 
     setState(() => _saving = true);
     try {
-      await ref.read(purchaseRequestRepositoryProvider).upsertSettings(
+      await ref
+          .read(purchaseRequestRepositoryProvider)
+          .upsertSettings(
             PurchaseRequestSettings(
               companyId: companyId,
               firstApproverId: _firstApproverId,
@@ -162,8 +164,10 @@ class _PurchaseRequestSettingsDialogState
       items: users.map((u) => u.id).toList(),
       selectedItem: selectedId,
       itemDisplayBuilder: (id) {
-        final user = users.firstWhere((u) => u.id == id);
-        return user.displayName;
+        for (final user in users) {
+          if (user.id == id) return user.displayName;
+        }
+        return id;
       },
       onSelectionChanged: onChanged,
     );
@@ -179,7 +183,7 @@ class _PurchaseRequestSettingsDialogState
         ? const Center(
             child: Padding(
               padding: EdgeInsets.all(24),
-              child: CircularProgressIndicator(),
+              child: CupertinoActivityIndicator(),
             ),
           )
         : SingleChildScrollView(
@@ -242,8 +246,7 @@ class _PurchaseRequestSettingsDialogState
                   ],
                   selectedItem: _receiverMode,
                   itemDisplayBuilder: (mode) => switch (mode) {
-                    PurchaseRequestReceiverMode.initiator =>
-                      'Инициатор заявки',
+                    PurchaseRequestReceiverMode.initiator => 'Инициатор заявки',
                     PurchaseRequestReceiverMode.fixedUser =>
                       'Указанный сотрудник',
                   },

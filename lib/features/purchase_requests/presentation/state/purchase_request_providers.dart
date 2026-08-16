@@ -19,8 +19,9 @@ import 'package:projectgt/features/purchase_requests/domain/repositories/purchas
 const kPurchaseRequestListLimit = 50;
 
 /// Репозиторий заявок на закупку.
-final purchaseRequestRepositoryProvider =
-    Provider<PurchaseRequestRepository>((ref) {
+final purchaseRequestRepositoryProvider = Provider<PurchaseRequestRepository>((
+  ref,
+) {
   final client = ref.watch(supabaseClientProvider);
   final companyId = ref.watch(activeCompanyIdProvider);
   return PurchaseRequestRepositoryImpl(client, companyId ?? '');
@@ -79,10 +80,11 @@ class PurchaseRequestListState {
 }
 
 /// Notifier списка заявок.
-class PurchaseRequestListNotifier extends StateNotifier<PurchaseRequestListState> {
+class PurchaseRequestListNotifier
+    extends StateNotifier<PurchaseRequestListState> {
   /// Создаёт notifier.
   PurchaseRequestListNotifier(this._repository)
-      : super(const PurchaseRequestListState(isLoading: true)) {
+    : super(const PurchaseRequestListState(isLoading: true)) {
     load();
   }
 
@@ -151,62 +153,69 @@ class PurchaseRequestListNotifier extends StateNotifier<PurchaseRequestListState
 }
 
 /// Список заявок (единый notifier без family — без пересоздания при смене фильтра).
-final purchaseRequestListProvider = StateNotifierProvider.autoDispose<
-    PurchaseRequestListNotifier,
-    PurchaseRequestListState>((ref) {
-  final repo = ref.watch(purchaseRequestRepositoryProvider);
-  final notifier = PurchaseRequestListNotifier(repo);
-  ref.onDispose(notifier.disposeResources);
-  return notifier;
-});
+final purchaseRequestListProvider =
+    StateNotifierProvider.autoDispose<
+      PurchaseRequestListNotifier,
+      PurchaseRequestListState
+    >((ref) {
+      final repo = ref.watch(purchaseRequestRepositoryProvider);
+      final notifier = PurchaseRequestListNotifier(repo);
+      ref.onDispose(notifier.disposeResources);
+      return notifier;
+    });
 
 /// Детали заявки.
 final purchaseRequestDetailsProvider = FutureProvider.autoDispose
     .family<PurchaseRequest?, String>((ref, id) async {
-  final repo = ref.watch(purchaseRequestRepositoryProvider);
-  return repo.getRequest(id);
-});
+      final repo = ref.watch(purchaseRequestRepositoryProvider);
+      return repo.getRequest(id);
+    });
 
 /// Позиции заявки.
 final purchaseRequestItemsProvider = FutureProvider.autoDispose
     .family<List<PurchaseRequestItem>, String>((ref, requestId) async {
-  final repo = ref.watch(purchaseRequestRepositoryProvider);
-  return repo.getItems(requestId);
-});
+      final repo = ref.watch(purchaseRequestRepositoryProvider);
+      return repo.getItems(requestId);
+    });
 
 /// История заявки.
 final purchaseRequestHistoryProvider = FutureProvider.autoDispose
     .family<List<PurchaseRequestHistoryEntry>, String>((ref, requestId) async {
-  final repo = ref.watch(purchaseRequestRepositoryProvider);
-  return repo.getHistory(requestId);
-});
+      final repo = ref.watch(purchaseRequestRepositoryProvider);
+      return repo.getHistory(requestId);
+    });
 
 /// Счета заявки.
 final purchaseRequestInvoicesProvider = FutureProvider.autoDispose
     .family<List<PurchaseRequestInvoice>, String>((ref, requestId) async {
-  final repo = ref.watch(purchaseRequestRepositoryProvider);
-  return repo.getInvoices(requestId);
-});
+      final repo = ref.watch(purchaseRequestRepositoryProvider);
+      return repo.getInvoices(requestId);
+    });
 
 /// Настройки модуля.
 final purchaseRequestSettingsProvider =
     FutureProvider.autoDispose<PurchaseRequestSettings?>((ref) async {
-  final repo = ref.watch(purchaseRequestRepositoryProvider);
-  return repo.getSettings();
-});
+      final repo = ref.watch(purchaseRequestRepositoryProvider);
+      return repo.getSettings();
+    });
 
 /// Пользователи компании для настройки маршрута.
 final purchaseRequestCompanyUsersProvider =
     FutureProvider.autoDispose<List<PurchaseRequestCompanyUser>>((ref) async {
-  final repo = ref.watch(purchaseRequestRepositoryProvider);
-  return repo.getCompanyUsers();
-});
+      final repo = ref.watch(purchaseRequestRepositoryProvider);
+      return repo.getCompanyUsers();
+    });
 
-/// Сбрасывает кэш деталей, истории, позиций и списка заявок.
+/// Перезагружает реестр, сохраняя текущий фильтр и поиск.
+void refreshPurchaseRequestList(WidgetRef ref) {
+  unawaited(ref.read(purchaseRequestListProvider.notifier).load(quiet: true));
+}
+
+/// Сбрасывает кэш деталей, истории, позиций, счетов и обновляет реестр.
 void invalidatePurchaseRequestCaches(WidgetRef ref, String requestId) {
   ref.invalidate(purchaseRequestDetailsProvider(requestId));
   ref.invalidate(purchaseRequestHistoryProvider(requestId));
   ref.invalidate(purchaseRequestItemsProvider(requestId));
   ref.invalidate(purchaseRequestInvoicesProvider(requestId));
-  ref.invalidate(purchaseRequestListProvider);
+  refreshPurchaseRequestList(ref);
 }

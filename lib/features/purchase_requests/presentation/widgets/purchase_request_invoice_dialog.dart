@@ -15,29 +15,18 @@ import 'package:projectgt/features/contractors/presentation/state/contractor_sta
 import 'package:projectgt/features/purchase_requests/presentation/state/purchase_request_providers.dart';
 
 /// Допустимые расширения файла счёта.
-const purchaseRequestInvoiceAcceptedExtensions = [
-  'pdf',
-  'jpg',
-  'jpeg',
-  'png',
-];
+const purchaseRequestInvoiceAcceptedExtensions = ['pdf', 'jpg', 'jpeg', 'png'];
 
 /// Диалог добавления счёта с прикреплением файла.
 class PurchaseRequestInvoiceDialog extends ConsumerStatefulWidget {
   /// Создаёт диалог.
-  const PurchaseRequestInvoiceDialog({
-    super.key,
-    required this.requestId,
-  });
+  const PurchaseRequestInvoiceDialog({super.key, required this.requestId});
 
   /// Идентификатор заявки.
   final String requestId;
 
   /// Показать диалог добавления счёта.
-  static Future<bool?> show(
-    BuildContext context, {
-    required String requestId,
-  }) {
+  static Future<bool?> show(BuildContext context, {required String requestId}) {
     final isDesktop = ResponsiveUtils.isDesktop(context);
     final child = PurchaseRequestInvoiceDialog(requestId: requestId);
 
@@ -55,6 +44,7 @@ class PurchaseRequestInvoiceDialog extends ConsumerStatefulWidget {
     return showModalBottomSheet<bool?>(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (_) => child,
     );
@@ -107,8 +97,9 @@ class _PurchaseRequestInvoiceDialogState
       return;
     }
 
-    final amount =
-        double.tryParse(_amountController.text.trim().replaceAll(',', '.'));
+    final amount = double.tryParse(
+      _amountController.text.trim().replaceAll(',', '.'),
+    );
     if (amount == null || amount <= 0) {
       AppSnackBar.show(
         context: context,
@@ -128,8 +119,9 @@ class _PurchaseRequestInvoiceDialogState
     }
 
     final dateText = _dateController.text.trim();
-    final invoiceDate =
-        dateText.isEmpty ? null : parseDate(dateText, 'dd.MM.yyyy');
+    final invoiceDate = dateText.isEmpty
+        ? null
+        : parseDate(dateText, 'dd.MM.yyyy');
     if (dateText.isNotEmpty && invoiceDate == null) {
       AppSnackBar.show(
         context: context,
@@ -142,7 +134,9 @@ class _PurchaseRequestInvoiceDialogState
     setState(() => _saving = true);
     try {
       final bytes = await _selectedFile!.readAsBytes();
-      await ref.read(purchaseRequestRepositoryProvider).createInvoiceWithFile(
+      await ref
+          .read(purchaseRequestRepositoryProvider)
+          .createInvoiceWithFile(
             requestId: widget.requestId,
             supplierId: _supplier!.id,
             amount: amount,
@@ -174,13 +168,14 @@ class _PurchaseRequestInvoiceDialogState
   @override
   Widget build(BuildContext context) {
     final contractorState = ref.watch(contractorNotifierProvider);
-    final suppliers = contractorState.contractors
-        .where((c) => c.type == ContractorType.supplier)
-        .toList()
-      ..sort(
-        (a, b) =>
-            a.shortName.toLowerCase().compareTo(b.shortName.toLowerCase()),
-      );
+    final suppliers =
+        contractorState.contractors
+            .where((c) => c.type == ContractorType.supplier)
+            .toList()
+          ..sort(
+            (a, b) =>
+                a.shortName.toLowerCase().compareTo(b.shortName.toLowerCase()),
+          );
 
     final form = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -201,10 +196,7 @@ class _PurchaseRequestInvoiceDialogState
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
         ),
         const SizedBox(height: 16),
-        GTTextField(
-          controller: _numberController,
-          labelText: 'Номер счёта',
-        ),
+        GTTextField(controller: _numberController, labelText: 'Номер счёта'),
         const SizedBox(height: 16),
         GTTextField(
           controller: _dateController,
@@ -222,7 +214,9 @@ class _PurchaseRequestInvoiceDialogState
           children: [
             Expanded(
               child: GTSecondaryButton(
-                text: _selectedFile == null ? 'Выбрать файл *' : 'Заменить файл',
+                text: _selectedFile == null
+                    ? 'Выбрать файл *'
+                    : 'Заменить файл',
                 icon: Icons.attach_file_rounded,
                 onPressed: _saving ? null : _pickFile,
               ),

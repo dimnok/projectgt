@@ -5,7 +5,9 @@ import 'package:projectgt/features/purchase_requests/domain/entities/purchase_re
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_status.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_file.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_invoice.dart';
+import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_history_entry.dart';
 import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_invoice_utils.dart';
+import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_ui_labels.dart';
 import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_actions_bar.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
 
@@ -14,10 +16,7 @@ void main() {
     test('fromDb maps all workflow statuses', () {
       for (final status in PurchaseRequestStatus.values) {
         if (status == PurchaseRequestStatus.unknown) continue;
-        expect(
-          PurchaseRequestStatusX.fromDb(status.dbValue),
-          status,
-        );
+        expect(PurchaseRequestStatusX.fromDb(status.dbValue), status);
       }
     });
 
@@ -36,10 +35,7 @@ void main() {
     });
 
     test('unknown status has display name', () {
-      expect(
-        PurchaseRequestStatus.unknown.displayName,
-        'Неизвестный статус',
-      );
+      expect(PurchaseRequestStatus.unknown.displayName, 'Неизвестный статус');
     });
   });
 
@@ -180,6 +176,21 @@ void main() {
 
       expect(actions.canCancel, isTrue);
       expect(actions.canApprove, isFalse);
+      expect(actions.hasAny, isTrue);
+    });
+
+    test('received request has no actions for creator', () {
+      final actions = resolvePurchaseRequestActions(
+        request: request(status: PurchaseRequestStatus.received),
+        currentUserId: userId,
+        permissions: permissions(
+          grants: const {
+            'purchase_requests': {'create': true, 'view_all': true},
+          },
+        ),
+      );
+
+      expect(actions.hasAny, isFalse);
     });
   });
 
@@ -214,10 +225,7 @@ void main() {
     });
 
     test('returns true when every invoice has file', () {
-      expect(
-        purchaseRequestInvoicesReadyForSubmit([invoiceWithFile]),
-        isTrue,
-      );
+      expect(purchaseRequestInvoicesReadyForSubmit([invoiceWithFile]), isTrue);
     });
 
     test('returns false when any invoice lacks file', () {
@@ -228,6 +236,61 @@ void main() {
         ]),
         isFalse,
       );
+    });
+  });
+
+  group('PurchaseRequestUiLabels.idleActionsMessage', () {
+    test('describes terminal statuses', () {
+      expect(
+        PurchaseRequestUiLabels.idleActionsMessage(
+          PurchaseRequestStatus.received,
+        ),
+        'Заявка получена',
+      );
+      expect(
+        PurchaseRequestUiLabels.idleActionsMessage(
+          PurchaseRequestStatus.cancelled,
+        ),
+        'Заявка отменена',
+      );
+      expect(
+        PurchaseRequestUiLabels.idleActionsMessage(
+          PurchaseRequestStatus.approval,
+        ),
+        'Ожидает действия ответственного',
+      );
+    });
+  });
+
+  group('PurchaseRequestHistoryEntry.fromJson', () {
+    test('keeps null from_status on created action', () {
+      final entry = PurchaseRequestHistoryEntry.fromJson({
+        'id': 'h1',
+        'request_id': 'r1',
+        'user_id': 'u1',
+        'action': 'created',
+        'from_status': null,
+        'to_status': 'draft',
+        'created_at': '2026-08-16T10:00:00Z',
+      });
+
+      expect(entry.fromStatus, isNull);
+      expect(entry.toStatus, PurchaseRequestStatus.draft);
+    });
+
+    test('maps invalid status to unknown', () {
+      final entry = PurchaseRequestHistoryEntry.fromJson({
+        'id': 'h2',
+        'request_id': 'r1',
+        'user_id': 'u1',
+        'action': 'submitted',
+        'from_status': 'broken',
+        'to_status': 'approval',
+        'created_at': '2026-08-16T10:00:00Z',
+      });
+
+      expect(entry.fromStatus, PurchaseRequestStatus.unknown);
+      expect(entry.toStatus, PurchaseRequestStatus.approval);
     });
   });
 }

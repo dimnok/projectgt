@@ -8,6 +8,7 @@ import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/gt_text_field.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request.dart';
 import 'package:projectgt/features/purchase_requests/presentation/state/purchase_request_providers.dart';
+import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_form_dialog.dart';
 import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_ui_labels.dart';
 import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_actions_bar.dart';
 import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_details_summary.dart';
@@ -55,7 +56,8 @@ class PurchaseRequestDetailsPanel extends ConsumerWidget {
             _buildHeader(context, theme, requestAsync),
             Expanded(
               child: requestAsync.when(
-                loading: () => const Center(child: CupertinoActivityIndicator()),
+                loading: () =>
+                    const Center(child: CupertinoActivityIndicator()),
                 error: (e, _) => Center(child: Text('$e')),
                 data: (request) {
                   if (request == null) {
@@ -147,8 +149,8 @@ class PurchaseRequestDetailsPanel extends ConsumerWidget {
                                                 context: context,
                                                 message:
                                                     formatSupabaseErrorMessage(
-                                                  e,
-                                                ),
+                                                      e,
+                                                    ),
                                                 kind: AppSnackBarKind.error,
                                               );
                                             }
@@ -184,8 +186,8 @@ class PurchaseRequestDetailsPanel extends ConsumerWidget {
                                 error: (e, _) => _SectionMessage(text: '$e'),
                                 data: (entries) =>
                                     PurchaseRequestHistoryTimeline(
-                                  entries: entries,
-                                ),
+                                      entries: entries,
+                                    ),
                               ),
                             ),
                           ],
@@ -236,20 +238,12 @@ class PurchaseRequestDetailsPanel extends ConsumerWidget {
               ),
             Expanded(
               child: requestAsync.when(
-                loading: () => _HeaderContent(
-                  number: 'Заявка',
-                  theme: theme,
-                ),
-                error: (_, __) => _HeaderContent(
-                  number: 'Заявка',
-                  theme: theme,
-                ),
+                loading: () => _HeaderContent(number: 'Заявка', theme: theme),
+                error: (_, __) =>
+                    _HeaderContent(number: 'Заявка', theme: theme),
                 data: (request) {
                   if (request == null) {
-                    return _HeaderContent(
-                      number: 'Заявка',
-                      theme: theme,
-                    );
+                    return _HeaderContent(number: 'Заявка', theme: theme);
                   }
 
                   return _HeaderContent(
@@ -271,45 +265,59 @@ class PurchaseRequestDetailsPanel extends ConsumerWidget {
     final nameController = TextEditingController();
     final qtyController = TextEditingController(text: '1');
     final unitController = TextEditingController(text: 'шт');
+    final articleController = TextEditingController();
 
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Позиция'),
-        content: Column(
+    try {
+      final confirmed = await showPurchaseRequestFormDialog<bool>(
+        context: context,
+        title: 'Позиция',
+        bodyBuilder: (_) => Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             GTTextField(controller: nameController, labelText: 'Наименование'),
+            const SizedBox(height: 12),
             GTTextField(controller: qtyController, labelText: 'Количество'),
+            const SizedBox(height: 12),
             GTTextField(controller: unitController, labelText: 'Ед. изм.'),
+            const SizedBox(height: 12),
+            GTTextField(controller: articleController, labelText: 'Артикул'),
           ],
         ),
-        actions: [
-          GTTextButton(
-            text: 'Отмена',
-            onPressed: () => Navigator.pop(ctx, false),
-          ),
-          GTPrimaryButton(
-            text: 'Добавить',
-            onPressed: () => Navigator.pop(ctx, true),
-          ),
-        ],
-      ),
-    );
+        footerBuilder: (dialogContext) => Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            GTTextButton(
+              text: 'Отмена',
+              onPressed: () => Navigator.pop(dialogContext, false),
+            ),
+            const SizedBox(width: 8),
+            GTPrimaryButton(
+              text: 'Добавить',
+              onPressed: () => Navigator.pop(dialogContext, true),
+            ),
+          ],
+        ),
+      );
 
-    if (ok != true) return;
-    final name = nameController.text.trim();
-    final qty = double.tryParse(qtyController.text.replaceAll(',', '.')) ?? 0;
-    if (name.isEmpty || qty <= 0) return;
+      if (confirmed != true || !context.mounted) return;
 
-    try {
-      await ref.read(purchaseRequestRepositoryProvider).addItem(
+      final name = nameController.text.trim();
+      final qty = double.tryParse(qtyController.text.replaceAll(',', '.')) ?? 0;
+      if (name.isEmpty || qty <= 0) return;
+
+      final unit = unitController.text.trim().isEmpty
+          ? 'шт'
+          : unitController.text.trim();
+      final article = articleController.text.trim();
+
+      await ref
+          .read(purchaseRequestRepositoryProvider)
+          .addItem(
             requestId: requestId,
             name: name,
             quantity: qty,
-            unit: unitController.text.trim().isEmpty
-                ? 'шт'
-                : unitController.text.trim(),
+            unit: unit,
+            article: article.isEmpty ? null : article,
           );
       invalidatePurchaseRequestCaches(ref, requestId);
     } catch (e) {
@@ -320,6 +328,11 @@ class PurchaseRequestDetailsPanel extends ConsumerWidget {
           kind: AppSnackBarKind.error,
         );
       }
+    } finally {
+      nameController.dispose();
+      qtyController.dispose();
+      unitController.dispose();
+      articleController.dispose();
     }
   }
 }

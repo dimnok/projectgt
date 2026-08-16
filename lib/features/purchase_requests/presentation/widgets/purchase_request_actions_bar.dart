@@ -6,7 +6,9 @@ import 'package:projectgt/core/widgets/gt_text_field.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_status.dart';
 import 'package:projectgt/core/utils/supabase_error_message.dart';
+import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_form_dialog.dart';
 import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_invoice_utils.dart';
+import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_ui_labels.dart';
 import 'package:projectgt/features/purchase_requests/presentation/state/purchase_request_providers.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
 
@@ -59,6 +61,19 @@ class PurchaseRequestActionSet {
 
   /// Можно редактировать позиции.
   final bool canEditItems;
+
+  /// Есть ли хотя бы одно действие в панели.
+  bool get hasAny =>
+      canSubmit ||
+      canApprove ||
+      canReturn ||
+      canSubmitInvoices ||
+      canApproveInvoice ||
+      canReturnInvoice ||
+      canQueuePayment ||
+      canMarkPaid ||
+      canMarkReceived ||
+      canCancel;
 }
 
 /// Вычисляет доступные действия.
@@ -73,42 +88,49 @@ PurchaseRequestActionSet resolvePurchaseRequestActions({
   final isCreator = request.createdBy == uid;
   final isAssignee = request.currentAssigneeId == uid;
   final status = request.status;
+  final canMutateDraft =
+      isCreator &&
+      permissions.can('purchase_requests', 'create') &&
+      (status == PurchaseRequestStatus.draft ||
+          status == PurchaseRequestStatus.revision);
 
   return PurchaseRequestActionSet(
-    canEditItems: isCreator &&
-        permissions.can('purchase_requests', 'create') &&
-        (status == PurchaseRequestStatus.draft ||
-            status == PurchaseRequestStatus.revision),
-    canSubmit: isCreator &&
-        permissions.can('purchase_requests', 'create') &&
-        (status == PurchaseRequestStatus.draft ||
-            status == PurchaseRequestStatus.revision),
-    canApprove: isAssignee &&
+    canEditItems: canMutateDraft,
+    canSubmit: canMutateDraft,
+    canApprove:
+        isAssignee &&
         permissions.can('purchase_requests', 'approve') &&
         status == PurchaseRequestStatus.approval,
-    canReturn: isAssignee &&
+    canReturn:
+        isAssignee &&
         permissions.can('purchase_requests', 'approve') &&
         status == PurchaseRequestStatus.approval,
-    canSubmitInvoices: isAssignee &&
+    canSubmitInvoices:
+        isAssignee &&
         permissions.can('purchase_requests', 'prepare_invoice') &&
         status == PurchaseRequestStatus.invoicePreparation,
-    canApproveInvoice: isAssignee &&
+    canApproveInvoice:
+        isAssignee &&
         permissions.can('purchase_requests', 'approve_invoice') &&
         status == PurchaseRequestStatus.invoiceApproval,
-    canReturnInvoice: isAssignee &&
+    canReturnInvoice:
+        isAssignee &&
         permissions.can('purchase_requests', 'approve_invoice') &&
         status == PurchaseRequestStatus.invoiceApproval,
-    canQueuePayment: isAssignee &&
+    canQueuePayment:
+        isAssignee &&
         permissions.can('purchase_requests', 'payment') &&
         status == PurchaseRequestStatus.accounting,
-    canMarkPaid: isAssignee &&
+    canMarkPaid:
+        isAssignee &&
         permissions.can('purchase_requests', 'payment') &&
         status == PurchaseRequestStatus.paymentQueue,
-    canMarkReceived: isAssignee &&
+    canMarkReceived:
+        isAssignee &&
         permissions.can('purchase_requests', 'receive') &&
         status == PurchaseRequestStatus.paid,
-    canCancel: (isCreator ||
-            permissions.can('purchase_requests', 'view_all')) &&
+    canCancel:
+        (isCreator || permissions.can('purchase_requests', 'view_all')) &&
         status != PurchaseRequestStatus.received &&
         status != PurchaseRequestStatus.cancelled,
   );
@@ -166,53 +188,61 @@ class _PurchaseRequestActionsBarState
     bool required = false,
   }) async {
     final controller = TextEditingController();
-    final result = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(title),
-        content: GTTextField(
+    try {
+      final result = await showPurchaseRequestFormDialog<String>(
+        context: context,
+        title: title,
+        bodyBuilder: (_) => GTTextField(
           controller: controller,
           labelText: 'Комментарий',
           maxLines: 4,
         ),
-        actions: [
-          GTTextButton(text: 'Отмена', onPressed: () => Navigator.pop(ctx)),
-          GTPrimaryButton(
-            text: 'OK',
-            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-          ),
-        ],
-      ),
-    );
-    if (required && (result == null || result.isEmpty)) return null;
-    return result;
+        footerBuilder: (dialogContext) => Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            GTTextButton(
+              text: 'Отмена',
+              onPressed: () => Navigator.pop(dialogContext),
+            ),
+            const SizedBox(width: 8),
+            GTPrimaryButton(
+              text: 'OK',
+              onPressed: () =>
+                  Navigator.pop(dialogContext, controller.text.trim()),
+            ),
+          ],
+        ),
+      );
+      if (required && (result == null || result.isEmpty)) return null;
+      return result;
+    } finally {
+      controller.dispose();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final repo = ref.read(purchaseRequestRepositoryProvider);
     final a = widget.actions;
-    final itemsAsync = ref.watch(purchaseRequestItemsProvider(widget.requestId));
-    final invoicesAsync =
-        ref.watch(purchaseRequestInvoicesProvider(widget.requestId));
+    final itemsAsync = ref.watch(
+      purchaseRequestItemsProvider(widget.requestId),
+    );
+    final invoicesAsync = ref.watch(
+      purchaseRequestInvoicesProvider(widget.requestId),
+    );
+    final itemsReady = itemsAsync.hasValue;
+    final invoicesReady = invoicesAsync.hasValue;
     final itemsCount = itemsAsync.valueOrNull?.length ?? 0;
     final invoices = invoicesAsync.valueOrNull ?? const [];
-    final canSubmitNow = a.canSubmit && itemsCount > 0;
+    final canSubmitNow = a.canSubmit && itemsReady && itemsCount > 0;
     final canSubmitInvoicesNow =
-        a.canSubmitInvoices && purchaseRequestInvoicesReadyForSubmit(invoices);
+        a.canSubmitInvoices &&
+        invoicesReady &&
+        purchaseRequestInvoicesReadyForSubmit(invoices);
 
-    if (!a.canSubmit &&
-        !a.canApprove &&
-        !a.canReturn &&
-        !a.canSubmitInvoices &&
-        !a.canApproveInvoice &&
-        !a.canReturnInvoice &&
-        !a.canQueuePayment &&
-        !a.canMarkPaid &&
-        !a.canMarkReceived &&
-        !a.canCancel) {
+    if (!a.hasAny) {
       return Text(
-        'Ожидает действия ответственного',
+        PurchaseRequestUiLabels.idleActionsMessage(widget.request.status),
         style: Theme.of(context).textTheme.bodyMedium,
       );
     }
@@ -222,7 +252,7 @@ class _PurchaseRequestActionsBarState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (a.canSubmit && itemsCount == 0)
+        if (a.canSubmit && itemsReady && itemsCount == 0)
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: Row(
@@ -244,7 +274,9 @@ class _PurchaseRequestActionsBarState
               ],
             ),
           ),
-        if (a.canSubmitInvoices && !purchaseRequestInvoicesReadyForSubmit(invoices))
+        if (a.canSubmitInvoices &&
+            invoicesReady &&
+            !purchaseRequestInvoicesReadyForSubmit(invoices))
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: Row(
@@ -379,9 +411,7 @@ class _PurchaseRequestActionsBarState
                             required: true,
                           );
                           if (!mounted || c == null || c.isEmpty) return;
-                          await _run(
-                            repo.cancel(widget.requestId, comment: c),
-                          );
+                          await _run(repo.cancel(widget.requestId, comment: c));
                         },
                 ),
             ],

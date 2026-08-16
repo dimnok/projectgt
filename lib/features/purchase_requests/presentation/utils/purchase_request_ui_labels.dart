@@ -5,19 +5,27 @@ import 'package:projectgt/features/purchase_requests/domain/entities/purchase_re
 abstract final class PurchaseRequestUiLabels {
   /// Фраза действия после ФИО: «Иванов И.И. создал заявку».
   static String historyActionPhrase(String action) => switch (action) {
-        'created' => 'создал заявку',
-        'submitted' => 'отправил на согласование',
-        'resubmitted' => 'повторно отправил заявку',
-        'approved' => 'согласовал',
-        'returned' => 'вернул на доработку',
-        'invoices_submitted' => 'отправил счета на согласование',
-        'invoice_approved' => 'согласовал счет',
-        'invoice_returned' => 'вернул счета на доработку',
-        'queued_for_payment' => 'завёл на оплату',
-        'paid' => 'оплатил',
-        'received' => 'подтвердил получение',
-        'cancelled' => 'отменил заявку',
-        _ => action,
+    'created' => 'создал заявку',
+    'submitted' => 'отправил на согласование',
+    'resubmitted' => 'повторно отправил заявку',
+    'approved' => 'согласовал',
+    'returned' => 'вернул на доработку',
+    'invoices_submitted' => 'отправил счета на согласование',
+    'invoice_approved' => 'согласовал счет',
+    'invoice_returned' => 'вернул счета на доработку',
+    'queued_for_payment' => 'завёл на оплату',
+    'paid' => 'оплатил',
+    'received' => 'подтвердил получение',
+    'cancelled' => 'отменил заявку',
+    _ => action,
+  };
+
+  /// Текст панели действий, когда у пользователя нет доступных операций.
+  static String idleActionsMessage(PurchaseRequestStatus status) =>
+      switch (status) {
+        PurchaseRequestStatus.received => 'Заявка получена',
+        PurchaseRequestStatus.cancelled => 'Заявка отменена',
+        _ => 'Ожидает действия ответственного',
       };
 
   /// Цвет статуса для бейджа.
