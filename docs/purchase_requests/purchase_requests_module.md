@@ -1,7 +1,7 @@
 # Модуль Заявки на закупку (Purchase Requests)
 
 **Дата:** 16.08.2026  
-**Изменения:** актуализация после редизайна UI (двухпанельная раскладка, master-detail в одном окне), колонка «Инициатор», цветные статусы, артикул в позициях, многострочная форма создания; аудит кода (`lib/features/purchase_requests/`), миграций Supabase и live БД (`api.progt.ru`).
+**Изменения:** полная актуализация после редизайна панели деталей заявки — заголовок в одну строку (номер · объект · инициатор), карточка сводки, таблица позиций с порядковыми номерами, компактная история с ФИО (формат «кто → что → когда»); аудит кода (`lib/features/purchase_requests/`), миграций Supabase и live БД (`api.progt.ru`).
 
 ---
 
@@ -12,8 +12,9 @@
 - **Настройки маршрута** (`purchase_request_settings`) — одна строка на `company_id`. Сохранение — **только владелец компании** (`purchase_request_internal_is_company_owner`). Создание заявки блокируется, пока не заполнены все четыре роли и правило получателя.
 - **Пользователи в настройках** — участники `company_members` с активным профилем, **не** сотрудники HR (`employees`). Список для dropdown: RPC `purchase_request_company_users`.
 - **Поставщики** — контрагенты из `contractors` с типом supplier (использование, не owner).
-- **Нумерация:** `ЗП-YYYY-NNNNN` через `purchase_request_number_seq`.
+- **Нумерация:** `ЗП-YYYY-NNNNN` через `purchase_request_number_seq` + `purchase_request_internal_next_number`.
 - **Детали заявки** открываются **в том же экране** (правая панель на desktop, полноэкранная панель на mobile). Отдельный маршрут `/purchase_requests/:id` **удалён**.
+- **ФИО в UI:** в списке — через RPC `purchase_request_list` (`created_by_name`); в деталях и истории — отдельный запрос к `profiles` (FK `created_by`/`user_id` → `auth.users`, не `profiles`; PostgREST embed `profiles:created_by` **не работает**).
 - **Edge Functions:** для модуля не зарегистрированы (проверка MCP / миграции).
 
 ---
@@ -32,10 +33,12 @@
 | Цветные бейджи статусов (светлая / тёмная тема) | ✅ |
 | Создание черновика: объект, комментарий, многострочные позиции | ✅ |
 | Позиции: наименование, ед. изм., количество, артикул | ✅ |
+| Панель деталей: сводка, таблица позиций, история, workflow | ✅ |
+| Заголовок деталей: номер · объект · инициатор (одна строка) | ✅ |
+| История: ФИО, действие, дата (компактная строка) | ✅ |
 | Редактирование позиций в `draft` / `revision` | ✅ |
 | Workflow-кнопки (согласование, счета, оплата, получение) | ✅ |
 | Настройки маршрута (owner-only), кнопка «Настройки» | ✅ |
-| История переходов | ✅ |
 | Счета (CRUD + PDF) в UI | 🔴 не реализовано |
 | Файлы / документы в UI | 🔴 не реализовано |
 | UI уведомлений | 🔴 не реализовано |
@@ -59,11 +62,11 @@
 
 | Таблица | Модуль | Использование |
 |---------|--------|---------------|
-| `objects` | Objects | Объект закупки (`object_id`) |
+| `objects` | Objects | Объект закупки (`object_id`), join `objects:object_id(name)` в деталях |
 | `contractors` | Contractors | Поставщик в счетах (`supplier_id`, type = supplier) |
 | `companies` | Company | `company_id`, owner gate для settings |
 | `company_members` | Auth | Участники компании для dropdown настроек |
-| `profiles` | Profile | ФИО инициатора в списке (`created_by_name`), `is_active` |
+| `profiles` | Profile | ФИО инициатора и участников истории (`short_name` → `full_name` → `email`) |
 | `app_modules` | RBAC | Модуль `purchase_requests` в матрице прав |
 
 ### Связанные модули
@@ -89,26 +92,29 @@
 | Файл | Назначение |
 |------|------------|
 | `widgets/purchase_requests_table.dart` | Таблица реестра (desktop): колонки Номер, Объект, Инициатор, Дата, Сумма, Статус |
-| `widgets/purchase_request_details_panel.dart` | Панель деталей заявки (встраивается в текущий экран): мета, позиции, история, actions bar |
+| `widgets/purchase_request_details_panel.dart` | Панель деталей: шапка, сводка, позиции, история, actions bar |
+| `widgets/purchase_request_details_summary.dart` | Карточка сводки: бейдж статуса, сумма, кол-во позиций, баннер доработки, комментарий |
+| `widgets/purchase_request_items_table.dart` | Таблица позиций в рамке: №, наименование, кол-во, ед. изм., артикул |
+| `widgets/purchase_request_history_timeline.dart` | Компактный список истории (одна строка на событие) |
 | `widgets/purchase_request_card.dart` | Карточка в мобильном списке (цветной статус) |
-| `widgets/purchase_request_create_dialog.dart` | Создание: объект, комментарий; позиции — строки (наименование, ед. изм., кол-во, артикул), кнопка «+» |
+| `widgets/purchase_request_create_dialog.dart` | Создание: объект, комментарий; позиции — строки (наименование, ед. изм., кол-во, артикул) |
 | `widgets/purchase_request_settings_dialog.dart` | Настройки маршрута (4 роли + режим получателя) |
 | `widgets/purchase_request_actions_bar.dart` | Кнопки workflow по статусу и правам |
-| `utils/purchase_request_ui_labels.dart` | Лейблы статусов, действий истории и **цвета бейджей** |
+| `utils/purchase_request_ui_labels.dart` | Лейблы статусов, действий истории, **фразы для истории** (`historyActionPhrase`), цвета бейджей |
 | `utils/purchase_request_module_utils.dart` | `isPurchaseRequestSettingsConfigured()` |
 
 ### Провайдеры
 
 | Провайдер | Назначение |
 |-----------|------------|
-| `purchaseRequestListProvider` | Единый `StateNotifier` списка (без `family`): фильтр, поиск (debounce 300 ms), загрузка без перерисовки всего экрана |
+| `purchaseRequestListProvider` | Единый `StateNotifier` списка (без `family`): фильтр, поиск (debounce 300 ms) |
 | `purchaseRequestDetailsProvider` | Детали заявки (`family` по id) |
 | `purchaseRequestItemsProvider` | Позиции |
 | `purchaseRequestHistoryProvider` | История |
 | `purchaseRequestSettingsProvider` | Настройки компании |
 | `purchaseRequestCompanyUsersProvider` | Пользователи для dropdown |
 
-**DI:** `supabaseClientProvider` из `lib/core/di/providers.dart`. Ошибки списка — `formatSupabaseErrorMessage` (`lib/core/utils/supabase_error_message.dart`).
+**DI:** `purchaseRequestRepositoryProvider` → `PurchaseRequestRepositoryImpl(client, activeCompanyId)`; `supabaseClientProvider` из `lib/core/di/providers.dart`. Ошибки — `formatSupabaseErrorMessage`.
 
 ### Навигация и доступ
 
@@ -130,7 +136,7 @@
 └─────────────────┴──────────────────────────────────────┘
 ```
 
-- При смене фильтра обновляется только содержимое таблицы (индикатор внутри таблицы), каркас layout сохраняется.
+- При смене фильтра обновляется только содержимое таблицы, каркас layout сохраняется.
 - Клик по строке — детали в правой панели; кнопка «назад» возвращает к таблице.
 - После создания заявки она автоматически открывается в панели деталей.
 
@@ -139,15 +145,41 @@
 - Список карточек (`PurchaseRequestCard`) с фильтрами и поиском.
 - Тап по карточке — `PurchaseRequestDetailsPanel` на весь экран с кнопкой закрытия.
 
+**Панель деталей заявки (`PurchaseRequestDetailsPanel`):**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ ← Заявка ЗП-2026-00010 · ЦОД Дубна ФНС · Тельнов Д.А.       │  ← шапка, одна строка
+├─────────────────────────────────────────────────────────────┤
+│ [Черновик]  [Сумма: —]  [Позиций: 4]                        │  ← сводка (без даты создания)
+│ [Комментарий инициатора, если есть]                         │
+├─────────────────────────────────────────────────────────────┤
+│ ПОЗИЦИИ (4)                              [+ Добавить]       │
+│ ┌───┬──────────────┬──────┬────────┬─────────┐              │
+│ │ № │ Наименование │ Кол-во│ Ед.изм│ Артикул │              │
+│ └───┴──────────────┴──────┴────────┴─────────┘              │
+├─────────────────────────────────────────────────────────────┤
+│ ИСТОРИЯ                                                     │
+│ Тельнов Д.А. создал заявку              16.08.2026 07:46   │  ← кто → что | когда
+├─────────────────────────────────────────────────────────────┤
+│ [Отправить]  [Отменить]                                     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+- **Шапка:** `Заявка {number} · {objectName} · {initiatorLabel}`; при переполнении — `ellipsis`.
+- **Сводка:** статус (цветной бейдж), сумма, количество позиций; при `revision` — баннер «Возвращено на доработку»; комментарий инициатора — отдельный блок. Дата создания **не дублируется** — она в истории.
+- **Позиции:** bordered-таблица в стиле реестра; порядковые номера в бейджах; удаление — иконка в строке (только `draft`/`revision`).
+- **История:** компактные строки; порядок **кто → что → когда**; ФИО жирным слева, действие обычным текстом, дата справа серым; комментарий к событию — через « — » курсивом.
+
 **Диалог создания:**
 
 - Ширина desktop: **980 px**.
-- Каждая позиция — одна строка: наименование (растягивается), ед. изм. (80 px), кол-во (96 px), артикул (128 px).
+- Каждая позиция — одна строка: наименование (flex), ед. изм. (80 px), кол-во (96 px), артикул (128 px).
 - Кнопка «+» в заголовке секции позиций; «−» для удаления дополнительных строк.
 
 ### Design System
 
-- `GTPrimaryButton`, `GTSecondaryButton`, `GTTextField`, `GTDropdown`
+- `GTPrimaryButton`, `GTSecondaryButton`, `GTTextButton`, `GTTextField`, `GTDropdown`
 - `DesktopDialogContent`, `MobileBottomSheetContent`
 - `GTSectionTitle`, `AppSnackBar`, `EdgeToEdgeScaffold`
 - Форматтеры: `formatRuDate`, `formatRuDateTime`, `formatQuantity`, `formatCurrency`
@@ -160,12 +192,12 @@
 
 | Сущность | Файл | Описание |
 |----------|------|----------|
-| `PurchaseRequest` | `purchase_request.dart` | Заявка (Freezed) |
+| `PurchaseRequest` | `purchase_request.dart` | Заявка (Freezed); `createdByName`, геттер `initiatorLabel` |
 | `PurchaseRequestItem` | `purchase_request_item.dart` | Позиция (`article` опционально) |
 | `PurchaseRequestStatus` | `purchase_request_status.dart` | Enum статусов + `PurchaseRequestListFilter` |
 | `PurchaseRequestListItem` | `purchase_request_list_item.dart` | Строка списка (`createdByName`, `initiatorLabel`) |
 | `PurchaseRequestSettings` | `purchase_request_settings.dart` | Настройки маршрута |
-| `PurchaseRequestHistoryEntry` | `purchase_request_history_entry.dart` | Запись истории |
+| `PurchaseRequestHistoryEntry` | `purchase_request_history_entry.dart` | Запись истории; `userName`, геттер `userLabel` |
 | `PurchaseRequestCompanyUser` | `purchase_request_company_user.dart` | Пользователь для настроек |
 
 ### Репозиторий
@@ -174,7 +206,17 @@
 - **Реализация:** `data/repositories/purchase_request_repository_impl.dart`
 - **Модели:** `data/models/purchase_request_models.dart` (маппинг JSON ↔ entity)
 
-Основные операции: list, get, createDraft, submit, workflow RPCs, items CRUD (с `article`), settings get/upsert, company users, history.
+| Операция | Способ |
+|----------|--------|
+| `list` | RPC `purchase_request_list` |
+| `getRequest` | `SELECT *, objects:object_id(name)` + отдельный запрос `profiles` по `created_by` |
+| `getHistory` | `SELECT` из `purchase_request_history` + batch `profiles` по `user_id` |
+| `getSettings` | Прямой `SELECT` из `purchase_request_settings` |
+| `getItems` | Прямой `SELECT` из `purchase_request_items` |
+| `createDraft`, workflow | RPC (см. раздел БД) |
+| items CRUD | Прямой PostgREST insert/update/delete (RLS) |
+
+**Резолвинг ФИО:** `COALESCE(short_name, full_name, email)` — единая логика в `_pickProfileName` / `_fetchUserNames`.
 
 ---
 
@@ -216,6 +258,9 @@ lib/features/purchase_requests/
         ├── purchase_request_card.dart
         ├── purchase_request_create_dialog.dart
         ├── purchase_request_details_panel.dart
+        ├── purchase_request_details_summary.dart
+        ├── purchase_request_history_timeline.dart
+        ├── purchase_request_items_table.dart
         ├── purchase_request_settings_dialog.dart
         └── purchase_requests_table.dart
 
@@ -234,7 +279,7 @@ supabase/migrations/
 
 ## База данных (Audit)
 
-**Аудит live БД:** 16.08.2026 через MCP `project-0-projectgt-supabase`.
+**Аудит live БД:** 16.08.2026 через MCP `project-0-projectgt-supabase` (`api.progt.ru`).
 
 ### Таблица `purchase_requests`
 
@@ -248,13 +293,13 @@ supabase/migrations/
 | `current_assignee_id` | uuid | YES | Текущий ответственный |
 | `status` | text | NO | Статус workflow |
 | `comment` | text | YES | Комментарий инициатора |
-| `total_amount` | numeric(14,2) | NO | Сумма счетов (default 0) |
+| `total_amount` | numeric | NO | Сумма счетов (default 0) |
 | `created_at` | timestamptz | NO | |
 | `updated_at` | timestamptz | NO | |
 | `submitted_at` | timestamptz | YES | |
 | `completed_at` | timestamptz | YES | Финальный статус |
 
-**Индексы:** `(company_id, status)`, `(company_id, current_assignee_id)`, `(company_id, created_by, created_at DESC)`, `(company_id, object_id)`, GIN по `number`.
+**Индексы:** `purchase_requests_pkey`, `purchase_requests_number_company_uq`, `idx_purchase_requests_company_status`, `idx_purchase_requests_assignee`, `idx_purchase_requests_created_by`, `idx_purchase_requests_object`, `idx_purchase_requests_number_trgm` (GIN).
 
 ### Таблица `purchase_request_items`
 
@@ -264,12 +309,14 @@ supabase/migrations/
 | `company_id` | uuid | NO | FK → companies |
 | `request_id` | uuid | NO | FK → purchase_requests |
 | `name` | text | NO | Наименование |
-| `quantity` | numeric(14,3) | NO | > 0 |
-| `unit` | text | NO | Единица (текст, default `шт`) |
-| `article` | text | YES | Артикул (миграция 20260815173500) |
+| `quantity` | numeric | NO | > 0 |
+| `unit` | text | NO | Единица (default `шт`) |
+| `article` | text | YES | Артикул |
 | `comment` | text | YES | |
 | `sort_order` | int | NO | Порядок |
 | `created_at` | timestamptz | NO | |
+
+**Индексы:** `idx_purchase_request_items_request`, `idx_purchase_request_items_name_trgm` (GIN).
 
 ### Таблица `purchase_request_invoices`
 
@@ -278,6 +325,8 @@ supabase/migrations/
 | `id`, `company_id`, `request_id`, `supplier_id` | | Счета поставщиков |
 | `invoice_number`, `invoice_date`, `amount`, `comment` | | Реквизиты счёта |
 | `created_by`, `created_at`, `updated_at` | | Аудит (UI 🔴) |
+
+**Индексы:** `idx_purchase_request_invoices_request`, `idx_purchase_request_invoices_supplier`.
 
 ### Таблица `purchase_request_files`
 
@@ -288,17 +337,37 @@ supabase/migrations/
 | `type`, `storage_path`, `file_name`, `mime_type`, `size` | | Метаданные Storage |
 | `uploaded_by`, `created_at` | | (UI 🔴) |
 
+**Индексы:** `idx_purchase_request_files_request`, `idx_purchase_request_files_invoice`.
+
 ### Таблица `purchase_request_history`
 
 | Колонка | Тип | Описание |
 |---------|-----|----------|
-| `id`, `request_id`, `from_status`, `to_status`, `action`, `actor_id`, `assignee_id`, `comment`, `metadata` (jsonb), `created_at` | | Аудит переходов; даты оплаты/получения — в `metadata` |
+| `id` | uuid | PK |
+| `company_id` | uuid | FK → companies |
+| `request_id` | uuid | FK → purchase_requests |
+| `user_id` | uuid | FK → auth.users (автор действия) |
+| `action` | text | Код действия (`created`, `submitted`, …) |
+| `from_status`, `to_status` | text | Статусы до/после |
+| `comment` | text | Комментарий к переходу |
+| `metadata` | jsonb | Доп. данные (напр. `received_date`) |
+| `created_at` | timestamptz | Время события |
+
+**Индексы:** `idx_purchase_request_history_request (request_id, created_at DESC)`.
+
+Записи **неизменяемы** для `authenticated` (только `SELECT`; insert — через internal RPC).
 
 ### Таблица `purchase_request_notifications`
 
 | Колонка | Тип | Описание |
 |---------|-----|----------|
-| `id`, `company_id`, `request_id`, `user_id`, `message`, `read_at`, `created_at` | | Уведомления (UI 🔴) |
+| `id`, `company_id`, `request_id`, `user_id` | | Получатель |
+| `title` | text | Заголовок |
+| `body` | text | Текст (nullable) |
+| `is_read` | boolean | Прочитано |
+| `created_at` | timestamptz | |
+
+**Индексы:** `idx_purchase_request_notifications_user (user_id, is_read, created_at DESC)`.
 
 ### Таблица `purchase_request_settings`
 
@@ -317,7 +386,8 @@ supabase/migrations/
 
 | Колонка | Тип | Описание |
 |---------|-----|----------|
-| `company_id`, `year`, `last_number` | | Счётчик номеров по году |
+| `company_id`, `year` | | PK (составной) |
+| `last_value` | int | Счётчик номеров по году |
 
 ### RLS
 
@@ -332,48 +402,60 @@ supabase/migrations/
 | `purchase_request_settings` | ✅ |
 | `purchase_request_number_seq` | ❌ Отключён (internal) |
 
-Политики: чтение по `company_id` + `check_permission`; изменение статуса заявки — только RPC.
+**Ключевые политики:**
+
+- `purchase_requests`: `pr_requests_select` — `purchase_request_can_read(company_id, created_by, current_assignee_id)`
+- `purchase_request_items`: insert/update/delete — только автор в `draft`/`revision`
+- `purchase_request_history`: только `SELECT` для authenticated
+- `purchase_request_settings`: update — `purchase_request_internal_is_company_owner`
+- `purchase_request_notifications`: select/update — только `user_id = uid()`
 
 ### Storage
 
 - Bucket: `purchase-requests` (политики на upload/read по `company_id` в путях файлов)
 
-### RPC (публичные)
+### RPC (публичные, `authenticated`)
 
 | Функция | Назначение |
 |---------|------------|
-| `purchase_request_list` | Список с фильтром `mine` / `on_me` / `all` / `archive`; возвращает `created_by_name` (join `profiles`) |
+| `purchase_request_list` | Список: `mine` / `on_me` / `all` / `archive`; `created_by_name` из `profiles` |
 | `purchase_request_create_draft` | Черновик (+ gate: settings configured) |
-| `purchase_request_submit` | `draft` → `approval` |
-| `purchase_request_approve` | Согласование |
-| `purchase_request_return_for_revision` | Возврат на доработку |
-| `purchase_request_prepare_invoice` | Переход к подготовке счетов |
-| `purchase_request_submit_invoice` | Отправка на согласование счетов |
-| `purchase_request_approve_invoice` | Согласование счетов → бухгалтерия |
-| `purchase_request_return_invoice` | Возврат счетов |
+| `purchase_request_update_header` | Обновление объекта/комментария в `draft`/`revision` |
+| `purchase_request_delete_draft` | Удаление черновика |
+| `purchase_request_submit` | `draft`/`revision` → `approval` |
+| `purchase_request_approve` | Согласование → `invoice_preparation` |
+| `purchase_request_return` | Возврат на доработку → `revision` |
+| `purchase_request_submit_invoices` | Отправка счетов на согласование |
+| `purchase_request_approve_invoice` | Согласование счетов → `accounting` |
+| `purchase_request_return_invoice` | Возврат счетов → `invoice_preparation` |
 | `purchase_request_queue_payment` | Очередь оплаты |
 | `purchase_request_mark_paid` | Оплачено → получатель |
 | `purchase_request_mark_received` | Получено (финал) |
 | `purchase_request_cancel` | Отмена |
-| `purchase_request_get_settings` | Настройки компании |
-| `purchase_request_upsert_settings` | Сохранение (owner only) |
+| `purchase_request_upsert_settings` | Сохранение настроек (owner only) |
 | `purchase_request_company_users` | Список пользователей для dropdown |
 
 **Возврат `purchase_request_list`:** `id`, `number`, `object_id`, `object_name`, `status`, `created_by`, `created_by_name`, `current_assignee_id`, `total_amount`, `created_at`, `items_preview`, `items_count`.
 
 ### Внутренние функции
 
-- `purchase_request_internal_transition` — единая точка смены статуса + history
-- `purchase_request_internal_notify` — записи в notifications
-- `purchase_request_internal_resolve_receiver` — получатель по settings
-- `purchase_request_internal_settings_configured` — проверка полноты настроек
-- `purchase_request_internal_is_company_owner` — gate для settings
-- `purchase_request_internal_generate_number` — нумерация
+| Функция | Назначение |
+|---------|------------|
+| `purchase_request_internal_transition` | Единая точка смены статуса |
+| `purchase_request_internal_write_history` | Запись в history |
+| `purchase_request_internal_notify` | Записи в notifications |
+| `purchase_request_internal_resolve_receiver` | Получатель по settings |
+| `purchase_request_internal_settings_configured` | Проверка полноты настроек |
+| `purchase_request_internal_is_company_owner` | Gate для settings |
+| `purchase_request_internal_next_number` | Нумерация |
+| `purchase_request_internal_assert_company` | Проверка company_id |
+| `purchase_request_can_read` | RLS helper |
+| `purchase_request_recalc_total_amount` | Пересчёт `total_amount` по счетам |
 
 ### Статистика live (16.08.2026)
 
-| Таблица | Строк |
-|---------|-------|
+| Таблица | Строк (оценка) |
+|---------|----------------|
 | `purchase_requests` | 10 |
 | `purchase_request_items` | 14 |
 | `purchase_request_history` | 13 |
@@ -393,15 +475,15 @@ supabase/migrations/
 | `draft` | Черновик | Серый |
 | `approval` | Согласование | Синий |
 | `revision` | Доработка | Оранжевый |
-| `invoice_preparation` | Подготовка счетов | Бирюзовый |
-| `invoice_approval` | Согласование счетов | Фиолетовый |
-| `accounting` | Бухгалтерия | Индиго |
+| `invoice_preparation` | Подготовка счетов | Фиолетовый |
+| `invoice_approval` | Согласование счетов | Голубой |
+| `accounting` | Бухгалтерия | Бирюзовый |
 | `payment_queue` | Очередь оплаты | Янтарный |
 | `paid` | Оплачено | Зелёный |
 | `received` | Получено | Тёмно-зелёный |
 | `cancelled` | Отменено | Красный |
 
-Цвета заданы в `PurchaseRequestUiLabels.statusColor` (отдельные значения для light/dark).
+Цвета — `PurchaseRequestUiLabels.statusColor` (отдельные значения light/dark).
 
 ### Workflow (основной путь)
 
@@ -410,9 +492,9 @@ stateDiagram-v2
     [*] --> draft
     draft --> approval: submit
     approval --> invoice_preparation: approve
-    approval --> revision: return_for_revision
+    approval --> revision: return
     revision --> approval: submit
-    invoice_preparation --> invoice_approval: submit_invoice
+    invoice_preparation --> invoice_approval: submit_invoices
     invoice_approval --> accounting: approve_invoice
     invoice_approval --> invoice_preparation: return_invoice
     accounting --> payment_queue: queue_payment
@@ -434,22 +516,24 @@ stateDiagram-v2
 | `paid` | Получатель: `fixed_receiver_id` или `created_by` (`receiver_mode`) |
 | `received`, `cancelled` | `NULL` |
 
-### Права на действия (RPC)
+### Права на действия (RPC + UI)
 
 | Действие | Permission | Assignee check |
 |----------|------------|----------------|
 | Создание / submit | `create` | автор |
-| approve / return revision | `approve` | current |
-| prepare / submit invoice | `prepare_invoice` | current |
+| approve / return | `approve` | current |
+| submit invoices | `prepare_invoice` | current |
 | approve / return invoice | `approve_invoice` | current |
 | queue payment / mark paid | `payment` | current |
 | mark received | `receive` | current |
 | Список `all` / `archive` | `view_all` | — |
 | Чтение своих | `read` | created_by или assignee |
 
+Логика кнопок дублируется на клиенте в `resolvePurchaseRequestActions` (`purchase_request_actions_bar.dart`).
+
 ### Gate: настройки перед созданием
 
-`purchase_request_create_draft` вызывает `purchase_request_internal_settings_configured`:
+`purchase_request_create_draft` → `purchase_request_internal_settings_configured`:
 
 - `first_approver_id`, `invoice_preparer_id`, `invoice_approver_id`, `accountant_id` — NOT NULL
 - `receiver_mode = fixed` → `fixed_receiver_id` NOT NULL
@@ -457,19 +541,31 @@ stateDiagram-v2
 
 ### Позиции
 
-- Добавление/редактирование/удаление — только в `draft` и `revision`
-- Submit без позиций — ошибка на клиенте (`actions_bar`) и на сервере
-- `unit` — свободный текст (например «шт.», «м»)
-- `article` — опциональный артикул; отображается в панели деталей и сохраняется при создании заявки
-- В диалоге добавления позиции из деталей артикул пока **не запрашивается** (техдолг)
+- Добавление/редактирование/удаление — только в `draft` и `revision` (RLS + `canEditItems`)
+- Submit без позиций — ошибка на клиенте и на сервере
+- `unit` — свободный текст; `article` — опциональный
+- В диалоге добавления позиции **из деталей** артикул пока **не запрашивается** (техдолг)
+
+### История (отображение)
+
+| Элемент | Источник | Формат в UI |
+|---------|----------|-------------|
+| Кто | `profiles` по `user_id` | `userLabel` (жирный, слева) |
+| Что | `action` → `historyActionPhrase` | строчная фраза после ФИО |
+| Когда | `created_at` | `formatRuDateTime`, справа, muted |
+| Комментарий | `comment` | « — {текст}» курсивом |
+
+Пример: `Тельнов Д.А. создал заявку` ········· `16.08.2026 07:46`
+
+Коды действий и подписи — `PurchaseRequestUiLabels.historyActionLabel` (заголовок) / `historyActionPhrase` (в строке истории).
 
 ### Получение после оплаты
 
-`purchase_request_mark_paid` назначает `current_assignee_id` = resolved receiver и создаёт уведомление. `mark_received` записывает `received_date` в metadata истории и завершает заявку (`completed_at`).
+`purchase_request_mark_paid` назначает `current_assignee_id` = resolved receiver и создаёт уведомление. `mark_received` записывает `received_date` в `metadata` истории и завершает заявку (`completed_at`).
 
 ### Нумерация
 
-Формат: `ЗП-{год}-{5 цифр}`. Счётчик в `purchase_request_number_seq` по `(company_id, year)`.
+Формат: `ЗП-{год}-{5 цифр}`. Счётчик в `purchase_request_number_seq` по `(company_id, year)`, поле `last_value`.
 
 ---
 
@@ -478,9 +574,9 @@ stateDiagram-v2
 | Компонент | Связь |
 |-----------|-------|
 | **RBAC** | `app_modules` code `purchase_requests`; `check_permission` в RPC |
-| **Objects** | `object_id` при создании |
+| **Objects** | `object_id` при создании; join имени в деталях |
 | **Contractors** | `purchase_request_invoices.supplier_id` (планируется UI) |
-| **Profiles** | `created_by_name` в `purchase_request_list` |
+| **Profiles** | ФИО в списке (RPC), деталях и истории (batch SELECT) |
 | **Supabase Storage** | bucket `purchase-requests` для файлов счетов |
 | **Notifications** | Таблица + RPC notify; in-app UI отсутствует |
 | **Edge Functions** | Не используются |
@@ -495,13 +591,14 @@ stateDiagram-v2
 - Полный набор workflow RPC
 - Двухпанельный desktop-UI (sidebar + таблица / детали)
 - Master-detail в одном экране (без отдельного route)
-- Таблица с инициатором и цветными статусами
+- Таблица реестра с инициатором и цветными статусами
 - Многострочное создание заявки с артикулом
-- Панель деталей, позиции, история, workflow actions
+- Панель деталей: сводка, таблица позиций, история с ФИО, workflow actions
+- Заголовок деталей в одну строку (номер · объект · инициатор)
+- Компактная история (кто → что → когда)
 - Настройки маршрута (owner), кнопка «Настройки»
 - Матрица прав, drawer, router
 - Human-readable ошибки Supabase в UI
-- `created_by_name` в RPC списка
 
 ### Баги / техдолг 🟡
 
@@ -509,6 +606,7 @@ stateDiagram-v2
 - Блок «Документы» / `purchase_request_files` не в UI
 - Уведомления пишутся в БД, но не отображаются
 - Добавление позиции из деталей — без поля артикула
+- ФИО в деталях/истории — дополнительный round-trip к `profiles` (нет FK embed)
 - E2E сценарий по ТЗ (20 шагов) не автоматизирован
 
 ### Планы 🔴
@@ -517,8 +615,9 @@ stateDiagram-v2
 2. Секция «Документы» с Storage
 3. Badge / список уведомлений в модуле
 4. Артикул в диалоге добавления позиции из деталей
-5. Экспорт списка заявок (если потребуется `export` permission)
-6. Cross-link в `docs/database_structure.md`
+5. RPC или view для истории с `user_name` (убрать N+1 batch на клиенте)
+6. Экспорт списка заявок (если потребуется `export` permission)
+7. Cross-link в `docs/database_structure.md`
 
 ---
 
@@ -541,4 +640,4 @@ stateDiagram-v2
 
 ---
 
-*Документ подготовлен по аудиту кода и live PostgreSQL. При изменении миграций или RPC — обновить этот файл.*
+*Документ подготовлен по аудиту кода (`lib/features/purchase_requests/`), миграций `supabase/migrations/` и live PostgreSQL (`api.progt.ru`, 16.08.2026). При изменении миграций, RPC или UI — обновить этот файл.*

@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$PurchaseRequest {
 
- String get id; String get companyId; String get number; String get objectId; String? get objectName; String get createdBy; String? get currentAssigneeId; PurchaseRequestStatus get status; String? get comment; double get totalAmount; DateTime? get createdAt; DateTime? get updatedAt; DateTime? get submittedAt; DateTime? get completedAt;
+ String get id; String get companyId; String get number; String get objectId; String? get objectName; String get createdBy; String? get createdByName; String? get currentAssigneeId; PurchaseRequestStatus get status; String? get comment; double get totalAmount; DateTime? get createdAt; DateTime? get updatedAt; DateTime? get submittedAt; DateTime? get completedAt;
 /// Create a copy of PurchaseRequest
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -26,16 +26,16 @@ $PurchaseRequestCopyWith<PurchaseRequest> get copyWith => _$PurchaseRequestCopyW
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PurchaseRequest&&(identical(other.id, id) || other.id == id)&&(identical(other.companyId, companyId) || other.companyId == companyId)&&(identical(other.number, number) || other.number == number)&&(identical(other.objectId, objectId) || other.objectId == objectId)&&(identical(other.objectName, objectName) || other.objectName == objectName)&&(identical(other.createdBy, createdBy) || other.createdBy == createdBy)&&(identical(other.currentAssigneeId, currentAssigneeId) || other.currentAssigneeId == currentAssigneeId)&&(identical(other.status, status) || other.status == status)&&(identical(other.comment, comment) || other.comment == comment)&&(identical(other.totalAmount, totalAmount) || other.totalAmount == totalAmount)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.submittedAt, submittedAt) || other.submittedAt == submittedAt)&&(identical(other.completedAt, completedAt) || other.completedAt == completedAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PurchaseRequest&&(identical(other.id, id) || other.id == id)&&(identical(other.companyId, companyId) || other.companyId == companyId)&&(identical(other.number, number) || other.number == number)&&(identical(other.objectId, objectId) || other.objectId == objectId)&&(identical(other.objectName, objectName) || other.objectName == objectName)&&(identical(other.createdBy, createdBy) || other.createdBy == createdBy)&&(identical(other.createdByName, createdByName) || other.createdByName == createdByName)&&(identical(other.currentAssigneeId, currentAssigneeId) || other.currentAssigneeId == currentAssigneeId)&&(identical(other.status, status) || other.status == status)&&(identical(other.comment, comment) || other.comment == comment)&&(identical(other.totalAmount, totalAmount) || other.totalAmount == totalAmount)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.submittedAt, submittedAt) || other.submittedAt == submittedAt)&&(identical(other.completedAt, completedAt) || other.completedAt == completedAt));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,id,companyId,number,objectId,objectName,createdBy,currentAssigneeId,status,comment,totalAmount,createdAt,updatedAt,submittedAt,completedAt);
+int get hashCode => Object.hash(runtimeType,id,companyId,number,objectId,objectName,createdBy,createdByName,currentAssigneeId,status,comment,totalAmount,createdAt,updatedAt,submittedAt,completedAt);
 
 @override
 String toString() {
-  return 'PurchaseRequest(id: $id, companyId: $companyId, number: $number, objectId: $objectId, objectName: $objectName, createdBy: $createdBy, currentAssigneeId: $currentAssigneeId, status: $status, comment: $comment, totalAmount: $totalAmount, createdAt: $createdAt, updatedAt: $updatedAt, submittedAt: $submittedAt, completedAt: $completedAt)';
+  return 'PurchaseRequest(id: $id, companyId: $companyId, number: $number, objectId: $objectId, objectName: $objectName, createdBy: $createdBy, createdByName: $createdByName, currentAssigneeId: $currentAssigneeId, status: $status, comment: $comment, totalAmount: $totalAmount, createdAt: $createdAt, updatedAt: $updatedAt, submittedAt: $submittedAt, completedAt: $completedAt)';
 }
 
 
@@ -46,7 +46,7 @@ abstract mixin class $PurchaseRequestCopyWith<$Res>  {
   factory $PurchaseRequestCopyWith(PurchaseRequest value, $Res Function(PurchaseRequest) _then) = _$PurchaseRequestCopyWithImpl;
 @useResult
 $Res call({
- String id, String companyId, String number, String objectId, String? objectName, String createdBy, String? currentAssigneeId, PurchaseRequestStatus status, String? comment, double totalAmount, DateTime? createdAt, DateTime? updatedAt, DateTime? submittedAt, DateTime? completedAt
+ String id, String companyId, String number, String objectId, String? objectName, String createdBy, String? createdByName, String? currentAssigneeId, PurchaseRequestStatus status, String? comment, double totalAmount, DateTime? createdAt, DateTime? updatedAt, DateTime? submittedAt, DateTime? completedAt
 });
 
 
@@ -63,7 +63,7 @@ class _$PurchaseRequestCopyWithImpl<$Res>
 
 /// Create a copy of PurchaseRequest
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? companyId = null,Object? number = null,Object? objectId = null,Object? objectName = freezed,Object? createdBy = null,Object? currentAssigneeId = freezed,Object? status = null,Object? comment = freezed,Object? totalAmount = null,Object? createdAt = freezed,Object? updatedAt = freezed,Object? submittedAt = freezed,Object? completedAt = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? companyId = null,Object? number = null,Object? objectId = null,Object? objectName = freezed,Object? createdBy = null,Object? createdByName = freezed,Object? currentAssigneeId = freezed,Object? status = null,Object? comment = freezed,Object? totalAmount = null,Object? createdAt = freezed,Object? updatedAt = freezed,Object? submittedAt = freezed,Object? completedAt = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,companyId: null == companyId ? _self.companyId : companyId // ignore: cast_nullable_to_non_nullable
@@ -71,7 +71,8 @@ as String,number: null == number ? _self.number : number // ignore: cast_nullabl
 as String,objectId: null == objectId ? _self.objectId : objectId // ignore: cast_nullable_to_non_nullable
 as String,objectName: freezed == objectName ? _self.objectName : objectName // ignore: cast_nullable_to_non_nullable
 as String?,createdBy: null == createdBy ? _self.createdBy : createdBy // ignore: cast_nullable_to_non_nullable
-as String,currentAssigneeId: freezed == currentAssigneeId ? _self.currentAssigneeId : currentAssigneeId // ignore: cast_nullable_to_non_nullable
+as String,createdByName: freezed == createdByName ? _self.createdByName : createdByName // ignore: cast_nullable_to_non_nullable
+as String?,currentAssigneeId: freezed == currentAssigneeId ? _self.currentAssigneeId : currentAssigneeId // ignore: cast_nullable_to_non_nullable
 as String?,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as PurchaseRequestStatus,comment: freezed == comment ? _self.comment : comment // ignore: cast_nullable_to_non_nullable
 as String?,totalAmount: null == totalAmount ? _self.totalAmount : totalAmount // ignore: cast_nullable_to_non_nullable
@@ -89,8 +90,8 @@ as DateTime?,
 /// @nodoc
 
 
-class _PurchaseRequest implements PurchaseRequest {
-  const _PurchaseRequest({required this.id, required this.companyId, required this.number, required this.objectId, this.objectName, required this.createdBy, this.currentAssigneeId, required this.status, this.comment, this.totalAmount = 0, this.createdAt, this.updatedAt, this.submittedAt, this.completedAt});
+class _PurchaseRequest extends PurchaseRequest {
+  const _PurchaseRequest({required this.id, required this.companyId, required this.number, required this.objectId, this.objectName, required this.createdBy, this.createdByName, this.currentAssigneeId, required this.status, this.comment, this.totalAmount = 0, this.createdAt, this.updatedAt, this.submittedAt, this.completedAt}): super._();
   
 
 @override final  String id;
@@ -99,6 +100,7 @@ class _PurchaseRequest implements PurchaseRequest {
 @override final  String objectId;
 @override final  String? objectName;
 @override final  String createdBy;
+@override final  String? createdByName;
 @override final  String? currentAssigneeId;
 @override final  PurchaseRequestStatus status;
 @override final  String? comment;
@@ -118,16 +120,16 @@ _$PurchaseRequestCopyWith<_PurchaseRequest> get copyWith => __$PurchaseRequestCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PurchaseRequest&&(identical(other.id, id) || other.id == id)&&(identical(other.companyId, companyId) || other.companyId == companyId)&&(identical(other.number, number) || other.number == number)&&(identical(other.objectId, objectId) || other.objectId == objectId)&&(identical(other.objectName, objectName) || other.objectName == objectName)&&(identical(other.createdBy, createdBy) || other.createdBy == createdBy)&&(identical(other.currentAssigneeId, currentAssigneeId) || other.currentAssigneeId == currentAssigneeId)&&(identical(other.status, status) || other.status == status)&&(identical(other.comment, comment) || other.comment == comment)&&(identical(other.totalAmount, totalAmount) || other.totalAmount == totalAmount)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.submittedAt, submittedAt) || other.submittedAt == submittedAt)&&(identical(other.completedAt, completedAt) || other.completedAt == completedAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PurchaseRequest&&(identical(other.id, id) || other.id == id)&&(identical(other.companyId, companyId) || other.companyId == companyId)&&(identical(other.number, number) || other.number == number)&&(identical(other.objectId, objectId) || other.objectId == objectId)&&(identical(other.objectName, objectName) || other.objectName == objectName)&&(identical(other.createdBy, createdBy) || other.createdBy == createdBy)&&(identical(other.createdByName, createdByName) || other.createdByName == createdByName)&&(identical(other.currentAssigneeId, currentAssigneeId) || other.currentAssigneeId == currentAssigneeId)&&(identical(other.status, status) || other.status == status)&&(identical(other.comment, comment) || other.comment == comment)&&(identical(other.totalAmount, totalAmount) || other.totalAmount == totalAmount)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.submittedAt, submittedAt) || other.submittedAt == submittedAt)&&(identical(other.completedAt, completedAt) || other.completedAt == completedAt));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,id,companyId,number,objectId,objectName,createdBy,currentAssigneeId,status,comment,totalAmount,createdAt,updatedAt,submittedAt,completedAt);
+int get hashCode => Object.hash(runtimeType,id,companyId,number,objectId,objectName,createdBy,createdByName,currentAssigneeId,status,comment,totalAmount,createdAt,updatedAt,submittedAt,completedAt);
 
 @override
 String toString() {
-  return 'PurchaseRequest(id: $id, companyId: $companyId, number: $number, objectId: $objectId, objectName: $objectName, createdBy: $createdBy, currentAssigneeId: $currentAssigneeId, status: $status, comment: $comment, totalAmount: $totalAmount, createdAt: $createdAt, updatedAt: $updatedAt, submittedAt: $submittedAt, completedAt: $completedAt)';
+  return 'PurchaseRequest(id: $id, companyId: $companyId, number: $number, objectId: $objectId, objectName: $objectName, createdBy: $createdBy, createdByName: $createdByName, currentAssigneeId: $currentAssigneeId, status: $status, comment: $comment, totalAmount: $totalAmount, createdAt: $createdAt, updatedAt: $updatedAt, submittedAt: $submittedAt, completedAt: $completedAt)';
 }
 
 
@@ -138,7 +140,7 @@ abstract mixin class _$PurchaseRequestCopyWith<$Res> implements $PurchaseRequest
   factory _$PurchaseRequestCopyWith(_PurchaseRequest value, $Res Function(_PurchaseRequest) _then) = __$PurchaseRequestCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String companyId, String number, String objectId, String? objectName, String createdBy, String? currentAssigneeId, PurchaseRequestStatus status, String? comment, double totalAmount, DateTime? createdAt, DateTime? updatedAt, DateTime? submittedAt, DateTime? completedAt
+ String id, String companyId, String number, String objectId, String? objectName, String createdBy, String? createdByName, String? currentAssigneeId, PurchaseRequestStatus status, String? comment, double totalAmount, DateTime? createdAt, DateTime? updatedAt, DateTime? submittedAt, DateTime? completedAt
 });
 
 
@@ -155,7 +157,7 @@ class __$PurchaseRequestCopyWithImpl<$Res>
 
 /// Create a copy of PurchaseRequest
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? companyId = null,Object? number = null,Object? objectId = null,Object? objectName = freezed,Object? createdBy = null,Object? currentAssigneeId = freezed,Object? status = null,Object? comment = freezed,Object? totalAmount = null,Object? createdAt = freezed,Object? updatedAt = freezed,Object? submittedAt = freezed,Object? completedAt = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? companyId = null,Object? number = null,Object? objectId = null,Object? objectName = freezed,Object? createdBy = null,Object? createdByName = freezed,Object? currentAssigneeId = freezed,Object? status = null,Object? comment = freezed,Object? totalAmount = null,Object? createdAt = freezed,Object? updatedAt = freezed,Object? submittedAt = freezed,Object? completedAt = freezed,}) {
   return _then(_PurchaseRequest(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,companyId: null == companyId ? _self.companyId : companyId // ignore: cast_nullable_to_non_nullable
@@ -163,7 +165,8 @@ as String,number: null == number ? _self.number : number // ignore: cast_nullabl
 as String,objectId: null == objectId ? _self.objectId : objectId // ignore: cast_nullable_to_non_nullable
 as String,objectName: freezed == objectName ? _self.objectName : objectName // ignore: cast_nullable_to_non_nullable
 as String?,createdBy: null == createdBy ? _self.createdBy : createdBy // ignore: cast_nullable_to_non_nullable
-as String,currentAssigneeId: freezed == currentAssigneeId ? _self.currentAssigneeId : currentAssigneeId // ignore: cast_nullable_to_non_nullable
+as String,createdByName: freezed == createdByName ? _self.createdByName : createdByName // ignore: cast_nullable_to_non_nullable
+as String?,currentAssigneeId: freezed == currentAssigneeId ? _self.currentAssigneeId : currentAssigneeId // ignore: cast_nullable_to_non_nullable
 as String?,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as PurchaseRequestStatus,comment: freezed == comment ? _self.comment : comment // ignore: cast_nullable_to_non_nullable
 as String?,totalAmount: null == totalAmount ? _self.totalAmount : totalAmount // ignore: cast_nullable_to_non_nullable

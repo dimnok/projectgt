@@ -3,7 +3,7 @@ import 'package:projectgt/features/purchase_requests/domain/entities/purchase_re
 
 /// Подписи и цвета UI модуля заявок на закупку.
 abstract final class PurchaseRequestUiLabels {
-  /// Подпись действия в истории.
+  /// Подпись действия в истории (отдельная строка / заголовок).
   static String historyActionLabel(String action) => switch (action) {
         'created' => 'Создал заявку',
         'submitted' => 'Отправил на согласование',
@@ -17,6 +17,23 @@ abstract final class PurchaseRequestUiLabels {
         'paid' => 'Оплачено',
         'received' => 'Материал получен',
         'cancelled' => 'Отменил заявку',
+        _ => action,
+      };
+
+  /// Фраза действия после ФИО: «Иванов И.И. создал заявку».
+  static String historyActionPhrase(String action) => switch (action) {
+        'created' => 'создал заявку',
+        'submitted' => 'отправил на согласование',
+        'resubmitted' => 'повторно отправил заявку',
+        'approved' => 'согласовал',
+        'returned' => 'вернул на доработку',
+        'invoices_submitted' => 'отправил счета на согласование',
+        'invoice_approved' => 'согласовал счет',
+        'invoice_returned' => 'вернул счета на доработку',
+        'queued_for_payment' => 'завёл на оплату',
+        'paid' => 'оплатил',
+        'received' => 'подтвердил получение',
+        'cancelled' => 'отменил заявку',
         _ => action,
       };
 

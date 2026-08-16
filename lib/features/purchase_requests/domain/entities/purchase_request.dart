@@ -14,6 +14,7 @@ abstract class PurchaseRequest with _$PurchaseRequest {
     required String objectId,
     String? objectName,
     required String createdBy,
+    String? createdByName,
     String? currentAssigneeId,
     required PurchaseRequestStatus status,
     String? comment,
@@ -23,4 +24,12 @@ abstract class PurchaseRequest with _$PurchaseRequest {
     DateTime? submittedAt,
     DateTime? completedAt,
   }) = _PurchaseRequest;
+
+  const PurchaseRequest._();
+
+  /// Отображаемое имя инициатора.
+  String get initiatorLabel =>
+      (createdByName != null && createdByName!.trim().isNotEmpty)
+          ? createdByName!.trim()
+          : '—';
 }

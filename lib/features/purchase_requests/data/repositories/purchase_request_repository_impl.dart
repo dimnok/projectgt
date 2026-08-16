@@ -34,6 +34,41 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
       PurchaseRequestModel.fromJson(Map<String, dynamic>.from(row as Map))
           .toDomain();
 
+  Future<String?> _fetchCreatedByName(String userId) async {
+    final names = await _fetchUserNames({userId});
+    return names[userId];
+  }
+
+  String? _pickProfileName(Map<String, dynamic> profile) {
+    for (final key in ['short_name', 'full_name', 'email']) {
+      final value = profile[key] as String?;
+      if (value != null && value.trim().isNotEmpty) {
+        return value.trim();
+      }
+    }
+    return null;
+  }
+
+  Future<Map<String, String>> _fetchUserNames(Set<String> userIds) async {
+    if (userIds.isEmpty) return {};
+
+    final response = await client
+        .from('profiles')
+        .select('id, short_name, full_name, email')
+        .inFilter('id', userIds.toList());
+
+    final names = <String, String>{};
+    for (final row in response as List) {
+      final map = Map<String, dynamic>.from(row as Map);
+      final id = map['id'] as String?;
+      final name = _pickProfileName(map);
+      if (id != null && name != null) {
+        names[id] = name;
+      }
+    }
+    return names;
+  }
+
   @override
   Future<List<PurchaseRequestListItem>> list({
     required PurchaseRequestListFilter filter,
@@ -86,7 +121,17 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
         .maybeSingle();
 
     if (row == null) return null;
-    return _mapRequest(row);
+
+    final map = Map<String, dynamic>.from(row);
+    final createdBy = map['created_by'] as String?;
+    if (createdBy != null && createdBy.isNotEmpty) {
+      final createdByName = await _fetchCreatedByName(createdBy);
+      if (createdByName != null) {
+        map['created_by_name'] = createdByName;
+      }
+    }
+
+    return _mapRequest(map);
   }
 
   @override
@@ -121,12 +166,27 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
         .eq('request_id', requestId)
         .order('created_at');
 
-    return (response as List)
-        .map(
-          (row) => PurchaseRequestHistoryEntry.fromJson(
-            Map<String, dynamic>.from(row as Map),
-          ),
-        )
+    final rows = (response as List)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList();
+
+    final userIds = rows
+        .map((row) => row['user_id'] as String?)
+        .whereType<String>()
+        .toSet();
+    final userNames = await _fetchUserNames(userIds);
+
+    return rows
+        .map((row) {
+          final userId = row['user_id'] as String?;
+          if (userId != null) {
+            final name = userNames[userId];
+            if (name != null) {
+              row['user_name'] = name;
+            }
+          }
+          return PurchaseRequestHistoryEntry.fromJson(row);
+        })
         .toList();
   }
 

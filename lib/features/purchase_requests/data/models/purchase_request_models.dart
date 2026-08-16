@@ -13,6 +13,7 @@ class PurchaseRequestModel {
     required this.objectId,
     this.objectName,
     required this.createdBy,
+    this.createdByName,
     this.currentAssigneeId,
     required this.status,
     this.comment,
@@ -40,6 +41,9 @@ class PurchaseRequestModel {
 
   /// Идентификатор автора.
   final String createdBy;
+
+  /// ФИО инициатора (из join profiles).
+  final String? createdByName;
 
   /// Текущий ответственный.
   final String? currentAssigneeId;
@@ -75,6 +79,7 @@ class PurchaseRequestModel {
       objectId: json['object_id'] as String,
       objectName: json['objects']?['name'] as String?,
       createdBy: json['created_by'] as String,
+      createdByName: _parseCreatedByName(json),
       currentAssigneeId: json['current_assignee_id'] as String?,
       status: PurchaseRequestStatusX.fromDb(statusRaw) ??
           PurchaseRequestStatus.draft,
@@ -95,6 +100,7 @@ class PurchaseRequestModel {
         objectId: objectId,
         objectName: objectName,
         createdBy: createdBy,
+        createdByName: createdByName,
         currentAssigneeId: currentAssigneeId,
         status: status,
         comment: comment,
@@ -109,6 +115,24 @@ class PurchaseRequestModel {
     if (value == null) return null;
     if (value is DateTime) return value;
     return DateTime.parse(value as String);
+  }
+
+  static String? _parseCreatedByName(Map<String, dynamic> json) {
+    final direct = json['created_by_name'] as String?;
+    if (direct != null && direct.trim().isNotEmpty) {
+      return direct.trim();
+    }
+
+    final profile = json['profiles'];
+    if (profile is! Map) return null;
+
+    for (final key in ['short_name', 'full_name', 'email']) {
+      final value = profile[key] as String?;
+      if (value != null && value.trim().isNotEmpty) {
+        return value.trim();
+      }
+    }
+    return null;
   }
 }
 
