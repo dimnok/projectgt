@@ -58,6 +58,7 @@ abstract class ProfileModel with _$ProfileModel {
     @JsonKey(name: 'updated_at') DateTime? updatedAt,
     @JsonKey(name: 'object_ids') List<String>? objectIds,
     @JsonKey(name: 'last_company_id') String? lastCompanyId,
+    @JsonKey(name: 'is_owner') @Default(false) bool isOwner,
   }) = _ProfileModel;
 
   /// Приватный конструктор для поддержки расширения через [freezed].
@@ -95,6 +96,7 @@ abstract class ProfileModel with _$ProfileModel {
     createdAt: profile.createdAt,
     updatedAt: profile.updatedAt,
     lastCompanyId: profile.lastCompanyId,
+    isOwner: profile.isOwner,
   );
 
   /// Преобразует [ProfileModel] в доменную сущность [Profile].
@@ -116,5 +118,6 @@ abstract class ProfileModel with _$ProfileModel {
     createdAt: createdAt,
     updatedAt: updatedAt,
     lastCompanyId: lastCompanyId,
+    isOwner: isOwner,
   );
 }

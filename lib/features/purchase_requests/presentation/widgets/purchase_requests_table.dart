@@ -14,7 +14,6 @@ class PurchaseRequestsTable extends StatelessWidget {
     required this.items,
     required this.isLoading,
     required this.onRowTap,
-    this.selectedId,
   });
 
   /// Строки реестра.
@@ -25,9 +24,6 @@ class PurchaseRequestsTable extends StatelessWidget {
 
   /// Открыть заявку по клику на строку.
   final ValueChanged<PurchaseRequestListItem> onRowTap;
-
-  /// Выбранная заявка (подсветка строки).
-  final String? selectedId;
 
   @override
   Widget build(BuildContext context) {
@@ -75,7 +71,6 @@ class PurchaseRequestsTable extends StatelessWidget {
                                 itemBuilder: (context, index) {
                                   return _PurchaseRequestRow(
                                     item: items[index],
-                                    selected: items[index].id == selectedId,
                                     onTap: () => onRowTap(items[index]),
                                   );
                                 },
@@ -133,21 +128,17 @@ class _PurchaseRequestRow extends StatelessWidget {
   const _PurchaseRequestRow({
     required this.item,
     required this.onTap,
-    this.selected = false,
   });
 
   final PurchaseRequestListItem item;
   final VoidCallback onTap;
-  final bool selected;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Material(
-      color: selected
-          ? theme.colorScheme.primary.withValues(alpha: 0.06)
-          : Colors.transparent,
+      color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         hoverColor: theme.colorScheme.onSurface.withValues(alpha: 0.04),

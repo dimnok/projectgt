@@ -9,17 +9,18 @@ import 'package:projectgt/core/widgets/mobile_atmosphere_backdrop.dart';
 import 'package:projectgt/core/widgets/mobile_atmosphere_card_style.dart';
 import 'package:projectgt/core/widgets/mobile_atmosphere_main_surface.dart';
 import 'package:projectgt/core/widgets/mobile_atmosphere_screen_header.dart';
+import 'package:projectgt/features/company/presentation/providers/company_providers.dart';
 import 'package:projectgt/features/employees/presentation/utils/employees_layout_utils.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
-import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_status.dart';
 import 'package:projectgt/features/purchase_requests/presentation/state/purchase_request_providers.dart';
 import 'package:projectgt/features/purchase_requests/presentation/screens/desktop/purchase_requests_list_desktop_view.dart';
 import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_card.dart';
 import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_details_panel.dart';
 import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_create_dialog.dart';
 import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_module_utils.dart';
+import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_filter_bar.dart';
+import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_list_limit_banner.dart';
 import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_settings_dialog.dart';
-import 'package:projectgt/presentation/state/profile_state.dart';
 import 'package:projectgt/presentation/widgets/app_drawer.dart';
 
 /// Экран реестра заявок на закупку.
@@ -35,6 +36,8 @@ class PurchaseRequestsListScreen extends ConsumerStatefulWidget {
 class _PurchaseRequestsListScreenState
     extends ConsumerState<PurchaseRequestsListScreen> {
   String? _selectedRequestId;
+  /// Заявка после создания или явного выбора — не сбрасывать при смене фильтра.
+  String? _pinnedRequestId;
   final _mobileSearchController = TextEditingController();
 
   @override
@@ -47,15 +50,24 @@ class _PurchaseRequestsListScreenState
     final id = await PurchaseRequestCreateDialog.show(context);
     if (id == null || !mounted) return;
     ref.invalidate(purchaseRequestListProvider);
-    setState(() => _selectedRequestId = id);
+    setState(() {
+      _selectedRequestId = id;
+      _pinnedRequestId = id;
+    });
   }
 
   void _selectRequest(String id) {
-    setState(() => _selectedRequestId = id);
+    setState(() {
+      _selectedRequestId = id;
+      _pinnedRequestId = id;
+    });
   }
 
   void _closeDetails() {
-    setState(() => _selectedRequestId = null);
+    setState(() {
+      _selectedRequestId = null;
+      _pinnedRequestId = null;
+    });
   }
 
   Future<void> _openSettings() async {
@@ -70,9 +82,10 @@ class _PurchaseRequestsListScreenState
 
     ref.listen(purchaseRequestListProvider, (previous, next) {
       if (_selectedRequestId == null) return;
+      if (_selectedRequestId == _pinnedRequestId) return;
       final stillVisible =
           next.items.any((item) => item.id == _selectedRequestId);
-      if (!stillVisible && !next.isLoading) {
+      if (!stillVisible && !next.isLoading && mounted) {
         setState(() => _selectedRequestId = null);
       }
     });
@@ -80,8 +93,7 @@ class _PurchaseRequestsListScreenState
     final appearance = MobileAtmosphereAppearance.of(context);
     final isDark = appearance.isDark;
     final useMobile = EmployeesLayoutUtils.useEmployeesMobileList(context);
-    final isOwner =
-        ref.watch(currentUserProfileProvider).profile?.systemRole == 'owner';
+    final isOwner = ref.watch(isCompanyOwnerProvider);
     final settingsConfigured = isPurchaseRequestSettingsConfigured(
       settingsAsync.valueOrNull,
     );
@@ -143,10 +155,14 @@ class _PurchaseRequestsListScreenState
                       ),
                     )
                   else if (useMobile) ...[
-                      _FilterBar(
+                      PurchaseRequestFilterBar.mobile(
                         filter: listState.filter,
                         onChanged: listNotifier.setFilter,
                       ),
+                      if (listState.isTruncatedByLimit)
+                        const PurchaseRequestListLimitBanner(
+                          limit: kPurchaseRequestListLimit,
+                        ),
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                         child: GTTextField(
@@ -360,37 +376,6 @@ class _ModuleSetupPlaceholder extends StatelessWidget {
             ],
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _FilterBar extends StatelessWidget {
-  const _FilterBar({
-    required this.filter,
-    required this.onChanged,
-  });
-
-  final PurchaseRequestListFilter filter;
-  final ValueChanged<PurchaseRequestListFilter> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: Row(
-        children: PurchaseRequestListFilter.values.map((f) {
-          final selected = f == filter;
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: ChoiceChip(
-              label: Text(f.label),
-              selected: selected,
-              onSelected: (_) => onChanged(f),
-            ),
-          );
-        }).toList(),
       ),
     );
   }

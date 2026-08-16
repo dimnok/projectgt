@@ -13,6 +13,7 @@ import 'package:projectgt/features/purchase_requests/presentation/widgets/purcha
 import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_details_summary.dart';
 import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_details_tokens.dart';
 import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_history_timeline.dart';
+import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_invoices_section.dart';
 import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_items_table.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
 
@@ -157,6 +158,17 @@ class PurchaseRequestDetailsPanel extends ConsumerWidget {
                                 },
                               ),
                             ),
+                            if (PurchaseRequestInvoicesSection.shouldShow(
+                              request.status,
+                            )) ...[
+                              const SizedBox(
+                                height: PurchaseRequestDetailsTokens.sectionGap,
+                              ),
+                              PurchaseRequestInvoicesSection(
+                                requestId: requestId,
+                                canManage: actions.canSubmitInvoices,
+                              ),
+                            ],
                             const SizedBox(
                               height: PurchaseRequestDetailsTokens.sectionGap,
                             ),

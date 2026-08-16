@@ -55,6 +55,9 @@ abstract class Profile with _$Profile {
 
     /// ID последней активной компании пользователя.
     String? lastCompanyId,
+
+    /// Владелец активной компании (`company_members.is_owner`).
+    @Default(false) bool isOwner,
   }) = _Profile;
 
   /// Приватный конструктор для расширения функциональности через методы.

@@ -8,14 +8,10 @@ class PurchaseRequestStatusBadge extends StatelessWidget {
   const PurchaseRequestStatusBadge({
     super.key,
     required this.status,
-    this.maxLines = 1,
   });
 
   /// Статус заявки.
   final PurchaseRequestStatus status;
-
-  /// Максимум строк в подписи.
-  final int maxLines;
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +30,7 @@ class PurchaseRequestStatusBadge extends StatelessWidget {
           color: statusColor,
           fontWeight: FontWeight.w600,
         ),
-        maxLines: maxLines,
+        maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
     );

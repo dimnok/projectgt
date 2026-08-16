@@ -1,4 +1,5 @@
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request.dart';
+import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_invoice.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_company_user.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_history_entry.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_item.dart';
@@ -29,6 +30,24 @@ abstract class PurchaseRequestRepository {
 
   /// История заявки.
   Future<List<PurchaseRequestHistoryEntry>> getHistory(String requestId);
+
+  /// Счета заявки с прикреплёнными файлами.
+  Future<List<PurchaseRequestInvoice>> getInvoices(String requestId);
+
+  /// Создать счёт и прикрепить файл (type = invoice).
+  Future<PurchaseRequestInvoice> createInvoiceWithFile({
+    required String requestId,
+    required String supplierId,
+    required double amount,
+    required List<int> fileBytes,
+    required String fileName,
+    String? invoiceNumber,
+    DateTime? invoiceDate,
+    String? comment,
+  });
+
+  /// Удалить счёт и связанные файлы в Storage.
+  Future<void> deleteInvoice(String invoiceId);
 
   /// Настройки модуля для активной компании.
   Future<PurchaseRequestSettings?> getSettings();
@@ -67,11 +86,11 @@ abstract class PurchaseRequestRepository {
     String? comment,
   });
 
-  /// Обновить позицию.
-  Future<PurchaseRequestItem> updateItem(PurchaseRequestItem item);
-
   /// Удалить позицию.
   Future<void> deleteItem(String itemId);
+
+  /// Обновить позицию.
+  Future<PurchaseRequestItem> updateItem(PurchaseRequestItem item);
 
   /// Отправить / отправить повторно.
   Future<PurchaseRequest> submit(String requestId, {String? comment});

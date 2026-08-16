@@ -29,6 +29,7 @@ _ProfileModel _$ProfileModelFromJson(Map<String, dynamic> json) =>
           ?.map((e) => e as String)
           .toList(),
       lastCompanyId: json['last_company_id'] as String?,
+      isOwner: json['is_owner'] as bool? ?? false,
     );
 
 Map<String, dynamic> _$ProfileModelToJson(_ProfileModel instance) =>
@@ -48,4 +49,5 @@ Map<String, dynamic> _$ProfileModelToJson(_ProfileModel instance) =>
       'updated_at': instance.updatedAt?.toIso8601String(),
       'object_ids': instance.objectIds,
       'last_company_id': instance.lastCompanyId,
+      'is_owner': instance.isOwner,
     };

@@ -100,7 +100,7 @@ class SupabaseProfileDataSource implements ProfileDataSource {
           final memberData = await fetchWithRetry(
             () => client
                 .from('company_members')
-                .select('role_id, system_role, is_active')
+                .select('role_id, system_role, is_active, is_owner')
                 .eq('company_id', effectiveCompanyId.toString())
                 .eq('user_id', userId)
                 .maybeSingle(),
@@ -110,6 +110,7 @@ class SupabaseProfileDataSource implements ProfileDataSource {
             json['role_id'] = memberData['role_id'];
             json['system_role'] = memberData['system_role'];
             json['status'] = memberData['is_active'] ?? json['status'];
+            json['is_owner'] = memberData['is_owner'] ?? false;
             json['last_company_id'] = effectiveCompanyId;
           }
         } catch (e) {

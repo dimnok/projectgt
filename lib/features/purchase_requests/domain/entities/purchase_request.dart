@@ -1,3 +1,4 @@
+import 'package:projectgt/core/utils/user_display_utils.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_status.dart';
 
@@ -28,8 +29,5 @@ abstract class PurchaseRequest with _$PurchaseRequest {
   const PurchaseRequest._();
 
   /// Отображаемое имя инициатора.
-  String get initiatorLabel =>
-      (createdByName != null && createdByName!.trim().isNotEmpty)
-          ? createdByName!.trim()
-          : '—';
+  String get initiatorLabel => formatUserDisplayLabel(createdByName);
 }

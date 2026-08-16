@@ -1,3 +1,5 @@
+import 'package:projectgt/core/utils/user_display_utils.dart';
+
 /// Пользователь компании для выбора в настройках маршрута заявок.
 class PurchaseRequestCompanyUser {
   /// Создаёт пользователя.
@@ -21,15 +23,13 @@ class PurchaseRequestCompanyUser {
   final String? shortName;
 
   /// Подпись для выпадающего списка.
-  String get displayName {
-    if (shortName != null && shortName!.trim().isNotEmpty) {
-      return shortName!.trim();
-    }
-    if (fullName != null && fullName!.trim().isNotEmpty) {
-      return fullName!.trim();
-    }
-    return email;
-  }
+  String get displayName =>
+      pickUserDisplayName(
+        shortName: shortName,
+        fullName: fullName,
+        email: email,
+      ) ??
+      email;
 
   /// Из строки RPC `purchase_request_company_users`.
   factory PurchaseRequestCompanyUser.fromRpcRow(Map<String, dynamic> json) {

@@ -1,4 +1,7 @@
+import 'package:projectgt/core/utils/user_display_utils.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request.dart';
+import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_file.dart';
+import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_invoice.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_item.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_settings.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_status.dart';
@@ -71,7 +74,7 @@ class PurchaseRequestModel {
 
   /// Из JSON (PostgREST / RPC).
   factory PurchaseRequestModel.fromJson(Map<String, dynamic> json) {
-    final statusRaw = json['status'] as String? ?? 'draft';
+    final statusRaw = json['status'] as String?;
     return PurchaseRequestModel(
       id: json['id'] as String,
       companyId: json['company_id'] as String,
@@ -81,8 +84,10 @@ class PurchaseRequestModel {
       createdBy: json['created_by'] as String,
       createdByName: _parseCreatedByName(json),
       currentAssigneeId: json['current_assignee_id'] as String?,
-      status: PurchaseRequestStatusX.fromDb(statusRaw) ??
-          PurchaseRequestStatus.draft,
+      status: PurchaseRequestStatusX.parseFromDb(
+        statusRaw,
+        context: 'PurchaseRequestModel',
+      ),
       comment: json['comment'] as String?,
       totalAmount: (json['total_amount'] as num?)?.toDouble() ?? 0,
       createdAt: _parseDateTime(json['created_at']),
@@ -124,13 +129,8 @@ class PurchaseRequestModel {
     }
 
     final profile = json['profiles'];
-    if (profile is! Map) return null;
-
-    for (final key in ['short_name', 'full_name', 'email']) {
-      final value = profile[key] as String?;
-      if (value != null && value.trim().isNotEmpty) {
-        return value.trim();
-      }
+    if (profile is Map) {
+      return pickProfileDisplayName(Map<String, dynamic>.from(profile));
     }
     return null;
   }
@@ -207,18 +207,6 @@ class PurchaseRequestItemModel {
         sortOrder: sortOrder,
         createdAt: createdAt,
       );
-
-  /// JSON для insert/update.
-  Map<String, dynamic> toWriteJson({required String companyId}) => {
-        'company_id': companyId,
-        'request_id': requestId,
-        'name': name,
-        'quantity': quantity,
-        'unit': unit,
-        'article': article,
-        'comment': comment,
-        'sort_order': sortOrder,
-      };
 }
 
 /// Модель настроек модуля.
@@ -279,5 +267,197 @@ class PurchaseRequestSettingsModel {
         accountantId: accountantId,
         receiverMode: receiverMode,
         fixedReceiverId: fixedReceiverId,
+      );
+}
+
+/// Bucket Supabase Storage для файлов заявок.
+const purchaseRequestsStorageBucket = 'purchase_requests';
+
+/// Модель файла заявки.
+class PurchaseRequestFileModel {
+  /// Создаёт модель файла.
+  const PurchaseRequestFileModel({
+    required this.id,
+    required this.requestId,
+    required this.type,
+    required this.storagePath,
+    required this.fileName,
+    this.invoiceId,
+    this.mimeType,
+    this.size,
+    this.createdAt,
+  });
+
+  /// Идентификатор.
+  final String id;
+
+  /// Заявка.
+  final String requestId;
+
+  /// Счёт.
+  final String? invoiceId;
+
+  /// Тип.
+  final String type;
+
+  /// Путь в Storage.
+  final String storagePath;
+
+  /// Имя файла.
+  final String fileName;
+
+  /// MIME.
+  final String? mimeType;
+
+  /// Размер.
+  final int? size;
+
+  /// Дата создания.
+  final DateTime? createdAt;
+
+  /// Из JSON PostgREST.
+  factory PurchaseRequestFileModel.fromJson(Map<String, dynamic> json) {
+    return PurchaseRequestFileModel(
+      id: json['id'] as String,
+      requestId: json['request_id'] as String,
+      invoiceId: json['invoice_id'] as String?,
+      type: json['type'] as String,
+      storagePath: json['storage_path'] as String,
+      fileName: json['file_name'] as String,
+      mimeType: json['mime_type'] as String?,
+      size: (json['size'] as num?)?.toInt(),
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
+          : null,
+    );
+  }
+
+  /// В domain.
+  PurchaseRequestFile toDomain() => PurchaseRequestFile(
+        id: id,
+        requestId: requestId,
+        invoiceId: invoiceId,
+        type: type,
+        storagePath: storagePath,
+        fileName: fileName,
+        mimeType: mimeType,
+        size: size,
+        createdAt: createdAt,
+      );
+}
+
+/// Модель счёта заявки.
+class PurchaseRequestInvoiceModel {
+  /// Создаёт модель счёта.
+  const PurchaseRequestInvoiceModel({
+    required this.id,
+    required this.requestId,
+    required this.companyId,
+    required this.supplierId,
+    this.supplierName,
+    required this.amount,
+    this.invoiceNumber,
+    this.invoiceDate,
+    this.comment,
+    this.createdAt,
+    this.invoiceFile,
+  });
+
+  /// Идентификатор.
+  final String id;
+
+  /// Заявка.
+  final String requestId;
+
+  /// Компания.
+  final String companyId;
+
+  /// Поставщик.
+  final String supplierId;
+
+  /// Название поставщика.
+  final String? supplierName;
+
+  /// Сумма.
+  final double amount;
+
+  /// Номер счёта.
+  final String? invoiceNumber;
+
+  /// Дата счёта.
+  final DateTime? invoiceDate;
+
+  /// Комментарий.
+  final String? comment;
+
+  /// Создан.
+  final DateTime? createdAt;
+
+  /// Файл счёта.
+  final PurchaseRequestFileModel? invoiceFile;
+
+  /// Из JSON с embed `contractors`.
+  factory PurchaseRequestInvoiceModel.fromJson(Map<String, dynamic> json) {
+    final contractor = json['contractors'];
+    String? supplierName;
+    if (contractor is Map) {
+      supplierName = pickUserDisplayName(
+        shortName: contractor['short_name'] as String?,
+        fullName: contractor['full_name'] as String?,
+      );
+    }
+
+    DateTime? invoiceDate;
+    final dateRaw = json['invoice_date'];
+    if (dateRaw is String && dateRaw.isNotEmpty) {
+      invoiceDate = DateTime.parse(dateRaw);
+    }
+
+    return PurchaseRequestInvoiceModel(
+      id: json['id'] as String,
+      requestId: json['request_id'] as String,
+      companyId: json['company_id'] as String,
+      supplierId: json['supplier_id'] as String,
+      supplierName: supplierName,
+      amount: (json['amount'] as num).toDouble(),
+      invoiceNumber: json['invoice_number'] as String?,
+      invoiceDate: invoiceDate,
+      comment: json['comment'] as String?,
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
+          : null,
+    );
+  }
+
+  /// Копия с файлом.
+  PurchaseRequestInvoiceModel copyWithFile(PurchaseRequestFileModel? file) {
+    return PurchaseRequestInvoiceModel(
+      id: id,
+      requestId: requestId,
+      companyId: companyId,
+      supplierId: supplierId,
+      supplierName: supplierName,
+      amount: amount,
+      invoiceNumber: invoiceNumber,
+      invoiceDate: invoiceDate,
+      comment: comment,
+      createdAt: createdAt,
+      invoiceFile: file,
+    );
+  }
+
+  /// В domain.
+  PurchaseRequestInvoice toDomain() => PurchaseRequestInvoice(
+        id: id,
+        requestId: requestId,
+        companyId: companyId,
+        supplierId: supplierId,
+        supplierName: supplierName,
+        amount: amount,
+        invoiceNumber: invoiceNumber,
+        invoiceDate: invoiceDate,
+        comment: comment,
+        createdAt: createdAt,
+        invoiceFile: invoiceFile?.toDomain(),
       );
 }

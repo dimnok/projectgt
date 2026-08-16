@@ -87,3 +87,8 @@ final companyInvitationsProvider =
   if (companyId == null) return [];
   return ref.read(companyRepositoryProvider).listInvitations(companyId);
 });
+
+/// Проверка владельца активной компании (`company_members.is_owner`).
+final isCompanyOwnerProvider = Provider<bool>((ref) {
+  return ref.watch(currentUserProfileProvider).profile?.isOwner == true;
+});

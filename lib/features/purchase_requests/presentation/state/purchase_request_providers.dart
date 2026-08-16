@@ -7,12 +7,16 @@ import 'package:projectgt/features/company/presentation/providers/company_provid
 import 'package:projectgt/features/purchase_requests/data/repositories/purchase_request_repository_impl.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_history_entry.dart';
+import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_invoice.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_item.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_list_item.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_company_user.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_settings.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_status.dart';
 import 'package:projectgt/features/purchase_requests/domain/repositories/purchase_request_repository.dart';
+
+/// Лимит записей в одной загрузке списка заявок.
+const kPurchaseRequestListLimit = 50;
 
 /// Репозиторий заявок на закупку.
 final purchaseRequestRepositoryProvider =
@@ -31,6 +35,7 @@ class PurchaseRequestListState {
     this.error,
     this.filter = PurchaseRequestListFilter.onMe,
     this.search,
+    this.isTruncatedByLimit = false,
   });
 
   /// Элементы реестра.
@@ -48,6 +53,9 @@ class PurchaseRequestListState {
   /// Строка поиска.
   final String? search;
 
+  /// Список обрезан лимитом [kPurchaseRequestListLimit].
+  final bool isTruncatedByLimit;
+
   /// Копия с изменениями.
   PurchaseRequestListState copyWith({
     List<PurchaseRequestListItem>? items,
@@ -55,6 +63,7 @@ class PurchaseRequestListState {
     String? error,
     PurchaseRequestListFilter? filter,
     String? search,
+    bool? isTruncatedByLimit,
     bool clearError = false,
     bool clearSearch = false,
   }) {
@@ -64,6 +73,7 @@ class PurchaseRequestListState {
       error: clearError ? null : (error ?? this.error),
       filter: filter ?? this.filter,
       search: clearSearch ? null : (search ?? this.search),
+      isTruncatedByLimit: isTruncatedByLimit ?? this.isTruncatedByLimit,
     );
   }
 }
@@ -123,8 +133,14 @@ class PurchaseRequestListNotifier extends StateNotifier<PurchaseRequestListState
       final items = await _repository.list(
         filter: state.filter,
         search: state.search,
+        limit: kPurchaseRequestListLimit,
       );
-      state = state.copyWith(items: items, isLoading: false, clearError: true);
+      state = state.copyWith(
+        items: items,
+        isLoading: false,
+        isTruncatedByLimit: items.length >= kPurchaseRequestListLimit,
+        clearError: true,
+      );
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
@@ -165,6 +181,13 @@ final purchaseRequestHistoryProvider = FutureProvider.autoDispose
   return repo.getHistory(requestId);
 });
 
+/// Счета заявки.
+final purchaseRequestInvoicesProvider = FutureProvider.autoDispose
+    .family<List<PurchaseRequestInvoice>, String>((ref, requestId) async {
+  final repo = ref.watch(purchaseRequestRepositoryProvider);
+  return repo.getInvoices(requestId);
+});
+
 /// Настройки модуля.
 final purchaseRequestSettingsProvider =
     FutureProvider.autoDispose<PurchaseRequestSettings?>((ref) async {
@@ -184,5 +207,6 @@ void invalidatePurchaseRequestCaches(WidgetRef ref, String requestId) {
   ref.invalidate(purchaseRequestDetailsProvider(requestId));
   ref.invalidate(purchaseRequestHistoryProvider(requestId));
   ref.invalidate(purchaseRequestItemsProvider(requestId));
+  ref.invalidate(purchaseRequestInvoicesProvider(requestId));
   ref.invalidate(purchaseRequestListProvider);
 }

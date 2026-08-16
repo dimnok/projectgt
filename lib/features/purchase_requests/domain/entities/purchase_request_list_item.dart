@@ -1,3 +1,4 @@
+import 'package:projectgt/core/utils/user_display_utils.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_status.dart';
 
 /// Строка реестра заявок (лёгкая модель из RPC `purchase_request_list`).
@@ -55,10 +56,7 @@ class PurchaseRequestListItem {
   final int itemsCount;
 
   /// Отображаемое имя инициатора.
-  String get initiatorLabel =>
-      (createdByName != null && createdByName!.trim().isNotEmpty)
-          ? createdByName!.trim()
-          : '—';
+  String get initiatorLabel => formatUserDisplayLabel(createdByName);
 
   /// Короткая подпись позиций для карточки.
   String get shortItemsLabel {
@@ -70,9 +68,11 @@ class PurchaseRequestListItem {
 
   /// Маппинг строки RPC.
   factory PurchaseRequestListItem.fromRpcRow(Map<String, dynamic> json) {
-    final statusRaw = json['status'] as String? ?? 'draft';
-    final status = PurchaseRequestStatusX.fromDb(statusRaw) ??
-        PurchaseRequestStatus.draft;
+    final statusRaw = json['status'] as String?;
+    final status = PurchaseRequestStatusX.parseFromDb(
+      statusRaw,
+      context: 'PurchaseRequestListItem',
+    );
 
     return PurchaseRequestListItem(
       id: json['id'] as String,

@@ -6,6 +6,7 @@ import 'package:projectgt/core/widgets/gt_text_field.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_status.dart';
 import 'package:projectgt/core/utils/supabase_error_message.dart';
+import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_invoice_utils.dart';
 import 'package:projectgt/features/purchase_requests/presentation/state/purchase_request_providers.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
 
@@ -60,9 +61,6 @@ class PurchaseRequestActionSet {
   final bool canEditItems;
 }
 
-/// UI счетов ещё не реализован — кнопка отправки скрыта до появления экрана счетов.
-const _kInvoicesUiEnabled = false;
-
 /// Вычисляет доступные действия.
 PurchaseRequestActionSet resolvePurchaseRequestActions({
   required PurchaseRequest request,
@@ -91,8 +89,7 @@ PurchaseRequestActionSet resolvePurchaseRequestActions({
     canReturn: isAssignee &&
         permissions.can('purchase_requests', 'approve') &&
         status == PurchaseRequestStatus.approval,
-    canSubmitInvoices: _kInvoicesUiEnabled &&
-        isAssignee &&
+    canSubmitInvoices: isAssignee &&
         permissions.can('purchase_requests', 'prepare_invoice') &&
         status == PurchaseRequestStatus.invoicePreparation,
     canApproveInvoice: isAssignee &&
@@ -196,8 +193,13 @@ class _PurchaseRequestActionsBarState
     final repo = ref.read(purchaseRequestRepositoryProvider);
     final a = widget.actions;
     final itemsAsync = ref.watch(purchaseRequestItemsProvider(widget.requestId));
+    final invoicesAsync =
+        ref.watch(purchaseRequestInvoicesProvider(widget.requestId));
     final itemsCount = itemsAsync.valueOrNull?.length ?? 0;
+    final invoices = invoicesAsync.valueOrNull ?? const [];
     final canSubmitNow = a.canSubmit && itemsCount > 0;
+    final canSubmitInvoicesNow =
+        a.canSubmitInvoices && purchaseRequestInvoicesReadyForSubmit(invoices);
 
     if (!a.canSubmit &&
         !a.canApprove &&
@@ -234,6 +236,30 @@ class _PurchaseRequestActionsBarState
                 Expanded(
                   child: Text(
                     'Добавьте хотя бы одну позицию перед отправкой',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.error,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        if (a.canSubmitInvoices && !purchaseRequestInvoicesReadyForSubmit(invoices))
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.info_outline_rounded,
+                  size: 16,
+                  color: theme.colorScheme.error,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    invoices.isEmpty
+                        ? 'Добавьте счёт с файлом в секции «Счета»'
+                        : 'Для каждого счёта нужен прикреплённый файл',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.error,
                     ),
@@ -290,7 +316,7 @@ class _PurchaseRequestActionsBarState
                 GTPrimaryButton(
                   text: 'Отправить на согласование',
                   isLoading: _busy,
-                  onPressed: _busy
+                  onPressed: !canSubmitInvoicesNow || _busy
                       ? null
                       : () => _run(repo.submitInvoices(widget.requestId)),
                 ),

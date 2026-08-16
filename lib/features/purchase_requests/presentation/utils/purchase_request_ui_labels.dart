@@ -44,6 +44,8 @@ abstract final class PurchaseRequestUiLabels {
         dark ? const Color(0xFFA5D6A7) : const Color(0xFF1B5E20),
       PurchaseRequestStatus.cancelled =>
         dark ? const Color(0xFFEF9A9A) : const Color(0xFFC62828),
+      PurchaseRequestStatus.unknown =>
+        dark ? const Color(0xFFBCAAA4) : const Color(0xFF6D4C41),
     };
   }
 }

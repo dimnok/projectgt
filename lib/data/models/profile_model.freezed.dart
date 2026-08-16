@@ -16,7 +16,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$ProfileModel {
 
- String get id; String get email;@JsonKey(name: 'full_name') String? get fullName;@JsonKey(name: 'short_name') String? get shortName;@JsonKey(name: 'photo_url') String? get photoUrl; String? get phone; String? get position; String? get roleId; String? get systemRole; bool get status; Map<String, dynamic>? get object;@JsonKey(name: 'created_at') DateTime? get createdAt;@JsonKey(name: 'updated_at') DateTime? get updatedAt;@JsonKey(name: 'object_ids') List<String>? get objectIds;@JsonKey(name: 'last_company_id') String? get lastCompanyId;
+ String get id; String get email;@JsonKey(name: 'full_name') String? get fullName;@JsonKey(name: 'short_name') String? get shortName;@JsonKey(name: 'photo_url') String? get photoUrl; String? get phone; String? get position; String? get roleId; String? get systemRole; bool get status; Map<String, dynamic>? get object;@JsonKey(name: 'created_at') DateTime? get createdAt;@JsonKey(name: 'updated_at') DateTime? get updatedAt;@JsonKey(name: 'object_ids') List<String>? get objectIds;@JsonKey(name: 'last_company_id') String? get lastCompanyId;@JsonKey(name: 'is_owner') bool get isOwner;
 /// Create a copy of ProfileModel
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -29,16 +29,16 @@ $ProfileModelCopyWith<ProfileModel> get copyWith => _$ProfileModelCopyWithImpl<P
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProfileModel&&(identical(other.id, id) || other.id == id)&&(identical(other.email, email) || other.email == email)&&(identical(other.fullName, fullName) || other.fullName == fullName)&&(identical(other.shortName, shortName) || other.shortName == shortName)&&(identical(other.photoUrl, photoUrl) || other.photoUrl == photoUrl)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.position, position) || other.position == position)&&(identical(other.roleId, roleId) || other.roleId == roleId)&&(identical(other.systemRole, systemRole) || other.systemRole == systemRole)&&(identical(other.status, status) || other.status == status)&&const DeepCollectionEquality().equals(other.object, object)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&const DeepCollectionEquality().equals(other.objectIds, objectIds)&&(identical(other.lastCompanyId, lastCompanyId) || other.lastCompanyId == lastCompanyId));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProfileModel&&(identical(other.id, id) || other.id == id)&&(identical(other.email, email) || other.email == email)&&(identical(other.fullName, fullName) || other.fullName == fullName)&&(identical(other.shortName, shortName) || other.shortName == shortName)&&(identical(other.photoUrl, photoUrl) || other.photoUrl == photoUrl)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.position, position) || other.position == position)&&(identical(other.roleId, roleId) || other.roleId == roleId)&&(identical(other.systemRole, systemRole) || other.systemRole == systemRole)&&(identical(other.status, status) || other.status == status)&&const DeepCollectionEquality().equals(other.object, object)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&const DeepCollectionEquality().equals(other.objectIds, objectIds)&&(identical(other.lastCompanyId, lastCompanyId) || other.lastCompanyId == lastCompanyId)&&(identical(other.isOwner, isOwner) || other.isOwner == isOwner));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,email,fullName,shortName,photoUrl,phone,position,roleId,systemRole,status,const DeepCollectionEquality().hash(object),createdAt,updatedAt,const DeepCollectionEquality().hash(objectIds),lastCompanyId);
+int get hashCode => Object.hash(runtimeType,id,email,fullName,shortName,photoUrl,phone,position,roleId,systemRole,status,const DeepCollectionEquality().hash(object),createdAt,updatedAt,const DeepCollectionEquality().hash(objectIds),lastCompanyId,isOwner);
 
 @override
 String toString() {
-  return 'ProfileModel(id: $id, email: $email, fullName: $fullName, shortName: $shortName, photoUrl: $photoUrl, phone: $phone, position: $position, roleId: $roleId, systemRole: $systemRole, status: $status, object: $object, createdAt: $createdAt, updatedAt: $updatedAt, objectIds: $objectIds, lastCompanyId: $lastCompanyId)';
+  return 'ProfileModel(id: $id, email: $email, fullName: $fullName, shortName: $shortName, photoUrl: $photoUrl, phone: $phone, position: $position, roleId: $roleId, systemRole: $systemRole, status: $status, object: $object, createdAt: $createdAt, updatedAt: $updatedAt, objectIds: $objectIds, lastCompanyId: $lastCompanyId, isOwner: $isOwner)';
 }
 
 
@@ -49,7 +49,7 @@ abstract mixin class $ProfileModelCopyWith<$Res>  {
   factory $ProfileModelCopyWith(ProfileModel value, $Res Function(ProfileModel) _then) = _$ProfileModelCopyWithImpl;
 @useResult
 $Res call({
- String id, String email,@JsonKey(name: 'full_name') String? fullName,@JsonKey(name: 'short_name') String? shortName,@JsonKey(name: 'photo_url') String? photoUrl, String? phone, String? position, String? roleId, String? systemRole, bool status, Map<String, dynamic>? object,@JsonKey(name: 'created_at') DateTime? createdAt,@JsonKey(name: 'updated_at') DateTime? updatedAt,@JsonKey(name: 'object_ids') List<String>? objectIds,@JsonKey(name: 'last_company_id') String? lastCompanyId
+ String id, String email,@JsonKey(name: 'full_name') String? fullName,@JsonKey(name: 'short_name') String? shortName,@JsonKey(name: 'photo_url') String? photoUrl, String? phone, String? position, String? roleId, String? systemRole, bool status, Map<String, dynamic>? object,@JsonKey(name: 'created_at') DateTime? createdAt,@JsonKey(name: 'updated_at') DateTime? updatedAt,@JsonKey(name: 'object_ids') List<String>? objectIds,@JsonKey(name: 'last_company_id') String? lastCompanyId,@JsonKey(name: 'is_owner') bool isOwner
 });
 
 
@@ -66,7 +66,7 @@ class _$ProfileModelCopyWithImpl<$Res>
 
 /// Create a copy of ProfileModel
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? email = null,Object? fullName = freezed,Object? shortName = freezed,Object? photoUrl = freezed,Object? phone = freezed,Object? position = freezed,Object? roleId = freezed,Object? systemRole = freezed,Object? status = null,Object? object = freezed,Object? createdAt = freezed,Object? updatedAt = freezed,Object? objectIds = freezed,Object? lastCompanyId = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? email = null,Object? fullName = freezed,Object? shortName = freezed,Object? photoUrl = freezed,Object? phone = freezed,Object? position = freezed,Object? roleId = freezed,Object? systemRole = freezed,Object? status = null,Object? object = freezed,Object? createdAt = freezed,Object? updatedAt = freezed,Object? objectIds = freezed,Object? lastCompanyId = freezed,Object? isOwner = null,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,email: null == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
@@ -83,7 +83,8 @@ as Map<String, dynamic>?,createdAt: freezed == createdAt ? _self.createdAt : cre
 as DateTime?,updatedAt: freezed == updatedAt ? _self.updatedAt : updatedAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,objectIds: freezed == objectIds ? _self.objectIds : objectIds // ignore: cast_nullable_to_non_nullable
 as List<String>?,lastCompanyId: freezed == lastCompanyId ? _self.lastCompanyId : lastCompanyId // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,isOwner: null == isOwner ? _self.isOwner : isOwner // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 
@@ -94,7 +95,7 @@ as String?,
 
 @JsonSerializable(explicitToJson: true, fieldRename: FieldRename.snake)
 class _ProfileModel extends ProfileModel {
-  const _ProfileModel({required this.id, required this.email, @JsonKey(name: 'full_name') this.fullName, @JsonKey(name: 'short_name') this.shortName, @JsonKey(name: 'photo_url') this.photoUrl, this.phone, this.position, this.roleId, this.systemRole, this.status = true, final  Map<String, dynamic>? object, @JsonKey(name: 'created_at') this.createdAt, @JsonKey(name: 'updated_at') this.updatedAt, @JsonKey(name: 'object_ids') final  List<String>? objectIds, @JsonKey(name: 'last_company_id') this.lastCompanyId}): _object = object,_objectIds = objectIds,super._();
+  const _ProfileModel({required this.id, required this.email, @JsonKey(name: 'full_name') this.fullName, @JsonKey(name: 'short_name') this.shortName, @JsonKey(name: 'photo_url') this.photoUrl, this.phone, this.position, this.roleId, this.systemRole, this.status = true, final  Map<String, dynamic>? object, @JsonKey(name: 'created_at') this.createdAt, @JsonKey(name: 'updated_at') this.updatedAt, @JsonKey(name: 'object_ids') final  List<String>? objectIds, @JsonKey(name: 'last_company_id') this.lastCompanyId, @JsonKey(name: 'is_owner') this.isOwner = false}): _object = object,_objectIds = objectIds,super._();
   factory _ProfileModel.fromJson(Map<String, dynamic> json) => _$ProfileModelFromJson(json);
 
 @override final  String id;
@@ -128,6 +129,7 @@ class _ProfileModel extends ProfileModel {
 }
 
 @override@JsonKey(name: 'last_company_id') final  String? lastCompanyId;
+@override@JsonKey(name: 'is_owner') final  bool isOwner;
 
 /// Create a copy of ProfileModel
 /// with the given fields replaced by the non-null parameter values.
@@ -142,16 +144,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ProfileModel&&(identical(other.id, id) || other.id == id)&&(identical(other.email, email) || other.email == email)&&(identical(other.fullName, fullName) || other.fullName == fullName)&&(identical(other.shortName, shortName) || other.shortName == shortName)&&(identical(other.photoUrl, photoUrl) || other.photoUrl == photoUrl)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.position, position) || other.position == position)&&(identical(other.roleId, roleId) || other.roleId == roleId)&&(identical(other.systemRole, systemRole) || other.systemRole == systemRole)&&(identical(other.status, status) || other.status == status)&&const DeepCollectionEquality().equals(other._object, _object)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&const DeepCollectionEquality().equals(other._objectIds, _objectIds)&&(identical(other.lastCompanyId, lastCompanyId) || other.lastCompanyId == lastCompanyId));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ProfileModel&&(identical(other.id, id) || other.id == id)&&(identical(other.email, email) || other.email == email)&&(identical(other.fullName, fullName) || other.fullName == fullName)&&(identical(other.shortName, shortName) || other.shortName == shortName)&&(identical(other.photoUrl, photoUrl) || other.photoUrl == photoUrl)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.position, position) || other.position == position)&&(identical(other.roleId, roleId) || other.roleId == roleId)&&(identical(other.systemRole, systemRole) || other.systemRole == systemRole)&&(identical(other.status, status) || other.status == status)&&const DeepCollectionEquality().equals(other._object, _object)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&const DeepCollectionEquality().equals(other._objectIds, _objectIds)&&(identical(other.lastCompanyId, lastCompanyId) || other.lastCompanyId == lastCompanyId)&&(identical(other.isOwner, isOwner) || other.isOwner == isOwner));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,email,fullName,shortName,photoUrl,phone,position,roleId,systemRole,status,const DeepCollectionEquality().hash(_object),createdAt,updatedAt,const DeepCollectionEquality().hash(_objectIds),lastCompanyId);
+int get hashCode => Object.hash(runtimeType,id,email,fullName,shortName,photoUrl,phone,position,roleId,systemRole,status,const DeepCollectionEquality().hash(_object),createdAt,updatedAt,const DeepCollectionEquality().hash(_objectIds),lastCompanyId,isOwner);
 
 @override
 String toString() {
-  return 'ProfileModel(id: $id, email: $email, fullName: $fullName, shortName: $shortName, photoUrl: $photoUrl, phone: $phone, position: $position, roleId: $roleId, systemRole: $systemRole, status: $status, object: $object, createdAt: $createdAt, updatedAt: $updatedAt, objectIds: $objectIds, lastCompanyId: $lastCompanyId)';
+  return 'ProfileModel(id: $id, email: $email, fullName: $fullName, shortName: $shortName, photoUrl: $photoUrl, phone: $phone, position: $position, roleId: $roleId, systemRole: $systemRole, status: $status, object: $object, createdAt: $createdAt, updatedAt: $updatedAt, objectIds: $objectIds, lastCompanyId: $lastCompanyId, isOwner: $isOwner)';
 }
 
 
@@ -162,7 +164,7 @@ abstract mixin class _$ProfileModelCopyWith<$Res> implements $ProfileModelCopyWi
   factory _$ProfileModelCopyWith(_ProfileModel value, $Res Function(_ProfileModel) _then) = __$ProfileModelCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String email,@JsonKey(name: 'full_name') String? fullName,@JsonKey(name: 'short_name') String? shortName,@JsonKey(name: 'photo_url') String? photoUrl, String? phone, String? position, String? roleId, String? systemRole, bool status, Map<String, dynamic>? object,@JsonKey(name: 'created_at') DateTime? createdAt,@JsonKey(name: 'updated_at') DateTime? updatedAt,@JsonKey(name: 'object_ids') List<String>? objectIds,@JsonKey(name: 'last_company_id') String? lastCompanyId
+ String id, String email,@JsonKey(name: 'full_name') String? fullName,@JsonKey(name: 'short_name') String? shortName,@JsonKey(name: 'photo_url') String? photoUrl, String? phone, String? position, String? roleId, String? systemRole, bool status, Map<String, dynamic>? object,@JsonKey(name: 'created_at') DateTime? createdAt,@JsonKey(name: 'updated_at') DateTime? updatedAt,@JsonKey(name: 'object_ids') List<String>? objectIds,@JsonKey(name: 'last_company_id') String? lastCompanyId,@JsonKey(name: 'is_owner') bool isOwner
 });
 
 
@@ -179,7 +181,7 @@ class __$ProfileModelCopyWithImpl<$Res>
 
 /// Create a copy of ProfileModel
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? email = null,Object? fullName = freezed,Object? shortName = freezed,Object? photoUrl = freezed,Object? phone = freezed,Object? position = freezed,Object? roleId = freezed,Object? systemRole = freezed,Object? status = null,Object? object = freezed,Object? createdAt = freezed,Object? updatedAt = freezed,Object? objectIds = freezed,Object? lastCompanyId = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? email = null,Object? fullName = freezed,Object? shortName = freezed,Object? photoUrl = freezed,Object? phone = freezed,Object? position = freezed,Object? roleId = freezed,Object? systemRole = freezed,Object? status = null,Object? object = freezed,Object? createdAt = freezed,Object? updatedAt = freezed,Object? objectIds = freezed,Object? lastCompanyId = freezed,Object? isOwner = null,}) {
   return _then(_ProfileModel(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,email: null == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
@@ -196,7 +198,8 @@ as Map<String, dynamic>?,createdAt: freezed == createdAt ? _self.createdAt : cre
 as DateTime?,updatedAt: freezed == updatedAt ? _self.updatedAt : updatedAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,objectIds: freezed == objectIds ? _self._objectIds : objectIds // ignore: cast_nullable_to_non_nullable
 as List<String>?,lastCompanyId: freezed == lastCompanyId ? _self.lastCompanyId : lastCompanyId // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,isOwner: null == isOwner ? _self.isOwner : isOwner // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 

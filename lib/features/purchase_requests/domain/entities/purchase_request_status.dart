@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 /// Статусы заявки на закупку (значения в БД).
 enum PurchaseRequestStatus {
   /// Черновик.
@@ -29,6 +31,9 @@ enum PurchaseRequestStatus {
 
   /// Отменено.
   cancelled,
+
+  /// Неизвестный статус (не из БД, только для отображения при ошибке данных).
+  unknown,
 }
 
 /// Расширения для [PurchaseRequestStatus].
@@ -45,6 +50,7 @@ extension PurchaseRequestStatusX on PurchaseRequestStatus {
         PurchaseRequestStatus.paid => 'paid',
         PurchaseRequestStatus.received => 'received',
         PurchaseRequestStatus.cancelled => 'cancelled',
+        PurchaseRequestStatus.unknown => 'unknown',
       };
 
   /// Пользовательское название статуса.
@@ -59,15 +65,35 @@ extension PurchaseRequestStatusX on PurchaseRequestStatus {
         PurchaseRequestStatus.paid => 'Оплачено',
         PurchaseRequestStatus.received => 'Получено',
         PurchaseRequestStatus.cancelled => 'Отменено',
+        PurchaseRequestStatus.unknown => 'Неизвестный статус',
       };
 
   /// Парсинг из строки БД.
   static PurchaseRequestStatus? fromDb(String? value) {
     if (value == null) return null;
     for (final s in PurchaseRequestStatus.values) {
+      if (s == PurchaseRequestStatus.unknown) continue;
       if (s.dbValue == value) return s;
     }
     return null;
+  }
+
+  /// Парсинг из БД с логированием и [PurchaseRequestStatus.unknown] при сбое.
+  static PurchaseRequestStatus parseFromDb(
+    String? value, {
+    String? context,
+  }) {
+    final parsed = fromDb(value);
+    if (parsed != null) return parsed;
+
+    if (value != null && value.isNotEmpty) {
+      developer.log(
+        'Неизвестный статус заявки: $value'
+        '${context != null ? ' ($context)' : ''}',
+        name: 'PurchaseRequestStatus',
+      );
+    }
+    return PurchaseRequestStatus.unknown;
   }
 }
 

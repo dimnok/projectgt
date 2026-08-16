@@ -6,6 +6,8 @@ import 'package:projectgt/core/widgets/gt_text_field.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_status.dart';
 import 'package:projectgt/features/purchase_requests/presentation/state/purchase_request_providers.dart';
 import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_details_panel.dart';
+import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_filter_bar.dart';
+import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_list_limit_banner.dart';
 import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_requests_table.dart';
 
 /// Десктопное представление реестра заявок на закупку.
@@ -197,18 +199,12 @@ class _PurchaseRequestsSidebar extends StatelessWidget {
           Expanded(
             child: ListView(
               padding: const EdgeInsets.all(16),
-              children: PurchaseRequestListFilter.values.map((f) {
-                final selected = f == filter;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: _FilterTile(
-                    label: f.label,
-                    selected: selected,
-                    isDark: isDark,
-                    onTap: () => onFilterChanged(f),
-                  ),
-                );
-              }).toList(),
+              children: [
+                PurchaseRequestFilterBar.desktopSidebar(
+                  filter: filter,
+                  onChanged: onFilterChanged,
+                ),
+              ],
             ),
           ),
           if (isOwner) ...[
@@ -267,81 +263,22 @@ class _PurchaseRequestsContentPanel extends StatelessWidget {
                   showCloseButton: true,
                   onClose: onCloseDetails,
                 )
-              : PurchaseRequestsTable(
-                  items: listState.items,
-                  isLoading: listState.isLoading,
-                  selectedId: selectedRequestId,
-                  onRowTap: (item) => onSelectRequest(item.id),
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (listState.isTruncatedByLimit)
+                      const PurchaseRequestListLimitBanner(
+                        limit: kPurchaseRequestListLimit,
+                      ),
+                    Expanded(
+                      child: PurchaseRequestsTable(
+                        items: listState.items,
+                        isLoading: listState.isLoading,
+                        onRowTap: (item) => onSelectRequest(item.id),
+                      ),
+                    ),
+                  ],
                 ),
-    );
-  }
-}
-
-class _FilterTile extends StatelessWidget {
-  const _FilterTile({
-    required this.label,
-    required this.selected,
-    required this.isDark,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final bool isDark;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: selected
-                ? (isDark ? Colors.grey[800] : Colors.grey[100])
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: selected
-                  ? (isDark ? Colors.white24 : Colors.black12)
-                  : Colors.transparent,
-            ),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                selected
-                    ? CupertinoIcons.checkmark_circle_fill
-                    : CupertinoIcons.circle,
-                size: 18,
-                color: selected
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.onSurface.withValues(alpha: 0.4),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  label,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                  ),
-                ),
-              ),
-              if (selected)
-                Icon(
-                  CupertinoIcons.chevron_right,
-                  size: 14,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
-                ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

@@ -1,9 +1,14 @@
+import 'dart:typed_data';
+
 import 'package:projectgt/core/utils/formatters.dart';
+import 'package:projectgt/core/utils/user_display_utils.dart';
 import 'package:projectgt/features/purchase_requests/data/models/purchase_request_models.dart';
+import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_repository_exception.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_history_entry.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_company_user.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_item.dart';
+import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_invoice.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_list_item.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_settings.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_status.dart';
@@ -23,10 +28,18 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
 
   bool get _hasCompany => activeCompanyId.isNotEmpty;
 
+  void _requireCompany() {
+    if (!_hasCompany) {
+      throw const PurchaseRequestCompanyRequiredException();
+    }
+  }
+
   static const _requestsTable = 'purchase_requests';
   static const _itemsTable = 'purchase_request_items';
   static const _historyTable = 'purchase_request_history';
   static const _settingsTable = 'purchase_request_settings';
+  static const _invoicesTable = 'purchase_request_invoices';
+  static const _filesTable = 'purchase_request_files';
 
   static const _requestSelect = '*, objects:object_id(name)';
 
@@ -39,15 +52,8 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
     return names[userId];
   }
 
-  String? _pickProfileName(Map<String, dynamic> profile) {
-    for (final key in ['short_name', 'full_name', 'email']) {
-      final value = profile[key] as String?;
-      if (value != null && value.trim().isNotEmpty) {
-        return value.trim();
-      }
-    }
-    return null;
-  }
+  String? _pickProfileName(Map<String, dynamic> profile) =>
+      pickProfileDisplayName(profile);
 
   Future<Map<String, String>> _fetchUserNames(Set<String> userIds) async {
     if (userIds.isEmpty) return {};
@@ -191,6 +197,180 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
   }
 
   @override
+  Future<List<PurchaseRequestInvoice>> getInvoices(String requestId) async {
+    if (!_hasCompany) return [];
+
+    final invoiceRows = await client
+        .from(_invoicesTable)
+        .select('*, contractors:supplier_id(short_name, full_name)')
+        .eq('company_id', activeCompanyId)
+        .eq('request_id', requestId)
+        .order('created_at');
+
+    final fileRows = await client
+        .from(_filesTable)
+        .select()
+        .eq('company_id', activeCompanyId)
+        .eq('request_id', requestId)
+        .eq('type', 'invoice');
+
+    final filesByInvoice = <String, PurchaseRequestFileModel>{};
+    for (final row in fileRows as List) {
+      final model = PurchaseRequestFileModel.fromJson(
+        Map<String, dynamic>.from(row as Map),
+      );
+      final invoiceId = model.invoiceId;
+      if (invoiceId != null && !filesByInvoice.containsKey(invoiceId)) {
+        filesByInvoice[invoiceId] = model;
+      }
+    }
+
+    return (invoiceRows as List).map((row) {
+      final map = Map<String, dynamic>.from(row as Map);
+      final invoice = PurchaseRequestInvoiceModel.fromJson(map);
+      final file = filesByInvoice[invoice.id];
+      return invoice.copyWithFile(file).toDomain();
+    }).toList();
+  }
+
+  @override
+  Future<PurchaseRequestInvoice> createInvoiceWithFile({
+    required String requestId,
+    required String supplierId,
+    required double amount,
+    required List<int> fileBytes,
+    required String fileName,
+    String? invoiceNumber,
+    DateTime? invoiceDate,
+    String? comment,
+  }) async {
+    _requireCompany();
+
+    final userId = client.auth.currentUser?.id;
+    final invoiceRow = await client
+        .from(_invoicesTable)
+        .insert({
+          'company_id': activeCompanyId,
+          'request_id': requestId,
+          'supplier_id': supplierId,
+          'amount': amount,
+          'invoice_number': invoiceNumber,
+          'invoice_date':
+              invoiceDate != null ? dateOnlyToJson(invoiceDate) : null,
+          'comment': comment,
+          if (userId != null) 'created_by': userId,
+        })
+        .select('*, contractors:supplier_id(short_name, full_name)')
+        .single();
+
+    final invoiceMap = Map<String, dynamic>.from(invoiceRow);
+    final invoiceId = invoiceMap['id'] as String;
+
+    try {
+      final fileModel = await _uploadInvoiceFile(
+        requestId: requestId,
+        invoiceId: invoiceId,
+        bytes: fileBytes,
+        fileName: fileName,
+      );
+      final invoice = PurchaseRequestInvoiceModel.fromJson(invoiceMap);
+      return invoice.copyWithFile(fileModel).toDomain();
+    } catch (error) {
+      await client
+          .from(_invoicesTable)
+          .delete()
+          .eq('company_id', activeCompanyId)
+          .eq('id', invoiceId);
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> deleteInvoice(String invoiceId) async {
+    _requireCompany();
+
+    final files = await client
+        .from(_filesTable)
+        .select('storage_path')
+        .eq('company_id', activeCompanyId)
+        .eq('invoice_id', invoiceId);
+
+    final paths = (files as List)
+        .map((row) => (row as Map)['storage_path'] as String?)
+        .whereType<String>()
+        .toList();
+
+    await client
+        .from(_invoicesTable)
+        .delete()
+        .eq('company_id', activeCompanyId)
+        .eq('id', invoiceId);
+
+    if (paths.isNotEmpty) {
+      await client.storage.from(purchaseRequestsStorageBucket).remove(paths);
+    }
+  }
+
+  Future<PurchaseRequestFileModel> _uploadInvoiceFile({
+    required String requestId,
+    required String invoiceId,
+    required List<int> bytes,
+    required String fileName,
+  }) async {
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final safeName = _buildSafeStorageFileName(fileName);
+    final storagePath =
+        '$activeCompanyId/$requestId/invoices/$invoiceId/${timestamp}_$safeName';
+
+    await client.storage.from(purchaseRequestsStorageBucket).uploadBinary(
+          storagePath,
+          Uint8List.fromList(bytes),
+          fileOptions: FileOptions(
+            cacheControl: '3600',
+            upsert: false,
+            contentType: _contentTypeForFileName(fileName),
+          ),
+        );
+
+    final userId = client.auth.currentUser?.id;
+    final row = await client
+        .from(_filesTable)
+        .insert({
+          'company_id': activeCompanyId,
+          'request_id': requestId,
+          'invoice_id': invoiceId,
+          'type': 'invoice',
+          'storage_path': storagePath,
+          'file_name': fileName,
+          'mime_type': _contentTypeForFileName(fileName),
+          'size': bytes.length,
+          if (userId != null) 'uploaded_by': userId,
+        })
+        .select()
+        .single();
+
+    return PurchaseRequestFileModel.fromJson(
+      Map<String, dynamic>.from(row),
+    );
+  }
+
+  static String _buildSafeStorageFileName(String fileName) {
+    return fileName
+        .replaceAll(' ', '_')
+        .replaceAll(RegExp(r'[^a-zA-Z0-9_.-]'), '');
+  }
+
+  static String _contentTypeForFileName(String fileName) {
+    final extension = fileName.split('.').last.toLowerCase();
+    return switch (extension) {
+      'pdf' => 'application/pdf',
+      'jpg' || 'jpeg' => 'image/jpeg',
+      'png' => 'image/png',
+      _ => 'application/octet-stream',
+    };
+  }
+
+  @override
   Future<PurchaseRequestSettings?> getSettings() async {
     if (!_hasCompany) return null;
 
@@ -228,6 +408,13 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
   Future<PurchaseRequestSettings> upsertSettings(
     PurchaseRequestSettings settings,
   ) async {
+    _requireCompany();
+    if (settings.companyId != activeCompanyId) {
+      throw ArgumentError(
+        'companyId настроек не совпадает с активной компанией',
+      );
+    }
+
     final response = await client.rpc(
       'purchase_request_upsert_settings',
       params: {
@@ -251,6 +438,7 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
     required String objectId,
     String? comment,
   }) async {
+    _requireCompany();
     final id = await client.rpc(
       'purchase_request_create_draft',
       params: {
@@ -268,6 +456,7 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
     required String objectId,
     String? comment,
   }) async {
+    _requireCompany();
     await client.rpc(
       'purchase_request_update_header',
       params: {
@@ -280,6 +469,7 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
 
   @override
   Future<void> deleteDraft(String requestId) async {
+    _requireCompany();
     await client.rpc(
       'purchase_request_delete_draft',
       params: {'p_request_id': requestId},
@@ -295,6 +485,7 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
     String? article,
     String? comment,
   }) async {
+    _requireCompany();
     final row = await client
         .from(_itemsTable)
         .insert({
@@ -315,7 +506,18 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
   }
 
   @override
+  Future<void> deleteItem(String itemId) async {
+    _requireCompany();
+    await client
+        .from(_itemsTable)
+        .delete()
+        .eq('company_id', activeCompanyId)
+        .eq('id', itemId);
+  }
+
+  @override
   Future<PurchaseRequestItem> updateItem(PurchaseRequestItem item) async {
+    _requireCompany();
     final row = await client
         .from(_itemsTable)
         .update({
@@ -337,16 +539,8 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
   }
 
   @override
-  Future<void> deleteItem(String itemId) async {
-    await client
-        .from(_itemsTable)
-        .delete()
-        .eq('company_id', activeCompanyId)
-        .eq('id', itemId);
-  }
-
-  @override
   Future<PurchaseRequest> submit(String requestId, {String? comment}) async {
+    _requireCompany();
     final row = await client.rpc(
       'purchase_request_submit',
       params: {'p_request_id': requestId, 'p_comment': comment},
@@ -356,6 +550,7 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
 
   @override
   Future<PurchaseRequest> approve(String requestId, {String? comment}) async {
+    _requireCompany();
     final row = await client.rpc(
       'purchase_request_approve',
       params: {'p_request_id': requestId, 'p_comment': comment},
@@ -368,6 +563,7 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
     String requestId, {
     required String comment,
   }) async {
+    _requireCompany();
     final row = await client.rpc(
       'purchase_request_return',
       params: {'p_request_id': requestId, 'p_comment': comment},
@@ -377,6 +573,7 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
 
   @override
   Future<PurchaseRequest> submitInvoices(String requestId) async {
+    _requireCompany();
     final row = await client.rpc(
       'purchase_request_submit_invoices',
       params: {'p_request_id': requestId},
@@ -389,6 +586,7 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
     String requestId, {
     String? comment,
   }) async {
+    _requireCompany();
     final row = await client.rpc(
       'purchase_request_approve_invoice',
       params: {'p_request_id': requestId, 'p_comment': comment},
@@ -401,6 +599,7 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
     String requestId, {
     required String comment,
   }) async {
+    _requireCompany();
     final row = await client.rpc(
       'purchase_request_return_invoice',
       params: {'p_request_id': requestId, 'p_comment': comment},
@@ -413,6 +612,7 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
     String requestId, {
     String? comment,
   }) async {
+    _requireCompany();
     final row = await client.rpc(
       'purchase_request_queue_payment',
       params: {'p_request_id': requestId, 'p_comment': comment},
@@ -426,6 +626,7 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
     DateTime? paymentDate,
     String? comment,
   }) async {
+    _requireCompany();
     final row = await client.rpc(
       'purchase_request_mark_paid',
       params: {
@@ -444,6 +645,7 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
     DateTime? receivedDate,
     String? comment,
   }) async {
+    _requireCompany();
     final row = await client.rpc(
       'purchase_request_mark_received',
       params: {
@@ -461,6 +663,7 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
     String requestId, {
     required String comment,
   }) async {
+    _requireCompany();
     final row = await client.rpc(
       'purchase_request_cancel',
       params: {'p_request_id': requestId, 'p_comment': comment},
