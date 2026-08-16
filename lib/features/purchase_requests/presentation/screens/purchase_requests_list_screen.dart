@@ -135,6 +135,7 @@ class _PurchaseRequestsListScreenState
                   else if (useMobile && _selectedRequestId != null)
                     Expanded(
                       child: MobileAtmosphereMainSurface(
+                        padding: EdgeInsets.zero,
                         child: PurchaseRequestDetailsPanel(
                           requestId: _selectedRequestId!,
                         ),

@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_status.dart';
+import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_details_tokens.dart';
 
-/// Сводка по заявке: статус, даты, сумма, количество позиций, комментарий.
+/// Сводка по заявке: статус, сумма, количество позиций, комментарий.
 class PurchaseRequestDetailsSummary extends StatelessWidget {
   /// Создаёт блок сводки.
   const PurchaseRequestDetailsSummary({
@@ -25,56 +26,158 @@ class PurchaseRequestDetailsSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final borderColor = theme.colorScheme.outline.withValues(alpha: 0.12);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final useColumn =
+                constraints.maxWidth < PurchaseRequestDetailsTokens.kpiRowBreakpoint;
+
+            final statusCard = _KpiCard(
+              theme: theme,
+              accentColor: statusColor,
+              label: 'Статус',
+              value: request.status.displayName,
+              emphasized: true,
+              trailing: _StatusDot(color: statusColor),
+            );
+            final sumCard = _KpiCard(
+              theme: theme,
+              label: 'Сумма',
+              value: request.totalAmount > 0
+                  ? formatCurrency(request.totalAmount)
+                  : '—',
+              emphasized: request.totalAmount > 0,
+              icon: Icons.payments_outlined,
+            );
+            final countCard = _KpiCard(
+              theme: theme,
+              label: 'Позиций',
+              value: itemsCount != null ? '$itemsCount' : '—',
+              icon: Icons.inventory_2_outlined,
+            );
+
+            if (useColumn) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  statusCard,
+                  const SizedBox(height: PurchaseRequestDetailsTokens.kpiGap),
+                  sumCard,
+                  const SizedBox(height: PurchaseRequestDetailsTokens.kpiGap),
+                  countCard,
+                ],
+              );
+            }
+
+            return IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(flex: 5, child: statusCard),
+                  const SizedBox(width: PurchaseRequestDetailsTokens.kpiGap),
+                  Expanded(flex: 4, child: sumCard),
+                  const SizedBox(width: PurchaseRequestDetailsTokens.kpiGap),
+                  Expanded(flex: 3, child: countCard),
+                ],
+              ),
+            );
+          },
+        ),
+        if (request.status == PurchaseRequestStatus.revision) ...[
+          const SizedBox(height: 12),
+          _CalloutBanner(
+            icon: Icons.edit_note_outlined,
+            color: theme.colorScheme.tertiary,
+            text: 'Возвращено на доработку',
+          ),
+        ],
+        if (request.comment != null && request.comment!.trim().isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _CommentBlock(comment: request.comment!.trim()),
+        ],
+      ],
+    );
+  }
+}
+
+class _KpiCard extends StatelessWidget {
+  const _KpiCard({
+    required this.theme,
+    required this.label,
+    required this.value,
+    this.accentColor,
+    this.emphasized = false,
+    this.icon,
+    this.trailing,
+  });
+
+  final ThemeData theme;
+  final String label;
+  final String value;
+  final Color? accentColor;
+  final bool emphasized;
+  final IconData? icon;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = PurchaseRequestDetailsTokens.mutedText(theme);
 
     return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: borderColor),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+      decoration: PurchaseRequestDetailsTokens.cardDecoration(theme),
+      child: ClipRRect(
+        borderRadius:
+            BorderRadius.circular(PurchaseRequestDetailsTokens.cardRadius),
+        child: Row(
           children: [
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                _StatusBadge(
-                  label: request.status.displayName,
-                  color: statusColor,
+            if (accentColor != null) Container(width: 4, color: accentColor),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Row(
+                      children: [
+                        if (icon != null) ...[
+                          Icon(icon, size: 14, color: muted),
+                          const SizedBox(width: 6),
+                        ],
+                        Expanded(
+                          child: Text(
+                            label.toUpperCase(),
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: muted,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.6,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ),
+                        if (trailing != null) trailing!,
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      value,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight:
+                            emphasized ? FontWeight.w800 : FontWeight.w700,
+                        fontSize: emphasized ? 20 : 18,
+                        height: 1.1,
+                        color: accentColor ?? theme.colorScheme.onSurface,
+                      ),
+                    ),
+                  ],
                 ),
-                _SummaryChip(
-                  icon: Icons.payments_outlined,
-                  label: 'Сумма',
-                  value: request.totalAmount > 0
-                      ? formatCurrency(request.totalAmount)
-                      : '—',
-                  emphasized: request.totalAmount > 0,
-                ),
-                if (itemsCount != null)
-                  _SummaryChip(
-                    icon: Icons.format_list_numbered_outlined,
-                    label: 'Позиций',
-                    value: '$itemsCount',
-                  ),
-              ],
-            ),
-            if (request.status == PurchaseRequestStatus.revision) ...[
-              const SizedBox(height: 12),
-              _CalloutBanner(
-                icon: Icons.edit_note_outlined,
-                color: theme.colorScheme.tertiary,
-                text: 'Возвращено на доработку',
               ),
-            ],
-            if (request.comment != null && request.comment!.trim().isNotEmpty) ...[
-              const SizedBox(height: 12),
-              _CommentBlock(comment: request.comment!.trim()),
-            ],
+            ),
           ],
         ),
       ),
@@ -82,86 +185,19 @@ class PurchaseRequestDetailsSummary extends StatelessWidget {
   }
 }
 
-class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.label, required this.color});
+class _StatusDot extends StatelessWidget {
+  const _StatusDot({required this.color});
 
-  final String label;
   final Color color;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      width: 8,
+      height: 8,
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.22)),
-      ),
-      child: Text(
-        '● $label',
-        style: theme.textTheme.labelMedium?.copyWith(
-          color: color,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-}
-
-class _SummaryChip extends StatelessWidget {
-  const _SummaryChip({
-    required this.icon,
-    required this.label,
-    required this.value,
-    this.emphasized = false,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final bool emphasized;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final muted = theme.colorScheme.onSurface.withValues(alpha: 0.55);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.onSurface.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: theme.colorScheme.outline.withValues(alpha: 0.08),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: muted),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: muted,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 1),
-              Text(
-                value,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: emphasized ? FontWeight.w700 : FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ],
+        color: color,
+        shape: BoxShape.circle,
       ),
     );
   }
@@ -183,16 +219,17 @@ class _CalloutBanner extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
+        color: color.withValues(alpha: 0.08),
+        borderRadius:
+            BorderRadius.circular(PurchaseRequestDetailsTokens.cardRadius),
         border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
           Icon(icon, size: 18, color: color),
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
               text,
@@ -216,42 +253,39 @@ class _CommentBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final muted = theme.colorScheme.onSurface.withValues(alpha: 0.55);
+    final muted = PurchaseRequestDetailsTokens.mutedText(theme);
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.onSurface.withValues(alpha: 0.03),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: theme.colorScheme.outline.withValues(alpha: 0.08),
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.chat_bubble_outline, size: 18, color: muted),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Комментарий',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: muted,
-                    fontWeight: FontWeight.w600,
+    return DecoratedBox(
+      decoration: PurchaseRequestDetailsTokens.cardDecoration(theme),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.chat_bubble_outline, size: 18, color: muted),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Комментарий',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: muted,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.4,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  comment,
-                  style: theme.textTheme.bodyMedium?.copyWith(height: 1.4),
-                ),
-              ],
+                  const SizedBox(height: 4),
+                  Text(
+                    comment,
+                    style: theme.textTheme.bodyMedium?.copyWith(height: 1.45),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_item.dart';
+import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_details_tokens.dart';
 
-/// Таблица позиций заявки в стиле реестра: №, наименование, кол-во, ед. изм., артикул.
+/// Таблица позиций заявки: №, наименование, кол-во, ед. изм., артикул.
 class PurchaseRequestItemsTable extends StatelessWidget {
   /// Создаёт таблицу позиций.
   const PurchaseRequestItemsTable({
@@ -24,18 +25,15 @@ class PurchaseRequestItemsTable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final borderColor = theme.colorScheme.outline.withValues(alpha: 0.12);
-    final headerBg = theme.colorScheme.onSurface.withValues(alpha: 0.03);
-    final dividerColor = theme.colorScheme.outline.withValues(alpha: 0.08);
+    final borderColor = PurchaseRequestDetailsTokens.borderColor(theme);
+    final headerBg = PurchaseRequestDetailsTokens.tableHeaderBackground(theme);
+    final zebraBg = PurchaseRequestDetailsTokens.tableZebraBackground(theme);
 
     return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: borderColor),
-      ),
+      decoration: PurchaseRequestDetailsTokens.cardDecoration(theme),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius:
+            BorderRadius.circular(PurchaseRequestDetailsTokens.cardRadius),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -47,52 +45,55 @@ class PurchaseRequestItemsTable extends StatelessWidget {
                 index: _headerCell(theme, '№'),
                 name: _headerCell(theme, 'Наименование'),
                 qty: _headerCell(theme, 'Кол-во', align: TextAlign.end),
-                unit: _headerCell(theme, 'Ед. изм.'),
+                unit: _headerCell(theme, 'Ед.'),
                 article: _headerCell(theme, 'Артикул'),
                 action: const SizedBox.shrink(),
-                dividerColor: dividerColor,
+                dividerColor: borderColor,
                 isHeader: true,
               ),
             ),
             for (var i = 0; i < items.length; i++)
-              _ItemsTableRow(
-                theme: theme,
-                showActions: canEdit,
-                index: _indexCell(theme, i + 1),
-                name: _nameCell(theme, items[i].name),
-                qty: _valueCell(
-                  theme,
-                  formatQuantity(items[i].quantity),
-                  align: TextAlign.end,
-                  emphasized: true,
+              ColoredBox(
+                color: i.isOdd ? zebraBg : Colors.transparent,
+                child: _ItemsTableRow(
+                  theme: theme,
+                  showActions: canEdit,
+                  index: _indexCell(theme, i + 1),
+                  name: _nameCell(theme, items[i].name),
+                  qty: _valueCell(
+                    theme,
+                    formatQuantity(items[i].quantity),
+                    align: TextAlign.end,
+                    emphasized: true,
+                  ),
+                  unit: _valueCell(theme, items[i].unit),
+                  article: _valueCell(
+                    theme,
+                    _articleLabel(items[i].article),
+                    muted: _articleLabel(items[i].article) == '—',
+                  ),
+                  action: canEdit
+                      ? IconButton(
+                          tooltip: 'Удалить позицию',
+                          icon: Icon(
+                            Icons.delete_outline_rounded,
+                            size: 18,
+                            color: theme.colorScheme.onSurface
+                                .withValues(alpha: 0.35),
+                          ),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints.tightFor(
+                            width: 36,
+                            height: 36,
+                          ),
+                          onPressed: onDelete == null
+                              ? null
+                              : () => onDelete!(items[i].id),
+                        )
+                      : const SizedBox.shrink(),
+                  dividerColor: borderColor,
+                  showBottomDivider: i < items.length - 1,
                 ),
-                unit: _valueCell(theme, items[i].unit),
-                article: _valueCell(
-                  theme,
-                  _articleLabel(items[i].article),
-                  muted: _articleLabel(items[i].article) == '—',
-                ),
-                action: canEdit
-                    ? IconButton(
-                        tooltip: 'Удалить позицию',
-                        icon: Icon(
-                          Icons.delete_outline,
-                          size: 18,
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.45),
-                        ),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints.tightFor(
-                          width: 36,
-                          height: 36,
-                        ),
-                        onPressed: onDelete == null
-                            ? null
-                            : () => onDelete!(items[i].id),
-                      )
-                    : const SizedBox.shrink(),
-                dividerColor: dividerColor,
-                showBottomDivider: i < items.length - 1,
               ),
           ],
         ),
@@ -115,27 +116,22 @@ class PurchaseRequestItemsTable extends StatelessWidget {
       text.toUpperCase(),
       textAlign: align,
       style: theme.textTheme.labelSmall?.copyWith(
-        color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0.4,
+        color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.8,
+        fontSize: 10,
       ),
     );
   }
 
   static Widget _indexCell(ThemeData theme, int index) {
-    return Container(
-      alignment: Alignment.center,
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.onSurface.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        '$index',
-        style: theme.textTheme.labelMedium?.copyWith(
-          fontWeight: FontWeight.w700,
-          color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
-        ),
+    return Text(
+      '$index',
+      textAlign: TextAlign.center,
+      style: theme.textTheme.labelMedium?.copyWith(
+        fontWeight: FontWeight.w600,
+        color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+        fontFeatures: const [FontFeature.tabularFigures()],
       ),
     );
   }
@@ -147,7 +143,7 @@ class PurchaseRequestItemsTable extends StatelessWidget {
       overflow: TextOverflow.ellipsis,
       style: theme.textTheme.bodyMedium?.copyWith(
         fontWeight: FontWeight.w600,
-        height: 1.3,
+        height: 1.35,
       ),
     );
   }
@@ -165,11 +161,12 @@ class PurchaseRequestItemsTable extends StatelessWidget {
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       style: theme.textTheme.bodyMedium?.copyWith(
-        fontWeight: emphasized ? FontWeight.w600 : FontWeight.w500,
+        fontWeight: emphasized ? FontWeight.w700 : FontWeight.w500,
+        fontFeatures: const [FontFeature.tabularFigures()],
         color: muted
-            ? theme.colorScheme.onSurface.withValues(alpha: 0.4)
+            ? theme.colorScheme.onSurface.withValues(alpha: 0.35)
             : theme.colorScheme.onSurface.withValues(
-                alpha: emphasized ? 1 : 0.82,
+                alpha: emphasized ? 1 : 0.75,
               ),
       ),
     );
@@ -213,22 +210,22 @@ class _ItemsTableRow extends StatelessWidget {
       ),
       child: Padding(
         padding: EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: isHeader ? 10 : 12,
+          horizontal: 16,
+          vertical: isHeader ? 11 : 13,
         ),
         child: Row(
           children: [
-            SizedBox(width: 40, child: index),
+            SizedBox(width: 28, child: index),
             const SizedBox(width: 12),
             Expanded(flex: 5, child: name),
             const SizedBox(width: 12),
-            SizedBox(width: 72, child: qty),
+            SizedBox(width: 64, child: qty),
             const SizedBox(width: 12),
-            SizedBox(width: 72, child: unit),
+            SizedBox(width: 56, child: unit),
             const SizedBox(width: 12),
-            SizedBox(width: 96, child: article),
+            SizedBox(width: 88, child: article),
             if (showActions) ...[
-              const SizedBox(width: 8),
+              const SizedBox(width: 4),
               SizedBox(width: 36, child: action),
             ],
           ],

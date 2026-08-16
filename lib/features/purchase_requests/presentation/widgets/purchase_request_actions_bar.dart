@@ -212,128 +212,151 @@ class _PurchaseRequestActionsBarState
       );
     }
 
+    final theme = Theme.of(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (a.canSubmit && itemsCount == 0)
           Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Text(
-              'Добавьте хотя бы одну позицию перед отправкой',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.error,
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.info_outline_rounded,
+                  size: 16,
+                  color: theme.colorScheme.error,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Добавьте хотя бы одну позицию перед отправкой',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.error,
+                    ),
                   ),
+                ),
+              ],
             ),
           ),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            if (a.canSubmit)
-              GTPrimaryButton(
-                text: widget.request.status == PurchaseRequestStatus.revision
-                    ? 'Отправить повторно'
-                    : 'Отправить',
-                isLoading: _busy,
-                onPressed: !canSubmitNow || _busy
-                    ? null
-                    : () => _run(repo.submit(widget.requestId)),
-              ),
-        if (a.canApprove)
-          GTPrimaryButton(
-            text: 'Согласовать',
-            isLoading: _busy,
-            onPressed: _busy
-                ? null
-                : () => _run(repo.approve(widget.requestId)),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            alignment: WrapAlignment.end,
+            children: [
+              if (a.canSubmit)
+                GTPrimaryButton(
+                  text: widget.request.status == PurchaseRequestStatus.revision
+                      ? 'Отправить повторно'
+                      : 'Отправить',
+                  isLoading: _busy,
+                  onPressed: !canSubmitNow || _busy
+                      ? null
+                      : () => _run(repo.submit(widget.requestId)),
+                ),
+              if (a.canApprove)
+                GTPrimaryButton(
+                  text: 'Согласовать',
+                  isLoading: _busy,
+                  onPressed: _busy
+                      ? null
+                      : () => _run(repo.approve(widget.requestId)),
+                ),
+              if (a.canReturn)
+                GTSecondaryButton(
+                  text: 'Вернуть',
+                  onPressed: _busy
+                      ? null
+                      : () async {
+                          final c = await _promptComment(
+                            title: 'Причина возврата',
+                            required: true,
+                          );
+                          if (c == null || c.isEmpty) return;
+                          await _run(
+                            repo.returnForRevision(
+                              widget.requestId,
+                              comment: c,
+                            ),
+                          );
+                        },
+                ),
+              if (a.canSubmitInvoices)
+                GTPrimaryButton(
+                  text: 'Отправить на согласование',
+                  isLoading: _busy,
+                  onPressed: _busy
+                      ? null
+                      : () => _run(repo.submitInvoices(widget.requestId)),
+                ),
+              if (a.canApproveInvoice)
+                GTPrimaryButton(
+                  text: 'Согласовать счет',
+                  isLoading: _busy,
+                  onPressed: _busy
+                      ? null
+                      : () => _run(repo.approveInvoice(widget.requestId)),
+                ),
+              if (a.canReturnInvoice)
+                GTSecondaryButton(
+                  text: 'Вернуть счет',
+                  onPressed: _busy
+                      ? null
+                      : () async {
+                          final c = await _promptComment(
+                            title: 'Причина возврата счета',
+                            required: true,
+                          );
+                          if (c == null || c.isEmpty) return;
+                          await _run(
+                            repo.returnInvoice(widget.requestId, comment: c),
+                          );
+                        },
+                ),
+              if (a.canQueuePayment)
+                GTPrimaryButton(
+                  text: 'Заведено на оплату',
+                  isLoading: _busy,
+                  onPressed: _busy
+                      ? null
+                      : () => _run(repo.queuePayment(widget.requestId)),
+                ),
+              if (a.canMarkPaid)
+                GTPrimaryButton(
+                  text: 'Оплачено',
+                  isLoading: _busy,
+                  onPressed: _busy
+                      ? null
+                      : () => _run(repo.markPaid(widget.requestId)),
+                ),
+              if (a.canMarkReceived)
+                GTPrimaryButton(
+                  text: 'Материал получен',
+                  isLoading: _busy,
+                  onPressed: _busy
+                      ? null
+                      : () => _run(repo.markReceived(widget.requestId)),
+                ),
+              if (a.canCancel)
+                GTSecondaryButton(
+                  text: 'Отменить',
+                  onPressed: _busy
+                      ? null
+                      : () async {
+                          final c = await _promptComment(
+                            title: 'Причина отмены',
+                            required: true,
+                          );
+                          if (c == null || c.isEmpty) return;
+                          await _run(
+                            repo.cancel(widget.requestId, comment: c),
+                          );
+                        },
+                ),
+            ],
           ),
-        if (a.canReturn)
-          GTSecondaryButton(
-            text: 'Вернуть',
-            onPressed: _busy
-                ? null
-                : () async {
-                    final c = await _promptComment(
-                      title: 'Причина возврата',
-                      required: true,
-                    );
-                    if (c == null || c.isEmpty) return;
-                    await _run(
-                      repo.returnForRevision(widget.requestId, comment: c),
-                    );
-                  },
-          ),
-        if (a.canSubmitInvoices)
-          GTPrimaryButton(
-            text: 'Отправить на согласование',
-            isLoading: _busy,
-            onPressed: _busy
-                ? null
-                : () => _run(repo.submitInvoices(widget.requestId)),
-          ),
-        if (a.canApproveInvoice)
-          GTPrimaryButton(
-            text: 'Согласовать счет',
-            isLoading: _busy,
-            onPressed: _busy
-                ? null
-                : () => _run(repo.approveInvoice(widget.requestId)),
-          ),
-        if (a.canReturnInvoice)
-          GTSecondaryButton(
-            text: 'Вернуть счет',
-            onPressed: _busy
-                ? null
-                : () async {
-                    final c = await _promptComment(
-                      title: 'Причина возврата счета',
-                      required: true,
-                    );
-                    if (c == null || c.isEmpty) return;
-                    await _run(
-                      repo.returnInvoice(widget.requestId, comment: c),
-                    );
-                  },
-          ),
-        if (a.canQueuePayment)
-          GTPrimaryButton(
-            text: 'Заведено на оплату',
-            isLoading: _busy,
-            onPressed: _busy
-                ? null
-                : () => _run(repo.queuePayment(widget.requestId)),
-          ),
-        if (a.canMarkPaid)
-          GTPrimaryButton(
-            text: 'Оплачено',
-            isLoading: _busy,
-            onPressed: _busy
-                ? null
-                : () => _run(repo.markPaid(widget.requestId)),
-          ),
-        if (a.canMarkReceived)
-          GTPrimaryButton(
-            text: 'Материал получен',
-            isLoading: _busy,
-            onPressed: _busy
-                ? null
-                : () => _run(repo.markReceived(widget.requestId)),
-          ),
-        if (a.canCancel)
-          GTSecondaryButton(
-            text: 'Отменить',
-            onPressed: _busy
-                ? null
-                : () async {
-                    final c = await _promptComment(
-                      title: 'Причина отмены',
-                      required: true,
-                    );
-                    if (c == null || c.isEmpty) return;
-                    await _run(repo.cancel(widget.requestId, comment: c));
-                  },
-          ),
-      ],
         ),
       ],
     );
