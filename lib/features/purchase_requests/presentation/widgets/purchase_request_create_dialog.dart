@@ -382,16 +382,29 @@ class _PurchaseRequestCreateDialogState
           ],
         ),
         const SizedBox(height: 4),
-        _PurchaseItemsTableHeader(theme: theme),
-        const SizedBox(height: 6),
-        for (var i = 0; i < _itemRows.length; i++) ...[
-          _PurchaseItemInputRow(
-            controllers: _itemRows[i],
-            canRemove: _itemRows.length > 1,
-            onRemove: () => _removeItemRow(i),
-            enabled: !_submitting,
-          ),
-          if (i < _itemRows.length - 1) const SizedBox(height: 6),
+        if (isDesktop) ...[
+          _PurchaseItemsTableHeader(theme: theme),
+          const SizedBox(height: 6),
+          for (var i = 0; i < _itemRows.length; i++) ...[
+            _PurchaseItemInputRow(
+              controllers: _itemRows[i],
+              canRemove: _itemRows.length > 1,
+              onRemove: () => _removeItemRow(i),
+              enabled: !_submitting,
+            ),
+            if (i < _itemRows.length - 1) const SizedBox(height: 6),
+          ],
+        ] else ...[
+          for (var i = 0; i < _itemRows.length; i++) ...[
+            _PurchaseItemMobileCard(
+              index: i,
+              controllers: _itemRows[i],
+              canRemove: _itemRows.length > 1,
+              onRemove: () => _removeItemRow(i),
+              enabled: !_submitting,
+            ),
+            if (i < _itemRows.length - 1) const SizedBox(height: 12),
+          ],
         ],
         const SizedBox(height: 16),
         GTTextField(
@@ -403,13 +416,13 @@ class _PurchaseRequestCreateDialogState
             vertical: 12,
           ),
         ),
-        const SizedBox(height: 20),
-        GTPrimaryButton(
-          text: _isEdit ? 'Сохранить' : 'Создать заявку',
-          isLoading: _submitting,
-          onPressed: _submitting ? null : _submit,
-        ),
       ],
+    );
+
+    final submitButton = GTPrimaryButton(
+      text: _isEdit ? 'Сохранить' : 'Создать заявку',
+      isLoading: _submitting,
+      onPressed: _submitting ? null : _submit,
     );
 
     final title = _isEdit ? 'Редактировать заявку' : 'Новая заявка';
@@ -417,12 +430,21 @@ class _PurchaseRequestCreateDialogState
       return DesktopDialogContent(
         title: title,
         width: _kCreateDialogWidth,
-        child: content,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [content, const SizedBox(height: 20), submitButton],
+        ),
       );
     }
     return MobileBottomSheetContent(
       title: title,
-      child: SingleChildScrollView(child: content),
+      fixedFooter: true,
+      footer: submitButton,
+      child: SingleChildScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        child: content,
+      ),
     );
   }
 }
@@ -585,6 +607,135 @@ class _PurchaseItemInputRow extends StatelessWidget {
               ),
             )
           : const SizedBox.shrink(),
+    );
+  }
+}
+
+/// Карточка позиции для телефона: поля друг под другом, удобно набирать.
+class _PurchaseItemMobileCard extends StatelessWidget {
+  const _PurchaseItemMobileCard({
+    required this.index,
+    required this.controllers,
+    required this.canRemove,
+    required this.onRemove,
+    required this.enabled,
+  });
+
+  final int index;
+  final _PurchaseItemRowControllers controllers;
+  final bool canRemove;
+  final VoidCallback onRemove;
+  final bool enabled;
+
+  static const _fieldPadding = EdgeInsets.symmetric(
+    horizontal: 14,
+    vertical: 14,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Semantics(
+      container: true,
+      label: 'Позиция ${index + 1}',
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: isDark
+              ? theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.35,
+                )
+              : theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.45,
+                ),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: theme.colorScheme.outline.withValues(alpha: 0.18),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 8, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Позиция ${index + 1}',
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  if (canRemove)
+                    IconButton(
+                      tooltip: 'Удалить позицию',
+                      onPressed: enabled ? onRemove : null,
+                      icon: Icon(
+                        Icons.remove_circle_outline,
+                        color: theme.colorScheme.error,
+                      ),
+                    ),
+                ],
+              ),
+              GTTextField(
+                controller: controllers.nameController,
+                labelText: 'Наименование',
+                hintText: 'Что закупить',
+                enabled: enabled,
+                textCapitalization: TextCapitalization.sentences,
+                textInputAction: TextInputAction.next,
+                contentPadding: _fieldPadding,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: GTTextField(
+                      controller: controllers.qtyController,
+                      labelText: 'Количество',
+                      hintText: '1',
+                      enabled: enabled,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                      ],
+                      textInputAction: TextInputAction.next,
+                      contentPadding: _fieldPadding,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: GTTextField(
+                      controller: controllers.unitController,
+                      labelText: 'Ед. изм.',
+                      hintText: 'шт',
+                      enabled: enabled,
+                      textInputAction: TextInputAction.next,
+                      contentPadding: _fieldPadding,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              GTTextField(
+                controller: controllers.articleController,
+                labelText: 'Артикул',
+                hintText: 'Необязательно',
+                enabled: enabled,
+                textInputAction: TextInputAction.next,
+                contentPadding: _fieldPadding,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

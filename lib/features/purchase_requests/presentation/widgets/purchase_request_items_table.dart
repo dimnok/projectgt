@@ -25,79 +25,23 @@ class PurchaseRequestItemsTable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final borderColor = PurchaseRequestDetailsTokens.borderColor(theme);
-    final headerBg = PurchaseRequestDetailsTokens.tableHeaderBackground(theme);
-    final zebraBg = PurchaseRequestDetailsTokens.tableZebraBackground(theme);
 
-    return DecoratedBox(
-      decoration: PurchaseRequestDetailsTokens.cardDecoration(theme),
-      child: ClipRRect(
-        borderRadius:
-            BorderRadius.circular(PurchaseRequestDetailsTokens.cardRadius),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            ColoredBox(
-              color: headerBg,
-              child: _ItemsTableRow(
-                theme: theme,
-                showActions: canEdit,
-                index: _headerCell(theme, '№'),
-                name: _headerCell(theme, 'Наименование'),
-                qty: _headerCell(theme, 'Кол-во', align: TextAlign.end),
-                unit: _headerCell(theme, 'Ед.'),
-                article: _headerCell(theme, 'Артикул'),
-                action: const SizedBox.shrink(),
-                dividerColor: borderColor,
-                isHeader: true,
-              ),
-            ),
-            for (var i = 0; i < items.length; i++)
-              ColoredBox(
-                color: i.isOdd ? zebraBg : Colors.transparent,
-                child: _ItemsTableRow(
-                  theme: theme,
-                  showActions: canEdit,
-                  index: _indexCell(theme, i + 1),
-                  name: _nameCell(theme, items[i].name),
-                  qty: _valueCell(
-                    theme,
-                    formatQuantity(items[i].quantity),
-                    align: TextAlign.end,
-                    emphasized: true,
-                  ),
-                  unit: _valueCell(theme, items[i].unit),
-                  article: _valueCell(
-                    theme,
-                    _articleLabel(items[i].article),
-                    muted: _articleLabel(items[i].article) == '—',
-                  ),
-                  action: canEdit
-                      ? IconButton(
-                          tooltip: 'Удалить позицию',
-                          icon: Icon(
-                            Icons.delete_outline_rounded,
-                            size: 18,
-                            color: theme.colorScheme.onSurface
-                                .withValues(alpha: 0.35),
-                          ),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints.tightFor(
-                            width: 36,
-                            height: 36,
-                          ),
-                          onPressed: onDelete == null
-                              ? null
-                              : () => onDelete!(items[i].id),
-                        )
-                      : const SizedBox.shrink(),
-                  dividerColor: borderColor,
-                  showBottomDivider: i < items.length - 1,
-                ),
-              ),
-          ],
-        ),
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 600) {
+          return _ItemsMobileList(
+            items: items,
+            canEdit: canEdit,
+            onDelete: onDelete,
+          );
+        }
+        return _ItemsDesktopTable(
+          theme: theme,
+          items: items,
+          canEdit: canEdit,
+          onDelete: onDelete,
+        );
+      },
     );
   }
 
@@ -107,8 +51,11 @@ class PurchaseRequestItemsTable extends StatelessWidget {
     return value;
   }
 
-  static Widget _headerCell(ThemeData theme, String text,
-      {TextAlign align = TextAlign.start}) {
+  static Widget _headerCell(
+    ThemeData theme,
+    String text, {
+    TextAlign align = TextAlign.start,
+  }) {
     return Text(
       text.toUpperCase(),
       textAlign: align,
@@ -166,6 +113,207 @@ class PurchaseRequestItemsTable extends StatelessWidget {
                 alpha: emphasized ? 1 : 0.75,
               ),
       ),
+    );
+  }
+}
+
+class _ItemsDesktopTable extends StatelessWidget {
+  const _ItemsDesktopTable({
+    required this.theme,
+    required this.items,
+    required this.canEdit,
+    this.onDelete,
+  });
+
+  final ThemeData theme;
+  final List<PurchaseRequestItem> items;
+  final bool canEdit;
+  final ValueChanged<String>? onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final borderColor = PurchaseRequestDetailsTokens.borderColor(theme);
+    final headerBg = PurchaseRequestDetailsTokens.tableHeaderBackground(theme);
+    final zebraBg = PurchaseRequestDetailsTokens.tableZebraBackground(theme);
+
+    return DecoratedBox(
+      decoration: PurchaseRequestDetailsTokens.cardDecoration(theme),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(
+          PurchaseRequestDetailsTokens.cardRadius,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ColoredBox(
+              color: headerBg,
+              child: _ItemsTableRow(
+                theme: theme,
+                showActions: canEdit,
+                index: PurchaseRequestItemsTable._headerCell(theme, '№'),
+                name: PurchaseRequestItemsTable._headerCell(
+                  theme,
+                  'Наименование',
+                ),
+                qty: PurchaseRequestItemsTable._headerCell(
+                  theme,
+                  'Кол-во',
+                  align: TextAlign.end,
+                ),
+                unit: PurchaseRequestItemsTable._headerCell(theme, 'Ед.'),
+                article: PurchaseRequestItemsTable._headerCell(
+                  theme,
+                  'Артикул',
+                ),
+                action: const SizedBox.shrink(),
+                dividerColor: borderColor,
+                isHeader: true,
+              ),
+            ),
+            for (var i = 0; i < items.length; i++)
+              ColoredBox(
+                color: i.isOdd ? zebraBg : Colors.transparent,
+                child: _ItemsTableRow(
+                  theme: theme,
+                  showActions: canEdit,
+                  index: PurchaseRequestItemsTable._indexCell(theme, i + 1),
+                  name: PurchaseRequestItemsTable._nameCell(
+                    theme,
+                    items[i].name,
+                  ),
+                  qty: PurchaseRequestItemsTable._valueCell(
+                    theme,
+                    formatQuantity(items[i].quantity),
+                    align: TextAlign.end,
+                    emphasized: true,
+                  ),
+                  unit: PurchaseRequestItemsTable._valueCell(
+                    theme,
+                    items[i].unit,
+                  ),
+                  article: PurchaseRequestItemsTable._valueCell(
+                    theme,
+                    PurchaseRequestItemsTable._articleLabel(items[i].article),
+                    muted:
+                        PurchaseRequestItemsTable._articleLabel(
+                          items[i].article,
+                        ) ==
+                        '—',
+                  ),
+                  action: canEdit
+                      ? IconButton(
+                          tooltip: 'Удалить позицию',
+                          icon: Icon(
+                            Icons.delete_outline_rounded,
+                            size: 18,
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.35,
+                            ),
+                          ),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints.tightFor(
+                            width: 36,
+                            height: 36,
+                          ),
+                          onPressed: onDelete == null
+                              ? null
+                              : () => onDelete!(items[i].id),
+                        )
+                      : const SizedBox.shrink(),
+                  dividerColor: borderColor,
+                  showBottomDivider: i < items.length - 1,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Карточки позиций на узком экране: название целиком, кол-во и артикул ниже.
+class _ItemsMobileList extends StatelessWidget {
+  const _ItemsMobileList({
+    required this.items,
+    required this.canEdit,
+    this.onDelete,
+  });
+
+  final List<PurchaseRequestItem> items;
+  final bool canEdit;
+  final ValueChanged<String>? onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final muted = PurchaseRequestDetailsTokens.mutedText(theme);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < items.length; i++) ...[
+          DecoratedBox(
+            decoration: PurchaseRequestDetailsTokens.cardDecoration(theme),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          items[i].name,
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            height: 1.3,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '${formatQuantity(items[i].quantity)} ${items[i].unit}',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (PurchaseRequestItemsTable._articleLabel(
+                              items[i].article,
+                            ) !=
+                            '—') ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            PurchaseRequestItemsTable._articleLabel(
+                              items[i].article,
+                            ),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: muted,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  if (canEdit)
+                    IconButton(
+                      tooltip: 'Удалить позицию',
+                      icon: Icon(
+                        Icons.delete_outline_rounded,
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.45,
+                        ),
+                      ),
+                      onPressed: onDelete == null
+                          ? null
+                          : () => onDelete!(items[i].id),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          if (i < items.length - 1) const SizedBox(height: 8),
+        ],
+      ],
     );
   }
 }

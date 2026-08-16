@@ -1,7 +1,7 @@
 # Модуль Заявки на закупку (Purchase Requests)
 
 **Дата:** 16.08.2026  
-**Изменения:** фильтры реестра по **статусу** (На согласовании / Согласованы / Все / Архив); вкладки «Мои» и «На мне» удалены. Ранее: отмена = возврат в черновик; правка и удаление своего черновика; просмотр файлов счетов.
+**Изменения:** мобильная форма позиций (карточки вместо узкой таблицы); фильтры реестра по **статусу** (На согласовании / Согласованы / Все / Архив); вкладки «Мои» и «На мне» удалены. Ранее: отмена = возврат в черновик; правка и удаление своего черновика; просмотр файлов счетов.
 
 ---
 
@@ -39,7 +39,7 @@
 | Таблица: номер, объект, инициатор, дата, сумма, статус | ✅ |
 | Общий бейдж статуса (`PurchaseRequestStatusBadge`) | ✅ |
 | Цветные бейджи статусов (светлая / тёмная тема) | ✅ |
-| Создание черновика: объект, комментарий, многострочные позиции | ✅ |
+| Создание черновика: объект, комментарий, многострочные позиции | ✅ desktop-таблица / mobile-карточки |
 | Редактирование своего черновика (объект, комментарий, позиции) | ✅ |
 | Удаление своего черновика | ✅ |
 | Обновление списка сразу после создания заявки | ✅ |
@@ -125,11 +125,11 @@
 | `widgets/purchase_request_invoice_dialog.dart` | Диалог добавления счёта: поставщик (`GTDropdown`), сумма, номер, дата, файл (`file_selector`) |
 | `widgets/purchase_request_details_summary.dart` | KPI-карточки: статус (акцентная полоса), сумма, кол-во позиций; баннер доработки, комментарий |
 | `widgets/purchase_request_details_tokens.dart` | Единые отступы, радиусы, цвета и `BoxDecoration` для панели деталей |
-| `widgets/purchase_request_items_table.dart` | Таблица позиций: №, наименование, кол-во, ед., артикул; зебра-строки |
+| `widgets/purchase_request_items_table.dart` | Позиции: desktop — таблица (№, наименование, кол-во, ед., артикул, зебра); ширина &lt; 600 px — карточки |
 | `widgets/purchase_request_history_timeline.dart` | Вертикальный таймлайн истории (точка + линия, кто → что → когда) |
 | `widgets/purchase_request_card.dart` | Карточка в мобильном списке (превью позиций, сумма, бейдж статуса) |
 | `widgets/purchase_request_status_badge.dart` | Общий бейдж статуса для списка и таблицы (единый стиль, `maxLines: 1`) |
-| `widgets/purchase_request_create_dialog.dart` | Создание и редактирование черновика: объект, комментарий, позиции |
+| `widgets/purchase_request_create_dialog.dart` | Создание и редактирование черновика: объект, комментарий, позиции (desktop-ряд / mobile-карточка `_PurchaseItemMobileCard`) |
 | `widgets/purchase_request_settings_dialog.dart` | Настройки маршрута (4 роли + режим получателя); пользователи — через `purchaseRequestCompanyUsersProvider` |
 | `widgets/purchase_request_actions_bar.dart` | Кнопки workflow; `resolvePurchaseRequestActions` (права + assignee + статус); `hasAny`; предупреждения submit только после `AsyncValue.hasValue` |
 | `utils/purchase_request_invoice_utils.dart` | `purchaseRequestInvoicesReadyForSubmit()`, `isPurchaseRequestInvoiceFilePreviewable()` |
@@ -211,6 +211,8 @@
 - Breakpoint — `EmployeesLayoutUtils.useEmployeesMobileList` (`shortestSide < 600`).
 - Тап по карточке — `PurchaseRequestDetailsPanel` на весь экран; **кнопка «Назад»** — в шапке `PurchaseRequestsListScreen` (не внутри панели); обёртка `MobileAtmosphereMainSurface` с `padding: EdgeInsets.zero` (отступы задаёт сама панель).
 - Фон экрана: `MobileAtmosphereBackdrop` + `Scaffold` (не `EdgeToEdgeScaffold`).
+- Форма «Новая заявка» / правка черновика: `MobileBottomSheetContent` + `fixedFooter` (кнопка создания закреплена). Позиции — карточки на всю ширину, не таблица в одну строку.
+- Список позиций в деталях на ширине &lt; 600 px — карточки (`_ItemsMobileList`), не колонки таблицы.
 
 **Панель деталей заявки (`PurchaseRequestDetailsPanel`):**
 
@@ -244,7 +246,7 @@
 - **Design tokens** (`PurchaseRequestDetailsTokens`): `pagePadding` 20, `sectionGap` 20, `cardRadius` 12, единый `borderColor` (`outline` 10%), фон страницы `#F8FAFC` (light), карточки — белые с лёгкой тенью; шапка/подвал — только линия-разделитель (без дублирования тени).
 - **Шапка:** номер заявки (`headlineSmall`, жирный); под ним `{objectName} · {initiatorLabel}`; при переполнении — `ellipsis`.
 - **KPI-сводка:** три карточки в ряд (на ширине &lt; 520 px — столбец); статус с цветной полосой слева и точкой; сумма и позиции — с иконками; при `revision` — баннер «Возвращено на доработку»; комментарий — отдельная карточка. Дата создания **не дублируется** — она в истории.
-- **Позиции:** bordered-таблица, зебра-строки, заголовок `#F8FAFC`; порядковые номера; удаление — `IconButton` (только `draft`/`revision`); кнопка «Добавить» — `GTTextButton` с иконкой; диалог добавления — `showPurchaseRequestFormDialog` (наименование, количество, ед. изм., **артикул**).
+- **Позиции:** на ширине ≥ 600 px — bordered-таблица, зебра-строки, заголовок `#F8FAFC`; порядковые номера; удаление — `IconButton` (только `draft`/`revision`). На ширине &lt; 600 px — карточки: наименование целиком, ниже количество и единица, артикул при наличии. Кнопка «Добавить» — `GTTextButton` с иконкой; диалог добавления — `showPurchaseRequestFormDialog` (наименование, количество, ед. изм., **артикул**).
 - **Счета:** секция `PurchaseRequestInvoicesSection` — видна при статусах `invoice_preparation` … `received`; управление (добавить/удалить) — только при `canSubmitInvoices` (assignee + `prepare_invoice` + `invoice_preparation`); карточка показывает поставщика, сумму (`formatCurrency`), номер, дату, имя файла; иконка ✓/✗ по `hasInvoiceFile`. При наличии файла — кнопки **Просмотреть** (`Icons.visibility_outlined`) и **Скачать** (`Icons.download_outlined`) для любого, кто видит заявку; спиннер — `purchaseRequestInvoiceFileBusyIdsProvider`. Просмотр: PDF — `printing.PdfPreview`, JPG/PNG — диалог с `InteractiveViewer`; прочие форматы — snackbar «скачайте файл». Скачивание: `saveFileBytesToUserDevice`. Диалог добавления — `PurchaseRequestInvoiceDialog` (desktop `DesktopDialogContent`, mobile `MobileBottomSheetContent` + `useSafeArea: true`).
 - **Подвал действий:** предупреждения «Добавьте позицию» / «Добавьте счёт» и блокировка submit **только если** соответствующий `AsyncValue.hasValue` (во время загрузки кнопки неактивны, ложного текста нет). При `canSubmitInvoices` кнопка «Отправить на согласование» неактивна, пока `purchaseRequestInvoicesReadyForSubmit(invoices) == false`. Если действий нет: `idleActionsMessage` — «Заявка получена» / «Заявка отменена» / «Ожидает действия ответственного».
 - **История:** вертикальный таймлайн (точка + соединительная линия); порядок **кто → что → когда**; на клиенте загрузка `ORDER BY created_at ASC` (старые события сверху); комментарий к событию — курсивом под строкой.
@@ -252,8 +254,9 @@
 
 **Диалог создания:**
 
-- Ширина desktop: **980 px**.
-- Каждая позиция — одна строка: наименование (flex), ед. изм. (80 px), кол-во (96 px), артикул (128 px).
+- Ширина desktop: **980 px**. Mobile: `MobileBottomSheetContent` с закреплённой кнопкой «Создать заявку» (`fixedFooter`).
+- Desktop: каждая позиция — одна строка: наименование (flex), ед. изм. (80 px), кол-во (96 px), артикул (128 px).
+- Mobile / планшет (не desktop): каждая позиция — карточка: наименование на всю ширину, ряд «количество + ед. изм.», артикул ниже; подписи полей (`labelText`).
 - Кнопка «+» в заголовке секции позиций; «−» для удаления дополнительных строк.
 
 ### Design System
@@ -820,7 +823,8 @@ stateDiagram-v2
 - Методы репозитория: `updateHeader`, `deleteDraft`, `updateItem`
 - Общие утилиты ФИО (`user_display_utils.dart`)
 - Юнит-тесты: `test/features/purchase_requests/purchase_request_logic_test.dart` (в т.ч. `canEditDraft` / `canDeleteDraft`, previewable)
-- Панель деталей: KPI-сводка, таблица позиций, **секция счетов**, таймлайн истории, workflow actions, кнопки правки/удаления своего черновика
+- Панель деталей: KPI-сводка, таблица/карточки позиций, **секция счетов**, таймлайн истории, workflow actions, кнопки правки/удаления своего черновика
+- Mobile: карточки позиций в форме создания (`_PurchaseItemMobileCard`) и в деталях заявки (`_ItemsMobileList`, ширина &lt; 600 px)
 - `invalidatePurchaseRequestCaches` + `idleActionsMessage` + `showPurchaseRequestFormDialog`
 - Настройки маршрута (owner), кнопка «Настройки»
 - Матрица прав, drawer, router
@@ -875,4 +879,4 @@ stateDiagram-v2
 
 ---
 
-*Документ подготовлен по аудиту кода (`lib/features/purchase_requests/`, `lib/core/widgets/attachment_file_preview.dart`), миграций `supabase/migrations/` и live PostgreSQL/Storage (`api.progt.ru`, MCP `execute_sql` / `list_migrations`, 16.08.2026). RLS: все таблицы модуля ✅ кроме `purchase_request_number_seq` ❌. Bucket `purchase_requests` **private**. Edge Functions модуля в `supabase/functions/` нет (MCP `list_edge_functions` отсутствует). Актуализирован после смены фильтров списка на статусные.*
+*Документ подготовлен по аудиту кода (`lib/features/purchase_requests/`, `lib/core/widgets/attachment_file_preview.dart`), миграций `supabase/migrations/` и live PostgreSQL/Storage (`api.progt.ru`, MCP `execute_sql` / `list_migrations`, 16.08.2026). RLS: все таблицы модуля ✅ кроме `purchase_request_number_seq` ❌. Bucket `purchase_requests` **private**. Edge Functions модуля в `supabase/functions/` нет (MCP `list_edge_functions` отсутствует). Актуализирован после мобильных карточек позиций и статусных фильтров списка.*
