@@ -49,6 +49,9 @@ abstract class PurchaseRequestRepository {
   /// Удалить счёт и связанные файлы в Storage.
   Future<void> deleteInvoice(String invoiceId);
 
+  /// Скачать файл счёта из Storage по пути записи.
+  Future<List<int>> downloadInvoiceFile(String storagePath);
+
   /// Настройки модуля для активной компании.
   Future<PurchaseRequestSettings?> getSettings();
 

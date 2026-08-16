@@ -309,6 +309,19 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
     await _removeStoragePaths(paths);
   }
 
+  @override
+  Future<List<int>> downloadInvoiceFile(String storagePath) async {
+    _requireCompany();
+    if (!storagePath.startsWith('$activeCompanyId/')) {
+      throw ArgumentError('Некорректный путь файла счёта');
+    }
+
+    final bytes = await client.storage
+        .from(purchaseRequestsStorageBucket)
+        .download(storagePath);
+    return bytes;
+  }
+
   Future<PurchaseRequestFileModel> _uploadInvoiceFile({
     required String requestId,
     required String invoiceId,

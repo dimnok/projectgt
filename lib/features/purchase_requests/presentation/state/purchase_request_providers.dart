@@ -192,6 +192,10 @@ final purchaseRequestInvoicesProvider = FutureProvider.autoDispose
       return repo.getInvoices(requestId);
     });
 
+/// Идентификаторы файлов счетов, которые сейчас скачиваются или открываются.
+final purchaseRequestInvoiceFileBusyIdsProvider = StateProvider.autoDispose
+    .family<Set<String>, String>((ref, requestId) => <String>{});
+
 /// Настройки модуля.
 final purchaseRequestSettingsProvider =
     FutureProvider.autoDispose<PurchaseRequestSettings?>((ref) async {

@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/utils/formatters.dart';
@@ -7,6 +8,8 @@ import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_invoice.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_status.dart';
 import 'package:projectgt/features/purchase_requests/presentation/state/purchase_request_providers.dart';
+import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_invoice_file_flow.dart';
+import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_invoice_utils.dart';
 import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_details_tokens.dart';
 import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_invoice_dialog.dart';
 
@@ -95,6 +98,7 @@ class PurchaseRequestInvoicesSection extends ConsumerWidget {
               children: [
                 for (final invoice in invoices) ...[
                   _InvoiceCard(
+                    requestId: requestId,
                     invoice: invoice,
                     onDelete: canManage
                         ? () => _deleteInvoice(context, ref, invoice.id)
@@ -129,20 +133,29 @@ class PurchaseRequestInvoicesSection extends ConsumerWidget {
   }
 }
 
-class _InvoiceCard extends StatelessWidget {
+class _InvoiceCard extends ConsumerWidget {
   const _InvoiceCard({
+    required this.requestId,
     required this.invoice,
     this.onDelete,
   });
 
+  final String requestId;
   final PurchaseRequestInvoice invoice;
   final VoidCallback? onDelete;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final muted = PurchaseRequestDetailsTokens.mutedText(theme);
-    final fileName = invoice.invoiceFile?.fileName;
+    final file = invoice.invoiceFile;
+    final fileName = file?.fileName;
+    final busyIds = ref.watch(
+      purchaseRequestInvoiceFileBusyIdsProvider(requestId),
+    );
+    final isBusy = file != null && busyIds.contains(file.id);
+    final canPreview =
+        file != null && isPurchaseRequestInvoiceFilePreviewable(file);
 
     return DecoratedBox(
       decoration: PurchaseRequestDetailsTokens.cardDecoration(theme),
@@ -202,6 +215,40 @@ class _InvoiceCard extends StatelessWidget {
                 ],
               ),
             ),
+            if (file != null) ...[
+              if (isBusy)
+                const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CupertinoActivityIndicator(radius: 8),
+                  ),
+                )
+              else ...[
+                if (canPreview)
+                  IconButton(
+                    tooltip: 'Просмотреть счёт',
+                    icon: const Icon(Icons.visibility_outlined),
+                    onPressed: () => previewPurchaseRequestInvoiceFile(
+                      context: context,
+                      ref: ref,
+                      requestId: requestId,
+                      file: file,
+                    ),
+                  ),
+                IconButton(
+                  tooltip: 'Скачать счёт',
+                  icon: const Icon(Icons.download_outlined),
+                  onPressed: () => downloadPurchaseRequestInvoiceFile(
+                    context: context,
+                    ref: ref,
+                    requestId: requestId,
+                    file: file,
+                  ),
+                ),
+              ],
+            ],
             if (onDelete != null)
               IconButton(
                 tooltip: 'Удалить счёт',

@@ -239,6 +239,46 @@ void main() {
     });
   });
 
+  group('isPurchaseRequestInvoiceFilePreviewable', () {
+    PurchaseRequestFile file({
+      required String name,
+      String? mimeType,
+    }) {
+      return PurchaseRequestFile(
+        id: 'f1',
+        requestId: 'r1',
+        type: 'invoice',
+        storagePath: 'path',
+        fileName: name,
+        mimeType: mimeType,
+      );
+    }
+
+    test('allows pdf and images', () {
+      expect(
+        isPurchaseRequestInvoiceFilePreviewable(file(name: 'a.pdf')),
+        isTrue,
+      );
+      expect(
+        isPurchaseRequestInvoiceFilePreviewable(file(name: 'a.PNG')),
+        isTrue,
+      );
+      expect(
+        isPurchaseRequestInvoiceFilePreviewable(
+          file(name: 'scan.bin', mimeType: 'image/jpeg'),
+        ),
+        isTrue,
+      );
+    });
+
+    test('rejects unknown formats', () {
+      expect(
+        isPurchaseRequestInvoiceFilePreviewable(file(name: 'a.xlsx')),
+        isFalse,
+      );
+    });
+  });
+
   group('PurchaseRequestUiLabels.idleActionsMessage', () {
     test('describes terminal statuses', () {
       expect(
