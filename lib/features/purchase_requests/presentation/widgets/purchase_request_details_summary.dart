@@ -12,6 +12,7 @@ class PurchaseRequestDetailsSummary extends StatelessWidget {
     required this.request,
     required this.statusColor,
     this.itemsCount,
+    this.reworkNote,
   });
 
   /// Заявка.
@@ -22,6 +23,9 @@ class PurchaseRequestDetailsSummary extends StatelessWidget {
 
   /// Количество позиций (если уже загружено).
   final int? itemsCount;
+
+  /// Причина последнего возврата в черновик.
+  final String? reworkNote;
 
   @override
   Widget build(BuildContext context) {
@@ -90,6 +94,20 @@ class PurchaseRequestDetailsSummary extends StatelessWidget {
             icon: Icons.edit_note_outlined,
             color: theme.colorScheme.tertiary,
             text: 'Возвращено на доработку',
+          ),
+        ],
+        if (request.status == PurchaseRequestStatus.draft &&
+            (reworkNote ?? '').trim().isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _CalloutBanner(
+            icon: Icons.undo_rounded,
+            color: theme.colorScheme.tertiary,
+            text: 'Вернуто в черновик',
+          ),
+          const SizedBox(height: 12),
+          _CommentBlock(
+            label: 'Что исправить',
+            comment: reworkNote!.trim(),
           ),
         ],
         if (request.comment != null && request.comment!.trim().isNotEmpty) ...[
@@ -244,9 +262,10 @@ class _CalloutBanner extends StatelessWidget {
 }
 
 class _CommentBlock extends StatelessWidget {
-  const _CommentBlock({required this.comment});
+  const _CommentBlock({required this.comment, this.label = 'Комментарий'});
 
   final String comment;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
@@ -267,7 +286,7 @@ class _CommentBlock extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Комментарий',
+                    label,
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: muted,
                       fontWeight: FontWeight.w600,

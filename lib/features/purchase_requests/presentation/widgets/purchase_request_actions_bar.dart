@@ -58,7 +58,7 @@ class PurchaseRequestActionSet {
   /// Можно отметить получение материала.
   final bool canMarkReceived;
 
-  /// Можно отменить заявку.
+  /// Можно вернуть заявку в черновик (отмена текущего этапа).
   final bool canCancel;
 
   /// Можно редактировать позиции.
@@ -145,6 +145,7 @@ PurchaseRequestActionSet resolvePurchaseRequestActions({
         status == PurchaseRequestStatus.paid,
     canCancel:
         (isCreator || permissions.can('purchase_requests', 'view_all')) &&
+        status != PurchaseRequestStatus.draft &&
         status != PurchaseRequestStatus.received &&
         status != PurchaseRequestStatus.cancelled,
   );
@@ -416,12 +417,12 @@ class _PurchaseRequestActionsBarState
                 ),
               if (a.canCancel)
                 GTSecondaryButton(
-                  text: 'Отменить',
+                  text: 'Вернуть в черновик',
                   onPressed: _busy
                       ? null
                       : () async {
                           final c = await _promptComment(
-                            title: 'Причина отмены',
+                            title: 'Причина возврата в черновик',
                             required: true,
                           );
                           if (!mounted || c == null || c.isEmpty) return;

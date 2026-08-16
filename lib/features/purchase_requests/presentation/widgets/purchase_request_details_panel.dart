@@ -11,6 +11,7 @@ import 'package:projectgt/features/purchase_requests/domain/entities/purchase_re
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_item.dart';
 import 'package:projectgt/features/purchase_requests/presentation/state/purchase_request_providers.dart';
 import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_form_dialog.dart';
+import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_module_utils.dart';
 import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_ui_labels.dart';
 import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_actions_bar.dart';
 import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_create_dialog.dart';
@@ -81,6 +82,10 @@ class PurchaseRequestDetailsPanel extends ConsumerWidget {
                     request.status,
                   );
 
+                  final reworkNote = latestPurchaseRequestCancelComment(
+                    historyAsync.valueOrNull ?? const [],
+                  );
+
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -98,10 +103,12 @@ class PurchaseRequestDetailsPanel extends ConsumerWidget {
                                 request: request,
                                 statusColor: statusColor,
                                 itemsCount: items.length,
+                                reworkNote: reworkNote,
                               ),
                               orElse: () => PurchaseRequestDetailsSummary(
                                 request: request,
                                 statusColor: statusColor,
+                                reworkNote: reworkNote,
                               ),
                             ),
                             const SizedBox(

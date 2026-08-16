@@ -1,7 +1,7 @@
 # Модуль Заявки на закупку (Purchase Requests)
 
 **Дата:** 16.08.2026  
-**Изменения:** правка и удаление **своего** черновика (`canEditDraft` / `canDeleteDraft`, RPC только `draft` + автор). Ранее: блок «Счета» — просмотр и скачивание файла; реестр без сброса фильтра.
+**Изменения:** отмена = возврат в **черновик** с причиной (не архив). Ранее: правка и удаление своего черновика; просмотр файлов счетов.
 
 ---
 
@@ -19,6 +19,7 @@
 - **Gate «Настройки» в UI:** `isCompanyOwnerProvider` → `Profile.isOwner` из `company_members.is_owner` (не `systemRole`).
 - **Write без компании:** все мутации репозитория вызывают `_requireCompany()` → `PurchaseRequestCompanyRequiredException`.
 - **Свой черновик:** правка шапки/позиций и удаление заявки — только автор, только статус `draft` (RPC + UI). Право `view_all` чужой черновик удалить не может. На этапе `revision` можно менять позиции, но не шапку и не удалять заявку.
+- **Отмена:** не финальный статус. RPC `purchase_request_cancel` переводит заявку в `draft`, assignee = автор, причина пишется в историю (`action = cancelled`). Кнопка «Вернуть в черновик» скрыта у черновика и у «Получено». Статус `cancelled` в CHECK остаётся для старых данных; живые строки с ним переведены в `draft` миграцией `20260816194000`.
 - **Список после действий:** `invalidatePurchaseRequestCaches` **не** делает `invalidate` notifier списка (это сбрасывало фильтр на «На мне»). Вызывается `refreshPurchaseRequestList` → `PurchaseRequestListNotifier.load(quiet: true)` с текущими `filter`/`search`.
 - **Edge Functions:** в `supabase/functions/` нет функций модуля; инструмент MCP `list_edge_functions` в текущем сервере отсутствует.
 
@@ -51,7 +52,7 @@
 | История: вертикальный таймлайн (кто → что → когда) | ✅ |
 | Добавление / удаление позиций в `draft` / `revision` (в т.ч. артикул из деталей) | ✅ |
 | Редактирование позиции (`updateItem`) | ✅ в диалоге правки черновика |
-| Workflow-кнопки (согласование, оплата, получение, отмена) | ✅ |
+| Workflow-кнопки (согласование, оплата, получение, возврат в черновик) | ✅ |
 | Кнопка «Отправить на согласование» (этап `invoice_preparation`) | ✅ |
 | Секция «Счета» в панели деталей (добавление / удаление / файл) | ✅ |
 | Просмотр файла счёта в приложении (PDF / JPG / PNG) | ✅ |
@@ -191,7 +192,7 @@
 | Мои | `mine` | Заявки, где `created_by = текущий пользователь` |
 | На мне | `on_me` | `current_assignee_id = текущий пользователь`; статусы **`draft`, `received`, `cancelled` исключены** |
 | Все | `all` | Свои + где assignee; с `view_all` — все заявки компании |
-| Архив | `archive` | Статусы `received`, `cancelled` |
+| Архив | `archive` | Статус `received` (и устаревший `cancelled`, если останется) |
 
 Право `view_all` **не привязано** к вкладкам «Все»/«Архив» — оно расширяет видимость во **всех** фильтрах (в RPC: если нет `view_all`, показываются только свои + где assignee).
 
@@ -568,7 +569,7 @@ supabase/migrations/
 | `purchase_request_queue_payment` | Очередь оплаты |
 | `purchase_request_mark_paid` | Оплачено → получатель |
 | `purchase_request_mark_received` | Получено (финал) |
-| `purchase_request_cancel` | Отмена |
+| `purchase_request_cancel` | Возврат в `draft` с обязательной причиной |
 | `purchase_request_upsert_settings` | Сохранение настроек (owner only) |
 | `purchase_request_company_users` | Список пользователей для dropdown |
 
@@ -641,14 +642,13 @@ stateDiagram-v2
     accounting --> payment_queue: queue_payment
     payment_queue --> paid: mark_paid
     paid --> received: mark_received
-    draft --> cancelled: cancel
-    approval --> cancelled: cancel
-    revision --> cancelled: cancel
-    invoice_preparation --> cancelled: cancel
-    invoice_approval --> cancelled: cancel
-    accounting --> cancelled: cancel
-    payment_queue --> cancelled: cancel
-    paid --> cancelled: cancel
+    approval --> draft: cancel
+    revision --> draft: cancel
+    invoice_preparation --> draft: cancel
+    invoice_approval --> draft: cancel
+    accounting --> draft: cancel
+    payment_queue --> draft: cancel
+    paid --> draft: cancel
 ```
 
 > **Этап счетов:** переход `invoice_preparation → invoice_approval` требует ≥1 счёта и файла `type = invoice` у **каждого** счёта (валидация RPC + клиент `purchaseRequestInvoicesReadyForSubmit`). UI: секция «Счета», диалог добавления, кнопка «Отправить на согласование» с блокировкой до готовности.
@@ -701,7 +701,7 @@ stateDiagram-v2
 | `invoice_approval` | `settings.invoice_approver_id` |
 | `accounting`, `payment_queue` | `settings.accountant_id` |
 | `paid` | Получатель: `fixed_receiver_id` или `created_by` (`receiver_mode`) |
-| `received`, `cancelled` | `NULL` |
+| `received`, `cancelled` | `NULL` (cancelled больше не назначается новым переходам) |
 
 ### Права на действия (RPC + UI)
 
@@ -715,7 +715,7 @@ stateDiagram-v2
 | approve / return invoice | `approve_invoice` | current | |
 | queue payment / mark paid | `payment` | current | |
 | mark received | `receive` | current (receiver) | |
-| cancel | **нет** | автор **или** `view_all` | любой статус кроме `received` / `cancelled` |
+| cancel (вернуть в черновик) | **нет** / `view_all` для чужих | автор становится assignee | не `draft` / `received` / `cancelled`; обязателен comment; статус → `draft` |
 | Чтение списка | `read` | — | + правило видимости |
 | Все заявки компании | `view_all` | — | расширяет видимость во всех фильтрах |
 

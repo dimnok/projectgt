@@ -136,7 +136,7 @@ abstract class PurchaseRequestRepository {
     String? comment,
   });
 
-  /// Отменить заявку.
+  /// Вернуть заявку в черновик с обязательной причиной.
   Future<PurchaseRequest> cancel(
     String requestId, {
     required String comment,

@@ -16,7 +16,7 @@ abstract final class PurchaseRequestUiLabels {
     'queued_for_payment' => 'завёл на оплату',
     'paid' => 'оплатил',
     'received' => 'подтвердил получение',
-    'cancelled' => 'отменил заявку',
+    'cancelled' => 'вернул в черновик',
     _ => action,
   };
 
@@ -24,7 +24,7 @@ abstract final class PurchaseRequestUiLabels {
   static String idleActionsMessage(PurchaseRequestStatus status) =>
       switch (status) {
         PurchaseRequestStatus.received => 'Заявка получена',
-        PurchaseRequestStatus.cancelled => 'Заявка отменена',
+        PurchaseRequestStatus.cancelled => 'Заявка возвращена в черновик',
         _ => 'Ожидает действия ответственного',
       };
 

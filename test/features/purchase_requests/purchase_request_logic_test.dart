@@ -7,6 +7,7 @@ import 'package:projectgt/features/purchase_requests/domain/entities/purchase_re
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_invoice.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_history_entry.dart';
 import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_invoice_utils.dart';
+import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_module_utils.dart';
 import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_ui_labels.dart';
 import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_actions_bar.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
@@ -105,6 +106,7 @@ void main() {
       expect(actions.canEditItems, isTrue);
       expect(actions.canEditDraft, isTrue);
       expect(actions.canDeleteDraft, isTrue);
+      expect(actions.canCancel, isFalse);
     });
 
     test('other user cannot edit or delete someone else draft', () {
@@ -215,6 +217,21 @@ void main() {
       expect(actions.canCancel, isTrue);
       expect(actions.canApprove, isFalse);
       expect(actions.hasAny, isTrue);
+    });
+
+    test('creator can return in-progress request to draft', () {
+      final actions = resolvePurchaseRequestActions(
+        request: request(status: PurchaseRequestStatus.approval),
+        currentUserId: userId,
+        permissions: permissions(
+          grants: const {
+            'purchase_requests': {'create': true},
+          },
+        ),
+      );
+
+      expect(actions.canCancel, isTrue);
+      expect(actions.canEditDraft, isFalse);
     });
 
     test('received request has no actions for creator', () {
@@ -329,7 +346,7 @@ void main() {
         PurchaseRequestUiLabels.idleActionsMessage(
           PurchaseRequestStatus.cancelled,
         ),
-        'Заявка отменена',
+        'Заявка возвращена в черновик',
       );
       expect(
         PurchaseRequestUiLabels.idleActionsMessage(
@@ -369,6 +386,62 @@ void main() {
 
       expect(entry.fromStatus, PurchaseRequestStatus.unknown);
       expect(entry.toStatus, PurchaseRequestStatus.approval);
+    });
+  });
+
+  group('latestPurchaseRequestCancelComment', () {
+    PurchaseRequestHistoryEntry entry({
+      required String id,
+      required String action,
+      String? comment,
+      required DateTime createdAt,
+    }) {
+      return PurchaseRequestHistoryEntry(
+        id: id,
+        requestId: 'r1',
+        userId: 'u1',
+        action: action,
+        comment: comment,
+        createdAt: createdAt,
+      );
+    }
+
+    test('returns latest non-empty cancel comment', () {
+      final note = latestPurchaseRequestCancelComment([
+        entry(
+          id: '1',
+          action: 'cancelled',
+          comment: 'старая',
+          createdAt: DateTime.utc(2026, 8, 1),
+        ),
+        entry(
+          id: '2',
+          action: 'submitted',
+          createdAt: DateTime.utc(2026, 8, 2),
+        ),
+        entry(
+          id: '3',
+          action: 'cancelled',
+          comment: 'исправить объект',
+          createdAt: DateTime.utc(2026, 8, 3),
+        ),
+      ]);
+
+      expect(note, 'исправить объект');
+    });
+
+    test('returns null when cancel comments are empty', () {
+      expect(
+        latestPurchaseRequestCancelComment([
+          entry(
+            id: '1',
+            action: 'cancelled',
+            comment: '  ',
+            createdAt: DateTime.utc(2026, 8, 1),
+          ),
+        ]),
+        isNull,
+      );
     });
   });
 }
