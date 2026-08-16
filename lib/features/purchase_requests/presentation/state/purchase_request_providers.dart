@@ -34,7 +34,7 @@ class PurchaseRequestListState {
     this.items = const [],
     this.isLoading = false,
     this.error,
-    this.filter = PurchaseRequestListFilter.onMe,
+    this.filter = PurchaseRequestListFilter.all,
     this.search,
     this.isTruncatedByLimit = false,
   });

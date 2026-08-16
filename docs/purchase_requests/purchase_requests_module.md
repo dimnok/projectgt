@@ -1,7 +1,7 @@
 # Модуль Заявки на закупку (Purchase Requests)
 
 **Дата:** 16.08.2026  
-**Изменения:** отмена = возврат в **черновик** с причиной (не архив). Ранее: правка и удаление своего черновика; просмотр файлов счетов.
+**Изменения:** фильтры реестра по **статусу** (На согласовании / Согласованы / Все / Архив); вкладки «Мои» и «На мне» удалены. Ранее: отмена = возврат в черновик; правка и удаление своего черновика; просмотр файлов счетов.
 
 ---
 
@@ -20,7 +20,7 @@
 - **Write без компании:** все мутации репозитория вызывают `_requireCompany()` → `PurchaseRequestCompanyRequiredException`.
 - **Свой черновик:** правка шапки/позиций и удаление заявки — только автор, только статус `draft` (RPC + UI). Право `view_all` чужой черновик удалить не может. На этапе `revision` можно менять позиции, но не шапку и не удалять заявку.
 - **Отмена:** не финальный статус. RPC `purchase_request_cancel` переводит заявку в `draft`, assignee = автор, причина пишется в историю (`action = cancelled`). Кнопка «Вернуть в черновик» скрыта у черновика и у «Получено». Статус `cancelled` в CHECK остаётся для старых данных; живые строки с ним переведены в `draft` миграцией `20260816194000`.
-- **Список после действий:** `invalidatePurchaseRequestCaches` **не** делает `invalidate` notifier списка (это сбрасывало фильтр на «На мне»). Вызывается `refreshPurchaseRequestList` → `PurchaseRequestListNotifier.load(quiet: true)` с текущими `filter`/`search`.
+- **Список после действий:** `invalidatePurchaseRequestCaches` **не** делает `invalidate` notifier списка (это сбрасывало бы фильтр на дефолт «Все»). Вызывается `refreshPurchaseRequestList` → `PurchaseRequestListNotifier.load(quiet: true)` с текущими `filter`/`search`.
 - **Edge Functions:** в `supabase/functions/` нет функций модуля; инструмент MCP `list_edge_functions` в текущем сервере отсутствует.
 
 ---
@@ -33,8 +33,8 @@
 
 | Функция | Статус |
 |---------|--------|
-| Реестр с фильтрами (Мои / На мне / Все / Архив) и поиском | ✅ |
-| Дефолтный фильтр «На мне» при открытии модуля | ✅ |
+| Реестр с фильтрами (На согласовании / Согласованы / Все / Архив) и поиском | ✅ |
+| Дефолтный фильтр «Все» при открытии модуля | ✅ |
 | Двухпанельный desktop-UI (sidebar + таблица / детали) | ✅ |
 | Таблица: номер, объект, инициатор, дата, сумма, статус | ✅ |
 | Общий бейдж статуса (`PurchaseRequestStatusBadge`) | ✅ |
@@ -44,7 +44,7 @@
 | Удаление своего черновика | ✅ |
 | Обновление списка сразу после создания заявки | ✅ |
 | Фильтр и поиск сохраняются после действий по заявке | ✅ |
-| Открытая заявка не закрывается, если её нет в текущем фильтре (напр. черновик при «На мне») | ✅ |
+| Открытая заявка не закрывается, если её нет в текущем фильтре (напр. черновик при «На согласовании») | ✅ |
 | Позиции: наименование, ед. изм., количество, артикул | ✅ |
 | Панель деталей: KPI-сводка, таблица позиций, таймлайн истории, workflow | ✅ |
 | Заголовок деталей: номер крупно + объект · инициатор (подзаголовок) | ✅ |
@@ -142,7 +142,7 @@
 
 | Провайдер | Назначение |
 |-----------|------------|
-| `purchaseRequestListProvider` | Единый `StateNotifier` списка: фильтр, поиск (debounce 300 ms), **`kPurchaseRequestListLimit = 50`**, флаг **`isTruncatedByLimit`** |
+| `purchaseRequestListProvider` | Единый `StateNotifier` списка: фильтр (дефолт **`all`**), поиск (debounce 300 ms), **`kPurchaseRequestListLimit = 50`**, флаг **`isTruncatedByLimit`** |
 | `purchaseRequestDetailsProvider` | Детали заявки (`family` по id) |
 | `purchaseRequestItemsProvider` | Позиции |
 | `purchaseRequestHistoryProvider` | История |
@@ -161,7 +161,7 @@
 
 ### Навигация и доступ
 
-- **Маршрут:** `/purchase_requests` (`app_router.dart`, name `purchase_requests`). Вложенный маршрут деталей **отсутствует** — выбор заявки через локальный state `_selectedRequestId`. Открытая панель не закрывается автоматически, если заявки нет в текущем фильтре списка (например черновик при «На мне»).
+- **Маршрут:** `/purchase_requests` (`app_router.dart`, name `purchase_requests`). Вложенный маршрут деталей **отсутствует** — выбор заявки через локальный state `_selectedRequestId`. Открытая панель не закрывается автоматически, если заявки нет в текущем фильтре списка (например черновик при «На согласовании»).
 - **Drawer:** пункт «Заявки на закупку» (`app_drawer.dart`)
 - **Матрица прав:** для `purchase_requests` отключены TMC-специфичные коды (`issue`, `move`, `repair`, …) в `permissions_matrix.dart`
 
@@ -170,31 +170,38 @@
 **Desktop (по образцу Cash Flow):**
 
 ```
-┌─────────────────┬──────────────────────────────────────┐
-│ Поиск           │  Таблица заявок  ИЛИ  Детали заявки   │
-│ Мои / На мне    │                                      │
-│ Все / Архив     │  Колонки: Номер | Объект | Инициатор │
-│ Новая заявка    │           Дата | Сумма | Статус      │
-│ Настройки       │                                      │
-└─────────────────┴──────────────────────────────────────┘
+┌───────────────────────┬──────────────────────────────────────┐
+│ Поиск                 │  Таблица заявок  ИЛИ  Детали заявки   │
+│ На согласовании       │                                      │
+│ Согласованы / Все     │  Колонки: Номер | Объект | Инициатор │
+│ Архив                 │           Дата | Сумма | Статус      │
+│ Новая заявка          │                                      │
+│ Настройки             │                                      │
+└───────────────────────┴──────────────────────────────────────┘
 ```
 
 - При смене фильтра обновляется только содержимое таблицы, каркас layout сохраняется.
 - Desktop: фильтры — `PurchaseRequestFilterBar.desktopSidebar` в sidebar; при лимите — баннер над таблицей.
 - Клик по строке — детали в правой панели; кнопка «назад» в шапке панели деталей (`showCloseButton`).
-- После создания заявки список **перезагружается** (`refreshPurchaseRequestList`), заявка открывается в панели деталей (`_selectedRequestId`). Черновик может отсутствовать во вкладке «На мне» — панель деталей всё равно остаётся открытой, пока пользователь не закроет её.
+- После создания заявки список **перезагружается** (`refreshPurchaseRequestList`), заявка открывается в панели деталей (`_selectedRequestId`). Черновик может отсутствовать во вкладке «На согласовании» / «Согласованы» — панель деталей всё равно остаётся открытой, пока пользователь не закроет её.
 - `ref.listen` на исчезновение заявки из списка **удалён** (мёртвая ветка: выбор всегда совпадал с «закреплением»).
 
-**Фильтры списка (RPC `purchase_request_list`):**
+**Фильтры списка (RPC `purchase_request_list`, миграция `20260816203000` / live `purchase_request_list_status_filters`):**
 
-| Фильтр UI | RPC `p_filter` | Семантика |
-|-----------|----------------|-----------|
-| Мои | `mine` | Заявки, где `created_by = текущий пользователь` |
-| На мне | `on_me` | `current_assignee_id = текущий пользователь`; статусы **`draft`, `received`, `cancelled` исключены** |
-| Все | `all` | Свои + где assignee; с `view_all` — все заявки компании |
-| Архив | `archive` | Статус `received` (и устаревший `cancelled`, если останется) |
+Вкладки **не** делят заявки на «мои / не мои». Значения `mine` / `on_me` **удалены**. Неизвестный `p_filter` **не** показывает все строки (нет fallback).
 
-Право `view_all` **не привязано** к вкладкам «Все»/«Архив» — оно расширяет видимость во **всех** фильтрах (в RPC: если нет `view_all`, показываются только свои + где assignee).
+| Фильтр UI | Enum | RPC `p_filter` | Семантика |
+|-----------|------|----------------|-----------|
+| На согласовании | `pendingApproval` | `pending_approval` | Статус **`approval`** |
+| Согласованы | `approved` | `approved` | Статусы `invoice_preparation`, `invoice_approval`, `accounting`, `payment_queue`, `paid` |
+| Все | `all` | `all` | Все видимые заявки, включая черновики, доработку и архив |
+| Архив | `archive` | `archive` | Статус `received` (и устаревший `cancelled`, если останется) |
+
+Черновик (`draft`) и доработка (`revision`) видны **только** во «Все».
+
+Право `view_all` **не привязано** к вкладке «Все» — оно расширяет видимость во **всех** фильтрах (в RPC: если нет `view_all`, показываются только свои + где `current_assignee_id`).
+
+Дефолт UI: `PurchaseRequestListFilter.all`. Параметр `p_status` в RPC есть, в UI не используется.
 
 **Mobile:**
 
@@ -279,7 +286,7 @@
 |----------|------|----------|
 | `PurchaseRequest` | `purchase_request.dart` | Заявка (Freezed); `initiatorLabel` → `formatUserDisplayLabel(createdByName)` |
 | `PurchaseRequestItem` | `purchase_request_item.dart` | Позиция (`article` опционально) |
-| `PurchaseRequestStatus` | `purchase_request_status.dart` | Enum статусов (+ `unknown` для ошибок данных), `parseFromDb`, `PurchaseRequestListFilter` |
+| `PurchaseRequestStatus` | `purchase_request_status.dart` | Enum статусов (+ `unknown` для ошибок данных), `parseFromDb`, `PurchaseRequestListFilter` (`pendingApproval` / `approved` / `all` / `archive`) |
 | `PurchaseRequestListItem` | `purchase_request_list_item.dart` | Строка списка; `initiatorLabel` через `formatUserDisplayLabel` |
 | `PurchaseRequestSettings` | `purchase_request_settings.dart` | Настройки маршрута (в entity: без `created_at`/`updated_at`/`updated_by`) |
 | `PurchaseRequestHistoryEntry` | `purchase_request_history_entry.dart` | Запись истории; `userName`, `userLabel` → `formatUserDisplayLabel`; `fromJson`: `from_status`/`to_status` — `null` → `null`, иначе `parseFromDb`; без `company_id`, `metadata` |
@@ -398,7 +405,10 @@ supabase/migrations/
 ├── 20260815172500_fix_purchase_request_list_created_at.sql
 ├── 20260815173000_purchase_request_list_created_by_name.sql
 ├── 20260815173500_purchase_request_item_article.sql
-└── 20260815174000_purchase_request_storage_prepare_invoice_upload.sql
+├── 20260815174000_purchase_request_storage_prepare_invoice_upload.sql
+├── 20260816191000_purchase_request_own_draft_edit_delete.sql
+├── 20260816194000_purchase_request_cancel_to_draft.sql
+└── 20260816203000_purchase_request_list_status_filters.sql
 ```
 
 ---
@@ -556,7 +566,7 @@ supabase/migrations/
 
 | Функция | Назначение |
 |---------|------------|
-| `purchase_request_list` | Список: `mine` / `on_me` / `all` / `archive`; `created_by_name` из `profiles` |
+| `purchase_request_list` | Список: `pending_approval` / `approved` / `all` / `archive`; `created_by_name` из `profiles` |
 | `purchase_request_create_draft` | Черновик (+ gate: settings configured) |
 | `purchase_request_update_header` | Объект/комментарий: только автор, только `draft`, право `create` |
 | `purchase_request_delete_draft` | Удаление: только автор, только `draft`, право `create` |
@@ -793,7 +803,8 @@ stateDiagram-v2
 - Многострочное создание заявки с артикулом
 - Обновление списка после создания и после workflow **без сброса фильтра/поиска** (`refreshPurchaseRequestList`)
 - Открытая заявка не закрывается, если её нет в текущем фильтре
-- Единый `PurchaseRequestFilterBar` (mobile chips + desktop sidebar)
+- Единый `PurchaseRequestFilterBar` (mobile chips + desktop sidebar): **На согласовании / Согласованы / Все / Архив**
+- Дефолтный фильтр списка — **Все** (`PurchaseRequestListFilter.all`)
 - Баннер лимита списка (`kPurchaseRequestListLimit = 50`)
 - Кнопка «Отправить на согласование» на этапе `invoice_preparation`
 - Секция «Счета»: список, добавление, удаление, прикрепление файла, **просмотр и скачивание**
@@ -864,4 +875,4 @@ stateDiagram-v2
 
 ---
 
-*Документ подготовлен по аудиту кода (`lib/features/purchase_requests/`, `lib/core/widgets/attachment_file_preview.dart`), миграций `supabase/migrations/` и live PostgreSQL/Storage (`api.progt.ru`, MCP `execute_sql`, 16.08.2026). RLS: все таблицы модуля ✅ кроме `purchase_request_number_seq` ❌. Bucket `purchase_requests` **private**. Edge Functions модуля в `supabase/functions/` нет (MCP `list_edge_functions` отсутствует). Актуализирован после просмотра/скачивания файлов счетов.*
+*Документ подготовлен по аудиту кода (`lib/features/purchase_requests/`, `lib/core/widgets/attachment_file_preview.dart`), миграций `supabase/migrations/` и live PostgreSQL/Storage (`api.progt.ru`, MCP `execute_sql` / `list_migrations`, 16.08.2026). RLS: все таблицы модуля ✅ кроме `purchase_request_number_seq` ❌. Bucket `purchase_requests` **private**. Edge Functions модуля в `supabase/functions/` нет (MCP `list_edge_functions` отсутствует). Актуализирован после смены фильтров списка на статусные.*

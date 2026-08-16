@@ -99,11 +99,11 @@ extension PurchaseRequestStatusX on PurchaseRequestStatus {
 
 /// Фильтр списка заявок (RPC `purchase_request_list`).
 enum PurchaseRequestListFilter {
-  /// Мои заявки.
-  mine,
+  /// На согласовании заявки.
+  pendingApproval,
 
-  /// На мне.
-  onMe,
+  /// Согласованы (после согласования заявки, до получения).
+  approved,
 
   /// Все доступные.
   all,
@@ -116,16 +116,16 @@ enum PurchaseRequestListFilter {
 extension PurchaseRequestListFilterX on PurchaseRequestListFilter {
   /// Параметр `p_filter` для RPC.
   String get rpcValue => switch (this) {
-        PurchaseRequestListFilter.mine => 'mine',
-        PurchaseRequestListFilter.onMe => 'on_me',
+        PurchaseRequestListFilter.pendingApproval => 'pending_approval',
+        PurchaseRequestListFilter.approved => 'approved',
         PurchaseRequestListFilter.all => 'all',
         PurchaseRequestListFilter.archive => 'archive',
       };
 
   /// Подпись для UI.
   String get label => switch (this) {
-        PurchaseRequestListFilter.mine => 'Мои',
-        PurchaseRequestListFilter.onMe => 'На мне',
+        PurchaseRequestListFilter.pendingApproval => 'На согласовании',
+        PurchaseRequestListFilter.approved => 'Согласованы',
         PurchaseRequestListFilter.all => 'Все',
         PurchaseRequestListFilter.archive => 'Архив',
       };
