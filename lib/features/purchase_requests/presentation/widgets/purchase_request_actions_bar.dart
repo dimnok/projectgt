@@ -26,16 +26,37 @@ class PurchaseRequestActionSet {
     this.canEditItems = false,
   });
 
+  /// Можно отправить заявку.
   final bool canSubmit;
+
+  /// Можно согласовать заявку.
   final bool canApprove;
+
+  /// Можно вернуть на доработку.
   final bool canReturn;
+
+  /// Можно отправить счета на согласование.
   final bool canSubmitInvoices;
+
+  /// Можно согласовать счёт.
   final bool canApproveInvoice;
+
+  /// Можно вернуть счёт на доработку.
   final bool canReturnInvoice;
+
+  /// Можно завести на оплату.
   final bool canQueuePayment;
+
+  /// Можно отметить оплату.
   final bool canMarkPaid;
+
+  /// Можно отметить получение материала.
   final bool canMarkReceived;
+
+  /// Можно отменить заявку.
   final bool canCancel;
+
+  /// Можно редактировать позиции.
   final bool canEditItems;
 }
 
@@ -101,8 +122,13 @@ class PurchaseRequestActionsBar extends ConsumerStatefulWidget {
     required this.actions,
   });
 
+  /// Идентификатор заявки.
   final String requestId;
+
+  /// Данные заявки.
   final PurchaseRequest request;
+
+  /// Набор доступных действий.
   final PurchaseRequestActionSet actions;
 
   @override

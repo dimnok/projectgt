@@ -23,19 +23,46 @@ class PurchaseRequestModel {
     this.completedAt,
   });
 
+  /// Идентификатор заявки.
   final String id;
+
+  /// Идентификатор компании.
   final String companyId;
+
+  /// Номер заявки.
   final String number;
+
+  /// Идентификатор объекта.
   final String objectId;
+
+  /// Название объекта (из join).
   final String? objectName;
+
+  /// Идентификатор автора.
   final String createdBy;
+
+  /// Текущий ответственный.
   final String? currentAssigneeId;
+
+  /// Статус заявки.
   final PurchaseRequestStatus status;
+
+  /// Комментарий.
   final String? comment;
+
+  /// Сумма заявки.
   final double totalAmount;
+
+  /// Дата создания.
   final DateTime? createdAt;
+
+  /// Дата обновления.
   final DateTime? updatedAt;
+
+  /// Дата отправки.
   final DateTime? submittedAt;
+
+  /// Дата завершения.
   final DateTime? completedAt;
 
   /// Из JSON (PostgREST / RPC).
@@ -100,14 +127,31 @@ class PurchaseRequestItemModel {
     this.createdAt,
   });
 
+  /// Идентификатор позиции.
   final String id;
+
+  /// Идентификатор заявки.
   final String requestId;
+
+  /// Наименование.
   final String name;
+
+  /// Количество.
   final double quantity;
+
+  /// Единица измерения.
   final String unit;
+
+  /// Артикул.
   final String? article;
+
+  /// Комментарий.
   final String? comment;
+
+  /// Порядок сортировки.
   final int sortOrder;
+
+  /// Дата создания.
   final DateTime? createdAt;
 
   /// Из JSON.
@@ -166,12 +210,25 @@ class PurchaseRequestSettingsModel {
     this.fixedReceiverId,
   });
 
+  /// Идентификатор компании.
   final String companyId;
+
+  /// Первый согласующий.
   final String? firstApproverId;
+
+  /// Подготовка счетов.
   final String? invoicePreparerId;
+
+  /// Согласование счетов.
   final String? invoiceApproverId;
+
+  /// Бухгалтер (оплата).
   final String? accountantId;
+
+  /// Режим получения материала.
   final PurchaseRequestReceiverMode receiverMode;
+
+  /// Фиксированный получатель.
   final String? fixedReceiverId;
 
   /// Из JSON.

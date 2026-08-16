@@ -94,10 +94,10 @@ class PurchaseRequestCreateDialog extends ConsumerStatefulWidget {
     if (isDesktop) {
       return showDialog<String?>(
         context: context,
-        builder: (_) => Dialog(
+        builder: (_) => const Dialog(
           backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.all(24),
-          child: const PurchaseRequestCreateDialog(),
+          insetPadding: EdgeInsets.all(24),
+          child: PurchaseRequestCreateDialog(),
         ),
       );
     }
