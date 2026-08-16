@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/widgets/gt_section_title.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_list_item.dart';
-import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_status.dart';
-import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_ui_labels.dart';
+import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_module_utils.dart';
+import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_status_badge.dart';
 
 /// Таблица реестра заявок на закупку для десктопной раскладки.
 class PurchaseRequestsTable extends StatelessWidget {
@@ -143,8 +143,6 @@ class _PurchaseRequestRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final statusColor =
-        PurchaseRequestUiLabels.statusColor(theme, item.status);
 
     return Material(
       color: selected
@@ -196,9 +194,7 @@ class _PurchaseRequestRow extends StatelessWidget {
               Expanded(
                 flex: 2,
                 child: Text(
-                  item.totalAmount > 0
-                      ? formatCurrency(item.totalAmount)
-                      : '—',
+                  formatPurchaseRequestAmount(item.totalAmount),
                   style: theme.textTheme.bodySmall?.copyWith(
                     fontWeight: FontWeight.w500,
                   ),
@@ -208,25 +204,7 @@ class _PurchaseRequestRow extends StatelessWidget {
                 flex: 2,
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: statusColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      '● ${item.status.displayName}',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: statusColor,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
+                  child: PurchaseRequestStatusBadge(status: item.status),
                 ),
               ),
             ],

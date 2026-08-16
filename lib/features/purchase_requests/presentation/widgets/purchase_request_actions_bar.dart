@@ -60,6 +60,9 @@ class PurchaseRequestActionSet {
   final bool canEditItems;
 }
 
+/// UI счетов ещё не реализован — кнопка отправки скрыта до появления экрана счетов.
+const _kInvoicesUiEnabled = false;
+
 /// Вычисляет доступные действия.
 PurchaseRequestActionSet resolvePurchaseRequestActions({
   required PurchaseRequest request,
@@ -75,6 +78,7 @@ PurchaseRequestActionSet resolvePurchaseRequestActions({
 
   return PurchaseRequestActionSet(
     canEditItems: isCreator &&
+        permissions.can('purchase_requests', 'create') &&
         (status == PurchaseRequestStatus.draft ||
             status == PurchaseRequestStatus.revision),
     canSubmit: isCreator &&
@@ -87,7 +91,8 @@ PurchaseRequestActionSet resolvePurchaseRequestActions({
     canReturn: isAssignee &&
         permissions.can('purchase_requests', 'approve') &&
         status == PurchaseRequestStatus.approval,
-    canSubmitInvoices: isAssignee &&
+    canSubmitInvoices: _kInvoicesUiEnabled &&
+        isAssignee &&
         permissions.can('purchase_requests', 'prepare_invoice') &&
         status == PurchaseRequestStatus.invoicePreparation,
     canApproveInvoice: isAssignee &&
@@ -141,13 +146,11 @@ class _PurchaseRequestActionsBarState
   bool _busy = false;
 
   Future<void> _run(Future<void> action) async {
+    if (!mounted) return;
     setState(() => _busy = true);
     try {
       await action;
-      ref.invalidate(purchaseRequestDetailsProvider(widget.requestId));
-      ref.invalidate(purchaseRequestHistoryProvider(widget.requestId));
-      ref.invalidate(purchaseRequestItemsProvider(widget.requestId));
-      ref.invalidate(purchaseRequestListProvider);
+      invalidatePurchaseRequestCaches(ref, widget.requestId);
     } catch (e) {
       if (mounted) {
         AppSnackBar.show(
@@ -274,7 +277,7 @@ class _PurchaseRequestActionsBarState
                             title: 'Причина возврата',
                             required: true,
                           );
-                          if (c == null || c.isEmpty) return;
+                          if (!mounted || c == null || c.isEmpty) return;
                           await _run(
                             repo.returnForRevision(
                               widget.requestId,
@@ -309,7 +312,7 @@ class _PurchaseRequestActionsBarState
                             title: 'Причина возврата счета',
                             required: true,
                           );
-                          if (c == null || c.isEmpty) return;
+                          if (!mounted || c == null || c.isEmpty) return;
                           await _run(
                             repo.returnInvoice(widget.requestId, comment: c),
                           );
@@ -349,7 +352,7 @@ class _PurchaseRequestActionsBarState
                             title: 'Причина отмены',
                             required: true,
                           );
-                          if (c == null || c.isEmpty) return;
+                          if (!mounted || c == null || c.isEmpty) return;
                           await _run(
                             repo.cancel(widget.requestId, comment: c),
                           );

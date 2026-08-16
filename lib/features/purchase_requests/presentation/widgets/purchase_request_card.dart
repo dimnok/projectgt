@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/widgets/mobile_atmosphere_card_style.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_list_item.dart';
-import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_status.dart';
-import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_ui_labels.dart';
+import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_module_utils.dart';
+import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_status_badge.dart';
 
 /// Карточка заявки в мобильном списке.
 class PurchaseRequestCard extends StatelessWidget {
@@ -29,8 +29,6 @@ class PurchaseRequestCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final statusColor =
-        PurchaseRequestUiLabels.statusColor(theme, item.status);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -99,31 +97,13 @@ class PurchaseRequestCard extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          item.totalAmount > 0
-                              ? formatCurrency(item.totalAmount)
-                              : '—',
+                          formatPurchaseRequestAmount(item.totalAmount),
                           style: theme.textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: statusColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          '● ${item.status.displayName}',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: statusColor,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
+                      PurchaseRequestStatusBadge(status: item.status),
                     ],
                   ),
                 ],

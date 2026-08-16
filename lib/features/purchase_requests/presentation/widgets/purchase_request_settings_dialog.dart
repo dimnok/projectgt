@@ -66,9 +66,9 @@ class _PurchaseRequestSettingsDialogState
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final repo = ref.read(purchaseRequestRepositoryProvider);
-      final users = await repo.getCompanyUsers();
-      final settings = await repo.getSettings();
+      final users =
+          await ref.read(purchaseRequestCompanyUsersProvider.future);
+      final settings = await ref.read(purchaseRequestSettingsProvider.future);
       if (!mounted) return;
       _users = users;
       if (settings != null) {

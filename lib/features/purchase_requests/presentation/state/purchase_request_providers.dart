@@ -178,3 +178,11 @@ final purchaseRequestCompanyUsersProvider =
   final repo = ref.watch(purchaseRequestRepositoryProvider);
   return repo.getCompanyUsers();
 });
+
+/// Сбрасывает кэш деталей, истории, позиций и списка заявок.
+void invalidatePurchaseRequestCaches(WidgetRef ref, String requestId) {
+  ref.invalidate(purchaseRequestDetailsProvider(requestId));
+  ref.invalidate(purchaseRequestHistoryProvider(requestId));
+  ref.invalidate(purchaseRequestItemsProvider(requestId));
+  ref.invalidate(purchaseRequestListProvider);
+}

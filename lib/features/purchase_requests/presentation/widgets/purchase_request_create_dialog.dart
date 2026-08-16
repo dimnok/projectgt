@@ -200,6 +200,7 @@ class _PurchaseRequestCreateDialogState
         );
       }
 
+      ref.invalidate(purchaseRequestListProvider);
       if (!mounted) return;
       Navigator.of(context).pop(id);
     } catch (e) {

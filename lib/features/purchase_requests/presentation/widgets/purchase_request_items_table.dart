@@ -107,16 +107,13 @@ class PurchaseRequestItemsTable extends StatelessWidget {
     return value;
   }
 
-  static Widget _headerCell(
-    ThemeData theme,
-    String text, {
-    TextAlign align = TextAlign.start,
-  }) {
+  static Widget _headerCell(ThemeData theme, String text,
+      {TextAlign align = TextAlign.start}) {
     return Text(
       text.toUpperCase(),
       textAlign: align,
       style: theme.textTheme.labelSmall?.copyWith(
-        color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
+        color: PurchaseRequestDetailsTokens.mutedText(theme),
         fontWeight: FontWeight.w700,
         letterSpacing: 0.8,
         fontSize: 10,

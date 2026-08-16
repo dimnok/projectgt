@@ -136,13 +136,9 @@ class PurchaseRequestDetailsPanel extends ConsumerWidget {
                                                     purchaseRequestRepositoryProvider,
                                                   )
                                                   .deleteItem(itemId);
-                                              ref.invalidate(
-                                                purchaseRequestItemsProvider(
-                                                  requestId,
-                                                ),
-                                              );
-                                              ref.invalidate(
-                                                purchaseRequestListProvider,
+                                              invalidatePurchaseRequestCaches(
+                                                ref,
+                                                requestId,
                                               );
                                             } catch (e) {
                                               if (!context.mounted) return;
@@ -303,8 +299,7 @@ class PurchaseRequestDetailsPanel extends ConsumerWidget {
                 ? 'шт'
                 : unitController.text.trim(),
           );
-      ref.invalidate(purchaseRequestItemsProvider(requestId));
-      ref.invalidate(purchaseRequestListProvider);
+      invalidatePurchaseRequestCaches(ref, requestId);
     } catch (e) {
       if (context.mounted) {
         AppSnackBar.show(
@@ -382,7 +377,7 @@ class _DetailSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final muted = theme.colorScheme.onSurface.withValues(alpha: 0.45);
+    final muted = PurchaseRequestDetailsTokens.mutedText(theme);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -1,7 +1,7 @@
 # Модуль Заявки на закупку (Purchase Requests)
 
 **Дата:** 16.08.2026  
-**Изменения:** редизайн панели деталей v2 — единые design tokens (`purchase_request_details_tokens.dart`), KPI-сводка (статус / сумма / позиции), двухуровневая шапка (номер + мета), вертикальный таймлайн истории, закреплённый подвал действий; устранены конфликты отступов и границ; аудит кода (`lib/features/purchase_requests/`), миграций Supabase и live БД (`api.progt.ru`).
+**Изменения:** тотальный аудит модуля (presentation / domain / data / docs vs live БД); исправления по итогам: обновление списка после создания, скрытие кнопки «Отправить счета» до UI счетов, `formatPurchaseRequestAmount`, `PurchaseRequestStatusBadge`, `invalidatePurchaseRequestCaches`, проверка `create` в `canEditItems`; актуализация описания workflow, фильтров, прав и статусов.
 
 ---
 
@@ -28,21 +28,27 @@
 | Функция | Статус |
 |---------|--------|
 | Реестр с фильтрами (Мои / На мне / Все / Архив) и поиском | ✅ |
+| Дефолтный фильтр «На мне» при открытии модуля | ✅ |
 | Двухпанельный desktop-UI (sidebar + таблица / детали) | ✅ |
 | Таблица: номер, объект, инициатор, дата, сумма, статус | ✅ |
+| Общий бейдж статуса (`PurchaseRequestStatusBadge`) | ✅ |
 | Цветные бейджи статусов (светлая / тёмная тема) | ✅ |
 | Создание черновика: объект, комментарий, многострочные позиции | ✅ |
+| Обновление списка сразу после создания заявки | ✅ |
 | Позиции: наименование, ед. изм., количество, артикул | ✅ |
 | Панель деталей: KPI-сводка, таблица позиций, таймлайн истории, workflow | ✅ |
 | Заголовок деталей: номер крупно + объект · инициатор (подзаголовок) | ✅ |
 | Единые design tokens панели деталей (отступы, радиусы, границы) | ✅ |
 | История: вертикальный таймлайн (кто → что → когда) | ✅ |
-| Редактирование позиций в `draft` / `revision` | ✅ |
-| Workflow-кнопки (согласование, счета, оплата, получение) | ✅ |
+| Добавление / удаление позиций в `draft` / `revision` | ✅ |
+| Редактирование существующей позиции (изменение полей) | 🔴 только RPC `updateItem`, UI нет |
+| Workflow-кнопки (согласование, оплата, получение, отмена) | ✅ |
+| Кнопка «Отправить счета на согласование» | 🔴 скрыта (`_kInvoicesUiEnabled = false`) до UI счетов |
 | Настройки маршрута (owner-only), кнопка «Настройки» | ✅ |
 | Счета (CRUD + PDF) в UI | 🔴 не реализовано |
 | Файлы / документы в UI | 🔴 не реализовано |
 | UI уведомлений | 🔴 не реализовано |
+| Удаление черновика / правка шапки (объект, комментарий) | 🔴 RPC есть, UI нет |
 
 ---
 
@@ -98,25 +104,28 @@
 | `widgets/purchase_request_details_tokens.dart` | Единые отступы, радиусы, цвета и `BoxDecoration` для панели деталей |
 | `widgets/purchase_request_items_table.dart` | Таблица позиций: №, наименование, кол-во, ед., артикул; зебра-строки |
 | `widgets/purchase_request_history_timeline.dart` | Вертикальный таймлайн истории (точка + линия, кто → что → когда) |
-| `widgets/purchase_request_card.dart` | Карточка в мобильном списке (цветной статус) |
+| `widgets/purchase_request_card.dart` | Карточка в мобильном списке (превью позиций, сумма, бейдж статуса) |
+| `widgets/purchase_request_status_badge.dart` | Общий бейдж статуса для списка и таблицы |
 | `widgets/purchase_request_create_dialog.dart` | Создание: объект, комментарий; позиции — строки (наименование, ед. изм., кол-во, артикул) |
-| `widgets/purchase_request_settings_dialog.dart` | Настройки маршрута (4 роли + режим получателя) |
-| `widgets/purchase_request_actions_bar.dart` | Кнопки workflow по статусу и правам |
-| `utils/purchase_request_ui_labels.dart` | Лейблы статусов, действий истории, **фразы для истории** (`historyActionPhrase`), цвета бейджей |
-| `utils/purchase_request_module_utils.dart` | `isPurchaseRequestSettingsConfigured()` |
+| `widgets/purchase_request_settings_dialog.dart` | Настройки маршрута (4 роли + режим получателя); пользователи — через `purchaseRequestCompanyUsersProvider` |
+| `widgets/purchase_request_actions_bar.dart` | Кнопки workflow; `resolvePurchaseRequestActions` (права + assignee + статус) |
+| `utils/purchase_request_ui_labels.dart` | Цвета статусов (`statusColor`), фразы истории (`historyActionPhrase`) |
+| `utils/purchase_request_module_utils.dart` | `isPurchaseRequestSettingsConfigured()`, `formatPurchaseRequestAmount()` |
 
 ### Провайдеры
 
 | Провайдер | Назначение |
 |-----------|------------|
-| `purchaseRequestListProvider` | Единый `StateNotifier` списка (без `family`): фильтр, поиск (debounce 300 ms) |
+| `purchaseRequestListProvider` | Единый `StateNotifier` списка (без `family`): фильтр, поиск (debounce 300 ms); **дефолтный фильтр** — `onMe` |
 | `purchaseRequestDetailsProvider` | Детали заявки (`family` по id) |
 | `purchaseRequestItemsProvider` | Позиции |
 | `purchaseRequestHistoryProvider` | История |
 | `purchaseRequestSettingsProvider` | Настройки компании |
-| `purchaseRequestCompanyUsersProvider` | Пользователи для dropdown |
+| `purchaseRequestCompanyUsersProvider` | Пользователи для dropdown настроек (используется в `PurchaseRequestSettingsDialog`) |
 
-**DI:** `purchaseRequestRepositoryProvider` → `PurchaseRequestRepositoryImpl(client, activeCompanyId)`; `supabaseClientProvider` из `lib/core/di/providers.dart`. Ошибки — `formatSupabaseErrorMessage`.
+**Хелпер:** `invalidatePurchaseRequestCaches(ref, requestId)` — сброс кэша деталей, истории, позиций и списка после мутаций.
+
+**DI:** `purchaseRequestRepositoryProvider` → `PurchaseRequestRepositoryImpl(client, activeCompanyId)`; `supabaseClientProvider` из `lib/core/di/providers.dart`. Ошибки списка — `formatSupabaseErrorMessage`; в `FutureProvider` деталей/позиций/истории пока сырой `'$e'` (техдолг).
 
 ### Навигация и доступ
 
@@ -140,7 +149,18 @@
 
 - При смене фильтра обновляется только содержимое таблицы, каркас layout сохраняется.
 - Клик по строке — детали в правой панели; кнопка «назад» возвращает к таблице.
-- После создания заявки она автоматически открывается в панели деталей.
+- После создания заявки список **перезагружается** (`invalidate(purchaseRequestListProvider)`), заявка автоматически открывается в панели деталей.
+
+**Фильтры списка (RPC `purchase_request_list`):**
+
+| Фильтр UI | RPC `p_filter` | Семантика |
+|-----------|----------------|-----------|
+| Мои | `mine` | Заявки, где `created_by = текущий пользователь` |
+| На мне | `on_me` | Заявки, где пользователь `current_assignee`; **черновики исключены** |
+| Все | `all` | Свои + где assignee; с `view_all` — все заявки компании |
+| Архив | `archive` | Статусы `received`, `cancelled` |
+
+Право `view_all` **не привязано** к вкладкам «Все»/«Архив» — оно расширяет видимость во **всех** фильтрах (в RPC: если нет `view_all`, показываются только свои + где assignee).
 
 **Mobile:**
 
@@ -191,11 +211,17 @@
 - `DesktopDialogContent`, `MobileBottomSheetContent`
 - `AppSnackBar`, `EdgeToEdgeScaffold`
 - Панель деталей: собственные токены (`PurchaseRequestDetailsTokens`), без `GTSectionTitle`
-- Форматтеры: `formatRuDate`, `formatRuDateTime`, `formatQuantity`, `formatCurrency`
+- Форматтеры: `formatRuDate`, `formatRuDateTime`, `formatQuantity`, `formatCurrency`, `formatPurchaseRequestAmount` (сумма или «—»)
 
 ---
 
 ## Domain / Data
+
+### Архитектура слоёв
+
+- **Use Cases:** отсутствуют (`domain/use_cases/` нет). Бизнес-правила кнопок workflow — в `resolvePurchaseRequestActions` (`purchase_request_actions_bar.dart`); gate настроек — `isPurchaseRequestSettingsConfigured()` (дублирует SQL `purchase_request_internal_settings_configured`).
+- **Domain entities** с `fromRpcRow` / `fromJson` (`PurchaseRequestListItem`, `PurchaseRequestHistoryEntry`, `PurchaseRequestCompanyUser`) — маппинг в domain (техдолг: перенести в `data/models`).
+- **Сущности без Dart-кода:** `purchase_request_invoices`, `purchase_request_files`, `purchase_request_notifications` — только таблицы БД.
 
 ### Сущности (domain)
 
@@ -223,7 +249,9 @@
 | `getSettings` | Прямой `SELECT` из `purchase_request_settings` |
 | `getItems` | Прямой `SELECT` из `purchase_request_items` |
 | `createDraft`, workflow | RPC (см. раздел БД) |
-| items CRUD | Прямой PostgREST insert/update/delete (RLS) |
+| `updateHeader`, `deleteDraft` | RPC есть, **UI нет** |
+| items CRUD | PostgREST insert/delete (RLS); `updateItem` в репозитории — **UI нет** |
+| `list` (расширенные параметры) | `objectId`, `status`, `createdBy`, `fromDate`, `toDate`, `limit`, `offset` — в API есть, UI использует только `filter` + `search` |
 
 **Резолвинг ФИО:** `COALESCE(short_name, full_name, email)` — единая логика в `_pickProfileName` / `_fetchUserNames`.
 
@@ -272,6 +300,7 @@ lib/features/purchase_requests/
         ├── purchase_request_history_timeline.dart
         ├── purchase_request_items_table.dart
         ├── purchase_request_settings_dialog.dart
+        ├── purchase_request_status_badge.dart
         └── purchase_requests_table.dart
 
 supabase/migrations/
@@ -388,8 +417,8 @@ supabase/migrations/
 | `invoice_preparer_id` | uuid | Подготовка счетов |
 | `invoice_approver_id` | uuid | Согласование счетов |
 | `accountant_id` | uuid | Бухгалтер |
-| `receiver_mode` | text | `fixed` \| `initiator` |
-| `fixed_receiver_id` | uuid | При `receiver_mode = fixed` |
+| `receiver_mode` | text | `fixed_user` \| `initiator` |
+| `fixed_receiver_id` | uuid | При `receiver_mode = fixed_user` |
 | `created_at`, `updated_at`, `updated_by` | | |
 
 ### Таблица `purchase_request_number_seq`
@@ -480,20 +509,22 @@ supabase/migrations/
 
 ### Статусы
 
+Подписи в UI — `PurchaseRequestStatus.displayName` (extension `PurchaseRequestStatusX`).
+
 | Код | UI (рус.) | Цвет бейджа |
 |-----|-----------|-------------|
 | `draft` | Черновик | Серый |
-| `approval` | Согласование | Синий |
-| `revision` | Доработка | Оранжевый |
-| `invoice_preparation` | Подготовка счетов | Фиолетовый |
-| `invoice_approval` | Согласование счетов | Голубой |
-| `accounting` | Бухгалтерия | Бирюзовый |
-| `payment_queue` | Очередь оплаты | Янтарный |
+| `approval` | На согласовании | Синий |
+| `revision` | На доработке | Оранжевый |
+| `invoice_preparation` | Формирование счета | Фиолетовый |
+| `invoice_approval` | Согласование счета | Голубой |
+| `accounting` | Передано бухгалтеру | Бирюзовый |
+| `payment_queue` | Заведено на оплату | Янтарный |
 | `paid` | Оплачено | Зелёный |
 | `received` | Получено | Тёмно-зелёный |
 | `cancelled` | Отменено | Красный |
 
-Цвета — `PurchaseRequestUiLabels.statusColor` (отдельные значения light/dark).
+Цвета — `PurchaseRequestUiLabels.statusColor`; отображение — `PurchaseRequestStatusBadge` (список/таблица) или KPI-карточка (детали).
 
 ### Workflow (основной путь)
 
@@ -512,7 +543,15 @@ stateDiagram-v2
     paid --> received: mark_received
     draft --> cancelled: cancel
     approval --> cancelled: cancel
+    revision --> cancelled: cancel
+    invoice_preparation --> cancelled: cancel
+    invoice_approval --> cancelled: cancel
+    accounting --> cancelled: cancel
+    payment_queue --> cancelled: cancel
+    paid --> cancelled: cancel
 ```
+
+> **Этап счетов:** переход `invoice_preparation → invoice_approval` требует ≥1 счёта с PDF в БД. Кнопка в UI **скрыта** (`_kInvoicesUiEnabled = false`) до реализации экрана счетов.
 
 ### Ответственные (`current_assignee_id`)
 
@@ -528,33 +567,37 @@ stateDiagram-v2
 
 ### Права на действия (RPC + UI)
 
-| Действие | Permission | Assignee check |
-|----------|------------|----------------|
-| Создание / submit | `create` | автор |
-| approve / return | `approve` | current |
-| submit invoices | `prepare_invoice` | current |
-| approve / return invoice | `approve_invoice` | current |
-| queue payment / mark paid | `payment` | current |
-| mark received | `receive` | current |
-| Список `all` / `archive` | `view_all` | — |
-| Чтение своих | `read` | created_by или assignee |
+| Действие | Permission | Assignee / автор | Доп. условия |
+|----------|------------|------------------|--------------|
+| Создание / submit | `create` | автор | ≥1 позиция; settings configured |
+| Добавление / удаление позиций | `create` (RLS) | автор | `draft` / `revision`; `canEditItems` в UI |
+| approve / return | `approve` | current | return: обязателен comment |
+| submit invoices | `prepare_invoice` | current | счета + PDF в БД; **кнопка скрыта** в UI |
+| approve / return invoice | `approve_invoice` | current | |
+| queue payment / mark paid | `payment` | current | |
+| mark received | `receive` | current (receiver) | |
+| cancel | **нет** | автор **или** `view_all` | любой статус кроме `received` / `cancelled` |
+| Чтение списка | `read` | — | + правило видимости |
+| Все заявки компании | `view_all` | — | расширяет видимость во всех фильтрах |
 
-Логика кнопок дублируется на клиенте в `resolvePurchaseRequestActions` (`purchase_request_actions_bar.dart`).
+Логика кнопок на клиенте — `resolvePurchaseRequestActions` (`purchase_request_actions_bar.dart`). После мутаций — `invalidatePurchaseRequestCaches`.
 
 ### Gate: настройки перед созданием
 
 `purchase_request_create_draft` → `purchase_request_internal_settings_configured`:
 
 - `first_approver_id`, `invoice_preparer_id`, `invoice_approver_id`, `accountant_id` — NOT NULL
-- `receiver_mode = fixed` → `fixed_receiver_id` NOT NULL
+- `receiver_mode = fixed_user` → `fixed_receiver_id` NOT NULL
 - `receiver_mode = initiator` → fixed не требуется
 
 ### Позиции
 
-- Добавление/редактирование/удаление — только в `draft` и `revision` (RLS + `canEditItems`)
-- Submit без позиций — ошибка на клиенте и на сервере
+- **Добавление / удаление** — только в `draft` и `revision` (RLS + `canEditItems`; требуется permission `create`)
+- **Изменение полей** существующей позиции — RPC/репозиторий `updateItem` есть, **UI нет**
+- Submit без позиций — предупреждение на клиенте + ошибка на сервере
 - `unit` — свободный текст; `article` — опциональный
 - В диалоге добавления позиции **из деталей** артикул пока **не запрашивается** (техдолг)
+- `sort_order` при insert не задаётся клиентом (default 0; порядок по `created_at`)
 
 ### История (отображение)
 
@@ -563,11 +606,16 @@ stateDiagram-v2
 | Кто | `profiles` по `user_id` | `userLabel` (жирный, слева) |
 | Что | `action` → `historyActionPhrase` | строчная фраза после ФИО |
 | Когда | `created_at` | `formatRuDateTime`, справа, muted |
-| Комментарий | `comment` | « — {текст}» курсивом |
+| Комментарий | `comment` | **отдельная строка** курсивом под действием |
 
-Пример: `Тельнов Д.А. создал заявку` ········· `16.08.2026 07:46`
+Пример:
 
-Коды действий и подписи — `PurchaseRequestUiLabels.historyActionLabel` (заголовок) / `historyActionPhrase` (в строке истории).
+```
+Тельнов Д.А. создал заявку          16.08.2026 07:46
+Причина возврата (курсив, если есть)
+```
+
+Коды действий → фразы: `PurchaseRequestUiLabels.historyActionPhrase`. Поля `from_status` / `to_status` и `metadata` (даты оплаты/получения) в entity есть, в UI **не отображаются** (техдолг).
 
 ### Получение после оплаты
 
@@ -602,34 +650,45 @@ stateDiagram-v2
 - Двухпанельный desktop-UI (sidebar + таблица / детали)
 - Master-detail в одном экране (без отдельного route)
 - Таблица реестра с инициатором и цветными статусами
+- Общий бейдж статуса и формат суммы (`formatPurchaseRequestAmount`)
 - Многострочное создание заявки с артикулом
+- Обновление списка после создания заявки
 - Панель деталей: KPI-сводка, таблица позиций, таймлайн истории, workflow actions
 - Единые design tokens панели деталей (отступы, радиусы, границы)
 - Двухуровневая шапка (номер + объект · инициатор)
 - Вертикальный таймлайн истории (кто → что → когда)
 - Закреплённый подвал действий (кнопки справа)
+- `invalidatePurchaseRequestCaches` после мутаций
 - Настройки маршрута (owner), кнопка «Настройки»
 - Матрица прав, drawer, router
-- Human-readable ошибки Supabase в UI
+- Human-readable ошибки Supabase в списке и диалогах
 
 ### Баги / техдолг 🟡
 
-- UI счетов не связан с `purchase_request_invoices`
+- UI счетов не связан с `purchase_request_invoices`; кнопка submit invoices **скрыта** до реализации
 - Блок «Документы» / `purchase_request_files` не в UI
 - Уведомления пишутся в БД, но не отображаются
 - Добавление позиции из деталей — без поля артикула
+- Нет UI для `updateItem`, `updateHeader`, `deleteDraft`
+- Бизнес-логика workflow в presentation, не в domain use cases
+- `PurchaseRequestHistoryEntry.metadata` не показывается в таймлайне
 - ФИО в деталях/истории — дополнительный round-trip к `profiles` (нет FK embed)
+- Ошибки в `FutureProvider` деталей — сырой текст исключения
+- Пагинация списка (`limit=50`) не используется в UI
 - E2E сценарий по ТЗ (20 шагов) не автоматизирован
 
 ### Планы 🔴
 
-1. Экран/секция «Счета»: CRUD, выбор поставщика, upload PDF
+1. Экран/секция «Счета»: CRUD, выбор поставщика, upload PDF; включить `_kInvoicesUiEnabled`
 2. Секция «Документы» с Storage
 3. Badge / список уведомлений в модуле
 4. Артикул в диалоге добавления позиции из деталей
-5. RPC или view для истории с `user_name` (убрать N+1 batch на клиенте)
-6. Экспорт списка заявок (если потребуется `export` permission)
-7. Cross-link в `docs/database_structure.md`
+5. UI редактирования позиций (`updateItem`) и шапки черновика (`updateHeader`)
+6. UI удаления черновика (`deleteDraft`)
+7. Domain use cases / перенос `resolvePurchaseRequestActions` из виджета
+8. RPC или view для истории с `user_name` (убрать N+1 batch на клиенте)
+9. Экспорт списка заявок (если потребуется `export` permission)
+10. Cross-link в `docs/database_structure.md`
 
 ---
 

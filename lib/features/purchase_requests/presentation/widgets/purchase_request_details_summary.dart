@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:projectgt/core/utils/formatters.dart';
+import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_module_utils.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_status.dart';
 import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_details_tokens.dart';
@@ -46,9 +46,7 @@ class PurchaseRequestDetailsSummary extends StatelessWidget {
             final sumCard = _KpiCard(
               theme: theme,
               label: 'Сумма',
-              value: request.totalAmount > 0
-                  ? formatCurrency(request.totalAmount)
-                  : '—',
+              value: formatPurchaseRequestAmount(request.totalAmount),
               emphasized: request.totalAmount > 0,
               icon: Icons.payments_outlined,
             );

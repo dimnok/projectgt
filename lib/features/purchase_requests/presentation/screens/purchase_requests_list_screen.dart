@@ -46,6 +46,7 @@ class _PurchaseRequestsListScreenState
   Future<void> _openCreate() async {
     final id = await PurchaseRequestCreateDialog.show(context);
     if (id == null || !mounted) return;
+    ref.invalidate(purchaseRequestListProvider);
     setState(() => _selectedRequestId = id);
   }
 
@@ -295,23 +296,7 @@ class _PurchaseRequestsListScreenState
               ),
         ),
         const Spacer(),
-        if (showSearch && useMobile)
-          SizedBox(
-            width: 240,
-            child: GTTextField(
-              controller: _mobileSearchController,
-              hintText: 'Поиск',
-              prefixIcon: Icons.search,
-              onChanged: ref.read(purchaseRequestListProvider.notifier).setSearchQuery,
-            ),
-          ),
-        if (showSearch && useMobile) const SizedBox(width: 8),
         themeButton,
-        if (settingsButton != null) ...[
-          const SizedBox(width: 8),
-          settingsButton,
-        ],
-        if (addButton != null) ...[const SizedBox(width: 8), addButton],
       ],
     );
   }

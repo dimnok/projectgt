@@ -69,7 +69,7 @@ class _TimelineEntry extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final muted = theme.colorScheme.onSurface.withValues(alpha: 0.45);
+    final muted = PurchaseRequestDetailsTokens.mutedText(theme);
     final action = PurchaseRequestUiLabels.historyActionPhrase(entry.action);
     final comment = entry.comment?.trim();
     final dotColor = theme.colorScheme.onSurface.withValues(alpha: 0.25);
