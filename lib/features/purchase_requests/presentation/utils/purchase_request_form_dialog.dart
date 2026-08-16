@@ -25,8 +25,8 @@ Future<T?> showPurchaseRequestFormDialog<T>({
         child: DesktopDialogContent(
           title: title,
           width: width,
-          child: bodyBuilder(dialogContext),
           footer: footerBuilder(dialogContext),
+          child: bodyBuilder(dialogContext),
         ),
       ),
     );
@@ -39,8 +39,8 @@ Future<T?> showPurchaseRequestFormDialog<T>({
     backgroundColor: Colors.transparent,
     builder: (dialogContext) => MobileBottomSheetContent(
       title: title,
-      child: bodyBuilder(dialogContext),
       footer: footerBuilder(dialogContext),
+      child: bodyBuilder(dialogContext),
     ),
   );
 }
