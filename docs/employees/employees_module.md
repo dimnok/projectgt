@@ -502,7 +502,7 @@ lib/
 - `calculate_employee_balances()` — баланс к выплате по сотрудникам
 - функции расчёта зарплаты за месяц / срезы payroll (используют `employees`, `employee_rates`, `work_hours`, `employee_attendance`)
 - `get_payroll_report_data` и связанные RPC в миграциях ФОТ
-- `get_month_employees_summary` — агрегат по числу сотрудников в сменах за месяц
+- `get_month_employees_summary` — агрегат по числу выходов специалистов в смены за месяц (`COUNT(work_hours)`, не уникальные люди)
 
 **Собственные RPC модуля:**
 

@@ -1,5 +1,12 @@
 # Модуль Works (Shifts & Work Plans)
-**Дата актуализации:** 18 августа 2026 года — Фильтр сводки месяца по объекту (правая панель, список смен слева не меняется):
+**Дата актуализации:** 18 августа 2026 года — KPI «Специалистов» в сводке месяца считает **все выходы в смены**, а не уникальных людей:
+- **Было:** `COUNT(DISTINCT work_hours.employee_id)` — один человек за месяц = 1.
+- **Стало:** `COUNT(work_hours.employee_id)` — каждый выход в смену считается отдельно (Иванов в 10 сменах = 10).
+- **«Выработка / чел.»** делится на ту же цифру: общая сумма / число выходов.
+- **RPC:** `get_month_employees_summary` без смены сигнатуры. Миграция `20260818220000_month_employees_total_not_unique.sql`.
+- **Не затронуто:** `works.employees_count` в карточке смены по-прежнему уникальные люди **внутри одной смены**.
+
+Предыдущая запись: 18 августа 2026 года — Фильтр сводки месяца по объекту (правая панель, список смен слева не меняется):
 - **UI (`MonthDetailsPanel`):** нажатие на строку в блоке «По объектам» выбирает объект. График, KPI (сумма, число смен, специалисты, часы, средняя смена, выработка / чел.) и блок «По системам» пересчитываются только по этому объекту. Повторное нажатие или кнопка «Все объекты» снимает фильтр. Список объектов остаётся полным (выбранная строка подсвечивается). Список смен слева **не** фильтруется.
 - **Состояние:** выбор объекта хранится в `State` панели (`_selectedObjectId`). Сбрасывается при уходе со сводки (виджет уничтожается) и при смене месяца (`didUpdateWidget` / новый `ValueKey` по году-месяцу). `null` — все объекты.
 - **График:** `LightWork` / `LightWorkModel` получили `objectId`; `getMonthWorksForChart` читает `object_id`; фильтр на клиенте по выбранному ID.
@@ -228,7 +235,7 @@ lib/features/
 - `get_month_objects_summary(p_month, p_company_id)` — список объектов сводки (без `p_object_id`; UI фильтрует по клику локально).
 - `get_month_systems_summary(p_month, p_company_id, p_object_id DEFAULT NULL)`
 - `get_month_hours_summary(p_month, p_company_id, p_object_id DEFAULT NULL)`
-- `get_month_employees_summary(p_month, p_company_id, p_object_id DEFAULT NULL)`
+- `get_month_employees_summary(p_month, p_company_id, p_object_id DEFAULT NULL)` — KPI «Специалистов»: `COUNT(work_hours.employee_id)` за месяц (все выходы, не уникальные люди)
 - `enqueue_telegram_outbox_opening`, `check_work_access`
 - смежные: `calculate_contract_works`, search/export work_items (модуль Export)
 
@@ -245,6 +252,7 @@ AND (p_object_id IS NULL OR w.object_id = p_object_id)
 5. **Удаление:** Owner — любые; пользователь — свои open + RBAC `works.delete` / `work_plans.delete`.
 6. **Итоги:** `work_items.total` на клиенте; header-агрегаты — триггеры БД.
 7. **Сводка месяца по объекту:** выбор объекта в «По объектам» не меняет список смен. График фильтруется по `LightWork.objectId`; сумма и число смен — из выбранного `ObjectSummary`; системы/часы/специалисты — RPC с `p_object_id`. Сброс: повторный клик или «Все объекты».
+8. **KPI «Специалистов»:** число записей `work_hours` за месяц (каждый выход специалиста в смену). **«Выработка / чел.»** = общая сумма / это число. Уникальные люди за месяц не показываются.
 
 ## Интеграции
 **Edge Functions:**
@@ -258,6 +266,7 @@ AND (p_object_id IS NULL OR w.object_id = p_object_id)
 **Прочее:** Storage bucket `works`; ФОТ/табель читают часы смен; договоры — `calculate_contract_works` / `contract_act_id`.
 
 ## Roadmap
+- ✅ **Завершено (18.08.2026, специалисты — все выходы):** `get_month_employees_summary` считает `COUNT(work_hours.employee_id)` без `DISTINCT`. KPI «Специалистов» и «Выработка / чел.» используют одну цифру. Миграция `20260818220000_month_employees_total_not_unique.sql`.
 - ✅ **Завершено (18.08.2026, фильтр сводки по объекту):** клик по объекту в `MonthDetailsPanel` фильтрует график, KPI и системы. Список смен слева не меняется. RPC `get_month_systems_summary` / `get_month_hours_summary` / `get_month_employees_summary` — опциональный `p_object_id`. Миграция `20260818210000_month_summary_object_filter.sql` применена на сервере.
 - ✅ **Завершено (02.08.2026, часы при добавлении сотрудника):** поле «Часы» в `WorkHourFormModal` стало необязательным — пустое значение сохраняется как `0`. Валидатор пропускает пустое поле, при вводе проверяет неотрицательное число. Обновлён поясняющий текст. Проверка закрытия смены (`hours ≤ 0`) не затронута. Миграций нет.
 - ✅ **Завершено (02.08.2026, номера позиций):** устранение «висящих» спиннеров номеров во вкладке «Работы». Номер теперь приезжает одним запросом через LEFT JOIN `estimates!estimate_id(number)` в `fetchWorkItems`/`fetchWorkItemById`; поле `number` добавлено в `WorkItem`/`WorkItemModel` (в модели не сериализуется в БД). В `WorkDetailsPanel` удалены: спиннеры номеров, `_areEstimatesLoading`, per-item `ref.watch(estimateNotifierProvider)`, загрузка всех смет при инициализации. Миграций нет. `dart analyze` чист.

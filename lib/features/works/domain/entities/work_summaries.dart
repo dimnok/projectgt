@@ -53,9 +53,9 @@ class MonthHoursSummary {
   const MonthHoursSummary({required this.totalHours});
 }
 
-/// Сводка по сотрудникам за месяц.
+/// Сводка по специалистам за месяц.
 class MonthEmployeesSummary {
-  /// Общее количество специалистов
+  /// Общее число выходов специалистов в смены (не уникальные люди).
   final int totalEmployees;
 
   /// Создаёт сводку с общим количеством специалистов.

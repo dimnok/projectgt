@@ -61,7 +61,7 @@ abstract class WorkDataSource {
   /// [objectId] — если задан, только смены этого объекта.
   Future<MonthHoursSummary> getTotalHours(DateTime month, {String? objectId});
 
-  /// Возвращает количество уникальных сотрудников за месяц.
+  /// Возвращает общее количество специалистов за месяц (каждый выход в смену).
   ///
   /// [objectId] — если задан, только смены этого объекта.
   Future<MonthEmployeesSummary> getTotalEmployees(

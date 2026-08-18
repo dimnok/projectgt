@@ -157,7 +157,7 @@ class WorkRepositoryImpl implements WorkRepository {
     return await dataSource.getTotalHours(month, objectId: objectId);
   }
 
-  /// Возвращает количество уникальных сотрудников за месяц.
+  /// Возвращает общее количество специалистов за месяц (каждый выход в смену).
   @override
   Future<MonthEmployeesSummary> getTotalEmployees(
     DateTime month, {

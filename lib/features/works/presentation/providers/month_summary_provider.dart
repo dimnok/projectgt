@@ -54,7 +54,7 @@ final monthTotalHoursProvider =
       return repository.getTotalHours(query.month, objectId: query.objectId);
     });
 
-/// Провайдер для получения количества сотрудников за месяц.
+/// Провайдер для получения общего количества специалистов за месяц.
 final monthTotalEmployeesProvider =
     FutureProvider.family<MonthEmployeesSummary, MonthSummaryQuery>((
       ref,

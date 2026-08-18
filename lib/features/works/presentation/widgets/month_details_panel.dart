@@ -107,7 +107,10 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
           chartDataAsync.valueOrNull,
           selectedObjectId,
         );
-        final averagePerEmployee = _calculateAveragePerEmployee(fullWorks);
+        final averagePerEmployee = _calculateAveragePerEmployee(
+          kpiTotalAmount,
+          totalEmployees,
+        );
 
         final formattedMonthTitle = monthName;
 
@@ -694,17 +697,8 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
     return _EmptyState(message: message);
   }
 
-  String _calculateAveragePerEmployee(List<LightWork>? works) {
-    if (works == null || works.isEmpty) return '0 ₽';
-    final totalEmployees = works.fold<int>(
-      0,
-      (sum, work) => sum + work.employeesCount,
-    );
-    if (totalEmployees == 0) return '0 ₽';
-    final totalAmount = works.fold<double>(
-      0,
-      (sum, work) => sum + work.totalAmount,
-    );
+  String _calculateAveragePerEmployee(double totalAmount, int totalEmployees) {
+    if (totalEmployees == 0) return formatCurrency(0);
     return formatCurrency(totalAmount / totalEmployees);
   }
 
