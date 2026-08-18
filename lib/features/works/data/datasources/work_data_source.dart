@@ -49,11 +49,23 @@ abstract class WorkDataSource {
   Future<List<ObjectSummary>> getObjectsSummary(DateTime month);
 
   /// Возвращает полную статистику по системам за месяц.
-  Future<List<SystemSummary>> getSystemsSummary(DateTime month);
+  ///
+  /// [objectId] — если задан, только смены этого объекта.
+  Future<List<SystemSummary>> getSystemsSummary(
+    DateTime month, {
+    String? objectId,
+  });
 
   /// Возвращает общее количество часов за месяц.
-  Future<MonthHoursSummary> getTotalHours(DateTime month);
+  ///
+  /// [objectId] — если задан, только смены этого объекта.
+  Future<MonthHoursSummary> getTotalHours(DateTime month, {String? objectId});
 
   /// Возвращает количество уникальных сотрудников за месяц.
-  Future<MonthEmployeesSummary> getTotalEmployees(DateTime month);
+  ///
+  /// [objectId] — если задан, только смены этого объекта.
+  Future<MonthEmployeesSummary> getTotalEmployees(
+    DateTime month, {
+    String? objectId,
+  });
 }

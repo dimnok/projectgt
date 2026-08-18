@@ -10,6 +10,7 @@ _LightWorkModel _$LightWorkModelFromJson(Map<String, dynamic> json) =>
     _LightWorkModel(
       id: json['id'] as String,
       date: DateTime.parse(json['date'] as String),
+      objectId: json['object_id'] as String? ?? '',
       totalAmount: (json['total_amount'] as num).toDouble(),
       employeesCount: (json['employees_count'] as num?)?.toInt() ?? 0,
     );
@@ -18,6 +19,7 @@ Map<String, dynamic> _$LightWorkModelToJson(_LightWorkModel instance) =>
     <String, dynamic>{
       'id': instance.id,
       'date': instance.date.toIso8601String(),
+      'object_id': instance.objectId,
       'total_amount': instance.totalAmount,
       'employees_count': instance.employeesCount,
     };

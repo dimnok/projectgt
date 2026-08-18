@@ -1,10 +1,13 @@
-/// Облегченная сущность смены для графиков (только дата и сумма).
+/// Облегченная сущность смены для графиков (дата, сумма, объект).
 class LightWork {
   /// Идентификатор смены.
   final String id;
 
   /// Дата смены.
   final DateTime date;
+
+  /// Идентификатор объекта смены.
+  final String objectId;
 
   /// Общая сумма выработки.
   final double totalAmount;
@@ -16,6 +19,7 @@ class LightWork {
   const LightWork({
     required this.id,
     required this.date,
+    required this.objectId,
     required this.totalAmount,
     required this.employeesCount,
   });

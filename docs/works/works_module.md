@@ -1,5 +1,14 @@
 # Модуль Works (Shifts & Work Plans)
-**Дата актуализации:** 2 августа 2026 года — Добавление сотрудника в открытую смену без указания часов:
+**Дата актуализации:** 18 августа 2026 года — Фильтр сводки месяца по объекту (правая панель, список смен слева не меняется):
+- **UI (`MonthDetailsPanel`):** нажатие на строку в блоке «По объектам» выбирает объект. График, KPI (сумма, число смен, специалисты, часы, средняя смена, выработка / чел.) и блок «По системам» пересчитываются только по этому объекту. Повторное нажатие или кнопка «Все объекты» снимает фильтр. Список объектов остаётся полным (выбранная строка подсвечивается). Список смен слева **не** фильтруется.
+- **Состояние:** выбор объекта хранится в `State` панели (`_selectedObjectId`). Сбрасывается при уходе со сводки (виджет уничтожается) и при смене месяца (`didUpdateWidget` / новый `ValueKey` по году-месяцу). `null` — все объекты.
+- **График:** `LightWork` / `LightWorkModel` получили `objectId`; `getMonthWorksForChart` читает `object_id`; фильтр на клиенте по выбранному ID.
+- **KPI суммы/смен:** из `ObjectSummary` выбранного объекта (`get_month_objects_summary` без фильтра — список объектов всегда полный).
+- **Системы / часы / специалисты:** RPC `get_month_systems_summary`, `get_month_hours_summary`, `get_month_employees_summary` принимают опциональный `p_object_id uuid DEFAULT NULL`. Клиент передаёт ID через `MonthSummaryQuery`.
+- **БД:** миграция `20260818210000_month_summary_object_filter.sql`, применена на сервере (`schema_migrations`: `20260818183230` / `month_summary_object_filter`). Схема таблиц не менялась.
+- **Аудит 18.08.2026:** RLS ✅ на `works`, `work_items`, `work_hours`, `work_plans`, `work_plan_blocks`, `work_plan_items`, `telegram_outbox`. Live-строки (approx.): `works` 1011, `work_items` 27351, `work_hours` 9081, `telegram_outbox` 868 (из них `failed` 859, `pending` 9); таблицы планов пустые. MCP `list_edge_functions` в проекте нет — список Edge Functions сверен по `supabase/functions/`.
+
+Предыдущая запись: 2 августа 2026 года — Добавление сотрудника в открытую смену без указания часов:
 - **Симптом:** при добавлении сотрудника в открытую смену форма требовала обязательного ввода часов, блокируя сохранение ошибкой «Пожалуйста, введите количество часов». Это противоречило бизнес-сценарию «добавил утром → проставил часы в конце дня» и расходилось с поведением формы открытия смены, где сотрудники создаются с `hours = 0`.
 - **Причина:** валидатор поля «Часы» в `WorkHourFormModal` требовал непустое значение. На уровне БД ограничений нет (`work_hours.hours` — `numeric NOT NULL` без CHECK), то есть `0` уже разрешён.
 - **Решение (`work_hour_form_modal.dart`):** поле «Часы» стало необязательным. Пустое значение валидатор пропускает, в `_save()` оно парсится как `0` (с учётом запятой как десятичного разделителя). Если значение введено — проверяется, что это корректное неотрицательное число. Обновлён поясняющий подзаголовок и `helperText` поля.
@@ -54,6 +63,7 @@
 
 **Ключевые функции:**
 - ✅ Список смен и планов с группировкой по месяцам; фильтр «Все / Мои» (desktop по умолчанию — Все, mobile — Мои).
+- ✅ Сводка месяца: клик по объекту в блоке «По объектам» фильтрует график, KPI и системы; список смен слева не зависит от выбора.
 - ✅ Desktop master-detail; mobile — отдельные routes деталей смены и месяца.
 - ✅ Фотофиксация: утро (обязательно при открытии), вечер (обязательно для закрытия).
 - ✅ Вкладки смены: **Данные** | **Работы** | **Сотрудники** (часы; массовые пресеты 8/10/12).
@@ -82,7 +92,7 @@
 - `WorkDetailsPanel` — детали смены: вкладки Данные / Работы / Сотрудники (`WorkDataTab`, список `WorkItem` (номер позиции уже в `item.number` — без отдельной загрузки смет), `WorkHoursTab`).
 - `WorkDetailsScreen` — полноэкранные детали (mobile route `/works/:workId`).
 - `WorkValidationBlock` — чек-лист закрытия смены.
-- `MonthDetailsPanel` / `MonthDetailsMobileScreen` — KPI и график месяца.
+- `MonthDetailsPanel` / `MonthDetailsMobileScreen` — KPI и график месяца. Клик по объекту в «По объектам» задаёт фильтр сводки (локальный `_selectedObjectId`); сброс — повторный клик, `GTTextButton` «Все объекты», смена месяца или уход с панели. Список смен слева не затрагивается.
 - `WorkPlanDetailsScreen`, `WorkPlanFormModal` / `WorkPlanFormContent` — планы (`features/work_plans`).
 - `NewMaterialModal` — **не** материалы смены: добавление позиции в **смету** из формы работ.
 - Design System: `GTTextField`, `GTDropdown`, `GTPrimaryButton` / `GTSecondaryButton` / `GTTextButton`, `AppSnackBar`.
@@ -90,12 +100,12 @@
 **Провайдеры (Riverpod):**
 - `workRepositoryProvider`, `workItemRepositoryProvider`, `workHourRepositoryProvider`.
 - `worksProvider`, `workItemsProvider`, `workHoursProvider`.
-- `monthGroupsProvider`, `monthChartDataProvider`, сводки месяца (objects/systems/hours/employees).
+- `monthGroupsProvider`, `monthChartDataProvider`, сводки месяца: `objectsSummaryProvider`, `systemsSummaryProvider` / `monthTotalHoursProvider` / `monthTotalEmployeesProvider` (`MonthSummaryQuery`: месяц + опциональный `objectId`).
 - `hasOpenWorkProvider`, `myOpenWorkIdProvider`.
 - `workPlanMonthGroupsProvider` + `workPlanNotifierProvider` (core DI).
 
 ## Слой Domain/Data
-- **Entities (смены):** `Work`, `LightWork`, `WorkItem` (поле `number` — номер позиции из сметы, подтягивается JOIN'ом при чтении, не хранится в БД), `WorkHour`, summary DTO в `work_summaries.dart`.
+- **Entities (смены):** `Work`, `LightWork` (поля `id`, `date`, `objectId`, `totalAmount`, `employeesCount` — для графика месяца), `WorkItem` (поле `number` — номер позиции из сметы, подтягивается JOIN'ом при чтении, не хранится в БД), `WorkHour`, summary DTO в `work_summaries.dart`.
 - **Repositories:** `WorkRepository`, `WorkItemRepository`, `WorkHourRepository` (+ impl в `data/`). DI — `presentation/providers/repositories_providers.dart` (единственная точка; дубль в `core/di` удалён 02.08.2026).
 - **DataSources:** `WorkDataSourceImpl`, `WorkItemDataSourceImpl` (`fetchWorkItems` / `fetchWorkItemById` — `select('*, estimates!estimate_id(number)')`, номер достаётся из вложенного объекта JOIN'а и проставляется в модель через `copyWith`), `WorkHourDataSourceImpl`.
 - **Планы:** domain/data в глобальных `lib/domain`, `lib/data` (legacy layout); UI в `lib/features/work_plans/`. После чистки 02.08.2026: usecases — только `GetWorkPlansUseCase`, `CreateWorkPlanUseCase`, `UpdateWorkPlanUseCase`, `DeleteWorkPlanUseCase`; `WorkPlanNotifier` — `loadWorkPlans` + `deleteWorkPlan` (create/update идут из формы через usecase-провайдеры напрямую).
@@ -123,7 +133,7 @@ lib/features/
 │       │   ├── new_material_modal.dart   # смета, не work_materials
 │       │   ├── tabs/ work_data_tab.dart, work_hours_tab.dart
 │       │   └── desktop/ works_master_detail_desktop_view.dart
-│       ├── widgets/       # validation, stats, lists, photos, charts
+│       ├── widgets/       # month_details_panel, validation, stats, lists, photos, charts
 │       └── utils/         # works_strings, photo_upload_helper
 └── work_plans/
     ├── data/models/       # WorkPlanMonthGroup
@@ -193,7 +203,9 @@ lib/features/
 | status | text | NO | `pending` / `processing` / `sent` / `failed` |
 | attempts / max_attempts | integer | NO | Ретраи |
 | next_run_at | timestamptz | NO | Backoff |
+| last_error | text | YES | Текст ошибки воркера |
 | idempotency_key | text | NO | `{work_id}:{kind}` |
+| created_at / updated_at | timestamptz | NO | Аудит |
 
 **RLS:** ✅ SELECT по компании / праву `works` read; insert — SECURITY DEFINER / триггер.
 
@@ -212,9 +224,18 @@ lib/features/
 - `works` UPDATE → `works_enqueue_telegram_close` при закрытии.
 
 ### RPC (клиент / статистика)
-- `get_months_summary`, `get_month_objects_summary`, `get_month_systems_summary`, `get_month_hours_summary`, `get_month_employees_summary`
+- `get_months_summary(p_company_id, p_opened_by)` — заголовки месяцев для списка слева (фильтр «Мои смены»).
+- `get_month_objects_summary(p_month, p_company_id)` — список объектов сводки (без `p_object_id`; UI фильтрует по клику локально).
+- `get_month_systems_summary(p_month, p_company_id, p_object_id DEFAULT NULL)`
+- `get_month_hours_summary(p_month, p_company_id, p_object_id DEFAULT NULL)`
+- `get_month_employees_summary(p_month, p_company_id, p_object_id DEFAULT NULL)`
 - `enqueue_telegram_outbox_opening`, `check_work_access`
 - смежные: `calculate_contract_works`, search/export work_items (модуль Export)
+
+```sql
+-- Фильтр сводки: NULL = все объекты (как до 18.08.2026)
+AND (p_object_id IS NULL OR w.object_id = p_object_id)
+```
 
 ## Бизнес-логика
 1. **Жизненный цикл смены:** Open → Items + Hours + Photos → Validation → Closed.
@@ -223,6 +244,7 @@ lib/features/
 4. **Доступ:** объекты из `profile.object_ids`; Owner компании — все объекты.
 5. **Удаление:** Owner — любые; пользователь — свои open + RBAC `works.delete` / `work_plans.delete`.
 6. **Итоги:** `work_items.total` на клиенте; header-агрегаты — триггеры БД.
+7. **Сводка месяца по объекту:** выбор объекта в «По объектам» не меняет список смен. График фильтруется по `LightWork.objectId`; сумма и число смен — из выбранного `ObjectSummary`; системы/часы/специалисты — RPC с `p_object_id`. Сброс: повторный клик или «Все объекты».
 
 ## Интеграции
 **Edge Functions:**
@@ -236,6 +258,7 @@ lib/features/
 **Прочее:** Storage bucket `works`; ФОТ/табель читают часы смен; договоры — `calculate_contract_works` / `contract_act_id`.
 
 ## Roadmap
+- ✅ **Завершено (18.08.2026, фильтр сводки по объекту):** клик по объекту в `MonthDetailsPanel` фильтрует график, KPI и системы. Список смен слева не меняется. RPC `get_month_systems_summary` / `get_month_hours_summary` / `get_month_employees_summary` — опциональный `p_object_id`. Миграция `20260818210000_month_summary_object_filter.sql` применена на сервере.
 - ✅ **Завершено (02.08.2026, часы при добавлении сотрудника):** поле «Часы» в `WorkHourFormModal` стало необязательным — пустое значение сохраняется как `0`. Валидатор пропускает пустое поле, при вводе проверяет неотрицательное число. Обновлён поясняющий текст. Проверка закрытия смены (`hours ≤ 0`) не затронута. Миграций нет.
 - ✅ **Завершено (02.08.2026, номера позиций):** устранение «висящих» спиннеров номеров во вкладке «Работы». Номер теперь приезжает одним запросом через LEFT JOIN `estimates!estimate_id(number)` в `fetchWorkItems`/`fetchWorkItemById`; поле `number` добавлено в `WorkItem`/`WorkItemModel` (в модели не сериализуется в БД). В `WorkDetailsPanel` удалены: спиннеры номеров, `_areEstimatesLoading`, per-item `ref.watch(estimateNotifierProvider)`, загрузка всех смет при инициализации. Миграций нет. `dart analyze` чист.
 - ✅ **Завершено (02.08.2026, агрегаты):** защита `update_work_aggregates` от гонки (`FOR UPDATE` строки `works`); вкладка «Данные» считает сотрудников из live `work_hours`; открытие смены — один пакетный insert вместо N параллельных. Разовый пересчёт всех смен.
@@ -246,4 +269,4 @@ lib/features/
 - ✅ Редактирование/удаление планов на desktop; склонения специалистов; унификация модалок; оптимизация `MonthDetailsPanel`.
 - 🔴 **Приоритет:** синхронизация `actual_quantity` в планах из данных смен.
 - 🟡 Интеграция стоимости работ с финансами.
-- 🟡 Мониторинг/очистка `telegram_outbox` (много `failed` в live).
+- 🟡 Мониторинг/очистка `telegram_outbox` (live 18.08.2026: `failed` 859, `pending` 9).

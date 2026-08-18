@@ -14,6 +14,9 @@ abstract class LightWorkModel with _$LightWorkModel {
     /// Дата смены.
     required DateTime date,
 
+    /// Идентификатор объекта смены.
+    @JsonKey(name: 'object_id') @Default('') String objectId,
+
     /// Общая сумма выработки.
     @JsonKey(name: 'total_amount') required double totalAmount,
 

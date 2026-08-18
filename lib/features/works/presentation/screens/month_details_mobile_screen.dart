@@ -18,10 +18,7 @@ class MonthDetailsMobileScreen extends ConsumerStatefulWidget {
   final MonthGroup initialGroup;
 
   /// Создаёт мобильный экран со статистикой месяца.
-  const MonthDetailsMobileScreen({
-    super.key,
-    required this.initialGroup,
-  });
+  const MonthDetailsMobileScreen({super.key, required this.initialGroup});
 
   @override
   ConsumerState<MonthDetailsMobileScreen> createState() =>
@@ -59,9 +56,11 @@ class _MonthDetailsMobileScreenState
     final formattedMonth = DateFormat('LLLL yyyy', 'ru_RU')
         .format(currentGroup.month)
         .split(' ')
-        .map((word) => word.isEmpty
-            ? word
-            : '${word[0].toUpperCase()}${word.substring(1)}')
+        .map(
+          (word) => word.isEmpty
+              ? word
+              : '${word[0].toUpperCase()}${word.substring(1)}',
+        )
         .join(' ');
 
     final appearance = MobileAtmosphereAppearance.of(context);
@@ -73,8 +72,9 @@ class _MonthDetailsMobileScreenState
         statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
         systemNavigationBarColor: appearance.atmosphereBase,
         systemNavigationBarDividerColor: Colors.transparent,
-        systemNavigationBarIconBrightness:
-            isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarIconBrightness: isDark
+            ? Brightness.light
+            : Brightness.dark,
       ),
       child: Scaffold(
         appBar: AppBarWidget(
@@ -83,13 +83,17 @@ class _MonthDetailsMobileScreenState
           centerTitle: true,
           showThemeSwitch: false,
         ),
-        backgroundColor:
-            isDark ? appearance.atmosphereBase : Colors.transparent,
+        backgroundColor: isDark
+            ? appearance.atmosphereBase
+            : Colors.transparent,
         body: Stack(
           fit: StackFit.expand,
           children: [
             const MobileAtmosphereBackdrop(),
             MonthDetailsPanel(
+              key: ValueKey<DateTime>(
+                DateTime(currentGroup.month.year, currentGroup.month.month),
+              ),
               group: currentGroup,
               showMobileAppBar: false,
               useGroupedBackground: false,

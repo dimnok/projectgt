@@ -253,7 +253,12 @@ class _WorksMasterDetailScreenState
   Widget _buildDetailPanel(ThemeData theme) {
     // Приоритет: месяц > смена/план > placeholder
     if (selectedMonth != null) {
-      return MonthDetailsPanel(group: selectedMonth!);
+      return MonthDetailsPanel(
+        key: ValueKey<DateTime>(
+          DateTime(selectedMonth!.month.year, selectedMonth!.month.month),
+        ),
+        group: selectedMonth!,
+      );
     } else if (selectedWork != null &&
         _displayMode == WorksMasterDetailDisplayMode.works) {
       return selectedWork!.id != null

@@ -71,8 +71,11 @@ class WorkDataSourceImpl implements WorkDataSource {
       workJson['company_id'] = activeCompanyId;
       workJson.remove('id');
 
-      final response =
-          await client.from(table).insert(workJson).select().single();
+      final response = await client
+          .from(table)
+          .insert(workJson)
+          .select()
+          .single();
       return WorkModel.fromJson(response);
     } catch (e) {
       _logger.e('Ошибка создания смены: $e');
@@ -99,10 +102,11 @@ class WorkDataSourceImpl implements WorkDataSource {
       final nullableFields = {
         'photo_url',
         'evening_photo_url',
-        'telegram_message_id'
+        'telegram_message_id',
       };
       workJson.removeWhere(
-          (key, value) => value == null && nullableFields.contains(key));
+        (key, value) => value == null && nullableFields.contains(key),
+      );
 
       final response = await client
           .from(table)
@@ -137,9 +141,7 @@ class WorkDataSourceImpl implements WorkDataSource {
   @override
   Future<List<MonthGroup>> getMonthsHeaders({String? openedBy}) async {
     try {
-      final params = <String, dynamic>{
-        'p_company_id': activeCompanyId,
-      };
+      final params = <String, dynamic>{'p_company_id': activeCompanyId};
       if (openedBy != null) {
         params['p_opened_by'] = openedBy;
       }
@@ -238,7 +240,7 @@ class WorkDataSourceImpl implements WorkDataSource {
 
       final response = await client
           .from(table)
-          .select('id, date, total_amount, employees_count')
+          .select('id, date, object_id, total_amount, employees_count')
           .eq('company_id', activeCompanyId)
           .gte('date', startDate.toIso8601String())
           .lt('date', endDate.toIso8601String())
@@ -260,10 +262,10 @@ class WorkDataSourceImpl implements WorkDataSource {
       final monthStr =
           '${month.year}-${month.month.toString().padLeft(2, '0')}-01';
 
-      final response = await client.rpc('get_month_objects_summary', params: {
-        'p_month': monthStr,
-        'p_company_id': activeCompanyId,
-      });
+      final response = await client.rpc(
+        'get_month_objects_summary',
+        params: {'p_month': monthStr, 'p_company_id': activeCompanyId},
+      );
 
       return (response as List).map((json) {
         return ObjectSummary(
@@ -281,15 +283,22 @@ class WorkDataSourceImpl implements WorkDataSource {
 
   /// Возвращает полную статистику по системам за месяц.
   @override
-  Future<List<SystemSummary>> getSystemsSummary(DateTime month) async {
+  Future<List<SystemSummary>> getSystemsSummary(
+    DateTime month, {
+    String? objectId,
+  }) async {
     try {
       final monthStr =
           '${month.year}-${month.month.toString().padLeft(2, '0')}-01';
 
-      final response = await client.rpc('get_month_systems_summary', params: {
-        'p_month': monthStr,
-        'p_company_id': activeCompanyId,
-      });
+      final response = await client.rpc(
+        'get_month_systems_summary',
+        params: {
+          'p_month': monthStr,
+          'p_company_id': activeCompanyId,
+          'p_object_id': objectId,
+        },
+      );
 
       return (response as List).map((json) {
         return SystemSummary(
@@ -307,15 +316,22 @@ class WorkDataSourceImpl implements WorkDataSource {
 
   /// Возвращает общее количество часов за месяц.
   @override
-  Future<MonthHoursSummary> getTotalHours(DateTime month) async {
+  Future<MonthHoursSummary> getTotalHours(
+    DateTime month, {
+    String? objectId,
+  }) async {
     try {
       final monthStr =
           '${month.year}-${month.month.toString().padLeft(2, '0')}-01';
 
-      final response = await client.rpc('get_month_hours_summary', params: {
-        'p_month': monthStr,
-        'p_company_id': activeCompanyId,
-      });
+      final response = await client.rpc(
+        'get_month_hours_summary',
+        params: {
+          'p_month': monthStr,
+          'p_company_id': activeCompanyId,
+          'p_object_id': objectId,
+        },
+      );
 
       final json = (response is List)
           ? (response.isEmpty ? {} : response.first)
@@ -332,15 +348,22 @@ class WorkDataSourceImpl implements WorkDataSource {
 
   /// Возвращает количество уникальных сотрудников за месяц.
   @override
-  Future<MonthEmployeesSummary> getTotalEmployees(DateTime month) async {
+  Future<MonthEmployeesSummary> getTotalEmployees(
+    DateTime month, {
+    String? objectId,
+  }) async {
     try {
       final monthStr =
           '${month.year}-${month.month.toString().padLeft(2, '0')}-01';
 
-      final response = await client.rpc('get_month_employees_summary', params: {
-        'p_month': monthStr,
-        'p_company_id': activeCompanyId,
-      });
+      final response = await client.rpc(
+        'get_month_employees_summary',
+        params: {
+          'p_month': monthStr,
+          'p_company_id': activeCompanyId,
+          'p_object_id': objectId,
+        },
+      );
 
       final json = (response is List)
           ? (response.isEmpty ? {} : response.first)

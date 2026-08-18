@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/month_group.dart';
 import '../../domain/entities/light_work.dart';
+import '../../domain/entities/work_summaries.dart';
 import '../providers/month_groups_provider.dart';
 import '../providers/month_summary_provider.dart';
 import 'package:projectgt/core/utils/formatters.dart';
@@ -50,6 +51,18 @@ class MonthDetailsPanel extends ConsumerStatefulWidget {
 }
 
 class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
+  /// Выбранный объект сводки. Сбрасывается при уходе с панели и при смене месяца.
+  String? _selectedObjectId;
+
+  @override
+  void didUpdateWidget(MonthDetailsPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.group.month.year != widget.group.month.year ||
+        oldWidget.group.month.month != widget.group.month.month) {
+      _selectedObjectId = null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -70,14 +83,30 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
         final works = currentGroup.works;
         final isLoading = works == null;
 
-        final totalEmployees = _calculateTotalEmployees();
-        final totalHours = _calculateTotalHours();
+        final selectedObjectId = _selectedObjectId;
+        final objectsSummaryAsync = ref.watch(
+          objectsSummaryProvider(widget.group.month),
+        );
+        final selectedObject = _findObject(
+          objectsSummaryAsync.valueOrNull,
+          selectedObjectId,
+        );
+        final kpiTotalAmount =
+            selectedObject?.totalAmount ?? currentGroup.totalAmount;
+        final kpiWorksCount =
+            selectedObject?.worksCount ?? currentGroup.worksCount;
+
+        final totalEmployees = _calculateTotalEmployees(selectedObjectId);
+        final totalHours = _calculateTotalHours(selectedObjectId);
 
         // Загружаем полные данные для графика и расчетов KPI
         final chartDataAsync = ref.watch(
           monthChartDataProvider(widget.group.month),
         );
-        final fullWorks = chartDataAsync.valueOrNull;
+        final fullWorks = _filterWorksByObject(
+          chartDataAsync.valueOrNull,
+          selectedObjectId,
+        );
         final averagePerEmployee = _calculateAveragePerEmployee(fullWorks);
 
         final formattedMonthTitle = monthName;
@@ -105,9 +134,15 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
               ? const Center(child: CupertinoActivityIndicator())
               : SingleChildScrollView(
                   padding: EdgeInsets.only(
-                    left: isMobileLayout ? 16 : _MonthDetailsSpacing.insetHDesktop,
-                    right: isMobileLayout ? 16 : _MonthDetailsSpacing.insetHDesktop,
-                    top: isMobileLayout ? 20 : _MonthDetailsSpacing.insetVDesktopTop,
+                    left: isMobileLayout
+                        ? 16
+                        : _MonthDetailsSpacing.insetHDesktop,
+                    right: isMobileLayout
+                        ? 16
+                        : _MonthDetailsSpacing.insetHDesktop,
+                    top: isMobileLayout
+                        ? 20
+                        : _MonthDetailsSpacing.insetVDesktopTop,
                     bottom: isMobileLayout
                         ? 20
                         : _MonthDetailsSpacing.insetVDesktopBottom,
@@ -120,14 +155,24 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
                           context,
                           formattedMonthTitle,
                           currentGroup.isCurrentMonth,
+                          selectedObject,
                         ),
                         const SizedBox(height: _MonthDetailsSpacing.block),
-                      ] else
+                      ] else ...[
                         const SizedBox(height: 12),
+                        if (selectedObject != null) ...[
+                          _buildSelectedObjectBar(context, selectedObject),
+                          const SizedBox(height: 12),
+                        ],
+                      ],
 
                       // --- График выработки ---
                       RepaintBoundary(
-                        child: _buildDailyChart(context, chartDataAsync),
+                        child: _buildDailyChart(
+                          context,
+                          chartDataAsync,
+                          selectedObjectId,
+                        ),
                       ),
                       SizedBox(
                         height: isDesktop
@@ -139,7 +184,8 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
                       if (isDesktop)
                         _buildKpiGridDesktop(
                           context,
-                          currentGroup,
+                          kpiTotalAmount,
+                          kpiWorksCount,
                           averagePerEmployee,
                           totalEmployees,
                           totalHours,
@@ -147,16 +193,15 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
                       else
                         _buildKpiListMobile(
                           context,
-                          currentGroup,
+                          kpiTotalAmount,
+                          kpiWorksCount,
                           averagePerEmployee,
                           totalEmployees,
                           totalHours,
                         ),
 
                       SizedBox(
-                        height: isDesktop
-                            ? _MonthDetailsSpacing.section
-                            : 32,
+                        height: isDesktop ? _MonthDetailsSpacing.section : 32,
                       ),
 
                       if (isDesktop)
@@ -207,9 +252,7 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
                         ),
 
                       SizedBox(
-                        height: isDesktop
-                            ? _MonthDetailsSpacing.section
-                            : 32,
+                        height: isDesktop ? _MonthDetailsSpacing.section : 32,
                       ),
                     ],
                   ),
@@ -259,12 +302,14 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
   Widget _buildDailyChart(
     BuildContext context,
     AsyncValue<List<LightWork>> chartDataAsync,
+    String? selectedObjectId,
   ) {
     return chartDataAsync.when(
       data: (data) {
-        if (data.isEmpty) return const SizedBox.shrink();
+        final filtered = _filterWorksByObject(data, selectedObjectId) ?? data;
+        if (filtered.isEmpty) return const SizedBox.shrink();
         return DailyWorkChart(
-          works: data,
+          works: filtered,
           month: widget.group.month,
           isDesktop: !ResponsiveUtils.isMobile(context),
         );
@@ -281,39 +326,93 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
     BuildContext context,
     String title,
     bool isCurrentMonth,
+    ObjectSummary? selectedObject,
   ) {
     final theme = Theme.of(context);
     return Row(
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.5,
-              ),
-            ),
-            if (isCurrentMonth)
-              Container(
-                margin: const EdgeInsets.only(top: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.secondaryContainer.withValues(
-                    alpha: 0.5,
-                  ),
-                  borderRadius: BorderRadius.circular(6),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.5,
                 ),
-                child: Text(
-                  'Текущий месяц',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.onSecondaryContainer,
+              ),
+              if (isCurrentMonth)
+                Container(
+                  margin: const EdgeInsets.only(top: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.secondaryContainer.withValues(
+                      alpha: 0.5,
+                    ),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    'Текущий месяц',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSecondaryContainer,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              if (selectedObject != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  selectedObject.objectName,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-              ),
-          ],
+              ],
+            ],
+          ),
+        ),
+        if (selectedObject != null)
+          GTTextButton(
+            text: 'Все объекты',
+            dense: true,
+            onPressed: _clearObjectFilter,
+          ),
+      ],
+    );
+  }
+
+  Widget _buildSelectedObjectBar(
+    BuildContext context,
+    ObjectSummary selectedObject,
+  ) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Icon(
+          CupertinoIcons.location_solid,
+          size: 18,
+          color: theme.colorScheme.primary,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            selectedObject.objectName,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        GTTextButton(
+          text: 'Все объекты',
+          dense: true,
+          onPressed: _clearObjectFilter,
         ),
       ],
     );
@@ -321,7 +420,8 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
 
   Widget _buildKpiGridDesktop(
     BuildContext context,
-    MonthGroup group,
+    double totalAmount,
+    int worksCount,
     String averagePerEmployee,
     int totalEmployees,
     double totalHours,
@@ -336,7 +436,7 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
                 Expanded(
                   child: _KpiCard(
                     title: 'Общая сумма',
-                    value: formatCurrency(group.totalAmount),
+                    value: formatCurrency(totalAmount),
                     icon: CupertinoIcons.money_dollar_circle_fill,
                     color: Colors.green,
                     isLarge: true,
@@ -347,7 +447,7 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
                 Expanded(
                   child: _KpiCard(
                     title: 'Всего смен',
-                    value: '${group.worksCount}',
+                    value: '$worksCount',
                     icon: CupertinoIcons.briefcase_fill,
                     color: Colors.blue,
                     relaxed: true,
@@ -381,8 +481,8 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
                 Expanded(
                   child: _KpiCard(
                     title: 'Средняя смена',
-                    value: group.worksCount > 0
-                        ? formatCurrency(group.totalAmount / group.worksCount)
+                    value: worksCount > 0
+                        ? formatCurrency(totalAmount / worksCount)
                         : formatCurrency(0),
                     icon: CupertinoIcons.chart_bar_square_fill,
                     color: Colors.orange,
@@ -409,7 +509,8 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
 
   Widget _buildKpiListMobile(
     BuildContext context,
-    MonthGroup group,
+    double totalAmount,
+    int worksCount,
     String averagePerEmployee,
     int totalEmployees,
     double totalHours,
@@ -426,13 +527,13 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
           icon: CupertinoIcons.money_dollar_circle_fill,
           iconColor: Colors.green,
           title: 'Общая сумма',
-          trailing: Text(formatCurrency(group.totalAmount), style: valueStyle),
+          trailing: Text(formatCurrency(totalAmount), style: valueStyle),
         ),
         _AppleMenuItem(
           icon: CupertinoIcons.briefcase_fill,
           iconColor: Colors.blue,
           title: 'Всего смен',
-          trailing: Text('${group.worksCount}', style: valueStyle),
+          trailing: Text('$worksCount', style: valueStyle),
         ),
         _AppleMenuItem(
           icon: CupertinoIcons.person_3_fill,
@@ -454,8 +555,8 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
           iconColor: Colors.orange,
           title: 'Средняя смена',
           trailing: Text(
-            group.worksCount > 0
-                ? formatCurrency(group.totalAmount / group.worksCount)
+            worksCount > 0
+                ? formatCurrency(totalAmount / worksCount)
                 : formatCurrency(0),
             style: valueStyle,
           ),
@@ -471,8 +572,14 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
   }
 
   Widget _buildSystemsStats(BuildContext context, {bool isDesktop = false}) {
+    final selectedObjectId = _selectedObjectId;
     final systemsSummaryAsync = ref.watch(
-      systemsSummaryProvider(widget.group.month),
+      systemsSummaryProvider(
+        MonthSummaryQuery(
+          month: widget.group.month,
+          objectId: selectedObjectId,
+        ),
+      ),
     );
 
     return systemsSummaryAsync.when(
@@ -529,6 +636,7 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
   }
 
   Widget _buildObjectsStats(BuildContext context, {bool isDesktop = false}) {
+    final selectedObjectId = _selectedObjectId;
     final objectsSummaryAsync = ref.watch(
       objectsSummaryProvider(widget.group.month),
     );
@@ -544,9 +652,7 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
               .map(
                 (stat) => Padding(
                   padding: EdgeInsets.only(
-                    bottom: isDesktop
-                        ? _MonthDetailsSpacing.listItemGap
-                        : 8,
+                    bottom: isDesktop ? _MonthDetailsSpacing.listItemGap : 8,
                   ),
                   child: _SummaryListItem(
                     icon: CupertinoIcons.location_solid,
@@ -555,6 +661,8 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
                     subtitle: '${stat.worksCount} смен',
                     value: formatCurrency(stat.totalAmount),
                     relaxed: isDesktop,
+                    selected: stat.objectId == selectedObjectId,
+                    onTap: () => _toggleObjectFilter(stat.objectId),
                   ),
                 ),
               )
@@ -600,9 +708,11 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
     return formatCurrency(totalAmount / totalEmployees);
   }
 
-  int _calculateTotalEmployees() {
+  int _calculateTotalEmployees(String? objectId) {
     final employeesAsync = ref.watch(
-      monthTotalEmployeesProvider(widget.group.month),
+      monthTotalEmployeesProvider(
+        MonthSummaryQuery(month: widget.group.month, objectId: objectId),
+      ),
     );
     return employeesAsync.when(
       data: (s) => s.totalEmployees,
@@ -611,13 +721,45 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
     );
   }
 
-  double _calculateTotalHours() {
-    final hoursAsync = ref.watch(monthTotalHoursProvider(widget.group.month));
+  double _calculateTotalHours(String? objectId) {
+    final hoursAsync = ref.watch(
+      monthTotalHoursProvider(
+        MonthSummaryQuery(month: widget.group.month, objectId: objectId),
+      ),
+    );
     return hoursAsync.when(
       data: (s) => s.totalHours,
       loading: () => 0,
       error: (_, __) => 0,
     );
+  }
+
+  List<LightWork>? _filterWorksByObject(
+    List<LightWork>? works,
+    String? objectId,
+  ) {
+    if (works == null || objectId == null) return works;
+    return works.where((work) => work.objectId == objectId).toList();
+  }
+
+  ObjectSummary? _findObject(List<ObjectSummary>? summaries, String? objectId) {
+    if (summaries == null || objectId == null) return null;
+    for (final item in summaries) {
+      if (item.objectId == objectId) return item;
+    }
+    return null;
+  }
+
+  void _toggleObjectFilter(String objectId) {
+    setState(() {
+      _selectedObjectId = _selectedObjectId == objectId ? null : objectId;
+    });
+  }
+
+  void _clearObjectFilter() {
+    setState(() {
+      _selectedObjectId = null;
+    });
   }
 }
 
@@ -715,6 +857,8 @@ class _SummaryListItem extends StatelessWidget {
   final String subtitle;
   final String value;
   final bool relaxed;
+  final bool selected;
+  final VoidCallback? onTap;
 
   const _SummaryListItem({
     required this.icon,
@@ -723,6 +867,8 @@ class _SummaryListItem extends StatelessWidget {
     required this.subtitle,
     required this.value,
     this.relaxed = false,
+    this.selected = false,
+    this.onTap,
   });
 
   @override
@@ -734,6 +880,12 @@ class _SummaryListItem extends StatelessWidget {
     final iconSize = relaxed ? 22.0 : 20.0;
     final midGap = relaxed ? 14.0 : 16.0;
     final endGap = relaxed ? 14.0 : 16.0;
+    final borderColor = selected
+        ? theme.colorScheme.primary
+        : theme.colorScheme.outlineVariant.withValues(alpha: 0.3);
+    final backgroundColor = selected
+        ? theme.colorScheme.primary.withValues(alpha: 0.08)
+        : theme.colorScheme.surfaceContainer;
 
     final iconWidget = relaxed
         ? Container(
@@ -748,14 +900,12 @@ class _SummaryListItem extends StatelessWidget {
           )
         : Icon(icon, size: iconSize, color: iconColor);
 
-    return Container(
+    final content = Container(
       padding: EdgeInsets.symmetric(horizontal: horizontal, vertical: vertical),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainer,
+        color: backgroundColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: borderColor, width: selected ? 1.5 : 1),
       ),
       child: Row(
         children: [
@@ -799,6 +949,22 @@ class _SummaryListItem extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+
+    if (onTap == null) return content;
+
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: title,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: content,
+        ),
       ),
     );
   }

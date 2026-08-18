@@ -141,20 +141,29 @@ class WorkRepositoryImpl implements WorkRepository {
 
   /// Возвращает полную статистику по системам за месяц.
   @override
-  Future<List<SystemSummary>> getSystemsSummary(DateTime month) async {
-    return await dataSource.getSystemsSummary(month);
+  Future<List<SystemSummary>> getSystemsSummary(
+    DateTime month, {
+    String? objectId,
+  }) async {
+    return await dataSource.getSystemsSummary(month, objectId: objectId);
   }
 
   /// Возвращает общее количество часов за месяц.
   @override
-  Future<MonthHoursSummary> getTotalHours(DateTime month) async {
-    return await dataSource.getTotalHours(month);
+  Future<MonthHoursSummary> getTotalHours(
+    DateTime month, {
+    String? objectId,
+  }) async {
+    return await dataSource.getTotalHours(month, objectId: objectId);
   }
 
   /// Возвращает количество уникальных сотрудников за месяц.
   @override
-  Future<MonthEmployeesSummary> getTotalEmployees(DateTime month) async {
-    return await dataSource.getTotalEmployees(month);
+  Future<MonthEmployeesSummary> getTotalEmployees(
+    DateTime month, {
+    String? objectId,
+  }) async {
+    return await dataSource.getTotalEmployees(month, objectId: objectId);
   }
 
   @override
@@ -195,6 +204,7 @@ class WorkRepositoryImpl implements WorkRepository {
     return LightWork(
       id: model.id,
       date: model.date,
+      objectId: model.objectId,
       totalAmount: model.totalAmount,
       employeesCount: model.employeesCount,
     );

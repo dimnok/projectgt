@@ -55,13 +55,25 @@ abstract class WorkRepository {
   ///
   /// Вычисляется на сервере (RPC функция), поэтому всегда полная,
   /// не зависит от пагинации смен.
-  Future<List<SystemSummary>> getSystemsSummary(DateTime month);
+  ///
+  /// [objectId] — если задан, только смены этого объекта.
+  Future<List<SystemSummary>> getSystemsSummary(
+    DateTime month, {
+    String? objectId,
+  });
 
   /// Возвращает общее количество часов за месяц.
-  Future<MonthHoursSummary> getTotalHours(DateTime month);
+  ///
+  /// [objectId] — если задан, только смены этого объекта.
+  Future<MonthHoursSummary> getTotalHours(DateTime month, {String? objectId});
 
   /// Возвращает общее количество специалистов за месяц.
-  Future<MonthEmployeesSummary> getTotalEmployees(DateTime month);
+  ///
+  /// [objectId] — если задан, только смены этого объекта.
+  Future<MonthEmployeesSummary> getTotalEmployees(
+    DateTime month, {
+    String? objectId,
+  });
 
   /// Возвращает идентификатор открытой смены текущего пользователя [userId] или `null`.
   Future<String?> getMyOpenWorkId(String userId);
