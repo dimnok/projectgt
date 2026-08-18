@@ -1,13 +1,11 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/widgets/mobile_atmosphere_backdrop.dart';
-import 'package:projectgt/features/home/presentation/providers/daily_tip_provider.dart';
 
-/// Минималистичный герой-блок, объединяющий приветствие и совет дня.
+/// Минималистичный герой-блок с приветствием на главной странице.
 ///
 /// Дизайн сфокусирован на чистоте и отсутствии лишних элементов («винегрета»).
-class HomeAtmosphereHero extends ConsumerWidget {
+class HomeAtmosphereHero extends StatelessWidget {
   /// Заголовок приветствия (например, "Добрый день, Дмитрий").
   final String title;
 
@@ -43,11 +41,10 @@ class HomeAtmosphereHero extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final appearance = MobileAtmosphereAppearance.of(context);
     final isDark = appearance.isDark;
-    final tipAsync = ref.watch(dailyTipProvider);
 
     final now = DateTime.now();
     final weekDay = _getWeekDay(now.weekday);
@@ -146,68 +143,45 @@ class HomeAtmosphereHero extends ConsumerWidget {
                 if (contentOpacity > 0) SizedBox(height: 20 * contentOpacity),
               ],
 
-              // Исчезающий контент (Приветствие, Дата, Совет)
+              // Исчезающий контент (Приветствие и дата)
               if (contentOpacity > 0)
                 Opacity(
                   opacity: contentOpacity,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
                     children: [
-                      // Строка: Приветствие и Дата
-                      Row(
-                        children: [
-                          Icon(
-                            iconData,
-                            size: isDesktop ? 18 : 16,
-                            color: baseColor.withValues(alpha: 0.8),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text.rich(
-                              TextSpan(
-                                children: [
-                                  TextSpan(
-                                    text: title,
-                                    style: (isDesktop
-                                            ? theme.textTheme.titleMedium
-                                            : theme.textTheme.titleSmall)
-                                        ?.copyWith(
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: -0.3,
-                                    ),
-                                  ),
-                                  TextSpan(
-                                    text: ' · $dateString',
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: theme.colorScheme.onSurface.withValues(
-                                        alpha: 0.4,
-                                      ),
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
+                      Icon(
+                        iconData,
+                        size: isDesktop ? 18 : 16,
+                        color: baseColor.withValues(alpha: 0.8),
                       ),
-                      const SizedBox(height: 10),
-                      // Нижняя строка: Совет дня
-                      tipAsync.when(
-                        data: (tip) => _buildTipLine(context, theme, tip, isDesktop),
-                        loading: () => const SizedBox(height: 20),
-                        error: (err, stack) => _buildTipLine(
-                          context,
-                          theme,
-                          const DailyTip(
-                            title: 'Безопасность',
-                            content:
-                                'Всегда проверяйте отсутствие напряжения перед началом работ.',
-                            category: 'Общее',
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text.rich(
+                          TextSpan(
+                            children: [
+                              TextSpan(
+                                text: title,
+                                style: (isDesktop
+                                        ? theme.textTheme.titleMedium
+                                        : theme.textTheme.titleSmall)
+                                    ?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.3,
+                                ),
+                              ),
+                              TextSpan(
+                                text: ' · $dateString',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurface.withValues(
+                                    alpha: 0.4,
+                                  ),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
                           ),
-                          isDesktop,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
@@ -217,40 +191,6 @@ class HomeAtmosphereHero extends ConsumerWidget {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildTipLine(
-    BuildContext context,
-    ThemeData theme,
-    DailyTip tip,
-    bool isDesktop,
-  ) {
-    const tipColor = Color(0xFFFACC15); // Amber
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(top: 3),
-          child: Icon(
-            CupertinoIcons.lightbulb,
-            size: 12,
-            color: tipColor.withValues(alpha: 0.6),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            'Совет: ${tip.content}',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-              fontWeight: FontWeight.w500,
-              height: 1.3,
-            ),
-          ),
-        ),
-      ],
     );
   }
 

@@ -57,7 +57,7 @@ class HomeSliverHeroDelegate extends SliverPersistentHeaderDelegate {
   }
 
   @override
-  double get maxExtent => isDesktop ? 200 : 250; // Увеличиваем для десктопа тоже
+  double get maxExtent => isDesktop ? 170 : 210;
 
   /// Высота в свернутом виде: строка с кнопками 44px + внешний отступ 12 +
   /// вертикальный padding контейнера (моб. 32, десктоп 40) + запас 4px.
