@@ -440,6 +440,7 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
                   child: _KpiCard(
                     title: 'Общая сумма',
                     value: formatCurrency(totalAmount),
+                    caption: _hourlyRateCaption(totalAmount, totalHours),
                     icon: CupertinoIcons.money_dollar_circle_fill,
                     color: Colors.green,
                     isLarge: true,
@@ -522,6 +523,7 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
     final valueStyle = theme.textTheme.titleMedium?.copyWith(
       fontWeight: FontWeight.w600,
     );
+    final hourlyCaption = _hourlyRateCaption(totalAmount, totalHours);
 
     // Используем старый AppleMenuGroup для мобилки
     return _AppleMenuGroup(
@@ -530,7 +532,24 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
           icon: CupertinoIcons.money_dollar_circle_fill,
           iconColor: Colors.green,
           title: 'Общая сумма',
-          trailing: Text(formatCurrency(totalAmount), style: valueStyle),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(formatCurrency(totalAmount), style: valueStyle),
+              if (hourlyCaption != null) ...[
+                const SizedBox(width: 8),
+                Text(
+                  hourlyCaption,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
         _AppleMenuItem(
           icon: CupertinoIcons.briefcase_fill,
@@ -702,6 +721,12 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
     return formatCurrency(totalAmount / totalEmployees);
   }
 
+  /// Подпись «сумма / час» для карточки общей суммы. Null, если часов нет.
+  String? _hourlyRateCaption(double totalAmount, double totalHours) {
+    if (totalHours <= 0) return null;
+    return '${formatCurrency(totalAmount / totalHours)} / час';
+  }
+
   int _calculateTotalEmployees(String? objectId) {
     final employeesAsync = ref.watch(
       monthTotalEmployeesProvider(
@@ -760,6 +785,7 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
 class _KpiCard extends StatelessWidget {
   final String title;
   final String value;
+  final String? caption;
   final IconData icon;
   final Color color;
   final bool isLarge;
@@ -770,6 +796,7 @@ class _KpiCard extends StatelessWidget {
     required this.value,
     required this.icon,
     required this.color,
+    this.caption,
     this.isLarge = false,
     this.relaxed = false,
   });
@@ -824,19 +851,37 @@ class _KpiCard extends StatelessWidget {
             ],
           ),
           SizedBox(height: titleToValueGap),
-          Text(
-            value,
-            style: isLarge
-                ? theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.onSurface,
-                    letterSpacing: -0.5,
-                  )
-                : theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: theme.colorScheme.onSurface,
-                    letterSpacing: -0.5,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Flexible(
+                child: Text(
+                  value,
+                  style: isLarge
+                      ? theme.textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.onSurface,
+                          letterSpacing: -0.5,
+                        )
+                      : theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: theme.colorScheme.onSurface,
+                          letterSpacing: -0.5,
+                        ),
+                ),
+              ),
+              if (caption != null) ...[
+                const SizedBox(width: 12),
+                Text(
+                  caption!,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
                   ),
+                ),
+              ],
+            ],
           ),
         ],
       ),
@@ -1070,7 +1115,16 @@ class _AppleMenuItem extends StatelessWidget {
               ),
             ),
           ),
-          trailing,
+          const SizedBox(width: 8),
+          Flexible(
+            flex: 2,
+            fit: FlexFit.loose,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: trailing,
+            ),
+          ),
         ],
       ),
     );
