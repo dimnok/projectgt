@@ -151,11 +151,14 @@ class WorkDataSourceImpl implements WorkDataSource {
         final month = DateTime.parse(json['month'] as String);
         final worksCount = (json['works_count'] as num).toInt();
         final totalAmount = (json['total_amount_sum'] as num).toDouble();
+        final ownTotalAmount =
+            (json['own_total_amount_sum'] as num?)?.toDouble() ?? 0;
 
         return MonthGroup(
           month: month,
           worksCount: worksCount,
           totalAmount: totalAmount,
+          ownTotalAmount: ownTotalAmount,
           isExpanded: false,
           works: null,
         );
@@ -273,6 +276,7 @@ class WorkDataSourceImpl implements WorkDataSource {
           objectName: json['object_name'] as String? ?? 'Неизвестный объект',
           worksCount: (json['works_count'] as num?)?.toInt() ?? 0,
           totalAmount: (json['total_amount'] as num?)?.toDouble() ?? 0,
+          ownTotalAmount: (json['own_total_amount'] as num?)?.toDouble() ?? 0,
         );
       }).toList();
     } catch (e) {

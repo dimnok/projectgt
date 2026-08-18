@@ -9,8 +9,11 @@ class MonthGroup extends BaseMonthGroup<Work> {
   /// Количество смен в этом месяце.
   int get worksCount => count;
 
-  /// Общая сумма всех смен в месяце.
+  /// Общая сумма всех смен в месяце (свои работы + подрядчики).
   double get totalAmount => total;
+
+  /// Сумма собственного выполнения за месяц (без подрядчиков).
+  final double ownTotalAmount;
 
   /// Список смен месяца.
   List<Work>? get works => items;
@@ -21,6 +24,7 @@ class MonthGroup extends BaseMonthGroup<Work> {
     required super.month,
     required int worksCount,
     required double totalAmount,
+    this.ownTotalAmount = 0,
     super.isExpanded,
     List<Work>? works,
   }) : super(count: worksCount, total: totalAmount, items: works);
@@ -30,6 +34,7 @@ class MonthGroup extends BaseMonthGroup<Work> {
     DateTime? month,
     int? worksCount,
     double? totalAmount,
+    double? ownTotalAmount,
     bool? isExpanded,
     List<Work>? works,
   }) {
@@ -37,6 +42,7 @@ class MonthGroup extends BaseMonthGroup<Work> {
       month: month ?? this.month,
       worksCount: worksCount ?? this.worksCount,
       totalAmount: totalAmount ?? this.totalAmount,
+      ownTotalAmount: ownTotalAmount ?? this.ownTotalAmount,
       isExpanded: isExpanded ?? this.isExpanded,
       works: works ?? this.works,
     );
@@ -44,7 +50,7 @@ class MonthGroup extends BaseMonthGroup<Work> {
 
   @override
   String toString() {
-    return 'MonthGroup(month: $month, worksCount: $worksCount, totalAmount: $totalAmount, isExpanded: $isExpanded, works: ${works?.length ?? 'null'})';
+    return 'MonthGroup(month: $month, worksCount: $worksCount, totalAmount: $totalAmount, ownTotalAmount: $ownTotalAmount, isExpanded: $isExpanded, works: ${works?.length ?? 'null'})';
   }
 
   @override

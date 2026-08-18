@@ -1,9 +1,19 @@
 # Модуль Works (Shifts & Work Plans)
-**Дата актуализации:** 18 августа 2026 года — KPI «Специалистов» в сводке месяца считает **все выходы в смены**, а не уникальных людей:
+**Дата актуализации:** 18 августа 2026 года — KPI сводки месяца разделяет общую и нашу сумму:
+- **«Общая сумма»** = `SUM(works.total_amount)` — все строки смены (свои работы + подрядчики).
+- **«Наша сумма»** = `SUM(works.own_total_amount)` — только строки `work_items` с `contractor_id IS NULL`.
+- **«Выработка / чел.»** = наша сумма / число выходов (`get_month_employees_summary`). Подрядчики в числитель не входят.
+- **«Средняя смена»** по-прежнему от общей суммы (мы + подрядчики) / число смен. Подпись ₽/час есть у обеих карточек сумм.
+- **RPC:** `get_months_summary` возвращает `own_total_amount_sum`; `get_month_objects_summary` — `own_total_amount`. Клиент: `MonthGroup.ownTotalAmount`, `ObjectSummary.ownTotalAmount`.
+- **БД:** миграция `20260818223000_month_summary_own_total.sql`, применена на сервере (`schema_migrations`: `20260818192909` / `month_summary_own_total`). Схема таблиц не менялась.
+- **Согласовано со сменой:** вкладка «Данные» и мобильная карточка смены уже считали выработку от `own_total_amount`.
+- **Аудит 18.08.2026 (повторный):** RLS ✅ на `works`, `work_items`, `work_hours`, `work_plans`, `work_plan_blocks`, `work_plan_items`, `telegram_outbox`. Live-строки (approx.): `works` 1011, `work_items` 27373, `work_hours` 9081, `telegram_outbox` 868 (`failed` 859, `pending` 9); таблицы планов пустые. Edge Functions сверены по `supabase/functions/` (MCP `list_edge_functions` в проекте нет).
+
+Предыдущая запись: 18 августа 2026 года — KPI «Специалистов» в сводке месяца считает **все выходы в смены**, а не уникальных людей:
 - **Было:** `COUNT(DISTINCT work_hours.employee_id)` — один человек за месяц = 1.
 - **Стало:** `COUNT(work_hours.employee_id)` — каждый выход в смену считается отдельно (Иванов в 10 сменах = 10).
-- **«Выработка / чел.»** делится на ту же цифру: общая сумма / число выходов.
-- **RPC:** `get_month_employees_summary` без смены сигнатуры. Миграция `20260818220000_month_employees_total_not_unique.sql`.
+- **«Выработка / чел.»** на тот момент делилась на ту же цифру от **общей** суммы; с этой же датой числитель заменён на **нашу** сумму (см. запись выше).
+- **RPC:** `get_month_employees_summary` без смены сигнатуры. Миграция `20260818220000_month_employees_total_not_unique.sql` (на сервере: `20260818190124` / `month_employees_total_not_unique`).
 - **Не затронуто:** `works.employees_count` в карточке смены по-прежнему уникальные люди **внутри одной смены**.
 
 Предыдущая запись: 18 августа 2026 года — Фильтр сводки месяца по объекту (правая панель, список смен слева не меняется):
@@ -13,7 +23,7 @@
 - **KPI суммы/смен:** из `ObjectSummary` выбранного объекта (`get_month_objects_summary` без фильтра — список объектов всегда полный).
 - **Системы / часы / специалисты:** RPC `get_month_systems_summary`, `get_month_hours_summary`, `get_month_employees_summary` принимают опциональный `p_object_id uuid DEFAULT NULL`. Клиент передаёт ID через `MonthSummaryQuery`.
 - **БД:** миграция `20260818210000_month_summary_object_filter.sql`, применена на сервере (`schema_migrations`: `20260818183230` / `month_summary_object_filter`). Схема таблиц не менялась.
-- **Аудит 18.08.2026:** RLS ✅ на `works`, `work_items`, `work_hours`, `work_plans`, `work_plan_blocks`, `work_plan_items`, `telegram_outbox`. Live-строки (approx.): `works` 1011, `work_items` 27351, `work_hours` 9081, `telegram_outbox` 868 (из них `failed` 859, `pending` 9); таблицы планов пустые. MCP `list_edge_functions` в проекте нет — список Edge Functions сверен по `supabase/functions/`.
+- **Аудит 18.08.2026:** RLS ✅ на `works`, `work_items`, `work_hours`, `work_plans`, `work_plan_blocks`, `work_plan_items`, `telegram_outbox`. Live-строки на момент фильтра по объекту (approx.): `works` 1011, `work_items` 27351, `work_hours` 9081, `telegram_outbox` 868 (из них `failed` 859, `pending` 9); таблицы планов пустые. MCP `list_edge_functions` в проекте нет — список Edge Functions сверен по `supabase/functions/`.
 
 Предыдущая запись: 2 августа 2026 года — Добавление сотрудника в открытую смену без указания часов:
 - **Симптом:** при добавлении сотрудника в открытую смену форма требовала обязательного ввода часов, блокируя сохранение ошибкой «Пожалуйста, введите количество часов». Это противоречило бизнес-сценарию «добавил утром → проставил часы в конце дня» и расходилось с поведением формы открытия смены, где сотрудники создаются с `hours = 0`.
@@ -70,7 +80,7 @@
 
 **Ключевые функции:**
 - ✅ Список смен и планов с группировкой по месяцам; фильтр «Все / Мои» (desktop по умолчанию — Все, mobile — Мои).
-- ✅ Сводка месяца: клик по объекту в блоке «По объектам» фильтрует график, KPI и системы; список смен слева не зависит от выбора.
+- ✅ Сводка месяца: клик по объекту в блоке «По объектам» фильтрует график, KPI и системы; список смен слева не зависит от выбора. KPI: общая сумма (мы + подрядчики), наша сумма (без подрядчиков), выработка / чел. от нашей суммы.
 - ✅ Desktop master-detail; mobile — отдельные routes деталей смены и месяца.
 - ✅ Фотофиксация: утро (обязательно при открытии), вечер (обязательно для закрытия).
 - ✅ Вкладки смены: **Данные** | **Работы** | **Сотрудники** (часы; массовые пресеты 8/10/12).
@@ -99,7 +109,7 @@
 - `WorkDetailsPanel` — детали смены: вкладки Данные / Работы / Сотрудники (`WorkDataTab`, список `WorkItem` (номер позиции уже в `item.number` — без отдельной загрузки смет), `WorkHoursTab`).
 - `WorkDetailsScreen` — полноэкранные детали (mobile route `/works/:workId`).
 - `WorkValidationBlock` — чек-лист закрытия смены.
-- `MonthDetailsPanel` / `MonthDetailsMobileScreen` — KPI и график месяца. Клик по объекту в «По объектам» задаёт фильтр сводки (локальный `_selectedObjectId`); сброс — повторный клик, `GTTextButton` «Все объекты», смена месяца или уход с панели. Список смен слева не затрагивается.
+- `MonthDetailsPanel` / `MonthDetailsMobileScreen` — KPI и график месяца. Карточки: **Общая сумма**, **Наша сумма**, смены, специалисты, часы, средняя смена, выработка / чел. Клик по объекту в «По объектам» задаёт фильтр сводки (локальный `_selectedObjectId`); сброс — повторный клик, `GTTextButton` «Все объекты», смена месяца или уход с панели. Список смен слева не затрагивается.
 - `WorkPlanDetailsScreen`, `WorkPlanFormModal` / `WorkPlanFormContent` — планы (`features/work_plans`).
 - `NewMaterialModal` — **не** материалы смены: добавление позиции в **смету** из формы работ.
 - Design System: `GTTextField`, `GTDropdown`, `GTPrimaryButton` / `GTSecondaryButton` / `GTTextButton`, `AppSnackBar`.
@@ -112,7 +122,7 @@
 - `workPlanMonthGroupsProvider` + `workPlanNotifierProvider` (core DI).
 
 ## Слой Domain/Data
-- **Entities (смены):** `Work`, `LightWork` (поля `id`, `date`, `objectId`, `totalAmount`, `employeesCount` — для графика месяца), `WorkItem` (поле `number` — номер позиции из сметы, подтягивается JOIN'ом при чтении, не хранится в БД), `WorkHour`, summary DTO в `work_summaries.dart`.
+- **Entities (смены):** `Work`, `LightWork` (поля `id`, `date`, `objectId`, `totalAmount`, `employeesCount` — для графика месяца; график по `totalAmount`), `WorkItem` (поле `number` — номер позиции из сметы, подтягивается JOIN'ом при чтении, не хранится в БД), `WorkHour`, summary DTO в `work_summaries.dart` (`ObjectSummary.totalAmount` + `ownTotalAmount`). `MonthGroup` хранит `totalAmount` и `ownTotalAmount`.
 - **Repositories:** `WorkRepository`, `WorkItemRepository`, `WorkHourRepository` (+ impl в `data/`). DI — `presentation/providers/repositories_providers.dart` (единственная точка; дубль в `core/di` удалён 02.08.2026).
 - **DataSources:** `WorkDataSourceImpl`, `WorkItemDataSourceImpl` (`fetchWorkItems` / `fetchWorkItemById` — `select('*, estimates!estimate_id(number)')`, номер достаётся из вложенного объекта JOIN'а и проставляется в модель через `copyWith`), `WorkHourDataSourceImpl`.
 - **Планы:** domain/data в глобальных `lib/domain`, `lib/data` (legacy layout); UI в `lib/features/work_plans/`. После чистки 02.08.2026: usecases — только `GetWorkPlansUseCase`, `CreateWorkPlanUseCase`, `UpdateWorkPlanUseCase`, `DeleteWorkPlanUseCase`; `WorkPlanNotifier` — `loadWorkPlans` + `deleteWorkPlan` (create/update идут из формы через usecase-провайдеры напрямую).
@@ -231,8 +241,8 @@ lib/features/
 - `works` UPDATE → `works_enqueue_telegram_close` при закрытии.
 
 ### RPC (клиент / статистика)
-- `get_months_summary(p_company_id, p_opened_by)` — заголовки месяцев для списка слева (фильтр «Мои смены»).
-- `get_month_objects_summary(p_month, p_company_id)` — список объектов сводки (без `p_object_id`; UI фильтрует по клику локально).
+- `get_months_summary(p_company_id, p_opened_by)` — заголовки месяцев для списка слева (фильтр «Мои смены»). Возвращает `works_count`, `total_amount_sum`, `own_total_amount_sum`.
+- `get_month_objects_summary(p_month, p_company_id)` — список объектов сводки (без `p_object_id`; UI фильтрует по клику локально). Возвращает `total_amount` и `own_total_amount`.
 - `get_month_systems_summary(p_month, p_company_id, p_object_id DEFAULT NULL)`
 - `get_month_hours_summary(p_month, p_company_id, p_object_id DEFAULT NULL)`
 - `get_month_employees_summary(p_month, p_company_id, p_object_id DEFAULT NULL)` — KPI «Специалистов»: `COUNT(work_hours.employee_id)` за месяц (все выходы, не уникальные люди)
@@ -242,6 +252,10 @@ lib/features/
 ```sql
 -- Фильтр сводки: NULL = все объекты (как до 18.08.2026)
 AND (p_object_id IS NULL OR w.object_id = p_object_id)
+
+-- Суммы месяца (get_months_summary / get_month_objects_summary)
+SUM(w.total_amount)      -- общая: все work_items
+SUM(w.own_total_amount)  -- наша: work_items.contractor_id IS NULL
 ```
 
 ## Бизнес-логика
@@ -251,8 +265,14 @@ AND (p_object_id IS NULL OR w.object_id = p_object_id)
 4. **Доступ:** объекты из `profile.object_ids`; Owner компании — все объекты.
 5. **Удаление:** Owner — любые; пользователь — свои open + RBAC `works.delete` / `work_plans.delete`.
 6. **Итоги:** `work_items.total` на клиенте; header-агрегаты — триггеры БД.
-7. **Сводка месяца по объекту:** выбор объекта в «По объектам» не меняет список смен. График фильтруется по `LightWork.objectId`; сумма и число смен — из выбранного `ObjectSummary`; системы/часы/специалисты — RPC с `p_object_id`. Сброс: повторный клик или «Все объекты».
-8. **KPI «Специалистов»:** число записей `work_hours` за месяц (каждый выход специалиста в смену). **«Выработка / чел.»** = общая сумма / это число. Уникальные люди за месяц не показываются.
+7. **Сводка месяца по объекту:** выбор объекта в «По объектам» не меняет список смен. График фильтруется по `LightWork.objectId` (столбцы — `totalAmount`, мы + подрядчики). Суммы и число смен — из выбранного `ObjectSummary` (`totalAmount` / `ownTotalAmount` / `worksCount`); системы/часы/специалисты — RPC с `p_object_id`. Сброс: повторный клик или «Все объекты».
+8. **KPI месяца (формулы):**
+   - **Общая сумма** = `SUM(works.total_amount)` — все `work_items`.
+   - **Наша сумма** = `SUM(works.own_total_amount)` — `work_items` с `contractor_id IS NULL`.
+   - **Специалистов** = `COUNT(work_hours.employee_id)` за месяц (каждый выход в смену; люди подрядчиков не входят).
+   - **Выработка / чел.** = наша сумма / специалисты.
+   - **Средняя смена** = общая сумма / число смен.
+   - Уникальные люди за месяц не показываются.
 
 ## Интеграции
 **Edge Functions:**
@@ -266,7 +286,8 @@ AND (p_object_id IS NULL OR w.object_id = p_object_id)
 **Прочее:** Storage bucket `works`; ФОТ/табель читают часы смен; договоры — `calculate_contract_works` / `contract_act_id`.
 
 ## Roadmap
-- ✅ **Завершено (18.08.2026, специалисты — все выходы):** `get_month_employees_summary` считает `COUNT(work_hours.employee_id)` без `DISTINCT`. KPI «Специалистов» и «Выработка / чел.» используют одну цифру. Миграция `20260818220000_month_employees_total_not_unique.sql`.
+- ✅ **Завершено (18.08.2026, наша сумма / выработка):** сводка месяца показывает «Общая сумма» (мы + подрядчики) и «Наша сумма» (без подрядчиков). «Выработка / чел.» делится на нашу сумму. RPC `get_months_summary` / `get_month_objects_summary` отдают `own_total_amount(_sum)`. Миграция `20260818223000_month_summary_own_total.sql` применена на сервере (`20260818192909`).
+- ✅ **Завершено (18.08.2026, специалисты — все выходы):** `get_month_employees_summary` считает `COUNT(work_hours.employee_id)` без `DISTINCT`. KPI «Специалистов» — знаменатель выработки. Миграция `20260818220000_month_employees_total_not_unique.sql`.
 - ✅ **Завершено (18.08.2026, фильтр сводки по объекту):** клик по объекту в `MonthDetailsPanel` фильтрует график, KPI и системы. Список смен слева не меняется. RPC `get_month_systems_summary` / `get_month_hours_summary` / `get_month_employees_summary` — опциональный `p_object_id`. Миграция `20260818210000_month_summary_object_filter.sql` применена на сервере.
 - ✅ **Завершено (02.08.2026, часы при добавлении сотрудника):** поле «Часы» в `WorkHourFormModal` стало необязательным — пустое значение сохраняется как `0`. Валидатор пропускает пустое поле, при вводе проверяет неотрицательное число. Обновлён поясняющий текст. Проверка закрытия смены (`hours ≤ 0`) не затронута. Миграций нет.
 - ✅ **Завершено (02.08.2026, номера позиций):** устранение «висящих» спиннеров номеров во вкладке «Работы». Номер теперь приезжает одним запросом через LEFT JOIN `estimates!estimate_id(number)` в `fetchWorkItems`/`fetchWorkItemById`; поле `number` добавлено в `WorkItem`/`WorkItemModel` (в модели не сериализуется в БД). В `WorkDetailsPanel` удалены: спиннеры номеров, `_areEstimatesLoading`, per-item `ref.watch(estimateNotifierProvider)`, загрузка всех смет при инициализации. Миграций нет. `dart analyze` чист.

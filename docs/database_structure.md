@@ -344,6 +344,8 @@
 
 **Примечание (28.07.2026):** таблица `work_materials` удалена (не использовалась). См. [`works/works_module.md`](works/works_module.md), миграция `20260728061000_drop_work_materials.sql`.
 
+**Примечание (18.08.2026):** RPC `get_months_summary` отдаёт `total_amount_sum` и `own_total_amount_sum`; `get_month_objects_summary` — `total_amount` и `own_total_amount`. Схема таблицы `works` не менялась. Миграция `20260818223000_month_summary_own_total.sql`.
+
 ---
 
 ## Таблица `work_items`

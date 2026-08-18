@@ -93,22 +93,20 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
         );
         final kpiTotalAmount =
             selectedObject?.totalAmount ?? currentGroup.totalAmount;
+        final kpiOwnAmount =
+            selectedObject?.ownTotalAmount ?? currentGroup.ownTotalAmount;
         final kpiWorksCount =
             selectedObject?.worksCount ?? currentGroup.worksCount;
 
         final totalEmployees = _calculateTotalEmployees(selectedObjectId);
         final totalHours = _calculateTotalHours(selectedObjectId);
 
-        // Загружаем полные данные для графика и расчетов KPI
+        // Загружаем полные данные для графика
         final chartDataAsync = ref.watch(
           monthChartDataProvider(widget.group.month),
         );
-        final fullWorks = _filterWorksByObject(
-          chartDataAsync.valueOrNull,
-          selectedObjectId,
-        );
         final averagePerEmployee = _calculateAveragePerEmployee(
-          kpiTotalAmount,
+          kpiOwnAmount,
           totalEmployees,
         );
 
@@ -188,6 +186,7 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
                         _buildKpiGridDesktop(
                           context,
                           kpiTotalAmount,
+                          kpiOwnAmount,
                           kpiWorksCount,
                           averagePerEmployee,
                           totalEmployees,
@@ -197,6 +196,7 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
                         _buildKpiListMobile(
                           context,
                           kpiTotalAmount,
+                          kpiOwnAmount,
                           kpiWorksCount,
                           averagePerEmployee,
                           totalEmployees,
@@ -424,96 +424,109 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
   Widget _buildKpiGridDesktop(
     BuildContext context,
     double totalAmount,
+    double ownAmount,
     int worksCount,
     String averagePerEmployee,
     int totalEmployees,
     double totalHours,
   ) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Адаптивная сетка: 3 колонки, 2 ряда для десктопа
-        return Column(
+    return Column(
+      children: [
+        Row(
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: _KpiCard(
-                    title: 'Общая сумма',
-                    value: formatCurrency(totalAmount),
-                    caption: _hourlyRateCaption(totalAmount, totalHours),
-                    icon: CupertinoIcons.money_dollar_circle_fill,
-                    color: Colors.green,
-                    isLarge: true,
-                    relaxed: true,
-                  ),
-                ),
-                const SizedBox(width: _MonthDetailsSpacing.grid),
-                Expanded(
-                  child: _KpiCard(
-                    title: 'Всего смен',
-                    value: '$worksCount',
-                    icon: CupertinoIcons.briefcase_fill,
-                    color: Colors.blue,
-                    relaxed: true,
-                  ),
-                ),
-                const SizedBox(width: _MonthDetailsSpacing.grid),
-                Expanded(
-                  child: _KpiCard(
-                    title: 'Специалистов',
-                    value: '$totalEmployees',
-                    icon: CupertinoIcons.person_3_fill,
-                    color: Colors.teal,
-                    relaxed: true,
-                  ),
-                ),
-              ],
+            Expanded(
+              child: _KpiCard(
+                title: 'Общая сумма',
+                value: formatCurrency(totalAmount),
+                caption: _hourlyRateCaption(totalAmount, totalHours),
+                icon: CupertinoIcons.money_dollar_circle_fill,
+                color: Colors.green,
+                isLarge: true,
+                relaxed: true,
+              ),
             ),
-            const SizedBox(height: _MonthDetailsSpacing.grid),
-            Row(
-              children: [
-                Expanded(
-                  child: _KpiCard(
-                    title: 'Часов',
-                    value: totalHours > 0 ? totalHours.toStringAsFixed(0) : '0',
-                    icon: CupertinoIcons.time_solid,
-                    color: Colors.deepOrange,
-                    relaxed: true,
-                  ),
-                ),
-                const SizedBox(width: _MonthDetailsSpacing.grid),
-                Expanded(
-                  child: _KpiCard(
-                    title: 'Средняя смена',
-                    value: worksCount > 0
-                        ? formatCurrency(totalAmount / worksCount)
-                        : formatCurrency(0),
-                    icon: CupertinoIcons.chart_bar_square_fill,
-                    color: Colors.orange,
-                    relaxed: true,
-                  ),
-                ),
-                const SizedBox(width: _MonthDetailsSpacing.grid),
-                Expanded(
-                  child: _KpiCard(
-                    title: 'Выработка / чел.',
-                    value: averagePerEmployee,
-                    icon: CupertinoIcons.person_crop_circle_fill,
-                    color: Colors.purple,
-                    relaxed: true,
-                  ),
-                ),
-              ],
+            const SizedBox(width: _MonthDetailsSpacing.grid),
+            Expanded(
+              child: _KpiCard(
+                title: 'Наша сумма',
+                value: formatCurrency(ownAmount),
+                caption: _hourlyRateCaption(ownAmount, totalHours),
+                icon: CupertinoIcons.money_dollar_circle,
+                color: Colors.cyan,
+                isLarge: true,
+                relaxed: true,
+              ),
             ),
           ],
-        );
-      },
+        ),
+        const SizedBox(height: _MonthDetailsSpacing.grid),
+        Row(
+          children: [
+            Expanded(
+              child: _KpiCard(
+                title: 'Всего смен',
+                value: '$worksCount',
+                icon: CupertinoIcons.briefcase_fill,
+                color: Colors.blue,
+                relaxed: true,
+              ),
+            ),
+            const SizedBox(width: _MonthDetailsSpacing.grid),
+            Expanded(
+              child: _KpiCard(
+                title: 'Специалистов',
+                value: '$totalEmployees',
+                icon: CupertinoIcons.person_3_fill,
+                color: Colors.teal,
+                relaxed: true,
+              ),
+            ),
+            const SizedBox(width: _MonthDetailsSpacing.grid),
+            Expanded(
+              child: _KpiCard(
+                title: 'Часов',
+                value: totalHours > 0 ? totalHours.toStringAsFixed(0) : '0',
+                icon: CupertinoIcons.time_solid,
+                color: Colors.deepOrange,
+                relaxed: true,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: _MonthDetailsSpacing.grid),
+        Row(
+          children: [
+            Expanded(
+              child: _KpiCard(
+                title: 'Средняя смена',
+                value: worksCount > 0
+                    ? formatCurrency(totalAmount / worksCount)
+                    : formatCurrency(0),
+                icon: CupertinoIcons.chart_bar_square_fill,
+                color: Colors.orange,
+                relaxed: true,
+              ),
+            ),
+            const SizedBox(width: _MonthDetailsSpacing.grid),
+            Expanded(
+              child: _KpiCard(
+                title: 'Выработка / чел.',
+                value: averagePerEmployee,
+                icon: CupertinoIcons.person_crop_circle_fill,
+                color: Colors.purple,
+                relaxed: true,
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
   Widget _buildKpiListMobile(
     BuildContext context,
     double totalAmount,
+    double ownAmount,
     int worksCount,
     String averagePerEmployee,
     int totalEmployees,
@@ -523,9 +536,9 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
     final valueStyle = theme.textTheme.titleMedium?.copyWith(
       fontWeight: FontWeight.w600,
     );
-    final hourlyCaption = _hourlyRateCaption(totalAmount, totalHours);
+    final totalHourlyCaption = _hourlyRateCaption(totalAmount, totalHours);
+    final ownHourlyCaption = _hourlyRateCaption(ownAmount, totalHours);
 
-    // Используем старый AppleMenuGroup для мобилки
     return _AppleMenuGroup(
       children: [
         _AppleMenuItem(
@@ -538,10 +551,33 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
             textBaseline: TextBaseline.alphabetic,
             children: [
               Text(formatCurrency(totalAmount), style: valueStyle),
-              if (hourlyCaption != null) ...[
+              if (totalHourlyCaption != null) ...[
                 const SizedBox(width: 8),
                 Text(
-                  hourlyCaption,
+                  totalHourlyCaption,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        _AppleMenuItem(
+          icon: CupertinoIcons.money_dollar_circle,
+          iconColor: Colors.cyan,
+          title: 'Наша сумма',
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(formatCurrency(ownAmount), style: valueStyle),
+              if (ownHourlyCaption != null) ...[
+                const SizedBox(width: 8),
+                Text(
+                  ownHourlyCaption,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w500,
@@ -716,12 +752,12 @@ class _MonthDetailsPanelState extends ConsumerState<MonthDetailsPanel> {
     return _EmptyState(message: message);
   }
 
-  String _calculateAveragePerEmployee(double totalAmount, int totalEmployees) {
+  String _calculateAveragePerEmployee(double ownAmount, int totalEmployees) {
     if (totalEmployees == 0) return formatCurrency(0);
-    return formatCurrency(totalAmount / totalEmployees);
+    return formatCurrency(ownAmount / totalEmployees);
   }
 
-  /// Подпись «сумма / час» для карточки общей суммы. Null, если часов нет.
+  /// Подпись «сумма / час». Null, если часов нет.
   String? _hourlyRateCaption(double totalAmount, double totalHours) {
     if (totalHours <= 0) return null;
     return '${formatCurrency(totalAmount / totalHours)} / час';

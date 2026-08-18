@@ -278,9 +278,12 @@ class MonthGroupsNotifier extends AsyncNotifier<List<MonthGroup>>
     final previousWork = updatedWorks[workIndex];
     final totalDelta =
         (updatedWork.totalAmount ?? 0) - (previousWork.totalAmount ?? 0);
+    final ownDelta =
+        (updatedWork.ownTotalAmount ?? 0) - (previousWork.ownTotalAmount ?? 0);
     updatedWorks[workIndex] = updatedWork;
     updatedGroups[groupIndex] = group.copyWith(
       totalAmount: group.totalAmount + totalDelta,
+      ownTotalAmount: group.ownTotalAmount + ownDelta,
       works: updatedWorks,
     );
 

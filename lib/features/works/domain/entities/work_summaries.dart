@@ -9,8 +9,11 @@ class ObjectSummary {
   /// Количество смен
   final int worksCount;
 
-  /// Общая сумма
+  /// Общая сумма (свои работы + подрядчики).
   final double totalAmount;
+
+  /// Сумма собственного выполнения (без подрядчиков).
+  final double ownTotalAmount;
 
   /// Создаёт сводку по объекту с агрегированными данными.
   const ObjectSummary({
@@ -18,6 +21,7 @@ class ObjectSummary {
     required this.objectName,
     required this.worksCount,
     required this.totalAmount,
+    this.ownTotalAmount = 0,
   });
 }
 
