@@ -1,77 +1,111 @@
 # Модуль Выгрузка (Export)
 
-**Дата:** 28.01.2026
-**Статус:** Актуализировано (Исправлен лимит загрузки данных при экспорте, оптимизирован обход лимитов API)
+**Дата актуализации:** 21 августа 2026 года  
+**Статус:** Актуально (Clean Architecture, Server-side Pagination, единый период для поиска и ВОР)
+
+> **Изменения 21.08.2026 (скачивание ВОР):**
+> - `VorDownloadAction` больше не открывает отдельный `showDateRangePicker` на весь экран.
+> - Период для Excel/PDF ВОР берётся только из `workSearchDateRangeProvider` (календарь в AppBar: `WorkSearchDateRangeAction`).
+> - Если период не выбран — предупреждение `SnackBarUtils.showWarning`: «Сначала выберите период в календаре»; генерация не запускается.
+> - Кнопки ВОР по-прежнему активны только при выбранном объекте (`exportSelectedObjectIdProvider`).
+> - Право доступа: `PermissionGuard` `module: export`, `permission: export`.
+
+---
 
 ## 📌 Важное замечание
-Модуль является инструментом для анализа и экспорта данных по всем выполненным работам. Он не владеет данными напрямую, а агрегирует информацию из таблиц `works` и `work_items`. 
+
+Модуль **не владеет** таблицами. Это инструмент поиска выполненных работ и экспорта отчётов. Данные читаются из `works` / `work_items` и связанных справочников.
 
 **Особенности:**
-- Работает исключительно на Desktop-версиях (ширина > 900px).
-- Использует **серверную пагинацию** (Server-side Pagination) для обработки больших объемов данных (100 000+ записей).
-- Использует **серверную агрегацию** (Server-side Aggregation) для мгновенного расчета итогов.
-- Реализована фиксированная шапка таблицы и динамический расчет ширины колонок.
-- **Экспорт данных:** Реализован обход системного лимита API в 1000 строк через батчевую загрузку (Batch loading) в Edge Functions.
+- Поле поиска (`ExportSearchAction`) и каскадные чипы фильтров (`ExportSearchFilterChips`) показываются только на Desktop (`ResponsiveUtils.isDesktop`, ширина ≥ 900 px).
+- Календарь периода, кнопки ВОР и экспорт Excel доступны в AppBar на всех ширинах экрана.
+- Серверная пагинация UI: 250 строк на страницу (`WorkSearchState.pageSize`).
+- Серверная агрегация итогов в одном RPC (`total_count`, `total_quantity`, `total_sum`).
+- Кэш объектов со сменами: `objectsWithWorksProvider` (`ref.keepAlive`) + префетч при входе на `ExportScreen`.
+
+---
 
 ## 🛑 Технические ограничения (Limits)
-1. **Лимит выборки:** Максимальное количество записей для одного экспорта ограничено 100 000 строк (защита от перегрузки памяти сервера).
-2. **Лимит API:** Стандартный лимит PostgREST в 1000 строк обходится внутри Edge Function `export-work-search-all` через цикл с параметрами `p_from`/`p_to`.
-3. **Payload Limit:** При передаче данных между функциями `export-work-search-all` и `export-work-search-pto` через клиента может возникнуть ошибка 413 при объемах > 10МБ.
-4. **Тайм-аут:** Выполнение Edge Function ограничено 60 секундами. При очень сложных запросах с М-15 возможны задержки.
+
+1. **Лимит выборки экспорта поиска:** до 100 000 строк в Edge Function `export-work-search-all` (защита памяти сервера).
+2. **Лимит PostgREST:** 1000 строк обходится внутри `export-work-search-all` циклом `p_from` / `p_to`.
+3. **Payload Limit:** передача массива `results` с клиента в `export-work-search-pto` может дать HTTP 413 при объёме > 10 МБ.
+4. **Тайм-аут Edge Function:** 60 секунд.
+
+---
 
 ## 📖 Описание
-Модуль предназначен для расширенного поиска выполненных работ и использованных материалов с возможностью фильтрации по объектам, датам, системам, участкам и этажам. Основная цель — получение детальной отчетности и экспорт данных.
 
-### Ключевые функции:
-- Поиск по наименованию работ/материалов (ILike).
-- Фильтрация по периоду дат.
-- Каскадный Multi-select (выбор нескольких систем, участков и этажей).
-- Автоматический расчет общего количества и суммы по всей выборке.
-- Быстрый переход к деталям смены или редактированию позиции (для админов) через контекстное меню.
+Модуль нужен для расширенного поиска выполненных работ и выгрузки отчётов (таблица поиска, ВОР Excel/PDF).
+
+**Ключевые функции:**
+- Поиск по наименованию работ (ILike на стороне RPC).
+- Фильтрация по объекту (обязательно) и периоду дат (календарь в шапке).
+- Каскадный Multi-select: системы → участки → этажи.
+- Итоги по всей выборке, не только по текущей странице.
+- Контекстное меню строки: переход к смене / редактирование позиции (по ролям).
+- Скачивание ВОР (Excel и PDF) за тот же период, что выбран для поиска.
+- Экспорт результатов поиска в Excel (формат ПТО).
+
+---
 
 ## 🔗 Зависимости
-- **Владение таблицами (Owner):** Нет (модуль только читает и экспортирует).
+
+- **Владение таблицами (Owner):** нет.
 - **Использование таблиц (Usage):**
-  - `works` — данные о сменах (даты, объекты, статусы).
-  - `work_items` — детальные позиции работ в сменах.
-  - `estimates` — ценовые показатели и номера позиций.
-  - `objects` — названия строительных объектов.
-  - `contracts` — номера договоров через сметы.
+  - `works` — смены (дата, объект, статус). RLS: ✅ включён.
+  - `work_items` — позиции работ. RLS: ✅ включён.
+  - `estimates` — цена, номер позиции. RLS: ✅ включён.
+  - `objects` — название объекта. RLS: ✅ включён.
+  - `contracts` — подписанты и номер договора в отчётах ВОР. RLS: ✅ включён.
+
+---
 
 ## 🎨 Слой Presentation
 
-### Экраны и Табы:
-- `ExportScreen` — основной экран модуля.
-- `ExportTabSearch` — вкладка расширенного поиска. Рефакторинг: логика отображения вынесена в специализированный виджет таблицы.
+### Экраны
+- `ExportScreen` — экран модуля, заголовок «Поиск по работам».
+- `ExportTabSearch` — таблица результатов; объект обязателен.
 
-### Провайдеры (Riverpod):
-- `workSearchProvider` — управление состоянием поиска и пагинацией (`WorkSearchState`).
-- `workSearchFilterValuesProvider` — динамическое получение доступных значений для чипов-фильтров.
-- `exportSearchFilterProvider` — хранение текущих выбранных фильтров (системы, участки, этажи).
-- `exportSelectedObjectIdProvider` — текущий выбранный объект.
-- `workSearchDateRangeProvider` — выбранный период дат.
+### AppBar
+- `ExportSearchAction` — поиск (только Desktop).
+- `WorkSearchDateRangeAction` — компактный календарь периода; единственный UI выбора дат для поиска, экспорта ПТО и ВОР.
+- `VorDownloadAction` — PDF и Excel ВОР.
+- `WorkSearchExportAction` — Excel по текущей выборке поиска.
 
-### Виджеты (Design System):
-- `ExportResultsTableView` — высокопроизводительная таблица (аналог сметной). 
-  - **Синхронизированный скролл**: закрепленный заголовок при прокрутке данных.
-  - **Dynamic Width**: расчет ширины 11 колонок на основе содержимого (`_measureText`).
-  - **Footer**: встроенная строка итогов, всегда находящаяся в конце списка.
-- `ExportSearchFilterChips` — каскадные чипы Multi-select.
-- `ExportSearchAction` — анимированное поле поиска в AppBar.
-- `WorkSearchDateRangeAction` — компактный выбор периода дат.
-- `WorkSearchExportAction` — кнопка экспорта.
+### Провайдеры (Riverpod)
+- `workSearchProvider` — состояние поиска и пагинация (`WorkSearchState`).
+- `workSearchFilterValuesProvider` — доступные значения чипов (RPC каскада).
+- `exportSearchFilterProvider` — выбранные системы / участки / этажи.
+- `exportSelectedObjectIdProvider` — выбранный объект.
+- `workSearchDateRangeProvider` — период дат (`DateTimeRange?`, по умолчанию `null`).
+- `exportSearchQueryProvider` / `exportSearchQueryDebouncedProvider` — текст поиска, debounce 500 ms (`kExportSearchDebounceMs`).
+- `objectsWithWorksProvider` — `Set<String>` object_id со сменами компании.
+- `vorRepositoryProvider` — генерация ВОР через Edge Functions.
+
+### Виджеты
+- `ExportResultsTableView` — таблица со синхронизированным скроллом, динамической шириной колонок (`_measureText`), строкой итогов.
+- `ExportSearchFilterChips` — каскадные чипы (Desktop).
+- Уведомления: `SnackBarUtils` (не стандартный Material SnackBar).
+
+---
 
 ## ⚙️ Слой Domain/Data
 
-### Сущности (Entities):
-- `WorkSearchResult` — модель строки результата (immutable, Freezed).
-- `WorkSearchPaginatedResult` — обертка для пагинированных данных и мета-данных (totalCount, totalSum).
+### Сущности
+- `WorkSearchResult` — строка результата (Freezed, `abstract class`).
+- `WorkSearchPaginatedResult` — страница + `totalCount` / `totalQuantity` / `totalSum`.
+- `WorkSearchFilterValues` — списки systems / sections / floors.
 
-### Репозитории и Источники данных:
-- `WorkSearchRepository` — интерфейс для доступа к данным поиска.
-- `WorkSearchDataSourceImpl` — реализация на Supabase. Использование `GtFormatters` для передачи дат в API.
+### Репозитории
+- `WorkSearchRepository` / `WorkSearchRepositoryImpl` / `WorkSearchDataSourceImpl` — RPC поиска и фильтров. Даты в API: `GtFormatters.formatDateForApi`.
+- `VorRepository` / `VorRepositoryImpl` — `generate_vor` (xlsx) и `generate_vor_pdf` (pdf). Даты в теле: `DateTime.toIso8601String()`.
+- `WorkSearchExportServerService` — `export-work-search-all` + `export-work-search-pto`.
+
+---
 
 ## 📂 Дерево файлов
+
 ```text
 lib/features/export/
 ├── data/
@@ -79,14 +113,18 @@ lib/features/export/
 │   │   ├── work_search_data_source.dart
 │   │   └── work_search_data_source_impl.dart
 │   └── repositories/
+│       ├── vor_repository_impl.dart
 │       └── work_search_repository_impl.dart
 ├── domain/
 │   ├── entities/
 │   │   └── work_search_result.dart
 │   └── repositories/
+│       ├── vor_repository.dart
 │       └── work_search_repository.dart
 └── presentation/
     ├── providers/
+    │   ├── export_objects_with_works_provider.dart
+    │   ├── export_search_providers.dart
     │   ├── repositories_providers.dart
     │   ├── work_search_date_provider.dart
     │   └── work_search_provider.dart
@@ -94,75 +132,118 @@ lib/features/export/
     │   ├── export_screen.dart
     │   └── tabs/
     │       └── export_tab_search.dart
+    ├── services/
+    │   └── work_search_export_server_service.dart
     └── widgets/
-        ├── export_results_table_view.dart   # Новая кастомная таблица
+        ├── export_results_table_view.dart
         ├── export_search_action.dart
         ├── export_search_filter_chips.dart
-        ├── export_work_item_edit_modal.dart
-        └── work_search_date_filter.dart
+        ├── vor_download_action.dart
+        ├── work_search_date_filter.dart
+        └── work_search_export_action.dart
 ```
+
+Файла `export_work_item_edit_modal.dart` в модуле нет (редактирование — через `work_item_form_improved` модуля Works).
+
+---
 
 ## 🗄️ База данных (Audit)
 
-### SQL Функции (RPC):
-1. **`get_distinct_work_object_ids`**:
-   - **Назначение:** Уникальные `object_id` смен компании (чипы объектов в выгрузке). Кэш: `objectsWithWorksProvider` + префетч при входе на экран.
-2. **`get_work_items_available_filters`**:
-   - **Назначение:** Возвращает уникальные системы, участки и этажи с учетом каскада.
-   - **RLS:** ✅ Включён (Security Defininer).
-3. **`search_work_items_with_aggregates`** (основной для UI поиска):
-   - **Назначение:** Пагинированный поиск + `total_count`, `total_quantity`, `total_sum` в одном ответе JSONB (`items`).
-   - **Клиент:** `WorkSearchDataSourceImpl.searchMaterials()`.
-4. **`get_work_items_aggregates`** / **`search_work_items_paginated`** (legacy):
-   - Сохранены для совместимости (например, Edge Function `export-work-search-all`).
+Модуль таблиц не создаёт. Проверено через `information_schema` / `pg_class` / `pg_indexes` / `pg_proc` (MCP Supabase, 21.08.2026).
 
-### Индексы:
-- `idx_works_date_desc` — для быстрой сортировки по дате.
-- `idx_work_items_name_gin` — для ускорения текстового поиска.
+### RLS используемых таблиц
+| Таблица | RLS |
+|---|---|
+| `works` | ✅ включён |
+| `work_items` | ✅ включён |
+| `estimates` | ✅ включён |
+| `objects` | ✅ включён |
+| `contracts` | ✅ включён |
+
+### SQL Functions (RPC) модуля
+| Функция | Security | Клиент |
+|---|---|---|
+| `get_distinct_work_object_ids(p_company_id uuid)` | DEFINER | `objectsWithWorksProvider` |
+| `get_work_items_available_filters(...)` | DEFINER | `WorkSearchDataSourceImpl.getFilterValues` |
+| `search_work_items_with_aggregates(...)` | DEFINER | `WorkSearchDataSourceImpl.searchMaterials` |
+| `search_work_items_paginated(...)` | DEFINER | legacy / Edge `export-work-search-all` |
+| `get_work_items_aggregates(...)` | DEFINER | legacy |
+
+RPC ВОР (`compute_vor_item_rows`, `populate_vor_items`, `recalculate_vor` и др.) принадлежат модулю смет, не экрану Выгрузка.
+
+### Индексы (факт БД)
+- `idx_works_date_desc` — `works(date DESC)`. ✅ есть.
+- `idx_work_items_name_trgm` — GIN `work_items(name gin_trgm_ops)`. ✅ есть.
+- `idx_work_items_name_gin` — в БД **нет** (устаревшее имя в прошлой версии документа).
+
+---
 
 ## 🧠 Бизнес-логика
 
-### Форматирование данных:
-- В модуле запрещено ручное форматирование дат и чисел. 
-- Используются глобальные алиасы из `lib/core/utils/formatters.dart`: `formatRuDate`, `formatCurrency`, `formatQuantity`.
-- Для API используется `GtFormatters.formatDateForApi`.
+### Форматирование
+Запрещены локальные `DateFormat` / `NumberFormat` в UI. Используются `formatRuDate`, `formatCurrency`, `formatQuantity`, для RPC — `GtFormatters.formatDateForApi`.
 
-### Процесс фильтрации:
-1. Пользователь выбирает **Объект** (обязательно).
-2. Приложение запрашивает через RPC доступные фильтры для этого объекта.
-3. При выборе **Системы**, список **Участков** сужается (серверная фильтрация).
-4. При вводе текста в поиск результаты и каскадные фильтры обновляются с debounce 500ms (`exportSearchQueryDebouncedProvider` / `kExportSearchDebounceMs`).
-5. **Сортировка:** Данные всегда сортируются по дате смены (`works.date`) в порядке убывания (новые сверху), затем по `id` записи. Реализовано на уровне БД через RPC.
+### Поиск
+1. Пользователь выбирает **объект** (обязательно).
+2. RPC отдаёт доступные фильтры для объекта (и периода, если задан).
+3. Выбор системы сужает участки (серверный каскад).
+4. Текст поиска обновляет таблицу и чипы с debounce 500 ms.
+5. Сортировка: `works.date` DESC, затем `id` (в RPC).
+
+### Скачивание ВОР (Excel / PDF)
+
+```text
+Нажатие PDF или Excel
+  → объект не выбран → кнопки неактивны
+  → период null → предупреждение, выход
+  → период задан → generate_vor / generate_vor_pdf
+       (objectId, dateFrom, dateTo, фильтры шапки, searchQuery)
+```
+
+Период **не** выбирается во втором окне. Источник дат — тот же календарь, что для поиска.
+
+### Учёт истории в файле ВОР (Historical Usage)
+Для позиции сметы суммируется объём **строго до** `dateFrom`. Остаток лимита: `Лимит − Выполнено_ранее`.
+
+### Распределение объёмов (Overrun Splitting)
+- **Норма:** объём в пределах остатка сметы.
+- **Превышение:** сверх лимита или без привязки к смете.
+
+### Оформление файла
+- Секция превышений: заголовок «ПРЕВЫШЕНИЕ ОБЪЕМОВ И ДОПОЛНИТЕЛЬНЫЕ РАБОТЫ...».
+- Excel: серый фон разделителя `#EEEEEE`.
+- Подписанты — из `contracts` по договору.
+
+---
 
 ## 🔌 Интеграции
-- **Edge Functions:**
-  - `generate_vor`: Генерация Excel-отчета ВОР. Поддерживает разделение на нормальные объемы и превышения, учитывает историю выполнения до начала периода.
-  - `generate_vor_pdf`: Генерация PDF-отчета ВОР. Идентичная логика с Excel-версией.
-  - `export-work-search-all` / `export-work-search-pto`: Экспорт общих результатов поиска.
-- **Supabase RPC:** Все тяжелые вычисления вынесены в хранимые процедуры.
 
-## 🧠 Бизнес-логика выгрузки ВОР (Excel/PDF)
+**Edge Functions, вызываемые из модуля Export (код `lib/features/export/`):**
+- `generate_vor` — Excel ВОР.
+- `generate_vor_pdf` — PDF ВОР.
+- `export-work-search-all` — полная выборка поиска.
+- `export-work-search-pto` — Excel формата ПТО.
 
-### 1. Учет истории (Historical Usage)
-Для каждой позиции сметы (`estimate_id`) система вычисляет суммарный объем работ, выполненный **строго до** даты начала (`dateFrom`) выбранного периода. Это позволяет точно определить остаток лимита по договору на момент формирования отчета.
+`list_edge_functions` в MCP проекта нет; список сверён с `supabase/functions/` и вызовами `functions.invoke` в коде.
 
-### 2. Распределение объемов (Overrun Splitting)
-Система автоматически разделяет выполненные работы на две категории:
-- **В пределах договора (Норма):** Объем, который укладывается в остаток по смете (`Лимит - Выполнено_ранее`).
-- **Превышение (Overrun):** Объем, выходящий за рамки сметного лимита, либо работы без привязки к смете.
+**Не вызываются из модуля Export** (модуль смет / материалы):
+- `generate_vor_v2`
+- `export-vor-materials`
+- `export-cumulative-vor`
 
-### 3. Оформление отчетов
-- **Разделение секций:** В отчетах (и Excel, и PDF) секция превышений отделяется специальным заголовком "ПРЕВЫШЕНИЕ ОБЪЕМОВ И ДОПОЛНИТЕЛЬНЫЕ РАБОТЫ...".
-- **Визуальное выделение:** В Excel строка-разделитель имеет серый фон (`#EEEEEE`).
-- **Подписи сторон:** Данные подписантов (ФИО, должность) подтягиваются динамически из таблицы `contracts` для каждого конкретного договора.
+**Пакеты:** `file_saver`, `file_selector`, `share_plus`, `path_provider`, `supabase_flutter`, `flutter_riverpod`.
+
+---
 
 ## 🗺️ Roadmap
+
 - [x] Серверная пагинация (250 строк/стр).
 - [x] Каскадный Multi-select фильтров.
 - [x] Серверная агрегация итогов.
-- [x] Кастомная таблица с закрепленным заголовком (стандарт проекта).
+- [x] Кастомная таблица с закрепленным заголовком.
 - [x] Унификация форматирования (`GtFormatters`).
-- [x] Исправление серверной сортировки по дате (через RPC).
-- [x] Унификация Excel и PDF выгрузок (учет истории и превышений).
-- [ ] Оптимизация экспорта для очень больших файлов (>50к строк).
-- [ ] Мобильная версия вкладки поиска (адаптивная таблица).
+- [x] Серверная сортировка по дате (RPC).
+- [x] ВОР Excel и PDF: история и превышения.
+- [x] Единый период шапки для поиска и скачивания ВОР (21.08.2026).
+- [ ] Оптимизация экспорта поиска для файлов > 50 тыс. строк.
+- [ ] Адаптивная таблица поиска на Mobile.

@@ -25,7 +25,7 @@ enum VorFormat {
 /// Виджет действий для скачивания отчета ВОР (Ведомость Объемов Работ).
 ///
 /// Отображает кнопки для скачивания отчета в форматах PDF и Excel.
-/// При нажатии проверяет выбран ли период, и если нет - предлагает выбрать.
+/// Период берётся из календаря в шапке экрана.
 class VorDownloadAction extends ConsumerWidget {
   /// Создает виджет действий для скачивания ВОР.
   const VorDownloadAction({super.key});
@@ -63,51 +63,13 @@ class VorDownloadAction extends ConsumerWidget {
     VorFormat format,
   ) async {
     final dateRange = ref.read(workSearchDateRangeProvider);
-
-    if (dateRange != null) {
-      await _downloadReport(
+    if (dateRange == null) {
+      SnackBarUtils.showWarning(
         context,
-        ref,
-        objectId,
-        dateRange.start,
-        dateRange.end,
-        format,
+        'Сначала выберите период в календаре',
       );
-    } else {
-      await _showDateRangeDialog(context, ref, objectId, format);
+      return;
     }
-  }
-
-  Future<void> _showDateRangeDialog(
-    BuildContext context,
-    WidgetRef ref,
-    String objectId,
-    VorFormat format,
-  ) async {
-    final dateRange = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-      helpText: 'Выберите период для ВОР',
-      cancelText: 'Отмена',
-      confirmText: 'Скачать',
-      saveText: 'СКАЧАТЬ',
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            datePickerTheme: DatePickerThemeData(
-              headerBackgroundColor: Theme.of(context).colorScheme.primary,
-              headerForegroundColor: Theme.of(context).colorScheme.onPrimary,
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
-
-    if (dateRange == null) return;
-
-    if (!context.mounted) return;
 
     await _downloadReport(
       context,
