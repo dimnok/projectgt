@@ -41,6 +41,9 @@ abstract class EstimateDataSource {
     String estimateId,
   );
 
+  /// Получает журнал ручных правок позиции сметы.
+  Future<List<Map<String, dynamic>>> getEstimateItemHistory(String estimateId);
+
   /// Получает выполнение только для указанных ID сметных позиций.
   Future<List<EstimateCompletionModel>> getEstimateCompletionByIds(
     List<String> estimateIds,
@@ -298,6 +301,48 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
     json.remove('created_by');
   }
 
+  /// Собирает карту изменённых полей формы: ключ → {from, to}.
+  static Map<String, Map<String, dynamic>> _manualEstimateChanges(
+    Map<String, dynamic> previous,
+    EstimateModel next,
+  ) {
+    final changes = <String, Map<String, dynamic>>{};
+
+    void addText(String key, dynamic oldValue, String newValue) {
+      final oldText = (oldValue?.toString() ?? '').trim();
+      final nextText = newValue.trim();
+      if (oldText != nextText) {
+        changes[key] = {'from': oldText, 'to': nextText};
+      }
+    }
+
+    void addNumber(String key, dynamic oldValue, double newValue) {
+      final oldNumber = (oldValue as num?)?.toDouble();
+      if (oldNumber == null || (oldNumber - newValue).abs() > 0.000000001) {
+        changes[key] = {'from': oldNumber ?? oldValue, 'to': newValue};
+      }
+    }
+
+    addText('system', previous['system'], next.system);
+    addText('subsystem', previous['subsystem'], next.subsystem);
+    addText('number', previous['number'], next.number);
+    addText('name', previous['name'], next.name);
+    addText('article', previous['article'], next.article);
+    addText('manufacturer', previous['manufacturer'], next.manufacturer);
+    addText('unit', previous['unit'], next.unit);
+    addNumber('quantity', previous['quantity'], next.quantity);
+    addNumber('price', previous['price'], next.price);
+    final oldVisible =
+        previous['visible_in_estimates_module'] as bool? ?? true;
+    if (oldVisible != next.visibleInEstimatesModule) {
+      changes['visible_in_estimates_module'] = {
+        'from': oldVisible,
+        'to': next.visibleInEstimatesModule,
+      };
+    }
+    return changes;
+  }
+
   @override
   Future<void> createEstimate(EstimateModel estimate) async {
     final json = estimate.toJson();
@@ -309,6 +354,16 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
   @override
   Future<void> updateEstimate(EstimateModel estimate) async {
     if (estimate.id == null) throw Exception('id is required for update');
+    final previous = await client
+        .from(table)
+        .select(
+          'system, subsystem, number, name, article, manufacturer, unit, '
+          'quantity, price, visible_in_estimates_module',
+        )
+        .eq('id', estimate.id!)
+        .eq('company_id', activeCompanyId)
+        .maybeSingle();
+
     final json = estimate.toJson();
     _stripEstimateTableReadOnlyKeys(json);
     json['company_id'] = activeCompanyId;
@@ -317,6 +372,20 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
         .update(json)
         .eq('id', estimate.id!)
         .eq('company_id', activeCompanyId);
+
+    final userId = client.auth.currentUser?.id;
+    if (previous != null && userId != null) {
+      final changes = _manualEstimateChanges(previous, estimate);
+      if (changes.isNotEmpty) {
+        await client.from('estimate_item_history').insert({
+          'company_id': activeCompanyId,
+          'estimate_id': estimate.id,
+          'user_id': userId,
+          'action': 'updated',
+          'changes': changes,
+        });
+      }
+    }
   }
 
   @override
@@ -474,6 +543,22 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
         .eq('estimate_id', estimateId)
         .eq('company_id', activeCompanyId)
         .order('date', referencedTable: 'works', ascending: false);
+
+    return (response as List).cast<Map<String, dynamic>>();
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getEstimateItemHistory(
+    String estimateId,
+  ) async {
+    final response = await client
+        .from('estimate_item_history')
+        .select(
+          'created_at, action, changes, author:profiles!estimate_item_history_user_id_fkey(short_name, full_name)',
+        )
+        .eq('estimate_id', estimateId)
+        .eq('company_id', activeCompanyId)
+        .order('created_at', ascending: true);
 
     return (response as List).cast<Map<String, dynamic>>();
   }

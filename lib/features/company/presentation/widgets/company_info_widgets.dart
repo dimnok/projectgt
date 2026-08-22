@@ -40,44 +40,42 @@ class CompanyInfoCard extends StatelessWidget {
     final theme = Theme.of(context);
     final color = accentColor ?? theme.colorScheme.primary;
 
-    final body = IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(width: 3, color: color),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      if (icon != null) ...[
-                        Icon(icon, size: 18, color: color),
-                        const SizedBox(width: 8),
-                      ],
-                      Expanded(
-                        child: Text(
-                          title.toUpperCase(),
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1.2,
-                            color: color,
-                            fontSize: 10,
-                          ),
-                        ),
-                      ),
-                      if (action != null) action!,
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  ...children,
+    final body = DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border(
+          left: BorderSide(color: color, width: 3),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 18, color: color),
+                  const SizedBox(width: 8),
                 ],
-              ),
+                Expanded(
+                  child: Text(
+                    title.toUpperCase(),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.2,
+                      color: color,
+                      fontSize: 10,
+                    ),
+                  ),
+                ),
+                if (action != null) action!,
+              ],
             ),
-          ),
-        ],
+            const SizedBox(height: 12),
+            ...children,
+          ],
+        ),
       ),
     );
 

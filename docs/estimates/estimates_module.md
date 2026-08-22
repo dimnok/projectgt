@@ -1,13 +1,13 @@
 # Модуль Сметы (Estimates)
 
 **Дата актуализации:** 22 августа 2026 года  
-**Изменения:** В деталях позиции сметы показываются дата создания и ФИО автора (`created_at`, `created_by` / `created_by_name`). Триггер `set_estimates_created_by` заполняет автора при INSERT. На карточке сметы в desktop Sidebar (`_EstimateListTile`) отображается процент выполнения по объёму. Значение приходит из RPC `get_estimate_groups` (`completion_percent`) в поле `EstimateFile.completionPercent`. Формула совпадает с бейджем в шапке открытой сметы: `SUM(факт work_items.quantity) / SUM(план estimates.quantity) × 100`. Миграция `get_estimate_groups_completion_percent` (сервер: `20260822182303`).
+**Изменения:** В деталях позиции журнал «История изменений»: добавление (`created_at` / `created_by`) и ручные правки формы (`estimate_item_history.changes`). Триггер `set_estimates_created_by` заполняет автора при INSERT. На карточке сметы в desktop Sidebar (`_EstimateListTile`) отображается процент выполнения по объёму. Значение приходит из RPC `get_estimate_groups` (`completion_percent`) в поле `EstimateFile.completionPercent`. Формула совпадает с бейджем в шапке открытой сметы: `SUM(факт work_items.quantity) / SUM(план estimates.quantity) × 100`. Миграция `get_estimate_groups_completion_percent` (сервер: `20260822182303`).
 **Статус:** Актуально (Clean Architecture, Riverpod, Strict Multi-tenancy, RBAC, Subsystem Filter Bar, Sidebar Completion Percent, VOR Excel/PDF Storage Flow, VOR Tab Dynamic Columns, Cumulative Excel with Excess Column, Estimate Revisions/Addendums, VOR Draft Delete by Creator, VOR Signed PDF Web Upload)
 
 ---
 
 ## ⚠️ Важное замечание
-- **Владение таблицами:** модуль владеет `public.estimates`, `public.vors`, `public.vor_items`, `public.vor_systems`, `public.vor_status_history`.
+- **Владение таблицами:** модуль владеет `public.estimates`, `public.estimate_item_history`, `public.vors`, `public.vor_items`, `public.vor_systems`, `public.vor_status_history`.
 - **Multi-tenancy:** все owner-таблицы модуля используют `company_id`; доступ строится вокруг `get_my_company_ids()` и `check_permission(..., 'estimates', ...)`.
 - **RLS-ограничение ВОР:** стандартный `UPDATE` для `public.vors` разрешен только пока запись находится в статусах `draft` или `pending`. Для загрузки PDF после подписания используется отдельная `SECURITY DEFINER` функция `public.set_vor_pdf_document(...)`.
 - **Удаление черновика ВОР:** отдельного RBAC-права «удалить ВОР» нет — используется модуль `estimates`, действие `delete`, плюс исключение для создателя (`vors.created_by = auth.uid()`). Владелец компании проходит через `check_permission` (`is_owner = true`). Подписанные и «на подписании» ведомости удалить нельзя.
@@ -78,7 +78,7 @@
 - `lib/features/estimates/presentation/screens/estimate_desktop_view.dart` — основной desktop-экран смет и табов; состояние фильтра подсистемы, комбинирование с поиском и фильтрами выполнения. `_EstimateListTile` показывает `formatPercentage(file.completionPercent, decimalDigits: 1)` рядом с названием сметы.
 - `lib/features/estimates/presentation/widgets/estimate_subsystem_filter_bar.dart` — текстовые переключатели подсистем над таблицей; утилиты `estimateSubsystemFilterLabel`, `collectEstimateSubsystemLabels`.
 - `lib/features/estimates/presentation/widgets/estimate_table_view.dart` — таблица позиций (колонки «Система», «Подсистема»), режимы «Смета» / «Выполнение».
-- `lib/features/estimates/presentation/widgets/estimate_item_details_dialog.dart` / `estimate_details_modal.dart` — детали позиции; блок «История изменений» одной строкой: `Добавление · дата · автор` (автор — `profiles.short_name`, формат «Фамилия И.О.»).
+- `lib/features/estimates/presentation/widgets/estimate_item_details_dialog.dart` / `estimate_details_modal.dart` — детали позиции; блок «История изменений»: каждое событие отдельной строкой, по времени (сначала ранние).
 - `lib/features/estimates/presentation/widgets/estimate_completion_history_panel.dart` — боковая панель «Исполнение»: история и сводка выполнения по позиции; ФИО открывшего смену (`openedByName`) под строкой участок/этаж.
 - `lib/features/estimates/presentation/widgets/estimate_filter_buttons.dart` — фильтры статуса выполнения (перевыполнение / 100% / 0%) на вкладке «Выполнение».
 - `lib/features/estimates/presentation/widgets/estimate_search_field.dart` — поиск по наименованию и номеру позиции.
@@ -99,6 +99,7 @@
 ### Слой Domain
 - `lib/domain/entities/estimate.dart` — доменная сущность сметной позиции.
 - `lib/domain/entities/estimate_completion_history.dart` — запись истории выполнения: `date`, `quantity`, `section`, `floor`, `openedByName`.
+- `lib/domain/entities/estimate_item_history.dart` — запись ручной правки позиции: `createdAt`, `action`, `userName`, `changes`.
 - `lib/domain/entities/vor.dart` — доменная сущность ВОР и истории статусов.
 - `lib/domain/repositories/estimate_repository.dart` — контракт репозитория смет и ВОР (`uploadVorPdf`: `Uint8List bytes`, `fileName`).
 
@@ -133,6 +134,7 @@ lib/features/estimates/
 │   │   ├── vor_cumulative_export_service.dart
 │   │   └── vor_export_service.dart
 │   ├── utils/
+│   │   ├── estimate_item_history_line.dart
 │   │   ├── estimate_sorter.dart
 │   │   └── vor_pdf_actions.dart
 │   └── widgets/
@@ -186,6 +188,19 @@ lib/features/estimates/
 | company_id | uuid | tenant isolation |
 | position_id | uuid | стабильный ID позиции через ревизии |
 | visible_in_estimates_module | boolean | `false` — скрыта в модуле «Сметы» и `get_estimate_groups` (default `true`) |
+
+#### `public.estimate_item_history`
+| Колонка | Тип | Назначение |
+|:---|:---|:---|
+| id | uuid | PK |
+| company_id | uuid | tenant isolation |
+| estimate_id | uuid | FK на позицию `estimates` (CASCADE) |
+| user_id | uuid | кто сохранил форму |
+| action | text | сейчас только `updated` |
+| created_at | timestamptz | время правки |
+| changes | jsonb | что поменяли: `{"quantity": {"from": 10, "to": 33}}` |
+
+Пишется только из клиентского `updateEstimate` (форма). Импорт Excel и `apply_estimate_bulk_update` журнал не заполняют. Старые строки без `changes` показываются как `Изменение · дата · автор`.
 
 #### `public.estimate_revisions`
 | Колонка | Тип | Назначение |
@@ -275,6 +290,7 @@ lib/features/estimates/
 
 ### RLS
 - `public.estimates` — ✅ Включен
+- `public.estimate_item_history` — ✅ Включен (SELECT + INSERT; UPDATE/DELETE у authenticated нет)
 - `public.estimate_revisions` — ✅ Включен
 - `public.estimate_revision_items` — ✅ Включен
 - `public.vors` — ✅ Включен
@@ -295,6 +311,7 @@ lib/features/estimates/
 - `estimates`: `idx_estimates_company_id`, `idx_estimates_contract_id`, `idx_estimates_object_id`, `idx_estimates_grouping` (`estimate_title, object_id, contract_id`), `idx_estimates_filters`, `idx_estimates_sort`, `idx_estimates_name_gin_trgm`, `uq_estimates_company_contract_position`, `idx_estimates_created_by`
 - `estimates`: trigger `trg_sync_work_items_on_estimate_update` (AFTER UPDATE) синхронизирует связанные `work_items`
 - `estimates`: trigger `trg_estimates_created_by` (BEFORE INSERT) пишет `created_by = auth.uid()`, если автор не задан
+- `estimate_item_history`: `idx_estimate_item_history_estimate` (`estimate_id, created_at`)
 - `estimate_revisions`: `idx_estimate_revisions_company_contract`, `idx_estimate_revisions_contract_title_status`, `uq_estimate_revisions_contract_title_revision`; trigger `tr_estimate_revisions_updated_at`
 - `estimate_revision_items`: `idx_estimate_revision_items_revision`, `idx_estimate_revision_items_position`
 - `vors`: `idx_vors_company`, `idx_vors_contract`, `idx_vors_baseline_revision_id`
@@ -346,6 +363,12 @@ lib/features/estimates/
 1. Кнопка «Добавить позицию» открывает форму; номер ставится как `д-1`, `д-2`, …
 2. После сохранения в деталях позиции в блоке «История изменений» одна строка: `Добавление · дата · автор` (автор из `profiles.short_name`).
 3. У строк, созданных до 22.08.2026, дата есть, автор пустой (`—`).
+
+### Ручное изменение позиции
+1. Пользователь сохраняет форму редактирования (`updateEstimate`).
+2. Если поля позиции реально изменились, в `estimate_item_history` пишется `updated` и `changes` (старое → новое).
+3. В блоке «История изменений» события идут по времени (сначала ранние): `Добавление`, затем каждое поле отдельной строкой `Изменение · количество 10 → 33 · дата · автор`.
+4. Импорт Excel и «Обновить Excel» в этот журнал не пишутся.
 
 > Аудит 22.08.2026: в текущем feature-flow модуля «Сметы» **нет** вызовов Edge Functions `excel_parse` и `xls_to_xlsx`. `excel_parse` используется модулем материалов (`receipts_remote_parser.dart`), не импортом смет.
 
@@ -520,6 +543,7 @@ END
 - 🟢 ФИО открывшего смену в истории выполнения позиции (desktop, `estimate_completion_history_panel`) — **Done**
 - 🟢 Процент выполнения на карточке сметы в desktop Sidebar (`get_estimate_groups.completion_percent`) — **Done** (22.08.2026)
 - 🟢 Дата и автор в деталях позиции (`created_at`, `created_by`) — **Done** (22.08.2026)
+- 🟢 Журнал ручных правок позиции в деталях (`estimate_item_history`) — **Done** (22.08.2026)
 - 🟡 Процент выполнения на карточке сметы в мобильном реестре — **Planned**
 - 🟡 ФИО открывшего смену в мобильной истории выполнения (`estimate_details_modal`) — **Planned**
 - 🟡 Фильтр по подсистеме на mobile — **Planned**

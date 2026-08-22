@@ -10,6 +10,8 @@ import '../../../materials/data/models/material_item.dart';
 import '../../../../domain/entities/estimate.dart';
 import '../../../materials/presentation/providers/materials_providers.dart';
 import '../../../company/presentation/widgets/company_info_widgets.dart';
+import '../providers/estimate_providers.dart';
+import '../utils/estimate_item_history_line.dart';
 
 /// Диалоговое окно с детальной информацией о сметной позиции.
 ///
@@ -67,7 +69,7 @@ class EstimateItemDetailsDialog extends ConsumerWidget {
             .fade(duration: 400.ms)
             .slideY(begin: 0.05, curve: Curves.easeOut),
         const SizedBox(height: 24),
-        _buildHistoryCard(theme)
+        _buildHistoryCard(theme, ref)
             .animate()
             .fade(delay: 100.ms, duration: 400.ms)
             .slideY(begin: 0.05, curve: Curves.easeOut),
@@ -170,15 +172,26 @@ class EstimateItemDetailsDialog extends ConsumerWidget {
     );
   }
 
-  Widget _buildHistoryCard(ThemeData theme) {
+  Widget _buildHistoryCard(ThemeData theme, WidgetRef ref) {
+    final historyAsync = ref.watch(estimateItemHistoryProvider(estimate.id));
+    final lineStyle = theme.textTheme.bodyMedium?.copyWith(height: 1.5);
+    final lines = historyAsync.maybeWhen(
+      data: (entries) => buildEstimateItemHistoryLines(
+        estimate: estimate,
+        entries: entries,
+      ),
+      orElse: () => [formatEstimateAdditionHistoryLine(estimate)],
+    );
+
     return CompanyInfoCard(
       title: 'История изменений',
       icon: CupertinoIcons.clock,
       children: [
-        Text(
-          _estimateAdditionHistoryLine(estimate),
-          style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
-        ),
+        for (var i = 0; i < lines.length; i++)
+          Padding(
+            padding: EdgeInsets.only(top: i == 0 ? 0 : 8),
+            child: Text(lines[i], style: lineStyle),
+          ),
       ],
     );
   }
@@ -465,17 +478,4 @@ class EstimateItemDetailsDialog extends ConsumerWidget {
       ),
     );
   }
-}
-
-/// Собирает одну строку истории: «Добавление · дата · автор».
-String _estimateAdditionHistoryLine(Estimate estimate) {
-  final date = estimate.createdAt != null
-      ? formatRuDateTime(estimate.createdAt!)
-      : null;
-  final who = estimate.createdByName?.trim();
-  return [
-    'Добавление',
-    if (date != null) date,
-    if (who != null && who.isNotEmpty) who,
-  ].join(' · ');
 }

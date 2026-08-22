@@ -1,6 +1,7 @@
 import '../entities/estimate.dart';
 import '../entities/estimate_bulk_update.dart';
 import '../entities/estimate_completion_history.dart';
+import '../entities/estimate_item_history.dart';
 import '../entities/estimate_revision.dart';
 import '../entities/vor.dart';
 import '../entities/vor_recalc_preview.dart';
@@ -39,6 +40,11 @@ abstract class EstimateRepository {
 
   /// Получает историю выполнения для конкретной позиции сметы.
   Future<List<EstimateCompletionHistory>> getEstimateCompletionHistory(
+    String estimateId,
+  );
+
+  /// Получает журнал ручных правок позиции сметы.
+  Future<List<EstimateItemHistoryEntry>> getEstimateItemHistory(
     String estimateId,
   );
 

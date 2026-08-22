@@ -7,6 +7,7 @@ import '../../../../data/models/estimate_completion_model.dart';
 import '../../../../data/repositories/estimate_repository_impl.dart';
 import '../../../../domain/entities/estimate.dart';
 import '../../../../domain/entities/estimate_completion_history.dart';
+import '../../../../domain/entities/estimate_item_history.dart';
 import '../../../../domain/entities/vor.dart';
 import '../../../../domain/repositories/estimate_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -207,6 +208,13 @@ final estimateCompletionHistoryProvider = FutureProvider.autoDispose
     .family<List<EstimateCompletionHistory>, String>((ref, estimateId) async {
       final repository = ref.watch(estimateRepositoryProvider);
       return repository.getEstimateCompletionHistory(estimateId);
+    });
+
+/// Журнал ручных правок позиции сметы (форма редактирования).
+final estimateItemHistoryProvider = FutureProvider.autoDispose
+    .family<List<EstimateItemHistoryEntry>, String>((ref, estimateId) async {
+      final repository = ref.watch(estimateRepositoryProvider);
+      return repository.getEstimateItemHistory(estimateId);
     });
 
 /// Провайдер конкретной сметной позиции.

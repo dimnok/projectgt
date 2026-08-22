@@ -6,6 +6,7 @@ import '../../../../core/widgets/mobile_bottom_sheet_content.dart';
 import '../../../../data/models/estimate_completion_model.dart';
 import '../../../../domain/entities/estimate.dart';
 import '../providers/estimate_providers.dart';
+import '../utils/estimate_item_history_line.dart';
 
 /// Модальное окно с детальной информацией о позиции сметы.
 class EstimateDetailsModal extends ConsumerWidget {
@@ -102,9 +103,29 @@ class EstimateDetailsModal extends ConsumerWidget {
           const SizedBox(height: 20),
 
           _buildSectionTitle(theme, 'История изменений'),
-          Text(
-            _estimateAdditionHistoryLine(item),
-            style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
+          ...ref.watch(estimateItemHistoryProvider(item.id)).maybeWhen(
+            data: (entries) {
+              final lines = buildEstimateItemHistoryLines(
+                estimate: item,
+                entries: entries,
+              );
+              return [
+                for (var i = 0; i < lines.length; i++)
+                  Padding(
+                    padding: EdgeInsets.only(top: i == 0 ? 0 : 8),
+                    child: Text(
+                      lines[i],
+                      style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
+                    ),
+                  ),
+              ];
+            },
+            orElse: () => [
+              Text(
+                formatEstimateAdditionHistoryLine(item),
+                style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
+              ),
+            ],
           ),
         ],
       ),
@@ -271,19 +292,6 @@ class _CompletionHistoryModal extends ConsumerWidget {
       ),
     );
   }
-}
-
-/// Собирает одну строку истории: «Добавление · дата · автор».
-String _estimateAdditionHistoryLine(Estimate estimate) {
-  final date = estimate.createdAt != null
-      ? formatRuDateTime(estimate.createdAt!)
-      : null;
-  final who = estimate.createdByName?.trim();
-  return [
-    'Добавление',
-    if (date != null) date,
-    if (who != null && who.isNotEmpty) who,
-  ].join(' · ');
 }
 
 

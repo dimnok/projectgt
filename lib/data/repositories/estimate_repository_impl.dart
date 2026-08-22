@@ -1,6 +1,8 @@
 import '../../domain/entities/estimate.dart';
 import '../../domain/entities/estimate_bulk_update.dart';
 import '../../domain/entities/estimate_completion_history.dart';
+import '../../domain/entities/estimate_item_history.dart';
+import '../../core/utils/user_display_utils.dart';
 import '../../domain/entities/estimate_revision.dart';
 import '../../domain/entities/vor.dart';
 import '../../domain/entities/vor_recalc_preview.dart';
@@ -133,6 +135,28 @@ class EstimateRepositoryImpl implements EstimateRepository {
     history.sort((a, b) => b.date.compareTo(a.date));
 
     return history;
+  }
+
+  @override
+  Future<List<EstimateItemHistoryEntry>> getEstimateItemHistory(
+    String estimateId,
+  ) async {
+    final rawData = await dataSource.getEstimateItemHistory(estimateId);
+    return rawData.map((row) {
+      final createdAtRaw = row['created_at'];
+      final createdAt = createdAtRaw is DateTime
+          ? createdAtRaw
+          : createdAtRaw is String && createdAtRaw.isNotEmpty
+          ? DateTime.parse(createdAtRaw)
+          : DateTime.fromMillisecondsSinceEpoch(0);
+      final author = row['author'] as Map<String, dynamic>?;
+      return EstimateItemHistoryEntry(
+        createdAt: createdAt,
+        action: row['action'] as String? ?? 'updated',
+        userName: pickProfileDisplayName(author ?? const {}),
+        changes: _parseEstimateItemChanges(row['changes']),
+      );
+    }).toList();
   }
 
   @override
@@ -414,4 +438,17 @@ String? _resolveOpenedByName(Map<String, dynamic>? profiles) {
     return fullName.trim();
   }
   return null;
+}
+
+Map<String, EstimateItemFieldChange> _parseEstimateItemChanges(dynamic raw) {
+  if (raw is! Map) return const {};
+  final result = <String, EstimateItemFieldChange>{};
+  raw.forEach((key, value) {
+    if (value is! Map) return;
+    result[key.toString()] = EstimateItemFieldChange(
+      from: value['from'],
+      to: value['to'],
+    );
+  });
+  return result;
 }
