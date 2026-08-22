@@ -1,7 +1,7 @@
 # Модуль Заявки на закупку (Purchase Requests)
 
 **Дата:** 22.08.2026  
-**Изменения:** несколько участников на роли маршрута (таблица `purchase_request_route_members`); на этапе действует **любой** из списка (OR), не цепочка обязательных согласований; настройки **живые** (смена списка сразу действует на заявки в работе); авторизация RPC/RLS/UI — `purchase_request_internal_user_is_assignee`, не `current_assignee_id`; RPC `purchase_request_upsert_settings` принимает массивы `uuid[]`; уведомления следующей роли — всем участникам (`purchase_request_internal_notify_role`). Ранее (16.08.2026): мобильная форма позиций; фильтры реестра по статусу; вкладки «Мои» и «На мне» удалены. Ещё ранее: отмена = возврат в черновик; правка и удаление своего черновика; просмотр файлов счетов.
+**Изменения:** desktop-диалог «Настройка согласующих» — ширина 880 px (обход лимита Material 3 Dialog 560 px), таймлайн из 5 этапов с подсказками, компактные dropdown 340 px, подвал «Отмена» / «Сохранить». Ранее (22.08.2026): несколько участников на роли маршрута (таблица `purchase_request_route_members`); на этапе действует **любой** из списка (OR), не цепочка обязательных согласований; настройки **живые** (смена списка сразу действует на заявки в работе); авторизация RPC/RLS/UI — `purchase_request_internal_user_is_assignee`, не `current_assignee_id`; RPC `purchase_request_upsert_settings` принимает массивы `uuid[]`; уведомления следующей роли — всем участникам (`purchase_request_internal_notify_role`). Ещё ранее (16.08.2026): мобильная форма позиций; фильтры реестра по статусу; вкладки «Мои» и «На мне» удалены.
 
 ---
 
@@ -63,7 +63,7 @@
 | Скачивание файла счёта на устройство | ✅ |
 | Диалог добавления счёта (поставщик, сумма, номер, дата, PDF/изображение) | ✅ |
 | Валидация счетов перед submit (кнопка неактивна без файлов) | ✅ |
-| Настройки маршрута (owner-only), несколько пользователей на роли | ✅ (`isCompanyOwnerProvider`, `GTDropdown` `allowMultipleSelection`) |
+| Настройки маршрута (owner-only), несколько пользователей на роли | ✅ (`isCompanyOwnerProvider`, `GTDropdown` `allowMultipleSelection`; desktop — таймлайн этапов) |
 | Баннер «Показаны первые 50 заявок» при лимите списка | ✅ |
 | Единый виджет фильтров mobile/desktop | ✅ `PurchaseRequestFilterBar` |
 | Редактирование счёта после создания | 🔴 только удаление + повторное добавление |
@@ -135,7 +135,7 @@
 | `widgets/purchase_request_card.dart` | Карточка в мобильном списке (превью позиций, сумма, бейдж статуса) |
 | `widgets/purchase_request_status_badge.dart` | Общий бейдж статуса для списка и таблицы (единый стиль, `maxLines: 1`) |
 | `widgets/purchase_request_create_dialog.dart` | Создание и редактирование черновика: объект, комментарий, позиции (desktop-ряд / mobile-карточка `_PurchaseItemMobileCard`) |
-| `widgets/purchase_request_settings_dialog.dart` | Настройки маршрута (4 роли + режим получателя); мультивыбор `GTDropdown` (`allowMultipleSelection: true`); пользователи — `purchaseRequestCompanyUsersProvider` |
+| `widgets/purchase_request_settings_dialog.dart` | Настройки маршрута (4 роли + режим получателя); desktop — `DesktopDialogContent` 880 px, таймлайн `_DesktopRouteStep` (5 этапов, номер + подсказка + выбранные ФИО + dropdown 340 px), подвал «Отмена» / «Сохранить»; mobile — вертикальная форма в `MobileBottomSheetContent`; мультивыбор `GTDropdown`; пользователи — `purchaseRequestCompanyUsersProvider` |
 | `widgets/purchase_request_actions_bar.dart` | Кнопки workflow; `resolvePurchaseRequestActions` (права + `isPurchaseRequestStageAssignee(settings)` + статус); `hasAny`; предупреждения submit только после `AsyncValue.hasValue` |
 | `utils/purchase_request_invoice_utils.dart` | `purchaseRequestInvoicesReadyForSubmit()`, `isPurchaseRequestInvoiceFilePreviewable()` |
 | `utils/purchase_request_invoice_file_flow.dart` | Скачивание и просмотр файла счёта (`downloadInvoiceFile` + `openAttachmentFilePreview`) |
@@ -263,6 +263,15 @@
 - Desktop: каждая позиция — одна строка: наименование (flex), ед. изм. (80 px), кол-во (96 px), артикул (128 px).
 - Mobile / планшет (не desktop): каждая позиция — карточка: наименование на всю ширину, ряд «количество + ед. изм.», артикул ниже; подписи полей (`labelText`).
 - Кнопка «+» в заголовке секции позиций; «−» для удаления дополнительных строк.
+
+**Диалог настройки маршрута (`PurchaseRequestSettingsDialog`):**
+
+- **Desktop:** ширина **880 px** (`_kDesktopDialogWidth`); внешний `Dialog` с `constraints: BoxConstraints(maxWidth: 880)` — обход дефолтного лимита Material 3 (560 px). Обёртка — `DesktopDialogContent`; подвал — `GTSecondaryButton` «Отмена» + `GTPrimaryButton` «Сохранить».
+- **Desktop layout:** вертикальный таймлайн из 5 этапов (`_DesktopRouteStep` + `_StepIndex`): слева номер этапа (заливка при заполнении), справа — название, краткая подсказка, список выбранных ФИО; поле выбора — `GTDropdown` шириной **340 px** (`_kDesktopFieldWidth`).
+- **Этапы:** (1) Первый согласующий, (2) Подготовка счетов, (3) Согласование счетов, (4) Бухгалтер, (5) Получение материала (`initiator` / `fixedUser` + опциональный мультивыбор получателя).
+- **Подсказка в шапке:** на каждом этапе достаточно действия любого из выбранных; в списке только пользователи приложения (не карточки «Сотрудники»).
+- **Mobile:** `MobileBottomSheetContent` + `useSafeArea: true`; вертикальный список полей с `labelText`; кнопка «Сохранить» в `footer`.
+- **Валидация перед сохранением:** все 4 роли непусты; при `receiverMode = fixedUser` — непустой `fixedReceiverIds`. RPC — `purchase_request_upsert_settings`.
 
 ### Design System
 
@@ -876,7 +885,7 @@ In-app UI уведомлений нет.
 - Панель деталей: KPI-сводка, таблица/карточки позиций, **секция счетов**, таймлайн истории, workflow actions, кнопки правки/удаления своего черновика
 - Mobile: карточки позиций в форме создания (`_PurchaseItemMobileCard`) и в деталях заявки (`_ItemsMobileList`, ширина &lt; 600 px)
 - `invalidatePurchaseRequestCaches` + `idleActionsMessage` + `showPurchaseRequestFormDialog`
-- Настройки маршрута (owner), несколько участников на роли, кнопка «Настройки»
+- Настройки маршрута (owner), несколько участников на роли, кнопка «Настройки»; desktop-диалог с таймлайном этапов (880 px)
 - Матрица прав, drawer, router
 - Human-readable ошибки Supabase в списке и диалогах
 - Артикул при добавлении позиции из панели деталей
@@ -929,4 +938,4 @@ In-app UI уведомлений нет.
 
 ---
 
-*Документ подготовлен по аудиту кода (`lib/features/purchase_requests/`, `lib/core/widgets/attachment_file_preview.dart`), миграций `supabase/migrations/` (в т.ч. `20260822100000_purchase_request_route_members.sql`) и live PostgreSQL/Storage (`api.progt.ru`, MCP `execute_sql` / `list_migrations`, 22.08.2026). RLS: все таблицы модуля ✅ кроме `purchase_request_number_seq` ❌. Bucket `purchase_requests` **private**. Edge Functions модуля в `supabase/functions/` нет (MCP `list_edge_functions` отсутствует). Актуализирован после маршрута с несколькими участниками на роли.*
+*Документ подготовлен по аудиту кода (`lib/features/purchase_requests/`, `lib/core/widgets/attachment_file_preview.dart`), миграций `supabase/migrations/` (в т.ч. `20260822100000_purchase_request_route_members.sql`) и live PostgreSQL/Storage (`api.progt.ru`, MCP `execute_sql` / `list_migrations`, 22.08.2026). RLS: все таблицы модуля ✅ кроме `purchase_request_number_seq` ❌. Bucket `purchase_requests` **private**. Edge Functions модуля в `supabase/functions/` нет (MCP `list_edge_functions` отсутствует). Актуализирован после редизайна desktop-диалога настроек маршрута.*
