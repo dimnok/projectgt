@@ -1,7 +1,7 @@
 # Модуль Заявки на закупку (Purchase Requests)
 
 **Дата:** 22.08.2026  
-**Изменения:** мобильная форма «Новая заявка» / правка черновика: лист снизу на всю ширину (`EmployeesLayoutUtils.useEmployeesDesktopModal` + `isDesktopSurface` — телефон в альбоме не получает центрированный диалог); позиции столбиком без серых карточек; ряд 50/50 «− кол-во +» и «ед. изм.»; «добавить»/«удалить» — круги 44×44, шаг количества — квадраты со скруглением как у `GTTextField` (16); при ≥2 позициях — подпись «Позиция N» и тонкий разделитель. Логика сохранения та же. `MobileBottomSheetContent`: опции `fillMaxHeight` / `showDragHandle` (по умолчанию выкл.). Ранее (22.08.2026): mobile-реестр — в шапке нет кнопок темы и настроек (остались меню, заголовок, «+»); карточки шире (`MobileAtmosphereMainSurface` padding 8, карточка horizontal 4); из карточки убрано перечисление позиций (`shortItemsLabel` удалён). Ранее (22.08.2026): desktop-диалог «Настройка согласующих» — ширина 880 px (обход лимита Material 3 Dialog 560 px), таймлайн из 5 этапов с подсказками, компактные dropdown 340 px, подвал «Отмена» / «Сохранить». Ранее (22.08.2026): несколько участников на роли маршрута (таблица `purchase_request_route_members`); на этапе действует **любой** из списка (OR), не цепочка обязательных согласований; настройки **живые** (смена списка сразу действует на заявки в работе); авторизация RPC/RLS/UI — `purchase_request_internal_user_is_assignee`, не `current_assignee_id`; RPC `purchase_request_upsert_settings` принимает массивы `uuid[]`; уведомления следующей роли — всем участникам (`purchase_request_internal_notify_role`). Ещё ранее (16.08.2026): мобильная форма позиций; фильтры реестра по статусу; вкладки «Мои» и «На мне» удалены.
+**Изменения:** чистка модуля (Вариант 1): удалены неиспользуемые поля `itemsPreview` / `itemsCount` из `PurchaseRequestListItem` и из RPC `purchase_request_list` (миграция `20260822110000`, применена на прод через MCP `apply_migration`); агрегация `item_agg` убрана — меньше нагрузка на БД. Поле `currentAssigneeId` удалено из Dart-entity `PurchaseRequest` и `PurchaseRequestListItem` (в БД колонка `current_assignee_id` осталась для индекса `idx_purchase_requests_assignee`; в RPC RETURN сохранена для совместимости). Удалены 2 мёртвых теста на `currentAssigneeId` и 1 дублирующий тест; параметр `assigneeId` убран из builder'а `request()`. Тестов: 28 (было 30). Ранее: мобильная форма «Новая заявка» / правка черновика: лист снизу на всю ширину (`EmployeesLayoutUtils.useEmployeesDesktopModal` + `isDesktopSurface` — телефон в альбоме не получает центрированный диалог); позиции столбиком без серых карточек; ряд 50/50 «− кол-во +» и «ед. изм.»; «добавить»/«удалить» — круги 44×44, шаг количества — квадраты со скруглением как у `GTTextField` (16); при ≥2 позициях — подпись «Позиция N» и тонкий разделитель. Логика сохранения та же. `MobileBottomSheetContent`: опции `fillMaxHeight` / `showDragHandle` (по умолчанию выкл.). Ранее (22.08.2026): mobile-реестр — в шапке нет кнопок темы и настроек (остались меню, заголовок, «+»); карточки шире (`MobileAtmosphereMainSurface` padding 8, карточка horizontal 4); из карточки убрано перечисление позиций (`shortItemsLabel` удалён). Ранее (22.08.2026): desktop-диалог «Настройка согласующих» — ширина 880 px (обход лимита Material 3 Dialog 560 px), таймлайн из 5 этапов с подсказками, компактные dropdown 340 px, подвал «Отмена» / «Сохранить». Ранее (22.08.2026): несколько участников на роли маршрута (таблица `purchase_request_route_members`); на этапе действует **любой** из списка (OR), не цепочка обязательных согласований; настройки **живые** (смена списка сразу действует на заявки в работе); авторизация RPC/RLS/UI — `purchase_request_internal_user_is_assignee`, не `current_assignee_id`; RPC `purchase_request_upsert_settings` принимает массивы `uuid[]`; уведомления следующей роли — всем участникам (`purchase_request_internal_notify_role`). Ещё ранее (16.08.2026): мобильная форма позиций; фильтры реестра по статусу; вкладки «Мои» и «На мне» удалены.
 
 ---
 
@@ -12,7 +12,7 @@
 - **Настройки маршрута:** `purchase_request_settings` — одна строка на `company_id`. Колонки: `company_id`, `receiver_mode`, `created_at`, `updated_at`, `updated_by`. Колонок `first_approver_id` / `invoice_preparer_id` / `invoice_approver_id` / `accountant_id` / `fixed_receiver_id` **нет** (сняты миграцией `20260822100000` / live `purchase_request_upsert_settings_arrays`). Участники ролей — `purchase_request_route_members`. Сохранение — RPC `purchase_request_upsert_settings` (**только владелец**, `purchase_request_internal_is_company_owner`). Для `authenticated` на `purchase_request_route_members` есть только SELECT; INSERT/UPDATE/DELETE отозваны — запись только через RPC. Создание заявки блокируется, пока на ролях `first_approver`, `invoice_preparer`, `invoice_approver`, `accountant` есть ≥1 участник и задано правило получателя (`initiator` или ≥1 `receiver`).
 - **Несколько участников на роли:** роли `first_approver`, `invoice_preparer`, `invoice_approver`, `accountant`, `receiver`. На этапе действует **любой** участник этой роли (OR). Это не цепочка, где нужны все подряд.
 - **Настройки живые:** RPC и RLS читают текущие строки `purchase_request_route_members` (нет снимка состава на заявке). Смена списка сразу применяется к заявкам в работе.
-- **Авторизация vs отображение:** источник истины — `purchase_request_internal_user_is_assignee(company_id, status, created_by, user_id)`. В UI то же правило — `isPurchaseRequestStageAssignee` по спискам из settings. `current_assignee_id` по-прежнему пишется при переходе: первый пользователь следующей роли (`purchase_request_internal_first_role_user`, `ORDER BY sort_order, user_id LIMIT 1`) — индекс `idx_purchase_requests_assignee` и поле в списке/карточке. Для RPC, RLS и кнопок workflow **не используется**.
+- **Авторизация vs отображение:** источник истины — `purchase_request_internal_user_is_assignee(company_id, status, created_by, user_id)`. В UI то же правило — `isPurchaseRequestStageAssignee` по спискам из settings. `current_assignee_id` по-прежнему пишется в БД при переходе: первый пользователь следующей роли (`purchase_request_internal_first_role_user`, `ORDER BY sort_order, user_id LIMIT 1`) — нужен для индекса `idx_purchase_requests_assignee`. **В Dart-entity (`PurchaseRequest`, `PurchaseRequestListItem`) поле больше не парсится и не используется**; для RPC, RLS и кнопок workflow **не используется**.
 - **Чтение заявки:** `purchase_request_can_read(company_id, created_by, status)` — сигнатура **без** `assignee_id` (live: `p_company_id uuid, p_created_by uuid, p_status text`).
 - **Пользователи в настройках** — участники `company_members` с активным профилем, **не** сотрудники HR (`employees`). Список для dropdown: RPC `purchase_request_company_users`. Проверка членства при сохранении: `purchase_request_internal_assert_route_users`.
 - **Поставщики** — контрагенты из `contractors` с типом `supplier`; выбор в диалоге счёта (`GTDropdown`, `contractorNotifierProvider`).
@@ -31,7 +31,7 @@
 
 ## Описание
 
-Модуль управляет жизненным циклом **заявок на закупку** внутри компании: от черновика с позициями до оплаты и подтверждения получения. На каждом этапе может действовать **любой** участник роли из настроек компании. Поле `current_assignee_id` хранит первого пользователя роли этапа (отображение/индекс), история переходов и уведомления пишутся отдельно.
+Модуль управляет жизненным циклом **заявок на закупку** внутри компании: от черновика с позициями до оплаты и подтверждения получения. На каждом этапе может действовать **любой** участник роли из настроек компании. Поле `current_assignee_id` в БД хранит первого пользователя роли этапа (служебное, для индекса; в Dart-entity не используется), история переходов и уведомления пишутся отдельно.
 
 ### Ключевые функции
 
@@ -310,7 +310,7 @@
 | `PurchaseRequest` | `purchase_request.dart` | Заявка (Freezed); `initiatorLabel` → `formatUserDisplayLabel(createdByName)` |
 | `PurchaseRequestItem` | `purchase_request_item.dart` | Позиция (`article` опционально) |
 | `PurchaseRequestStatus` | `purchase_request_status.dart` | Enum статусов (+ `unknown` для ошибок данных), `parseFromDb`, `PurchaseRequestListFilter` (`pendingApproval` / `approved` / `all` / `archive`) |
-| `PurchaseRequestListItem` | `purchase_request_list_item.dart` | Строка списка; `initiatorLabel` через `formatUserDisplayLabel`; RPC-поля `itemsPreview` / `itemsCount` в карточке **не** показываются (getter `shortItemsLabel` удалён) |
+| `PurchaseRequestListItem` | `purchase_request_list_item.dart` | Строка списка; `initiatorLabel` через `formatUserDisplayLabel`. Поля `items_preview` / `items_count` и `current_assignee_id` **удалены** из entity и RPC `purchase_request_list` (миграция `20260822110000`); карточка/таблица их не показывают |
 | `PurchaseRequestSettings` | `purchase_request_settings.dart` | Настройки маршрута: списки `firstApproverIds`, `invoicePreparerIds`, `invoiceApproverIds`, `accountantIds`, `fixedReceiverIds`; `receiverMode`. В entity нет `created_at` / `updated_at` / `updated_by` |
 | `PurchaseRequestHistoryEntry` | `purchase_request_history_entry.dart` | Запись истории; `userName`, `userLabel` → `formatUserDisplayLabel`; `fromJson`: `from_status`/`to_status` — `null` → `null`, иначе `parseFromDb`; без `company_id`, `metadata` |
 | `PurchaseRequestCompanyUser` | `purchase_request_company_user.dart` | Пользователь для настроек; `displayName` через `pickUserDisplayName` |
@@ -407,7 +407,7 @@ lib/features/purchase_requests/
         └── purchase_requests_table.dart
 
 test/features/purchase_requests/
-└── purchase_request_logic_test.dart   # статусы, user_display_utils, resolvePurchaseRequestActions, invoices ready, previewable, idleActionsMessage, history fromJson, latestPurchaseRequestCancelComment, isPurchaseRequestSettingsConfigured (30 тестов)
+└── purchase_request_logic_test.dart   # статусы, user_display_utils, resolvePurchaseRequestActions, invoices ready, previewable, idleActionsMessage, history fromJson, latestPurchaseRequestCancelComment, isPurchaseRequestSettingsConfigured (28 тестов)
 
 lib/core/utils/
 ├── user_display_utils.dart            # pickProfileDisplayName, formatUserDisplayLabel
@@ -432,7 +432,8 @@ supabase/migrations/
 ├── 20260816191000_purchase_request_own_draft_edit_delete.sql
 ├── 20260816194000_purchase_request_cancel_to_draft.sql
 ├── 20260816203000_purchase_request_list_status_filters.sql
-└── 20260822100000_purchase_request_route_members.sql
+├── 20260822100000_purchase_request_route_members.sql
+└── 20260822110000_purchase_request_list_drop_preview.sql
 ```
 
 ---
@@ -623,7 +624,7 @@ supabase/migrations/
 | `purchase_request_upsert_settings` | Сохранение настроек (owner only); параметры: `p_first_approver_ids uuid[]`, `p_invoice_preparer_ids uuid[]`, `p_invoice_approver_ids uuid[]`, `p_accountant_ids uuid[]`, `p_receiver_mode text`, `p_fixed_receiver_ids uuid[]` |
 | `purchase_request_company_users` | Список пользователей для dropdown |
 
-**Возврат `purchase_request_list`:** `id`, `number`, `object_id`, `object_name`, `status`, `created_by`, `created_by_name`, `current_assignee_id`, `total_amount`, `created_at`, `items_preview`, `items_count`. Поля `items_preview` / `items_count` в mobile-карточке не отображаются (остаются в RPC и entity).
+**Возврат `purchase_request_list`:** `id`, `number`, `object_id`, `object_name`, `status`, `created_by`, `created_by_name`, `current_assignee_id`, `total_amount`, `created_at`. Поля `items_preview` / `items_count` **удалены** из RPC миграцией `20260822110000` (не использовались в UI); `current_assignee_id` возвращается для совместимости, но Dart-entity его не парсит.
 
 ### Внутренние функции
 
@@ -887,7 +888,7 @@ In-app UI уведомлений нет.
 - Gate «Настройки» через `isCompanyOwnerProvider` / `Profile.isOwner`
 - Методы репозитория: `updateHeader`, `deleteDraft`, `updateItem`
 - Общие утилиты ФИО (`user_display_utils.dart`)
-- Юнит-тесты: `test/features/purchase_requests/purchase_request_logic_test.dart` (**30** `test(`: статусы, ФИО, `resolvePurchaseRequestActions`, invoices, previewable, idle, history, `latestPurchaseRequestCancelComment`, `isPurchaseRequestSettingsConfigured`)
+- Юнит-тесты: `test/features/purchase_requests/purchase_request_logic_test.dart` (**28** `test(`: статусы, ФИО, `resolvePurchaseRequestActions`, invoices, previewable, idle, history, `latestPurchaseRequestCancelComment`, `isPurchaseRequestSettingsConfigured`)
 - Mobile-реестр: шапка без темы/настроек; карточки без превью позиций, увеличенная ширина
 - Панель деталей: KPI-сводка, таблица/карточки позиций, **секция счетов**, таймлайн истории, workflow actions, кнопки правки/удаления своего черновика
 - Mobile: карточки позиций в форме создания (`_PurchaseItemMobileCard`) и в деталях заявки (`_ItemsMobileList`, ширина &lt; 600 px)
@@ -910,7 +911,7 @@ In-app UI уведомлений нет.
 - Пагинация: offset/load-more не реализованы (только предупреждение о лимите 50)
 - Параметры `list()` (`objectId`, `status`, даты) не используются в UI
 - Orphan в Storage возможен, если DELETE счёта уже прошёл, а `storage.remove` упал
-- Часть тестов `resolvePurchaseRequestActions` для этапов согласования не передаёт `settings` (хелпер `request()` всё ещё заполняет `currentAssigneeId`, который UI больше не читает)
+- ~~Часть тестов `resolvePurchaseRequestActions` для этапов согласования не передаёт `settings` (хелпер `request()` всё ещё заполняет `currentAssigneeId`, который UI больше не читает)~~ ✅ Исправлено: поле `currentAssigneeId` удалено из Dart-entity, параметр `assigneeId` убран из builder'а тестов, мёртвые тесты удалены.
 
 ### Планы 🔴
 

@@ -12,11 +12,8 @@ class PurchaseRequestListItem {
     required this.status,
     required this.createdBy,
     this.createdByName,
-    this.currentAssigneeId,
     required this.totalAmount,
     required this.createdAt,
-    required this.itemsPreview,
-    required this.itemsCount,
   });
 
   /// Идентификатор заявки.
@@ -40,20 +37,11 @@ class PurchaseRequestListItem {
   /// ФИО инициатора.
   final String? createdByName;
 
-  /// Текущий ответственный.
-  final String? currentAssigneeId;
-
   /// Сумма счетов.
   final double totalAmount;
 
   /// Дата создания.
   final DateTime createdAt;
-
-  /// Короткий список позиций (до 3).
-  final String itemsPreview;
-
-  /// Количество позиций.
-  final int itemsCount;
 
   /// Отображаемое имя инициатора.
   String get initiatorLabel => formatUserDisplayLabel(createdByName);
@@ -74,11 +62,8 @@ class PurchaseRequestListItem {
       status: status,
       createdBy: json['created_by'] as String,
       createdByName: json['created_by_name'] as String?,
-      currentAssigneeId: json['current_assignee_id'] as String?,
       totalAmount: (json['total_amount'] as num?)?.toDouble() ?? 0,
       createdAt: DateTime.parse(json['created_at'] as String),
-      itemsPreview: json['items_preview'] as String? ?? '',
-      itemsCount: (json['items_count'] as num?)?.toInt() ?? 0,
     );
   }
 }

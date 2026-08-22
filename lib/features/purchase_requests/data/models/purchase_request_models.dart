@@ -17,7 +17,6 @@ class PurchaseRequestModel {
     this.objectName,
     required this.createdBy,
     this.createdByName,
-    this.currentAssigneeId,
     required this.status,
     this.comment,
     this.totalAmount = 0,
@@ -47,9 +46,6 @@ class PurchaseRequestModel {
 
   /// ФИО инициатора (из join profiles).
   final String? createdByName;
-
-  /// Текущий ответственный.
-  final String? currentAssigneeId;
 
   /// Статус заявки.
   final PurchaseRequestStatus status;
@@ -83,7 +79,6 @@ class PurchaseRequestModel {
       objectName: json['objects']?['name'] as String?,
       createdBy: json['created_by'] as String,
       createdByName: _parseCreatedByName(json),
-      currentAssigneeId: json['current_assignee_id'] as String?,
       status: PurchaseRequestStatusX.parseFromDb(
         statusRaw,
         context: 'PurchaseRequestModel',
@@ -106,7 +101,6 @@ class PurchaseRequestModel {
     objectName: objectName,
     createdBy: createdBy,
     createdByName: createdByName,
-    currentAssigneeId: currentAssigneeId,
     status: status,
     comment: comment,
     totalAmount: totalAmount,

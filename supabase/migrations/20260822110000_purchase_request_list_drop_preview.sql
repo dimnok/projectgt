@@ -1,0 +1,139 @@
+-- Удалить неиспользуемые поля items_preview и items_count из RPC purchase_request_list.
+-- Карточка и таблица реестра не отображают превью позиций и их количество;
+-- агрегация item_agg убрана для уменьшения нагрузки на БД.
+-- current_assignee_id остаётся в RETURNS (колонка в БД нужна для индекса
+-- idx_purchase_requests_assignee); клиент это поле больше не читает.
+--
+-- Внимание: Postgres не позволяет изменить return type через CREATE OR REPLACE,
+-- поэтому функция пересоздаётся через DROP FUNCTION + CREATE FUNCTION.
+
+DROP FUNCTION IF EXISTS public.purchase_request_list(
+    UUID, TEXT, TEXT, UUID, TEXT, UUID, DATE, DATE, INT, INT
+);
+
+CREATE FUNCTION public.purchase_request_list(
+    p_company_id UUID,
+    p_filter TEXT DEFAULT 'all',
+    p_search TEXT DEFAULT NULL,
+    p_object_id UUID DEFAULT NULL,
+    p_status TEXT DEFAULT NULL,
+    p_created_by UUID DEFAULT NULL,
+    p_from_date DATE DEFAULT NULL,
+    p_to_date DATE DEFAULT NULL,
+    p_limit INT DEFAULT 50,
+    p_offset INT DEFAULT 0
+)
+RETURNS TABLE (
+    id UUID,
+    number TEXT,
+    object_id UUID,
+    object_name TEXT,
+    status TEXT,
+    created_by UUID,
+    created_by_name TEXT,
+    current_assignee_id UUID,
+    total_amount NUMERIC,
+    created_at TIMESTAMPTZ
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path TO public
+AS $$
+#variable_conflict use_column
+DECLARE
+    v_uid UUID := auth.uid();
+    v_search TEXT;
+BEGIN
+    IF v_uid IS NULL THEN
+        RAISE EXCEPTION 'Not authenticated';
+    END IF;
+
+    PERFORM public.purchase_request_internal_assert_company(p_company_id);
+
+    IF NOT public.check_permission(v_uid, 'purchase_requests', 'read') THEN
+        RAISE EXCEPTION 'Access denied';
+    END IF;
+
+    v_search := NULLIF(btrim(p_search), '');
+
+    RETURN QUERY
+    WITH base AS (
+        SELECT r.*
+        FROM public.purchase_requests r
+        WHERE r.company_id = p_company_id
+          AND (
+            public.check_permission(v_uid, 'purchase_requests', 'view_all')
+            OR r.created_by = v_uid
+            OR public.purchase_request_internal_user_is_assignee(
+                r.company_id, r.status, r.created_by, v_uid
+            )
+          )
+          AND (
+            p_filter = 'all'
+            OR (p_filter = 'pending_approval' AND r.status = 'approval')
+            OR (p_filter = 'approved' AND r.status IN (
+                'invoice_preparation',
+                'invoice_approval',
+                'accounting',
+                'payment_queue',
+                'paid'
+            ))
+            OR (p_filter = 'archive' AND r.status IN ('received', 'cancelled'))
+          )
+          AND (p_object_id IS NULL OR r.object_id = p_object_id)
+          AND (p_status IS NULL OR r.status = p_status)
+          AND (p_created_by IS NULL OR r.created_by = p_created_by)
+          AND (p_from_date IS NULL OR r.created_at::date >= p_from_date)
+          AND (p_to_date IS NULL OR r.created_at::date <= p_to_date)
+          AND (
+            v_search IS NULL
+            OR r.number ILIKE '%' || v_search || '%'
+            OR EXISTS (
+                SELECT 1 FROM public.purchase_request_items it
+                WHERE it.request_id = r.id
+                  AND it.name ILIKE '%' || v_search || '%'
+            )
+            OR EXISTS (
+                SELECT 1 FROM public.purchase_request_invoices inv
+                JOIN public.contractors c ON c.id = inv.supplier_id
+                WHERE inv.request_id = r.id
+                  AND (
+                    c.short_name ILIKE '%' || v_search || '%'
+                    OR c.full_name ILIKE '%' || v_search || '%'
+                    OR inv.invoice_number ILIKE '%' || v_search || '%'
+                  )
+            )
+          )
+    )
+    SELECT
+        b.id,
+        b.number,
+        b.object_id,
+        o.name AS object_name,
+        b.status,
+        b.created_by,
+        COALESCE(
+            NULLIF(btrim(pr.short_name), ''),
+            NULLIF(btrim(pr.full_name), ''),
+            NULLIF(btrim(pr.email), ''),
+            '—'
+        ) AS created_by_name,
+        b.current_assignee_id,
+        b.total_amount,
+        b.created_at
+    FROM base b
+    JOIN public.objects o ON o.id = b.object_id
+    LEFT JOIN public.profiles pr ON pr.id = b.created_by
+    ORDER BY b.created_at DESC
+    LIMIT GREATEST(p_limit, 1)
+    OFFSET GREATEST(p_offset, 0);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.purchase_request_list(
+    UUID, TEXT, TEXT, UUID, TEXT, UUID, DATE, DATE, INT, INT
+) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.purchase_request_list(
+    UUID, TEXT, TEXT, UUID, TEXT, UUID, DATE, DATE, INT, INT
+) TO authenticated;

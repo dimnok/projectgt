@@ -16,7 +16,6 @@ abstract class PurchaseRequest with _$PurchaseRequest {
     String? objectName,
     required String createdBy,
     String? createdByName,
-    String? currentAssigneeId,
     required PurchaseRequestStatus status,
     String? comment,
     @Default(0) double totalAmount,

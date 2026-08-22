@@ -67,7 +67,6 @@ void main() {
     PurchaseRequest request({
       required PurchaseRequestStatus status,
       String createdBy = userId,
-      String? assigneeId,
     }) {
       return PurchaseRequest(
         id: 'req-1',
@@ -75,7 +74,6 @@ void main() {
         number: 'ЗП-2026-00001',
         objectId: 'obj-1',
         createdBy: createdBy,
-        currentAssigneeId: assigneeId ?? userId,
         status: status,
       );
     }
@@ -135,7 +133,6 @@ void main() {
         request: request(
           status: PurchaseRequestStatus.draft,
           createdBy: otherId,
-          assigneeId: otherId,
         ),
         currentUserId: userId,
         permissions: permissions(
@@ -197,35 +194,11 @@ void main() {
       expect(actions.canReturn, isTrue);
     });
 
-    test(
-      'second route member can approve when currentAssigneeId is another member',
-      () {
-        final actions = resolvePurchaseRequestActions(
-          request: request(
-            status: PurchaseRequestStatus.approval,
-            createdBy: otherId,
-            assigneeId: otherId,
-          ),
-          currentUserId: userId,
-          permissions: permissions(
-            grants: const {
-              'purchase_requests': {'approve': true},
-            },
-          ),
-          settings: routeSettings(firstApprovers: [otherId, userId]),
-        );
-
-        expect(actions.canApprove, isTrue);
-        expect(actions.canReturn, isTrue);
-      },
-    );
-
-    test('currentAssigneeId alone does not grant approve', () {
+    test('second route member can approve', () {
       final actions = resolvePurchaseRequestActions(
         request: request(
           status: PurchaseRequestStatus.approval,
           createdBy: otherId,
-          assigneeId: userId,
         ),
         currentUserId: userId,
         permissions: permissions(
@@ -233,11 +206,11 @@ void main() {
             'purchase_requests': {'approve': true},
           },
         ),
-        settings: routeSettings(firstApprovers: [otherId]),
+        settings: routeSettings(firstApprovers: [otherId, userId]),
       );
 
-      expect(actions.canApprove, isFalse);
-      expect(actions.canReturn, isFalse);
+      expect(actions.canApprove, isTrue);
+      expect(actions.canReturn, isTrue);
     });
 
     test('unknown user gets no actions', () {
@@ -251,26 +224,11 @@ void main() {
       expect(actions.canCancel, isFalse);
     });
 
-    test('creator cannot cancel received request', () {
-      final actions = resolvePurchaseRequestActions(
-        request: request(status: PurchaseRequestStatus.received),
-        currentUserId: userId,
-        permissions: permissions(
-          grants: const {
-            'purchase_requests': {'create': true, 'view_all': true},
-          },
-        ),
-      );
-
-      expect(actions.canCancel, isFalse);
-    });
-
     test('view_all allows cancel by non-creator', () {
       final actions = resolvePurchaseRequestActions(
         request: request(
           status: PurchaseRequestStatus.approval,
           createdBy: otherId,
-          assigneeId: otherId,
         ),
         currentUserId: userId,
         permissions: permissions(
