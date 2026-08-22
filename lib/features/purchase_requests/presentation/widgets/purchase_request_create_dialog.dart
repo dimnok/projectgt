@@ -169,7 +169,10 @@ class _PurchaseRequestCreateDialogState
   @override
   void initState() {
     super.initState();
-    ref.read(objectProvider.notifier).loadObjects();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(objectProvider.notifier).loadObjects();
+    });
     final request = widget.request;
     if (request == null) return;
 
