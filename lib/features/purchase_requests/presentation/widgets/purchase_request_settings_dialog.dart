@@ -47,13 +47,13 @@ class PurchaseRequestSettingsDialog extends ConsumerStatefulWidget {
 
 class _PurchaseRequestSettingsDialogState
     extends ConsumerState<PurchaseRequestSettingsDialog> {
-  String? _firstApproverId;
-  String? _invoicePreparerId;
-  String? _invoiceApproverId;
-  String? _accountantId;
+  List<String> _firstApproverIds = [];
+  List<String> _invoicePreparerIds = [];
+  List<String> _invoiceApproverIds = [];
+  List<String> _accountantIds = [];
   PurchaseRequestReceiverMode _receiverMode =
       PurchaseRequestReceiverMode.initiator;
-  String? _fixedReceiverId;
+  List<String> _fixedReceiverIds = [];
   bool _loading = true;
   bool _saving = false;
   List<PurchaseRequestCompanyUser> _users = [];
@@ -72,12 +72,12 @@ class _PurchaseRequestSettingsDialogState
       if (!mounted) return;
       _users = users;
       if (settings != null) {
-        _firstApproverId = settings.firstApproverId;
-        _invoicePreparerId = settings.invoicePreparerId;
-        _invoiceApproverId = settings.invoiceApproverId;
-        _accountantId = settings.accountantId;
+        _firstApproverIds = List<String>.from(settings.firstApproverIds);
+        _invoicePreparerIds = List<String>.from(settings.invoicePreparerIds);
+        _invoiceApproverIds = List<String>.from(settings.invoiceApproverIds);
+        _accountantIds = List<String>.from(settings.accountantIds);
         _receiverMode = settings.receiverMode;
-        _fixedReceiverId = settings.fixedReceiverId;
+        _fixedReceiverIds = List<String>.from(settings.fixedReceiverIds);
       }
     } catch (e) {
       if (!mounted) return;
@@ -95,10 +95,10 @@ class _PurchaseRequestSettingsDialogState
     final companyId = ref.read(activeCompanyIdProvider);
     if (companyId == null) return;
 
-    if (_firstApproverId == null ||
-        _invoicePreparerId == null ||
-        _invoiceApproverId == null ||
-        _accountantId == null) {
+    if (_firstApproverIds.isEmpty ||
+        _invoicePreparerIds.isEmpty ||
+        _invoiceApproverIds.isEmpty ||
+        _accountantIds.isEmpty) {
       AppSnackBar.show(
         context: context,
         message: 'Укажите всех участников маршрута',
@@ -107,7 +107,7 @@ class _PurchaseRequestSettingsDialogState
       return;
     }
     if (_receiverMode == PurchaseRequestReceiverMode.fixedUser &&
-        _fixedReceiverId == null) {
+        _fixedReceiverIds.isEmpty) {
       AppSnackBar.show(
         context: context,
         message: 'Укажите ответственного за получение',
@@ -123,12 +123,15 @@ class _PurchaseRequestSettingsDialogState
           .upsertSettings(
             PurchaseRequestSettings(
               companyId: companyId,
-              firstApproverId: _firstApproverId,
-              invoicePreparerId: _invoicePreparerId,
-              invoiceApproverId: _invoiceApproverId,
-              accountantId: _accountantId,
+              firstApproverIds: _firstApproverIds,
+              invoicePreparerIds: _invoicePreparerIds,
+              invoiceApproverIds: _invoiceApproverIds,
+              accountantIds: _accountantIds,
               receiverMode: _receiverMode,
-              fixedReceiverId: _fixedReceiverId,
+              fixedReceiverIds:
+                  _receiverMode == PurchaseRequestReceiverMode.fixedUser
+                  ? _fixedReceiverIds
+                  : const [],
             ),
           );
       ref.invalidate(purchaseRequestSettingsProvider);
@@ -152,24 +155,25 @@ class _PurchaseRequestSettingsDialogState
     }
   }
 
-  Widget _userDropdown({
+  Widget _usersDropdown({
     required String label,
-    required String? selectedId,
+    required List<String> selectedIds,
     required List<PurchaseRequestCompanyUser> users,
-    required ValueChanged<String?> onChanged,
+    required ValueChanged<List<String>> onChanged,
   }) {
     return GTDropdown<String>(
       labelText: label,
-      hintText: 'Выберите пользователя',
+      hintText: 'Выберите пользователей',
       items: users.map((u) => u.id).toList(),
-      selectedItem: selectedId,
+      allowMultipleSelection: true,
+      selectedItems: selectedIds,
       itemDisplayBuilder: (id) {
         for (final user in users) {
           if (user.id == id) return user.displayName;
         }
         return id;
       },
-      onSelectionChanged: onChanged,
+      onMultiSelectionChanged: onChanged,
     );
   }
 
@@ -191,6 +195,8 @@ class _PurchaseRequestSettingsDialogState
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
+                  'На каждом этапе можно выбрать несколько человек. '
+                  'Действует любой из списка. '
                   'Выберите пользователей приложения (раздел «Пользователи»). '
                   'Карточки из «Сотрудники» без входа в систему здесь не отображаются.',
                   style: theme.textTheme.bodySmall?.copyWith(
@@ -209,32 +215,32 @@ class _PurchaseRequestSettingsDialogState
                       ),
                     ),
                   ),
-                _userDropdown(
+                _usersDropdown(
                   label: 'Первый согласующий',
-                  selectedId: _firstApproverId,
+                  selectedIds: _firstApproverIds,
                   users: users,
-                  onChanged: (v) => setState(() => _firstApproverId = v),
+                  onChanged: (v) => setState(() => _firstApproverIds = v),
                 ),
                 const SizedBox(height: 12),
-                _userDropdown(
+                _usersDropdown(
                   label: 'Подготовка счетов',
-                  selectedId: _invoicePreparerId,
+                  selectedIds: _invoicePreparerIds,
                   users: users,
-                  onChanged: (v) => setState(() => _invoicePreparerId = v),
+                  onChanged: (v) => setState(() => _invoicePreparerIds = v),
                 ),
                 const SizedBox(height: 12),
-                _userDropdown(
+                _usersDropdown(
                   label: 'Согласование счетов',
-                  selectedId: _invoiceApproverId,
+                  selectedIds: _invoiceApproverIds,
                   users: users,
-                  onChanged: (v) => setState(() => _invoiceApproverId = v),
+                  onChanged: (v) => setState(() => _invoiceApproverIds = v),
                 ),
                 const SizedBox(height: 12),
-                _userDropdown(
+                _usersDropdown(
                   label: 'Бухгалтер (оплата)',
-                  selectedId: _accountantId,
+                  selectedIds: _accountantIds,
                   users: users,
-                  onChanged: (v) => setState(() => _accountantId = v),
+                  onChanged: (v) => setState(() => _accountantIds = v),
                 ),
                 const SizedBox(height: 12),
                 GTDropdown<PurchaseRequestReceiverMode>(
@@ -255,18 +261,18 @@ class _PurchaseRequestSettingsDialogState
                     setState(() {
                       _receiverMode = v;
                       if (v == PurchaseRequestReceiverMode.initiator) {
-                        _fixedReceiverId = null;
+                        _fixedReceiverIds = [];
                       }
                     });
                   },
                 ),
                 if (_receiverMode == PurchaseRequestReceiverMode.fixedUser) ...[
                   const SizedBox(height: 12),
-                  _userDropdown(
+                  _usersDropdown(
                     label: 'Ответственный за получение',
-                    selectedId: _fixedReceiverId,
+                    selectedIds: _fixedReceiverIds,
                     users: users,
-                    onChanged: (v) => setState(() => _fixedReceiverId = v),
+                    onChanged: (v) => setState(() => _fixedReceiverIds = v),
                   ),
                 ],
                 const SizedBox(height: 20),

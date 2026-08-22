@@ -39,6 +39,7 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
   static const _itemsTable = 'purchase_request_items';
   static const _historyTable = 'purchase_request_history';
   static const _settingsTable = 'purchase_request_settings';
+  static const _routeMembersTable = 'purchase_request_route_members';
   static const _invoicesTable = 'purchase_request_invoices';
   static const _filesTable = 'purchase_request_files';
 
@@ -415,8 +416,19 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
         .maybeSingle();
 
     if (row == null) return null;
-    return PurchaseRequestSettingsModel.fromJson(
-      Map<String, dynamic>.from(row),
+
+    final memberRows = await client
+        .from(_routeMembersTable)
+        .select()
+        .eq('company_id', activeCompanyId)
+        .order('sort_order')
+        .order('user_id');
+
+    return PurchaseRequestSettingsModel.fromSettingsAndMembers(
+      settingsRow: Map<String, dynamic>.from(row),
+      memberRows: (memberRows as List)
+          .map((item) => Map<String, dynamic>.from(item as Map))
+          .toList(),
     ).toDomain();
   }
 
@@ -449,22 +461,24 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
       );
     }
 
-    final response = await client.rpc(
+    await client.rpc(
       'purchase_request_upsert_settings',
       params: {
         'p_company_id': activeCompanyId,
-        'p_first_approver_id': settings.firstApproverId,
-        'p_invoice_preparer_id': settings.invoicePreparerId,
-        'p_invoice_approver_id': settings.invoiceApproverId,
-        'p_accountant_id': settings.accountantId,
+        'p_first_approver_ids': settings.firstApproverIds,
+        'p_invoice_preparer_ids': settings.invoicePreparerIds,
+        'p_invoice_approver_ids': settings.invoiceApproverIds,
+        'p_accountant_ids': settings.accountantIds,
         'p_receiver_mode': settings.receiverMode.dbValue,
-        'p_fixed_receiver_id': settings.fixedReceiverId,
+        'p_fixed_receiver_ids': settings.fixedReceiverIds,
       },
     );
 
-    return PurchaseRequestSettingsModel.fromJson(
-      Map<String, dynamic>.from(response as Map),
-    ).toDomain();
+    final saved = await getSettings();
+    if (saved == null) {
+      throw StateError('Настройки маршрута не найдены после сохранения');
+    }
+    return saved;
   }
 
   @override

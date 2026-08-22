@@ -99,22 +99,22 @@ class PurchaseRequestModel {
 
   /// В доменную сущность.
   PurchaseRequest toDomain() => PurchaseRequest(
-        id: id,
-        companyId: companyId,
-        number: number,
-        objectId: objectId,
-        objectName: objectName,
-        createdBy: createdBy,
-        createdByName: createdByName,
-        currentAssigneeId: currentAssigneeId,
-        status: status,
-        comment: comment,
-        totalAmount: totalAmount,
-        createdAt: createdAt,
-        updatedAt: updatedAt,
-        submittedAt: submittedAt,
-        completedAt: completedAt,
-      );
+    id: id,
+    companyId: companyId,
+    number: number,
+    objectId: objectId,
+    objectName: objectName,
+    createdBy: createdBy,
+    createdByName: createdByName,
+    currentAssigneeId: currentAssigneeId,
+    status: status,
+    comment: comment,
+    totalAmount: totalAmount,
+    createdAt: createdAt,
+    updatedAt: updatedAt,
+    submittedAt: submittedAt,
+    completedAt: completedAt,
+  );
 
   static DateTime? _parseDateTime(dynamic value) {
     if (value == null) return null;
@@ -197,16 +197,16 @@ class PurchaseRequestItemModel {
 
   /// В доменную сущность.
   PurchaseRequestItem toDomain() => PurchaseRequestItem(
-        id: id,
-        requestId: requestId,
-        name: name,
-        quantity: quantity,
-        unit: unit,
-        article: article,
-        comment: comment,
-        sortOrder: sortOrder,
-        createdAt: createdAt,
-      );
+    id: id,
+    requestId: requestId,
+    name: name,
+    quantity: quantity,
+    unit: unit,
+    article: article,
+    comment: comment,
+    sortOrder: sortOrder,
+    createdAt: createdAt,
+  );
 }
 
 /// Модель настроек модуля.
@@ -214,60 +214,74 @@ class PurchaseRequestSettingsModel {
   /// Создаёт модель настроек.
   const PurchaseRequestSettingsModel({
     required this.companyId,
-    this.firstApproverId,
-    this.invoicePreparerId,
-    this.invoiceApproverId,
-    this.accountantId,
+    this.firstApproverIds = const [],
+    this.invoicePreparerIds = const [],
+    this.invoiceApproverIds = const [],
+    this.accountantIds = const [],
     this.receiverMode = PurchaseRequestReceiverMode.initiator,
-    this.fixedReceiverId,
+    this.fixedReceiverIds = const [],
   });
 
   /// Идентификатор компании.
   final String companyId;
 
-  /// Первый согласующий.
-  final String? firstApproverId;
+  /// Первые согласующие.
+  final List<String> firstApproverIds;
 
   /// Подготовка счетов.
-  final String? invoicePreparerId;
+  final List<String> invoicePreparerIds;
 
   /// Согласование счетов.
-  final String? invoiceApproverId;
+  final List<String> invoiceApproverIds;
 
-  /// Бухгалтер (оплата).
-  final String? accountantId;
+  /// Бухгалтеры (оплата).
+  final List<String> accountantIds;
 
   /// Режим получения материала.
   final PurchaseRequestReceiverMode receiverMode;
 
-  /// Фиксированный получатель.
-  final String? fixedReceiverId;
+  /// Фиксированные получатели.
+  final List<String> fixedReceiverIds;
 
-  /// Из JSON.
-  factory PurchaseRequestSettingsModel.fromJson(Map<String, dynamic> json) {
+  /// Из строки настроек и строк `purchase_request_route_members`.
+  factory PurchaseRequestSettingsModel.fromSettingsAndMembers({
+    required Map<String, dynamic> settingsRow,
+    required List<Map<String, dynamic>> memberRows,
+  }) {
+    List<String> idsFor(String role) {
+      final rows = memberRows.where((row) => row['role'] == role).toList()
+        ..sort((a, b) {
+          final orderA = (a['sort_order'] as num?)?.toInt() ?? 0;
+          final orderB = (b['sort_order'] as num?)?.toInt() ?? 0;
+          if (orderA != orderB) return orderA.compareTo(orderB);
+          return (a['user_id'] as String).compareTo(b['user_id'] as String);
+        });
+      return rows.map((row) => row['user_id'] as String).toList();
+    }
+
     return PurchaseRequestSettingsModel(
-      companyId: json['company_id'] as String,
-      firstApproverId: json['first_approver_id'] as String?,
-      invoicePreparerId: json['invoice_preparer_id'] as String?,
-      invoiceApproverId: json['invoice_approver_id'] as String?,
-      accountantId: json['accountant_id'] as String?,
+      companyId: settingsRow['company_id'] as String,
+      firstApproverIds: idsFor('first_approver'),
+      invoicePreparerIds: idsFor('invoice_preparer'),
+      invoiceApproverIds: idsFor('invoice_approver'),
+      accountantIds: idsFor('accountant'),
       receiverMode: PurchaseRequestReceiverModeX.fromDb(
-        json['receiver_mode'] as String?,
+        settingsRow['receiver_mode'] as String?,
       ),
-      fixedReceiverId: json['fixed_receiver_id'] as String?,
+      fixedReceiverIds: idsFor('receiver'),
     );
   }
 
   /// В доменную сущность.
   PurchaseRequestSettings toDomain() => PurchaseRequestSettings(
-        companyId: companyId,
-        firstApproverId: firstApproverId,
-        invoicePreparerId: invoicePreparerId,
-        invoiceApproverId: invoiceApproverId,
-        accountantId: accountantId,
-        receiverMode: receiverMode,
-        fixedReceiverId: fixedReceiverId,
-      );
+    companyId: companyId,
+    firstApproverIds: firstApproverIds,
+    invoicePreparerIds: invoicePreparerIds,
+    invoiceApproverIds: invoiceApproverIds,
+    accountantIds: accountantIds,
+    receiverMode: receiverMode,
+    fixedReceiverIds: fixedReceiverIds,
+  );
 }
 
 /// Bucket Supabase Storage для файлов заявок.
@@ -334,16 +348,16 @@ class PurchaseRequestFileModel {
 
   /// В domain.
   PurchaseRequestFile toDomain() => PurchaseRequestFile(
-        id: id,
-        requestId: requestId,
-        invoiceId: invoiceId,
-        type: type,
-        storagePath: storagePath,
-        fileName: fileName,
-        mimeType: mimeType,
-        size: size,
-        createdAt: createdAt,
-      );
+    id: id,
+    requestId: requestId,
+    invoiceId: invoiceId,
+    type: type,
+    storagePath: storagePath,
+    fileName: fileName,
+    mimeType: mimeType,
+    size: size,
+    createdAt: createdAt,
+  );
 }
 
 /// Модель счёта заявки.
@@ -448,16 +462,16 @@ class PurchaseRequestInvoiceModel {
 
   /// В domain.
   PurchaseRequestInvoice toDomain() => PurchaseRequestInvoice(
-        id: id,
-        requestId: requestId,
-        companyId: companyId,
-        supplierId: supplierId,
-        supplierName: supplierName,
-        amount: amount,
-        invoiceNumber: invoiceNumber,
-        invoiceDate: invoiceDate,
-        comment: comment,
-        createdAt: createdAt,
-        invoiceFile: invoiceFile?.toDomain(),
-      );
+    id: id,
+    requestId: requestId,
+    companyId: companyId,
+    supplierId: supplierId,
+    supplierName: supplierName,
+    amount: amount,
+    invoiceNumber: invoiceNumber,
+    invoiceDate: invoiceDate,
+    comment: comment,
+    createdAt: createdAt,
+    invoiceFile: invoiceFile?.toDomain(),
+  );
 }

@@ -4,10 +4,12 @@ import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/gt_text_field.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request.dart';
+import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_settings.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_status.dart';
 import 'package:projectgt/core/utils/supabase_error_message.dart';
 import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_form_dialog.dart';
 import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_invoice_utils.dart';
+import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_module_utils.dart';
 import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_ui_labels.dart';
 import 'package:projectgt/features/purchase_requests/presentation/state/purchase_request_providers.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
@@ -89,12 +91,17 @@ PurchaseRequestActionSet resolvePurchaseRequestActions({
   required PurchaseRequest request,
   required String? currentUserId,
   required PermissionService permissions,
+  PurchaseRequestSettings? settings,
 }) {
   final uid = currentUserId;
   if (uid == null) return const PurchaseRequestActionSet();
 
   final isCreator = request.createdBy == uid;
-  final isAssignee = request.currentAssigneeId == uid;
+  final isAssignee = isPurchaseRequestStageAssignee(
+    request: request,
+    settings: settings,
+    userId: uid,
+  );
   final status = request.status;
   final canMutateDraft =
       isCreator &&

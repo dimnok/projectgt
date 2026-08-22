@@ -9,6 +9,7 @@ import 'package:projectgt/core/widgets/gt_confirmation_dialog.dart';
 import 'package:projectgt/core/widgets/gt_text_field.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_item.dart';
+import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_settings.dart';
 import 'package:projectgt/features/purchase_requests/presentation/state/purchase_request_providers.dart';
 import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_form_dialog.dart';
 import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_module_utils.dart';
@@ -52,6 +53,7 @@ class PurchaseRequestDetailsPanel extends ConsumerWidget {
     final historyAsync = ref.watch(purchaseRequestHistoryProvider(requestId));
     final permissions = ref.watch(permissionServiceProvider);
     final uid = ref.watch(supabaseClientProvider).auth.currentUser?.id;
+    final settings = ref.watch(purchaseRequestSettingsProvider).valueOrNull;
     final theme = Theme.of(context);
 
     return ClipRRect(
@@ -61,7 +63,16 @@ class PurchaseRequestDetailsPanel extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildHeader(context, ref, theme, requestAsync, itemsAsync, uid, permissions),
+            _buildHeader(
+              context,
+              ref,
+              theme,
+              requestAsync,
+              itemsAsync,
+              uid,
+              permissions,
+              settings,
+            ),
             Expanded(
               child: requestAsync.when(
                 loading: () =>
@@ -76,6 +87,7 @@ class PurchaseRequestDetailsPanel extends ConsumerWidget {
                     request: request,
                     currentUserId: uid,
                     permissions: permissions,
+                    settings: settings,
                   );
                   final statusColor = PurchaseRequestUiLabels.statusColor(
                     theme,
@@ -233,6 +245,7 @@ class PurchaseRequestDetailsPanel extends ConsumerWidget {
     AsyncValue<List<PurchaseRequestItem>> itemsAsync,
     String? uid,
     PermissionService permissions,
+    PurchaseRequestSettings? settings,
   ) {
     final hasBack = showCloseButton && onClose != null;
 
@@ -280,6 +293,7 @@ class PurchaseRequestDetailsPanel extends ConsumerWidget {
                   request: request,
                   currentUserId: uid,
                   permissions: permissions,
+                  settings: settings,
                 );
                 if (!actions.canEditDraft && !actions.canDeleteDraft) {
                   return const SizedBox.shrink();
@@ -347,9 +361,7 @@ class PurchaseRequestDetailsPanel extends ConsumerWidget {
     if (confirmed != true || !context.mounted) return;
 
     try {
-      await ref
-          .read(purchaseRequestRepositoryProvider)
-          .deleteDraft(request.id);
+      await ref.read(purchaseRequestRepositoryProvider).deleteDraft(request.id);
       invalidatePurchaseRequestCaches(ref, requestId);
       onDeleted?.call();
     } catch (e) {

@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:projectgt/core/utils/user_display_utils.dart';
 import 'package:projectgt/domain/entities/user.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request.dart';
+import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_settings.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_status.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_file.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_invoice.dart';
@@ -76,6 +77,26 @@ void main() {
         createdBy: createdBy,
         currentAssigneeId: assigneeId ?? userId,
         status: status,
+      );
+    }
+
+    PurchaseRequestSettings routeSettings({
+      List<String> firstApprovers = const [userId],
+      List<String> invoicePreparers = const [userId],
+      List<String> invoiceApprovers = const [userId],
+      List<String> accountants = const [userId],
+      PurchaseRequestReceiverMode receiverMode =
+          PurchaseRequestReceiverMode.initiator,
+      List<String> receivers = const [],
+    }) {
+      return PurchaseRequestSettings(
+        companyId: 'company-1',
+        firstApproverIds: firstApprovers,
+        invoicePreparerIds: invoicePreparers,
+        invoiceApproverIds: invoiceApprovers,
+        accountantIds: accountants,
+        receiverMode: receiverMode,
+        fixedReceiverIds: receivers,
       );
     }
 
@@ -154,6 +175,7 @@ void main() {
             'purchase_requests': {'prepare_invoice': true},
           },
         ),
+        settings: routeSettings(),
       );
 
       expect(actions.canSubmitInvoices, isTrue);
@@ -168,10 +190,54 @@ void main() {
             'purchase_requests': {'approve': true},
           },
         ),
+        settings: routeSettings(),
       );
 
       expect(actions.canApprove, isTrue);
       expect(actions.canReturn, isTrue);
+    });
+
+    test(
+      'second route member can approve when currentAssigneeId is another member',
+      () {
+        final actions = resolvePurchaseRequestActions(
+          request: request(
+            status: PurchaseRequestStatus.approval,
+            createdBy: otherId,
+            assigneeId: otherId,
+          ),
+          currentUserId: userId,
+          permissions: permissions(
+            grants: const {
+              'purchase_requests': {'approve': true},
+            },
+          ),
+          settings: routeSettings(firstApprovers: [otherId, userId]),
+        );
+
+        expect(actions.canApprove, isTrue);
+        expect(actions.canReturn, isTrue);
+      },
+    );
+
+    test('currentAssigneeId alone does not grant approve', () {
+      final actions = resolvePurchaseRequestActions(
+        request: request(
+          status: PurchaseRequestStatus.approval,
+          createdBy: otherId,
+          assigneeId: userId,
+        ),
+        currentUserId: userId,
+        permissions: permissions(
+          grants: const {
+            'purchase_requests': {'approve': true},
+          },
+        ),
+        settings: routeSettings(firstApprovers: [otherId]),
+      );
+
+      expect(actions.canApprove, isFalse);
+      expect(actions.canReturn, isFalse);
     });
 
     test('unknown user gets no actions', () {
@@ -295,10 +361,7 @@ void main() {
   });
 
   group('isPurchaseRequestInvoiceFilePreviewable', () {
-    PurchaseRequestFile file({
-      required String name,
-      String? mimeType,
-    }) {
+    PurchaseRequestFile file({required String name, String? mimeType}) {
       return PurchaseRequestFile(
         id: 'f1',
         requestId: 'r1',
@@ -441,6 +504,64 @@ void main() {
           ),
         ]),
         isNull,
+      );
+    });
+  });
+
+  group('isPurchaseRequestSettingsConfigured', () {
+    test('requires all four route roles', () {
+      expect(
+        isPurchaseRequestSettingsConfigured(
+          const PurchaseRequestSettings(
+            companyId: 'c1',
+            firstApproverIds: ['u1'],
+            invoicePreparerIds: ['u1'],
+            invoiceApproverIds: ['u1'],
+            accountantIds: ['u1'],
+          ),
+        ),
+        isTrue,
+      );
+      expect(
+        isPurchaseRequestSettingsConfigured(
+          const PurchaseRequestSettings(
+            companyId: 'c1',
+            firstApproverIds: ['u1'],
+            invoicePreparerIds: ['u1'],
+            invoiceApproverIds: ['u1'],
+          ),
+        ),
+        isFalse,
+      );
+    });
+
+    test('fixed receiver requires at least one user', () {
+      expect(
+        isPurchaseRequestSettingsConfigured(
+          const PurchaseRequestSettings(
+            companyId: 'c1',
+            firstApproverIds: ['u1'],
+            invoicePreparerIds: ['u1'],
+            invoiceApproverIds: ['u1'],
+            accountantIds: ['u1'],
+            receiverMode: PurchaseRequestReceiverMode.fixedUser,
+          ),
+        ),
+        isFalse,
+      );
+      expect(
+        isPurchaseRequestSettingsConfigured(
+          const PurchaseRequestSettings(
+            companyId: 'c1',
+            firstApproverIds: ['u1'],
+            invoicePreparerIds: ['u1'],
+            invoiceApproverIds: ['u1'],
+            accountantIds: ['u1'],
+            receiverMode: PurchaseRequestReceiverMode.fixedUser,
+            fixedReceiverIds: ['u2'],
+          ),
+        ),
+        isTrue,
       );
     });
   });
