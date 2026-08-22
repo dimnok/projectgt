@@ -27,6 +27,9 @@ abstract class EstimateModel with _$EstimateModel {
   /// [contractNumber] — номер договора (из view).
   /// [estimateTitle] — название сметы.
   /// [visibleInEstimatesModule] — видимость строки в модуле «Сметы» (колонка в БД).
+  /// [createdAt] — дата создания строки.
+  /// [createdBy] — идентификатор автора.
+  /// [createdByName] — ФИО автора (только во view, в таблицу не пишется).
   @JsonSerializable(explicitToJson: true, includeIfNull: false)
   const factory EstimateModel({
     String? id,
@@ -48,6 +51,9 @@ abstract class EstimateModel with _$EstimateModel {
     @JsonKey(name: 'visible_in_estimates_module', defaultValue: true)
     @Default(true)
     bool visibleInEstimatesModule,
+    @JsonKey(name: 'created_at') DateTime? createdAt,
+    @JsonKey(name: 'created_by') String? createdBy,
+    @JsonKey(name: 'created_by_name') String? createdByName,
   }) = _EstimateModel;
 
   /// Приватный конструктор для поддержки методов расширения.
@@ -85,6 +91,9 @@ extension EstimateModelMapper on EstimateModel {
         contractNumber: contractNumber,
         estimateTitle: estimateTitle,
         visibleInEstimatesModule: visibleInEstimatesModule,
+        createdAt: createdAt,
+        createdBy: createdBy,
+        createdByName: createdByName,
       );
 }
 
@@ -109,5 +118,8 @@ extension EstimateDomainMapper on Estimate {
         contractNumber: contractNumber,
         estimateTitle: estimateTitle,
         visibleInEstimatesModule: visibleInEstimatesModule,
+        createdAt: createdAt,
+        createdBy: createdBy,
+        createdByName: createdByName,
       );
 }

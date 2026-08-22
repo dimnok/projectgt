@@ -1,7 +1,7 @@
 # Модуль Сметы (Estimates)
 
 **Дата актуализации:** 22 августа 2026 года  
-**Изменения:** На карточке сметы в desktop Sidebar (`_EstimateListTile`) отображается процент выполнения по объёму. Значение приходит из RPC `get_estimate_groups` (`completion_percent`) в поле `EstimateFile.completionPercent`. Формула совпадает с бейджем в шапке открытой сметы: `SUM(факт work_items.quantity) / SUM(план estimates.quantity) × 100`. Миграция `get_estimate_groups_completion_percent` (сервер: `20260822182303`).
+**Изменения:** В деталях позиции сметы показываются дата создания и ФИО автора (`created_at`, `created_by` / `created_by_name`). Триггер `set_estimates_created_by` заполняет автора при INSERT. На карточке сметы в desktop Sidebar (`_EstimateListTile`) отображается процент выполнения по объёму. Значение приходит из RPC `get_estimate_groups` (`completion_percent`) в поле `EstimateFile.completionPercent`. Формула совпадает с бейджем в шапке открытой сметы: `SUM(факт work_items.quantity) / SUM(план estimates.quantity) × 100`. Миграция `get_estimate_groups_completion_percent` (сервер: `20260822182303`).
 **Статус:** Актуально (Clean Architecture, Riverpod, Strict Multi-tenancy, RBAC, Subsystem Filter Bar, Sidebar Completion Percent, VOR Excel/PDF Storage Flow, VOR Tab Dynamic Columns, Cumulative Excel with Excess Column, Estimate Revisions/Addendums, VOR Draft Delete by Creator, VOR Signed PDF Web Upload)
 
 ---
@@ -58,7 +58,7 @@
 - `public.profiles` — имена пользователей для истории ВОР и истории выполнения (`short_name`, `full_name`)
 - `public.company_members` — RBAC и tenant membership
 - `storage.buckets`, `storage.objects` — хранение Excel/PDF документов ВОР и файлов смет (`vor_documents`, `estimates`)
-- View `public.estimates_with_contracts` — `estimates` + `contract_number`
+- View `public.estimates_with_contracts` — `estimates` + `contract_number` + `created_by_name`
 
 ### Внешние зависимости
 - `supabase_flutter`
@@ -78,6 +78,7 @@
 - `lib/features/estimates/presentation/screens/estimate_desktop_view.dart` — основной desktop-экран смет и табов; состояние фильтра подсистемы, комбинирование с поиском и фильтрами выполнения. `_EstimateListTile` показывает `formatPercentage(file.completionPercent, decimalDigits: 1)` рядом с названием сметы.
 - `lib/features/estimates/presentation/widgets/estimate_subsystem_filter_bar.dart` — текстовые переключатели подсистем над таблицей; утилиты `estimateSubsystemFilterLabel`, `collectEstimateSubsystemLabels`.
 - `lib/features/estimates/presentation/widgets/estimate_table_view.dart` — таблица позиций (колонки «Система», «Подсистема»), режимы «Смета» / «Выполнение».
+- `lib/features/estimates/presentation/widgets/estimate_item_details_dialog.dart` / `estimate_details_modal.dart` — детали позиции; блок «История изменений» одной строкой: `Добавление · дата · автор` (автор — `profiles.short_name`, формат «Фамилия И.О.»).
 - `lib/features/estimates/presentation/widgets/estimate_completion_history_panel.dart` — боковая панель «Исполнение»: история и сводка выполнения по позиции; ФИО открывшего смену (`openedByName`) под строкой участок/этаж.
 - `lib/features/estimates/presentation/widgets/estimate_filter_buttons.dart` — фильтры статуса выполнения (перевыполнение / 100% / 0%) на вкладке «Выполнение».
 - `lib/features/estimates/presentation/widgets/estimate_search_field.dart` — поиск по наименованию и номеру позиции.
@@ -177,7 +178,8 @@ lib/features/estimates/
 | quantity | double precision | плановый объём |
 | price | double precision | цена |
 | total | double precision | сумма |
-| created_at | timestamptz | |
+| created_at | timestamptz | дата создания строки |
+| created_by | uuid | кто создал строку (NULL у позиций до 22.08.2026) |
 | updated_at | timestamptz | |
 | estimate_title | text | заголовок файла сметы (группа в Sidebar) |
 | number | text | номер позиции |
@@ -290,8 +292,9 @@ lib/features/estimates/
 - `vor_systems`, `vor_status_history`: `SELECT/INSERT` ограничены company-scope.
 
 ### Индексы и триггеры
-- `estimates`: `idx_estimates_company_id`, `idx_estimates_contract_id`, `idx_estimates_object_id`, `idx_estimates_grouping` (`estimate_title, object_id, contract_id`), `idx_estimates_filters`, `idx_estimates_sort`, `idx_estimates_name_gin_trgm`, `uq_estimates_company_contract_position`
+- `estimates`: `idx_estimates_company_id`, `idx_estimates_contract_id`, `idx_estimates_object_id`, `idx_estimates_grouping` (`estimate_title, object_id, contract_id`), `idx_estimates_filters`, `idx_estimates_sort`, `idx_estimates_name_gin_trgm`, `uq_estimates_company_contract_position`, `idx_estimates_created_by`
 - `estimates`: trigger `trg_sync_work_items_on_estimate_update` (AFTER UPDATE) синхронизирует связанные `work_items`
+- `estimates`: trigger `trg_estimates_created_by` (BEFORE INSERT) пишет `created_by = auth.uid()`, если автор не задан
 - `estimate_revisions`: `idx_estimate_revisions_company_contract`, `idx_estimate_revisions_contract_title_status`, `uq_estimate_revisions_contract_title_revision`; trigger `tr_estimate_revisions_updated_at`
 - `estimate_revision_items`: `idx_estimate_revision_items_revision`, `idx_estimate_revision_items_position`
 - `vors`: `idx_vors_company`, `idx_vors_contract`, `idx_vors_baseline_revision_id`
@@ -300,7 +303,7 @@ lib/features/estimates/
 - `vors`: trigger `tr_vors_updated_at` обновляет `updated_at`
 
 ### Представления
-- `public.estimates_with_contracts` — строки `estimates` плюс `contract_number` и `visible_in_estimates_module`
+- `public.estimates_with_contracts` — строки `estimates` плюс `contract_number`, `visible_in_estimates_module`, `created_by` / `created_by_name` (`short_name`, иначе `full_name`)
 - `public.v_materials_grouped_by_estimate` — агрегаты материалов по позиции (используется в `get_estimate_completion_by_ids`)
 
 ### Storage audit
@@ -337,6 +340,12 @@ lib/features/estimates/
 2. Шаблон импорта при необходимости скачивается через Edge Function `generate-estimate-import-template`.
 3. Парсинг выполняется на клиенте (`ExcelEstimateService` + пакет `excel`).
 4. Сметные позиции сохраняются в `public.estimates` с tenant binding по `company_id`.
+5. При любом INSERT триггер `set_estimates_created_by` записывает `created_by = auth.uid()`, если автор не передан явно.
+
+### Ручное добавление позиции
+1. Кнопка «Добавить позицию» открывает форму; номер ставится как `д-1`, `д-2`, …
+2. После сохранения в деталях позиции в блоке «История изменений» одна строка: `Добавление · дата · автор` (автор из `profiles.short_name`).
+3. У строк, созданных до 22.08.2026, дата есть, автор пустой (`—`).
 
 > Аудит 22.08.2026: в текущем feature-flow модуля «Сметы» **нет** вызовов Edge Functions `excel_parse` и `xls_to_xlsx`. `excel_parse` используется модулем материалов (`receipts_remote_parser.dart`), не импортом смет.
 
@@ -510,6 +519,7 @@ END
 - 🟢 Фильтр по подсистеме (текстовые переключатели над таблицей, desktop) — **Done**
 - 🟢 ФИО открывшего смену в истории выполнения позиции (desktop, `estimate_completion_history_panel`) — **Done**
 - 🟢 Процент выполнения на карточке сметы в desktop Sidebar (`get_estimate_groups.completion_percent`) — **Done** (22.08.2026)
+- 🟢 Дата и автор в деталях позиции (`created_at`, `created_by`) — **Done** (22.08.2026)
 - 🟡 Процент выполнения на карточке сметы в мобильном реестре — **Planned**
 - 🟡 ФИО открывшего смену в мобильной истории выполнения (`estimate_details_modal`) — **Planned**
 - 🟡 Фильтр по подсистеме на mobile — **Planned**

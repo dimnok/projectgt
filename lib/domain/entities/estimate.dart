@@ -25,6 +25,9 @@ abstract class Estimate with _$Estimate {
   /// [contractNumber] — номер договора.
   /// [estimateTitle] — название сметы.
   /// [visibleInEstimatesModule] — показывать строку в модуле «Сметы»; на договоре видны все строки.
+  /// [createdAt] — дата и время создания строки в базе.
+  /// [createdBy] — идентификатор пользователя, создавшего строку.
+  /// [createdByName] — ФИО автора из профиля (только чтение).
   const factory Estimate({
     required String id,
     required String companyId,
@@ -43,6 +46,9 @@ abstract class Estimate with _$Estimate {
     String? contractNumber,
     String? estimateTitle,
     @Default(true) bool visibleInEstimatesModule,
+    DateTime? createdAt,
+    String? createdBy,
+    String? createdByName,
   }) = _Estimate;
 
   /// Приватный конструктор для поддержки методов расширения

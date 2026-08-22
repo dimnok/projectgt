@@ -13,8 +13,8 @@ import '../../../company/presentation/widgets/company_info_widgets.dart';
 
 /// Диалоговое окно с детальной информацией о сметной позиции.
 ///
-/// Отображает основную информацию, показатели выполнения и список
-/// привязанных материалов из накладных.
+/// Отображает основную информацию, показатели выполнения, историю добавления
+/// и список привязанных материалов из накладных.
 class EstimateItemDetailsDialog extends ConsumerWidget {
   /// Сметная позиция.
   final Estimate estimate;
@@ -65,6 +65,11 @@ class EstimateItemDetailsDialog extends ConsumerWidget {
         _buildInfoCards(theme)
             .animate()
             .fade(duration: 400.ms)
+            .slideY(begin: 0.05, curve: Curves.easeOut),
+        const SizedBox(height: 24),
+        _buildHistoryCard(theme)
+            .animate()
+            .fade(delay: 100.ms, duration: 400.ms)
             .slideY(begin: 0.05, curve: Curves.easeOut),
         const SizedBox(height: 32),
         _buildMaterialsSection(theme, linkedMaterialsAsync)
@@ -160,6 +165,19 @@ class EstimateItemDetailsDialog extends ConsumerWidget {
                 ).animate().fade(delay: 300.ms),
             ],
           ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHistoryCard(ThemeData theme) {
+    return CompanyInfoCard(
+      title: 'История изменений',
+      icon: CupertinoIcons.clock,
+      children: [
+        Text(
+          _estimateAdditionHistoryLine(estimate),
+          style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
         ),
       ],
     );
@@ -447,4 +465,17 @@ class EstimateItemDetailsDialog extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Собирает одну строку истории: «Добавление · дата · автор».
+String _estimateAdditionHistoryLine(Estimate estimate) {
+  final date = estimate.createdAt != null
+      ? formatRuDateTime(estimate.createdAt!)
+      : null;
+  final who = estimate.createdByName?.trim();
+  return [
+    'Добавление',
+    if (date != null) date,
+    if (who != null && who.isNotEmpty) who,
+  ].join(' · ');
 }

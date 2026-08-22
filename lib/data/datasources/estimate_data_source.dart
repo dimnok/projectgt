@@ -288,9 +288,14 @@ class SupabaseEstimateDataSource implements EstimateDataSource {
     return EstimateModel.fromJson(response);
   }
 
-  /// Удаляет из [json] поля, которых нет в таблице `estimates` (есть только во view).
+  /// Удаляет из [json] поля, которых нет в таблице `estimates` (есть только во view),
+  /// и аудит-поля, которые задаёт база при INSERT.
   static void _stripEstimateTableReadOnlyKeys(Map<String, dynamic> json) {
     json.remove('contract_number');
+    json.remove('created_by_name');
+    json.remove('created_at');
+    json.remove('updated_at');
+    json.remove('created_by');
   }
 
   @override

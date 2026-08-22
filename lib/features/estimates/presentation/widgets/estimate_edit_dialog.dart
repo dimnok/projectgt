@@ -276,6 +276,9 @@ class _EstimateEditDialogState extends ConsumerState<EstimateEditDialog> {
         objectId: objectId,
         contractId: contractId,
         visibleInEstimatesModule: _visibleInEstimatesModule,
+        createdAt: widget.estimate?.createdAt,
+        createdBy: widget.estimate?.createdBy,
+        createdByName: widget.estimate?.createdByName,
       );
 
       final notifier = ref.read(estimateNotifierProvider.notifier);

@@ -99,6 +99,13 @@ class EstimateDetailsModal extends ConsumerWidget {
             isBold: true,
             valueColor: _getPercentageColor(completion?.percentage ?? 0),
           ),
+          const SizedBox(height: 20),
+
+          _buildSectionTitle(theme, 'История изменений'),
+          Text(
+            _estimateAdditionHistoryLine(item),
+            style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
+          ),
         ],
       ),
     );
@@ -264,6 +271,19 @@ class _CompletionHistoryModal extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Собирает одну строку истории: «Добавление · дата · автор».
+String _estimateAdditionHistoryLine(Estimate estimate) {
+  final date = estimate.createdAt != null
+      ? formatRuDateTime(estimate.createdAt!)
+      : null;
+  final who = estimate.createdByName?.trim();
+  return [
+    'Добавление',
+    if (date != null) date,
+    if (who != null && who.isNotEmpty) who,
+  ].join(' · ');
 }
 
 

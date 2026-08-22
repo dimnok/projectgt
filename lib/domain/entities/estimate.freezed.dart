@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$Estimate {
 
- String get id; String get companyId; String get system; String get subsystem; String get number; String get name; String get article; String get manufacturer; String get unit; double get quantity; double get price; double get total; String? get objectId; String? get contractId; String? get contractNumber; String? get estimateTitle; bool get visibleInEstimatesModule;
+ String get id; String get companyId; String get system; String get subsystem; String get number; String get name; String get article; String get manufacturer; String get unit; double get quantity; double get price; double get total; String? get objectId; String? get contractId; String? get contractNumber; String? get estimateTitle; bool get visibleInEstimatesModule; DateTime? get createdAt; String? get createdBy; String? get createdByName;
 /// Create a copy of Estimate
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -26,16 +26,16 @@ $EstimateCopyWith<Estimate> get copyWith => _$EstimateCopyWithImpl<Estimate>(thi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Estimate&&(identical(other.id, id) || other.id == id)&&(identical(other.companyId, companyId) || other.companyId == companyId)&&(identical(other.system, system) || other.system == system)&&(identical(other.subsystem, subsystem) || other.subsystem == subsystem)&&(identical(other.number, number) || other.number == number)&&(identical(other.name, name) || other.name == name)&&(identical(other.article, article) || other.article == article)&&(identical(other.manufacturer, manufacturer) || other.manufacturer == manufacturer)&&(identical(other.unit, unit) || other.unit == unit)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.price, price) || other.price == price)&&(identical(other.total, total) || other.total == total)&&(identical(other.objectId, objectId) || other.objectId == objectId)&&(identical(other.contractId, contractId) || other.contractId == contractId)&&(identical(other.contractNumber, contractNumber) || other.contractNumber == contractNumber)&&(identical(other.estimateTitle, estimateTitle) || other.estimateTitle == estimateTitle)&&(identical(other.visibleInEstimatesModule, visibleInEstimatesModule) || other.visibleInEstimatesModule == visibleInEstimatesModule));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Estimate&&(identical(other.id, id) || other.id == id)&&(identical(other.companyId, companyId) || other.companyId == companyId)&&(identical(other.system, system) || other.system == system)&&(identical(other.subsystem, subsystem) || other.subsystem == subsystem)&&(identical(other.number, number) || other.number == number)&&(identical(other.name, name) || other.name == name)&&(identical(other.article, article) || other.article == article)&&(identical(other.manufacturer, manufacturer) || other.manufacturer == manufacturer)&&(identical(other.unit, unit) || other.unit == unit)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.price, price) || other.price == price)&&(identical(other.total, total) || other.total == total)&&(identical(other.objectId, objectId) || other.objectId == objectId)&&(identical(other.contractId, contractId) || other.contractId == contractId)&&(identical(other.contractNumber, contractNumber) || other.contractNumber == contractNumber)&&(identical(other.estimateTitle, estimateTitle) || other.estimateTitle == estimateTitle)&&(identical(other.visibleInEstimatesModule, visibleInEstimatesModule) || other.visibleInEstimatesModule == visibleInEstimatesModule)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.createdBy, createdBy) || other.createdBy == createdBy)&&(identical(other.createdByName, createdByName) || other.createdByName == createdByName));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,id,companyId,system,subsystem,number,name,article,manufacturer,unit,quantity,price,total,objectId,contractId,contractNumber,estimateTitle,visibleInEstimatesModule);
+int get hashCode => Object.hashAll([runtimeType,id,companyId,system,subsystem,number,name,article,manufacturer,unit,quantity,price,total,objectId,contractId,contractNumber,estimateTitle,visibleInEstimatesModule,createdAt,createdBy,createdByName]);
 
 @override
 String toString() {
-  return 'Estimate(id: $id, companyId: $companyId, system: $system, subsystem: $subsystem, number: $number, name: $name, article: $article, manufacturer: $manufacturer, unit: $unit, quantity: $quantity, price: $price, total: $total, objectId: $objectId, contractId: $contractId, contractNumber: $contractNumber, estimateTitle: $estimateTitle, visibleInEstimatesModule: $visibleInEstimatesModule)';
+  return 'Estimate(id: $id, companyId: $companyId, system: $system, subsystem: $subsystem, number: $number, name: $name, article: $article, manufacturer: $manufacturer, unit: $unit, quantity: $quantity, price: $price, total: $total, objectId: $objectId, contractId: $contractId, contractNumber: $contractNumber, estimateTitle: $estimateTitle, visibleInEstimatesModule: $visibleInEstimatesModule, createdAt: $createdAt, createdBy: $createdBy, createdByName: $createdByName)';
 }
 
 
@@ -46,7 +46,7 @@ abstract mixin class $EstimateCopyWith<$Res>  {
   factory $EstimateCopyWith(Estimate value, $Res Function(Estimate) _then) = _$EstimateCopyWithImpl;
 @useResult
 $Res call({
- String id, String companyId, String system, String subsystem, String number, String name, String article, String manufacturer, String unit, double quantity, double price, double total, String? objectId, String? contractId, String? contractNumber, String? estimateTitle, bool visibleInEstimatesModule
+ String id, String companyId, String system, String subsystem, String number, String name, String article, String manufacturer, String unit, double quantity, double price, double total, String? objectId, String? contractId, String? contractNumber, String? estimateTitle, bool visibleInEstimatesModule, DateTime? createdAt, String? createdBy, String? createdByName
 });
 
 
@@ -63,7 +63,7 @@ class _$EstimateCopyWithImpl<$Res>
 
 /// Create a copy of Estimate
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? companyId = null,Object? system = null,Object? subsystem = null,Object? number = null,Object? name = null,Object? article = null,Object? manufacturer = null,Object? unit = null,Object? quantity = null,Object? price = null,Object? total = null,Object? objectId = freezed,Object? contractId = freezed,Object? contractNumber = freezed,Object? estimateTitle = freezed,Object? visibleInEstimatesModule = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? companyId = null,Object? system = null,Object? subsystem = null,Object? number = null,Object? name = null,Object? article = null,Object? manufacturer = null,Object? unit = null,Object? quantity = null,Object? price = null,Object? total = null,Object? objectId = freezed,Object? contractId = freezed,Object? contractNumber = freezed,Object? estimateTitle = freezed,Object? visibleInEstimatesModule = null,Object? createdAt = freezed,Object? createdBy = freezed,Object? createdByName = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,companyId: null == companyId ? _self.companyId : companyId // ignore: cast_nullable_to_non_nullable
@@ -82,7 +82,10 @@ as String?,contractId: freezed == contractId ? _self.contractId : contractId // 
 as String?,contractNumber: freezed == contractNumber ? _self.contractNumber : contractNumber // ignore: cast_nullable_to_non_nullable
 as String?,estimateTitle: freezed == estimateTitle ? _self.estimateTitle : estimateTitle // ignore: cast_nullable_to_non_nullable
 as String?,visibleInEstimatesModule: null == visibleInEstimatesModule ? _self.visibleInEstimatesModule : visibleInEstimatesModule // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,createdAt: freezed == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,createdBy: freezed == createdBy ? _self.createdBy : createdBy // ignore: cast_nullable_to_non_nullable
+as String?,createdByName: freezed == createdByName ? _self.createdByName : createdByName // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
@@ -93,7 +96,7 @@ as bool,
 
 
 class _Estimate extends Estimate {
-  const _Estimate({required this.id, required this.companyId, required this.system, required this.subsystem, required this.number, required this.name, required this.article, required this.manufacturer, required this.unit, required this.quantity, required this.price, required this.total, this.objectId, this.contractId, this.contractNumber, this.estimateTitle, this.visibleInEstimatesModule = true}): super._();
+  const _Estimate({required this.id, required this.companyId, required this.system, required this.subsystem, required this.number, required this.name, required this.article, required this.manufacturer, required this.unit, required this.quantity, required this.price, required this.total, this.objectId, this.contractId, this.contractNumber, this.estimateTitle, this.visibleInEstimatesModule = true, this.createdAt, this.createdBy, this.createdByName}): super._();
   
 
 @override final  String id;
@@ -113,6 +116,9 @@ class _Estimate extends Estimate {
 @override final  String? contractNumber;
 @override final  String? estimateTitle;
 @override@JsonKey() final  bool visibleInEstimatesModule;
+@override final  DateTime? createdAt;
+@override final  String? createdBy;
+@override final  String? createdByName;
 
 /// Create a copy of Estimate
 /// with the given fields replaced by the non-null parameter values.
@@ -124,16 +130,16 @@ _$EstimateCopyWith<_Estimate> get copyWith => __$EstimateCopyWithImpl<_Estimate>
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Estimate&&(identical(other.id, id) || other.id == id)&&(identical(other.companyId, companyId) || other.companyId == companyId)&&(identical(other.system, system) || other.system == system)&&(identical(other.subsystem, subsystem) || other.subsystem == subsystem)&&(identical(other.number, number) || other.number == number)&&(identical(other.name, name) || other.name == name)&&(identical(other.article, article) || other.article == article)&&(identical(other.manufacturer, manufacturer) || other.manufacturer == manufacturer)&&(identical(other.unit, unit) || other.unit == unit)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.price, price) || other.price == price)&&(identical(other.total, total) || other.total == total)&&(identical(other.objectId, objectId) || other.objectId == objectId)&&(identical(other.contractId, contractId) || other.contractId == contractId)&&(identical(other.contractNumber, contractNumber) || other.contractNumber == contractNumber)&&(identical(other.estimateTitle, estimateTitle) || other.estimateTitle == estimateTitle)&&(identical(other.visibleInEstimatesModule, visibleInEstimatesModule) || other.visibleInEstimatesModule == visibleInEstimatesModule));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Estimate&&(identical(other.id, id) || other.id == id)&&(identical(other.companyId, companyId) || other.companyId == companyId)&&(identical(other.system, system) || other.system == system)&&(identical(other.subsystem, subsystem) || other.subsystem == subsystem)&&(identical(other.number, number) || other.number == number)&&(identical(other.name, name) || other.name == name)&&(identical(other.article, article) || other.article == article)&&(identical(other.manufacturer, manufacturer) || other.manufacturer == manufacturer)&&(identical(other.unit, unit) || other.unit == unit)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.price, price) || other.price == price)&&(identical(other.total, total) || other.total == total)&&(identical(other.objectId, objectId) || other.objectId == objectId)&&(identical(other.contractId, contractId) || other.contractId == contractId)&&(identical(other.contractNumber, contractNumber) || other.contractNumber == contractNumber)&&(identical(other.estimateTitle, estimateTitle) || other.estimateTitle == estimateTitle)&&(identical(other.visibleInEstimatesModule, visibleInEstimatesModule) || other.visibleInEstimatesModule == visibleInEstimatesModule)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.createdBy, createdBy) || other.createdBy == createdBy)&&(identical(other.createdByName, createdByName) || other.createdByName == createdByName));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,id,companyId,system,subsystem,number,name,article,manufacturer,unit,quantity,price,total,objectId,contractId,contractNumber,estimateTitle,visibleInEstimatesModule);
+int get hashCode => Object.hashAll([runtimeType,id,companyId,system,subsystem,number,name,article,manufacturer,unit,quantity,price,total,objectId,contractId,contractNumber,estimateTitle,visibleInEstimatesModule,createdAt,createdBy,createdByName]);
 
 @override
 String toString() {
-  return 'Estimate(id: $id, companyId: $companyId, system: $system, subsystem: $subsystem, number: $number, name: $name, article: $article, manufacturer: $manufacturer, unit: $unit, quantity: $quantity, price: $price, total: $total, objectId: $objectId, contractId: $contractId, contractNumber: $contractNumber, estimateTitle: $estimateTitle, visibleInEstimatesModule: $visibleInEstimatesModule)';
+  return 'Estimate(id: $id, companyId: $companyId, system: $system, subsystem: $subsystem, number: $number, name: $name, article: $article, manufacturer: $manufacturer, unit: $unit, quantity: $quantity, price: $price, total: $total, objectId: $objectId, contractId: $contractId, contractNumber: $contractNumber, estimateTitle: $estimateTitle, visibleInEstimatesModule: $visibleInEstimatesModule, createdAt: $createdAt, createdBy: $createdBy, createdByName: $createdByName)';
 }
 
 
@@ -144,7 +150,7 @@ abstract mixin class _$EstimateCopyWith<$Res> implements $EstimateCopyWith<$Res>
   factory _$EstimateCopyWith(_Estimate value, $Res Function(_Estimate) _then) = __$EstimateCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String companyId, String system, String subsystem, String number, String name, String article, String manufacturer, String unit, double quantity, double price, double total, String? objectId, String? contractId, String? contractNumber, String? estimateTitle, bool visibleInEstimatesModule
+ String id, String companyId, String system, String subsystem, String number, String name, String article, String manufacturer, String unit, double quantity, double price, double total, String? objectId, String? contractId, String? contractNumber, String? estimateTitle, bool visibleInEstimatesModule, DateTime? createdAt, String? createdBy, String? createdByName
 });
 
 
@@ -161,7 +167,7 @@ class __$EstimateCopyWithImpl<$Res>
 
 /// Create a copy of Estimate
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? companyId = null,Object? system = null,Object? subsystem = null,Object? number = null,Object? name = null,Object? article = null,Object? manufacturer = null,Object? unit = null,Object? quantity = null,Object? price = null,Object? total = null,Object? objectId = freezed,Object? contractId = freezed,Object? contractNumber = freezed,Object? estimateTitle = freezed,Object? visibleInEstimatesModule = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? companyId = null,Object? system = null,Object? subsystem = null,Object? number = null,Object? name = null,Object? article = null,Object? manufacturer = null,Object? unit = null,Object? quantity = null,Object? price = null,Object? total = null,Object? objectId = freezed,Object? contractId = freezed,Object? contractNumber = freezed,Object? estimateTitle = freezed,Object? visibleInEstimatesModule = null,Object? createdAt = freezed,Object? createdBy = freezed,Object? createdByName = freezed,}) {
   return _then(_Estimate(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,companyId: null == companyId ? _self.companyId : companyId // ignore: cast_nullable_to_non_nullable
@@ -180,7 +186,10 @@ as String?,contractId: freezed == contractId ? _self.contractId : contractId // 
 as String?,contractNumber: freezed == contractNumber ? _self.contractNumber : contractNumber // ignore: cast_nullable_to_non_nullable
 as String?,estimateTitle: freezed == estimateTitle ? _self.estimateTitle : estimateTitle // ignore: cast_nullable_to_non_nullable
 as String?,visibleInEstimatesModule: null == visibleInEstimatesModule ? _self.visibleInEstimatesModule : visibleInEstimatesModule // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,createdAt: freezed == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,createdBy: freezed == createdBy ? _self.createdBy : createdBy // ignore: cast_nullable_to_non_nullable
+as String?,createdByName: freezed == createdByName ? _self.createdByName : createdByName // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
