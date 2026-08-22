@@ -58,14 +58,6 @@ class PurchaseRequestListItem {
   /// Отображаемое имя инициатора.
   String get initiatorLabel => formatUserDisplayLabel(createdByName);
 
-  /// Короткая подпись позиций для карточки.
-  String get shortItemsLabel {
-    if (itemsPreview.isEmpty) return 'Без позиций';
-    if (itemsCount <= 3) return itemsPreview;
-    final extra = itemsCount - 3;
-    return '$itemsPreview +$extra';
-  }
-
   /// Маппинг строки RPC.
   factory PurchaseRequestListItem.fromRpcRow(Map<String, dynamic> json) {
     final statusRaw = json['status'] as String?;

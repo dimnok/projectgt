@@ -112,7 +112,6 @@ class _PurchaseRequestsListScreenState
                       appearance,
                       isDark,
                       useMobile,
-                      isOwner: isOwner,
                       canCreate: canCreate && settingsConfigured,
                       showBack: useMobile && _selectedRequestId != null,
                       onBack: _closeDetails,
@@ -162,6 +161,7 @@ class _PurchaseRequestsListScreenState
                           : listState.items.isEmpty
                           ? const Center(child: Text('Нет заявок'))
                           : MobileAtmosphereMainSurface(
+                              padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
                               child: ListView.builder(
                                 padding: const EdgeInsets.only(top: 4),
                                 itemCount: listState.items.length,
@@ -207,7 +207,6 @@ class _PurchaseRequestsListScreenState
     MobileAtmosphereAppearance appearance,
     bool isDark,
     bool useMobile, {
-    required bool isOwner,
     required bool canCreate,
     bool showBack = false,
     VoidCallback? onBack,
@@ -220,33 +219,6 @@ class _PurchaseRequestsListScreenState
         onTap: () => Scaffold.of(ctx).openDrawer(),
       ),
     );
-    final themeButton = MobileAtmosphereChromeCircleButton(
-      appearance: appearance,
-      tooltip: isDark ? 'Светлая тема' : 'Тёмная тема',
-      icon: isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-      onTap: () {
-        ref
-            .read(themeSettingsProvider.notifier)
-            .setThemeMode(isDark ? ThemeMode.light : ThemeMode.dark);
-      },
-    );
-    final settingsButton = isOwner && useMobile
-        ? MobileAtmosphereChromeCircleButton(
-            appearance: appearance,
-            tooltip: 'Настройки',
-            icon: Icons.settings_outlined,
-            onTap: _openSettings,
-          )
-        : null;
-    final addButton = canCreate && useMobile
-        ? MobileAtmosphereChromeCircleButton(
-            appearance: appearance,
-            tooltip: 'Новая заявка',
-            icon: Icons.add_rounded,
-            onTap: _openCreate,
-          )
-        : null;
-
     if (useMobile) {
       return Row(
         children: [
@@ -268,15 +240,13 @@ class _PurchaseRequestsListScreenState
               ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
             ),
           ),
-          themeButton,
-          if (!showBack && settingsButton != null) ...[
-            const SizedBox(width: 8),
-            settingsButton,
-          ],
-          if (!showBack && addButton != null) ...[
-            const SizedBox(width: 8),
-            addButton,
-          ],
+          if (!showBack && canCreate)
+            MobileAtmosphereChromeCircleButton(
+              appearance: appearance,
+              tooltip: 'Новая заявка',
+              icon: Icons.add_rounded,
+              onTap: _openCreate,
+            ),
         ],
       );
     }
@@ -292,7 +262,16 @@ class _PurchaseRequestsListScreenState
           ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
         ),
         const Spacer(),
-        themeButton,
+        MobileAtmosphereChromeCircleButton(
+          appearance: appearance,
+          tooltip: isDark ? 'Светлая тема' : 'Тёмная тема',
+          icon: isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+          onTap: () {
+            ref
+                .read(themeSettingsProvider.notifier)
+                .setThemeMode(isDark ? ThemeMode.light : ThemeMode.dark);
+          },
+        ),
       ],
     );
   }

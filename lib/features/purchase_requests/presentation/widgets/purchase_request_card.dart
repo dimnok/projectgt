@@ -31,7 +31,7 @@ class PurchaseRequestCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -49,7 +49,7 @@ class PurchaseRequestCard extends StatelessWidget {
               boxShadow: style.cardShadows,
             ),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+              padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -84,13 +84,6 @@ class PurchaseRequestCard extends StatelessWidget {
                         ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    item.shortItemsLabel,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodySmall,
                   ),
                   const SizedBox(height: 8),
                   Row(
