@@ -367,7 +367,14 @@ class _VorTabTableViewState extends ConsumerState<VorTabTableView> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       alignment: Alignment.center,
-      child: Text(text, textAlign: TextAlign.center, style: style),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        softWrap: false,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: style,
+      ),
     );
   }
 
