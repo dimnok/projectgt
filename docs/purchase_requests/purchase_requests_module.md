@@ -1,7 +1,7 @@
 # Модуль Заявки на закупку (Purchase Requests)
 
 **Дата:** 22.08.2026  
-**Изменения:** mobile-реестр — в шапке нет кнопок темы и настроек (остались меню, заголовок, «+»); карточки шире (`MobileAtmosphereMainSurface` padding 8, карточка horizontal 4); из карточки убрано перечисление позиций (`shortItemsLabel` удалён). Ранее (22.08.2026): desktop-диалог «Настройка согласующих» — ширина 880 px (обход лимита Material 3 Dialog 560 px), таймлайн из 5 этапов с подсказками, компактные dropdown 340 px, подвал «Отмена» / «Сохранить». Ранее (22.08.2026): несколько участников на роли маршрута (таблица `purchase_request_route_members`); на этапе действует **любой** из списка (OR), не цепочка обязательных согласований; настройки **живые** (смена списка сразу действует на заявки в работе); авторизация RPC/RLS/UI — `purchase_request_internal_user_is_assignee`, не `current_assignee_id`; RPC `purchase_request_upsert_settings` принимает массивы `uuid[]`; уведомления следующей роли — всем участникам (`purchase_request_internal_notify_role`). Ещё ранее (16.08.2026): мобильная форма позиций; фильтры реестра по статусу; вкладки «Мои» и «На мне» удалены.
+**Изменения:** мобильная форма «Новая заявка» / правка черновика: лист снизу на всю ширину (`EmployeesLayoutUtils.useEmployeesDesktopModal` + `isDesktopSurface` — телефон в альбоме не получает центрированный диалог); позиции столбиком без серых карточек; ряд 50/50 «− кол-во +» и «ед. изм.»; «добавить»/«удалить» — круги 44×44, шаг количества — квадраты со скруглением как у `GTTextField` (16); при ≥2 позициях — подпись «Позиция N» и тонкий разделитель. Логика сохранения та же. `MobileBottomSheetContent`: опции `fillMaxHeight` / `showDragHandle` (по умолчанию выкл.). Ранее (22.08.2026): mobile-реестр — в шапке нет кнопок темы и настроек (остались меню, заголовок, «+»); карточки шире (`MobileAtmosphereMainSurface` padding 8, карточка horizontal 4); из карточки убрано перечисление позиций (`shortItemsLabel` удалён). Ранее (22.08.2026): desktop-диалог «Настройка согласующих» — ширина 880 px (обход лимита Material 3 Dialog 560 px), таймлайн из 5 этапов с подсказками, компактные dropdown 340 px, подвал «Отмена» / «Сохранить». Ранее (22.08.2026): несколько участников на роли маршрута (таблица `purchase_request_route_members`); на этапе действует **любой** из списка (OR), не цепочка обязательных согласований; настройки **живые** (смена списка сразу действует на заявки в работе); авторизация RPC/RLS/UI — `purchase_request_internal_user_is_assignee`, не `current_assignee_id`; RPC `purchase_request_upsert_settings` принимает массивы `uuid[]`; уведомления следующей роли — всем участникам (`purchase_request_internal_notify_role`). Ещё ранее (16.08.2026): мобильная форма позиций; фильтры реестра по статусу; вкладки «Мои» и «На мне» удалены.
 
 ---
 
@@ -135,7 +135,7 @@
 | `widgets/purchase_request_history_timeline.dart` | Вертикальный таймлайн истории (точка + линия, кто → что → когда) |
 | `widgets/purchase_request_card.dart` | Карточка в мобильном списке: номер, объект, дата, сумма, бейдж статуса. Превью позиций **не** показывается |
 | `widgets/purchase_request_status_badge.dart` | Общий бейдж статуса для списка и таблицы (единый стиль, `maxLines: 1`) |
-| `widgets/purchase_request_create_dialog.dart` | Создание и редактирование черновика: объект, комментарий, позиции (desktop-ряд / mobile-карточка `_PurchaseItemMobileCard`) |
+| `widgets/purchase_request_create_dialog.dart` | Создание и правка черновика: объект, комментарий, позиции. Desktop — таблица-ряд. Mobile — столбик (`_PurchaseItemMobileCard`); открытие через `useEmployeesDesktopModal` + `isDesktopSurface` |
 | `widgets/purchase_request_settings_dialog.dart` | Настройки маршрута (4 роли + режим получателя); desktop — `DesktopDialogContent` 880 px, таймлайн `_DesktopRouteStep` (5 этапов, номер + подсказка + выбранные ФИО + dropdown 340 px), подвал «Отмена» / «Сохранить»; mobile — вертикальная форма в `MobileBottomSheetContent`; мультивыбор `GTDropdown`; пользователи — `purchaseRequestCompanyUsersProvider` |
 | `widgets/purchase_request_actions_bar.dart` | Кнопки workflow; `resolvePurchaseRequestActions` (права + `isPurchaseRequestStageAssignee(settings)` + статус); `hasAny`; предупреждения submit только после `AsyncValue.hasValue` |
 | `utils/purchase_request_invoice_utils.dart` | `purchaseRequestInvoicesReadyForSubmit()`, `isPurchaseRequestInvoiceFilePreviewable()` |
@@ -220,7 +220,7 @@
 - Breakpoint — `EmployeesLayoutUtils.useEmployeesMobileList` (`shortestSide < 600`).
 - Тап по карточке — `PurchaseRequestDetailsPanel` на весь экран; **кнопка «Назад»** — в шапке `PurchaseRequestsListScreen` (не внутри панели); обёртка `MobileAtmosphereMainSurface` с `padding: EdgeInsets.zero` (отступы задаёт сама панель).
 - Фон экрана: `MobileAtmosphereBackdrop` + `Scaffold` (не `EdgeToEdgeScaffold`).
-- Форма «Новая заявка» / правка черновика: `MobileBottomSheetContent` + `fixedFooter` (кнопка создания закреплена). Позиции — карточки на всю ширину, не таблица в одну строку.
+- Форма «Новая заявка» / правка черновика: `showModalBottomSheet` на всю ширину (`useSafeArea`, `useRootNavigator`, `constraints.maxWidth = screenWidth`). Обёртка — `MobileBottomSheetContent` (высота по контенту, кнопка в `footer`). Выбор окна — `EmployeesLayoutUtils.useEmployeesDesktopModal` (телефон в любом положении — лист, не диалог). Поверхность фиксируется полем `isDesktopSurface`, чтобы узкий `Dialog`/`Sheet` не переключал вёрстку.
 - Список позиций в деталях на ширине &lt; 600 px — карточки (`_ItemsMobileList`), не колонки таблицы.
 - Логика (фильтры, создание, workflow, права) **та же**, что на desktop; отличается только UI.
 
@@ -264,10 +264,11 @@
 
 **Диалог создания:**
 
-- Ширина desktop: **980 px**. Mobile: `MobileBottomSheetContent` с закреплённой кнопкой «Создать заявку» (`fixedFooter`).
-- Desktop: каждая позиция — одна строка: наименование (flex), ед. изм. (80 px), кол-во (96 px), артикул (128 px).
-- Mobile / планшет (не desktop): каждая позиция — карточка: наименование на всю ширину, ряд «количество + ед. изм.», артикул ниже; подписи полей (`labelText`).
-- Кнопка «+» в заголовке секции позиций; «−» для удаления дополнительных строк.
+- Ширина desktop: **980 px**. Открытие: `EmployeesLayoutUtils.useEmployeesDesktopModal` (телефон в альбоме — не диалог). Поверхность задаётся `isDesktopSurface` в `PurchaseRequestCreateDialog.show`.
+- Mobile: `showModalBottomSheet` (`isScrollControlled`, `useSafeArea`, `useRootNavigator`, ширина экрана, верхнее скругление 20). Обёртка — `MobileBottomSheetContent` по высоте контента; кнопка «Создать заявку» / «Сохранить» в `footer`.
+- Desktop: каждая позиция — одна строка: наименование (flex), ед. изм. (80 px), кол-во (96 px), артикул (128 px). Кнопка «+» в заголовке секции; «−» для удаления дополнительных строк.
+- Mobile: те же поля столбиком (`GTTextField` / `GTDropdown`): объект; секция «Что нужно закупить» + круглая кнопка «+» 44×44; наименование на всю ширину; ряд **50/50** — слева «− кол-во +», справа «ед. изм.»; артикул; комментарий. Шаг количества — квадратные кнопки со скруглением **16** (как у поля). «Удалить» — круглая 44×44. При ≥2 позициях: подпись «Позиция N» и тонкий `Divider` (`outline` 12%). Одна позиция — без подписи и без разделителя.
+- Логика сохранения та же, что на desktop (`createDraft` / `updateHeader` + add/update/delete позиций).
 
 **Диалог настройки маршрута (`PurchaseRequestSettingsDialog`):**
 

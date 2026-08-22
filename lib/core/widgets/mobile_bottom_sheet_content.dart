@@ -85,6 +85,15 @@ class MobileBottomSheetContent extends StatelessWidget {
   /// ветка [scrollable] не применяется — скролл только внутри [child].
   final bool fixedFooter;
 
+  /// Растянуть лист на [maxHeightFactor] экрана, а не по высоте контента.
+  ///
+  /// Нужно для длинных мобильных форм: лист встаёт от низа экрана и не выглядит
+  /// как «карточка» по центру.
+  final bool fillMaxHeight;
+
+  /// Показать полоску-ручку над заголовком (жест «смахнуть вниз»).
+  final bool showDragHandle;
+
   /// Создаёт содержимое модального окна.
   const MobileBottomSheetContent({
     super.key,
@@ -97,6 +106,8 @@ class MobileBottomSheetContent extends StatelessWidget {
     this.maxHeightFactor = 0.92,
     this.sheetBackdrop,
     this.fixedFooter = false,
+    this.fillMaxHeight = false,
+    this.showDragHandle = false,
   });
 
   static void _unfocusKeyboard() {
@@ -117,19 +128,25 @@ class MobileBottomSheetContent extends StatelessWidget {
 
     final titleWidget = Material(
       color: Colors.transparent,
-      child: InkWell(
-        onTap: _unfocusKeyboard,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-          child: Text(
-            title,
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (showDragHandle) const _MobileSheetDragHandle(),
+          InkWell(
+            onTap: _unfocusKeyboard,
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(20, showDragHandle ? 8 : 20, 20, 0),
+              child: Text(
+                title,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
             ),
-            textAlign: TextAlign.center,
           ),
-        ),
+        ],
       ),
     );
 
@@ -144,9 +161,13 @@ class MobileBottomSheetContent extends StatelessWidget {
 
     // Оболочка по ширине листа + [Wrap], чтобы `showModalBottomSheet` с
     // `isScrollControlled: true` не растягивал высоту на весь экран без нужды.
+    // [fillMaxHeight] отключает Wrap: лист занимает доступную высоту от низа.
     Widget widthSizedSheet(Widget body) {
       return LayoutBuilder(
         builder: (context, constraints) {
+          final sheetHeight = fillMaxHeight && constraints.hasBoundedHeight
+              ? math.min(maxSheetHeight, constraints.maxHeight)
+              : null;
           final sheetBody = sheetBackdrop == null
               ? SafeArea(child: body)
               : Stack(
@@ -157,18 +178,17 @@ class MobileBottomSheetContent extends StatelessWidget {
                     SafeArea(child: body),
                   ],
                 );
-          return Wrap(
-            children: [
-              SizedBox(
-                width: constraints.maxWidth,
-                child: Container(
-                  clipBehavior: Clip.antiAlias,
-                  decoration: sheetDecoration,
-                  child: sheetBody,
-                ),
-              ),
-            ],
+          final decorated = SizedBox(
+            width: constraints.maxWidth,
+            height: sheetHeight,
+            child: Container(
+              clipBehavior: Clip.antiAlias,
+              decoration: sheetDecoration,
+              child: sheetBody,
+            ),
           );
+          if (fillMaxHeight) return decorated;
+          return Wrap(children: [decorated]);
         },
       );
     }
@@ -199,6 +219,7 @@ class MobileBottomSheetContent extends StatelessWidget {
               titleWidget: titleWidget,
               scrollPadding: padding,
               footer: footerPadded,
+              fillMaxHeight: fillMaxHeight,
               child: child,
             ),
           ),
@@ -217,7 +238,7 @@ class MobileBottomSheetContent extends StatelessWidget {
             child: CustomScrollView(
               controller: scrollController,
               primary: scrollController == null,
-              shrinkWrap: true,
+              shrinkWrap: !fillMaxHeight,
               physics: const ClampingScrollPhysics(),
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               slivers: [
@@ -288,6 +309,31 @@ class MobileBottomSheetContent extends StatelessWidget {
   }
 }
 
+/// Полоска-ручка над заголовком мобильного листа.
+class _MobileSheetDragHandle extends StatelessWidget {
+  const _MobileSheetDragHandle();
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.onSurfaceVariant;
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Center(
+        child: Semantics(
+          label: 'Закрыть свайпом вниз',
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.35),
+              borderRadius: BorderRadius.circular(2),
+            ),
+            child: const SizedBox(width: 36, height: 4),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Лист с фиксированным футером: высота по контенту, скролл только в середине.
 class _FixedFooterSheetLayout extends StatefulWidget {
   /// Создаёт раскладку «заголовок — скролл — футер».
@@ -297,6 +343,7 @@ class _FixedFooterSheetLayout extends StatefulWidget {
     required this.scrollPadding,
     required this.child,
     this.footer,
+    this.fillMaxHeight = false,
   });
 
   final double maxSheetHeight;
@@ -304,9 +351,11 @@ class _FixedFooterSheetLayout extends StatefulWidget {
   final EdgeInsetsGeometry scrollPadding;
   final Widget child;
   final Widget? footer;
+  final bool fillMaxHeight;
 
   @override
-  State<_FixedFooterSheetLayout> createState() => _FixedFooterSheetLayoutState();
+  State<_FixedFooterSheetLayout> createState() =>
+      _FixedFooterSheetLayoutState();
 }
 
 class _FixedFooterSheetLayoutState extends State<_FixedFooterSheetLayout> {
@@ -320,8 +369,7 @@ class _FixedFooterSheetLayoutState extends State<_FixedFooterSheetLayout> {
 
   void _measureChrome() {
     if (!mounted) return;
-    final titleBox =
-        _titleKey.currentContext?.findRenderObject() as RenderBox?;
+    final titleBox = _titleKey.currentContext?.findRenderObject() as RenderBox?;
     final footerBox =
         _footerKey.currentContext?.findRenderObject() as RenderBox?;
     final pad = widget.scrollPadding.resolve(Directionality.of(context));
@@ -339,6 +387,19 @@ class _FixedFooterSheetLayoutState extends State<_FixedFooterSheetLayout> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.fillMaxHeight) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          widget.titleWidget,
+          Expanded(
+            child: Padding(padding: widget.scrollPadding, child: widget.child),
+          ),
+          if (widget.footer != null) widget.footer!,
+        ],
+      );
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) => _measureChrome());
 
     final maxBody = math.max(
