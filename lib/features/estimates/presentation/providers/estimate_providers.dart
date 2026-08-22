@@ -35,6 +35,9 @@ class EstimateFile {
   /// Количество позиций в смете.
   final int itemsCount;
 
+  /// Процент выполнения сметы по объёму (факт / план × 100).
+  final double completionPercent;
+
   /// Список элементов сметы.
   final List<Estimate> items;
 
@@ -46,6 +49,7 @@ class EstimateFile {
     this.contractNumber,
     this.total = 0.0,
     this.itemsCount = 0,
+    this.completionPercent = 0.0,
     this.items = const [],
   });
 }
@@ -84,6 +88,7 @@ final estimateGroupsProvider = FutureProvider.autoDispose<List<EstimateFile>>((
         contractNumber: g['contract_number'] as String?,
         total: (g['total_amount'] as num).toDouble(),
         itemsCount: (g['items_count'] as int?) ?? 0,
+        completionPercent: (g['completion_percent'] as num?)?.toDouble() ?? 0.0,
         items: [], // Items загружаются отдельно при открытии
       );
     }).toList();
@@ -359,9 +364,7 @@ final contractVorCompletionProvider = FutureProvider.autoDispose
         if (page.isEmpty) {
           break;
         }
-        vorItemsResponse.addAll(
-          page.cast<Map<String, dynamic>>(),
-        );
+        vorItemsResponse.addAll(page.cast<Map<String, dynamic>>());
         if (page.length < pageSize) {
           break;
         }

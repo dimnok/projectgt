@@ -546,8 +546,7 @@ class _EstimateDesktopViewState extends ConsumerState<EstimateDesktopView>
 
         // 2. Фильтр по подсистеме
         if (activeSubsystemFilter != null &&
-            estimateSubsystemFilterLabel(item) !=
-                activeSubsystemFilter) {
+            estimateSubsystemFilterLabel(item) != activeSubsystemFilter) {
           return false;
         }
 
@@ -1262,7 +1261,34 @@ class _EstimateListTile extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    if (canDelete)
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: theme.colorScheme.primary.withValues(
+                            alpha: 0.2,
+                          ),
+                        ),
+                      ),
+                      child: Text(
+                        formatPercentage(
+                          file.completionPercent,
+                          decimalDigits: 1,
+                        ),
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    if (canDelete) ...[
+                      const SizedBox(width: 8),
                       IconButton(
                         icon: Icon(
                           CupertinoIcons.trash,
@@ -1273,6 +1299,7 @@ class _EstimateListTile extends StatelessWidget {
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                       ),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 4),
